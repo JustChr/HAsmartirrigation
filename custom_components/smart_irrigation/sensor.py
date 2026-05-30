@@ -61,6 +61,10 @@ async def async_setup_entry(
             delta=config[const.ZONE_DELTA],
             drainage_rate=config[const.ZONE_DRAINAGE_RATE],
             current_drainage=config[const.ZONE_CURRENT_DRAINAGE],
+            multiplier=config.get(const.ZONE_MULTIPLIER, 1.0),
+            lead_time=config.get(const.ZONE_LEAD_TIME, 0),
+            maximum_duration=config.get(const.ZONE_MAXIMUM_DURATION, 0),
+            maximum_bucket=config.get(const.ZONE_MAXIMUM_BUCKET),
         )
         if const.DOMAIN in hass.data:
             if not check_zone_entity_in_hass_data(hass, entity_id):
@@ -108,6 +112,10 @@ class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
         delta: float,
         drainage_rate: float,
         current_drainage: float,
+        multiplier: float = 1.0,
+        lead_time: int = 0,
+        maximum_duration: int = 0,
+        maximum_bucket: float | None = None,
     ) -> None:
         """Initialize the sensor entity."""
         self._hass = hass
@@ -139,9 +147,11 @@ class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
         self._number_of_data_points = number_of_data_points
         self._delta = delta
         self._drainage_rate = drainage_rate
-        self._current_drainage = (
-            current_drainage  # Cache formatted timestamps for performance
-        )
+        self._current_drainage = current_drainage
+        self._multiplier = multiplier
+        self._lead_time = lead_time
+        self._maximum_duration = maximum_duration
+        self._maximum_bucket = maximum_bucket
         self._last_updated_formatted = self._format_timestamp(self._last_updated)
         self._last_calculated_formatted = self._format_timestamp(self._last_calculated)
 
@@ -200,6 +210,10 @@ class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
             self._delta = zone["delta"]
             self._drainage_rate = zone["drainage_rate"]
             self._current_drainage = zone["current_drainage"]
+            self._multiplier = zone.get(const.ZONE_MULTIPLIER, 1.0)
+            self._lead_time = zone.get(const.ZONE_LEAD_TIME, 0)
+            self._maximum_duration = zone.get(const.ZONE_MAXIMUM_DURATION, 0)
+            self._maximum_bucket = zone.get(const.ZONE_MAXIMUM_BUCKET)
 
             # Update cached formatted timestamps for performance
             self._last_updated_formatted = self._format_timestamp(self._last_updated)
@@ -323,6 +337,10 @@ class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
             "last_calculated": self._last_calculated_formatted,
             "number_of_data_points": self._number_of_data_points,
             "et_value": self._delta,
+            "multiplier": self._multiplier,
+            "lead_time": self._lead_time,
+            "maximum_duration": self._maximum_duration,
+            "maximum_bucket": self._maximum_bucket,
             # asyncio.run_coroutine_threadsafe(
             #    localize("common.attributes.size", "en"), self._hass.loop
             # ).result(): self._size,
