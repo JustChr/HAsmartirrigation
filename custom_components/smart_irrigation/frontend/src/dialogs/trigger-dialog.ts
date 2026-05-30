@@ -26,31 +26,8 @@ export interface TriggerDialogParams {
 @customElement("trigger-dialog")
 export class TriggerDialog extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
-
-  //@state() private _params?: TriggerDialogParams;
   @property({ attribute: false }) public params?: TriggerDialogParams;
   @state() private _trigger?: IrrigationStartTrigger;
-
-  /*public async showDialog(params: TriggerDialogParams): Promise<void> {
-    this._params = params;
-
-    // Initialize trigger data
-    if (params.createTrigger) {
-      this._trigger = {
-        type: TRIGGER_TYPE_SUNRISE,
-        name: "",
-        enabled: true,
-        offset_minutes: 0,
-        azimuth_angle: 90,
-        account_for_duration: true,
-      };
-    } else if (params.trigger) {
-      this._trigger = { ...params.trigger };
-    }
-
-    await this.updateComplete;
-  }
-  */
 
   public async showDialog(params: TriggerDialogParams): Promise<void> {
     this.params = params;
@@ -65,7 +42,6 @@ export class TriggerDialog extends LitElement {
         account_for_duration: true,
       };
     } else if (params.trigger) {
-      // Defensive: fill in missing fields for editing
       const t = params.trigger;
       this._trigger =
         t.type === TRIGGER_TYPE_SOLAR_AZIMUTH
@@ -88,8 +64,6 @@ export class TriggerDialog extends LitElement {
       this._trigger = undefined;
     }
 
-    console.log("showDialog _trigger:", this._trigger);
-
     await this.updateComplete;
   }
 
@@ -101,32 +75,6 @@ export class TriggerDialog extends LitElement {
   private _saveTrigger() {
     if (!this._trigger || !this.params) return;
 
-    // Ensure select value is captured (guards against event-order/race conditions)
-    const sel = this.shadowRoot?.querySelector("ha-select") as any | null;
-    if (sel) {
-      const selValue = sel.value ?? (sel as any).selected ?? undefined;
-      if (selValue && selValue !== this._trigger.type) {
-        // preserve fields sensibly when switching types
-        if (selValue === TRIGGER_TYPE_SOLAR_AZIMUTH) {
-          this._trigger = {
-            ...this._trigger,
-            type: selValue,
-            azimuth_angle: this._trigger.azimuth_angle ?? 90,
-          };
-        } else {
-          // remove azimuth when switching away from azimuth type
-          const { azimuth_angle, ...rest } = this._trigger as any;
-          this._trigger = {
-            ...rest,
-            type: selValue,
-          } as IrrigationStartTrigger;
-        }
-        this.requestUpdate();
-        console.log("SYNCED _trigger from select before save:", this._trigger);
-      }
-    }
-
-    // Validate trigger data
     if (!this._trigger.name?.trim()) {
       alert(
         localize(
@@ -150,16 +98,10 @@ export class TriggerDialog extends LitElement {
         );
         return;
       }
-      // Normalize azimuth angle to 0-360 range for display purposes
-      this._trigger.azimuth_angle = this._trigger.azimuth_angle % 360;
-      if (this._trigger.azimuth_angle < 0) {
-        this._trigger.azimuth_angle += 360;
-      }
+      let angle = this._trigger.azimuth_angle % 360;
+      if (angle < 0) angle += 360;
+      this._trigger.azimuth_angle = angle;
     }
-    console.log("DISPATCH: trigger-save", this._trigger, {
-      isNew: this.params?.createTrigger,
-      index: this.params?.triggerIndex,
-    });
 
     this.dispatchEvent(
       new CustomEvent("trigger-save", {
@@ -179,12 +121,9 @@ export class TriggerDialog extends LitElement {
   private _deleteTrigger() {
     if (!this.params || this.params.createTrigger) return;
 
-    // Dispatch delete event
     this.dispatchEvent(
       new CustomEvent("trigger-delete", {
-        detail: {
-          index: this.params.triggerIndex,
-        },
+        detail: { index: this.params.triggerIndex },
         bubbles: true,
         composed: true,
       }),
@@ -194,17 +133,12 @@ export class TriggerDialog extends LitElement {
   }
 
   private _updateTrigger(changes: Partial<IrrigationStartTrigger>) {
-    if (!this._trigger) {
-      // Defensive: if _trigger is missing, do nothing
-      console.warn("_updateTrigger called with undefined _trigger", changes);
-      return;
-    }
+    if (!this._trigger) return;
     this._trigger = { ...this._trigger, ...changes };
     this.requestUpdate();
   }
 
   render() {
-    console.log("RENDER: _trigger", this._trigger);
     if (!this.params || !this._trigger) return html``;
 
     const isCreate = this.params.createTrigger;
@@ -219,14 +153,21 @@ export class TriggerDialog extends LitElement {
         );
 
     return html`
-      <ha-dialog open .heading=${true}>
-        <div slot="heading" class="dialog-header-bar">
-          <ha-icon-button
-            dialogAction="cancel"
-            .path=${mdiClose}
-            class="dialog-close"
-          ></ha-icon-button>
-          <span class="dialog-header">${title}</span>
+      <ha-dialog
+        open
+        .heading=${true}
+        @closed=${this._closeDialog}
+        @close-dialog=${this._closeDialog}
+      >
+        <div slot="heading">
+          <ha-header-bar>
+            <ha-icon-button
+              slot="navigationIcon"
+              dialogAction="cancel"
+              .path=${mdiClose}
+            ></ha-icon-button>
+            <span slot="title">${title}</span>
+          </ha-header-bar>
         </div>
 
         <div class="wrapper">
@@ -249,26 +190,26 @@ export class TriggerDialog extends LitElement {
                 this.hass.language,
               )}
               .value=${this._trigger.type}
-              @selected=${this._typeChanged}
+              @value-changed=${this._typeChanged}
             >
-              <ha-dropdown-item value=${TRIGGER_TYPE_SUNRISE}>
+              <ha-list-item value=${TRIGGER_TYPE_SUNRISE}>
                 ${localize(
                   "irrigation_start_triggers.trigger_types.sunrise",
                   this.hass.language,
                 )}
-              </ha-dropdown-item>
-              <ha-dropdown-item value=${TRIGGER_TYPE_SUNSET}>
+              </ha-list-item>
+              <ha-list-item value=${TRIGGER_TYPE_SUNSET}>
                 ${localize(
                   "irrigation_start_triggers.trigger_types.sunset",
                   this.hass.language,
                 )}
-              </ha-dropdown-item>
-              <ha-dropdown-item value=${TRIGGER_TYPE_SOLAR_AZIMUTH}>
+              </ha-list-item>
+              <ha-list-item value=${TRIGGER_TYPE_SOLAR_AZIMUTH}>
                 ${localize(
                   "irrigation_start_triggers.trigger_types.solar_azimuth",
                   this.hass.language,
                 )}
-              </ha-dropdown-item>
+              </ha-list-item>
             </ha-select>
           </div>
 
@@ -342,6 +283,7 @@ export class TriggerDialog extends LitElement {
             slot="secondaryAction"
             appearance="plain"
             @click=${this._closeDialog}
+            dialogAction="cancel"
           >
             ${localize(
               "irrigation_start_triggers.dialog.cancel",
@@ -353,8 +295,8 @@ export class TriggerDialog extends LitElement {
                 <ha-button
                   slot="secondaryAction"
                   appearance="plain"
-                  variant="danger"
                   @click=${this._deleteTrigger}
+                  dialogAction="close"
                 >
                   ${localize(
                     "irrigation_start_triggers.dialog.delete",
@@ -367,6 +309,7 @@ export class TriggerDialog extends LitElement {
             slot="primaryAction"
             appearance="accent"
             @click=${this._saveTrigger}
+            dialogAction="close"
           >
             ${localize(
               "irrigation_start_triggers.dialog.save",
@@ -379,29 +322,15 @@ export class TriggerDialog extends LitElement {
   }
 
   private _nameChanged(event: Event) {
-    const target = event.target as HTMLInputElement;
-    this._updateTrigger({ name: target.value });
+    this._updateTrigger({ name: (event.target as HTMLInputElement).value });
   }
 
   private _typeChanged(event: CustomEvent) {
-    // Accept value from event detail, event target, or the rendered ha-select as fallback
-    const maybeValue =
-      event?.detail?.value ??
-      (event.target as any)?.value ??
-      (this.shadowRoot?.querySelector("ha-select") as any)?.value;
-    const newType = String(maybeValue) as TriggerType;
-
-    console.log(
-      "TYPE CHANGED: newType",
-      newType,
-      "old _trigger",
-      this._trigger,
-    );
-
-    let newTrigger: IrrigationStartTrigger;
+    const newType = String(event.detail.value) as TriggerType;
+    if (!newType) return;
 
     if (newType === TRIGGER_TYPE_SOLAR_AZIMUTH) {
-      newTrigger = {
+      this._trigger = {
         type: TRIGGER_TYPE_SOLAR_AZIMUTH,
         name: this._trigger?.name ?? "",
         enabled: this._trigger?.enabled ?? true,
@@ -410,7 +339,7 @@ export class TriggerDialog extends LitElement {
         account_for_duration: this._trigger?.account_for_duration ?? true,
       };
     } else {
-      newTrigger = {
+      this._trigger = {
         type: newType,
         name: this._trigger?.name ?? "",
         enabled: this._trigger?.enabled ?? true,
@@ -418,31 +347,30 @@ export class TriggerDialog extends LitElement {
         account_for_duration: this._trigger?.account_for_duration ?? true,
       };
     }
-
-    this._trigger = newTrigger;
-    console.log("NEW _trigger", this._trigger);
     this.requestUpdate();
   }
 
   private _enabledChanged(event: Event) {
-    const target = event.target as HTMLInputElement;
-    this._updateTrigger({ enabled: target.checked });
+    this._updateTrigger({
+      enabled: (event.target as HTMLInputElement).checked,
+    });
   }
 
   private _offsetChanged(event: Event) {
-    const target = event.target as HTMLInputElement;
-    this._updateTrigger({ offset_minutes: parseInt(target.value) || 0 });
+    this._updateTrigger({
+      offset_minutes: parseInt((event.target as HTMLInputElement).value) || 0,
+    });
   }
 
   private _accountForDurationChanged(event: Event) {
-    const target = event.target as HTMLInputElement;
-    this._updateTrigger({ account_for_duration: target.checked });
+    this._updateTrigger({
+      account_for_duration: (event.target as HTMLInputElement).checked,
+    });
   }
 
   private _azimuthChanged(event: Event) {
     if (this._trigger?.type !== TRIGGER_TYPE_SOLAR_AZIMUTH) return;
-    const target = event.target as HTMLInputElement;
-    let value = parseInt(target.value, 10);
+    let value = parseInt((event.target as HTMLInputElement).value, 10);
     if (isNaN(value)) value = 90;
     this._updateTrigger({ azimuth_angle: value });
   }
@@ -454,48 +382,18 @@ export class TriggerDialog extends LitElement {
         .wrapper {
           color: var(--primary-text-color);
         }
-
-        .warning {
-          --mdc-theme-primary: var(--error-color);
-        }
-
         .form-group {
           margin-bottom: 16px;
         }
-
         .form-group:last-child {
           margin-bottom: 0;
         }
-
         ha-textfield,
         ha-select {
           width: 100%;
         }
-
         ha-formfield {
           width: 100%;
-        }
-        .dialog-header-bar {
-          display: flex;
-          align-items: center;
-          padding: 0 24px 0 8px;
-          min-height: 56px;
-          border-bottom: 1px solid var(--divider-color, #e0e0e0);
-          background: var(
-            --dialog-header-background,
-            var(--card-background-color)
-          );
-        }
-        .dialog-header {
-          font-size: 1.25rem;
-          font-weight: 500;
-          color: var(--primary-text-color);
-          flex: 1;
-          text-align: left;
-          margin-left: 8px;
-        }
-        .dialog-close {
-          margin-right: 8px;
         }
       `,
     ];
