@@ -1,6 +1,6 @@
 """Store constants."""
 
-VERSION = "v2026.05.00"
+VERSION = "v2026.05.01"
 NAME = "Smart Irrigation"
 MANUFACTURER = "@JustChr"
 
