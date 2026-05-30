@@ -2845,8 +2845,6 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                         _LOGGER.info(
                             "Irrigation start event skipped due to forecasted precipitation"
                         )
-                        # Still increment days counter even if skipped due to precipitation
-                        await self._increment_days_since_irrigation()
                         return
 
                     # Check days between irrigation
@@ -2855,8 +2853,6 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                         _LOGGER.info(
                             "Irrigation start event skipped due to insufficient days since last irrigation"
                         )
-                        # Increment days counter when skipped due to days restriction
-                        await self._increment_days_since_irrigation()
                         return
 
                     # Fire the event

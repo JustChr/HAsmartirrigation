@@ -6694,10 +6694,12 @@
               min="0"
               max="365"
               step="1"
+              inputmode="numeric"
               .value="${this.config.days_between_irrigation || 0}"
               @input=${e => {
-        this.handleConfigChange({
-          days_between_irrigation: parseInt(e.target.value)
+        const t = e.target.valueAsNumber;
+        isNaN(t) || this.handleConfigChange({
+          days_between_irrigation: Math.round(t)
         });
       }}
             />

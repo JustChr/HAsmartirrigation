@@ -1250,13 +1250,14 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
               min="0"
               max="365"
               step="1"
+              inputmode="numeric"
               .value="${this.config.days_between_irrigation || 0}"
               @input=${(e: Event) => {
-                this.handleConfigChange({
-                  days_between_irrigation: parseInt(
-                    (e.target as HTMLInputElement).value,
-                  ),
-                });
+                const v = (e.target as HTMLInputElement).valueAsNumber;
+                if (!isNaN(v))
+                  this.handleConfigChange({
+                    days_between_irrigation: Math.round(v),
+                  });
               }}
             />
           </div>
