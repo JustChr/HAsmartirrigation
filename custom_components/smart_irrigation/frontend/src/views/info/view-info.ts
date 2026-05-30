@@ -7,6 +7,7 @@ import {
   fetchConfig,
   fetchIrrigationInfo,
   fetchZones,
+  irrigateNow,
 } from "../../data/websockets";
 import { SubscribeMixin } from "../../subscribe-mixin";
 
@@ -135,8 +136,46 @@ class SmartIrrigationViewInfo extends SubscribeMixin(LitElement) {
         </div>
       </ha-card>
 
-      ${this.renderZoneBucketsCard()} ${this.renderNextIrrigationCard()}
-      ${this.renderIrrigationReasonCard()}
+      ${this.renderIrrigateNowCard()} ${this.renderZoneBucketsCard()}
+      ${this.renderNextIrrigationCard()} ${this.renderIrrigationReasonCard()}
+    `;
+  }
+
+  private renderIrrigateNowCard(): TemplateResult {
+    if (!this.hass) return html``;
+    const hasLinkedZones = this.zones.some(
+      (z) => z.linked_entity && (z.duration ?? 0) > 0,
+    );
+    return html`
+      <ha-card
+        header="${localize("panels.info.cards.irrigate_now.title", this.hass.language)}"
+      >
+        <div class="card-content">
+          ${localize("panels.info.cards.irrigate_now.description", this.hass.language)}
+        </div>
+        <div class="card-content">
+          <button
+            class="irrigate-btn"
+            ?disabled="${!hasLinkedZones}"
+            @click=${() => {
+              if (!this.hass) return;
+              irrigateNow(this.hass).catch((e) =>
+                console.error("irrigate_now failed", e),
+              );
+            }}
+          >
+            ${localize("panels.info.cards.irrigate_now.button_all", this.hass.language)}
+          </button>
+          ${!hasLinkedZones
+            ? html`<span class="irrigate-note"
+                >${localize(
+                  "panels.info.cards.irrigate_now.no_linked_zones",
+                  this.hass.language,
+                )}</span
+              >`
+            : ""}
+        </div>
+      </ha-card>
     `;
   }
 
@@ -494,6 +533,26 @@ class SmartIrrigationViewInfo extends SubscribeMixin(LitElement) {
         .zone-duration {
           flex: 1;
         }
+      }
+
+      .irrigate-btn {
+        padding: 8px 20px;
+        background: var(--primary-color);
+        color: var(--text-primary-color, #fff);
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      .irrigate-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .irrigate-note {
+        display: block;
+        margin-top: 8px;
+        color: var(--secondary-text-color);
+        font-size: 0.875rem;
       }
     `;
   }

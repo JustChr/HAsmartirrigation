@@ -600,6 +600,19 @@ class SmartIrrigationWateringCalendarView(HomeAssistantView):
             return self.json({"error": str(e)}, status_code=500)
 
 
+@async_response
+async def websocket_irrigate_now(hass: HomeAssistant, connection, msg):
+    """Trigger immediate irrigation for all zones or a single zone, bypassing skip conditions."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    zone_id = msg.get("zone_id")
+    try:
+        await coordinator.async_irrigate_now(zone_id=zone_id)
+        connection.send_result(msg["id"], {"success": True})
+    except Exception as e:
+        _LOGGER.error("Error triggering irrigate now: %s", e)
+        connection.send_result(msg["id"], {"success": False, "error": str(e)})
+
+
 async def async_register_websockets(hass: HomeAssistant):
     """Register Smart Irrigation HTTP views and websocket commands."""
     hass.http.register_view(SmartIrrigationConfigView)
@@ -678,6 +691,17 @@ async def async_register_websockets(hass: HomeAssistant):
         websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
             {
                 vol.Required("type"): const.DOMAIN + "/watering_calendar",
+                vol.Optional("zone_id"): vol.Coerce(str),
+            }
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/irrigate_now",
+        websocket_irrigate_now,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/irrigate_now",
                 vol.Optional("zone_id"): vol.Coerce(str),
             }
         ),

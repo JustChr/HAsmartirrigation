@@ -22,6 +22,19 @@ CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION = False
 CONF_PRECIPITATION_THRESHOLD_MM = "precipitation_threshold_mm"
 CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM = 2.0  # 2mm threshold
 
+CONF_SKIP_TEMP_ENABLED = "skip_on_temp_enabled"
+CONF_TEMP_THRESHOLD = "temp_threshold"  # °C — skip if temperature is BELOW this
+CONF_DEFAULT_SKIP_TEMP_ENABLED = False
+CONF_DEFAULT_TEMP_THRESHOLD = 5.0  # °C
+
+CONF_SKIP_WIND_ENABLED = "skip_on_wind_enabled"
+CONF_WIND_THRESHOLD = "wind_threshold"  # m/s — skip if wind is ABOVE this
+CONF_DEFAULT_SKIP_WIND_ENABLED = False
+CONF_DEFAULT_WIND_THRESHOLD = 6.9  # m/s (~25 km/h)
+
+CONF_RAIN_SENSOR = "rain_sensor"  # entity_id of a binary_sensor; None = disabled
+CONF_DEFAULT_RAIN_SENSOR = None
+
 # Days between irrigation configuration
 CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation"
 CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION = 0  # 0 = no restriction (default behavior)

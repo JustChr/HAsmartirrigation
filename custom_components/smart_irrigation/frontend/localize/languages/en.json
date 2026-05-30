@@ -180,6 +180,12 @@
             "explanation": "Explanation"
           },
           "no-data": "No data available"
+        },
+        "irrigate_now": {
+          "title": "Irrigate Now",
+          "description": "Immediately start irrigation for all zones that have a linked entity. Skip conditions are ignored.",
+          "button_all": "Run all zones now",
+          "no_linked_zones": "No zones have a linked switch/valve entity with a calculated duration."
         }
       }
     },
@@ -335,7 +341,8 @@
         "data-number-of-data-points": "Number of data points",
         "drainage_rate": "Drainage rate",
         "linked_entity": "Linked switch/valve entity",
-        "linked_entity_placeholder": "e.g. switch.garden_valve"
+        "linked_entity_placeholder": "e.g. switch.garden_valve",
+        "irrigate_now": "Irrigate Now"
       },
       "no_items": "There are no zones defined yet.",
       "title": "Zones"
@@ -401,10 +408,17 @@
     }
   },
   "weather_skip": {
-    "title": "Weather-based Irrigation Skip",
-    "description": "Automatically skip irrigation when precipitation is forecasted. This feature requires a weather service to be configured.",
+    "title": "Skip Conditions",
+    "description": "Automatically skip irrigation when conditions are unfavorable. Precipitation check requires a weather service. Temperature and wind checks also require a weather service.",
     "threshold_label": "Precipitation Threshold",
-    "threshold_description": "Minimum amount of precipitation (in mm) forecasted for today and tomorrow to skip irrigation."
+    "threshold_description": "Minimum amount of precipitation (in mm) forecasted for today and tomorrow to skip irrigation.",
+    "temp_section_title": "Skip on low temperature",
+    "temp_threshold_label": "Skip if temperature is below",
+    "wind_section_title": "Skip on high wind speed",
+    "wind_threshold_label": "Skip if wind speed is above",
+    "rain_sensor_section_title": "Skip on rain sensor",
+    "rain_sensor_label": "Rain sensor entity (optional)",
+    "rain_sensor_placeholder": "e.g. binary_sensor.rain"
   },
   "coordinate_config": {
     "title": "Location Coordinates",

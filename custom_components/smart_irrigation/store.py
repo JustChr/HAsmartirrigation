@@ -42,23 +42,33 @@ from .const import (
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
+    CONF_DEFAULT_RAIN_SENSOR,
     CONF_DEFAULT_RECURRING_SCHEDULES,
     CONF_DEFAULT_SEASONAL_ADJUSTMENTS,
     CONF_DEFAULT_SENSOR_DEBOUNCE,
     CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION,
+    CONF_DEFAULT_SKIP_TEMP_ENABLED,
+    CONF_DEFAULT_SKIP_WIND_ENABLED,
+    CONF_DEFAULT_TEMP_THRESHOLD,
     CONF_DEFAULT_USE_WEATHER_SERVICE,
     CONF_DEFAULT_WEATHER_SERVICE,
+    CONF_DEFAULT_WIND_THRESHOLD,
     CONF_DEFAULT_ZONE_SEQUENCING,
     CONF_IMPERIAL,
     CONF_IRRIGATION_START_TRIGGERS,
     CONF_METRIC,
     CONF_PRECIPITATION_THRESHOLD_MM,
+    CONF_RAIN_SENSOR,
     CONF_SENSOR_DEBOUNCE,
     CONF_SKIP_IRRIGATION_ON_PRECIPITATION,
+    CONF_SKIP_TEMP_ENABLED,
+    CONF_SKIP_WIND_ENABLED,
+    CONF_TEMP_THRESHOLD,
     CONF_UNITS,
     CONF_USE_WEATHER_SERVICE,
     CONF_WEATHER_SERVICE,
     CONF_WEATHER_SERVICE_OWM,
+    CONF_WIND_THRESHOLD,
     CONF_ZONE_SEQUENCING,
     DOMAIN,
     MAPPING_CONF_SENSOR,
@@ -219,6 +229,11 @@ class Config:
     seasonal_adjustments = attr.ib(type=list, default=CONF_DEFAULT_SEASONAL_ADJUSTMENTS)
     recurring_schedules = attr.ib(type=list, default=CONF_DEFAULT_RECURRING_SCHEDULES)
     zone_sequencing = attr.ib(type=str, default=CONF_DEFAULT_ZONE_SEQUENCING)
+    skip_on_temp_enabled = attr.ib(type=bool, default=CONF_DEFAULT_SKIP_TEMP_ENABLED)
+    temp_threshold = attr.ib(type=float, default=CONF_DEFAULT_TEMP_THRESHOLD)
+    skip_on_wind_enabled = attr.ib(type=bool, default=CONF_DEFAULT_SKIP_WIND_ENABLED)
+    wind_threshold = attr.ib(type=float, default=CONF_DEFAULT_WIND_THRESHOLD)
+    rain_sensor = attr.ib(type=str, default=CONF_DEFAULT_RAIN_SENSOR)
 
 
 class MigratableStore(Store):
@@ -311,6 +326,16 @@ class MigratableStore(Store):
                 ] = CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION
             if CONF_ZONE_SEQUENCING not in data["config"]:
                 data["config"][CONF_ZONE_SEQUENCING] = CONF_DEFAULT_ZONE_SEQUENCING
+            if CONF_SKIP_TEMP_ENABLED not in data["config"]:
+                data["config"][CONF_SKIP_TEMP_ENABLED] = CONF_DEFAULT_SKIP_TEMP_ENABLED
+            if CONF_TEMP_THRESHOLD not in data["config"]:
+                data["config"][CONF_TEMP_THRESHOLD] = CONF_DEFAULT_TEMP_THRESHOLD
+            if CONF_SKIP_WIND_ENABLED not in data["config"]:
+                data["config"][CONF_SKIP_WIND_ENABLED] = CONF_DEFAULT_SKIP_WIND_ENABLED
+            if CONF_WIND_THRESHOLD not in data["config"]:
+                data["config"][CONF_WIND_THRESHOLD] = CONF_DEFAULT_WIND_THRESHOLD
+            if CONF_RAIN_SENSOR not in data["config"]:
+                data["config"][CONF_RAIN_SENSOR] = CONF_DEFAULT_RAIN_SENSOR
 
             # Get valid field names from Config class to filter out unrecognized keys
             valid_fields = set(attr.fields_dict(Config).keys())
@@ -440,6 +465,26 @@ class SmartIrrigationStorage:
                 zone_sequencing=data["config"].get(
                     CONF_ZONE_SEQUENCING,
                     CONF_DEFAULT_ZONE_SEQUENCING,
+                ),
+                skip_on_temp_enabled=data["config"].get(
+                    CONF_SKIP_TEMP_ENABLED,
+                    CONF_DEFAULT_SKIP_TEMP_ENABLED,
+                ),
+                temp_threshold=data["config"].get(
+                    CONF_TEMP_THRESHOLD,
+                    CONF_DEFAULT_TEMP_THRESHOLD,
+                ),
+                skip_on_wind_enabled=data["config"].get(
+                    CONF_SKIP_WIND_ENABLED,
+                    CONF_DEFAULT_SKIP_WIND_ENABLED,
+                ),
+                wind_threshold=data["config"].get(
+                    CONF_WIND_THRESHOLD,
+                    CONF_DEFAULT_WIND_THRESHOLD,
+                ),
+                rain_sensor=data["config"].get(
+                    CONF_RAIN_SENSOR,
+                    CONF_DEFAULT_RAIN_SENSOR,
                 ),
             )
 

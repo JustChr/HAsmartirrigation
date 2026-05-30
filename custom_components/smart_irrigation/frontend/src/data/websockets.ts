@@ -173,3 +173,13 @@ export const fetchWateringCalendar = (
     type: DOMAIN + "/watering_calendar",
     zone_id: zone_id,
   });
+
+// Trigger immediate irrigation (bypasses all skip conditions)
+export const irrigateNow = (
+  hass: HomeAssistant,
+  zone_id?: string,
+): Promise<any> =>
+  hass.callWS({
+    type: DOMAIN + "/irrigate_now",
+    ...(zone_id !== undefined ? { zone_id } : {}),
+  });

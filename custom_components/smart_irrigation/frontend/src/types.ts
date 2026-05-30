@@ -40,6 +40,11 @@ export class SmartIrrigationConfig {
   manual_elevation?: number;
   days_between_irrigation: number;
   zone_sequencing: string;
+  skip_on_temp_enabled: boolean;
+  temp_threshold: number;
+  skip_on_wind_enabled: boolean;
+  wind_threshold: number;
+  rain_sensor?: string | null;
 
   constructor() {
     this.calctime = "23:00";
@@ -64,6 +69,11 @@ export class SmartIrrigationConfig {
     this.manual_elevation = undefined;
     this.days_between_irrigation = 0;
     this.zone_sequencing = "parallel";
+    this.skip_on_temp_enabled = false;
+    this.temp_threshold = 5.0;
+    this.skip_on_wind_enabled = false;
+    this.wind_threshold = 6.9;
+    this.rain_sensor = null;
   }
 }
 

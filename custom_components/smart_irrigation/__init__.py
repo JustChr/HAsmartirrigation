@@ -2752,6 +2752,89 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
 
         return False
 
+    async def _check_temp_threshold(self) -> bool:
+        """Return True if temperature is below the configured threshold (skip irrigation)."""
+        config = await self.store.async_get_config()
+        if not config.get(
+            const.CONF_SKIP_TEMP_ENABLED, const.CONF_DEFAULT_SKIP_TEMP_ENABLED
+        ):
+            return False
+        threshold = config.get(
+            const.CONF_TEMP_THRESHOLD, const.CONF_DEFAULT_TEMP_THRESHOLD
+        )
+        if self._WeatherServiceClient is None:
+            _LOGGER.debug("No weather client — skipping temperature check")
+            return False
+        try:
+            data = await self.hass.async_add_executor_job(
+                self._WeatherServiceClient.get_data
+            )
+            if not data:
+                return False
+            temp = data.get(const.MAPPING_TEMPERATURE)
+            if temp is None:
+                return False
+            if temp < threshold:
+                _LOGGER.info(
+                    "Skipping irrigation: temperature %.1f°C < threshold %.1f°C",
+                    temp,
+                    threshold,
+                )
+                return True
+        except Exception as e:
+            _LOGGER.warning("Error checking temperature threshold: %s", e)
+        return False
+
+    async def _check_wind_threshold(self) -> bool:
+        """Return True if wind speed is above the configured threshold (skip irrigation)."""
+        config = await self.store.async_get_config()
+        if not config.get(
+            const.CONF_SKIP_WIND_ENABLED, const.CONF_DEFAULT_SKIP_WIND_ENABLED
+        ):
+            return False
+        threshold = config.get(
+            const.CONF_WIND_THRESHOLD, const.CONF_DEFAULT_WIND_THRESHOLD
+        )
+        if self._WeatherServiceClient is None:
+            _LOGGER.debug("No weather client — skipping wind check")
+            return False
+        try:
+            data = await self.hass.async_add_executor_job(
+                self._WeatherServiceClient.get_data
+            )
+            if not data:
+                return False
+            wind = data.get(const.MAPPING_WINDSPEED)
+            if wind is None:
+                return False
+            if wind > threshold:
+                _LOGGER.info(
+                    "Skipping irrigation: wind %.2f m/s > threshold %.2f m/s",
+                    wind,
+                    threshold,
+                )
+                return True
+        except Exception as e:
+            _LOGGER.warning("Error checking wind threshold: %s", e)
+        return False
+
+    async def _check_rain_sensor(self) -> bool:
+        """Return True if the configured rain sensor reports rain (skip irrigation)."""
+        config = await self.store.async_get_config()
+        rain_sensor = config.get(const.CONF_RAIN_SENSOR, const.CONF_DEFAULT_RAIN_SENSOR)
+        if not rain_sensor:
+            return False
+        state = self.hass.states.get(rain_sensor)
+        if state is None:
+            _LOGGER.warning(
+                "Rain sensor entity '%s' not found in HA states", rain_sensor
+            )
+            return False
+        if state.state == "on":
+            _LOGGER.info("Skipping irrigation: rain sensor '%s' is on", rain_sensor)
+            return True
+        return False
+
     async def _increment_days_since_irrigation(self):
         """Increment the counter for days since last irrigation."""
         config = await self.store.async_get_config()
@@ -2796,6 +2879,18 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                         _LOGGER.info(
                             "Irrigation start event skipped due to insufficient days since last irrigation"
                         )
+                        return
+
+                    # Check temperature threshold
+                    if await self._check_temp_threshold():
+                        return
+
+                    # Check wind speed threshold
+                    if await self._check_wind_threshold():
+                        return
+
+                    # Check rain sensor
+                    if await self._check_rain_sensor():
                         return
 
                     # Fire the event
@@ -2917,6 +3012,35 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
         # Increment days since last irrigation at midnight
         # Fire-and-forget async task
         self.hass.async_create_task(self._increment_days_since_irrigation())
+
+    async def async_irrigate_now(self, zone_id: str | None = None):
+        """Immediately irrigate — bypasses all skip conditions.
+
+        If zone_id is provided, only irrigate that zone.
+        Otherwise irrigate all zones that have a linked entity and duration > 0.
+        """
+        zones = await self.store.async_get_zones()
+
+        if zone_id is not None:
+            zones = [z for z in zones if str(z.get(const.ZONE_ID)) == str(zone_id)]
+
+        zones_to_irrigate = [
+            z
+            for z in zones
+            if z.get(const.ZONE_LINKED_ENTITY)
+            and (z.get(const.ZONE_DURATION) or 0) > 0
+            and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+        ]
+
+        if not zones_to_irrigate:
+            _LOGGER.info("irrigate_now: no zones with linked entity and duration > 0")
+            return
+
+        sequencing = self.store.config.zone_sequencing
+        if sequencing == const.CONF_ZONE_SEQUENCING_SEQUENTIAL:
+            asyncio.create_task(self._irrigate_zones_sequential(zones_to_irrigate))
+        else:
+            await self._irrigate_zones_parallel(zones_to_irrigate)
 
     async def async_get_all_modules(self):
         """Get all ModuleEntries."""

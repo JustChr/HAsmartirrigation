@@ -978,6 +978,169 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
               : ""}
           </div>
         </div>
+
+        <div class="card-content">
+          <div class="zoneline" style="margin-top: 8px;">
+            <b
+              >${localize(
+                "weather_skip.temp_section_title",
+                this.hass.language,
+              )}</b
+            >
+          </div>
+          <div class="zoneline">
+            <div class="switch-container" style="margin-bottom: 8px;">
+              <input
+                type="radio"
+                id="tempskipon"
+                name="skip_on_temp_enabled"
+                ?checked="${this.config.skip_on_temp_enabled}"
+                @change=${() =>
+                  this.handleConfigChange({ skip_on_temp_enabled: true })}
+              /><label for="tempskipon"
+                >${localize("common.labels.yes", this.hass.language)}</label
+              >
+              <input
+                type="radio"
+                id="tempskipoff"
+                name="skip_on_temp_enabled"
+                ?checked="${!this.config.skip_on_temp_enabled}"
+                @change=${() =>
+                  this.handleConfigChange({ skip_on_temp_enabled: false })}
+              /><label for="tempskipoff"
+                >${localize("common.labels.no", this.hass.language)}</label
+              >
+            </div>
+            ${this.config.skip_on_temp_enabled
+              ? html`
+                  <div class="zoneline">
+                    <label for="temp_threshold"
+                      >${localize(
+                        "weather_skip.temp_threshold_label",
+                        this.hass.language,
+                      )}
+                      (°C):</label
+                    >
+                    <input
+                      id="temp_threshold"
+                      type="number"
+                      class="shortinput"
+                      step="0.5"
+                      .value="${this.config.temp_threshold ?? 5}"
+                      @input=${(e: Event) =>
+                        this.handleConfigChange({
+                          temp_threshold: parseFloat(
+                            (e.target as HTMLInputElement).value,
+                          ),
+                        })}
+                    />
+                  </div>
+                `
+              : ""}
+          </div>
+        </div>
+
+        <div class="card-content">
+          <div class="zoneline">
+            <b
+              >${localize(
+                "weather_skip.wind_section_title",
+                this.hass.language,
+              )}</b
+            >
+          </div>
+          <div class="zoneline">
+            <div class="switch-container" style="margin-bottom: 8px;">
+              <input
+                type="radio"
+                id="windskipon"
+                name="skip_on_wind_enabled"
+                ?checked="${this.config.skip_on_wind_enabled}"
+                @change=${() =>
+                  this.handleConfigChange({ skip_on_wind_enabled: true })}
+              /><label for="windskipon"
+                >${localize("common.labels.yes", this.hass.language)}</label
+              >
+              <input
+                type="radio"
+                id="windskipoff"
+                name="skip_on_wind_enabled"
+                ?checked="${!this.config.skip_on_wind_enabled}"
+                @change=${() =>
+                  this.handleConfigChange({ skip_on_wind_enabled: false })}
+              /><label for="windskipoff"
+                >${localize("common.labels.no", this.hass.language)}</label
+              >
+            </div>
+            ${this.config.skip_on_wind_enabled
+              ? html`
+                  <div class="zoneline">
+                    <label for="wind_threshold"
+                      >${localize(
+                        "weather_skip.wind_threshold_label",
+                        this.hass.language,
+                      )}
+                      (m/s):</label
+                    >
+                    <input
+                      id="wind_threshold"
+                      type="number"
+                      class="shortinput"
+                      min="0"
+                      step="0.1"
+                      .value="${this.config.wind_threshold ?? 6.9}"
+                      @input=${(e: Event) =>
+                        this.handleConfigChange({
+                          wind_threshold: parseFloat(
+                            (e.target as HTMLInputElement).value,
+                          ),
+                        })}
+                    />
+                  </div>
+                `
+              : ""}
+          </div>
+        </div>
+
+        <div class="card-content">
+          <div class="zoneline">
+            <b
+              >${localize(
+                "weather_skip.rain_sensor_section_title",
+                this.hass.language,
+              )}</b
+            >
+          </div>
+          <div class="zoneline">
+            <label for="rain_sensor"
+              >${localize(
+                "weather_skip.rain_sensor_label",
+                this.hass.language,
+              )}:</label
+            >
+            <datalist id="binary-sensor-list">
+              ${Object.keys(this.hass.states)
+                .filter((id) => id.startsWith("binary_sensor."))
+                .sort()
+                .map((id) => html`<option value="${id}"></option>`)}
+            </datalist>
+            <input
+              id="rain_sensor"
+              type="text"
+              list="binary-sensor-list"
+              placeholder="${localize(
+                "weather_skip.rain_sensor_placeholder",
+                this.hass.language,
+              )}"
+              .value="${this.config.rain_sensor || ""}"
+              @change=${(e: Event) =>
+                this.handleConfigChange({
+                  rain_sensor:
+                    (e.target as HTMLInputElement).value.trim() || null,
+                })}
+            />
+          </div>
+        </div>
       </ha-card>
     `;
   }

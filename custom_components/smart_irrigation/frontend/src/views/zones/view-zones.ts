@@ -29,6 +29,7 @@ import {
   clearAllWeatherdata,
   fetchWateringCalendar,
   fetchMappingWeatherRecords,
+  irrigateNow,
 } from "../../data/websockets";
 import { SubscribeMixin } from "../../subscribe-mixin";
 
@@ -773,6 +774,27 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         </div>`;
       }
 
+      const irrigate_now_button =
+        zone.linked_entity && (zone.duration ?? 0) > 0
+          ? html` <div
+              class="action-button-left"
+              @click="${() => {
+                if (!this.hass) return;
+                irrigateNow(
+                  this.hass,
+                  zone.id !== undefined ? zone.id.toString() : undefined,
+                ).catch((e) => console.error("irrigate_now failed", e));
+              }}"
+            >
+              <span class="action-button-label">
+                ${localize(
+                  "panels.zones.actions.irrigate_now",
+                  this.hass.language,
+                )}
+              </span>
+            </div>`
+          : html``;
+
       const reset_bucket_button_to_show = html` <div
         class="action-button-right"
         @click="${() =>
@@ -1276,7 +1298,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             <div class="action-buttons">
               <div class="action-buttons-left">
                 ${update_button_to_show} ${calculation_button_to_show}
-                ${information_button_to_show}
+                ${irrigate_now_button} ${information_button_to_show}
               </div>
               <div class="action-buttons-right">
                 ${reset_bucket_button_to_show} ${weather_info_button_to_show}
