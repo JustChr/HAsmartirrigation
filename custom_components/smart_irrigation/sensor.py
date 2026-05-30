@@ -67,8 +67,10 @@ async def async_setup_entry(
                 hass.data[const.DOMAIN]["zones"][config["id"]] = sensor_entity
                 async_add_devices([sensor_entity])
 
-    async_dispatcher_connect(
-        hass, const.DOMAIN + "_register_entity", async_add_sensor_entity
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, const.DOMAIN + "_register_entity", async_add_sensor_entity
+        )
     )
     async_dispatcher_send(hass, const.DOMAIN + "_platform_loaded")
 
