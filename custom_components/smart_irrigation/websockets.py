@@ -601,6 +601,92 @@ class SmartIrrigationWateringCalendarView(HomeAssistantView):
 
 
 @async_response
+async def websocket_get_schedules(hass: HomeAssistant, connection, msg):
+    """Return all recurring schedules."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    schedules = coordinator.recurring_schedule_manager.get_schedules()
+    connection.send_result(msg["id"], schedules)
+
+
+@async_response
+async def websocket_save_schedule(hass: HomeAssistant, connection, msg):
+    """Create or update a recurring schedule."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    schedule_data = dict(msg.get("schedule", {}))
+    schedule_id = schedule_data.get(const.SCHEDULE_CONF_ID)
+    try:
+        if schedule_id:
+            await coordinator.recurring_schedule_manager.async_update_schedule(
+                schedule_id, schedule_data
+            )
+        else:
+            await coordinator.recurring_schedule_manager.async_create_schedule(
+                schedule_data
+            )
+        connection.send_result(msg["id"], {"success": True})
+    except Exception as e:
+        _LOGGER.error("Error saving schedule: %s", e)
+        connection.send_result(msg["id"], {"success": False, "error": str(e)})
+
+
+@async_response
+async def websocket_delete_schedule(hass: HomeAssistant, connection, msg):
+    """Delete a recurring schedule by id."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    schedule_id = msg.get("schedule_id")
+    try:
+        await coordinator.recurring_schedule_manager.async_delete_schedule(schedule_id)
+        connection.send_result(msg["id"], {"success": True})
+    except Exception as e:
+        _LOGGER.error("Error deleting schedule: %s", e)
+        connection.send_result(msg["id"], {"success": False, "error": str(e)})
+
+
+@async_response
+async def websocket_get_adjustments(hass: HomeAssistant, connection, msg):
+    """Return all seasonal adjustments."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    adjustments = coordinator.seasonal_adjustment_manager.get_adjustments()
+    connection.send_result(msg["id"], adjustments)
+
+
+@async_response
+async def websocket_save_adjustment(hass: HomeAssistant, connection, msg):
+    """Create or update a seasonal adjustment."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    adjustment_data = dict(msg.get("adjustment", {}))
+    adjustment_id = adjustment_data.get(const.SEASONAL_CONF_ID)
+    try:
+        if adjustment_id:
+            await coordinator.seasonal_adjustment_manager.async_update_adjustment(
+                adjustment_id, adjustment_data
+            )
+        else:
+            await coordinator.seasonal_adjustment_manager.async_create_adjustment(
+                adjustment_data
+            )
+        connection.send_result(msg["id"], {"success": True})
+    except Exception as e:
+        _LOGGER.error("Error saving adjustment: %s", e)
+        connection.send_result(msg["id"], {"success": False, "error": str(e)})
+
+
+@async_response
+async def websocket_delete_adjustment(hass: HomeAssistant, connection, msg):
+    """Delete a seasonal adjustment by id."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    adjustment_id = msg.get("adjustment_id")
+    try:
+        await coordinator.seasonal_adjustment_manager.async_delete_adjustment(
+            adjustment_id
+        )
+        connection.send_result(msg["id"], {"success": True})
+    except Exception as e:
+        _LOGGER.error("Error deleting adjustment: %s", e)
+        connection.send_result(msg["id"], {"success": False, "error": str(e)})
+
+
+@async_response
 async def websocket_irrigate_now(hass: HomeAssistant, connection, msg):
     """Trigger immediate irrigation for all zones or a single zone, bypassing skip conditions."""
     coordinator = hass.data[const.DOMAIN]["coordinator"]
@@ -692,6 +778,66 @@ async def async_register_websockets(hass: HomeAssistant):
             {
                 vol.Required("type"): const.DOMAIN + "/watering_calendar",
                 vol.Optional("zone_id"): vol.Coerce(str),
+            }
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/schedules",
+        websocket_get_schedules,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {vol.Required("type"): const.DOMAIN + "/schedules"}
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/schedule_save",
+        websocket_save_schedule,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/schedule_save",
+                vol.Required("schedule"): dict,
+            }
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/schedule_delete",
+        websocket_delete_schedule,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/schedule_delete",
+                vol.Required("schedule_id"): str,
+            }
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/adjustments",
+        websocket_get_adjustments,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {vol.Required("type"): const.DOMAIN + "/adjustments"}
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/adjustment_save",
+        websocket_save_adjustment,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/adjustment_save",
+                vol.Required("adjustment"): dict,
+            }
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/adjustment_delete",
+        websocket_delete_adjustment,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/adjustment_delete",
+                vol.Required("adjustment_id"): str,
             }
         ),
     )

@@ -174,6 +174,37 @@ export const fetchWateringCalendar = (
     zone_id: zone_id,
   });
 
+// Schedules
+export const fetchSchedules = (hass: HomeAssistant): Promise<any[]> =>
+  hass.callWS({ type: DOMAIN + "/schedules" });
+
+export const saveSchedule = (
+  hass: HomeAssistant,
+  schedule: Record<string, any>,
+): Promise<any> => hass.callWS({ type: DOMAIN + "/schedule_save", schedule });
+
+export const deleteSchedule = (
+  hass: HomeAssistant,
+  schedule_id: string,
+): Promise<any> =>
+  hass.callWS({ type: DOMAIN + "/schedule_delete", schedule_id });
+
+// Seasonal Adjustments
+export const fetchAdjustments = (hass: HomeAssistant): Promise<any[]> =>
+  hass.callWS({ type: DOMAIN + "/adjustments" });
+
+export const saveAdjustment = (
+  hass: HomeAssistant,
+  adjustment: Record<string, any>,
+): Promise<any> =>
+  hass.callWS({ type: DOMAIN + "/adjustment_save", adjustment });
+
+export const deleteAdjustment = (
+  hass: HomeAssistant,
+  adjustment_id: string,
+): Promise<any> =>
+  hass.callWS({ type: DOMAIN + "/adjustment_delete", adjustment_id });
+
 // Trigger immediate irrigation (bypasses all skip conditions)
 export const irrigateNow = (
   hass: HomeAssistant,

@@ -273,7 +273,7 @@ class RecurringScheduleManager:
                     for zone_id in zones:
                         await self.coordinator._async_update_zone(zone_id)
             elif action == "irrigate":
-                # Fire irrigation event for specified zones
+                # Fire irrigation event for backward compatibility
                 event_data = {
                     "triggered_by": "recurring_schedule",
                     "schedule_name": schedule_name,
@@ -282,6 +282,8 @@ class RecurringScheduleManager:
                 self.hass.bus.fire(
                     f"{const.DOMAIN}_{const.EVENT_IRRIGATE_START}", event_data
                 )
+                # Also directly control linked entities (all zones with linked entity)
+                await self.coordinator.async_irrigate_now()
 
             _LOGGER.info(
                 "Successfully executed schedule action: %s for zones: %s", action, zones

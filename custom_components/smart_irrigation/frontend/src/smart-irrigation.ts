@@ -9,6 +9,8 @@ import "./views/zones/view-zones.ts";
 import "./views/modules/view-modules.ts";
 import "./views/mappings/view-mappings.ts";
 import "./views/info/view-info.ts";
+import "./views/schedules/view-schedules.ts";
+import "./views/adjustments/view-adjustments.ts";
 
 import { commonStyle } from "./styles";
 import { VERSION, PLATFORM, ISSUES_URL } from "./const";
@@ -20,6 +22,8 @@ enum EMenuItems {
   Info = "info",
   General = "general",
   Zones = "zones",
+  Schedules = "schedules",
+  Adjustments = "adjustments",
   Modules = "modules",
   Mappings = "mappings",
   Help = "help",
@@ -159,6 +163,22 @@ export class SmartIrrigationPanel extends LitElement {
             .narrow=${this.narrow}
             .path=${path}
           ></smart-irrigation-view-zones>
+        `;
+      case "schedules":
+        return html`
+          <smart-irrigation-view-schedules
+            .hass=${this.hass}
+            .narrow=${this.narrow}
+            .path=${path}
+          ></smart-irrigation-view-schedules>
+        `;
+      case "adjustments":
+        return html`
+          <smart-irrigation-view-adjustments
+            .hass=${this.hass}
+            .narrow=${this.narrow}
+            .path=${path}
+          ></smart-irrigation-view-adjustments>
         `;
       case "modules":
         return html`

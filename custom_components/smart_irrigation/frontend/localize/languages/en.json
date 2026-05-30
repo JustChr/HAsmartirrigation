@@ -3,7 +3,10 @@
     "loading": "Loading",
     "saving": "Saving",
     "actions": {
-      "delete": "Delete"
+      "delete": "Delete",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
     },
     "labels": {
       "module": "Module",
@@ -133,6 +136,75 @@
       },
       "description": "This page provides global settings.",
       "title": "General"
+    },
+    "schedules": {
+      "title": "Schedules",
+      "description": "Create recurring schedules to automatically calculate, update, or irrigate your zones. No automations needed.",
+      "add": "Add Schedule",
+      "no_items": "No schedules configured yet. Click 'Add Schedule' to get started.",
+      "zones_all": "All zones",
+      "zones_specific": "Specific zones",
+      "hours": "hours",
+      "types": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "interval": "Every N hours"
+      },
+      "actions": {
+        "calculate": "Calculate (update irrigation duration)",
+        "update": "Update (collect weather data)",
+        "irrigate": "Irrigate (run valves directly)"
+      },
+      "days": {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "saturday": "Sat",
+        "sunday": "Sun"
+      },
+      "fields": {
+        "name": "Name",
+        "type": "Schedule type",
+        "enabled": "Enabled",
+        "time": "Time (HH:MM)",
+        "days_of_week": "Days of week",
+        "day_of_month": "Day of month",
+        "interval_hours": "Interval",
+        "action": "Action",
+        "zones": "Zones",
+        "start_date": "Start date (optional)",
+        "end_date": "End date (optional)"
+      },
+      "dialog": {
+        "add_title": "Add Schedule",
+        "edit_title": "Edit Schedule"
+      }
+    },
+    "adjustments": {
+      "title": "Seasonal Adjustments",
+      "description": "Apply month-based multiplier or bucket adjustments to automatically adapt irrigation for seasonal conditions.",
+      "add": "Add Adjustment",
+      "no_items": "No seasonal adjustments configured yet. Click 'Add Adjustment' to get started.",
+      "zones_all": "All zones",
+      "zones_specific": "Specific zones",
+      "multiplier_hint": "1.0 = no change, 1.5 = 50% more irrigation, 0.5 = 50% less",
+      "threshold_hint": "Added to the zone bucket. Positive = more water needed, negative = less.",
+      "fields": {
+        "name": "Name",
+        "enabled": "Enabled",
+        "month_start": "From month",
+        "month_end": "To month",
+        "multiplier_adjustment": "Multiplier adjustment",
+        "threshold_adjustment": "Bucket threshold adjustment (mm)",
+        "zones": "Zones"
+      },
+      "dialog": {
+        "add_title": "Add Seasonal Adjustment",
+        "edit_title": "Edit Seasonal Adjustment"
+      }
     },
     "help": {
       "title": "Help",
