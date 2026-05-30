@@ -21,8 +21,8 @@ blueprint:
           domain: weather
     rain_sensor:
       name: Rain Sensor (Optional)
-      description: Rain sensor to skip irrigation when raining
-      required: false
+      description: Rain sensor to skip irrigation when raining. Leave empty to disable rain checking.
+      default:
       selector:
         entity:
           domain: binary_sensor
@@ -90,14 +90,9 @@ trigger:
     at: "06:00:00"
 
 condition:
-  # Check if it's not raining (if rain sensor is configured)
-  - condition: or
-    conditions:
-      - condition: template
-        value_template: "{{ rain_sensor == none }}"
-      - condition: state
-        entity_id: !input rain_sensor
-        state: "off"
+  # Skip irrigation if rain sensor reports rain. If no rain sensor is configured, this check is skipped.
+  - condition: template
+    value_template: "{{ not rain_sensor or states(rain_sensor) != 'on' }}"
 
 action:
   - variables:
