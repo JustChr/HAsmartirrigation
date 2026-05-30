@@ -12,6 +12,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperat
 from homeassistant.core import HomeAssistant
 
 from .const import (
+    CONF_WEATHER_SERVICE_OPENMETEO,
     CONF_WEATHER_SERVICE_OWM,
     CONF_WEATHER_SERVICE_PW,
     CUSTOM_COMPONENTS,
@@ -681,6 +682,8 @@ def altitudeToPressure(alt):
 
 async def validate_api_key(hass: HomeAssistant, weather_service, api_key):
     """Test access to Weather Service API here."""
+    if weather_service == CONF_WEATHER_SERVICE_OPENMETEO:
+        return  # Open-Meteo requires no API key — nothing to validate
     client = None
     test_lat = 52.353218
     test_lon = 5.0027695

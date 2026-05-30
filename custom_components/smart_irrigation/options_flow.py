@@ -123,13 +123,10 @@ class SmartIrrigationOptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Required(
                         const.CONF_WEATHER_SERVICE, default=self._weather_service
                     ): selector({"select": {"options": const.CONF_WEATHER_SERVICES}}),
-                    vol.Required(
+                    vol.Optional(
                         const.CONF_WEATHER_SERVICE_API_KEY,
-                        default=self._weather_service_api_key,
+                        default=self._weather_service_api_key or "",
                     ): str,
-                    # vol.Required(const.CONF_OWM_API_VERSION, default=self._owm_api_version): selector(
-                    #    {"select": {"options": ["2.5", "3.0"]}}
-                    # ),
                 }
             ),
             errors=self._errors,
@@ -141,16 +138,16 @@ class SmartIrrigationOptionsFlowHandler(config_entries.OptionsFlow):
         self._errors = {}
         if user_input is not None:
             try:
-                # store values entered
-                self._weather_service_api_key = user_input[
-                    const.CONF_WEATHER_SERVICE_API_KEY
-                ].strip()
                 self._weather_service = user_input[const.CONF_WEATHER_SERVICE]
+                raw_key = user_input.get(const.CONF_WEATHER_SERVICE_API_KEY) or ""
+                self._weather_service_api_key = raw_key.strip()
                 user_input[const.CONF_USE_WEATHER_SERVICE] = self._use_weather_service
+                user_input[const.CONF_WEATHER_SERVICE_API_KEY] = (
+                    self._weather_service_api_key
+                )
                 await validate_api_key(
                     self.hass, self._weather_service, self._weather_service_api_key
                 )
-                # After weather service configuration, go to coordinate step
                 return await self._show_coordinate_step(user_input)
 
             except InvalidAuth:

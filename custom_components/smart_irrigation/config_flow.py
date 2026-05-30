@@ -64,13 +64,14 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
         self._errors = {}
         if user_input is not None:
             try:
-                # store values entered
-                self._weather_service_api_key = user_input[
-                    const.CONF_WEATHER_SERVICE_API_KEY
-                ].strip()
                 self._weather_service = user_input[const.CONF_WEATHER_SERVICE].strip()
+                raw_key = user_input.get(const.CONF_WEATHER_SERVICE_API_KEY) or ""
+                self._weather_service_api_key = raw_key.strip()
                 user_input[const.CONF_USE_WEATHER_SERVICE] = self._use_weather_service
                 user_input[const.CONF_INSTANCE_NAME] = self._name
+                user_input[const.CONF_WEATHER_SERVICE_API_KEY] = (
+                    self._weather_service_api_key
+                )
                 await validate_api_key(
                     self.hass, self._weather_service, self._weather_service_api_key
                 )
@@ -92,10 +93,7 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
                     vol.Required(const.CONF_WEATHER_SERVICE): selector(
                         {"select": {"options": const.CONF_WEATHER_SERVICES}}
                     ),
-                    vol.Required(const.CONF_WEATHER_SERVICE_API_KEY): str,
-                    # vol.Required(const.CONF_OWM_API_VERSION, default="3.0"): selector(
-                    #    {"select": {"options": ["2.5", "3.0"]}}
-                    # ),
+                    vol.Optional(const.CONF_WEATHER_SERVICE_API_KEY, default=""): str,
                 }
             ),
             errors=self._errors,
