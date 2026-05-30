@@ -231,7 +231,10 @@ class SmartIrrigationZoneView(HomeAssistantView):
                 vol.Optional(const.ATTR_CLEAR_ALL_WEATHERDATA): cv.boolean,
                 vol.Optional(const.ZONE_DRAINAGE_RATE): vol.Or(float, int, None),
                 vol.Optional(const.ZONE_CURRENT_DRAINAGE): vol.Or(float, int, None),
-            }
+                vol.Optional(const.ZONE_LINKED_ENTITY): vol.Or(str, None),
+                vol.Optional(const.ZONE_BUCKET_THRESHOLD): vol.Or(float, int, None),
+            },
+            extra=vol.ALLOW_EXTRA,
         )
     )
     async def post(self, request, data):
