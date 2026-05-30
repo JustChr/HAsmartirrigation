@@ -1,6 +1,6 @@
 # Smart Irrigation Development Makefile
 
-.PHONY: help setup test lint format clean install-dev
+.PHONY: help setup test lint format clean install-dev bump
 
 # Default target
 help:
@@ -17,6 +17,9 @@ help:
 	@echo "  lint        - Run linting (ruff)"
 	@echo "  format      - Format code (black)"
 	@echo "  check       - Run all CI checks (lint + format)"
+	@echo ""
+	@echo "Versioning:"
+	@echo "  bump VERSION=vYYYY.MM.NN  - Bump version in all files (package.json, manifest.json, const.py)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  clean       - Remove virtual environment and cache files"
@@ -58,6 +61,18 @@ clean:
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	@echo "✅ Cleaned up"
+
+# Bump version in all files from a single source.
+# Usage: make bump VERSION=v2026.06.00
+bump:
+	@[ -n "$(VERSION)" ] || (echo "Usage: make bump VERSION=vYYYY.MM.NN" && exit 1)
+	@VER="$(VERSION)"; VER_NOPREFIX="$${VER#v}"; \
+	echo "Bumping to $$VER ..."; \
+	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$$VER_NOPREFIX\"/" custom_components/smart_irrigation/frontend/package.json; \
+	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$$VER\"/" custom_components/smart_irrigation/manifest.json; \
+	sed -i "s/^VERSION = \"[^\"]*\"/VERSION = \"$$VER\"/" custom_components/smart_irrigation/const.py; \
+	echo "✅ Version bumped to $$VER in package.json, manifest.json, const.py"
+	@echo "   Frontend version is derived from package.json at build time — rebuild to apply."
 
 # Run all CI quality checks
 check: install-dev

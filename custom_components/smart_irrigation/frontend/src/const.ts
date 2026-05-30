@@ -1,5 +1,6 @@
-export const VERSION = "v2025.10.0";
-export const REPO = "https://github.com/jeroenterheerdt/HASmartIrrigation;";
+import pkg from "../package.json";
+export const VERSION = `v${pkg.version}`;
+export const REPO = "https://github.com/JustChr/HAsmartirrigation";
 export const ISSUES_URL = REPO + "/issues";
 
 export const PLATFORM = "smart-irrigation";
