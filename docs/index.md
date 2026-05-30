@@ -4,21 +4,27 @@ title: Introduction
 ---
 # Smart Irrigation
 
-Ever wondered if you're watering your lawn/garden/greenhouse/plants/crops too much or too little?
-Are you fed up with the guesswork? Did you just set the timer on your sprinklers to 15 minutes?
-Do you have a watering system that you can control through Home Assistant (turn on / turn off)?
+Ever wondered if you're watering your lawn, garden, greenhouse, or crops too much or too little? Tired of guesswork and fixed timers? If you have an irrigation system you can switch on and off through Home Assistant, this integration is for you.
 
-If so, this integration is for you!
+Smart Irrigation calculates the exact number of seconds to run your irrigation system to compensate for moisture lost through [evapotranspiration](https://en.wikipedia.org/wiki/Evapotranspiration). It takes into account precipitation (rain, snow) and adjusts accordingly — if it has rained enough, no irrigation is needed; if not, it tells you exactly how long to irrigate.
 
-This integration calculates the time to run your irrigation system to compensate for moisture loss by [evapotranspiration](https://en.wikipedia.org/wiki/Evapotranspiration). Using this integration you water your garden, lawn or crops precisely enough to compensate what has evaporated. It takes into account precipitation (rain, snow) and moisture loss caused by evapotranspiration and adjusts accordingly.
-If it rains or snows less than the amount of moisture lost, then irrigation is required. Otherwise, no irrigation is required.
-The integration can take into account weather forecasts for the coming days and also keeps track of the total moisture lost or added ('bucket').
-Multiple zones are supported with each zone having it own configuration and set up.
+Key capabilities:
 
-Note that this integration does not control your irrigation system - it merely calculates durations and you are expected to build an [automation](https://JustChr.github.io/HAsmartirrigation/usage-automations.html) to interact with your irrigation system.
+- **Multiple zones** — each with its own size, throughput, calculation module, and sensor group
+- **Weather sources** — Open Weather Map, Pirate Weather, or your own local sensors (or a mix)
+- **Moisture bucket** — tracks cumulative evapotranspiration and precipitation over time
+- **Rain skip** — optionally skip irrigation when significant rain is forecast
+- **Days between irrigation** — enforce a minimum rest period between irrigation events
+- **Automations** — the integration fires Home Assistant events; your automations decide what to do with valves, timers, etc.
 
-> **Note - use this integration at your own risk - we do not assume responsibility for any inconvience caused by using this integration. Always use common sense before deciding to irrigate using the calculations this integration provides. For example, irrigating during excessive rainfall might cause flooding. Again - we assume no responsibility for any inconvience caused.**
+> **Use this integration at your own risk.** It provides calculated recommendations only — always apply common sense before irrigating. Irrigating during heavy rainfall can cause flooding. The maintainers accept no responsibility for any damage or inconvenience caused.
 
-**Sounds good? let's get started with [installation](installation.md)**.
+---
 
-Prefer to learn more first? Read [how it works](how-it-works.md) or watch [our official tutorial videos on Youtube (English)](https://youtube.com/playlist?list=PLUHIAUPJHMiakbda92--fgb6A0hFReAo7&si=82Xc6mHoLDwFBfCP) and [community-created tutorial in German](https://youtu.be/1AYLuIs7_Pw).
+This is a community-maintained fork of [jeroenterheerdt/HAsmartirrigation](https://github.com/jeroenterheerdt/HAsmartirrigation). It is kept up to date with Home Assistant releases and includes bug fixes and improvements beyond the original.
+
+---
+
+**Ready to get started?** → [Installation](installation.md)
+
+Want to understand the maths first? Read [how it works](how-it-works.md) or watch the [official tutorial videos on YouTube (English)](https://youtube.com/playlist?list=PLUHIAUPJHMiakbda92--fgb6A0hFReAo7&si=82Xc6mHoLDwFBfCP).

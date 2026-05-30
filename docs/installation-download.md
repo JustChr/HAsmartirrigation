@@ -5,15 +5,29 @@ title: Installation: Download
 # Installation: Download
 
 > Main page: [Installation](installation.md)<br/>
-> Next: [Set up weatherservice](installation-weatherservice.md)
+> Next: [Set up weather service](installation-weatherservice.md)
 
-1. Install the custom integration using HACS or manually:
-    * **Using HACS**: In the [HACS](https://hacs.xyz) panel, search for 'Smart Irrigation' and install the integration.
-    * **Manually**: Download the [latest release](../releases) as a zip file and extract it into the `custom_components` folder in your Home Assitant installation.
+## Using HACS (recommended)
 
-2. Restart Home Assistant to load the integration.
-3. Go to Configuration -> Integrations and add an integration. Search for 'Smart Irrigation' and click to add it.
-4. Follow the wizard to complete the installation. The first step is [setting up a weatherservice](installation-weatherservice.md).
+This integration is not in the default HACS catalogue. You need to add it as a custom repository first:
 
->Main page: [Installation](installation.md)<br/>
->Next: [Set up weatherservice](installation-weatherservice.md)
+1. In Home Assistant, open **HACS → Integrations**
+2. Click the **⋮** menu (top right) → **Custom repositories**
+3. Enter `https://github.com/JustChr/HAsmartirrigation` and choose category **Integration**
+4. Click **Add**, then search for **Smart Irrigation** and install it
+
+## Manual installation
+
+1. Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a `.zip` file
+2. Extract the `custom_components/smart_irrigation` folder from the archive
+3. Copy it into the `custom_components` folder of your Home Assistant configuration directory
+
+## After installing
+
+1. Restart Home Assistant to load the integration
+2. Go to **Settings → Devices & Services → Add Integration**
+3. Search for **Smart Irrigation** and click to add it
+4. Follow the wizard — the first step is [setting up a weather service](installation-weatherservice.md)
+
+> Main page: [Installation](installation.md)<br/>
+> Next: [Set up weather service](installation-weatherservice.md)

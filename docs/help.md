@@ -1,9 +1,11 @@
 ---
 layout: default
-title: Configuration: Help
+title: Help
 ---
 # Help
 
-Read the information on this site, the [Discussions](https://github.com/JustChr/HAsmartirrigation/discussions) and the [Home Assistant community](https://community.home-assistant.io/t/smart-irrigation-save-water-by-precisely-watering-your-lawn-garden/).
+1. Read through these docs
+2. Check the [Discussions](https://github.com/JustChr/HAsmartirrigation/discussions) — someone may have had the same question
+3. Search the [Home Assistant community thread](https://community.home-assistant.io/t/smart-irrigation-save-water-by-precisely-watering-your-lawn-garden/) for older answers
 
-If that does not help, open an [issue](https://github.com/JustChr/HAsmartirrigation/issues).
+If none of that helps, [open an issue](https://github.com/JustChr/HAsmartirrigation/issues). Please include your Home Assistant version, integration version, and relevant log lines.
