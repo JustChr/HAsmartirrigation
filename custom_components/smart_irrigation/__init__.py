@@ -60,8 +60,8 @@ from .localize import localize
 from .panel import async_register_panel, remove_panel
 from .scheduler import RecurringScheduleManager, SeasonalAdjustmentManager
 from .store import SmartIrrigationStorage, async_get_registry
-from .weathermodules.OWMClient import OWMClient
 from .weathermodules.OpenMeteoClient import OpenMeteoClient
+from .weathermodules.OWMClient import OWMClient
 from .weathermodules.PirateWeatherClient import PirateWeatherClient
 from .websockets import async_register_websockets
 
