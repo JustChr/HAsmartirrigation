@@ -287,22 +287,15 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                         PirateWeather_current_precip_key_name
                     ]
 
-                    # add precip from daily — PirateWeather SI returns cm, convert to mm
-                    dailydata = doc[PirateWeather_daily_weather_key_name]["data"][0]
-                    if dailydata is not None:
-                        parsed_data[MAPPING_PRECIPITATION] = (
-                            dailydata[PirateWeather_precip_key_name] * 10.0
-                        )
-                        _LOGGER.debug(
-                            "PirateWeatherClient daily precipitation: %s cm -> %s mm",
-                            dailydata[PirateWeather_precip_key_name],
-                            parsed_data[MAPPING_PRECIPITATION],
-                        )
-
-                    else:
-                        parsed_data[MAPPING_PRECIPITATION] = 0.0
+                    # Use actual measured precipitation intensity (precipIntensity, mm/h)
+                    # instead of daily precipAccumulation (forecast total including future rain).
+                    # Crediting forecast rain before it falls causes bucket fluctuations
+                    # when the forecast changes or doesn't materialise (issue #694).
+                    parsed_data[MAPPING_PRECIPITATION] = parsed_data.get(
+                        MAPPING_CURRENT_PRECIPITATION, 0.0
+                    )
                     _LOGGER.debug(
-                        "PirateWeatherCLIENT daily precipitation: %s",
+                        "PirateWeatherClient actual precipitation (precipIntensity): %s",
                         parsed_data[MAPPING_PRECIPITATION],
                     )
 
