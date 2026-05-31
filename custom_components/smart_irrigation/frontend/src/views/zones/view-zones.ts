@@ -1,5 +1,6 @@
 import { TemplateResult, LitElement, html, CSSResultGroup, css } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { live } from "lit/directives/live.js";
 import { property, state, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 import { loadHaForm } from "../../load-ha-elements";
@@ -845,6 +846,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             >
             <select
               class="settings-input"
+              .value="${live(zone.state)}"
               @change="${(e: Event) =>
                 this.handleEditZone(index, {
                   ...zone,
@@ -889,6 +891,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             >
             <select
               class="settings-input"
+              .value="${live(
+                zone.module !== undefined ? String(zone.module) : "",
+              )}"
               @change="${(e: Event) => {
                 const v = (e.target as HTMLSelectElement).value;
                 this.handleEditZone(index, {
@@ -910,6 +915,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             >
             <select
               class="settings-input"
+              .value="${live(
+                zone.mapping !== undefined ? String(zone.mapping) : "",
+              )}"
               @change="${(e: Event) => {
                 const v = (e.target as HTMLSelectElement).value;
                 this.handleEditZone(index, {

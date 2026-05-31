@@ -103,7 +103,10 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_TEMP_THRESHOLD): vol.Coerce(float),
                 vol.Optional(const.CONF_SKIP_WIND_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_WIND_THRESHOLD): vol.Coerce(float),
-            }
+                vol.Optional(const.CONF_RAIN_SENSOR): vol.Or(str, None),
+                vol.Optional(const.CONF_ZONE_SEQUENCING): cv.string,
+            },
+            extra=vol.ALLOW_EXTRA,
         )
     )
     async def post(self, request, data):

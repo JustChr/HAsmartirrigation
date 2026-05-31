@@ -1483,7 +1483,10 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                     else None
                 )
                 if precip_source == const.MAPPING_CONF_SOURCE_WEATHER_SERVICE:
-                    aggregate = const.MAPPING_CONF_AGGREGATE_SUM
+                    # Weather APIs report precipitation as a rate (mm/h).
+                    # Riemann sum integrates rate × time-delta so the result is
+                    # correct at any update frequency, not just hourly.
+                    aggregate = const.MAPPING_CONF_AGGREGATE_RIEMANNSUM
                 else:
                     aggregate = (
                         const.MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION
@@ -1563,41 +1566,36 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             elif aggregate == const.MAPPING_CONF_AGGREGATE_SUM:
                 resultdata[key] = sum(d)
             elif aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM:
-                # apply the riemann sum to the data in d
-                # Use the trapezoidal rule for Riemann sum approximation
-                # Assume each value in d is sampled at equal intervals
+                # Trapezoidal Riemann sum: integrates rate × time so the result
+                # is correct regardless of update frequency.
+                # Each interval uses its own Δt (per-interval, not the average).
                 if len(d) < 2:
-                    resultdata[key] = float(d[0])
+                    # Single reading: scale by 1 hour (weather APIs report mm/h)
+                    resultdata[key] = float(d[0]) * 1.0
                 else:
-                    # Trapezoidal rule: sum((d[i] + d[i+1]) / 2) * dt
-                    # dt is the interval between samples, assume 1 if not available
-                    dt = 1.0
-                    # If we have timestamps, use them to get dt
+                    times = []
                     if const.RETRIEVED_AT in data_by_sensor:
                         timestamps = data_by_sensor[const.RETRIEVED_AT]
                         if len(timestamps) == len(d):
                             try:
-                                # Convert all to datetime
-                                times = []
                                 for t in timestamps:
                                     if parsed := parse_datetime(t):
                                         times.append(parsed)
-                                # Calculate average dt in seconds
-                                if len(times) > 1:
-                                    dts = [
-                                        (times[i + 1] - times[i]).total_seconds()
-                                        for i in range(len(times) - 1)
-                                    ]
-                                    dt = statistics.mean(dts)
                             except (ValueError, TypeError) as err:
                                 _LOGGER.error(
                                     "[_aggregate_sensor_data]: Failed to parse timestamps for Riemann sum: %s",
                                     err,
                                 )
-                    # Calculate the sum
+
                     riemann_sum = 0.0
                     for i in range(len(d) - 1):
-                        riemann_sum += ((d[i] + d[i + 1]) / 2) * dt
+                        if len(times) == len(d):
+                            dt_hours = max(
+                                (times[i + 1] - times[i]).total_seconds() / 3600, 0
+                            )
+                        else:
+                            dt_hours = 1.0  # fallback: assume 1-hour intervals
+                        riemann_sum += ((d[i] + d[i + 1]) / 2) * dt_hours
                     resultdata[key] = riemann_sum
             last_calc_data[key] = d[-1]
 
