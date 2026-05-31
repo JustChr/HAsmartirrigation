@@ -140,6 +140,8 @@ class PyETO(SmartIrrigationCalculationModule):
         """
         delta = 0.0
         deltas = []
+        if forecast_data is None:
+            forecast_data = []
         if weather_data:
             deltas.append(self.calculate_et_for_day(weather_data))
             # loop over the forecast days

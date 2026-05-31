@@ -845,7 +845,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             >
             <select
               class="settings-input"
-              .value="${zone.state}"
               @change="${(e: Event) =>
                 this.handleEditZone(index, {
                   ...zone,
@@ -890,7 +889,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             >
             <select
               class="settings-input"
-              .value="${zone.module !== undefined ? String(zone.module) : ""}"
               @change="${(e: Event) => {
                 const v = (e.target as HTMLSelectElement).value;
                 this.handleEditZone(index, {
@@ -912,7 +910,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             >
             <select
               class="settings-input"
-              .value="${zone.mapping !== undefined ? String(zone.mapping) : ""}"
               @change="${(e: Event) => {
                 const v = (e.target as HTMLSelectElement).value;
                 this.handleEditZone(index, {

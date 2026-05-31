@@ -8,11 +8,12 @@ export const loadHaForm = async (): Promise<void> => {
     return loadPromise;
   }
 
-  // Quick check if already loaded
+  // Quick check if already loaded (including ha-entity-picker)
   if (
     customElements.get("ha-checkbox") &&
     customElements.get("ha-slider") &&
-    customElements.get("ha-panel-config")
+    customElements.get("ha-panel-config") &&
+    customElements.get("ha-entity-picker")
   ) {
     return Promise.resolve();
   }
@@ -75,6 +76,14 @@ async function loadHaFormInternal(): Promise<void> {
     fragment.appendChild(cpr);
 
     await cpr.routerOptions.routes.automation.load();
+
+    // Ensure ha-entity-picker is registered (loaded as part of entity selectors)
+    if (!customElements.get("ha-entity-picker")) {
+      await Promise.race([
+        customElements.whenDefined("ha-entity-picker"),
+        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    }
 
     // Clean up the fragment (elements were just used for loading, not for DOM)
     fragment.textContent = "";
