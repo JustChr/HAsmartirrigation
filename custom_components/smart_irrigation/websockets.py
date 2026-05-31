@@ -728,6 +728,34 @@ async def websocket_get_weather_config(hass: HomeAssistant, connection, msg):
 
 
 @async_response
+async def websocket_test_weather_config(hass: HomeAssistant, connection, msg):
+    """Test the weather service API key without saving it."""
+    from .helpers import validate_api_key, CannotConnect, InvalidAuth
+
+    weather_service = msg.get("weather_service")
+    api_key = msg.get("api_key") or None
+
+    # Fall back to stored key when the caller doesn't supply one
+    if not api_key:
+        api_key = hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE_API_KEY)
+
+    if not weather_service:
+        connection.send_result(msg["id"], {"success": False, "error": "no_service"})
+        return
+
+    try:
+        await validate_api_key(hass, weather_service, api_key)
+        connection.send_result(msg["id"], {"success": True})
+    except InvalidAuth:
+        connection.send_result(msg["id"], {"success": False, "error": "invalid_auth"})
+    except CannotConnect:
+        connection.send_result(msg["id"], {"success": False, "error": "cannot_connect"})
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.warning("Weather config test failed: %s", exc)
+        connection.send_result(msg["id"], {"success": False, "error": "unknown"})
+
+
+@async_response
 async def websocket_save_weather_config(hass: HomeAssistant, connection, msg):
     """Save weather service configuration to config entry options and in-memory state."""
     use_weather_service: bool = msg["use_weather_service"]
@@ -942,6 +970,18 @@ async def async_register_websockets(hass: HomeAssistant):
             {
                 vol.Required("type"): const.DOMAIN + "/weather_config_save",
                 vol.Required("use_weather_service"): bool,
+                vol.Optional("weather_service"): vol.Any(str, None),
+                vol.Optional("api_key"): vol.Any(str, None),
+            }
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/weather_config_test",
+        websocket_test_weather_config,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/weather_config_test",
                 vol.Optional("weather_service"): vol.Any(str, None),
                 vol.Optional("api_key"): vol.Any(str, None),
             }

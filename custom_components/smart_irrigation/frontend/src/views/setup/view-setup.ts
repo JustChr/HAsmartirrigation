@@ -1,5 +1,5 @@
 import { LitElement, html, CSSResultGroup, css } from "lit";
-import { property, customElement } from "lit/decorators.js";
+import { property, state, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 
 import "../general/view-general.ts";
@@ -7,6 +7,7 @@ import "../modules/view-modules.ts";
 import "../mappings/view-mappings.ts";
 import "../schedules/view-schedules.ts";
 import "../adjustments/view-adjustments.ts";
+import "../wizard/si-setup-wizard.ts";
 
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
@@ -40,10 +41,41 @@ export class SmartIrrigationViewSetup extends LitElement {
   @property()
   private _activeTab: ESetupTab = ESetupTab.General;
 
+  @state() private _wizardOpen = false;
+
+  private _openWizard() {
+    this._wizardOpen = true;
+  }
+
+  private _onWizardClose() {
+    this._wizardOpen = false;
+  }
+
+  private _onWizardNavigate(e: CustomEvent) {
+    const { page } = e.detail as { page: string };
+    this.dispatchEvent(
+      new CustomEvent("wizard-navigate", {
+        detail: { page },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+    this._wizardOpen = false;
+  }
+
   render() {
     if (!this.hass) return html``;
 
     return html`
+      ${this._wizardOpen
+        ? html`
+            <si-setup-wizard
+              .hass="${this.hass}"
+              @wizard-close="${this._onWizardClose}"
+              @wizard-navigate="${this._onWizardNavigate}"
+            ></si-setup-wizard>
+          `
+        : ""}
       <div class="setup-container">
         <nav class="setup-nav">
           ${Object.values(ESetupTab).map(
@@ -58,6 +90,13 @@ export class SmartIrrigationViewSetup extends LitElement {
               </button>
             `,
           )}
+          <button
+            class="setup-nav-btn wizard-btn"
+            @click="${this._openWizard}"
+            title="${localize("wizard.title", this.hass.language)}"
+          >
+            ✦ ${localize("wizard.open_button", this.hass.language)}
+          </button>
         </nav>
         <div class="setup-content">${this._renderContent()}</div>
       </div>
@@ -200,6 +239,18 @@ export class SmartIrrigationViewSetup extends LitElement {
       .setup-nav-btn.active {
         border-bottom-color: var(--primary-color);
         color: var(--primary-color);
+      }
+
+      .setup-nav-btn.wizard-btn {
+        margin-left: auto;
+        color: var(--primary-color);
+        border-bottom-color: transparent;
+        font-weight: 600;
+      }
+
+      .setup-nav-btn.wizard-btn:hover {
+        color: var(--primary-color);
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.08);
       }
 
       .setup-content {

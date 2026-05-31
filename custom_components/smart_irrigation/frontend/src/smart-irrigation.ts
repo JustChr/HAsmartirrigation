@@ -1,11 +1,12 @@
 import { LitElement, html, CSSResultGroup, css } from "lit";
-import { property, customElement } from "lit/decorators.js";
+import { property, state, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 import { loadHaForm } from "./load-ha-elements";
 import { navigate } from "./helpers";
 
 import "./views/zones/view-zones.ts";
 import "./views/setup/view-setup.ts";
+import "./views/wizard/si-setup-wizard.ts";
 
 import { commonStyle } from "./styles";
 import { VERSION, PLATFORM, ISSUES_URL } from "./const";
@@ -22,6 +23,8 @@ enum EMenuItems {
 export class SmartIrrigationPanel extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property({ type: Boolean, reflect: true }) public narrow!: boolean;
+
+  @state() private _wizardOpen = false;
 
   private _updateScheduled = false;
   private _lastNavigationTime = 0;
@@ -116,6 +119,21 @@ export class SmartIrrigationPanel extends LitElement {
             `}
       </div>
       <div class="view">${this.getView(path)}</div>
+      ${this._wizardOpen
+        ? html`
+            <si-setup-wizard
+              .hass="${this.hass}"
+              @wizard-close="${() => {
+                this._wizardOpen = false;
+              }}"
+              @wizard-navigate="${(e: CustomEvent) => {
+                const page = e.detail?.page ?? "zones";
+                this._wizardOpen = false;
+                this.navigateToPage(page);
+              }}"
+            ></si-setup-wizard>
+          `
+        : ""}
     `;
   }
 
@@ -128,6 +146,9 @@ export class SmartIrrigationPanel extends LitElement {
             .hass=${this.hass}
             .narrow=${this.narrow}
             .path=${path}
+            @open-wizard="${() => {
+              this._wizardOpen = true;
+            }}"
           ></smart-irrigation-view-zones>
         `;
       case "setup":
@@ -135,6 +156,10 @@ export class SmartIrrigationPanel extends LitElement {
           <smart-irrigation-view-setup
             .hass=${this.hass}
             .narrow=${this.narrow}
+            @wizard-navigate="${(e: CustomEvent) => {
+              const pg = e.detail?.page ?? "zones";
+              this.navigateToPage(pg);
+            }}"
           ></smart-irrigation-view-setup>
         `;
       default:
@@ -143,6 +168,9 @@ export class SmartIrrigationPanel extends LitElement {
             .hass=${this.hass}
             .narrow=${this.narrow}
             .path=${path}
+            @open-wizard="${() => {
+              this._wizardOpen = true;
+            }}"
           ></smart-irrigation-view-zones>
         `;
     }

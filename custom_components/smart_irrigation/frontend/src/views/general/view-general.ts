@@ -1,5 +1,5 @@
 import { CSSResultGroup, LitElement, css, html, TemplateResult } from "lit";
-import { property, customElement } from "lit/decorators.js";
+import { property, state, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
 
@@ -8,8 +8,10 @@ import {
   saveConfig,
   fetchWeatherConfig,
   saveWeatherConfig,
+  testWeatherConfig,
   WeatherConfig,
 } from "../../data/websockets";
+import "../../components/si-field";
 import { SubscribeMixin } from "../../subscribe-mixin";
 import { localize } from "../../../localize/localize";
 import { output_unit, pick, handleError } from "../../helpers";
@@ -75,6 +77,11 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
 
   @property({ type: Boolean })
   private _weatherSaving = false;
+
+  @state() private _testingApi = false;
+  @state() private _testResult: { success: boolean; error?: string } | null =
+    null;
+  private _testResultTimer: number | null = null;
 
   private _updateScheduled = false;
   private _scheduleUpdate() {
@@ -205,6 +212,36 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
     }
   }
 
+  private async _testWeatherConfig(): Promise<void> {
+    if (!this.hass || this._testingApi) return;
+    this._testingApi = true;
+    this._testResult = null;
+    if (this._testResultTimer) {
+      clearTimeout(this._testResultTimer);
+      this._testResultTimer = null;
+    }
+    this._scheduleUpdate();
+    try {
+      const result = await testWeatherConfig(
+        this.hass,
+        this._weatherService,
+        this._newApiKey || null,
+      );
+      this._testResult = result;
+      // Auto-clear after 12 s
+      this._testResultTimer = window.setTimeout(() => {
+        this._testResult = null;
+        this._testResultTimer = null;
+        this._scheduleUpdate();
+      }, 12000);
+    } catch (e) {
+      this._testResult = { success: false, error: "unknown" };
+    } finally {
+      this._testingApi = false;
+      this._scheduleUpdate();
+    }
+  }
+
   private _renderWeatherServiceCard(): TemplateResult {
     if (!this.hass) return html``;
     const noApiKeyServices = this._weatherConfig?.no_api_key_services ?? [
@@ -293,44 +330,87 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                 </div>
                 ${needsApiKey
                   ? html`
-                      <div class="setting-row">
-                        <label>
-                          ${localize(
-                            "weather_service_config.api_key_label",
-                            this.hass.language,
-                          )}
+                      <si-field
+                        label="${localize(
+                          "weather_service_config.api_key_label",
+                          this.hass.language,
+                        )}"
+                        help="${localize(
+                          "weather_service_config.api_key_help",
+                          this.hass.language,
+                        )}"
+                      >
+                        <div class="api-key-status">
                           ${this._weatherConfig?.has_api_key
-                            ? html`<div class="setting-description">
-                                ${localize(
+                            ? html`<span class="api-key-badge configured"
+                                >${localize(
                                   "weather_service_config.api_key_configured",
                                   this.hass.language,
-                                )}
-                              </div>`
-                            : html`<div
-                                class="setting-description"
-                                style="color:var(--warning-color)"
-                              >
-                                ${localize(
+                                )}</span
+                              >`
+                            : html`<span class="api-key-badge missing"
+                                >${localize(
                                   "weather_service_config.api_key_not_configured",
                                   this.hass.language,
+                                )}</span
+                              >`}
+                        </div>
+                        <div class="api-key-row">
+                          <input
+                            type="password"
+                            class="settings-input api-key-input"
+                            placeholder="${localize(
+                              "weather_service_config.api_key_placeholder",
+                              this.hass.language,
+                            )}"
+                            .value="${this._newApiKey}"
+                            @input="${(e: Event) => {
+                              this._newApiKey = (
+                                e.target as HTMLInputElement
+                              ).value;
+                              this._testResult = null;
+                            }}"
+                          />
+                          <button
+                            class="action-btn secondary test-btn"
+                            type="button"
+                            ?disabled="${this._testingApi ||
+                            (!this._newApiKey &&
+                              !this._weatherConfig?.has_api_key)}"
+                            @click="${this._testWeatherConfig}"
+                          >
+                            ${this._testingApi
+                              ? localize(
+                                  "weather_service_config.test_button_testing",
+                                  this.hass.language,
+                                )
+                              : localize(
+                                  "weather_service_config.test_button",
+                                  this.hass.language,
                                 )}
-                              </div>`}
-                        </label>
-                        <input
-                          type="password"
-                          class="settings-input"
-                          placeholder="${localize(
-                            "weather_service_config.api_key_placeholder",
-                            this.hass.language,
-                          )}"
-                          .value="${this._newApiKey}"
-                          @input="${(e: Event) => {
-                            this._newApiKey = (
-                              e.target as HTMLInputElement
-                            ).value;
-                          }}"
-                        />
-                      </div>
+                          </button>
+                        </div>
+                        ${this._testResult !== null
+                          ? html`
+                              <div
+                                class="test-result ${this._testResult.success
+                                  ? "success"
+                                  : "error"}"
+                              >
+                                ${this._testResult.success
+                                  ? localize(
+                                      "weather_service_config.test_success",
+                                      this.hass.language,
+                                    )
+                                  : localize(
+                                      "weather_service_config.test_error_" +
+                                        (this._testResult.error ?? "unknown"),
+                                      this.hass.language,
+                                    )}
+                              </div>
+                            `
+                          : ""}
+                      </si-field>
                     `
                   : html`
                       <div class="description-text" style="padding: 8px 0;">
@@ -1173,6 +1253,64 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       select.settings-input {
         cursor: pointer;
         min-width: 140px;
+      }
+
+      /* API key test UI */
+      .api-key-status {
+        margin-bottom: 4px;
+      }
+
+      .api-key-badge {
+        display: inline-block;
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 10px;
+      }
+
+      .api-key-badge.configured {
+        background: rgba(76, 175, 80, 0.15);
+        color: #2e7d32;
+      }
+
+      .api-key-badge.missing {
+        background: rgba(var(--rgb-warning-color, 255, 152, 0), 0.15);
+        color: var(--warning-color);
+      }
+
+      .api-key-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .api-key-input {
+        flex: 1;
+        min-width: 180px;
+      }
+
+      .test-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .test-result {
+        font-size: 0.83rem;
+        font-weight: 500;
+        margin-top: 6px;
+        padding: 5px 10px;
+        border-radius: 4px;
+      }
+
+      .test-result.success {
+        background: rgba(76, 175, 80, 0.12);
+        color: #2e7d32;
+      }
+
+      .test-result.error {
+        background: rgba(var(--rgb-error-color, 176, 0, 32), 0.1);
+        color: var(--error-color, #b00020);
       }
     `;
   }

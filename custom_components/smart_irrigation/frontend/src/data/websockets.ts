@@ -227,6 +227,22 @@ export const fetchWeatherConfig = (
   hass: HomeAssistant,
 ): Promise<WeatherConfig> => hass.callWS({ type: DOMAIN + "/weather_config" });
 
+export interface WeatherConfigTestResult {
+  success: boolean;
+  error?: "invalid_auth" | "cannot_connect" | "no_service" | "unknown";
+}
+
+export const testWeatherConfig = (
+  hass: HomeAssistant,
+  weather_service?: string | null,
+  api_key?: string | null,
+): Promise<WeatherConfigTestResult> =>
+  hass.callWS({
+    type: DOMAIN + "/weather_config_test",
+    weather_service: weather_service ?? null,
+    api_key: api_key ?? null,
+  });
+
 export const saveWeatherConfig = (
   hass: HomeAssistant,
   use_weather_service: boolean,

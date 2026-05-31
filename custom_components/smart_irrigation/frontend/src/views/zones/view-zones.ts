@@ -1186,7 +1186,46 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       (z) => z.linked_entity && (z.duration ?? 0) > 0,
     );
 
+    // First-time setup banner: shown when nothing is configured yet
+    const isFirstTime =
+      this.zones.length === 0 &&
+      this.modules.length === 0 &&
+      this.mappings.length === 0;
+
     return html`
+      ${isFirstTime
+        ? html`
+            <ha-card class="setup-banner-card">
+              <div class="setup-banner">
+                <div class="setup-banner-icon">🌱</div>
+                <div class="setup-banner-content">
+                  <div class="setup-banner-title">
+                    ${localize("wizard.title", this.hass.language)}
+                  </div>
+                  <div class="setup-banner-desc">
+                    ${localize(
+                      "wizard.setup_complete_banner",
+                      this.hass.language,
+                    )}
+                  </div>
+                </div>
+                <button
+                  class="action-btn setup-banner-btn"
+                  @click="${() => {
+                    this.dispatchEvent(
+                      new CustomEvent("open-wizard", {
+                        bubbles: true,
+                        composed: true,
+                      }),
+                    );
+                  }}"
+                >
+                  ${localize("wizard.open_wizard", this.hass.language)}
+                </button>
+              </div>
+            </ha-card>
+          `
+        : ""}
       <!-- Zones header card with + button and Irrigate All -->
       <ha-card>
         <div class="card-header">
@@ -1552,6 +1591,45 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       }
 
       /* Zones top action bar */
+      /* First-time setup banner */
+      .setup-banner-card {
+        border-left: 4px solid var(--primary-color);
+      }
+
+      .setup-banner {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        flex-wrap: wrap;
+      }
+
+      .setup-banner-icon {
+        font-size: 2rem;
+        flex-shrink: 0;
+      }
+
+      .setup-banner-content {
+        flex: 1;
+        min-width: 180px;
+      }
+
+      .setup-banner-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--primary-text-color);
+        margin-bottom: 4px;
+      }
+
+      .setup-banner-desc {
+        font-size: 0.83rem;
+        color: var(--secondary-text-color);
+      }
+
+      .setup-banner-btn {
+        flex-shrink: 0;
+      }
+
       .zones-top-actions {
         display: flex;
         align-items: center;

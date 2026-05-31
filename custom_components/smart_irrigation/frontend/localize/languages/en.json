@@ -448,12 +448,20 @@
     "api_key_placeholder": "Leave blank to keep existing key",
     "api_key_configured": "API key is configured",
     "api_key_not_configured": "No API key configured",
+    "api_key_help": "An API key from your chosen weather service provider. Open-Meteo does not require a key. OpenWeatherMap and Pirate Weather both offer free tiers.",
     "no_api_key_needed": "Open-Meteo is a free service and requires no API key.",
     "save_button": "Save weather settings",
     "saved": "Weather settings saved",
     "owm": "OpenWeatherMap",
     "pw": "Pirate Weather",
-    "openmeteo": "Open-Meteo (free, no key needed)"
+    "openmeteo": "Open-Meteo (free, no key needed)",
+    "test_button": "Test Connection",
+    "test_button_testing": "Testing…",
+    "test_success": "✓ Connection successful",
+    "test_error_invalid_auth": "✗ Invalid API key — check that it is correct and active",
+    "test_error_cannot_connect": "✗ Cannot connect — check your internet connection",
+    "test_error_no_service": "✗ Select a weather service first",
+    "test_error_unknown": "✗ Test failed — unknown error"
   },
   "irrigation_start_triggers": {
     "title": "Irrigation Start Triggers",
@@ -547,5 +555,91 @@
     "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next.",
     "parallel": "Parallel (all zones at once)",
     "sequential": "Sequential (one zone at a time)"
+  },
+  "field_help": {
+    "zone_size": "The total irrigated area of this zone. Used with throughput to calculate how much water is applied per run.",
+    "zone_throughput": "Water application rate of your sprinkler or drip system, expressed as depth per hour. Check your sprinkler datasheet or measure it.",
+    "zone_drainage_rate": "How fast excess water drains from the soil when the bucket is full. Typical: lawn 50 mm/h, sandy soil 100+ mm/h, clay 10 mm/h.",
+    "zone_bucket": "Current water deficit (negative) or surplus (positive) for this zone. Irrigation triggers when bucket drops below the threshold.",
+    "zone_maximum_bucket": "Maximum moisture surplus the zone can hold. Water above this level is treated as runoff. Typical value: 50 mm.",
+    "zone_bucket_threshold": "Irrigation triggers when the bucket drops below this value. Must be 0 or negative. 0 means irrigate whenever there is any deficit.",
+    "zone_multiplier": "Scale factor applied to the calculated duration. Use above 1.0 to increase, below 1.0 to decrease. Useful for fine-tuning without changing physical measurements.",
+    "zone_lead_time": "Extra seconds added before irrigation starts. Use for pump warm-up or system pressurisation.",
+    "zone_maximum_duration": "Hard cap on any single irrigation run in seconds. Prevents runaway watering. Default: 3600 s (1 hour).",
+    "zone_linked_entity": "The HA switch or valve entity controlling water flow for this zone. This entity is turned on when irrigation runs.",
+    "zone_flow_sensor": "Optional sensor measuring actual water flow rate. Used for reporting only — does not affect duration calculations.",
+    "general_autoupdatedelay": "Seconds to wait after HA starts before the first weather data fetch. Allows other integrations to initialise first.",
+    "general_sensor_debounce": "Minimum gap in milliseconds between sensor readings to filter noise from rapidly changing sensors.",
+    "general_calctime": "Time of day when irrigation durations are recalculated from collected weather data. Format: HH:MM (24-hour).",
+    "general_cleardatatime": "Time of day when old weather data is purged. Must be set later than the calculation time.",
+    "general_days_between": "Minimum days between irrigation events for the same zone. Set to 0 to disable (irrigate whenever deficit exists).",
+    "general_autoupdateinterval": "How often weather data is collected. Choose a value that balances fresh data against API rate limits.",
+    "general_precipitation_threshold": "Irrigation is skipped if forecasted precipitation for today/tomorrow exceeds this amount.",
+    "general_temp_threshold": "Irrigation is skipped if the current temperature is below this value (e.g. to prevent frost damage).",
+    "general_wind_threshold": "Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift)."
+  },
+  "wizard": {
+    "title": "Setup Wizard",
+    "open_button": "Setup Wizard",
+    "close": "Close",
+    "next": "Next",
+    "back": "Back",
+    "finish": "Finish",
+    "skip_step": "Skip this step",
+    "step_indicator": "Step {current} of {total}",
+    "setup_complete_banner": "Setup not complete. Run the wizard to get started.",
+    "open_wizard": "Open Wizard",
+    "steps": {
+      "welcome": {
+        "title": "Welcome to Smart Irrigation",
+        "intro": "This wizard guides you through the four steps needed to get your first zone irrigating automatically.",
+        "step1_label": "Weather Service — where to get weather data",
+        "step2_label": "Calculation Module — how irrigation duration is computed",
+        "step3_label": "Sensor Group — which data sources to use",
+        "step4_label": "Zone — your first irrigation zone",
+        "tip": "You can skip any step and configure it later from the Setup tab."
+      },
+      "weather": {
+        "title": "Weather Service",
+        "description": "Choose how to get weather data. Open-Meteo is free and requires no API key — it is the easiest choice for most users."
+      },
+      "module": {
+        "title": "Calculation Module",
+        "description": "A module calculates how long to irrigate based on evapotranspiration (ET). The PyETO module (FAO-56 method) is recommended for most users.",
+        "pick_label": "Select module type",
+        "no_modules": "No module types available."
+      },
+      "mapping": {
+        "title": "Sensor Group",
+        "description": "A sensor group links each weather variable to a data source. Set the key variables below — you can refine individual sensor mappings later from the Setup → Sensor Groups tab.",
+        "name_label": "Sensor group name",
+        "source_label": "Data source for",
+        "use_weather_service": "Weather service",
+        "use_sensor": "Sensor",
+        "use_static": "Static value",
+        "use_none": "None / not used"
+      },
+      "zone": {
+        "title": "First Zone",
+        "description": "A zone is one irrigation area (e.g. lawn, garden bed). Set the physical properties so the system can calculate the correct irrigation duration.",
+        "name_label": "Zone name",
+        "size_label": "Area",
+        "throughput_label": "Sprinkler throughput",
+        "entity_label": "Linked switch or valve",
+        "entity_placeholder": "e.g. switch.garden_valve",
+        "module_label": "Calculation module",
+        "mapping_label": "Sensor group"
+      },
+      "done": {
+        "title": "Setup Complete!",
+        "description": "Your first zone is ready. Smart Irrigation will now calculate irrigation durations automatically based on weather data.",
+        "next_steps": "What you can do next:",
+        "tip1": "Go to Zones to view calculated durations and bucket values.",
+        "tip2": "Add more zones from the Zones tab.",
+        "tip3": "Refine all settings from the Setup tab.",
+        "go_zones": "Go to Zones",
+        "go_setup": "Go to Setup"
+      }
+    }
   }
 }
