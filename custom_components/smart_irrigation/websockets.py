@@ -22,6 +22,7 @@ from homeassistant.helpers.dispatcher import (
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .helpers import CannotConnect, InvalidAuth, validate_api_key
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -746,8 +747,6 @@ async def websocket_get_weather_config(hass: HomeAssistant, connection, msg):
 @async_response
 async def websocket_test_weather_config(hass: HomeAssistant, connection, msg):
     """Test the weather service API key without saving it."""
-    from .helpers import validate_api_key, CannotConnect, InvalidAuth
-
     weather_service = msg.get("weather_service")
     api_key = msg.get("api_key") or None
 

@@ -102,7 +102,6 @@ class OWMClient:  # pylint: disable=invalid-name
         """
         url = OWM_VALIDATE_URL.format(self.latitude, self.longitude, self.api_key)
         req = requests.get(url, timeout=30)
-        doc = req.json()
         if req.status_code == 401:
             raise OSError("OWM API key is invalid (HTTP 401)")
         if req.status_code not in (200, 403):
