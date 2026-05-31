@@ -691,7 +691,6 @@ async def validate_api_key(hass: HomeAssistant, weather_service, api_key):
     if weather_service == CONF_WEATHER_SERVICE_OWM:
         client = OWMClient(
             api_key=api_key.strip(),
-            api_version="3.0",
             latitude=test_lat,
             longitude=test_lon,
             elevation=test_elev,

@@ -21,38 +21,9 @@ from ..const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Open Weather Map URL
-OWM_URL = (
-    "https://api.openweathermap.org/data/{}/onecall?units={}&lat={}&lon={}&appid={}"
-)
-
-# Simple validation endpoint available on all OWM plans (free + paid)
-OWM_VALIDATE_URL = (
-    "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}"
-)
-
-# Required OWM keys for validation
-OWM_wind_speed_key_name = "wind_speed"
-OWM_pressure_key_name = "pressure"
-OWM_humidity_key_name = "humidity"
-OWM_temp_key_name = "temp"
-OWM_dew_point_key_name = "dew_point"
-OWM_current_rain_key_name = "rain.1h"
-OWM_current_snow_key_name = "snow.1h"
-
-OWM_required_keys = {
-    OWM_wind_speed_key_name,
-    OWM_dew_point_key_name,
-    OWM_temp_key_name,
-    OWM_humidity_key_name,
-    OWM_pressure_key_name,
-}
-
-max_temp_key_name = "max_temp"
-min_temp_key_name = "min_temp"
-precip_key_name = "precip"
-
-OWM_required_key_temp = {"day", "min", "max"}
+# OWM free-tier endpoints (2.5 — no paid subscription required)
+OWM_CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather?units=metric&lat={}&lon={}&appid={}"
+OWM_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric&lat={}&lon={}&appid={}"
 
 # Validators
 OWM_validators = {
@@ -63,281 +34,206 @@ OWM_validators = {
     "pressure": {"max": 1084.8, "min": 870},
 }
 
+# OWM reports wind at 10 m; ET calculations need 2 m height
+_WIND_HEIGHT_CORRECTION = 4.87 / math.log((67.8 * 10) - 5.42)
+
+
+def _compute_dew_point(temp_c: float, humidity: float) -> float:
+    """Magnus formula: dew point (°C) from temperature (°C) and relative humidity (%)."""
+    a, b = 17.625, 243.04
+    gamma = math.log(max(humidity, 0.01) / 100.0) + (a * temp_c) / (b + temp_c)
+    return (b * gamma) / (a - gamma)
+
 
 class OWMClient:  # pylint: disable=invalid-name
-    """Open Weather Map Client."""
+    """Open Weather Map Client using free-tier 2.5 endpoints."""
 
     def __init__(
         self,
         api_key,
-        api_version,
-        latitude,
-        longitude,
-        elevation,
+        api_version=None,  # ignored — kept for backwards-compatibility
+        latitude=None,
+        longitude=None,
+        elevation=0,
         cache_seconds=0,
         override_cache=False,
     ) -> None:
         """Init."""
         self.api_key = api_key.strip().replace(" ", "")
-        # This should only be 3.0 going forward because of OWM Sunsetting 2.5 API.
-        api_version = "3.0"
-        self.api_version = api_version
+        self.api_version = "2.5"
         self.longitude = longitude
         self.latitude = latitude
         self.elevation = elevation
-        self.url = OWM_URL.format(api_version, "metric", latitude, longitude, api_key)
-        # defaults to no cache
         self.cache_seconds = cache_seconds
-        self.override_cache = override_cache
-        # disabling cache for now
+        # caching disabled for now
         self.override_cache = True
         self._last_time_called = datetime.datetime(1900, 1, 1, 0, 0, 0)
         self._cached_data = None
         self._cached_forecast_data = None
 
     def validate_key(self):
-        """Test the API key using the basic /weather endpoint (available on all OWM plans).
+        """Test the API key using /data/2.5/weather (works on all OWM plans).
 
-        Raises OSError on 401 (invalid key). Does NOT test One Call 3.0 subscription.
+        Raises OSError on 401 (invalid key).
         """
-        url = OWM_VALIDATE_URL.format(self.latitude, self.longitude, self.api_key)
+        url = OWM_CURRENT_URL.format(self.latitude, self.longitude, self.api_key)
         req = requests.get(url, timeout=30)
         if req.status_code == 401:
             raise OSError("OWM API key is invalid (HTTP 401)")
         if req.status_code not in (200, 403):
             raise OSError(f"OWM validation failed with HTTP {req.status_code}")
 
-    def get_forecast_data(self):
-        """Validate and return forecast data."""
-        if (
-            self._cached_forecast_data is None
-            or self.override_cache
-            or datetime.datetime.now()
-            >= self._last_time_called + datetime.timedelta(seconds=self.cache_seconds)
-        ):
-            try:
-                req = requests.get(self.url, timeout=60)  # 60 seconds timeout
-                doc = json.loads(req.text)
-                _LOGGER.debug(
-                    "OWMClient get_forecast_data called API %s and received %s",
-                    self.url,
-                    doc,
-                )
-                if doc and "cod" in doc:
-                    if doc["cod"] != 200:
-                        self.raiseHTTPError()
-                # parse out values from daily
-                if "daily" in doc:
-                    parsed_data_total = []
-                    # get the required values from daily.
-                    for x in range(1, len(doc["daily"]) - 1):
-                        data = doc["daily"][x]
-                        parsed_data = {}
-
-                        def raise_missing_key_error(key):
-                            self.raiseMissingKeyError(key)
-
-                        for k in OWM_required_keys:
-                            if k not in data:
-                                raise_missing_key_error(k)
-                            elif k not in [
-                                OWM_wind_speed_key_name,
-                                OWM_temp_key_name,
-                                OWM_pressure_key_name,
-                            ]:
-                                if (
-                                    data[k] < OWM_validators[k]["min"]
-                                    or data[k] > OWM_validators[k]["max"]
-                                ):
-                                    self.validationError(
-                                        k,
-                                        data[k],
-                                        OWM_validators[k]["min"],
-                                        OWM_validators[k]["max"],
-                                    )
-                            elif k is OWM_temp_key_name:
-                                for kt in OWM_required_key_temp:
-                                    if kt not in data[OWM_temp_key_name]:
-                                        raise_missing_key_error(kt)
-                                    elif (
-                                        data[OWM_temp_key_name][kt]
-                                        < OWM_validators["temp"]["min"]
-                                        or data[OWM_temp_key_name][kt]
-                                        > OWM_validators["temp"]["max"]
-                                    ):
-                                        self.validationError(
-                                            kt,
-                                            data[OWM_temp_key_name][kt],
-                                            OWM_validators["temp"]["min"],
-                                            OWM_validators["temp"]["max"],
-                                        )
-                            elif k is OWM_wind_speed_key_name:
-                                # OWM reports wind speed at 10m height, so need to convert to 2m:
-                                data[OWM_wind_speed_key_name] = data[
-                                    OWM_wind_speed_key_name
-                                ] * (4.87 / math.log((67.8 * 10) - 5.42))
-                            elif k is OWM_pressure_key_name:
-                                # OWM provides relative pressure, replace it with estimated absolute pressure returning!
-                                data[OWM_pressure_key_name] = (
-                                    self.relative_to_absolute_pressure(
-                                        data[OWM_pressure_key_name], self.elevation
-                                    )
-                                )
-                        parsed_data[MAPPING_WINDSPEED] = data[OWM_wind_speed_key_name]
-
-                        parsed_data[MAPPING_PRESSURE] = data[OWM_pressure_key_name]
-
-                        parsed_data[MAPPING_HUMIDITY] = data[OWM_humidity_key_name]
-                        parsed_data[MAPPING_TEMPERATURE] = data[OWM_temp_key_name][
-                            "day"
-                        ]
-                        # also put in min/max here
-                        parsed_data[MAPPING_MAX_TEMP] = data[OWM_temp_key_name]["max"]
-                        parsed_data[MAPPING_MIN_TEMP] = data[OWM_temp_key_name]["min"]
-                        parsed_data[MAPPING_DEWPOINT] = data[OWM_dew_point_key_name]
-                        # add precip from daily
-                        # if rain or snow are missing from the OWM data set them to 0
-                        rain = 0.0
-                        snow = 0.0
-                        parsed_data[MAPPING_PRECIPITATION] = 0.0
-                        if "rain" in data:
-                            rain = float(data["rain"])
-                        if "snow" in data:
-                            snow = float(data["snow"])
-                        parsed_data[MAPPING_PRECIPITATION] = rain + snow
-                        parsed_data_total.append(parsed_data)
-                    self._cached_forecast_data = parsed_data_total
-                    self._last_time_called = datetime.datetime.now()
-                    return parsed_data_total
-                _LOGGER.warning(
-                    "Ignoring OWM input: missing required key 'daily' in OWM API return"
-                )
-                return None
-            except (requests.RequestException, json.JSONDecodeError) as ex:
-                _LOGGER.error("Error reading from OWM: %s", ex)
-            else:
-                return None
-        else:
-            # return cached_data
-            _LOGGER.info("Returning cached OWM forecastdata")
-            return self._cached_forecast_data
-
-    def relative_to_absolute_pressure(self, pressure, height):
-        """Convert relative pressure to absolute pressure."""
-        # Constants
-        g = 9.80665  # m/s^2
-        M = 0.0289644  # kg/mol
-        R = 8.31447  # J/(mol*K)
-        T0 = 288.15  # K
-
-        # Calculate temperature at given height
-        temperature = T0 - (g * M * height) / (R * T0)
-        # Calculate absolute pressure at given height
-        return pressure * (T0 / temperature) ** (g * M / (R * 287))
-
     def get_data(self):
-        """Validate and return data."""
+        """Fetch and return current weather data from /data/2.5/weather."""
         if (
             self._cached_data is None
             or self.override_cache
             or datetime.datetime.now()
             >= self._last_time_called + datetime.timedelta(seconds=self.cache_seconds)
         ):
+            url = OWM_CURRENT_URL.format(self.latitude, self.longitude, self.api_key)
             try:
-                req = requests.get(self.url, timeout=60)  # 60 seconds timeout
+                req = requests.get(url, timeout=60)
                 doc = json.loads(req.text)
                 _LOGGER.debug(
-                    "OWMClient get_data called API %s and received %s",
-                    self.url,
-                    doc,
+                    "OWMClient get_data called API %s and received %s", url, doc
                 )
-                if "cod" in doc:
-                    if doc["cod"] != 200:
-                        self.raiseHTTPError()
-                # parse out values for current and rain/snow from daily[0].
-                if "current" in doc and "daily" in doc:
-                    parsed_data = {}
-                    # get the required values from current and daily.
-                    data = doc["current"]
-                    for k in OWM_required_keys:
-                        if k not in data:
-                            self.raiseMissingKeyError(k)
-                        elif k not in [
-                            OWM_wind_speed_key_name,
-                            OWM_pressure_key_name,
-                        ]:
-                            if (
-                                data[k] < OWM_validators[k]["min"]
-                                or data[k] > OWM_validators[k]["max"]
-                            ):
-                                self.validationError(
-                                    k,
-                                    data[k],
-                                    OWM_validators[k]["min"],
-                                    OWM_validators[k]["max"],
-                                )
-                        elif k is OWM_wind_speed_key_name:
-                            # OWM reports wind speed at 10m height, so need to convert to 2m:
-                            data[OWM_wind_speed_key_name] = data[
-                                OWM_wind_speed_key_name
-                            ] * (4.87 / math.log((67.8 * 10) - 5.42))
-                        elif k is OWM_pressure_key_name:
-                            # OWM provides relative pressure, replace it with estimated absolute pressure returning!
-                            data[OWM_pressure_key_name] = (
-                                self.relative_to_absolute_pressure(
-                                    data[OWM_pressure_key_name], self.elevation
-                                )
-                            )
-                    parsed_data[MAPPING_WINDSPEED] = data[OWM_wind_speed_key_name]
-                    parsed_data[MAPPING_PRESSURE] = data[OWM_pressure_key_name]
-                    parsed_data[MAPPING_HUMIDITY] = data[OWM_humidity_key_name]
-                    parsed_data[MAPPING_TEMPERATURE] = data[OWM_temp_key_name]
-                    parsed_data[MAPPING_DEWPOINT] = data[OWM_dew_point_key_name]
-                    parsed_data[MAPPING_CURRENT_PRECIPITATION] = 0.0
-                    # is it currently raining or snowing?
-                    # should this only be added if the precipProbability is above a certain threshold?
-                    if OWM_current_rain_key_name in data:
-                        parsed_data[MAPPING_CURRENT_PRECIPITATION] += data[
-                            OWM_current_rain_key_name
-                        ]
-                    if OWM_current_snow_key_name in data:
-                        parsed_data[MAPPING_CURRENT_PRECIPITATION] += data[
-                            OWM_current_snow_key_name
-                        ]
 
-                    # NOT used: also put in min/max here as just the current temp
-                    # removing this as part of beta12. Temperature is the only thing we want to take and we will apply min and max aggregation on our own.
-                    # parsed_data[MAPPING_MAX_TEMP] = data[OWM_temp_key_name]
-                    # parsed_data[MAPPING_MIN_TEMP] = data[OWM_temp_key_name]
+                if doc.get("cod") not in (200, "200"):
+                    self.raiseHTTPError()
 
-                    # Use actual measured rain (rain.1h + snow.1h) instead of
-                    # daily[0].rain, which is a forecast total including future rain.
-                    # Crediting forecast rain before it falls causes bucket fluctuations
-                    # when the forecast changes or doesn't materialise (issue #694).
-                    parsed_data[MAPPING_PRECIPITATION] = parsed_data.get(
-                        MAPPING_CURRENT_PRECIPITATION, 0.0
-                    )
-                    _LOGGER.debug(
-                        "OWMCLIENT actual precipitation (rain.1h + snow.1h): %s",
-                        parsed_data[MAPPING_PRECIPITATION],
-                    )
+                main = doc.get("main", {})
+                wind = doc.get("wind", {})
+                rain = doc.get("rain", {})
+                snow = doc.get("snow", {})
 
-                    self._cached_data = parsed_data
-                    self._last_time_called = datetime.datetime.now()
-                    return parsed_data
-                _LOGGER.warning(
-                    "Ignoring OWM input: missing required key 'current' and 'daily' in OWM API return"
+                temp = main["temp"]
+                humidity = main["humidity"]
+                pressure = self.relative_to_absolute_pressure(
+                    main["pressure"], self.elevation
                 )
-                return None
+                wind_speed = wind.get("speed", 0.0) * _WIND_HEIGHT_CORRECTION
+                dew_point = _compute_dew_point(temp, humidity)
+                current_precip = rain.get("1h", 0.0) + snow.get("1h", 0.0)
+
+                _LOGGER.debug(
+                    "OWMCLIENT actual precipitation (rain.1h + snow.1h): %s",
+                    current_precip,
+                )
+
+                parsed_data = {
+                    MAPPING_TEMPERATURE: temp,
+                    MAPPING_HUMIDITY: humidity,
+                    MAPPING_PRESSURE: pressure,
+                    MAPPING_WINDSPEED: wind_speed,
+                    MAPPING_DEWPOINT: dew_point,
+                    MAPPING_CURRENT_PRECIPITATION: current_precip,
+                    MAPPING_PRECIPITATION: current_precip,
+                }
+                self._cached_data = parsed_data
+                self._last_time_called = datetime.datetime.now()
+                return parsed_data
             except Exception as ex:
                 _LOGGER.warning(ex)
                 raise
+        else:
+            _LOGGER.info("Returning cached OWM data")
+            return self._cached_data
+
+    def get_forecast_data(self):
+        """Fetch and return daily forecast data from /data/2.5/forecast.
+
+        The 3-hourly entries are aggregated into calendar days.
+        Today's partial data is excluded; up to 4 complete future days are returned.
+        """
+        if (
+            self._cached_forecast_data is None
+            or self.override_cache
+            or datetime.datetime.now()
+            >= self._last_time_called + datetime.timedelta(seconds=self.cache_seconds)
+        ):
+            url = OWM_FORECAST_URL.format(self.latitude, self.longitude, self.api_key)
+            try:
+                req = requests.get(url, timeout=60)
+                doc = json.loads(req.text)
+                _LOGGER.debug(
+                    "OWMClient get_forecast_data called API %s and received %s",
+                    url,
+                    doc,
+                )
+
+                if doc.get("cod") not in (200, "200"):
+                    self.raiseHTTPError()
+
+                entries = doc.get("list", [])
+                if not entries:
+                    _LOGGER.warning(
+                        "Ignoring OWM input: missing or empty 'list' in forecast response"
+                    )
+                    return None
+
+                today = datetime.datetime.utcnow().date()
+                daily_buckets: dict = {}
+                for entry in entries:
+                    day = datetime.datetime.utcfromtimestamp(entry["dt"]).date()
+                    if day == today:
+                        continue
+                    daily_buckets.setdefault(day, []).append(entry)
+
+                parsed_data_total = []
+                for day in sorted(daily_buckets.keys()):
+                    slots = daily_buckets[day]
+                    mains = [s["main"] for s in slots]
+                    temps = [m["temp"] for m in mains]
+                    humidities = [m["humidity"] for m in mains]
+                    pressures = [m["pressure"] for m in mains]
+                    wind_speeds = [s.get("wind", {}).get("speed", 0.0) for s in slots]
+
+                    avg_temp = sum(temps) / len(temps)
+                    avg_humidity = sum(humidities) / len(humidities)
+                    avg_pressure = sum(pressures) / len(pressures)
+                    avg_wind = sum(wind_speeds) / len(wind_speeds)
+                    min_temp = min(m.get("temp_min", m["temp"]) for m in mains)
+                    max_temp = max(m.get("temp_max", m["temp"]) for m in mains)
+                    rain = sum(s.get("rain", {}).get("3h", 0.0) for s in slots)
+                    snow_mm = sum(s.get("snow", {}).get("3h", 0.0) for s in slots)
+
+                    parsed_data_total.append(
+                        {
+                            MAPPING_TEMPERATURE: avg_temp,
+                            MAPPING_MIN_TEMP: min_temp,
+                            MAPPING_MAX_TEMP: max_temp,
+                            MAPPING_HUMIDITY: avg_humidity,
+                            MAPPING_PRESSURE: self.relative_to_absolute_pressure(
+                                avg_pressure, self.elevation
+                            ),
+                            MAPPING_WINDSPEED: avg_wind * _WIND_HEIGHT_CORRECTION,
+                            MAPPING_DEWPOINT: _compute_dew_point(
+                                avg_temp, avg_humidity
+                            ),
+                            MAPPING_PRECIPITATION: rain + snow_mm,
+                        }
+                    )
+
+                self._cached_forecast_data = parsed_data_total
+                self._last_time_called = datetime.datetime.now()
+                return parsed_data_total
+            except (requests.RequestException, json.JSONDecodeError) as ex:
+                _LOGGER.error("Error reading from OWM forecast: %s", ex)
             else:
                 return None
         else:
-            # return cached_data
-            _LOGGER.info("Returning cached OWM data")
-            return self._cached_data
+            _LOGGER.info("Returning cached OWM forecastdata")
+            return self._cached_forecast_data
+
+    def relative_to_absolute_pressure(self, pressure, height):
+        """Convert sea-level pressure (hPa) to station pressure at the given elevation (m)."""
+        g = 9.80665
+        M = 0.0289644
+        R = 8.31447
+        T0 = 288.15
+        temperature = T0 - (g * M * height) / (R * T0)
+        return pressure * (T0 / temperature) ** (g * M / (R * 287))
 
     def raiseHTTPError(self):
         """Raise an OSError when the OWM API returns an HTTP error."""
@@ -350,18 +246,7 @@ class OWMClient:  # pylint: disable=invalid-name
         raise OSError(f"Missing required key {key} in OWM API return")
 
     def validationError(self, key, value, minval, maxval):
-        """Raise a ValueError if the value for a key is outside the expected range.
-
-        Args:
-            key: The key being validated.
-            value: The value to validate.
-            minval: The minimum allowed value.
-            maxval: The maximum allowed value.
-
-        Raises:
-            ValueError: If the value is not within the specified range.
-
-        """
+        """Raise a ValueError if the value for a key is outside the expected range."""
         raise ValueError(
             f"Value {value} is not valid for {key}. Excepted range: {minval}-{maxval}"
         )

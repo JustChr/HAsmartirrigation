@@ -139,8 +139,8 @@ class PyETO(SmartIrrigationCalculationModule):
         CONF_PYETO_FORECAST_DAYS: (
             "Number of future days to include in the ET calculation. "
             "0 = current weather only (recommended — no extra API calls). "
-            "Values > 0 average today's ET with forecasted ET for upcoming days, "
-            "but require an OWM One Call 3.0 paid subscription."
+            "Values > 0 average today's ET with forecasted ET for upcoming days "
+            "(up to 4 days via the OWM free tier)."
         ),
     }
 
