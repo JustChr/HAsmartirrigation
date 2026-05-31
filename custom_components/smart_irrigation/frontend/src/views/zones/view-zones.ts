@@ -1,6 +1,6 @@
 import { TemplateResult, LitElement, html, CSSResultGroup, css } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { property, customElement } from "lit/decorators.js";
+import { property, state, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 import { loadHaForm } from "../../load-ha-elements";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
@@ -90,6 +90,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   @property({ type: Boolean })
   private _showAddZone = false;
 
+  @state() private _operationError: string | null = null;
+
   @property()
   private _confirmDeleteZoneId: number | null = null;
 
@@ -101,6 +103,13 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
   @property()
   private _newZoneThroughput = "";
+
+  private _extractErrorMessage(err: unknown): string {
+    if (!err) return "Unknown error";
+    if (typeof err === "string") return err;
+    const e = err as any;
+    return e?.body?.message || e?.message || e?.error || JSON.stringify(err);
+  }
 
   private _updateScheduled = false;
   private _scheduleUpdate() {
@@ -276,7 +285,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   ): void {
     if (!this.hass) return;
 
-    this.zones[index] = updatedZone;
+    // Replace the whole array so Lit's reactive system detects the change.
+    this.zones = this.zones.map((z, i) => (i === index ? updatedZone : z));
 
     if (this.globalDebounceTimer) clearTimeout(this.globalDebounceTimer);
 
@@ -327,10 +337,15 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   private handleCalculateZone(index: number): void {
     const zone = this.zones[index];
     if (!zone || zone.id == undefined || !this.hass) return;
+    this._operationError = null;
     this.isSaving = true;
     this._scheduleUpdate();
     calculateZone(this.hass, zone.id.toString())
-      .catch((err) => console.error("calculateZone failed:", err))
+      .catch((err) => {
+        const msg = this._extractErrorMessage(err);
+        console.error("calculateZone failed:", err);
+        this._operationError = msg;
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -342,10 +357,15 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   private handleUpdateZone(index: number): void {
     const zone = this.zones[index];
     if (!zone || zone.id == undefined || !this.hass) return;
+    this._operationError = null;
     this.isSaving = true;
     this._scheduleUpdate();
     updateZone(this.hass, zone.id.toString())
-      .catch((err) => console.error("updateZone failed:", err))
+      .catch((err) => {
+        const msg = this._extractErrorMessage(err);
+        console.error("updateZone failed:", err);
+        this._operationError = msg;
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -557,15 +577,16 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     await saveZone(this.hass, zone);
   }
 
-  private _renderModuleOptions(selected?: number): TemplateResult {
+  private _renderModuleOptions(selected?: number | string): TemplateResult {
     if (!this.hass) return html``;
+    const sel = selected != null ? String(selected) : "";
     return html`
-      <option value="" ?selected="${selected === undefined}">
+      <option value="" ?selected="${sel === ""}">
         ---${localize("common.labels.select", this.hass.language)}---
       </option>
       ${this.modules.map(
         (m) => html`
-          <option value="${m.id}" ?selected="${selected === m.id}">
+          <option value="${m.id}" ?selected="${sel === String(m.id)}">
             ${m.id}: ${m.name}
           </option>
         `,
@@ -573,15 +594,16 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     `;
   }
 
-  private _renderMappingOptions(selected?: number): TemplateResult {
+  private _renderMappingOptions(selected?: number | string): TemplateResult {
     if (!this.hass) return html``;
+    const sel = selected != null ? String(selected) : "";
     return html`
-      <option value="" ?selected="${selected === undefined}">
+      <option value="" ?selected="${sel === ""}">
         ---${localize("common.labels.select", this.hass.language)}---
       </option>
       ${this.mappings.map(
         (m) => html`
-          <option value="${m.id}" ?selected="${selected === m.id}">
+          <option value="${m.id}" ?selected="${sel === String(m.id)}">
             ${m.id}: ${m.name}
           </option>
         `,
@@ -1427,6 +1449,26 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           `
         : ""}
 
+      <!-- Operation error banner -->
+      ${this._operationError
+        ? html`
+            <ha-card class="error-banner-card">
+              <div class="error-banner">
+                <span class="error-banner-msg">${this._operationError}</span>
+                <button
+                  class="error-banner-close"
+                  @click="${() => {
+                    this._operationError = null;
+                  }}"
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+            </ha-card>
+          `
+        : ""}
+
       <!-- Zone cards -->
       ${this.zones.map((zone, index) => this.renderZone(zone, index))}
 
@@ -1740,6 +1782,35 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+      }
+
+      /* Operation error banner */
+      .error-banner-card {
+        border-left: 4px solid var(--error-color, #f44336);
+      }
+
+      .error-banner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      .error-banner-msg {
+        flex: 1;
+        color: var(--error-color, #f44336);
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+
+      .error-banner-close {
+        background: none;
+        border: none;
+        color: var(--secondary-text-color);
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 0 4px;
+        flex-shrink: 0;
       }
     `;
   }

@@ -306,8 +306,7 @@ async def async_remove_entry(hass: HomeAssistant, entry):
         del hass.data[const.DOMAIN]
 
 
-class SmartIrrigationError(Exception):
-    """Exception raised for errors in the Smart Irrigation integration."""
+SmartIrrigationError = const.SmartIrrigationError  # re-exported for backward compat
 
 
 class SmartIrrigationCoordinator(DataUpdateCoordinator):
@@ -2348,8 +2347,8 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             weatherdata = None
             zone = self.store.get_zone(zone_id)
             if zone is None:
-                _LOGGER.error("[async_update_zone_config] Zone %s not found", zone_id)
-                return
+                raise SmartIrrigationError(f"Zone {zone_id} not found")
+            zone_name = zone.get(const.ZONE_NAME, str(zone_id))
             mapping_id = zone.get(const.ZONE_MAPPING)
             mapping = (
                 self.store.get_mapping(mapping_id) if mapping_id is not None else None
@@ -2357,28 +2356,34 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             if mapping is not None and mapping.get(const.MAPPING_DATA):
                 weatherdata = await self.apply_aggregates_to_mapping_data(mapping)
             else:
-                _LOGGER.error(
-                    "[async_update_zone_config] Error calculating zone %s: no sensor data available (mapping: %s)",
-                    zone.get(const.ZONE_NAME),
-                    mapping_id,
-                )
-                return
+                if mapping_id is None:
+                    msg = f"Zone '{zone_name}' has no mapping configured. Assign a mapping with sensor data before calculating."
+                else:
+                    msg = f"Zone '{zone_name}' has no sensor data yet. Wait for sensors to report values or check mapping '{mapping_id}'."
+                _LOGGER.error("[async_update_zone_config] %s", msg)
+                raise SmartIrrigationError(msg)
 
             # get forecast data if needed
             forecastdata = None
             modinst = await self.getModuleInstanceByID(zone.get(const.ZONE_MODULE))
-            if modinst and modinst.name == "PyETO" and modinst.forecast_days > 0:
+            if modinst is None:
+                msg = f"Zone '{zone_name}' has no calculation module configured. Assign a module before calculating."
+                _LOGGER.error("[async_update_zone_config] %s", msg)
+                raise SmartIrrigationError(msg)
+            if modinst.name == "PyETO" and modinst.forecast_days > 0:
                 if self.use_weather_service:
                     # get forecast info from OWM
                     forecastdata = await self.hass.async_add_executor_job(
                         self._WeatherServiceClient.get_forecast_data
                     )
                 else:
-                    _LOGGER.error(
-                        "[async_update_zone_config] Error calculating zone %s: You have configured forecasting but there is no OWM API configured. Either configure the OWM API or stop using forecasting on the PyETO module",
-                        zone.get(const.ZONE_NAME),
+                    msg = (
+                        f"Zone '{zone_name}': PyETO is configured to use forecast data "
+                        "but no weather service API is configured. "
+                        "Either configure a weather service or set forecast_days to 0."
                     )
-                    return
+                    _LOGGER.error("[async_update_zone_config] %s", msg)
+                    raise SmartIrrigationError(msg)
 
             await self.async_calculate_zone(
                 zone_id, weatherdata, forecastdata, delete_weather_data

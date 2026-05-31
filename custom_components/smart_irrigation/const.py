@@ -1,6 +1,11 @@
 """Store constants."""
 
-VERSION = "v2026.05.14"
+
+class SmartIrrigationError(Exception):
+    """Exception raised for errors in the Smart Irrigation integration."""
+
+
+VERSION = "v2026.05.31"
 NAME = "Smart Irrigation"
 MANUFACTURER = "@JustChr"
 

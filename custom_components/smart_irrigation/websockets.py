@@ -22,6 +22,7 @@ from homeassistant.helpers.dispatcher import (
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .const import SmartIrrigationError
 from .helpers import CannotConnect, InvalidAuth, validate_api_key
 
 _LOGGER = logging.getLogger(__name__)
@@ -249,7 +250,11 @@ class SmartIrrigationZoneView(HomeAssistantView):
         hass = request.app["hass"]
         coordinator = hass.data[const.DOMAIN]["coordinator"]
         zone = int(data[const.ZONE_ID]) if const.ZONE_ID in data else None
-        await coordinator.async_update_zone_config(zone, data)
+        try:
+            await coordinator.async_update_zone_config(zone, data)
+        except SmartIrrigationError as err:
+            _LOGGER.warning("[zone POST] Rejected: %s", err)
+            return self.json({"success": False, "message": str(err)}, status_code=400)
         async_dispatcher_send(hass, const.DOMAIN + "_update_frontend")
         return self.json({"success": True})
 
