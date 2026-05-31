@@ -2,19 +2,19 @@
   "common": {
     "actions": {
       "delete": "Cancella",
-      "edit": "Edit",
-      "save": "Save",
-      "cancel": "Cancel"
+      "edit": "Modifica",
+      "save": "Salva",
+      "cancel": "Annulla"
     },
     "labels": {
       "module": "Modulo",
       "no": "No",
       "select": "Seleziona",
       "yes": "Si",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "before": "before",
-      "after": "after"
+      "enabled": "Abilitato",
+      "disabled": "Disabilitato",
+      "before": "prima",
+      "after": "dopo"
     },
     "units": {
       "seconds": "secondi"
@@ -23,21 +23,21 @@
       "size": "size",
       "throughput": "throughput",
       "state": "state",
-      "bucket": "secchio",
+      "bucket": "serbatoio",
       "last_updated": "ultimo aggiornamento",
       "last_calculated": "ultimo calcolo",
       "number_of_data_points": "numero di punti dati"
     },
-    "loading": "Loading",
-    "saving": "Saving",
+    "loading": "Caricamento",
+    "saving": "Salvataggio",
     "loading-messages": {
-      "configuration": "Loading configuration...",
-      "modules": "Loading modules...",
-      "general": "Loading..."
+      "configuration": "Caricamento configurazione...",
+      "modules": "Caricamento moduli...",
+      "general": "Caricamento..."
     },
     "saving-messages": {
-      "adding": "Adding...",
-      "saving": "Saving..."
+      "adding": "Aggiungendo...",
+      "saving": "Salvataggio..."
     }
   },
   "defaults": {
@@ -70,7 +70,7 @@
         "duration-after-lead-time-is": "quindi la durata finale è",
         "bucket-larger-than-or-equal-to-zero-no-irrigation-necessary": "Poiché secchio >= 0, non è necessaria alcuna irrigazione e la durata è impostata su",
         "maximum-bucket-is": "la dimensione massima del secchio è",
-        "drainage-rate-is": "Il tasso di drenaggio in condizioni di saturazione (secchio al massimo) è di",
+        "drainage-rate-is": "Il tasso di drenaggio a saturazione (serbatoio al massimo) è",
         "current-drainage-is": "Il drenaggio attuale è calcolato come",
         "no-drainage": "Il drenaggio attuale è 0 perché"
       }
@@ -96,7 +96,7 @@
           "labels": {
             "auto-calc-enabled": "Calcola automaticamente la durata delle zone",
             "auto-calc-time": "Calcola a",
-            "calc-time": "Calculate at"
+            "calc-time": "Calcola alle"
           }
         },
         "automatic-update": {
@@ -109,8 +109,8 @@
             "auto-update-enabled": "Aggiorna automaticamente i dati meteorologici",
             "auto-update-first-update": "(Primo) aggiornamento alle",
             "auto-update-interval": "Aggiorna i dati del sensore ogni",
-            "auto-update-schedule": "Update schedule",
-            "auto-update-time": "Update at",
+            "auto-update-schedule": "Pianificazione aggiornamento",
+            "auto-update-time": "Aggiorna alle",
             "auto-update-delay": "Update delay"
           },
           "options": {
@@ -128,11 +128,12 @@
           }
         },
         "continuousupdates": {
-          "header": "Aggiornamenti continui per i sensori (sperimentale)",
-          "description": "Questa funzione sperimentale aggiorna continuamente i dati dei sensori. È utile per i gruppi di sensori che utilizzano fonti che forniscono dati continui, come le stazioni meteorologiche. Questa funzione non può essere utilizzata per i gruppi di sensori che si affidano almeno in parte ai servizi meteo, poiché il polling continuo delle API comporta dei costi. Tenere presente che si tratta di una funzione sperimentale e che potrebbe non funzionare come previsto. Utilizzatela a vostro rischio e pericolo.",
+          "header": "Aggiornamenti continui sensori (sperimentale)",
+          "description": "Funzione sperimentale per dati meteo più granulari.",
           "labels": {
             "continuousupdates": "Abilita gli aggiornamenti continui",
-            "sensor_debounce": "Rimbalzo del sensore"
+            "sensor_debounce": "Rimbalzo del sensore",
+            "sensor-debounce": "Tempo anti-rimbalzo sensore (ms)"
           }
         }
       },
@@ -156,45 +157,45 @@
     },
     "info": {
       "title": "Info",
-      "description": "Visualizza le informazioni sulla prossima irrigazione e sullo stato del sistema.",
+      "description": "Visualizza informazioni sulla prossima irrigazione e lo stato del sistema.",
       "cards": {
         "next-irrigation": {
-          "title": "Prossima Irrigazione",
+          "title": "Prossima irrigazione",
           "labels": {
             "next-start": "Prossimo avvio",
             "duration": "Durata",
             "zones": "Zone"
           },
-          "no-data": "Non ci sono dati disponibili",
+          "no-data": "Nessun dato disponibile",
           "backend-todo": "TODO: API di backend necessaria per le informazioni sull'irrigazione"
         },
         "irrigation-reason": {
-          "title": "Motivo dell'irrigazione",
+          "title": "Motivo irrigazione",
           "labels": {
-            "reason": "Motivazione",
+            "reason": "Ragione",
             "sunrise": "Alba",
             "total-duration": "Durata totale",
             "explanation": "Spiegazione"
           },
-          "no-data": "Non ci sono dati disponibili",
+          "no-data": "Nessun dato disponibile",
           "backend-todo": "TODO: API di backend necessaria per le informazioni sull'irrigazione"
         },
         "zone-bucket-values": {
-          "title": "Zone Bucket Values & Duration",
+          "title": "Valori serbatoio e durata",
           "labels": {
-            "bucket": "Bucket",
-            "duration": "Duration"
+            "bucket": "Serbatoio",
+            "duration": "Durata"
           },
-          "no-zones": "No zones configured"
+          "no-zones": "Nessuna zona configurata"
         },
         "irrigate_now": {
-          "title": "Irrigate Now",
-          "description": "Immediately start irrigation for all zones that have a linked entity. Skip conditions are ignored.",
-          "button_all": "Run all zones now",
-          "no_linked_zones": "No zones have a linked switch/valve entity with a calculated duration."
+          "title": "Irriga ora",
+          "description": "Avvia immediatamente l'irrigazione per tutte le zone con entità collegata. Le condizioni di esclusione vengono ignorate.",
+          "button_all": "Avvia tutte le zone ora",
+          "no_linked_zones": "Nessuna zona ha un'entità interruttore/valvola collegata con durata calcolata."
         }
       },
-      "configuration-not-available": "Configuration not available."
+      "configuration-not-available": "Configurazione non disponibile."
     },
     "mappings": {
       "cards": {
@@ -304,10 +305,10 @@
         "information": "Informazioni",
         "update": "Aggiorna",
         "reset-bucket": "Reimposta il secchio",
-        "view-weather-info": "Visualizza le informazioni meteo",
+        "view-weather-info": "Visualizza dati meteo",
         "view-weather-info-message": "Informazioni meteo disponibili per",
         "view-weather-info-todo": "TODO: Implementare la navigazione ai dettagli del gruppo di sensori",
-        "view-watering-calendar": "Visualizza il calendario delle irrigazioni"
+        "view-watering-calendar": "Calendario irrigazione"
       },
       "cards": {
         "add-zone": {
@@ -349,88 +350,88 @@
         "data-number-of-data-points": "Numero di dati",
         "tasso_di_drenaggio": "tasso di drenaggio",
         "drainage_rate": "Drainage rate",
-        "linked_entity": "Linked switch/valve entity",
-        "linked_entity_placeholder": "e.g. switch.garden_valve",
-        "irrigate_now": "Irrigate Now",
-        "bucket_threshold": "Minimum deficit to irrigate"
+        "linked_entity": "Entità interruttore/valvola collegata",
+        "linked_entity_placeholder": "es. switch.valvola_giardino",
+        "irrigate_now": "Irriga ora",
+        "bucket_threshold": "Deficit minimo per irrigare"
       },
       "no_items": "Non ci sono ancora zone definite.",
       "title": "Zone"
     },
     "schedules": {
-      "title": "Schedules",
-      "description": "Create recurring schedules to automatically calculate, update, or irrigate your zones. No automations needed.",
-      "add": "Add Schedule",
-      "no_items": "No schedules configured yet. Click 'Add Schedule' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "hours": "hours",
+      "title": "Pianificazioni",
+      "description": "Crea pianificazioni ricorrenti per calcolare, aggiornare o irrigare automaticamente — senza automazioni.",
+      "add": "Aggiungi pianificazione",
+      "no_items": "Nessuna pianificazione configurata. Fare clic su 'Aggiungi pianificazione'.",
+      "zones_all": "Tutte le zone",
+      "zones_specific": "Zone specifiche",
+      "hours": "ore",
       "minutes": "min",
       "types": {
-        "daily": "Daily",
-        "weekly": "Weekly",
-        "monthly": "Monthly",
-        "interval": "Every N hours",
-        "sunrise": "Sunrise",
-        "sunset": "Sunset",
-        "solar_azimuth": "Solar azimuth"
+        "daily": "Giornaliero",
+        "weekly": "Settimanale",
+        "monthly": "Mensile",
+        "interval": "Ogni N ore",
+        "sunrise": "Alba",
+        "sunset": "Tramonto",
+        "solar_azimuth": "Azimut solare"
       },
       "actions": {
-        "calculate": "Calculate (update irrigation duration)",
-        "update": "Update (collect weather data)",
-        "irrigate": "Irrigate (run valves directly)"
+        "calculate": "Calcola (aggiorna durata irrigazione)",
+        "update": "Aggiorna (raccogliere dati meteo)",
+        "irrigate": "Irriga (controllare valvole direttamente)"
       },
       "days": {
-        "monday": "Mon",
-        "tuesday": "Tue",
-        "wednesday": "Wed",
-        "thursday": "Thu",
-        "friday": "Fri",
-        "saturday": "Sat",
-        "sunday": "Sun"
+        "monday": "Lu",
+        "tuesday": "Ma",
+        "wednesday": "Me",
+        "thursday": "Gi",
+        "friday": "Ve",
+        "saturday": "Sa",
+        "sunday": "Do"
       },
       "fields": {
-        "name": "Name",
-        "type": "Schedule type",
-        "enabled": "Enabled",
-        "time": "Time (HH:MM)",
-        "days_of_week": "Days of week",
-        "day_of_month": "Day of month",
-        "interval_hours": "Interval",
-        "action": "Action",
-        "zones": "Zones",
-        "start_date": "Start date (optional)",
-        "end_date": "End date (optional)",
-        "offset_minutes": "Offset from sunrise/sunset",
-        "account_for_duration": "Start early so irrigation finishes at trigger time",
-        "azimuth_angle": "Solar azimuth angle"
+        "name": "Nome",
+        "type": "Tipo di pianificazione",
+        "enabled": "Abilitato",
+        "time": "Ora (HH:MM)",
+        "days_of_week": "Giorni della settimana",
+        "day_of_month": "Giorno del mese",
+        "interval_hours": "Intervallo",
+        "action": "Azione",
+        "zones": "Zone",
+        "start_date": "Data di inizio (opzionale)",
+        "end_date": "Data di fine (opzionale)",
+        "offset_minutes": "Offset dall'alba/tramonto",
+        "account_for_duration": "Iniziare prima affinché l'irrigazione finisca all'orario target",
+        "azimuth_angle": "Angolo di azimut solare"
       },
       "dialog": {
-        "add_title": "Add Schedule",
-        "edit_title": "Edit Schedule"
+        "add_title": "Aggiungi pianificazione",
+        "edit_title": "Modifica pianificazione"
       }
     },
     "adjustments": {
-      "title": "Seasonal Adjustments",
-      "description": "Apply month-based multiplier or bucket adjustments to automatically adapt irrigation for seasonal conditions.",
-      "add": "Add Adjustment",
-      "no_items": "No seasonal adjustments configured yet. Click 'Add Adjustment' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "multiplier_hint": "1.0 = no change, 1.5 = 50% more irrigation, 0.5 = 50% less",
-      "threshold_hint": "Added to the zone bucket. Positive = more water needed, negative = less.",
+      "title": "Aggiustamenti stagionali",
+      "description": "Aggiustamenti mensili di moltiplicatore o soglia per condizioni stagionali.",
+      "add": "Aggiungi aggiustamento",
+      "no_items": "Nessun aggiustamento stagionale configurato.",
+      "zones_all": "Tutte le zone",
+      "zones_specific": "Zone specifiche",
+      "multiplier_hint": "1,0 = nessuna modifica, 1,5 = 50% più irrigazione, 0,5 = 50% meno",
+      "threshold_hint": "Aggiunto al serbatoio della zona. Positivo = più acqua necessaria, negativo = meno.",
       "fields": {
-        "name": "Name",
-        "enabled": "Enabled",
-        "month_start": "From month",
-        "month_end": "To month",
-        "multiplier_adjustment": "Multiplier adjustment",
-        "threshold_adjustment": "Bucket threshold adjustment (mm)",
-        "zones": "Zones"
+        "name": "Nome",
+        "enabled": "Abilitato",
+        "month_start": "Dal mese",
+        "month_end": "Al mese",
+        "multiplier_adjustment": "Aggiustamento moltiplicatore",
+        "threshold_adjustment": "Aggiustamento soglia (mm)",
+        "zones": "Zone"
       },
       "dialog": {
-        "add_title": "Add Seasonal Adjustment",
-        "edit_title": "Edit Seasonal Adjustment"
+        "add_title": "Aggiungi aggiustamento stagionale",
+        "edit_title": "Modifica aggiustamento stagionale"
       }
     }
   },
@@ -446,10 +447,10 @@
     "current_ha_coords": "Coordinate attuali di Home Assistant"
   },
   "days_between_irrigation": {
-    "title": "Giorni Tra Irrigazioni",
-    "description": "Configura il numero minimo di giorni che devono passare tra gli eventi di irrigazione. Questo aiuta a controllare la frequenza di irrigazione per la conservazione dell'acqua e la gestione della salute delle piante.\n\nCasi d'uso tipici:\n• Cura del prato: intervalli di 1-2 giorni prevengono l'eccesso di irrigazione\n• Restrizioni di siccità: intervalli di 6+ giorni per irrigazione settimanale\n• Piante a radici profonde: intervalli di 3-7 giorni per irrigazione meno frequente\n• Conservazione dell'acqua: personalizzabile in base al clima e alle condizioni del suolo",
+    "title": "Giorni tra irrigazioni",
+    "description": "Configura il numero minimo di giorni tra gli eventi di irrigazione.",
     "label": "Giorni minimi tra irrigazioni",
-    "help_text": "Imposta a 0 per disabilitare questa funzione. Sono supportati valori da 1-365 giorni. Questa impostazione funziona insieme alla logica di previsione delle precipitazioni esistente."
+    "help_text": "Impostare 0 per disabilitare. Sono supportati valori da 1 a 365 giorni."
   },
   "irrigation_start_triggers": {
     "title": "Irrigation Start Triggers",
@@ -510,22 +511,22 @@
     }
   },
   "weather_skip": {
-    "title": "Skip Conditions",
-    "description": "Automatically skip irrigation when conditions are unfavorable. Precipitation check requires a weather service. Temperature and wind checks also require a weather service.",
-    "threshold_label": "Precipitation Threshold",
-    "threshold_description": "Minimum amount of precipitation (in mm) forecasted for today and tomorrow to skip irrigation.",
-    "temp_section_title": "Skip on low temperature",
-    "temp_threshold_label": "Skip if temperature is below",
-    "wind_section_title": "Skip on high wind speed",
-    "wind_threshold_label": "Skip if wind speed is above",
-    "rain_sensor_section_title": "Skip on rain sensor",
-    "rain_sensor_label": "Rain sensor entity (optional)",
-    "rain_sensor_placeholder": "e.g. binary_sensor.rain"
+    "title": "Condizioni di esclusione",
+    "description": "Salta automaticamente l'irrigazione quando le condizioni sono sfavorevoli. I controlli di precipitazioni, temperatura e vento richiedono un servizio meteo.",
+    "threshold_label": "Soglia di precipitazioni",
+    "threshold_description": "Quantità minima di precipitazioni previste (in mm) per oggi e domani per saltare l'irrigazione.",
+    "temp_section_title": "Salta per bassa temperatura",
+    "temp_threshold_label": "Salta se temperatura sotto",
+    "wind_section_title": "Salta per vento forte",
+    "wind_threshold_label": "Salta se velocità del vento superiore a",
+    "rain_sensor_section_title": "Condizione sensore pioggia",
+    "rain_sensor_label": "Entità sensore pioggia (opzionale)",
+    "rain_sensor_placeholder": "es. binary_sensor.pioggia"
   },
   "zone_sequencing": {
-    "title": "Zone Sequencing",
-    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next.",
-    "parallel": "Parallel (all zones at once)",
-    "sequential": "Sequential (one zone at a time)"
+    "title": "Sequenza zone",
+    "description": "Quando più zone necessitano di irrigazione, scegliere se funzionano contemporaneamente o una dopo l'altra. In modalità sequenziale, il sistema attende che ogni zona finisca prima di avviare la successiva.",
+    "parallel": "Parallelo (tutte le zone insieme)",
+    "sequential": "Sequenziale (una zona alla volta)"
   }
 }

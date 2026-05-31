@@ -62,6 +62,7 @@ import {
   ZONE_THROUGHPUT,
   ZONE_LINKED_ENTITY,
   ZONE_BUCKET_THRESHOLD,
+  ZONE_FLOW_SENSOR,
 } from "../../const";
 import moment, { Moment } from "moment";
 
@@ -1293,6 +1294,36 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                     ...zone,
                     [ZONE_LINKED_ENTITY]:
                       (e.target as HTMLInputElement).value.trim() || undefined,
+                  })}"
+              />
+            </div>
+            <div class="zoneline">
+              <label for="flow_sensor${index}"
+                >${localize(
+                  "panels.zones.labels.flow_sensor",
+                  this.hass.language,
+                )}:</label
+              >
+              <datalist id="flow-sensor-list-${index}">
+                ${Object.keys(this.hass.states)
+                  .filter((id) => id.startsWith("sensor."))
+                  .sort()
+                  .map((id) => html`<option value="${id}"></option>`)}
+              </datalist>
+              <input
+                id="flow_sensor${index}"
+                type="text"
+                list="flow-sensor-list-${index}"
+                placeholder="${localize(
+                  "panels.zones.labels.flow_sensor_placeholder",
+                  this.hass.language,
+                )}"
+                .value="${zone.flow_sensor || ""}"
+                @change="${(e: Event) =>
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_FLOW_SENSOR]:
+                      (e.target as HTMLInputElement).value.trim() || null,
                   })}"
               />
             </div>

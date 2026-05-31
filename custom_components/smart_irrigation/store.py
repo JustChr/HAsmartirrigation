@@ -107,6 +107,7 @@ from .const import (
     ZONE_DELTA,
     ZONE_DRAINAGE_RATE,
     ZONE_DURATION,
+    ZONE_FLOW_SENSOR,
     ZONE_ID,
     ZONE_LAST_UPDATED,
     ZONE_LEAD_TIME,
@@ -160,6 +161,7 @@ class ZoneEntry:
     current_drainage = attr.ib(type=float, default=0)
     linked_entity = attr.ib(type=str, default=None)
     bucket_threshold = attr.ib(type=float, default=CONF_DEFAULT_BUCKET_THRESHOLD)
+    flow_sensor = attr.ib(type=str, default=None)
 
 
 @attr.s(slots=True, frozen=True)
@@ -501,6 +503,7 @@ class SmartIrrigationStorage:
                         bucket_threshold=zone.get(
                             ZONE_BUCKET_THRESHOLD, CONF_DEFAULT_BUCKET_THRESHOLD
                         ),
+                        flow_sensor=zone.get(ZONE_FLOW_SENSOR, None),
                     )
             if "modules" in data:
                 for module in data["modules"]:

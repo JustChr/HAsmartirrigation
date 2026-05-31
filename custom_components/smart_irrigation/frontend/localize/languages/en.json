@@ -421,6 +421,8 @@
         "drainage_rate": "Drainage rate",
         "linked_entity": "Linked switch/valve entity",
         "linked_entity_placeholder": "e.g. switch.garden_valve",
+        "flow_sensor": "Flow meter sensor (optional)",
+        "flow_sensor_placeholder": "e.g. sensor.zone_flow_rate",
         "irrigate_now": "Irrigate Now",
         "bucket_threshold": "Minimum deficit to irrigate"
       },

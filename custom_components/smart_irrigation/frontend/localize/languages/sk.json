@@ -2,42 +2,42 @@
   "common": {
     "actions": {
       "delete": "Zmazať",
-      "edit": "Edit",
-      "save": "Save",
-      "cancel": "Cancel"
+      "edit": "Upraviť",
+      "save": "Uložiť",
+      "cancel": "Zrušiť"
     },
     "labels": {
       "module": "Modul",
       "no": "Nie",
       "select": "Zvoliť",
       "yes": "Áno",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "before": "before",
-      "after": "after"
+      "enabled": "Povolené",
+      "disabled": "Zakázané",
+      "before": "pred",
+      "after": "po"
     },
     "attributes": {
       "size": "size",
       "throughput": "priepustnosť",
       "state": "stav",
-      "bucket": "nádoba",
-      "last_updated": "last updated",
-      "last_calculated": "last calculated",
-      "number_of_data_points": "number of data points"
+      "bucket": "zásobník",
+      "last_updated": "posledná aktualizácia",
+      "last_calculated": "posledný výpočet",
+      "number_of_data_points": "počet dátových bodov"
     },
-    "loading": "Loading",
-    "saving": "Saving",
+    "loading": "Načítanie",
+    "saving": "Ukladanie",
     "units": {
-      "seconds": "seconds"
+      "seconds": "sekúnd"
     },
     "loading-messages": {
-      "configuration": "Loading configuration...",
-      "modules": "Loading modules...",
-      "general": "Loading..."
+      "configuration": "Načítanie konfigurácie...",
+      "modules": "Načítanie modulov...",
+      "general": "Načítanie..."
     },
     "saving-messages": {
-      "adding": "Adding...",
-      "saving": "Saving..."
+      "adding": "Pridávanie...",
+      "saving": "Ukladanie..."
     }
   },
   "defaults": {
@@ -70,9 +70,9 @@
         "drainage": "drainage",
         "drainage-rate": "drainage_rate",
         "hours": "hours",
-        "drainage-rate-is": "Drainage rate when saturated (bucket at max) is",
-        "current-drainage-is": "Current drainage is calculated as",
-        "no-drainage": "Current drainage is 0 because"
+        "drainage-rate-is": "Rýchlosť odtoku pri nasýtení (zásobník na maxime) je",
+        "current-drainage-is": "Aktuálna drenáž vypočítaná ako",
+        "no-drainage": "Aktuálna drenáž je 0, pretože"
       }
     }
   },
@@ -96,7 +96,7 @@
           "labels": {
             "auto-calc-enabled": "Automaticky vypočítajte trvanie zón",
             "auto-calc-time": "Vypočítajte pri",
-            "calc-time": "Calculate at"
+            "calc-time": "Vypočítať o"
           }
         },
         "automatic-update": {
@@ -109,8 +109,8 @@
             "auto-update-enabled": "Automaticky aktualizovať údaje o počasí",
             "auto-update-delay": "Oneskorenie aktualizácie",
             "auto-update-interval": "Aktualizujte údaje snímača každý",
-            "auto-update-schedule": "Update schedule",
-            "auto-update-time": "Update at"
+            "auto-update-schedule": "Plán aktualizácie",
+            "auto-update-time": "Aktualizovať o"
           },
           "options": {
             "days": "dni",
@@ -127,11 +127,12 @@
           }
         },
         "continuousupdates": {
-          "header": "Continuous updates for sensors (experimental)",
-          "description": "This experimental feature will continuously update the sensor data. This is useful for sensor groups that use sources that provide continuous data, such as weather stations. This feature cannot be used for sensor groups that at least partly rely on weather services as continous polling of APIs will incur costs. Keep in mind that this is experimental and may not work as expected. Use at your own risk.",
+          "header": "Priebežné aktualizácie senzorov (experimentálne)",
+          "description": "Experimentálna funkcia pre podrobnejšie meteorologické dáta.",
           "labels": {
             "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce"
+            "sensor_debounce": "Sensor debounce",
+            "sensor-debounce": "Čas odrazu senzora (ms)"
           }
         }
       },
@@ -261,9 +262,9 @@
         "information": "Informácia",
         "update": "Aktualizovať",
         "reset-bucket": "Resetovať vedro",
-        "view-weather-info": "View weather data",
+        "view-weather-info": "Zobraziť počasie",
         "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "View watering calendar"
+        "view-watering-calendar": "Kalendár zavlažovania"
       },
       "cards": {
         "add-zone": {
@@ -304,127 +305,127 @@
         "data-last-updated": "Údaje boli naposledy aktualizované",
         "data-number-of-data-points": "Počet údajových bodov",
         "drainage_rate": "Drainage rate",
-        "linked_entity": "Linked switch/valve entity",
-        "linked_entity_placeholder": "e.g. switch.garden_valve",
-        "irrigate_now": "Irrigate Now",
-        "bucket_threshold": "Minimum deficit to irrigate"
+        "linked_entity": "Prepojená entita prepínača/ventilu",
+        "linked_entity_placeholder": "napr. switch.zahradny_ventil",
+        "irrigate_now": "Zavlažiť teraz",
+        "bucket_threshold": "Minimálny deficit pre závlahu"
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
       "title": "Zóny"
     },
     "schedules": {
-      "title": "Schedules",
-      "description": "Create recurring schedules to automatically calculate, update, or irrigate your zones. No automations needed.",
-      "add": "Add Schedule",
-      "no_items": "No schedules configured yet. Click 'Add Schedule' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "hours": "hours",
+      "title": "Plány",
+      "description": "Vytvorte opakujúce sa plány pre automatický výpočet, aktualizáciu alebo závlahu — bez automatizácií.",
+      "add": "Pridať plán",
+      "no_items": "Zatiaľ nie sú nakonfigurované žiadne plány. Kliknite na 'Pridať plán'.",
+      "zones_all": "Všetky zóny",
+      "zones_specific": "Konkrétne zóny",
+      "hours": "hodín",
       "minutes": "min",
       "types": {
-        "daily": "Daily",
-        "weekly": "Weekly",
-        "monthly": "Monthly",
-        "interval": "Every N hours",
-        "sunrise": "Sunrise",
-        "sunset": "Sunset",
-        "solar_azimuth": "Solar azimuth"
+        "daily": "Denne",
+        "weekly": "Týždenne",
+        "monthly": "Mesačne",
+        "interval": "Každých N hodín",
+        "sunrise": "Východ slnka",
+        "sunset": "Západ slnka",
+        "solar_azimuth": "Slnečný azimut"
       },
       "actions": {
-        "calculate": "Calculate (update irrigation duration)",
-        "update": "Update (collect weather data)",
-        "irrigate": "Irrigate (run valves directly)"
+        "calculate": "Vypočítať (aktualizovať dobu závlahy)",
+        "update": "Aktualizovať (zbierať meteorologické dáta)",
+        "irrigate": "Zavlažiť (priamo ovládať ventily)"
       },
       "days": {
-        "monday": "Mon",
-        "tuesday": "Tue",
-        "wednesday": "Wed",
-        "thursday": "Thu",
-        "friday": "Fri",
-        "saturday": "Sat",
-        "sunday": "Sun"
+        "monday": "Po",
+        "tuesday": "Ut",
+        "wednesday": "St",
+        "thursday": "Št",
+        "friday": "Pi",
+        "saturday": "So",
+        "sunday": "Ne"
       },
       "fields": {
-        "name": "Name",
-        "type": "Schedule type",
-        "enabled": "Enabled",
-        "time": "Time (HH:MM)",
-        "days_of_week": "Days of week",
-        "day_of_month": "Day of month",
+        "name": "Názov",
+        "type": "Typ plánu",
+        "enabled": "Povolené",
+        "time": "Čas (HH:MM)",
+        "days_of_week": "Dni v týždni",
+        "day_of_month": "Deň v mesiaci",
         "interval_hours": "Interval",
-        "action": "Action",
-        "zones": "Zones",
-        "start_date": "Start date (optional)",
-        "end_date": "End date (optional)",
-        "offset_minutes": "Offset from sunrise/sunset",
-        "account_for_duration": "Start early so irrigation finishes at trigger time",
-        "azimuth_angle": "Solar azimuth angle"
+        "action": "Akcia",
+        "zones": "Zóny",
+        "start_date": "Dátum začiatku (voliteľné)",
+        "end_date": "Dátum konca (voliteľné)",
+        "offset_minutes": "Posun od východu/západu slnka",
+        "account_for_duration": "Spustiť skoro, aby závlaha skončila v cieľovom čase",
+        "azimuth_angle": "Uhol slnečného azimutu"
       },
       "dialog": {
-        "add_title": "Add Schedule",
-        "edit_title": "Edit Schedule"
+        "add_title": "Pridať plán",
+        "edit_title": "Upraviť plán"
       }
     },
     "adjustments": {
-      "title": "Seasonal Adjustments",
-      "description": "Apply month-based multiplier or bucket adjustments to automatically adapt irrigation for seasonal conditions.",
-      "add": "Add Adjustment",
-      "no_items": "No seasonal adjustments configured yet. Click 'Add Adjustment' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "multiplier_hint": "1.0 = no change, 1.5 = 50% more irrigation, 0.5 = 50% less",
-      "threshold_hint": "Added to the zone bucket. Positive = more water needed, negative = less.",
+      "title": "Sezónne úpravy",
+      "description": "Mesačné úpravy multiplikátora alebo prahu pre sezónne podmienky.",
+      "add": "Pridať úpravu",
+      "no_items": "Žiadne sezónne úpravy nie sú nakonfigurované.",
+      "zones_all": "Všetky zóny",
+      "zones_specific": "Konkrétne zóny",
+      "multiplier_hint": "1,0 = bez zmeny, 1,5 = 50% viac závlahy, 0,5 = 50% menej",
+      "threshold_hint": "Pridané do zásobníka zóny. Kladné = viac vody potrebné, záporné = menej.",
       "fields": {
-        "name": "Name",
-        "enabled": "Enabled",
-        "month_start": "From month",
-        "month_end": "To month",
-        "multiplier_adjustment": "Multiplier adjustment",
-        "threshold_adjustment": "Bucket threshold adjustment (mm)",
-        "zones": "Zones"
+        "name": "Názov",
+        "enabled": "Povolené",
+        "month_start": "Od mesiaca",
+        "month_end": "Do mesiaca",
+        "multiplier_adjustment": "Úprava multiplikátora",
+        "threshold_adjustment": "Úprava prahu (mm)",
+        "zones": "Zóny"
       },
       "dialog": {
-        "add_title": "Add Seasonal Adjustment",
-        "edit_title": "Edit Seasonal Adjustment"
+        "add_title": "Pridať sezónnu úpravu",
+        "edit_title": "Upraviť sezónnu úpravu"
       }
     },
     "info": {
       "title": "Info",
-      "description": "View information about next irrigation and system status.",
-      "configuration-not-available": "Configuration not available.",
+      "description": "Zobraziť informácie o ďalšej závlahe a stave systému.",
+      "configuration-not-available": "Konfigurácia nie je k dispozícii.",
       "cards": {
         "zone-bucket-values": {
-          "title": "Zone Bucket Values & Duration",
+          "title": "Hodnoty zásobníka zóny a trvanie",
           "labels": {
-            "bucket": "Bucket",
-            "duration": "Duration"
+            "bucket": "Zásobník",
+            "duration": "Trvanie"
           },
-          "no-zones": "No zones configured"
+          "no-zones": "Žiadne zóny nie sú nakonfigurované"
         },
         "next-irrigation": {
-          "title": "Next Irrigation",
+          "title": "Ďalšia závlaha",
           "labels": {
-            "next-start": "Next start",
-            "duration": "Duration",
-            "zones": "Zones"
+            "next-start": "Ďalší štart",
+            "duration": "Trvanie",
+            "zones": "Zóny"
           },
-          "no-data": "No data available"
+          "no-data": "Žiadne dáta k dispozícii"
         },
         "irrigation-reason": {
-          "title": "Irrigation Reason",
+          "title": "Dôvod závlahy",
           "labels": {
-            "reason": "Reason",
-            "sunrise": "Sunrise",
-            "total-duration": "Total duration",
-            "explanation": "Explanation"
+            "reason": "Dôvod",
+            "sunrise": "Východ slnka",
+            "total-duration": "Celková doba",
+            "explanation": "Vysvetlenie"
           },
-          "no-data": "No data available"
+          "no-data": "Žiadne dáta k dispozícii"
         },
         "irrigate_now": {
-          "title": "Irrigate Now",
-          "description": "Immediately start irrigation for all zones that have a linked entity. Skip conditions are ignored.",
-          "button_all": "Run all zones now",
-          "no_linked_zones": "No zones have a linked switch/valve entity with a calculated duration."
+          "title": "Zavlažiť teraz",
+          "description": "Okamžite spustiť závlahu pre všetky zóny s prepojenou entitou. Podmienky preskočenia sú ignorované.",
+          "button_all": "Spustiť všetky zóny teraz",
+          "no_linked_zones": "Žiadna zóna nemá prepojenú entitu prepínača/ventilu s vypočítanou dobou."
         }
       }
     }
@@ -441,10 +442,10 @@
     "current_ha_coords": "Aktuálne súradnice Home Assistant"
   },
   "days_between_irrigation": {
-    "title": "Dni Medzi Zavlažovaním",
-    "description": "Nakonfigurujte minimálny počet dní, ktoré musia uplynúť medzi udalosťami zavlažovania. Toto pomáha kontrolovať frekvenciu zavlažovania pre úsporu vody a správu zdravia rastlín.\n\nTypické prípady použitia:\n• Starostlivosť o trávnik: intervaly 1-2 dní zabránia nadmernému zalievaniu\n• Obmedzenia sucha: intervaly 6+ dní pre týždenné zalievanie\n• Hlbokokorenné rastliny: intervaly 3-7 dní pre menej časté zalievanie\n• Úspora vody: prispôsobiteľné na základe podnebia a podmienok pôdy",
-    "label": "Minimálne dni medzi zavlažovaním",
-    "help_text": "Nastavte na 0 pre deaktiváciu tejto funkcie. Podporované sú hodnoty 1-365 dní. Toto nastavenie funguje spolu s existujúcou logikou predpovede zrážok."
+    "title": "Dni medzi závlahami",
+    "description": "Nakonfigurujte minimálny počet dní medzi záhradnými udalosťami.",
+    "label": "Minimálne dni medzi závlahami",
+    "help_text": "Nastavte na 0 pre deaktiváciu. Podporované sú hodnoty 1-365 dní."
   },
   "irrigation_start_triggers": {
     "title": "Irrigation Start Triggers",
@@ -505,22 +506,22 @@
     }
   },
   "weather_skip": {
-    "title": "Skip Conditions",
-    "description": "Automatically skip irrigation when conditions are unfavorable. Precipitation check requires a weather service. Temperature and wind checks also require a weather service.",
-    "threshold_label": "Precipitation Threshold",
-    "threshold_description": "Minimum amount of precipitation (in mm) forecasted for today and tomorrow to skip irrigation.",
-    "temp_section_title": "Skip on low temperature",
-    "temp_threshold_label": "Skip if temperature is below",
-    "wind_section_title": "Skip on high wind speed",
-    "wind_threshold_label": "Skip if wind speed is above",
-    "rain_sensor_section_title": "Skip on rain sensor",
-    "rain_sensor_label": "Rain sensor entity (optional)",
-    "rain_sensor_placeholder": "e.g. binary_sensor.rain"
+    "title": "Podmienky preskočenia",
+    "description": "Automaticky preskočiť závlahu pri nepriaznivých podmienkach. Kontroly zrážok, teploty a vetra vyžadujú počasiovú službu.",
+    "threshold_label": "Prah zrážok",
+    "threshold_description": "Minimálne množstvo predpokladaných zrážok (v mm) pre dnešok a zajtrajšok na preskočenie závlahy.",
+    "temp_section_title": "Preskočiť pri nízkej teplote",
+    "temp_threshold_label": "Preskočiť ak teplota pod",
+    "wind_section_title": "Preskočiť pri silnom vetre",
+    "wind_threshold_label": "Preskočiť ak rýchlosť vetra nad",
+    "rain_sensor_section_title": "Podmienka dažďového senzora",
+    "rain_sensor_label": "Entita dažďového senzora (voliteľné)",
+    "rain_sensor_placeholder": "napr. binary_sensor.dazd"
   },
   "zone_sequencing": {
-    "title": "Zone Sequencing",
-    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next.",
-    "parallel": "Parallel (all zones at once)",
-    "sequential": "Sequential (one zone at a time)"
+    "title": "Poradie zón",
+    "description": "Keď viacero zón potrebuje závlahu, vyberte, či prebiehajú súčasne alebo jedna po druhej. V sekvenčnom režime systém čaká, kým každá zóna skončí, pred spustením ďalšej.",
+    "parallel": "Paralelne (všetky zóny súčasne)",
+    "sequential": "Sekvenčne (jedna zóna naraz)"
   }
 }

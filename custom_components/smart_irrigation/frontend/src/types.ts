@@ -120,6 +120,7 @@ export class SmartIrrigationZone {
   current_drainage?: number;
   linked_entity?: string;
   bucket_threshold?: number;
+  flow_sensor?: string | null;
 
   constructor(
     i: number,

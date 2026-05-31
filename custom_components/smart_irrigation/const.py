@@ -1,6 +1,6 @@
 """Store constants."""
 
-VERSION = "v2026.05.05"
+VERSION = "v2026.05.06"
 NAME = "Smart Irrigation"
 MANUFACTURER = "@JustChr"
 
@@ -255,6 +255,8 @@ ZONE_CURRENT_DRAINAGE = "current_drainage"
 ZONE_LINKED_ENTITY = "linked_entity"
 ZONE_BUCKET_THRESHOLD = "bucket_threshold"
 CONF_DEFAULT_BUCKET_THRESHOLD = 0.0  # mm; water whenever bucket < 0 (any deficit)
+ZONE_FLOW_SENSOR = "flow_sensor"
+FLOW_POLL_INTERVAL = 15  # seconds between flow meter readings
 
 CONF_ZONE_SEQUENCING = "zone_sequencing"
 CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential"

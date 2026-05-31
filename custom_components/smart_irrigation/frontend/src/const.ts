@@ -135,6 +135,7 @@ export const ZONE_DRAINAGE_RATE = "drainage_rate";
 export const ZONE_CURRENT_DRAINAGE = "current_drainage";
 export const ZONE_LINKED_ENTITY = "linked_entity";
 export const ZONE_BUCKET_THRESHOLD = "bucket_threshold";
+export const ZONE_FLOW_SENSOR = "flow_sensor";
 
 export const CONF_ZONE_SEQUENCING = "zone_sequencing";
 export const CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential";

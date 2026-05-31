@@ -97,6 +97,10 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_SKIP_IRRIGATION_ON_PRECIPITATION): cv.boolean,
                 vol.Optional(const.CONF_PRECIPITATION_THRESHOLD_MM): vol.Coerce(float),
                 vol.Optional(const.CONF_DAYS_BETWEEN_IRRIGATION): vol.Coerce(int),
+                vol.Optional(const.CONF_SKIP_TEMP_ENABLED): cv.boolean,
+                vol.Optional(const.CONF_TEMP_THRESHOLD): vol.Coerce(float),
+                vol.Optional(const.CONF_SKIP_WIND_ENABLED): cv.boolean,
+                vol.Optional(const.CONF_WIND_THRESHOLD): vol.Coerce(float),
             }
         )
     )
@@ -233,6 +237,7 @@ class SmartIrrigationZoneView(HomeAssistantView):
                 vol.Optional(const.ZONE_CURRENT_DRAINAGE): vol.Or(float, int, None),
                 vol.Optional(const.ZONE_LINKED_ENTITY): vol.Or(str, None),
                 vol.Optional(const.ZONE_BUCKET_THRESHOLD): vol.Or(float, int, None),
+                vol.Optional(const.ZONE_FLOW_SENSOR): vol.Or(str, None),
             },
             extra=vol.ALLOW_EXTRA,
         )

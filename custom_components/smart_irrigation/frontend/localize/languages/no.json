@@ -2,42 +2,42 @@
   "common": {
     "actions": {
       "delete": "Slett",
-      "edit": "Edit",
-      "save": "Save",
-      "cancel": "Cancel"
+      "edit": "Rediger",
+      "save": "Lagre",
+      "cancel": "Avbryt"
     },
     "labels": {
       "module": "Modul",
       "no": "Nei",
       "select": "Velg",
       "yes": "Ja",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "before": "before",
-      "after": "after"
+      "enabled": "Aktivert",
+      "disabled": "Deaktivert",
+      "before": "før",
+      "after": "etter"
     },
     "attributes": {
       "size": "størrelse",
       "throughput": "kapasitet",
       "state": "status",
-      "bucket": "bucket",
-      "last_updated": "last updated",
-      "last_calculated": "last calculated",
-      "number_of_data_points": "number of data points"
+      "bucket": "beholder",
+      "last_updated": "sist oppdatert",
+      "last_calculated": "sist beregnet",
+      "number_of_data_points": "antall datapunkter"
     },
-    "loading": "Loading",
-    "saving": "Saving",
+    "loading": "Laster",
+    "saving": "Lagrer",
     "units": {
-      "seconds": "seconds"
+      "seconds": "sekunder"
     },
     "loading-messages": {
-      "configuration": "Loading configuration...",
-      "modules": "Loading modules...",
-      "general": "Loading..."
+      "configuration": "Laster konfigurasjon...",
+      "modules": "Laster moduler...",
+      "general": "Laster..."
     },
     "saving-messages": {
-      "adding": "Adding...",
-      "saving": "Saving..."
+      "adding": "Legger til...",
+      "saving": "Lagrer..."
     }
   },
   "defaults": {
@@ -70,9 +70,9 @@
         "drainage": "drainage",
         "drainage-rate": "drainage_rate",
         "hours": "hours",
-        "drainage-rate-is": "Drainage rate when saturated (bucket at max) is",
-        "current-drainage-is": "Current drainage is calculated as",
-        "no-drainage": "Current drainage is 0 because"
+        "drainage-rate-is": "Dreneringshastigheten ved metning (beholder på maks) er",
+        "current-drainage-is": "Gjeldende drenering beregnet som",
+        "no-drainage": "Gjeldende drenering er 0 fordi"
       }
     }
   },
@@ -95,7 +95,7 @@
           "labels": {
             "auto-calc-enabled": "Beregn sonevarigheter automatisk",
             "auto-calc-time": "Beregn ved",
-            "calc-time": "Calculate at"
+            "calc-time": "Beregn kl."
           },
           "description": "Calculation takes collected weather data up to that point and updates the bucket for each automatic zone. Then, the duration is adjusted based on the new bucket value and the collected weather data is removed."
         },
@@ -108,8 +108,8 @@
             "auto-update-enabled": "Oppdater værdata automatisk",
             "auto-update-first-update": "(Første) Oppdatering kl",
             "auto-update-interval": "Oppdater sensordata hvert",
-            "auto-update-schedule": "Update schedule",
-            "auto-update-time": "Update at",
+            "auto-update-schedule": "Oppdateringsplan",
+            "auto-update-time": "Oppdater kl.",
             "auto-update-delay": "Update delay"
           },
           "options": {
@@ -128,11 +128,12 @@
           }
         },
         "continuousupdates": {
-          "header": "Continuous updates for sensors (experimental)",
-          "description": "This experimental feature will continuously update the sensor data. This is useful for sensor groups that use sources that provide continuous data, such as weather stations. This feature cannot be used for sensor groups that at least partly rely on weather services as continous polling of APIs will incur costs. Keep in mind that this is experimental and may not work as expected. Use at your own risk.",
+          "header": "Kontinuerlige sensoroppdateringer (eksperimentell)",
+          "description": "Eksperimentell funksjon for mer granulære værdata.",
           "labels": {
             "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce"
+            "sensor_debounce": "Sensor debounce",
+            "sensor-debounce": "Sensor-debouncetid (ms)"
           }
         }
       },
@@ -262,9 +263,9 @@
         "information": "Informasjon",
         "update": "Oppdater",
         "reset-bucket": "Nullstill bøtte",
-        "view-weather-info": "View weather data",
+        "view-weather-info": "Se værdata",
         "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "View watering calendar"
+        "view-watering-calendar": "Vanningskalender"
       },
       "cards": {
         "add-zone": {
@@ -305,128 +306,128 @@
         "data-last-updated": "Data last updated",
         "data-number-of-data-points": "Number of data points",
         "drainage_rate": "Drainage rate",
-        "linked_entity": "Linked switch/valve entity",
-        "linked_entity_placeholder": "e.g. switch.garden_valve",
-        "irrigate_now": "Irrigate Now",
-        "bucket_threshold": "Minimum deficit to irrigate"
+        "linked_entity": "Tilknyttet bryter/ventil-enhet",
+        "linked_entity_placeholder": "f.eks. switch.hage_ventil",
+        "irrigate_now": "Vann nå",
+        "bucket_threshold": "Minimum underskudd for vanning"
       },
       "no_items": "Det er ingen definerte soner ennå.",
       "title": "Soner"
     },
     "title": "Smart vanning",
     "schedules": {
-      "title": "Schedules",
-      "description": "Create recurring schedules to automatically calculate, update, or irrigate your zones. No automations needed.",
-      "add": "Add Schedule",
-      "no_items": "No schedules configured yet. Click 'Add Schedule' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "hours": "hours",
+      "title": "Tidsplaner",
+      "description": "Opprett gjentakende tidsplaner for automatisk beregning, oppdatering eller vanning — uten automatiseringer.",
+      "add": "Legg til tidsplan",
+      "no_items": "Ingen tidsplaner konfigurert ennå. Klikk på 'Legg til tidsplan'.",
+      "zones_all": "Alle soner",
+      "zones_specific": "Spesifikke soner",
+      "hours": "timer",
       "minutes": "min",
       "types": {
-        "daily": "Daily",
-        "weekly": "Weekly",
-        "monthly": "Monthly",
-        "interval": "Every N hours",
-        "sunrise": "Sunrise",
-        "sunset": "Sunset",
-        "solar_azimuth": "Solar azimuth"
+        "daily": "Daglig",
+        "weekly": "Ukentlig",
+        "monthly": "Månedlig",
+        "interval": "Hver N time",
+        "sunrise": "Soloppgang",
+        "sunset": "Solnedgang",
+        "solar_azimuth": "Solazimutt"
       },
       "actions": {
-        "calculate": "Calculate (update irrigation duration)",
-        "update": "Update (collect weather data)",
-        "irrigate": "Irrigate (run valves directly)"
+        "calculate": "Beregn (oppdater vanningsvarighet)",
+        "update": "Oppdater (samle inn værdata)",
+        "irrigate": "Vann (styr ventiler direkte)"
       },
       "days": {
-        "monday": "Mon",
-        "tuesday": "Tue",
-        "wednesday": "Wed",
-        "thursday": "Thu",
-        "friday": "Fri",
-        "saturday": "Sat",
-        "sunday": "Sun"
+        "monday": "Ma",
+        "tuesday": "Ti",
+        "wednesday": "On",
+        "thursday": "To",
+        "friday": "Fr",
+        "saturday": "Lø",
+        "sunday": "Sø"
       },
       "fields": {
-        "name": "Name",
-        "type": "Schedule type",
-        "enabled": "Enabled",
-        "time": "Time (HH:MM)",
-        "days_of_week": "Days of week",
-        "day_of_month": "Day of month",
-        "interval_hours": "Interval",
-        "action": "Action",
-        "zones": "Zones",
-        "start_date": "Start date (optional)",
-        "end_date": "End date (optional)",
-        "offset_minutes": "Offset from sunrise/sunset",
-        "account_for_duration": "Start early so irrigation finishes at trigger time",
-        "azimuth_angle": "Solar azimuth angle"
+        "name": "Navn",
+        "type": "Tidsplantype",
+        "enabled": "Aktivert",
+        "time": "Tid (HH:MM)",
+        "days_of_week": "Ukedager",
+        "day_of_month": "Dag i måneden",
+        "interval_hours": "Intervall",
+        "action": "Handling",
+        "zones": "Soner",
+        "start_date": "Startdato (valgfritt)",
+        "end_date": "Sluttdato (valgfritt)",
+        "offset_minutes": "Forskyvning fra soloppgang/-nedgang",
+        "account_for_duration": "Start tidlig slik at vanningen er ferdig til måltidspunktet",
+        "azimuth_angle": "Solazimutt-vinkel"
       },
       "dialog": {
-        "add_title": "Add Schedule",
-        "edit_title": "Edit Schedule"
+        "add_title": "Legg til tidsplan",
+        "edit_title": "Rediger tidsplan"
       }
     },
     "adjustments": {
-      "title": "Seasonal Adjustments",
-      "description": "Apply month-based multiplier or bucket adjustments to automatically adapt irrigation for seasonal conditions.",
-      "add": "Add Adjustment",
-      "no_items": "No seasonal adjustments configured yet. Click 'Add Adjustment' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "multiplier_hint": "1.0 = no change, 1.5 = 50% more irrigation, 0.5 = 50% less",
-      "threshold_hint": "Added to the zone bucket. Positive = more water needed, negative = less.",
+      "title": "Sesongkorrigeringer",
+      "description": "Månedlige multiplikator- eller terskelkorrigeringer for sesongtilstand.",
+      "add": "Legg til korrigering",
+      "no_items": "Ingen sesongkorrigeringer konfigurert.",
+      "zones_all": "Alle soner",
+      "zones_specific": "Spesifikke soner",
+      "multiplier_hint": "1,0 = ingen endring, 1,5 = 50% mer vanning, 0,5 = 50% mindre",
+      "threshold_hint": "Legges til sone-beholderen. Positivt = mer vann trengs, negativt = mindre.",
       "fields": {
-        "name": "Name",
-        "enabled": "Enabled",
-        "month_start": "From month",
-        "month_end": "To month",
-        "multiplier_adjustment": "Multiplier adjustment",
-        "threshold_adjustment": "Bucket threshold adjustment (mm)",
-        "zones": "Zones"
+        "name": "Navn",
+        "enabled": "Aktivert",
+        "month_start": "Fra måned",
+        "month_end": "Til måned",
+        "multiplier_adjustment": "Multiplikatorkorrigering",
+        "threshold_adjustment": "Terskelkorrigering (mm)",
+        "zones": "Soner"
       },
       "dialog": {
-        "add_title": "Add Seasonal Adjustment",
-        "edit_title": "Edit Seasonal Adjustment"
+        "add_title": "Legg til sesongkorrigering",
+        "edit_title": "Rediger sesongkorrigering"
       }
     },
     "info": {
       "title": "Info",
-      "description": "View information about next irrigation and system status.",
-      "configuration-not-available": "Configuration not available.",
+      "description": "Vis informasjon om neste vanning og systemstatus.",
+      "configuration-not-available": "Konfigurasjon ikke tilgjengelig.",
       "cards": {
         "zone-bucket-values": {
-          "title": "Zone Bucket Values & Duration",
+          "title": "Sone-beholderverdier og varighet",
           "labels": {
-            "bucket": "Bucket",
-            "duration": "Duration"
+            "bucket": "Beholder",
+            "duration": "Varighet"
           },
-          "no-zones": "No zones configured"
+          "no-zones": "Ingen soner konfigurert"
         },
         "next-irrigation": {
-          "title": "Next Irrigation",
+          "title": "Neste vanning",
           "labels": {
-            "next-start": "Next start",
-            "duration": "Duration",
-            "zones": "Zones"
+            "next-start": "Neste start",
+            "duration": "Varighet",
+            "zones": "Soner"
           },
-          "no-data": "No data available"
+          "no-data": "Ingen data tilgjengelig"
         },
         "irrigation-reason": {
-          "title": "Irrigation Reason",
+          "title": "Årsak til vanning",
           "labels": {
-            "reason": "Reason",
-            "sunrise": "Sunrise",
-            "total-duration": "Total duration",
-            "explanation": "Explanation"
+            "reason": "Årsak",
+            "sunrise": "Soloppgang",
+            "total-duration": "Total varighet",
+            "explanation": "Forklaring"
           },
-          "no-data": "No data available"
+          "no-data": "Ingen data tilgjengelig"
         },
         "irrigate_now": {
-          "title": "Irrigate Now",
-          "description": "Immediately start irrigation for all zones that have a linked entity. Skip conditions are ignored.",
-          "button_all": "Run all zones now",
-          "no_linked_zones": "No zones have a linked switch/valve entity with a calculated duration."
+          "title": "Vann nå",
+          "description": "Start vanning umiddelbart for alle soner med tilknyttet enhet. Hoppover-betingelser ignoreres.",
+          "button_all": "Start alle soner nå",
+          "no_linked_zones": "Ingen soner har en tilknyttet bryter/ventil-enhet med beregnet varighet."
         }
       }
     }
@@ -442,10 +443,10 @@
     "current_ha_coords": "Gjeldende Home Assistant koordinater"
   },
   "days_between_irrigation": {
-    "title": "Dager Mellom Vanninger",
-    "description": "Konfigurer minimum antall dager som må gå mellom vanningshendelser. Dette hjelper med å kontrollere vanningsfrekvensen for vannsparing og plantehelse.\n\nTypiske brukstilfeller:\n• Plenpleie: 1-2 dagers intervaller forhindrer overvanning\n• Tørkerestriksjoner: 6+ dagers intervaller for ukentlig vanning\n• Dyprottede planter: 3-7 dagers intervaller for mindre hyppig vanning\n• Vannsparing: tilpassbar basert på klima og jordforhold",
-    "label": "Minimum dager mellom vanninger",
-    "help_text": "Sett til 0 for å deaktivere denne funksjonen. Verdier fra 1-365 dager støttes. Denne innstillingen fungerer sammen med eksisterende nedbørprognosering logikk."
+    "title": "Dager mellom vanning",
+    "description": "Konfigurer minimumsantall dager mellom vanningshendelser.",
+    "label": "Minimum dager mellom vanning",
+    "help_text": "Sett til 0 for å deaktivere. Verdier fra 1-365 dager støttes."
   },
   "title": "Smart Irrigation",
   "irrigation_start_triggers": {
@@ -507,22 +508,22 @@
     }
   },
   "weather_skip": {
-    "title": "Skip Conditions",
-    "description": "Automatically skip irrigation when conditions are unfavorable. Precipitation check requires a weather service. Temperature and wind checks also require a weather service.",
-    "threshold_label": "Precipitation Threshold",
-    "threshold_description": "Minimum amount of precipitation (in mm) forecasted for today and tomorrow to skip irrigation.",
-    "temp_section_title": "Skip on low temperature",
-    "temp_threshold_label": "Skip if temperature is below",
-    "wind_section_title": "Skip on high wind speed",
-    "wind_threshold_label": "Skip if wind speed is above",
-    "rain_sensor_section_title": "Skip on rain sensor",
-    "rain_sensor_label": "Rain sensor entity (optional)",
-    "rain_sensor_placeholder": "e.g. binary_sensor.rain"
+    "title": "Hoppover-betingelser",
+    "description": "Hopp automatisk over vanning når forholdene er ugunstige. Nedbørs-, temperatur- og vindsjekker krever en værtjeneste.",
+    "threshold_label": "Nedbørsterskel",
+    "threshold_description": "Minimum mengde forventet nedbør (i mm) for i dag og morgen for å hoppe over vanning.",
+    "temp_section_title": "Hopp over ved lav temperatur",
+    "temp_threshold_label": "Hopp over hvis temperatur under",
+    "wind_section_title": "Hopp over ved sterk vind",
+    "wind_threshold_label": "Hopp over hvis vindhastighet over",
+    "rain_sensor_section_title": "Regnsensorbetingelse",
+    "rain_sensor_label": "Regnsensor-enhet (valgfritt)",
+    "rain_sensor_placeholder": "f.eks. binary_sensor.regn"
   },
   "zone_sequencing": {
-    "title": "Zone Sequencing",
-    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next.",
-    "parallel": "Parallel (all zones at once)",
-    "sequential": "Sequential (one zone at a time)"
+    "title": "Sonesekvens",
+    "description": "Når flere soner trenger vanning, velg om de kjører samtidig eller én etter én. I sekvensiell modus venter systemet til hver sone er ferdig før neste starter.",
+    "parallel": "Parallell (alle soner samtidig)",
+    "sequential": "Sekvensiell (én sone om gangen)"
   }
 }

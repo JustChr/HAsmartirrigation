@@ -2646,45 +2646,166 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
         else:
             await self._irrigate_zones_parallel(zones_to_irrigate)
 
+    @staticmethod
+    def _flow_rate_to_l_per_min(value: float, unit: str) -> float:
+        """Convert a flow sensor reading to L/min for volume accumulation."""
+        u = (unit or "").lower().strip()
+        if u in ("l/h", "liter/h", "liter/hour", "liters/hour", "liters/h"):
+            return value / 60.0
+        if u in ("m³/h", "m3/h", "m³/hour", "m3/hour"):
+            return value * 1000.0 / 60.0
+        if u in ("m³/min", "m3/min"):
+            return value * 1000.0
+        if u in ("gal/min", "gpm", "gallon/min", "gallons/min"):
+            return value * 3.785411784
+        if u in ("gal/h", "gal/hour", "gallon/h", "gallons/h"):
+            return value * 3.785411784 / 60.0
+        return value  # assume L/min
+
+    async def _irrigate_zone_with_flow_meter(self, zone: dict, entity_id: str) -> None:
+        """Irrigate a zone using a flow sensor: stop when target volume is delivered."""
+        zone_id = zone[const.ZONE_ID]
+        flow_sensor = zone[const.ZONE_FLOW_SENSOR]
+        size = zone.get(const.ZONE_SIZE) or 0.0
+        bucket = zone.get(const.ZONE_BUCKET) or 0.0
+
+        ha_config_is_metric = self.hass.config.units is METRIC_SYSTEM
+        if not ha_config_is_metric:
+            # stored in ft² / inches — convert to m² / mm for L-based math
+            size = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, size)
+            bucket = convert_between(const.UNIT_INCH, const.UNIT_MM, bucket)
+
+        # 1 mm over 1 m² = 1 L
+        target_volume = size * abs(bucket)
+        safety_timeout = zone.get(const.ZONE_MAXIMUM_DURATION) or 14400
+
+        domain = entity_id.split(".")[0]
+        _LOGGER.info(
+            "Flow meter irrigation: zone %s target %.1f L (sensor: %s)",
+            zone_id,
+            target_volume,
+            flow_sensor,
+        )
+        await self.hass.services.async_call(domain, "turn_on", {"entity_id": entity_id})
+
+        accumulated = 0.0
+        elapsed = 0.0
+        timed_out = False
+
+        while elapsed < safety_timeout:
+            await asyncio.sleep(const.FLOW_POLL_INTERVAL)
+            elapsed += const.FLOW_POLL_INTERVAL
+
+            state = self.hass.states.get(flow_sensor)
+            if state is None or state.state in ("unavailable", "unknown"):
+                _LOGGER.warning(
+                    "Flow sensor '%s' unavailable during irrigation of zone %s",
+                    flow_sensor,
+                    zone_id,
+                )
+                continue
+
+            try:
+                raw = float(state.state)
+            except (ValueError, TypeError):
+                _LOGGER.warning(
+                    "Flow sensor '%s' non-numeric state '%s'", flow_sensor, state.state
+                )
+                continue
+
+            unit = state.attributes.get("unit_of_measurement", "L/min")
+            rate = self._flow_rate_to_l_per_min(raw, unit)
+            accumulated += rate * const.FLOW_POLL_INTERVAL / 60.0
+
+            _LOGGER.debug(
+                "Zone %s: %.2f L/min → %.2f / %.2f L", zone_id, rate, accumulated, target_volume
+            )
+
+            if accumulated >= target_volume:
+                _LOGGER.info(
+                    "Zone %s: target %.1f L reached (%.2f L delivered)", zone_id, target_volume, accumulated
+                )
+                break
+        else:
+            timed_out = True
+            _LOGGER.warning(
+                "Zone %s: safety timeout %ss reached (%.2f / %.1f L delivered)",
+                zone_id,
+                safety_timeout,
+                accumulated,
+                target_volume,
+            )
+
+        await self.hass.services.async_call(domain, "turn_off", {"entity_id": entity_id})
+
+        if size > 0:
+            actual_mm = accumulated / size
+            if not ha_config_is_metric:
+                actual_mm = convert_between(const.UNIT_MM, const.UNIT_INCH, actual_mm)
+            original_bucket = zone.get(const.ZONE_BUCKET) or 0.0
+            new_bucket = min(0.0, original_bucket + actual_mm)
+            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
+            _LOGGER.info(
+                "Zone %s: bucket updated %.3f → %.3f (%s%.2f mm delivered%s)",
+                zone_id,
+                original_bucket,
+                new_bucket,
+                "" if not timed_out else "partial, ",
+                actual_mm,
+                "" if not timed_out else " — timeout",
+            )
+
     async def _irrigate_zones_sequential(self, zones: list):
         """Irrigate zones one after another, skipping zones with no duration."""
         for zone in zones:
             entity_id = zone[const.ZONE_LINKED_ENTITY]
-            duration = zone[const.ZONE_DURATION]
             domain = entity_id.split(".")[0]
-            _LOGGER.info(
-                "Sequential irrigation: turning on %s for %s seconds",
-                entity_id,
-                duration,
-            )
-            await self.hass.services.async_call(
-                domain, "turn_on", {"entity_id": entity_id}
-            )
-            await asyncio.sleep(duration)
-            await self.hass.services.async_call(
-                domain, "turn_off", {"entity_id": entity_id}
-            )
+            if zone.get(const.ZONE_FLOW_SENSOR):
+                _LOGGER.info(
+                    "Sequential irrigation: zone %s using flow meter", zone[const.ZONE_ID]
+                )
+                await self._irrigate_zone_with_flow_meter(zone, entity_id)
+            else:
+                duration = zone[const.ZONE_DURATION]
+                _LOGGER.info(
+                    "Sequential irrigation: turning on %s for %s seconds",
+                    entity_id,
+                    duration,
+                )
+                await self.hass.services.async_call(
+                    domain, "turn_on", {"entity_id": entity_id}
+                )
+                await asyncio.sleep(duration)
+                await self.hass.services.async_call(
+                    domain, "turn_off", {"entity_id": entity_id}
+                )
             _LOGGER.info("Sequential irrigation: finished %s", entity_id)
 
     async def _irrigate_zones_parallel(self, zones: list):
         """Start all zone entities simultaneously, each turning off after its own duration."""
         for zone in zones:
             entity_id = zone[const.ZONE_LINKED_ENTITY]
-            duration = zone[const.ZONE_DURATION]
             domain = entity_id.split(".")[0]
-            _LOGGER.info(
-                "Parallel irrigation: turning on %s for %s seconds", entity_id, duration
-            )
-            await self.hass.services.async_call(
-                domain, "turn_on", {"entity_id": entity_id}
-            )
+            if zone.get(const.ZONE_FLOW_SENSOR):
+                _LOGGER.info(
+                    "Parallel irrigation: zone %s using flow meter", zone[const.ZONE_ID]
+                )
+                asyncio.create_task(self._irrigate_zone_with_flow_meter(zone, entity_id))
+            else:
+                duration = zone[const.ZONE_DURATION]
+                _LOGGER.info(
+                    "Parallel irrigation: turning on %s for %s seconds", entity_id, duration
+                )
+                await self.hass.services.async_call(
+                    domain, "turn_on", {"entity_id": entity_id}
+                )
 
-            async def _turn_off(eid=entity_id, dom=domain, dur=duration):
-                await asyncio.sleep(dur)
-                await self.hass.services.async_call(dom, "turn_off", {"entity_id": eid})
-                _LOGGER.info("Parallel irrigation: turned off %s", eid)
+                async def _turn_off(eid=entity_id, dom=domain, dur=duration):
+                    await asyncio.sleep(dur)
+                    await self.hass.services.async_call(dom, "turn_off", {"entity_id": eid})
+                    _LOGGER.info("Parallel irrigation: turned off %s", eid)
 
-            asyncio.create_task(_turn_off())
+                asyncio.create_task(_turn_off())
 
     @callback
     def _reset_event_fired_today(self, *args):

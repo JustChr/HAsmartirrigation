@@ -2,42 +2,42 @@
   "common": {
     "actions": {
       "delete": "Verwijderen",
-      "edit": "Edit",
-      "save": "Save",
-      "cancel": "Cancel"
+      "edit": "Bewerken",
+      "save": "Opslaan",
+      "cancel": "Annuleren"
     },
     "labels": {
       "module": "Module",
       "no": "Nee",
       "select": "Kies",
       "yes": "Ja",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "before": "before",
-      "after": "after"
+      "enabled": "Ingeschakeld",
+      "disabled": "Uitgeschakeld",
+      "before": "voor",
+      "after": "na"
     },
     "attributes": {
       "size": "afmeting",
       "throughput": "doorvoer",
       "state": "status",
-      "bucket": "bucket",
-      "last_updated": "last updated",
-      "last_calculated": "last calculated",
-      "number_of_data_points": "number of data points"
+      "bucket": "emmer",
+      "last_updated": "laatste update",
+      "last_calculated": "laatste berekening",
+      "number_of_data_points": "aantal datapunten"
     },
-    "loading": "Loading",
-    "saving": "Saving",
+    "loading": "Laden",
+    "saving": "Opslaan",
     "units": {
-      "seconds": "seconds"
+      "seconds": "seconden"
     },
     "loading-messages": {
-      "configuration": "Loading configuration...",
-      "modules": "Loading modules...",
-      "general": "Loading..."
+      "configuration": "Configuratie laden...",
+      "modules": "Modules laden...",
+      "general": "Laden..."
     },
     "saving-messages": {
-      "adding": "Adding...",
-      "saving": "Saving..."
+      "adding": "Toevoegen...",
+      "saving": "Opslaan..."
     }
   },
   "defaults": {
@@ -70,9 +70,9 @@
         "drainage": "drainage",
         "drainage-rate": "drainage_rate",
         "hours": "hours",
-        "drainage-rate-is": "Drainage rate when saturated (bucket at max) is",
-        "current-drainage-is": "Current drainage is calculated as",
-        "no-drainage": "Current drainage is 0 because"
+        "drainage-rate-is": "Drainagesnelheid bij verzadiging (emmer op maximum) is",
+        "current-drainage-is": "Huidige drainage berekend als",
+        "no-drainage": "Huidige drainage is 0 omdat"
       }
     }
   },
@@ -96,7 +96,7 @@
           "labels": {
             "auto-calc-enabled": "Automatisch irrigatietijd berekening voor elke zone",
             "auto-calc-time": "Berekenen op",
-            "calc-time": "Calculate at"
+            "calc-time": "Berekenen om"
           }
         },
         "automatic-update": {
@@ -109,8 +109,8 @@
             "auto-update-enabled": "Automatisch weersinformatie bijwerken",
             "auto-update-delay": "Vertraging",
             "auto-update-interval": "Sensor data bijwerken elke",
-            "auto-update-schedule": "Update schedule",
-            "auto-update-time": "Update at"
+            "auto-update-schedule": "Updateschema",
+            "auto-update-time": "Bijwerken om"
           },
           "options": {
             "days": "dagen",
@@ -127,11 +127,12 @@
           }
         },
         "continuousupdates": {
-          "header": "Continuous updates for sensors (experimental)",
-          "description": "This experimental feature will continuously update the sensor data. This is useful for sensor groups that use sources that provide continuous data, such as weather stations. This feature cannot be used for sensor groups that at least partly rely on weather services as continous polling of APIs will incur costs. Keep in mind that this is experimental and may not work as expected. Use at your own risk.",
+          "header": "Continue sensorupdates (experimenteel)",
+          "description": "Experimentele functie voor gedetailleerdere weergegevens.",
           "labels": {
             "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce"
+            "sensor_debounce": "Sensor debounce",
+            "sensor-debounce": "Sensor-debouncetijd (ms)"
           }
         }
       },
@@ -261,9 +262,9 @@
         "information": "Informatie",
         "update": "Bijwerken",
         "reset-bucket": "Leeg voorraad",
-        "view-weather-info": "View weather data",
+        "view-weather-info": "Weergegevens bekijken",
         "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "View watering calendar"
+        "view-watering-calendar": "Bewateringskalender"
       },
       "cards": {
         "add-zone": {
@@ -304,127 +305,127 @@
         "data-last-updated": "Bijgewerkt op",
         "data-number-of-data-points": "Aantal datapunten",
         "drainage_rate": "Drainage rate",
-        "linked_entity": "Linked switch/valve entity",
-        "linked_entity_placeholder": "e.g. switch.garden_valve",
-        "irrigate_now": "Irrigate Now",
-        "bucket_threshold": "Minimum deficit to irrigate"
+        "linked_entity": "Gekoppelde schakelaar/klep-entiteit",
+        "linked_entity_placeholder": "bijv. switch.tuin_klep",
+        "irrigate_now": "Nu bewateren",
+        "bucket_threshold": "Minimum tekort voor bewatering"
       },
       "no_items": "Er zijn nog geen zones.",
       "title": "Zones"
     },
     "schedules": {
-      "title": "Schedules",
-      "description": "Create recurring schedules to automatically calculate, update, or irrigate your zones. No automations needed.",
-      "add": "Add Schedule",
-      "no_items": "No schedules configured yet. Click 'Add Schedule' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "hours": "hours",
+      "title": "Schema's",
+      "description": "Maak terugkerende schema's voor automatisch berekenen, bijwerken of bewateren — zonder automatiseringen.",
+      "add": "Schema toevoegen",
+      "no_items": "Nog geen schema's geconfigureerd. Klik op 'Schema toevoegen'.",
+      "zones_all": "Alle zones",
+      "zones_specific": "Specifieke zones",
+      "hours": "uur",
       "minutes": "min",
       "types": {
-        "daily": "Daily",
-        "weekly": "Weekly",
-        "monthly": "Monthly",
-        "interval": "Every N hours",
-        "sunrise": "Sunrise",
-        "sunset": "Sunset",
-        "solar_azimuth": "Solar azimuth"
+        "daily": "Dagelijks",
+        "weekly": "Wekelijks",
+        "monthly": "Maandelijks",
+        "interval": "Elke N uur",
+        "sunrise": "Zonsopgang",
+        "sunset": "Zonsondergang",
+        "solar_azimuth": "Zonneazimut"
       },
       "actions": {
-        "calculate": "Calculate (update irrigation duration)",
-        "update": "Update (collect weather data)",
-        "irrigate": "Irrigate (run valves directly)"
+        "calculate": "Berekenen (bewateringsduur bijwerken)",
+        "update": "Bijwerken (weergegevens verzamelen)",
+        "irrigate": "Bewateren (kleppen direct aansturen)"
       },
       "days": {
-        "monday": "Mon",
-        "tuesday": "Tue",
-        "wednesday": "Wed",
-        "thursday": "Thu",
-        "friday": "Fri",
-        "saturday": "Sat",
-        "sunday": "Sun"
+        "monday": "Ma",
+        "tuesday": "Di",
+        "wednesday": "Wo",
+        "thursday": "Do",
+        "friday": "Vr",
+        "saturday": "Za",
+        "sunday": "Zo"
       },
       "fields": {
-        "name": "Name",
-        "type": "Schedule type",
-        "enabled": "Enabled",
-        "time": "Time (HH:MM)",
-        "days_of_week": "Days of week",
-        "day_of_month": "Day of month",
+        "name": "Naam",
+        "type": "Schematype",
+        "enabled": "Ingeschakeld",
+        "time": "Tijd (HH:MM)",
+        "days_of_week": "Weekdagen",
+        "day_of_month": "Dag van de maand",
         "interval_hours": "Interval",
-        "action": "Action",
+        "action": "Actie",
         "zones": "Zones",
-        "start_date": "Start date (optional)",
-        "end_date": "End date (optional)",
-        "offset_minutes": "Offset from sunrise/sunset",
-        "account_for_duration": "Start early so irrigation finishes at trigger time",
-        "azimuth_angle": "Solar azimuth angle"
+        "start_date": "Startdatum (optioneel)",
+        "end_date": "Einddatum (optioneel)",
+        "offset_minutes": "Offset van zonsopgang/-ondergang",
+        "account_for_duration": "Vroeg starten zodat bewatering eindigt op doeltijd",
+        "azimuth_angle": "Zonneazimuthoek"
       },
       "dialog": {
-        "add_title": "Add Schedule",
-        "edit_title": "Edit Schedule"
+        "add_title": "Schema toevoegen",
+        "edit_title": "Schema bewerken"
       }
     },
     "adjustments": {
-      "title": "Seasonal Adjustments",
-      "description": "Apply month-based multiplier or bucket adjustments to automatically adapt irrigation for seasonal conditions.",
-      "add": "Add Adjustment",
-      "no_items": "No seasonal adjustments configured yet. Click 'Add Adjustment' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "multiplier_hint": "1.0 = no change, 1.5 = 50% more irrigation, 0.5 = 50% less",
-      "threshold_hint": "Added to the zone bucket. Positive = more water needed, negative = less.",
+      "title": "Seizoensaanpassingen",
+      "description": "Maandelijkse aanpassingen van vermenigvuldiger of drempel voor seizoensomstandigheden.",
+      "add": "Aanpassing toevoegen",
+      "no_items": "Nog geen seizoensaanpassingen geconfigureerd.",
+      "zones_all": "Alle zones",
+      "zones_specific": "Specifieke zones",
+      "multiplier_hint": "1,0 = geen wijziging, 1,5 = 50% meer bewatering, 0,5 = 50% minder",
+      "threshold_hint": "Toegevoegd aan de zone-emmer. Positief = meer water nodig, negatief = minder.",
       "fields": {
-        "name": "Name",
-        "enabled": "Enabled",
-        "month_start": "From month",
-        "month_end": "To month",
-        "multiplier_adjustment": "Multiplier adjustment",
-        "threshold_adjustment": "Bucket threshold adjustment (mm)",
+        "name": "Naam",
+        "enabled": "Ingeschakeld",
+        "month_start": "Vanaf maand",
+        "month_end": "Tot maand",
+        "multiplier_adjustment": "Vermenigvuldigeraanpassing",
+        "threshold_adjustment": "Drempelaanpassing (mm)",
         "zones": "Zones"
       },
       "dialog": {
-        "add_title": "Add Seasonal Adjustment",
-        "edit_title": "Edit Seasonal Adjustment"
+        "add_title": "Seizoensaanpassing toevoegen",
+        "edit_title": "Seizoensaanpassing bewerken"
       }
     },
     "info": {
       "title": "Info",
-      "description": "View information about next irrigation and system status.",
-      "configuration-not-available": "Configuration not available.",
+      "description": "Informatie bekijken over de volgende bewatering en systeemstatus.",
+      "configuration-not-available": "Configuratie niet beschikbaar.",
       "cards": {
         "zone-bucket-values": {
-          "title": "Zone Bucket Values & Duration",
+          "title": "Zone-emmerwaarden & duur",
           "labels": {
-            "bucket": "Bucket",
-            "duration": "Duration"
+            "bucket": "Emmer",
+            "duration": "Duur"
           },
-          "no-zones": "No zones configured"
+          "no-zones": "Geen zones geconfigureerd"
         },
         "next-irrigation": {
-          "title": "Next Irrigation",
+          "title": "Volgende bewatering",
           "labels": {
-            "next-start": "Next start",
-            "duration": "Duration",
+            "next-start": "Volgende start",
+            "duration": "Duur",
             "zones": "Zones"
           },
-          "no-data": "No data available"
+          "no-data": "Geen gegevens beschikbaar"
         },
         "irrigation-reason": {
-          "title": "Irrigation Reason",
+          "title": "Reden voor bewatering",
           "labels": {
-            "reason": "Reason",
-            "sunrise": "Sunrise",
-            "total-duration": "Total duration",
-            "explanation": "Explanation"
+            "reason": "Reden",
+            "sunrise": "Zonsopgang",
+            "total-duration": "Totale duur",
+            "explanation": "Uitleg"
           },
-          "no-data": "No data available"
+          "no-data": "Geen gegevens beschikbaar"
         },
         "irrigate_now": {
-          "title": "Irrigate Now",
-          "description": "Immediately start irrigation for all zones that have a linked entity. Skip conditions are ignored.",
-          "button_all": "Run all zones now",
-          "no_linked_zones": "No zones have a linked switch/valve entity with a calculated duration."
+          "title": "Nu bewateren",
+          "description": "Start direct bewatering voor alle zones met een gekoppelde entiteit. Overslaanvoorwaarden worden genegeerd.",
+          "button_all": "Alle zones nu starten",
+          "no_linked_zones": "Geen zones hebben een gekoppelde schakelaar/klep-entiteit met berekende duur."
         }
       }
     }
@@ -441,10 +442,10 @@
     "current_ha_coords": "Huidige Home Assistant coördinaten"
   },
   "days_between_irrigation": {
-    "title": "Dagen Tussen Irrigaties",
-    "description": "Configureer het minimum aantal dagen dat moet verstrijken tussen irrigatie gebeurtenissen. Dit helpt bij het controleren van de bevloeiingsfrequentie voor waterbesparing en plantgezondheid beheer.\n\nTypische gebruikssituaties:\n• Gazonverzorging: 1-2 dag intervallen voorkomen overbewatering\n• Droogte beperkingen: 6+ dag intervallen voor wekelijkse bewatering\n• Diepwortelende planten: 3-7 dag intervallen voor minder frequente bewatering\n• Waterbesparing: aanpasbaar op basis van klimaat en bodemcondities",
-    "label": "Minimum dagen tussen irrigaties",
-    "help_text": "Stel in op 0 om deze functie uit te schakelen. Waarden van 1-365 dagen worden ondersteund. Deze instelling werkt samen met de bestaande neerslagvoorspelling logica."
+    "title": "Dagen tussen bewatering",
+    "description": "Stel het minimum aantal dagen in tussen bewateringsgebeurtenissen.",
+    "label": "Minimum dagen tussen bewatering",
+    "help_text": "Stel in op 0 om uit te schakelen. Waarden van 1-365 dagen worden ondersteund."
   },
   "irrigation_start_triggers": {
     "title": "Irrigation Start Triggers",
@@ -505,22 +506,22 @@
     }
   },
   "weather_skip": {
-    "title": "Skip Conditions",
-    "description": "Automatically skip irrigation when conditions are unfavorable. Precipitation check requires a weather service. Temperature and wind checks also require a weather service.",
-    "threshold_label": "Precipitation Threshold",
-    "threshold_description": "Minimum amount of precipitation (in mm) forecasted for today and tomorrow to skip irrigation.",
-    "temp_section_title": "Skip on low temperature",
-    "temp_threshold_label": "Skip if temperature is below",
-    "wind_section_title": "Skip on high wind speed",
-    "wind_threshold_label": "Skip if wind speed is above",
-    "rain_sensor_section_title": "Skip on rain sensor",
-    "rain_sensor_label": "Rain sensor entity (optional)",
-    "rain_sensor_placeholder": "e.g. binary_sensor.rain"
+    "title": "Overslaanvoorwaarden",
+    "description": "Sla irrigatie automatisch over als de omstandigheden ongunstig zijn. Neerslag-, temperatuur- en windcontroles vereisen een weerdienst.",
+    "threshold_label": "Neerslagdrempel",
+    "threshold_description": "Minimale hoeveelheid verwachte neerslag (in mm) voor vandaag en morgen om irrigatie over te slaan.",
+    "temp_section_title": "Overslaan bij lage temperatuur",
+    "temp_threshold_label": "Overslaan als temperatuur onder",
+    "wind_section_title": "Overslaan bij hoge windsnelheid",
+    "wind_threshold_label": "Overslaan als windsnelheid boven",
+    "rain_sensor_section_title": "Regensensorvoorwaarde",
+    "rain_sensor_label": "Regensensor-entiteit (optioneel)",
+    "rain_sensor_placeholder": "bijv. binary_sensor.regen"
   },
   "zone_sequencing": {
-    "title": "Zone Sequencing",
-    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next.",
-    "parallel": "Parallel (all zones at once)",
-    "sequential": "Sequential (one zone at a time)"
+    "title": "Zone-volgorde",
+    "description": "Als meerdere zones irrigatie nodig hebben, kies of ze tegelijkertijd of na elkaar worden uitgevoerd. In sequentiële modus wacht het systeem tot elke zone klaar is voordat de volgende start.",
+    "parallel": "Parallel (alle zones tegelijk)",
+    "sequential": "Sequentieel (één zone tegelijk)"
   }
 }
