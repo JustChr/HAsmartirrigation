@@ -239,7 +239,6 @@ class SmartIrrigationViewAdjustments extends SubscribeMixin(LitElement) {
           <ha-header-bar>
             <ha-icon-button
               slot="navigationIcon"
-              dialogAction="cancel"
               .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}
             ></ha-icon-button>
             <span slot="title">${title}</span>
@@ -394,24 +393,14 @@ class SmartIrrigationViewAdjustments extends SubscribeMixin(LitElement) {
           </div>
         </div>
 
-        <ha-dialog-footer slot="footer">
-          <ha-button
-            slot="secondaryAction"
-            appearance="plain"
-            @click=${this._closeDialog}
-            dialogAction="cancel"
-          >
+        <div class="dialog-footer">
+          <button class="dialog-btn" @click=${this._closeDialog}>
             ${localize("common.actions.cancel", this.hass.language)}
-          </ha-button>
-          <ha-button
-            slot="primaryAction"
-            appearance="accent"
-            @click=${this._save}
-            dialogAction="close"
-          >
+          </button>
+          <button class="dialog-btn dialog-btn-primary" @click=${this._save}>
             ${localize("common.actions.save", this.hass.language)}
-          </ha-button>
-        </ha-dialog-footer>
+          </button>
+        </div>
       </ha-dialog>
     `;
   }

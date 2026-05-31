@@ -248,33 +248,48 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                       this.hass.language,
                     )}
                   </label>
-                  <ha-select
+                  <select
+                    class="settings-input"
                     .value="${this._weatherService ||
                     CONF_WEATHER_SERVICE_OPENMETEO}"
-                    @selected="${(e: CustomEvent) => {
-                      this._weatherService = e.detail.value;
+                    @change="${(e: Event) => {
+                      this._weatherService = (
+                        e.target as HTMLSelectElement
+                      ).value;
                     }}"
-                    @closed="${(e: Event) => e.stopPropagation()}"
                   >
-                    <mwc-list-item value="${CONF_WEATHER_SERVICE_OPENMETEO}">
+                    <option
+                      value="${CONF_WEATHER_SERVICE_OPENMETEO}"
+                      ?selected="${(this._weatherService ||
+                        CONF_WEATHER_SERVICE_OPENMETEO) ===
+                      CONF_WEATHER_SERVICE_OPENMETEO}"
+                    >
                       ${localize(
                         "weather_service_config.openmeteo",
                         this.hass.language,
                       )}
-                    </mwc-list-item>
-                    <mwc-list-item value="${CONF_WEATHER_SERVICE_OWM}">
+                    </option>
+                    <option
+                      value="${CONF_WEATHER_SERVICE_OWM}"
+                      ?selected="${this._weatherService ===
+                      CONF_WEATHER_SERVICE_OWM}"
+                    >
                       ${localize(
                         "weather_service_config.owm",
                         this.hass.language,
                       )}
-                    </mwc-list-item>
-                    <mwc-list-item value="${CONF_WEATHER_SERVICE_PW}">
+                    </option>
+                    <option
+                      value="${CONF_WEATHER_SERVICE_PW}"
+                      ?selected="${this._weatherService ===
+                      CONF_WEATHER_SERVICE_PW}"
+                    >
                       ${localize(
                         "weather_service_config.pw",
                         this.hass.language,
                       )}
-                    </mwc-list-item>
-                  </ha-select>
+                    </option>
+                  </select>
                 </div>
                 ${needsApiKey
                   ? html`
@@ -328,7 +343,8 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
               `
             : ""}
           <div style="margin-top: 12px;">
-            <ha-button
+            <button
+              class="action-btn"
               raised
               ?disabled="${this._weatherSaving}"
               @click="${this._saveWeatherConfig}"
@@ -339,7 +355,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                     "weather_service_config.save_button",
                     this.hass.language,
                   )}
-            </ha-button>
+            </button>
           </div>
         </div>
       </ha-card>
@@ -402,34 +418,49 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                           this.handleConfigChange({ autoupdateinterval: v });
                       }}"
                     />
-                    <ha-select
+                    <select
+                      class="settings-input"
                       .value="${this.data.autoupdateschedule ||
                       AUTO_UPDATE_SCHEDULE_HOURLY}"
-                      @selected="${(e: CustomEvent) =>
+                      @change="${(e: Event) =>
                         this.handleConfigChange({
-                          autoupdateschedule: e.detail.value,
+                          autoupdateschedule: (e.target as HTMLSelectElement)
+                            .value,
                         })}"
-                      @closed="${(e: Event) => e.stopPropagation()}"
                     >
-                      <mwc-list-item value="${AUTO_UPDATE_SCHEDULE_MINUTELY}">
+                      <option
+                        value="${AUTO_UPDATE_SCHEDULE_MINUTELY}"
+                        ?selected="${(this.data.autoupdateschedule ||
+                          AUTO_UPDATE_SCHEDULE_HOURLY) ===
+                        AUTO_UPDATE_SCHEDULE_MINUTELY}"
+                      >
                         ${localize(
                           "panels.general.cards.automatic-update.options.minutes",
                           this.hass.language,
                         )}
-                      </mwc-list-item>
-                      <mwc-list-item value="${AUTO_UPDATE_SCHEDULE_HOURLY}">
+                      </option>
+                      <option
+                        value="${AUTO_UPDATE_SCHEDULE_HOURLY}"
+                        ?selected="${(this.data.autoupdateschedule ||
+                          AUTO_UPDATE_SCHEDULE_HOURLY) ===
+                        AUTO_UPDATE_SCHEDULE_HOURLY}"
+                      >
                         ${localize(
                           "panels.general.cards.automatic-update.options.hours",
                           this.hass.language,
                         )}
-                      </mwc-list-item>
-                      <mwc-list-item value="${AUTO_UPDATE_SCHEDULE_DAILY}">
+                      </option>
+                      <option
+                        value="${AUTO_UPDATE_SCHEDULE_DAILY}"
+                        ?selected="${this.data.autoupdateschedule ===
+                        AUTO_UPDATE_SCHEDULE_DAILY}"
+                      >
                         ${localize(
                           "panels.general.cards.automatic-update.options.days",
                           this.hass.language,
                         )}
-                      </mwc-list-item>
-                    </ha-select>
+                      </option>
+                    </select>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -999,22 +1030,31 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
             <label>
               ${localize("zone_sequencing.title", this.hass.language)}
             </label>
-            <ha-select
+            <select
+              class="settings-input"
               .value="${this.config.zone_sequencing ||
               CONF_ZONE_SEQUENCING_PARALLEL}"
-              @selected="${(e: CustomEvent) =>
+              @change="${(e: Event) =>
                 this.handleConfigChange({
-                  [CONF_ZONE_SEQUENCING]: e.detail.value,
+                  [CONF_ZONE_SEQUENCING]: (e.target as HTMLSelectElement).value,
                 })}"
-              @closed="${(e: Event) => e.stopPropagation()}"
             >
-              <mwc-list-item value="${CONF_ZONE_SEQUENCING_PARALLEL}">
+              <option
+                value="${CONF_ZONE_SEQUENCING_PARALLEL}"
+                ?selected="${(this.config.zone_sequencing ||
+                  CONF_ZONE_SEQUENCING_PARALLEL) ===
+                CONF_ZONE_SEQUENCING_PARALLEL}"
+              >
                 ${localize("zone_sequencing.parallel", this.hass.language)}
-              </mwc-list-item>
-              <mwc-list-item value="${CONF_ZONE_SEQUENCING_SEQUENTIAL}">
+              </option>
+              <option
+                value="${CONF_ZONE_SEQUENCING_SEQUENTIAL}"
+                ?selected="${this.config.zone_sequencing ===
+                CONF_ZONE_SEQUENCING_SEQUENTIAL}"
+              >
                 ${localize("zone_sequencing.sequential", this.hass.language)}
-              </mwc-list-item>
-            </ha-select>
+              </option>
+            </select>
           </div>
         </div>
       </ha-card>
@@ -1128,6 +1168,11 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
 
       .settings-input.shortfield {
         width: 110px;
+      }
+
+      select.settings-input {
+        cursor: pointer;
+        min-width: 140px;
       }
     `;
   }

@@ -714,9 +714,7 @@ async def websocket_get_weather_config(hass: HomeAssistant, connection, msg):
         const.CONF_USE_WEATHER_SERVICE, False
     )
     weather_service = hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE)
-    has_api_key = bool(
-        hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE_API_KEY)
-    )
+    has_api_key = bool(hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE_API_KEY))
     connection.send_result(
         msg["id"],
         {
@@ -741,7 +739,9 @@ async def websocket_save_weather_config(hass: HomeAssistant, connection, msg):
     if use_weather_service and weather_service:
         hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE] = weather_service
         if api_key:
-            hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE_API_KEY] = api_key.strip()
+            hass.data[const.DOMAIN][
+                const.CONF_WEATHER_SERVICE_API_KEY
+            ] = api_key.strip()
     elif not use_weather_service:
         hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE] = None
 
@@ -763,7 +763,9 @@ async def websocket_save_weather_config(hass: HomeAssistant, connection, msg):
     await coordinator.store.async_update_config(
         {
             const.CONF_USE_WEATHER_SERVICE: use_weather_service,
-            const.CONF_WEATHER_SERVICE: weather_service if use_weather_service else None,
+            const.CONF_WEATHER_SERVICE: (
+                weather_service if use_weather_service else None
+            ),
         }
     )
 

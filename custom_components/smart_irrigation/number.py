@@ -122,9 +122,7 @@ class SmartIrrigationZoneMultiplierEntity(NumberEntity, RestoreEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Persist new multiplier to the zone store and notify."""
         value = round(value, 2)
-        await self.hass.data[const.DOMAIN][
-            "coordinator"
-        ].store.async_update_zone(
+        await self.hass.data[const.DOMAIN]["coordinator"].store.async_update_zone(
             self._zone_id, {const.ZONE_MULTIPLIER: value}
         )
         self._multiplier = value
@@ -171,7 +169,10 @@ class SmartIrrigationZoneMultiplierEntity(NumberEntity, RestoreEntity):
         _LOGGER.debug("%s is added to hass", self.entity_id)
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state not in ("unknown", "unavailable"):
+        if last_state is not None and last_state.state not in (
+            "unknown",
+            "unavailable",
+        ):
             with contextlib.suppress(ValueError, TypeError):
                 self._multiplier = float(last_state.state)
         self.async_schedule_update_ha_state(force_refresh=True)

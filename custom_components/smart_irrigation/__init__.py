@@ -2719,12 +2719,19 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             accumulated += rate * const.FLOW_POLL_INTERVAL / 60.0
 
             _LOGGER.debug(
-                "Zone %s: %.2f L/min → %.2f / %.2f L", zone_id, rate, accumulated, target_volume
+                "Zone %s: %.2f L/min → %.2f / %.2f L",
+                zone_id,
+                rate,
+                accumulated,
+                target_volume,
             )
 
             if accumulated >= target_volume:
                 _LOGGER.info(
-                    "Zone %s: target %.1f L reached (%.2f L delivered)", zone_id, target_volume, accumulated
+                    "Zone %s: target %.1f L reached (%.2f L delivered)",
+                    zone_id,
+                    target_volume,
+                    accumulated,
                 )
                 break
         else:
@@ -2737,7 +2744,9 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                 target_volume,
             )
 
-        await self.hass.services.async_call(domain, "turn_off", {"entity_id": entity_id})
+        await self.hass.services.async_call(
+            domain, "turn_off", {"entity_id": entity_id}
+        )
 
         if size > 0:
             actual_mm = accumulated / size
@@ -2763,7 +2772,8 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             domain = entity_id.split(".")[0]
             if zone.get(const.ZONE_FLOW_SENSOR):
                 _LOGGER.info(
-                    "Sequential irrigation: zone %s using flow meter", zone[const.ZONE_ID]
+                    "Sequential irrigation: zone %s using flow meter",
+                    zone[const.ZONE_ID],
                 )
                 await self._irrigate_zone_with_flow_meter(zone, entity_id)
             else:
@@ -2791,11 +2801,15 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                 _LOGGER.info(
                     "Parallel irrigation: zone %s using flow meter", zone[const.ZONE_ID]
                 )
-                asyncio.create_task(self._irrigate_zone_with_flow_meter(zone, entity_id))
+                asyncio.create_task(
+                    self._irrigate_zone_with_flow_meter(zone, entity_id)
+                )
             else:
                 duration = zone[const.ZONE_DURATION]
                 _LOGGER.info(
-                    "Parallel irrigation: turning on %s for %s seconds", entity_id, duration
+                    "Parallel irrigation: turning on %s for %s seconds",
+                    entity_id,
+                    duration,
                 )
                 await self.hass.services.async_call(
                     domain, "turn_on", {"entity_id": entity_id}
@@ -2803,7 +2817,9 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
 
                 async def _turn_off(eid=entity_id, dom=domain, dur=duration):
                     await asyncio.sleep(dur)
-                    await self.hass.services.async_call(dom, "turn_off", {"entity_id": eid})
+                    await self.hass.services.async_call(
+                        dom, "turn_off", {"entity_id": eid}
+                    )
                     _LOGGER.info("Parallel irrigation: turned off %s", eid)
 
                 asyncio.create_task(_turn_off())

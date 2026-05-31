@@ -101,6 +101,95 @@ export const globalStyle = css`
     display: none;
   }
 
+  /* Shared action button style (used instead of ha-button which may not load) */
+  button.action-btn {
+    background: var(--primary-color);
+    border: none;
+    border-radius: 4px;
+    color: var(--text-primary-color, white);
+    cursor: pointer;
+    font-family: var(--mdc-typography-button-font-family, Roboto, sans-serif);
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    padding: 8px 16px;
+    text-transform: uppercase;
+    transition: opacity 0.15s;
+  }
+
+  button.action-btn:hover {
+    opacity: 0.9;
+  }
+
+  button.action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  button.action-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+  }
+
+  button.action-btn.secondary:hover {
+    background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.08);
+    opacity: 1;
+  }
+
+  /* Dialog footer row (replaces ha-dialog-footer) */
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 0 8px;
+    margin-top: 8px;
+    border-top: 1px solid var(--divider-color);
+  }
+
+  .dialog-btn {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-family: var(--mdc-typography-button-font-family, Roboto, sans-serif);
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    text-transform: uppercase;
+    transition: background 0.15s;
+  }
+
+  .dialog-btn:hover {
+    background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.08);
+  }
+
+  .dialog-btn-primary {
+    background: var(--primary-color);
+    color: var(--text-primary-color, white);
+    border-color: var(--primary-color);
+  }
+
+  .dialog-btn-primary:hover {
+    opacity: 0.9;
+    background: var(--primary-color);
+  }
+
+  .dialog-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .dialog-btn-danger {
+    border-color: var(--error-color);
+    color: var(--error-color);
+  }
+
+  .dialog-btn-danger:hover {
+    background: rgba(var(--rgb-error-color, 244, 67, 54), 0.08);
+  }
+
   .shortinput {
     width: 50px;
   }

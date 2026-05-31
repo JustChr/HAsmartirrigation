@@ -79,7 +79,9 @@ async def async_setup_entry(
         if const.DOMAIN in hass.data:
             if not check_zone_entity_in_hass_data(hass, entity_id):
                 hass.data[const.DOMAIN]["zones"][config["id"]] = sensor_entity
-                hass.data[const.DOMAIN].setdefault("bucket_sensors", {})[config["id"]] = bucket_entity
+                hass.data[const.DOMAIN].setdefault("bucket_sensors", {})[
+                    config["id"]
+                ] = bucket_entity
                 async_add_devices([sensor_entity, bucket_entity])
 
     config_entry.async_on_unload(

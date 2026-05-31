@@ -521,29 +521,33 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     await saveZone(this.hass, zone);
   }
 
-  private _renderModuleOptions(): TemplateResult {
+  private _renderModuleOptions(selected?: number): TemplateResult {
     if (!this.hass) return html``;
     return html`
-      <mwc-list-item value="">
+      <option value="" ?selected="${selected === undefined}">
         ---${localize("common.labels.select", this.hass.language)}---
-      </mwc-list-item>
+      </option>
       ${this.modules.map(
         (m) => html`
-          <mwc-list-item value="${m.id}">${m.id}: ${m.name}</mwc-list-item>
+          <option value="${m.id}" ?selected="${selected === m.id}">
+            ${m.id}: ${m.name}
+          </option>
         `,
       )}
     `;
   }
 
-  private _renderMappingOptions(): TemplateResult {
+  private _renderMappingOptions(selected?: number): TemplateResult {
     if (!this.hass) return html``;
     return html`
-      <mwc-list-item value="">
+      <option value="" ?selected="${selected === undefined}">
         ---${localize("common.labels.select", this.hass.language)}---
-      </mwc-list-item>
+      </option>
       ${this.mappings.map(
         (m) => html`
-          <mwc-list-item value="${m.id}">${m.id}: ${m.name}</mwc-list-item>
+          <option value="${m.id}" ?selected="${selected === m.id}">
+            ${m.id}: ${m.name}
+          </option>
         `,
       )}
     `;
@@ -632,7 +636,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         <div class="card-content zone-action-bar">
           ${zone.state === SmartIrrigationZoneState.Automatic
             ? html`
-                <ha-button
+                <button
+                  class="action-btn"
                   @click="${() => this.handleCalculateZone(index)}"
                   ?disabled="${this.isSaving}"
                 >
@@ -641,19 +646,21 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                     "panels.zones.actions.calculate",
                     this.hass.language,
                   )}
-                </ha-button>
-                <ha-button
+                </button>
+                <button
+                  class="action-btn"
                   @click="${() => this.handleUpdateZone(index)}"
                   ?disabled="${this.isSaving}"
                 >
                   <ha-icon slot="icon" icon="mdi:update"></ha-icon>
                   ${localize("panels.zones.actions.update", this.hass.language)}
-                </ha-button>
+                </button>
               `
             : ""}
           ${zone.linked_entity && (zone.duration ?? 0) > 0
             ? html`
-                <ha-button
+                <button
+                  class="action-btn"
                   raised
                   @click="${() => {
                     if (!this.hass) return;
@@ -668,7 +675,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                     "panels.zones.labels.irrigate_now",
                     this.hass.language,
                   )}
-                </ha-button>
+                </button>
               `
             : ""}
         </div>
@@ -778,54 +785,64 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 this.hass.language,
               )}</span
             >
-            <ha-select
+            <select
+              class="settings-input"
               .value="${zone.state}"
-              @selected="${(e: CustomEvent) =>
+              @change="${(e: Event) =>
                 this.handleEditZone(index, {
                   ...zone,
-                  [ZONE_STATE]: e.detail.value as SmartIrrigationZoneState,
+                  [ZONE_STATE]: (e.target as HTMLSelectElement)
+                    .value as SmartIrrigationZoneState,
                   [ZONE_DURATION]: 0,
                 })}"
-              @closed="${(e: Event) => e.stopPropagation()}"
             >
-              <mwc-list-item value="${SmartIrrigationZoneState.Automatic}">
+              <option
+                value="${SmartIrrigationZoneState.Automatic}"
+                ?selected="${zone.state === SmartIrrigationZoneState.Automatic}"
+              >
                 ${localize(
                   "panels.zones.labels.states.automatic",
                   this.hass.language,
                 )}
-              </mwc-list-item>
-              <mwc-list-item value="${SmartIrrigationZoneState.Manual}">
+              </option>
+              <option
+                value="${SmartIrrigationZoneState.Manual}"
+                ?selected="${zone.state === SmartIrrigationZoneState.Manual}"
+              >
                 ${localize(
                   "panels.zones.labels.states.manual",
                   this.hass.language,
                 )}
-              </mwc-list-item>
-              <mwc-list-item value="${SmartIrrigationZoneState.Disabled}">
+              </option>
+              <option
+                value="${SmartIrrigationZoneState.Disabled}"
+                ?selected="${zone.state === SmartIrrigationZoneState.Disabled}"
+              >
                 ${localize(
                   "panels.zones.labels.states.disabled",
                   this.hass.language,
                 )}
-              </mwc-list-item>
-            </ha-select>
+              </option>
+            </select>
           </ha-settings-row>
 
           <ha-settings-row>
             <span slot="heading"
               >${localize("common.labels.module", this.hass.language)}</span
             >
-            <ha-select
+            <select
+              class="settings-input"
               .value="${zone.module !== undefined ? String(zone.module) : ""}"
-              @selected="${(e: CustomEvent) => {
-                const v = e.detail.value;
+              @change="${(e: Event) => {
+                const v = (e.target as HTMLSelectElement).value;
                 this.handleEditZone(index, {
                   ...zone,
                   [ZONE_MODULE]: v ? parseInt(v) : undefined,
                 });
               }}"
-              @closed="${(e: Event) => e.stopPropagation()}"
             >
-              ${this._renderModuleOptions()}
-            </ha-select>
+              ${this._renderModuleOptions(zone.module)}
+            </select>
           </ha-settings-row>
 
           <ha-settings-row>
@@ -835,19 +852,19 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 this.hass.language,
               )}</span
             >
-            <ha-select
+            <select
+              class="settings-input"
               .value="${zone.mapping !== undefined ? String(zone.mapping) : ""}"
-              @selected="${(e: CustomEvent) => {
-                const v = e.detail.value;
+              @change="${(e: Event) => {
+                const v = (e.target as HTMLSelectElement).value;
                 this.handleEditZone(index, {
                   ...zone,
                   [ZONE_MAPPING]: v ? parseInt(v) : undefined,
                 });
               }}"
-              @closed="${(e: Event) => e.stopPropagation()}"
             >
-              ${this._renderMappingOptions()}
-            </ha-select>
+              ${this._renderMappingOptions(zone.mapping)}
+            </select>
           </ha-settings-row>
 
           <ha-settings-row>
@@ -1079,7 +1096,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
           <!-- Danger row -->
           <div class="settings-danger-row">
-            <ha-button
+            <button
+              class="action-btn"
               @click="${() =>
                 this.handleEditZone(index, { ...zone, [ZONE_BUCKET]: 0.0 })}"
               ?disabled="${this.isSaving}"
@@ -1088,8 +1106,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.actions.reset-bucket",
                 this.hass.language,
               )}
-            </ha-button>
-            <ha-button
+            </button>
+            <button
+              class="action-btn"
               class="danger-button"
               @click="${() =>
                 this.handleRemoveZone(zone.id !== undefined ? zone.id : -1)}"
@@ -1097,7 +1116,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             >
               <ha-icon slot="icon" icon="mdi:delete"></ha-icon>
               ${localize("common.actions.delete", this.hass.language)}
-            </ha-button>
+            </button>
           </div>
         </ha-expansion-panel>
 
@@ -1182,7 +1201,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           ></ha-icon-button>
         </div>
         <div class="card-content zones-top-actions">
-          <ha-button
+          <button
+            class="action-btn"
             raised
             @click="${() => {
               if (!this.hass) return;
@@ -1193,7 +1213,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             ?disabled="${!hasLinkedZones || this.isSaving}"
           >
             ${localize("panels.zones.actions.irrigate_all", this.hass.language)}
-          </ha-button>
+          </button>
           ${!hasLinkedZones
             ? html`<span class="zones-top-note"
                 >${localize(
@@ -1257,27 +1277,28 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             }}"
           />
         </div>
-        <ha-button
-          slot="secondaryAction"
-          @click="${() => {
-            this._showAddZone = false;
-          }}"
-        >
-          ${localize("common.actions.cancel", this.hass.language)}
-        </ha-button>
-        <ha-button
-          slot="primaryAction"
-          raised
-          @click="${this.handleAddZone}"
-          ?disabled="${!this._newZoneName.trim() || this.isSaving}"
-        >
-          ${this.isSaving
-            ? localize("common.saving-messages.adding", this.hass.language)
-            : localize(
-                "panels.zones.cards.add-zone.actions.add",
-                this.hass.language,
-              )}
-        </ha-button>
+        <div class="dialog-footer">
+          <button
+            class="dialog-btn"
+            @click="${() => {
+              this._showAddZone = false;
+            }}"
+          >
+            ${localize("common.actions.cancel", this.hass.language)}
+          </button>
+          <button
+            class="dialog-btn dialog-btn-primary"
+            @click="${this.handleAddZone}"
+            ?disabled="${!this._newZoneName.trim() || this.isSaving}"
+          >
+            ${this.isSaving
+              ? localize("common.saving-messages.adding", this.hass.language)
+              : localize(
+                  "panels.zones.cards.add-zone.actions.add",
+                  this.hass.language,
+                )}
+          </button>
+        </div>
       </ha-dialog>
 
       <!-- Delete confirmation dialog -->
@@ -1300,21 +1321,22 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 )}
               </p>
               <p><strong>${confirmZone.name}</strong></p>
-              <ha-button
-                slot="secondaryAction"
-                @click="${() => {
-                  this._confirmDeleteZoneId = null;
-                }}"
-              >
-                ${localize("common.actions.cancel", this.hass.language)}
-              </ha-button>
-              <ha-button
-                slot="primaryAction"
-                class="danger-button"
-                @click="${this._confirmDelete}"
-              >
-                ${localize("common.actions.delete", this.hass.language)}
-              </ha-button>
+              <div class="dialog-footer">
+                <button
+                  class="dialog-btn"
+                  @click="${() => {
+                    this._confirmDeleteZoneId = null;
+                  }}"
+                >
+                  ${localize("common.actions.cancel", this.hass.language)}
+                </button>
+                <button
+                  class="dialog-btn dialog-btn-danger"
+                  @click="${this._confirmDelete}"
+                >
+                  ${localize("common.actions.delete", this.hass.language)}
+                </button>
+              </div>
             </ha-dialog>
           `
         : ""}
@@ -1331,7 +1353,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           )}"
         >
           <div class="card-content bulk-actions">
-            <ha-button
+            <button
+              class="action-btn"
               @click="${this.handleCalculateAllZones}"
               ?disabled="${this.isSaving}"
             >
@@ -1339,8 +1362,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.calculate-all",
                 this.hass.language,
               )}
-            </ha-button>
-            <ha-button
+            </button>
+            <button
+              class="action-btn"
               @click="${this.handleUpdateAllZones}"
               ?disabled="${this.isSaving}"
             >
@@ -1348,8 +1372,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.update-all",
                 this.hass.language,
               )}
-            </ha-button>
-            <ha-button
+            </button>
+            <button
+              class="action-btn"
               @click="${this.handleResetAllBuckets}"
               ?disabled="${this.isSaving}"
             >
@@ -1357,8 +1382,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.reset-all-buckets",
                 this.hass.language,
               )}
-            </ha-button>
-            <ha-button
+            </button>
+            <button
+              class="action-btn"
               @click="${this.handleClearAllWeatherdata}"
               ?disabled="${this.isSaving}"
             >
@@ -1366,7 +1392,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.clear-all-weatherdata",
                 this.hass.language,
               )}
-            </ha-button>
+            </button>
           </div>
         </ha-expansion-panel>
       </ha-card>
@@ -1501,6 +1527,11 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         width: 110px;
       }
 
+      select.settings-input {
+        cursor: pointer;
+        min-width: 140px;
+      }
+
       /* Add zone dialog form */
       .add-zone-form {
         display: flex;
@@ -1532,6 +1563,57 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         font-size: 0.8125rem;
         color: var(--secondary-text-color);
         font-style: italic;
+      }
+
+      /* Dialog footer buttons */
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 16px 0 8px;
+        margin-top: 8px;
+        border-top: 1px solid var(--divider-color);
+      }
+
+      .dialog-btn {
+        background: transparent;
+        border: 1px solid var(--primary-color);
+        border-radius: 4px;
+        color: var(--primary-color);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        padding: 8px 16px;
+        transition: background 0.15s;
+      }
+
+      .dialog-btn:hover {
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.08);
+      }
+
+      .dialog-btn-primary {
+        background: var(--primary-color);
+        color: var(--text-primary-color, white);
+      }
+
+      .dialog-btn-primary:hover {
+        opacity: 0.9;
+        background: var(--primary-color);
+      }
+
+      .dialog-btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .dialog-btn-danger {
+        border-color: var(--error-color);
+        color: var(--error-color);
+      }
+
+      .dialog-btn-danger:hover {
+        background: rgba(var(--rgb-error-color, 244, 67, 54), 0.08);
       }
 
       /* Bulk actions */
