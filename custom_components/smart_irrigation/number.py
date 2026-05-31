@@ -1,9 +1,10 @@
 """Number platform for Smart Irrigation integration — exposes per-zone multiplier."""
 
+import contextlib
 import logging
 
-from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.components.number import DOMAIN as NUMBER_PLATFORM
+from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import (
@@ -171,10 +172,8 @@ class SmartIrrigationZoneMultiplierEntity(NumberEntity, RestoreEntity):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state not in ("unknown", "unavailable"):
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 self._multiplier = float(last_state.state)
-            except (ValueError, TypeError):
-                pass
         self.async_schedule_update_ha_state(force_refresh=True)
 
     async def async_will_remove_from_hass(self) -> None:

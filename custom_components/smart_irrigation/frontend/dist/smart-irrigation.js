@@ -845,7 +845,7 @@
     });
     return n.detail = a, e.dispatchEvent(n), n;
   };
-  const ze = `v${"2026.05.07"}`,
+  const ze = `v${"2026.05.08"}`,
     Se = "smart_irrigation",
     $e = "precipitation_threshold_mm",
     xe = "hours",
