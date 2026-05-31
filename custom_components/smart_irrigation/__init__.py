@@ -1794,22 +1794,24 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             mapping_id = zone.get(const.ZONE_MAPPING)
             if mapping_id is not None:
                 mapping = self.store.get_mapping(mapping_id)
-                # Preserve the last RETRIEVED_AT timestamp so the Riemann sum
-                # for precipitation can compute the correct Δt for the first
-                # reading in the next collection cycle.
-                last_retrieved_at = None
-                if mapping:
-                    data_list = mapping.get(const.MAPPING_DATA) or []
-                    if data_list:
-                        last_entry = data_list[-1]
-                        last_retrieved_at = last_entry.get(const.RETRIEVED_AT)
-                changes: dict = {const.MAPPING_DATA: []}
-                if last_retrieved_at is not None:
-                    existing_last_calc = (
-                        mapping.get(const.MAPPING_DATA_LAST_CALCULATION) or {}
-                    )
-                    existing_last_calc[const.RETRIEVED_AT] = last_retrieved_at
-                    changes[const.MAPPING_DATA_LAST_CALCULATION] = existing_last_calc
+                # Store the CALCULATION TIME as the Riemann sum anchor.
+                # Using the last reading's RETRIEVED_AT would be wrong: if the
+                # previous update ran 1 hour ago, the anchor would be 1 hour old
+                # and an immediate re-update+calculate would credit a full hour of
+                # precipitation. The calculation time is the correct zero-point —
+                # any precipitation in the next reading counts only for the time
+                # elapsed SINCE this calculation.
+                calc_time = datetime.now()
+                existing_last_calc = (
+                    (mapping.get(const.MAPPING_DATA_LAST_CALCULATION) or {})
+                    if mapping
+                    else {}
+                )
+                existing_last_calc[const.RETRIEVED_AT] = calc_time
+                changes: dict = {
+                    const.MAPPING_DATA: [],
+                    const.MAPPING_DATA_LAST_CALCULATION: existing_last_calc,
+                }
                 await self.store.async_update_mapping(mapping_id, changes=changes)
 
         await self.store.async_update_zone(zone.get(const.ZONE_ID), calc_data)
