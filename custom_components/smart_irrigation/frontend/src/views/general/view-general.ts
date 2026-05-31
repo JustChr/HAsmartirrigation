@@ -1,4 +1,5 @@
 import { CSSResultGroup, LitElement, css, html, TemplateResult } from "lit";
+import { live } from "lit/directives/live.js";
 import { property, state, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
@@ -287,8 +288,9 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                   </label>
                   <select
                     class="settings-input"
-                    .value="${this._weatherService ||
-                    CONF_WEATHER_SERVICE_OPENMETEO}"
+                    .value="${live(
+                      this._weatherService || CONF_WEATHER_SERVICE_OPENMETEO,
+                    )}"
                     @change="${(e: Event) => {
                       this._weatherService = (
                         e.target as HTMLSelectElement
@@ -516,8 +518,10 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                     />
                     <select
                       class="settings-input"
-                      .value="${this.data.autoupdateschedule ||
-                      AUTO_UPDATE_SCHEDULE_HOURLY}"
+                      .value="${live(
+                        this.data.autoupdateschedule ||
+                          AUTO_UPDATE_SCHEDULE_HOURLY,
+                      )}"
                       @change="${(e: Event) =>
                         this.handleConfigChange({
                           autoupdateschedule: (e.target as HTMLSelectElement)
@@ -1128,8 +1132,9 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
             </label>
             <select
               class="settings-input"
-              .value="${this.config.zone_sequencing ||
-              CONF_ZONE_SEQUENCING_PARALLEL}"
+              .value="${live(
+                this.config.zone_sequencing || CONF_ZONE_SEQUENCING_PARALLEL,
+              )}"
               @change="${(e: Event) =>
                 this.handleConfigChange({
                   [CONF_ZONE_SEQUENCING]: (e.target as HTMLSelectElement).value,

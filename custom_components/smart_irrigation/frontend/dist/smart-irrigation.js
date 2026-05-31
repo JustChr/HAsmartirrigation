@@ -53,7 +53,7 @@ function me(e,t){return(({finisher:e,descriptor:t})=>(a,i)=>{var n;if(void 0===i
      * @license
      * Copyright 2021 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */var fe;null===(fe=window.HTMLSlotElement)||void 0===fe||fe.prototype.assignedElements;let ve=!1,_e=null;const be=async()=>{if(ve&&_e)return _e;if(customElements.get("ha-checkbox")&&customElements.get("ha-slider")&&customElements.get("ha-panel-config")&&customElements.get("ha-entity-picker"))return Promise.resolve();ve=!0,_e=async function(){try{await new Promise((e=>{"requestIdleCallback"in window?requestIdleCallback((()=>e())):setTimeout((()=>e()),0)})),await customElements.whenDefined("partial-panel-resolver");const e=document.createDocumentFragment(),t=document.createElement("partial-panel-resolver");e.appendChild(t),t.hass={panels:[{url_path:"tmp",component_name:"config"}]},await new Promise((e=>queueMicrotask((()=>e())))),t._updateRoutes(),await t.routerOptions.routes.tmp.load(),await customElements.whenDefined("ha-panel-config"),await new Promise((e=>queueMicrotask((()=>e()))));const a=document.createElement("ha-panel-config");e.appendChild(a),await a.routerOptions.routes.automation.load(),customElements.get("ha-entity-picker")||await Promise.race([customElements.whenDefined("ha-entity-picker"),new Promise((e=>setTimeout(e,3e3)))]),e.textContent=""}catch(e){console.error("Failed to load HA form elements:",e)}}();try{await _e}finally{ve=!1,_e=null}};var ye,we;!function(e){e.language="language",e.system="system",e.comma_decimal="comma_decimal",e.decimal_comma="decimal_comma",e.space_comma="space_comma",e.none="none"}(ye||(ye={})),function(e){e.language="language",e.system="system",e.am_pm="12",e.twenty_four="24"}(we||(we={}));var ke=function(e,t,a,i){i=i||{},a=null==a?{}:a;var n=new Event(t,{bubbles:void 0===i.bubbles||i.bubbles,cancelable:Boolean(i.cancelable),composed:void 0===i.composed||i.composed});return n.detail=a,e.dispatchEvent(n),n};const ze=`v${"2026.05.19"}`,Se="smart_irrigation",$e="precipitation_threshold_mm",xe="Open Weather Map",Ae="Pirate Weather",Ee="Open-Meteo",Te="minutes",Me="hours",De="days",Ce="imperial",Oe="metric",Ne="Dewpoint",je="Evapotranspiration",He="Humidity",Pe="Precipitation",Ie="Current Precipitation",Le="Pressure",Ue="Solar Radiation",Re="Temperature",Be="Windspeed",We="weather_service",Fe="sensor",Ye="static",Ze="pressure_type",Ve="absolute",Ge="relative",qe="none",Ke="source",Xe="sensorentity",Je="static_value",Qe="unit",et="aggregate",tt=["average","first","last","maximum","median","minimum","riemannsum","sum","delta"],at="sq ft",it="l/minute",nt="gal/minute",st="mm/h",rt="in/h",ot="name",lt="size",dt="throughput",ut="state",ct="duration",ht="module",pt="bucket",gt="multiplier",mt="mapping",ft="lead_time",vt="maximum_duration",_t="maximum_bucket",bt="drainage_rate",yt="linked_entity",wt="bucket_threshold",kt="flow_sensor",zt="zone_sequencing",St="sequential",$t="parallel",xt=1,At=2,Et=3,Tt=4,Mt=e=>(...t)=>({_$litDirective$:e,values:t});class Dt{constructor(e){}get _$AU(){return this._$AM._$AU}_$AT(e,t,a){this._$Ct=e,this._$AM=t,this._$Ci=a}_$AS(e,t){return this.update(e,t)}update(e,t){return this.render(...t)}}
+     */var fe;null===(fe=window.HTMLSlotElement)||void 0===fe||fe.prototype.assignedElements;let ve=!1,_e=null;const be=async()=>{if(ve&&_e)return _e;if(customElements.get("ha-checkbox")&&customElements.get("ha-slider")&&customElements.get("ha-panel-config")&&customElements.get("ha-entity-picker"))return Promise.resolve();ve=!0,_e=async function(){try{await new Promise((e=>{"requestIdleCallback"in window?requestIdleCallback((()=>e())):setTimeout((()=>e()),0)})),await customElements.whenDefined("partial-panel-resolver");const e=document.createDocumentFragment(),t=document.createElement("partial-panel-resolver");e.appendChild(t),t.hass={panels:[{url_path:"tmp",component_name:"config"}]},await new Promise((e=>queueMicrotask((()=>e())))),t._updateRoutes(),await t.routerOptions.routes.tmp.load(),await customElements.whenDefined("ha-panel-config"),await new Promise((e=>queueMicrotask((()=>e()))));const a=document.createElement("ha-panel-config");e.appendChild(a),await a.routerOptions.routes.automation.load(),customElements.get("ha-entity-picker")||await Promise.race([customElements.whenDefined("ha-entity-picker"),new Promise((e=>setTimeout(e,3e3)))]),e.textContent=""}catch(e){console.error("Failed to load HA form elements:",e)}}();try{await _e}finally{ve=!1,_e=null}};var ye,we;!function(e){e.language="language",e.system="system",e.comma_decimal="comma_decimal",e.decimal_comma="decimal_comma",e.space_comma="space_comma",e.none="none"}(ye||(ye={})),function(e){e.language="language",e.system="system",e.am_pm="12",e.twenty_four="24"}(we||(we={}));var ke=function(e,t,a,i){i=i||{},a=null==a?{}:a;var n=new Event(t,{bubbles:void 0===i.bubbles||i.bubbles,cancelable:Boolean(i.cancelable),composed:void 0===i.composed||i.composed});return n.detail=a,e.dispatchEvent(n),n};const ze=`v${"2026.05.20"}`,Se="smart_irrigation",$e="precipitation_threshold_mm",xe="Open Weather Map",Ae="Pirate Weather",Ee="Open-Meteo",Te="minutes",Me="hours",De="days",Ce="imperial",Oe="metric",Ne="Dewpoint",je="Evapotranspiration",He="Humidity",Pe="Precipitation",Ie="Current Precipitation",Le="Pressure",Ue="Solar Radiation",Re="Temperature",Be="Windspeed",We="weather_service",Fe="sensor",Ye="static",Ze="pressure_type",Ve="absolute",Ge="relative",qe="none",Ke="source",Xe="sensorentity",Je="static_value",Qe="unit",et="aggregate",tt=["average","first","last","maximum","median","minimum","riemannsum","sum","delta"],at="sq ft",it="l/minute",nt="gal/minute",st="mm/h",rt="in/h",ot="name",lt="size",dt="throughput",ut="state",ct="duration",ht="module",pt="bucket",gt="multiplier",mt="mapping",ft="lead_time",vt="maximum_duration",_t="maximum_bucket",bt="drainage_rate",yt="linked_entity",wt="bucket_threshold",kt="flow_sensor",zt="zone_sequencing",St="sequential",$t="parallel",xt=1,At=2,Et=3,Tt=4,Mt=e=>(...t)=>({_$litDirective$:e,values:t});class Dt{constructor(e){}get _$AU(){return this._$AM._$AU}_$AT(e,t,a){this._$Ct=e,this._$AM=t,this._$Ci=a}_$AS(e,t){return this.update(e,t)}update(e,t){return this.render(...t)}}
 /**
      * @license
      * Copyright 2017 Google LLC
@@ -1759,7 +1759,7 @@ i.version="2.30.1",n(Ga),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
                   </label>
                   <select
                     class="settings-input"
-                    .value="${this._weatherService||Ee}"
+                    .value="${Lt(this._weatherService||Ee)}"
                     @change="${e=>{this._weatherService=e.target.value}}"
                   >
                     <option
@@ -1871,7 +1871,7 @@ i.version="2.30.1",n(Ga),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
                     />
                     <select
                       class="settings-input"
-                      .value="${this.data.autoupdateschedule||Me}"
+                      .value="${Lt(this.data.autoupdateschedule||Me)}"
                       @change="${e=>this.handleConfigChange({autoupdateschedule:e.target.value})}"
                     >
                       <option
@@ -2242,7 +2242,7 @@ i.version="2.30.1",n(Ga),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
             </label>
             <select
               class="settings-input"
-              .value="${this.config.zone_sequencing||$t}"
+              .value="${Lt(this.config.zone_sequencing||$t)}"
               @change="${e=>this.handleConfigChange({[zt]:e.target.value})}"
             >
               <option
@@ -2447,6 +2447,7 @@ i.version="2.30.1",n(Ga),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
           @input="${t=>this.handleEditConfig(e,Object.assign(Object.assign({},a),{config:Object.assign(Object.assign({},a.config),{[n]:t.target.value})}))}"
         />`;else if("select"==i.type){const t=this.hass.language;o=W`${o}<select
           id="${n+e}"
+          .value="${Lt(r)}"
           @change="${t=>this.handleEditConfig(e,Object.assign(Object.assign({},a),{config:Object.assign(Object.assign({},a.config),{[n]:t.target.value})}))}"
         >
           ${Object.entries(i.options).map((([e,a])=>W`<option
@@ -2455,7 +2456,7 @@ i.version="2.30.1",n(Ga),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
               >
                 ${Ds("panels.modules.cards.module.translated-options."+Nt(a,1),t)}
               </option>`))}
-        </select>`}return i.required&&(o=W`${o}`),o=W`<div class="schemaline">${o}</div>`,o}handleEditConfig(e,t){this.modules=Object.values(this.modules).map(((a,i)=>i===e?t:a)),this.moduleCache.clear(),this._scheduleUpdate(),this.debouncedSave(t)}renderOption(e,t){return this.hass?W`<option value="${e}>${t}</option>`:W``}render(){return this.hass?W`
+        </select>`}i.required&&(o=W`${o}`);const l=i.description?W`<div class="field-hint">${i.description}</div>`:W``;return o=W`<div class="schemaline">${o}${l}</div>`,o}handleEditConfig(e,t){this.modules=Object.values(this.modules).map(((a,i)=>i===e?t:a)),this.moduleCache.clear(),this._scheduleUpdate(),this.debouncedSave(t)}renderOption(e,t){return this.hass?W`<option value="${e}>${t}</option>`:W``}render(){return this.hass?W`
       <ha-card header="${Ds("panels.modules.title",this.hass.language)}">
         <div class="card-content">
           ${Ds("panels.modules.description",this.hass.language)}
@@ -2497,7 +2498,15 @@ i.version="2.30.1",n(Ga),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
             ${Ds("common.loading-messages.modules",this.hass.language)}
           </div>`:Object.entries(this.modules).map((([e,t])=>this.renderModule(t,parseInt(e))))}
     `:W``}disconnectedCallback(){super.disconnectedCallback(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this.moduleCache.clear()}static get styles(){return c`
-      ${sa}/* View-specific styles only - most common styles are now in globalStyle */
+      ${sa}
+
+      .field-hint {
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+        line-height: 1.4;
+        margin-top: 3px;
+        padding-left: 2px;
+      }
     `}};n([pe()],Rs.prototype,"config",void 0),n([pe({type:Array})],Rs.prototype,"zones",void 0),n([pe({type:Array})],Rs.prototype,"modules",void 0),n([pe({type:Array})],Rs.prototype,"allmodules",void 0),n([pe({type:Boolean})],Rs.prototype,"isLoading",void 0),n([pe({type:Boolean})],Rs.prototype,"isSaving",void 0),n([me("#moduleInput")],Rs.prototype,"moduleInput",void 0),Rs=n([ce("smart-irrigation-view-modules")],Rs);let Bs=class extends(aa(de)){constructor(){super(...arguments),this.zones=[],this.mappings=[],this.weatherRecords=new Map,this.isLoading=!0,this.isSaving=!1,this.debounceTimers=new Map,this.globalDebounceTimer=null,this.mappingCache=new Map,this._updateScheduled=!1,this._lastUpdateTime=0,this._updateThrottleDelay=16}_scheduleUpdate(){if(this._updateScheduled)return;const e=performance.now()-this._lastUpdateTime;e<this._updateThrottleDelay?setTimeout((()=>{this._updateScheduled=!1,this._lastUpdateTime=performance.now(),this.requestUpdate()}),this._updateThrottleDelay-e):(this._updateScheduled=!0,requestAnimationFrame((()=>{this._updateScheduled=!1,this._lastUpdateTime=performance.now(),this.requestUpdate()})))}firstUpdated(){be().catch((e=>{console.error("Failed to load HA form:",e)}))}hassSubscribe(){return this._fetchData().catch((e=>{console.error("Failed to fetch initial data:",e)})),[this.hass.connection.subscribeMessage((()=>{this._fetchData().catch((e=>{console.error("Failed to fetch data on config update:",e)}))}),{type:Se+"_config_updated"})]}async _fetchData(){var e;if(this.hass)try{this.isLoading=!0;const[e,t,a]=await Promise.all([Wt(this.hass),Ft(this.hass),qt(this.hass)]);this.config=e,this.zones=t,this.mappings=a,this._fetchWeatherRecords(),this.mappingCache.clear()}catch(t){console.error("Error fetching data:",t),Ht({body:{message:"Failed to load mapping data"},error:"Data fetch error"},null===(e=this.shadowRoot)||void 0===e?void 0:e.querySelector("ha-card"))}finally{this.isLoading=!1,this._scheduleUpdate()}}async _fetchWeatherRecords(){if(this.hass){for(const e of this.mappings)if(void 0!==e.id)try{const t=await Xt(this.hass,e.id.toString(),10);this.weatherRecords.set(e.id,t)}catch(t){console.error(`Failed to fetch weather records for mapping ${e.id}:`,t),this.weatherRecords.set(e.id,[])}this._scheduleUpdate()}}renderWeatherRecords(e){if(!this.hass)return W``;const t=void 0!==e.id&&this.weatherRecords.get(e.id)||[];return W`
       <div class="weather-records">
         <h4>

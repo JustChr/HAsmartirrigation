@@ -127,6 +127,32 @@ class PyETO(SmartIrrigationCalculationModule):
                 except ValueError:
                     self.forecast_days = DEFAULT_FORECAST_DAYS
 
+    # Field descriptions shown as hints in the Modules settings UI
+    _FIELD_DESCRIPTIONS = {
+        CONF_PYETO_COASTAL: (
+            "Enable if the weather station is located near a coast or large body of water. "
+            "Affects how atmospheric humidity is estimated."
+        ),
+        CONF_PYETO_SOLRAD_BEHAVIOR: (
+            "How solar radiation is estimated when it is not directly measured by a sensor."
+        ),
+        CONF_PYETO_FORECAST_DAYS: (
+            "Number of future days to include in the ET calculation. "
+            "0 = current weather only (recommended — no extra API calls). "
+            "Values > 0 average today's ET with forecasted ET for upcoming days, "
+            "but require an OWM One Call 3.0 paid subscription."
+        ),
+    }
+
+    def schema_serialized(self):
+        """Return serialized schema with field descriptions injected."""
+        items = super().schema_serialized() or []
+        for item in items:
+            desc = self._FIELD_DESCRIPTIONS.get(item.get("name", ""))
+            if desc:
+                item["description"] = desc
+        return items
+
     def calculate(self, weather_data, forecast_data) -> float:
         """Calculate the average evapotranspiration delta for the given weather and forecast data.
 

@@ -1566,36 +1566,51 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             elif aggregate == const.MAPPING_CONF_AGGREGATE_SUM:
                 resultdata[key] = sum(d)
             elif aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM:
-                # Trapezoidal Riemann sum: integrates rate × time so the result
-                # is correct regardless of update frequency.
-                # Each interval uses its own Δt (per-interval, not the average).
-                if len(d) < 2:
-                    # Single reading: scale by 1 hour (weather APIs report mm/h)
+                # Trapezoidal Riemann sum: integrates rate × Δt so the result is
+                # correct at any update frequency. Each interval uses its own Δt.
+                # The anchor for the first interval is the last RETRIEVED_AT stored
+                # in MAPPING_DATA_LAST_CALCULATION when data was cleared after the
+                # previous calculation, giving a correct Δt even for the first
+                # post-clear reading.
+                times = []
+                if const.RETRIEVED_AT in data_by_sensor:
+                    timestamps = data_by_sensor[const.RETRIEVED_AT]
+                    if len(timestamps) == len(d):
+                        try:
+                            for t in timestamps:
+                                if parsed := parse_datetime(t):
+                                    times.append(parsed)
+                        except (ValueError, TypeError) as err:
+                            _LOGGER.error(
+                                "[_aggregate_sensor_data]: Failed to parse timestamps for Riemann sum: %s",
+                                err,
+                            )
+
+                # Prepend the last-cleared timestamp as a zero-contribution anchor
+                # so the first interval's Δt is measured correctly.
+                prev_retrieved_at = last_calc_data.get(const.RETRIEVED_AT)
+                if prev_retrieved_at and (prev_t := parse_datetime(prev_retrieved_at)):
+                    anchor_times = [prev_t] + times
+                    anchor_d = [0.0] + d  # zero value at anchor → contributes 0
+                else:
+                    anchor_times = times
+                    anchor_d = d
+
+                if len(anchor_d) < 2:
+                    # Only one reading and no anchor: default to 1-hour interval
                     resultdata[key] = float(d[0]) * 1.0
                 else:
-                    times = []
-                    if const.RETRIEVED_AT in data_by_sensor:
-                        timestamps = data_by_sensor[const.RETRIEVED_AT]
-                        if len(timestamps) == len(d):
-                            try:
-                                for t in timestamps:
-                                    if parsed := parse_datetime(t):
-                                        times.append(parsed)
-                            except (ValueError, TypeError) as err:
-                                _LOGGER.error(
-                                    "[_aggregate_sensor_data]: Failed to parse timestamps for Riemann sum: %s",
-                                    err,
-                                )
-
                     riemann_sum = 0.0
-                    for i in range(len(d) - 1):
-                        if len(times) == len(d):
+                    for i in range(len(anchor_d) - 1):
+                        if len(anchor_times) == len(anchor_d):
                             dt_hours = max(
-                                (times[i + 1] - times[i]).total_seconds() / 3600, 0
+                                (anchor_times[i + 1] - anchor_times[i]).total_seconds()
+                                / 3600,
+                                0,
                             )
                         else:
-                            dt_hours = 1.0  # fallback: assume 1-hour intervals
-                        riemann_sum += ((d[i] + d[i + 1]) / 2) * dt_hours
+                            dt_hours = 1.0
+                        riemann_sum += ((anchor_d[i] + anchor_d[i + 1]) / 2) * dt_hours
                     resultdata[key] = riemann_sum
             last_calc_data[key] = d[-1]
 
@@ -1776,11 +1791,25 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
 
         # check if data contains delete data true, if so delete the weather data
         if delete_weather_data:
-            # remove sensor data from mapping
             mapping_id = zone.get(const.ZONE_MAPPING)
             if mapping_id is not None:
-                changes = {}
-                changes[const.MAPPING_DATA] = []
+                mapping = self.store.get_mapping(mapping_id)
+                # Preserve the last RETRIEVED_AT timestamp so the Riemann sum
+                # for precipitation can compute the correct Δt for the first
+                # reading in the next collection cycle.
+                last_retrieved_at = None
+                if mapping:
+                    data_list = mapping.get(const.MAPPING_DATA) or []
+                    if data_list:
+                        last_entry = data_list[-1]
+                        last_retrieved_at = last_entry.get(const.RETRIEVED_AT)
+                changes: dict = {const.MAPPING_DATA: []}
+                if last_retrieved_at is not None:
+                    existing_last_calc = (
+                        mapping.get(const.MAPPING_DATA_LAST_CALCULATION) or {}
+                    )
+                    existing_last_calc[const.RETRIEVED_AT] = last_retrieved_at
+                    changes[const.MAPPING_DATA_LAST_CALCULATION] = existing_last_calc
                 await self.store.async_update_mapping(mapping_id, changes=changes)
 
         await self.store.async_update_zone(zone.get(const.ZONE_ID), calc_data)

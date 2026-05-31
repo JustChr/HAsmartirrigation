@@ -1,4 +1,5 @@
 import { TemplateResult, LitElement, html, css, CSSResultGroup } from "lit";
+import { live } from "lit/directives/live.js";
 import { query } from "lit/decorators.js";
 import { property, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
@@ -372,6 +373,7 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
       //@change
       r = html`${r}<select
           id="${name + index}"
+          .value="${live(val)}"
           @change="${(e: Event) =>
             this.handleEditConfig(index, {
               ...mod,
@@ -400,7 +402,10 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
     if (schemaline["required"]) {
       r = html`${r}`;
     }
-    r = html`<div class="schemaline">${r}</div>`;
+    const hint = schemaline["description"]
+      ? html`<div class="field-hint">${schemaline["description"]}</div>`
+      : html``;
+    r = html`<div class="schemaline">${r}${hint}</div>`;
     return r;
   }
 
@@ -520,7 +525,15 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
 
   static get styles(): CSSResultGroup {
     return css`
-      ${globalStyle}/* View-specific styles only - most common styles are now in globalStyle */
+      ${globalStyle}
+
+      .field-hint {
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+        line-height: 1.4;
+        margin-top: 3px;
+        padding-left: 2px;
+      }
     `;
   }
 }
