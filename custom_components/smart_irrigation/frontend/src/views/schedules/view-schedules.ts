@@ -191,7 +191,10 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return html`
       <div class="field">
         <label
-          >${localize("panels.schedules.fields.zones", this.hass.language)}</label
+          >${localize(
+            "panels.schedules.fields.zones",
+            this.hass.language,
+          )}</label
         >
         <div class="switch-container">
           <input
@@ -231,7 +234,8 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                         type="checkbox"
                         ?checked="${selectedIds.includes(String(z.id))}"
                         @change=${(e: Event) => {
-                          const checked = (e.target as HTMLInputElement).checked;
+                          const checked = (e.target as HTMLInputElement)
+                            .checked;
                           const id = String(z.id);
                           const cur = Array.isArray(this._editingSchedule.zones)
                             ? [...(this._editingSchedule.zones as string[])]
@@ -352,9 +356,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
               .value="${String(s.day_of_month || 1)}"
               @input=${(e: Event) =>
                 this._update({
-                  day_of_month: parseInt(
-                    (e.target as HTMLInputElement).value,
-                  ),
+                  day_of_month: parseInt((e.target as HTMLInputElement).value),
                 })}
             />
           </div>
@@ -381,10 +383,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                   })}
               />
               <span class="suffix"
-                >${localize(
-                  "panels.schedules.hours",
-                  this.hass.language,
-                )}</span
+                >${localize("panels.schedules.hours", this.hass.language)}</span
               >
             </div>
           </div>
@@ -693,7 +692,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                     >
                     <span>${this._typeLabel(s.type)}</span>
                   </div>
-                  ${s.time
+                  ${s.time && ["daily", "weekly", "monthly"].includes(s.type)
                     ? html`
                         <div class="info-row">
                           <span class="info-label"

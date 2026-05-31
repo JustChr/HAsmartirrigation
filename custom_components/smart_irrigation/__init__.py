@@ -207,7 +207,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.config_entries.async_update_entry(entry, unique_id=coordinator.id, data={})
 
     _LOGGER.info("Calling async_forward_entry_setups")
-    await hass.config_entries.async_forward_entry_setups(entry, [PLATFORM])
+    await hass.config_entries.async_forward_entry_setups(entry, [PLATFORM, "number"])
     _LOGGER.info("Finished calling async_forward_entry_setups")
     # update listener for options flow
     entry.async_on_unload(entry.add_update_listener(options_update_listener))

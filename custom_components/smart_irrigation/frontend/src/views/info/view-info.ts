@@ -148,10 +148,16 @@ class SmartIrrigationViewInfo extends SubscribeMixin(LitElement) {
     );
     return html`
       <ha-card
-        header="${localize("panels.info.cards.irrigate_now.title", this.hass.language)}"
+        header="${localize(
+          "panels.info.cards.irrigate_now.title",
+          this.hass.language,
+        )}"
       >
         <div class="card-content">
-          ${localize("panels.info.cards.irrigate_now.description", this.hass.language)}
+          ${localize(
+            "panels.info.cards.irrigate_now.description",
+            this.hass.language,
+          )}
         </div>
         <div class="card-content">
           <button
@@ -164,7 +170,10 @@ class SmartIrrigationViewInfo extends SubscribeMixin(LitElement) {
               );
             }}
           >
-            ${localize("panels.info.cards.irrigate_now.button_all", this.hass.language)}
+            ${localize(
+              "panels.info.cards.irrigate_now.button_all",
+              this.hass.language,
+            )}
           </button>
           ${!hasLinkedZones
             ? html`<span class="irrigate-note"

@@ -20,8 +20,8 @@ import { exportPath, getPath, Path } from "./common/navigation";
 
 enum EMenuItems {
   Info = "info",
-  General = "general",
   Zones = "zones",
+  General = "general",
   Schedules = "schedules",
   Adjustments = "adjustments",
   Modules = "modules",
@@ -54,7 +54,7 @@ export class SmartIrrigationPanel extends LitElement {
       !path.page ||
       !Object.values(EMenuItems).includes(path.page as EMenuItems)
     ) {
-      navigate(this, exportPath(EMenuItems.General));
+      navigate(this, exportPath(EMenuItems.Zones));
       return;
     }
 

@@ -203,7 +203,8 @@ class SmartIrrigationViewAdjustments extends SubscribeMixin(LitElement) {
                         type="checkbox"
                         ?checked="${selectedIds.includes(String(z.id))}"
                         @change=${(e: Event) => {
-                          const checked = (e.target as HTMLInputElement).checked;
+                          const checked = (e.target as HTMLInputElement)
+                            .checked;
                           const id = String(z.id);
                           const cur = Array.isArray(this._editing.zones)
                             ? [...(this._editing.zones as string[])]
@@ -272,14 +273,15 @@ class SmartIrrigationViewAdjustments extends SubscribeMixin(LitElement) {
             <select
               @change=${(e: Event) =>
                 this._update({
-                  month_start: parseInt(
-                    (e.target as HTMLSelectElement).value,
-                  ),
+                  month_start: parseInt((e.target as HTMLSelectElement).value),
                 })}
             >
               ${MONTH_NAMES.map(
                 (m, i) => html`
-                  <option value="${i + 1}" ?selected="${a.month_start === i + 1}">
+                  <option
+                    value="${i + 1}"
+                    ?selected="${a.month_start === i + 1}"
+                  >
                     ${m}
                   </option>
                 `,
@@ -452,10 +454,7 @@ class SmartIrrigationViewAdjustments extends SubscribeMixin(LitElement) {
         ? html`
             <ha-card>
               <div class="card-content">
-                ${localize(
-                  "panels.adjustments.no_items",
-                  this.hass.language,
-                )}
+                ${localize("panels.adjustments.no_items", this.hass.language)}
               </div>
             </ha-card>
           `

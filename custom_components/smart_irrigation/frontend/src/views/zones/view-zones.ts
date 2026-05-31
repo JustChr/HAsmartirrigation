@@ -1,19 +1,10 @@
 import { TemplateResult, LitElement, html, CSSResultGroup, css } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { query } from "lit/decorators.js";
 import { property, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 import { loadHaForm } from "../../load-ha-elements";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
-import {
-  mdiInformationOutline,
-  mdiDelete,
-  mdiCalculator,
-  mdiUpdate,
-  mdiPailRemove,
-  mdiCloudOutline,
-  mdiCalendar,
-} from "@mdi/js";
+import { mdiDelete, mdiCalculator, mdiUpdate, mdiPlus } from "@mdi/js";
 import {
   deleteZone,
   fetchConfig,
@@ -64,7 +55,7 @@ import {
   ZONE_BUCKET_THRESHOLD,
   ZONE_FLOW_SENSOR,
 } from "../../const";
-import moment, { Moment } from "moment";
+import moment from "moment";
 
 @customElement("smart-irrigation-view-zones")
 class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
@@ -91,9 +82,20 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   private isSaving = false;
 
   @property({ type: Boolean })
-  private isCreatingZone = false;
+  private _showAddZone = false;
 
-  // Prevent excessive re-renders
+  @property()
+  private _confirmDeleteZoneId: number | null = null;
+
+  @property()
+  private _newZoneName = "";
+
+  @property()
+  private _newZoneSize = "";
+
+  @property()
+  private _newZoneThroughput = "";
+
   private _updateScheduled = false;
   private _scheduleUpdate() {
     if (this._updateScheduled) return;
@@ -104,34 +106,15 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     });
   }
 
-  // Global debounce timer for better performance
   private globalDebounceTimer: number | null = null;
 
-  // Cache for rendered zone cards
-  private zoneCache = new Map<string, TemplateResult>();
-
-  @query("#nameInput")
-  private nameInput!: HTMLInputElement;
-
-  @query("#sizeInput")
-  private sizeInput!: HTMLInputElement;
-
-  @query("#throughputInput")
-  private throughputInput!: HTMLInputElement;
-
-  /*constructor() {
-    super();
-    this._fetchData();
-  }*/
   firstUpdated() {
     loadHaForm().catch((error) => {
       console.error("Failed to load HA form:", error);
     });
-    //this._fetchData();
   }
 
   public hassSubscribe(): Promise<UnsubscribeFunc>[] {
-    // Initial data fetch for UI setup with proper error handling
     this._fetchData().catch((error) => {
       console.error("Failed to fetch initial data:", error);
     });
@@ -139,32 +122,21 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     return [
       this.hass!.connection.subscribeMessage(
         () => {
-          // Skip automatic data updates when user is actively creating a zone
-          if (this.isCreatingZone) {
-            console.debug("Skipping data refresh during zone creation");
-            return;
-          }
-          // Update data when notified of changes with proper error handling
           this._fetchData().catch((error) => {
             console.error("Failed to fetch data on config update:", error);
           });
         },
-        {
-          type: DOMAIN + "_config_updated",
-        },
+        { type: DOMAIN + "_config_updated" },
       ),
     ];
   }
 
   private async _fetchData(): Promise<void> {
-    if (!this.hass) {
-      return;
-    }
+    if (!this.hass) return;
 
     try {
       this.isLoading = true;
 
-      // Fetch all data concurrently to reduce total wait time
       const [config, zones, modules, mappings] = await Promise.all([
         fetchConfig(this.hass),
         fetchZones(this.hass),
@@ -177,32 +149,21 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       this.modules = modules;
       this.mappings = mappings;
 
-      // Fetch watering calendars for each zone
       this._fetchWateringCalendars();
-
-      // Fetch weather records for each zone that has a mapping
       this._fetchWeatherRecords();
-
-      // Clear the cache when new data is loaded
-      this.zoneCache.clear();
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       this.isLoading = false;
-      // Trigger a re-render to ensure UI updates
       this._scheduleUpdate();
     }
   }
 
   private handleCalculateAllZones(): void {
-    if (!this.hass) {
-      return;
-    }
+    if (!this.hass) return;
     this.isSaving = true;
     calculateAllZones(this.hass)
-      .catch((error) => {
-        console.error("Failed to calculate all zones:", error);
-      })
+      .catch((error) => console.error("Failed to calculate all zones:", error))
       .finally(() => {
         this.isSaving = false;
         this._scheduleUpdate();
@@ -210,14 +171,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private handleUpdateAllZones(): void {
-    if (!this.hass) {
-      return;
-    }
+    if (!this.hass) return;
     this.isSaving = true;
     updateAllZones(this.hass)
-      .catch((error) => {
-        console.error("Failed to update all zones:", error);
-      })
+      .catch((error) => console.error("Failed to update all zones:", error))
       .finally(() => {
         this.isSaving = false;
         this._scheduleUpdate();
@@ -225,14 +182,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private handleResetAllBuckets(): void {
-    if (!this.hass) {
-      return;
-    }
+    if (!this.hass) return;
     this.isSaving = true;
     resetAllBuckets(this.hass)
-      .catch((error) => {
-        console.error("Failed to reset all buckets:", error);
-      })
+      .catch((error) => console.error("Failed to reset all buckets:", error))
       .finally(() => {
         this.isSaving = false;
         this._scheduleUpdate();
@@ -240,14 +193,12 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private handleClearAllWeatherdata(): void {
-    if (!this.hass) {
-      return;
-    }
+    if (!this.hass) return;
     this.isSaving = true;
     clearAllWeatherdata(this.hass)
-      .catch((error) => {
-        console.error("Failed to clear all weather data:", error);
-      })
+      .catch((error) =>
+        console.error("Failed to clear all weather data:", error),
+      )
       .finally(() => {
         this.isSaving = false;
         this._scheduleUpdate();
@@ -255,19 +206,13 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private handleAddZone(): void {
-    if (!this.nameInput.value.trim()) {
-      return; // Don't add empty zones
-    }
-
-    // Clear the zone creation flag since we're submitting
-    this.isCreatingZone = false;
+    if (!this._newZoneName.trim()) return;
 
     const newZone: SmartIrrigationZone = {
-      //id: this.zones.length + 1, //new zone will have ID that is equal to current zone length + 1
-      name: this.nameInput.value.trim(),
-      size: Math.round((parseFloat(this.sizeInput.value) || 0) * 100) / 100,
+      name: this._newZoneName.trim(),
+      size: Math.round((parseFloat(this._newZoneSize) || 0) * 100) / 100,
       throughput:
-        Math.round((parseFloat(this.throughputInput.value) || 0) * 100) / 100,
+        Math.round((parseFloat(this._newZoneThroughput) || 0) * 100) / 100,
       state: SmartIrrigationZoneState.Automatic,
       duration: 0,
       bucket: 0,
@@ -283,23 +228,19 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       current_drainage: 0,
     };
 
-    // Optimistically update the UI
     this.zones = [...this.zones, newZone];
     this.isSaving = true;
+    this._showAddZone = false;
 
-    // Save zone with proper error handling
     this.saveToHA(newZone)
       .then(() => {
-        // Clear the input fields on successful save
-        this.nameInput.value = "";
-        this.sizeInput.value = "";
-        this.throughputInput.value = "";
-        // Refresh data to get the server-assigned ID
+        this._newZoneName = "";
+        this._newZoneSize = "";
+        this._newZoneThroughput = "";
         return this._fetchData();
       })
       .catch((error) => {
         console.error("Failed to add zone:", error);
-        // Revert optimistic update on error
         this.zones = this.zones.slice(0, -1);
       })
       .finally(() => {
@@ -312,30 +253,16 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     index: number,
     updatedZone: SmartIrrigationZone,
   ): void {
-    if (!this.hass) {
-      return;
-    }
+    if (!this.hass) return;
 
-    // Use direct array assignment for better performance
     this.zones[index] = updatedZone;
 
-    // Invalidate cache for this zone
-    if (updatedZone.id) {
-      this.zoneCache.delete(updatedZone.id.toString());
-    }
+    if (this.globalDebounceTimer) clearTimeout(this.globalDebounceTimer);
 
-    // Use global debounce to reduce timer overhead
-    if (this.globalDebounceTimer) {
-      clearTimeout(this.globalDebounceTimer);
-    }
-
-    // Debounce saving to avoid excessive API calls during rapid editing
     this.globalDebounceTimer = window.setTimeout(() => {
       this.isSaving = true;
       this.saveToHA(updatedZone)
-        .catch((error) => {
-          console.error("Failed to save zone:", error);
-        })
+        .catch((error) => console.error("Failed to save zone:", error))
         .finally(() => {
           this.isSaving = false;
           this._scheduleUpdate();
@@ -343,50 +270,32 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       this.globalDebounceTimer = null;
     }, 500);
 
-    // Trigger minimal re-render
     this._scheduleUpdate();
   }
 
-  private handleRemoveZone(ev: Event, index: number): void {
-    if (!this.hass) {
-      return;
-    }
-    /*showConfirmationDialog(
-      ev,
-      "Are you sure you want to delete this zone?",
-      index
-    );*/
-    //const dialog = new ConfirmationDialog();
-    //dialog.showDialog("{'message':'Test!'}");
-    const zoneid = this.zones[index].id;
-    const zone = this.zones[index];
-    if (!zone || zoneid == undefined) {
-      return;
-    }
+  private handleRemoveZone(zoneId: number): void {
+    this._confirmDeleteZoneId = zoneId;
+  }
 
-    // Store original for potential rollback
+  private _confirmDelete(): void {
+    const zoneId = this._confirmDeleteZoneId;
+    if (zoneId === null || !this.hass) return;
+
+    const index = this.zones.findIndex((z) => z.id === zoneId);
+    if (index === -1) return;
+
     const originalZones = [...this.zones];
-
-    // Optimistically update UI
-    this.zones = this.zones.filter((_, i) => i !== index);
-
-    // Clear cache for this zone
-    this.zoneCache.delete(zoneid.toString());
-
+    this.zones = this.zones.filter((z) => z.id !== zoneId);
+    this._confirmDeleteZoneId = null;
     this.isSaving = true;
 
-    // Delete zone from HA with proper error handling
-    deleteZone(this.hass, zoneid.toString())
+    deleteZone(this.hass, zoneId.toString())
       .catch((error) => {
         console.error("Failed to delete zone:", error);
-        // Revert the local change if deletion failed
         this.zones = originalZones;
-        this._fetchData().catch((fetchError) => {
-          console.error(
-            "Failed to refresh data after delete error:",
-            fetchError,
-          );
-        });
+        this._fetchData().catch((e) =>
+          console.error("Failed to refresh data after delete error:", e),
+        );
       })
       .finally(() => {
         this.isSaving = false;
@@ -396,75 +305,18 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
   private handleCalculateZone(index: number): void {
     const zone = this.zones[index];
-    if (!zone || zone.id == undefined) {
-      return;
-    }
-    if (!this.hass) {
-      return;
-    }
-    //call the calculate method of the module for the zone
-    // Fire-and-forget: trigger zone calculation in background
+    if (!zone || zone.id == undefined || !this.hass) return;
     void calculateZone(this.hass, zone.id.toString());
   }
 
   private handleUpdateZone(index: number): void {
     const zone = this.zones[index];
-    if (!zone || zone.id == undefined) {
-      return;
-    }
-    if (!this.hass) {
-      return;
-    }
-    // Fire-and-forget: trigger zone update in background
+    if (!zone || zone.id == undefined || !this.hass) return;
     void updateZone(this.hass, zone.id.toString());
   }
 
-  private handleViewWeatherInfo(index: number): void {
-    // Use direct array access instead of Object.values() to ensure correct zone mapping
-    const zone = this.zones[index];
-    if (!zone || zone.mapping == undefined) {
-      return;
-    }
-
-    // Toggle weather data display by updating the zone's weather visibility state
-    const selector = `#weather-section-${zone.id}`;
-    const weatherSection = this.shadowRoot?.querySelector(selector);
-
-    if (weatherSection) {
-      if (weatherSection.hasAttribute("hidden")) {
-        weatherSection.removeAttribute("hidden");
-      } else {
-        weatherSection.setAttribute("hidden", "");
-      }
-    }
-  }
-
-  private handleViewWateringCalendar(index: number): void {
-    // Use direct array access instead of Object.values() to ensure correct zone mapping
-    const zone = this.zones[index];
-    if (!zone || zone.id == undefined) {
-      return;
-    }
-
-    // Toggle watering calendar display
-    const selector = `#calendar-section-${zone.id}`;
-    const calendarSection = this.shadowRoot?.querySelector(selector);
-
-    if (calendarSection) {
-      if (calendarSection.hasAttribute("hidden")) {
-        calendarSection.removeAttribute("hidden");
-      } else {
-        calendarSection.setAttribute("hidden", "");
-      }
-    }
-  }
-
   private async _fetchWeatherRecords(): Promise<void> {
-    if (!this.hass) {
-      return;
-    }
-
-    // Fetch weather records for each zone that has a mapping
+    if (!this.hass) return;
     for (const zone of this.zones) {
       if (zone.id !== undefined && zone.mapping !== undefined) {
         try {
@@ -476,7 +328,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           this.weatherRecords.set(zone.id, records);
         } catch (error) {
           console.error(
-            `Failed to fetch weather records for zone ${zone.id} (mapping ${zone.mapping}):`,
+            `Failed to fetch weather records for zone ${zone.id}:`,
             error,
           );
         }
@@ -486,11 +338,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private async _fetchWateringCalendars(): Promise<void> {
-    if (!this.hass) {
-      return;
-    }
-
-    // Fetch watering calendar for each zone
+    if (!this.hass) return;
     for (const zone of this.zones) {
       if (zone.id !== undefined) {
         try {
@@ -511,20 +359,12 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private renderWeatherRecords(zone: SmartIrrigationZone): TemplateResult {
-    if (!this.hass || typeof zone.id !== "number") {
-      return html``;
-    }
+    if (!this.hass || typeof zone.id !== "number") return html``;
 
     const records = this.weatherRecords.get(zone.id) || [];
 
     return html`
-      <div class="weather-records">
-        <h4>
-          ${localize(
-            "panels.mappings.weather-records.title",
-            this.hass.language,
-          )}
-        </h4>
+      <div class="card-content">
         ${records.length === 0
           ? html`
               <div class="weather-note">
@@ -604,810 +444,707 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private renderWateringCalendar(zone: SmartIrrigationZone): TemplateResult {
-    if (!this.hass || typeof zone.id !== "number") {
-      return html``;
-    }
+    if (!this.hass || typeof zone.id !== "number") return html``;
     const calendarData = this.wateringCalendars.get(zone.id);
     const zoneCalendar =
       calendarData && zone.id in calendarData ? calendarData[zone.id] : null;
     const monthlyEstimates = zoneCalendar?.monthly_estimates || [];
 
-    return html` <div class="watering-calendar">
-      <h4>Watering Calendar (12-Month Estimates)</h4>
-      ${monthlyEstimates.length === 0
-        ? html`
-            <div class="calendar-note">
-              ${zoneCalendar?.error
-                ? `Error generating calendar: ${zoneCalendar.error}`
-                : "No watering calendar data available for this zone"}
-            </div>
-          `
-        : html` <div class="calendar-table">
-              <div class="calendar-header">
-                <span>Month</span>
-                <span>ET (mm)</span>
-                <span>Precipitation (mm)</span>
-                <span>Watering (L)</span>
-                <span>Avg Temp (°C)</span>
+    return html`
+      <div class="card-content">
+        ${monthlyEstimates.length === 0
+          ? html`
+              <div class="calendar-note">
+                ${zoneCalendar?.error
+                  ? `Error generating calendar: ${zoneCalendar.error}`
+                  : "No watering calendar data available for this zone"}
               </div>
-              ${monthlyEstimates.map(
-                (estimate) => html`
-                  <div class="calendar-row">
-                    <span
-                      >${estimate.month_name ||
-                      `Month ${estimate.month}` ||
-                      "-"}</span
-                    >
-                    <span
-                      >${estimate.estimated_et_mm
-                        ? estimate.estimated_et_mm.toFixed(1)
-                        : "-"}</span
-                    >
-                    <span
-                      >${estimate.average_precipitation_mm
-                        ? estimate.average_precipitation_mm.toFixed(1)
-                        : "-"}</span
-                    >
-                    <span
-                      >${estimate.estimated_watering_volume_liters
-                        ? estimate.estimated_watering_volume_liters.toFixed(0)
-                        : "-"}</span
-                    >
-                    <span
-                      >${estimate.average_temperature_c
-                        ? estimate.average_temperature_c.toFixed(1)
-                        : "-"}</span
-                    >
-                  </div>
-                `,
-              )}
-            </div>
-            ${zoneCalendar?.calculation_method
-              ? html`
-                  <div class="calendar-info">
-                    Method: ${zoneCalendar.calculation_method}
-                  </div>
-                `
-              : ""}`}
-    </div>`;
+            `
+          : html`
+              <div class="calendar-table">
+                <div class="calendar-header">
+                  <span>Month</span>
+                  <span>ET (mm)</span>
+                  <span>Precipitation (mm)</span>
+                  <span>Watering (L)</span>
+                  <span>Avg Temp (°C)</span>
+                </div>
+                ${monthlyEstimates.map(
+                  (estimate) => html`
+                    <div class="calendar-row">
+                      <span
+                        >${estimate.month_name ||
+                        `Month ${estimate.month}` ||
+                        "-"}</span
+                      >
+                      <span
+                        >${estimate.estimated_et_mm
+                          ? estimate.estimated_et_mm.toFixed(1)
+                          : "-"}</span
+                      >
+                      <span
+                        >${estimate.average_precipitation_mm
+                          ? estimate.average_precipitation_mm.toFixed(1)
+                          : "-"}</span
+                      >
+                      <span
+                        >${estimate.estimated_watering_volume_liters
+                          ? estimate.estimated_watering_volume_liters.toFixed(0)
+                          : "-"}</span
+                      >
+                      <span
+                        >${estimate.average_temperature_c
+                          ? estimate.average_temperature_c.toFixed(1)
+                          : "-"}</span
+                      >
+                    </div>
+                  `,
+                )}
+              </div>
+              ${zoneCalendar?.calculation_method
+                ? html`
+                    <div class="calendar-info">
+                      Method: ${zoneCalendar.calculation_method}
+                    </div>
+                  `
+                : ""}
+            `}
+      </div>
+    `;
   }
 
   private async saveToHA(zone: SmartIrrigationZone): Promise<void> {
-    if (!this.hass) {
-      throw new Error("Home Assistant connection not available");
-    }
-    // Save zone to HA backend with proper error handling
+    if (!this.hass) throw new Error("Home Assistant connection not available");
     await saveZone(this.hass, zone);
   }
 
-  private handleZoneFormFocus(): void {
-    // User started interacting with zone creation form
-    this.isCreatingZone = true;
+  private _renderModuleOptions(): TemplateResult {
+    if (!this.hass) return html``;
+    return html`
+      <mwc-list-item value="">
+        ---${localize("common.labels.select", this.hass.language)}---
+      </mwc-list-item>
+      ${this.modules.map(
+        (m) => html`
+          <mwc-list-item value="${m.id}">${m.id}: ${m.name}</mwc-list-item>
+        `,
+      )}
+    `;
   }
 
-  private handleZoneFormBlur(): void {
-    // Check if any form field has content
-    const hasContent =
-      this.nameInput?.value?.trim() ||
-      this.sizeInput?.value ||
-      this.throughputInput?.value;
-
-    // Only clear the flag if all fields are empty
-    if (!hasContent) {
-      this.isCreatingZone = false;
-    }
-  }
-
-  private renderTheOptions(thelist: object, selected?: number): TemplateResult {
-    if (!this.hass) {
-      return html``;
-    } else {
-      let r = html`<option value="" ?selected=${
-        selected === undefined
-      }">---${localize(
-        "common.labels.select",
-        this.hass.language,
-      )}---</option>`;
-      Object.entries(thelist).map(
-        ([key, value]) =>
-          /*html`<option value="${value["id"]}" ?selected="${
-          zone.module === value["id"]
-        }>
-          ${value["id"]}: ${value["name"]}
-        </option>`*/
-          (r = html`${r}
-            <option
-              value="${value["id"]}"
-              ?selected="${selected === value["id"]}"
-            >
-              ${value["id"]}: ${value["name"]}
-            </option>`),
-      );
-      return r;
-    }
+  private _renderMappingOptions(): TemplateResult {
+    if (!this.hass) return html``;
+    return html`
+      <mwc-list-item value="">
+        ---${localize("common.labels.select", this.hass.language)}---
+      </mwc-list-item>
+      ${this.mappings.map(
+        (m) => html`
+          <mwc-list-item value="${m.id}">${m.id}: ${m.name}</mwc-list-item>
+        `,
+      )}
+    `;
   }
 
   private renderZone(zone: SmartIrrigationZone, index: number): TemplateResult {
-    if (!this.hass) {
-      return html``;
-    } else {
-      let explanation_svg_to_show;
-      if (zone.explanation != null && zone.explanation.length > 0) {
-        explanation_svg_to_show = html`<svg
-          style="width:24px;height:24px"
-          viewBox="0 0 24 24"
-          id="showcalcresults${index}"
-          @click="${() => this.toggleExplanation(index)}"
-        >
-          <title>
-            ${localize("panels.zones.actions.information", this.hass.language)}
-          </title>
-          <path fill="#404040" d="${mdiInformationOutline}" />
-        </svg>`;
-      }
-      // Create labeled action buttons for zones page
-      let calculation_button_to_show;
-      if (zone.state === SmartIrrigationZoneState.Automatic) {
-        calculation_button_to_show = html` <div
-          class="action-button-left"
-          @click="${() => this.handleCalculateZone(index)}"
-        >
-          <svg style="width:24px;height:24px" viewBox="0 0 24 24">
-            <path fill="#404040" d="${mdiCalculator}" />
-          </svg>
-          <span class="action-button-label">
-            ${localize("panels.zones.actions.calculate", this.hass.language)}
-          </span>
-        </div>`;
-      }
+    if (!this.hass) return html``;
 
-      let update_button_to_show;
-      if (zone.state === SmartIrrigationZoneState.Automatic) {
-        update_button_to_show = html` <div
-          class="action-button-left"
-          @click="${() => this.handleUpdateZone(index)}"
-        >
-          <svg style="width:24px;height:24px" viewBox="0 0 24 24">
-            <path fill="#404040" d="${mdiUpdate}" />
-          </svg>
-          <span class="action-button-label">
-            ${localize("panels.zones.actions.update", this.hass.language)}
-          </span>
-        </div>`;
-      }
+    const bucket = Number(zone.bucket ?? 0);
+    const bucketColor =
+      bucket < 0 ? "var(--warning-color)" : "var(--success-color)";
+    const stateClass =
+      zone.state === SmartIrrigationZoneState.Automatic
+        ? "state-automatic"
+        : zone.state === SmartIrrigationZoneState.Manual
+          ? "state-manual"
+          : "state-disabled";
 
-      const irrigate_now_button =
-        zone.linked_entity && (zone.duration ?? 0) > 0
-          ? html` <div
-              class="action-button-left"
-              @click="${() => {
-                if (!this.hass) return;
-                irrigateNow(
-                  this.hass,
-                  zone.id !== undefined ? zone.id.toString() : undefined,
-                ).catch((e) => console.error("irrigate_now failed", e));
-              }}"
-            >
-              <span class="action-button-label">
-                ${localize(
-                  "panels.zones.actions.irrigate_now",
-                  this.hass.language,
-                )}
-              </span>
-            </div>`
-          : html``;
-
-      const reset_bucket_button_to_show = html` <div
-        class="action-button-right"
-        @click="${() =>
-          this.handleEditZone(index, {
-            ...zone,
-            [ZONE_BUCKET]: 0.0,
-          })}"
-      >
-        <span class="action-button-label">
-          ${localize("panels.zones.actions.reset-bucket", this.hass.language)}
-        </span>
-        <svg style="width:24px;height:24px" viewBox="0 0 24 24">
-          <path fill="#404040" d="${mdiPailRemove}" />
-        </svg>
-      </div>`;
-
-      let weather_info_button_to_show;
-      if (zone.mapping != undefined) {
-        weather_info_button_to_show = html` <div
-          class="action-button-right"
-          @click="${() => this.handleViewWeatherInfo(index)}"
-        >
-          <span class="action-button-label">
+    return html`
+      <ha-card>
+        <div class="card-header">
+          <div class="name">${zone.name}</div>
+          <span class="zone-state-badge ${stateClass}">
             ${localize(
-              "panels.zones.actions.view-weather-info",
+              `panels.zones.labels.states.${zone.state}`,
               this.hass.language,
             )}
           </span>
-          <svg style="width:24px;height:24px" viewBox="0 0 24 24">
-            <path fill="#404040" d="${mdiCloudOutline}" />
-          </svg>
-        </div>`;
-      }
+        </div>
 
-      // Calendar button for watering calendar
-      const calendar_button_to_show = html` <div
-        class="action-button-right"
-        @click="${() => this.handleViewWateringCalendar(index)}"
-      >
-        <span class="action-button-label">
-          ${localize(
-            "panels.zones.actions.view-watering-calendar",
-            this.hass.language,
-          )}
-        </span>
-        <svg style="width:24px;height:24px" viewBox="0 0 24 24">
-          <path fill="#404040" d="${mdiCalendar}" />
-        </svg>
-      </div>`;
-
-      const information_button_to_show =
-        zone.explanation != null && zone.explanation.length > 0
-          ? html` <div
-              class="action-button-left"
-              @click="${() => this.toggleExplanation(index)}"
-            >
-              <svg style="width:24px;height:24px" viewBox="0 0 24 24">
-                <path fill="#404040" d="${mdiInformationOutline}" />
-              </svg>
-              <span class="action-button-label">
-                ${localize(
-                  "panels.zones.actions.information",
+        <!-- STATUS -->
+        <div class="card-content">
+          <div class="zone-status-grid">
+            <div class="status-item">
+              <span class="status-label"
+                >${localize(
+                  "panels.zones.labels.bucket",
                   this.hass.language,
-                )}
+                )}</span
+              >
+              <span class="status-value" style="color: ${bucketColor}">
+                ${bucket.toFixed(2)} ${output_unit(this.config, ZONE_BUCKET)}
               </span>
-            </div>`
-          : html``;
-
-      const delete_button_to_show = html` <div
-        class="action-button-right"
-        @click="${(e: Event) => this.handleRemoveZone(e, index)}"
-      >
-        <span class="action-button-label">
-          ${localize("common.actions.delete", this.hass.language)}
-        </span>
-        <svg style="width:24px;height:24px" viewBox="0 0 24 24">
-          <path fill="#404040" d="${mdiDelete}" />
-        </svg>
-      </div>`;
-
-      //get number of datapoints
-      let the_mapping;
-      if (zone.mapping != undefined) {
-        the_mapping = this.mappings.filter((o) => o.id === zone.mapping)[0];
-        if (the_mapping != undefined) {
-          if (the_mapping.data != undefined) {
-            zone.number_of_data_points = the_mapping.data.length;
-          }
-        }
-      }
-      return html`
-        <ha-card header="${zone.name}">
-          <div class="card-content">
-            <div class="zone-info-table">
-              <div class="zone-info-row">
-                <span class="zone-info-label"
-                  >${localize(
-                    "panels.zones.labels.last_calculated",
-                    this.hass.language,
-                  )}:</span
-                >
-                <span class="zone-info-value"
-                  >${zone.last_calculated
-                    ? moment(zone.last_calculated).format("YYYY-MM-DD HH:mm:ss")
-                    : "-"}</span
-                >
-              </div>
-              <div class="zone-info-row">
-                <span class="zone-info-label"
-                  >${localize(
-                    "panels.zones.labels.data-last-updated",
-                    this.hass.language,
-                  )}:</span
-                >
-                <span class="zone-info-value"
-                  >${zone.last_updated
-                    ? moment(zone.last_updated).format("YYYY-MM-DD HH:mm:ss")
-                    : "-"}</span
-                >
-              </div>
-              <div class="zone-info-row">
-                <span class="zone-info-label"
-                  >${localize(
-                    "panels.zones.labels.data-number-of-data-points",
-                    this.hass.language,
-                  )}:</span
-                >
-                <span class="zone-info-value"
-                  >${zone.number_of_data_points}</span
-                >
-              </div>
+            </div>
+            <div class="status-item">
+              <span class="status-label"
+                >${localize(
+                  "panels.zones.labels.duration",
+                  this.hass.language,
+                )}</span
+              >
+              <span class="status-value">
+                ${(zone.duration ?? 0) > 0
+                  ? `${zone.duration} ${UNIT_SECONDS}`
+                  : "–"}
+              </span>
+            </div>
+            <div class="status-item">
+              <span class="status-label"
+                >${localize(
+                  "panels.zones.labels.last_calculated",
+                  this.hass.language,
+                )}</span
+              >
+              <span class="status-value">
+                ${zone.last_calculated
+                  ? moment(zone.last_calculated).format("YYYY-MM-DD HH:mm")
+                  : "–"}
+              </span>
+            </div>
+            <div class="status-item">
+              <span class="status-label"
+                >${localize(
+                  "panels.zones.labels.data-number-of-data-points",
+                  this.hass.language,
+                )}</span
+              >
+              <span class="status-value"
+                >${zone.number_of_data_points ?? 0}</span
+              >
             </div>
           </div>
-          <div class="card-content">
-            <label for="name${index}"
-              >${localize(
-                "panels.zones.labels.name",
-                this.hass.language,
-              )}:</label
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="card-content zone-action-bar">
+          ${zone.state === SmartIrrigationZoneState.Automatic
+            ? html`
+                <ha-button
+                  @click="${() => this.handleCalculateZone(index)}"
+                  ?disabled="${this.isSaving}"
+                >
+                  <ha-icon slot="icon" icon="mdi:calculator"></ha-icon>
+                  ${localize(
+                    "panels.zones.actions.calculate",
+                    this.hass.language,
+                  )}
+                </ha-button>
+                <ha-button
+                  @click="${() => this.handleUpdateZone(index)}"
+                  ?disabled="${this.isSaving}"
+                >
+                  <ha-icon slot="icon" icon="mdi:update"></ha-icon>
+                  ${localize("panels.zones.actions.update", this.hass.language)}
+                </ha-button>
+              `
+            : ""}
+          ${zone.linked_entity && (zone.duration ?? 0) > 0
+            ? html`
+                <ha-button
+                  raised
+                  @click="${() => {
+                    if (!this.hass) return;
+                    irrigateNow(
+                      this.hass,
+                      zone.id !== undefined ? zone.id.toString() : undefined,
+                    ).catch((e) => console.error("irrigate_now failed", e));
+                  }}"
+                  ?disabled="${this.isSaving}"
+                >
+                  ${localize(
+                    "panels.zones.actions.irrigate_now",
+                    this.hass.language,
+                  )}
+                </ha-button>
+              `
+            : ""}
+        </div>
+
+        <!-- SETTINGS EXPANSION -->
+        <ha-expansion-panel
+          .header="${localize("common.labels.settings", this.hass.language)}"
+        >
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize("panels.zones.labels.name", this.hass.language)}</span
             >
-            <input
-              id="name${index}"
-              type="text"
+            <ha-textfield
               .value="${zone.name}"
               @input="${(e: Event) =>
                 this.handleEditZone(index, {
                   ...zone,
                   [ZONE_NAME]: (e.target as HTMLInputElement).value,
                 })}"
-            />
-            <div class="zoneline">
-              <label for="size${index}"
-                >${localize("panels.zones.labels.size", this.hass.language)}
-                (${output_unit(this.config, ZONE_SIZE)}):</label
-              >
-              <input
-                class="shortinput"
-                id="size${index}"
-                type="number"
-                step="0.1"
-                min="0"
-                inputmode="decimal"
-                .value="${parseFloat(zone.size.toFixed(2))}"
-                @input="${(e: Event) => {
-                  const v =
-                    Math.round(
-                      (e.target as HTMLInputElement).valueAsNumber * 100,
-                    ) / 100;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, { ...zone, [ZONE_SIZE]: v });
-                }}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="throughput${index}"
-                >${localize(
-                  "panels.zones.labels.throughput",
-                  this.hass.language,
-                )}
-                (${output_unit(this.config, ZONE_THROUGHPUT)}):</label
-              >
-              <input
-                class="shortinput"
-                id="throughput${index}"
-                type="number"
-                step="0.1"
-                min="0"
-                inputmode="decimal"
-                .value="${parseFloat(zone.throughput.toFixed(2))}"
-                @input="${(e: Event) => {
-                  const v =
-                    Math.round(
-                      (e.target as HTMLInputElement).valueAsNumber * 100,
-                    ) / 100;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_THROUGHPUT]: v,
-                    });
-                }}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="drainage_rate${index}"
-                >${localize(
-                  "panels.zones.labels.drainage_rate",
-                  this.hass.language,
-                )}
-                (${output_unit(this.config, ZONE_DRAINAGE_RATE)}):</label
-              >
-              <input
-                class="shortinput"
-                id="drainage_rate${index}"
-                type="number"
-                step="0.1"
-                min="0"
-                inputmode="decimal"
-                .value="${parseFloat((zone.drainage_rate ?? 0).toFixed(2))}"
-                @input="${(e: Event) => {
-                  const v =
-                    Math.round(
-                      (e.target as HTMLInputElement).valueAsNumber * 100,
-                    ) / 100;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_DRAINAGE_RATE]: v,
-                    });
-                }}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="state${index}"
-                >${localize(
-                  "panels.zones.labels.state",
-                  this.hass.language,
-                )}:</label
-              >
-              <select
-                required
-                id="state${index}"
-                @change="${(e: Event) =>
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_STATE]: (e.target as HTMLSelectElement)
-                      .value as SmartIrrigationZoneState,
-                    [ZONE_DURATION]: 0,
-                  })}"
-              >
-                <option
-                  value="${SmartIrrigationZoneState.Automatic}"
-                  ?selected="${zone.state ===
-                  SmartIrrigationZoneState.Automatic}"
-                >
-                  ${localize(
-                    "panels.zones.labels.states.automatic",
-                    this.hass.language,
-                  )}
-                </option>
-                <option
-                  value="${SmartIrrigationZoneState.Disabled}"
-                  ?selected="${zone.state ===
-                  SmartIrrigationZoneState.Disabled}"
-                >
-                  ${localize(
-                    "panels.zones.labels.states.disabled",
-                    this.hass.language,
-                  )}
-                </option>
-                <option
-                  value="${SmartIrrigationZoneState.Manual}"
-                  ?selected="${zone.state === SmartIrrigationZoneState.Manual}"
-                >
-                  ${localize(
-                    "panels.zones.labels.states.manual",
-                    this.hass.language,
-                  )}
-                </option>
-              </select>
-              <label for="module${index}"
-                >${localize("common.labels.module", this.hass.language)}:</label
-              >
+            ></ha-textfield>
+          </ha-settings-row>
 
-              <select
-                id="module${index}"
-                @change="${(e: Event) =>
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_MODULE]: parseInt(
-                      (e.target as HTMLSelectElement).value,
-                    ),
-                  })}"
-              >
-                ${this.renderTheOptions(this.modules, zone.module)}
-              </select>
-              <label for="module${index}"
-                >${localize(
-                  "panels.zones.labels.mapping",
-                  this.hass.language,
-                )}:</label
-              >
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize("panels.zones.labels.size", this.hass.language)}
+              (${output_unit(this.config, ZONE_SIZE)})</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="0.1"
+              min="0"
+              inputmode="decimal"
+              .value="${String(parseFloat(zone.size.toFixed(2)))}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 100,
+                  ) / 100;
+                if (!isNaN(v))
+                  this.handleEditZone(index, { ...zone, [ZONE_SIZE]: v });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
 
-              <select
-                id="mapping${index}"
-                @change="${(e: Event) =>
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize("panels.zones.labels.throughput", this.hass.language)}
+              (${output_unit(this.config, ZONE_THROUGHPUT)})</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="0.1"
+              min="0"
+              inputmode="decimal"
+              .value="${String(parseFloat(zone.throughput.toFixed(2)))}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 100,
+                  ) / 100;
+                if (!isNaN(v))
                   this.handleEditZone(index, {
                     ...zone,
-                    [ZONE_MAPPING]: parseInt(
-                      (e.target as HTMLSelectElement).value,
-                    ),
-                  })}"
-              >
-                ${this.renderTheOptions(this.mappings, zone.mapping)}
-              </select>
-            </div>
-            <div class="zoneline">
-              <label for="bucket${index}"
-                >${localize("panels.zones.labels.bucket", this.hass.language)}
-                (${output_unit(this.config, ZONE_BUCKET)}):</label
-              >
-              <input
-                class="shortinput"
-                id="bucket${index}"
-                type="number"
-                step="0.1"
-                inputmode="decimal"
-                .value="${parseFloat(Number(zone.bucket).toFixed(2))}"
-                @input="${(e: Event) => {
-                  const v =
-                    Math.round(
-                      (e.target as HTMLInputElement).valueAsNumber * 100,
-                    ) / 100;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, { ...zone, [ZONE_BUCKET]: v });
-                }}"
-              />
-              <label for="maximum-bucket${index}"
-                >${localize(
-                  "panels.zones.labels.maximum-bucket",
-                  this.hass.language,
-                )}
-                (${output_unit(this.config, ZONE_BUCKET)}):</label
-              >
-              <input
-                class="shortinput"
-                id="maximum-bucket${index}"
-                type="number"
-                step="0.1"
-                min="0"
-                inputmode="decimal"
-                .value="${parseFloat(Number(zone.maximum_bucket).toFixed(2))}"
-                @input="${(e: Event) => {
-                  const v =
-                    Math.round(
-                      (e.target as HTMLInputElement).valueAsNumber * 100,
-                    ) / 100;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_MAXIMUM_BUCKET]: v,
-                    });
-                }}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="lead_time${index}"
-                >${localize(
-                  "panels.zones.labels.lead-time",
-                  this.hass.language,
-                )}
-                (s):</label
-              >
-              <input
-                class="shortinput"
-                id="lead_time${index}"
-                type="number"
-                step="1"
-                min="0"
-                inputmode="numeric"
-                .value="${zone.lead_time}"
-                @input="${(e: Event) => {
-                  const v = (e.target as HTMLInputElement).valueAsNumber;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_LEAD_TIME]: Math.round(v),
-                    });
-                }}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="maximum-duration${index}"
-                >${localize(
-                  "panels.zones.labels.maximum-duration",
-                  this.hass.language,
-                )}
-                (s):</label
-              >
-              <input
-                class="shortinput"
-                id="maximum-duration${index}"
-                type="number"
-                step="1"
-                min="0"
-                inputmode="numeric"
-                .value="${zone.maximum_duration}"
-                @input="${(e: Event) => {
-                  const v = (e.target as HTMLInputElement).valueAsNumber;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_MAXIMUM_DURATION]: Math.round(v),
-                    });
-                }}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="multiplier${index}"
-                >${localize(
-                  "panels.zones.labels.multiplier",
-                  this.hass.language,
-                )}:</label
-              >
-              <input
-                class="shortinput"
-                id="multiplier${index}"
-                type="number"
-                step="0.1"
-                min="0"
-                inputmode="decimal"
-                .value="${parseFloat(zone.multiplier.toFixed(2))}"
-                @input="${(e: Event) => {
-                  const v =
-                    Math.round(
-                      (e.target as HTMLInputElement).valueAsNumber * 100,
-                    ) / 100;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_MULTIPLIER]: v,
-                    });
-                }}"
-              />
-              <label for="duration${index}"
-                >${localize("panels.zones.labels.duration", this.hass.language)}
-                (${UNIT_SECONDS}):</label
-              >
-              <input
-                class="shortinput"
-                id="duration${index}"
-                type="number"
-                step="1"
-                min="0"
-                inputmode="numeric"
-                .value="${zone.duration}"
-                ?readonly="${zone.state === SmartIrrigationZoneState.Disabled ||
-                zone.state === SmartIrrigationZoneState.Automatic}"
-                @input="${(e: Event) => {
-                  const v = (e.target as HTMLInputElement).valueAsNumber;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_DURATION]: Math.round(v),
-                    });
-                }}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="linked_entity${index}"
-                >${localize(
-                  "panels.zones.labels.linked_entity",
-                  this.hass.language,
-                )}:</label
-              >
-              <datalist id="entity-list-${index}">
-                ${Object.keys(this.hass.states)
-                  .filter(
-                    (id) =>
-                      id.startsWith("switch.") || id.startsWith("valve."),
-                  )
-                  .sort()
-                  .map((id) => html`<option value="${id}"></option>`)}
-              </datalist>
-              <input
-                id="linked_entity${index}"
-                type="text"
-                list="entity-list-${index}"
-                placeholder="${localize(
-                  "panels.zones.labels.linked_entity_placeholder",
-                  this.hass.language,
-                )}"
-                .value="${zone.linked_entity || ""}"
-                @change="${(e: Event) =>
+                    [ZONE_THROUGHPUT]: v,
+                  });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.drainage_rate",
+                this.hass.language,
+              )}
+              (${output_unit(this.config, ZONE_DRAINAGE_RATE)})</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="0.1"
+              min="0"
+              inputmode="decimal"
+              .value="${String(
+                parseFloat((zone.drainage_rate ?? 0).toFixed(2)),
+              )}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 100,
+                  ) / 100;
+                if (!isNaN(v))
                   this.handleEditZone(index, {
                     ...zone,
-                    [ZONE_LINKED_ENTITY]:
-                      (e.target as HTMLInputElement).value.trim() || undefined,
-                  })}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="flow_sensor${index}"
-                >${localize(
-                  "panels.zones.labels.flow_sensor",
-                  this.hass.language,
-                )}:</label
-              >
-              <datalist id="flow-sensor-list-${index}">
-                ${Object.keys(this.hass.states)
-                  .filter((id) => id.startsWith("sensor."))
-                  .sort()
-                  .map((id) => html`<option value="${id}"></option>`)}
-              </datalist>
-              <input
-                id="flow_sensor${index}"
-                type="text"
-                list="flow-sensor-list-${index}"
-                placeholder="${localize(
-                  "panels.zones.labels.flow_sensor_placeholder",
-                  this.hass.language,
-                )}"
-                .value="${zone.flow_sensor || ""}"
-                @change="${(e: Event) =>
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_FLOW_SENSOR]:
-                      (e.target as HTMLInputElement).value.trim() || null,
-                  })}"
-              />
-            </div>
-            <div class="zoneline">
-              <label for="bucket_threshold${index}"
-                >${localize(
-                  "panels.zones.labels.bucket_threshold",
+                    [ZONE_DRAINAGE_RATE]: v,
+                  });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.state",
+                this.hass.language,
+              )}</span
+            >
+            <ha-select
+              .value="${zone.state}"
+              @selected="${(e: CustomEvent) =>
+                this.handleEditZone(index, {
+                  ...zone,
+                  [ZONE_STATE]: e.detail.value as SmartIrrigationZoneState,
+                  [ZONE_DURATION]: 0,
+                })}"
+              @closed="${(e: Event) => e.stopPropagation()}"
+            >
+              <mwc-list-item value="${SmartIrrigationZoneState.Automatic}">
+                ${localize(
+                  "panels.zones.labels.states.automatic",
                   this.hass.language,
                 )}
-                (${output_unit(this.config, ZONE_BUCKET)}):</label
-              >
-              <input
-                class="shortinput"
-                id="bucket_threshold${index}"
-                type="number"
-                step="0.5"
-                max="0"
-                inputmode="decimal"
-                .value="${parseFloat(
-                  (zone.bucket_threshold ?? 0).toFixed(1),
-                )}"
-                @input="${(e: Event) => {
-                  const v =
-                    Math.round(
-                      (e.target as HTMLInputElement).valueAsNumber * 10,
-                    ) / 10;
-                  if (!isNaN(v))
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_BUCKET_THRESHOLD]: Math.min(v, 0),
-                    });
-                }}"
-              />
-            </div>
-            <div class="action-buttons">
-              <div class="action-buttons-left">
-                ${update_button_to_show} ${calculation_button_to_show}
-                ${irrigate_now_button} ${information_button_to_show}
-              </div>
-              <div class="action-buttons-right">
-                ${reset_bucket_button_to_show} ${weather_info_button_to_show}
-                ${calendar_button_to_show} ${delete_button_to_show}
-              </div>
-            </div>
-            <div class="zoneline">
-              <div>
-                <label class="hidden" id="calcresults${index}"
-                  >${unsafeHTML("<br/>" + zone.explanation)}</label
-                >
-              </div>
-            </div>
-            <div id="calendar-section-${zone.id}" hidden>
-              ${this.renderWateringCalendar(zone)}
-            </div>
-            <div id="weather-section-${zone.id}" hidden>
-              ${this.renderWeatherRecords(zone)}
-            </div>
+              </mwc-list-item>
+              <mwc-list-item value="${SmartIrrigationZoneState.Manual}">
+                ${localize(
+                  "panels.zones.labels.states.manual",
+                  this.hass.language,
+                )}
+              </mwc-list-item>
+              <mwc-list-item value="${SmartIrrigationZoneState.Disabled}">
+                ${localize(
+                  "panels.zones.labels.states.disabled",
+                  this.hass.language,
+                )}
+              </mwc-list-item>
+            </ha-select>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize("common.labels.module", this.hass.language)}</span
+            >
+            <ha-select
+              .value="${zone.module !== undefined ? String(zone.module) : ""}"
+              @selected="${(e: CustomEvent) => {
+                const v = e.detail.value;
+                this.handleEditZone(index, {
+                  ...zone,
+                  [ZONE_MODULE]: v ? parseInt(v) : undefined,
+                });
+              }}"
+              @closed="${(e: Event) => e.stopPropagation()}"
+            >
+              ${this._renderModuleOptions()}
+            </ha-select>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.mapping",
+                this.hass.language,
+              )}</span
+            >
+            <ha-select
+              .value="${zone.mapping !== undefined ? String(zone.mapping) : ""}"
+              @selected="${(e: CustomEvent) => {
+                const v = e.detail.value;
+                this.handleEditZone(index, {
+                  ...zone,
+                  [ZONE_MAPPING]: v ? parseInt(v) : undefined,
+                });
+              }}"
+              @closed="${(e: Event) => e.stopPropagation()}"
+            >
+              ${this._renderMappingOptions()}
+            </ha-select>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.linked_entity",
+                this.hass.language,
+              )}</span
+            >
+            <ha-entity-picker
+              .hass="${this.hass}"
+              .value="${zone.linked_entity || ""}"
+              .includeDomains="${["switch", "valve"]}"
+              allow-custom-entity
+              @value-changed="${(e: CustomEvent) =>
+                this.handleEditZone(index, {
+                  ...zone,
+                  [ZONE_LINKED_ENTITY]: e.detail.value || undefined,
+                })}"
+            ></ha-entity-picker>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.flow_sensor",
+                this.hass.language,
+              )}</span
+            >
+            <ha-entity-picker
+              .hass="${this.hass}"
+              .value="${zone.flow_sensor || ""}"
+              .includeDomains="${["sensor"]}"
+              allow-custom-entity
+              @value-changed="${(e: CustomEvent) =>
+                this.handleEditZone(index, {
+                  ...zone,
+                  [ZONE_FLOW_SENSOR]: e.detail.value || null,
+                })}"
+            ></ha-entity-picker>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize("panels.zones.labels.bucket", this.hass.language)}
+              (${output_unit(this.config, ZONE_BUCKET)})</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="0.1"
+              inputmode="decimal"
+              .value="${String(parseFloat(Number(zone.bucket).toFixed(2)))}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 100,
+                  ) / 100;
+                if (!isNaN(v))
+                  this.handleEditZone(index, { ...zone, [ZONE_BUCKET]: v });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.maximum-bucket",
+                this.hass.language,
+              )}
+              (${output_unit(this.config, ZONE_BUCKET)})</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="0.1"
+              min="0"
+              inputmode="decimal"
+              .value="${String(
+                parseFloat(Number(zone.maximum_bucket).toFixed(2)),
+              )}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 100,
+                  ) / 100;
+                if (!isNaN(v))
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_MAXIMUM_BUCKET]: v,
+                  });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.multiplier",
+                this.hass.language,
+              )}</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="0.1"
+              min="0"
+              inputmode="decimal"
+              .value="${String(parseFloat(zone.multiplier.toFixed(2)))}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 100,
+                  ) / 100;
+                if (!isNaN(v))
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_MULTIPLIER]: v,
+                  });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize("panels.zones.labels.lead-time", this.hass.language)}
+              (s)</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="1"
+              min="0"
+              inputmode="numeric"
+              .value="${String(zone.lead_time ?? 0)}"
+              @input="${(e: Event) => {
+                const v = (e.target as HTMLInputElement).valueAsNumber;
+                if (!isNaN(v))
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_LEAD_TIME]: Math.round(v),
+                  });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.maximum-duration",
+                this.hass.language,
+              )}
+              (s)</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="1"
+              min="0"
+              inputmode="numeric"
+              .value="${String(zone.maximum_duration ?? "")}"
+              @input="${(e: Event) => {
+                const v = (e.target as HTMLInputElement).valueAsNumber;
+                if (!isNaN(v))
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_MAXIMUM_DURATION]: Math.round(v),
+                  });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.bucket_threshold",
+                this.hass.language,
+              )}
+              (${output_unit(this.config, ZONE_BUCKET)})</span
+            >
+            <ha-textfield
+              type="number"
+              class="shortfield"
+              step="0.5"
+              max="0"
+              inputmode="decimal"
+              .value="${String(
+                parseFloat((zone.bucket_threshold ?? 0).toFixed(1)),
+              )}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 10,
+                  ) / 10;
+                if (!isNaN(v))
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_BUCKET_THRESHOLD]: Math.min(v, 0),
+                  });
+              }}"
+            ></ha-textfield>
+          </ha-settings-row>
+
+          ${zone.state === SmartIrrigationZoneState.Manual
+            ? html`
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.duration",
+                      this.hass.language,
+                    )}
+                    (${UNIT_SECONDS})</span
+                  >
+                  <ha-textfield
+                    type="number"
+                    class="shortfield"
+                    step="1"
+                    min="0"
+                    inputmode="numeric"
+                    .value="${String(zone.duration ?? 0)}"
+                    @input="${(e: Event) => {
+                      const v = (e.target as HTMLInputElement).valueAsNumber;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_DURATION]: Math.round(v),
+                        });
+                    }}"
+                  ></ha-textfield>
+                </ha-settings-row>
+              `
+            : ""}
+
+          <!-- Danger row -->
+          <div class="settings-danger-row">
+            <ha-button
+              @click="${() =>
+                this.handleEditZone(index, { ...zone, [ZONE_BUCKET]: 0.0 })}"
+              ?disabled="${this.isSaving}"
+            >
+              ${localize(
+                "panels.zones.actions.reset-bucket",
+                this.hass.language,
+              )}
+            </ha-button>
+            <ha-button
+              class="danger-button"
+              @click="${() =>
+                this.handleRemoveZone(zone.id !== undefined ? zone.id : -1)}"
+              ?disabled="${this.isSaving || zone.id === undefined}"
+            >
+              <ha-icon slot="icon" icon="mdi:delete"></ha-icon>
+              ${localize("common.actions.delete", this.hass.language)}
+            </ha-button>
           </div>
-        </ha-card>
-      `;
-    }
-  }
+        </ha-expansion-panel>
 
-  toggleExplanation(index: number) {
-    const el = this.shadowRoot?.querySelector("#calcresults" + index);
-    //const bt = this.shadowRoot?.querySelector("#showcalcresults" + index);
-    //if (!el || !bt) {
-    if (!el) {
-      return;
-    } else {
-      if (el.className != "hidden") {
-        el.className = "hidden";
-        //bt.textContent = "Show calculation explanation";
-      } else {
-        el.className = "explanation";
-        //bt.textContent = "Hide explanation";
-      }
-    }
+        <!-- EXPLANATION EXPANSION -->
+        ${zone.explanation && zone.explanation.length > 0
+          ? html`
+              <ha-expansion-panel
+                .header="${localize(
+                  "panels.zones.actions.information",
+                  this.hass.language,
+                )}"
+              >
+                <div class="card-content">${unsafeHTML(zone.explanation)}</div>
+              </ha-expansion-panel>
+            `
+          : ""}
+
+        <!-- WEATHER EXPANSION -->
+        ${zone.mapping !== undefined
+          ? html`
+              <ha-expansion-panel
+                .header="${localize(
+                  "panels.zones.actions.view-weather-info",
+                  this.hass.language,
+                )}"
+              >
+                ${this.renderWeatherRecords(zone)}
+              </ha-expansion-panel>
+            `
+          : ""}
+
+        <!-- CALENDAR EXPANSION -->
+        <ha-expansion-panel
+          .header="${localize(
+            "panels.zones.actions.view-watering-calendar",
+            this.hass.language,
+          )}"
+        >
+          ${this.renderWateringCalendar(zone)}
+        </ha-expansion-panel>
+      </ha-card>
+    `;
   }
 
   render(): TemplateResult {
-    if (!this.hass) {
-      return html``;
-    }
+    if (!this.hass) return html``;
 
     if (this.isLoading) {
       return html`
@@ -1422,91 +1159,150 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       `;
     }
 
+    const confirmZone =
+      this._confirmDeleteZoneId !== null
+        ? this.zones.find((z) => z.id === this._confirmDeleteZoneId)
+        : null;
+
     return html`
-      <ha-card header="${localize("panels.zones.title", this.hass.language)}">
+      <!-- Zones header card with + button -->
+      <ha-card>
+        <div class="card-header">
+          <div class="name">
+            ${localize("panels.zones.title", this.hass.language)}
+          </div>
+          <ha-icon-button
+            .path="${mdiPlus}"
+            @click="${() => {
+              this._showAddZone = true;
+            }}"
+          ></ha-icon-button>
+        </div>
         <div class="card-content">
           ${localize("panels.zones.description", this.hass.language)}
         </div>
       </ha-card>
 
-      <ha-card
-        header="${localize(
+      <!-- Add Zone dialog -->
+      <ha-dialog
+        .open="${this._showAddZone}"
+        @closed="${() => {
+          this._showAddZone = false;
+        }}"
+        heading="${localize(
           "panels.zones.cards.add-zone.header",
           this.hass.language,
         )}"
       >
-        <div class="card-content">
-          <div class="zoneline">
-            <label for="nameInput"
-              >${localize(
-                "panels.zones.labels.name",
-                this.hass.language,
-              )}:</label
-            >
-            <input
-              id="nameInput"
-              type="text"
-              @focus="${this.handleZoneFormFocus}"
-              @blur="${this.handleZoneFormBlur}"
-            />
-          </div>
-          <div class="zoneline">
-            <label for="sizeInput"
-              >${localize(
-                "panels.zones.labels.size",
-                this.hass.language,
-              )}:</label
-            >
-            <input
-              id="sizeInput"
-              type="number"
-              step="0.1"
-              min="0"
-              inputmode="decimal"
-              @focus="${this.handleZoneFormFocus}"
-              @blur="${this.handleZoneFormBlur}"
-            />
-          </div>
-          <div class="zoneline">
-            <label for="throughputInput"
-              >${localize(
-                "panels.zones.labels.throughput",
-                this.hass.language,
-              )}:</label
-            >
-            <input
-              id="throughputInput"
-              type="number"
-              step="0.1"
-              min="0"
-              inputmode="decimal"
-              @focus="${this.handleZoneFormFocus}"
-              @blur="${this.handleZoneFormBlur}"
-            />
-          </div>
-          <div class="zoneline">
-            <span></span>
-            <button @click="${this.handleAddZone}" ?disabled="${this.isSaving}">
-              ${this.isSaving
-                ? localize("common.saving-messages.adding", this.hass.language)
-                : localize(
-                    "panels.zones.cards.add-zone.actions.add",
-                    this.hass.language,
-                  )}
-            </button>
-          </div>
+        <div class="add-zone-form">
+          <ha-textfield
+            label="${localize("panels.zones.labels.name", this.hass.language)}"
+            .value="${this._newZoneName}"
+            @input="${(e: Event) => {
+              this._newZoneName = (e.target as HTMLInputElement).value;
+            }}"
+          ></ha-textfield>
+          <ha-textfield
+            label="${localize("panels.zones.labels.size", this.hass.language)}"
+            type="number"
+            step="0.1"
+            min="0"
+            inputmode="decimal"
+            .value="${this._newZoneSize}"
+            @input="${(e: Event) => {
+              this._newZoneSize = (e.target as HTMLInputElement).value;
+            }}"
+          ></ha-textfield>
+          <ha-textfield
+            label="${localize(
+              "panels.zones.labels.throughput",
+              this.hass.language,
+            )}"
+            type="number"
+            step="0.1"
+            min="0"
+            inputmode="decimal"
+            .value="${this._newZoneThroughput}"
+            @input="${(e: Event) => {
+              this._newZoneThroughput = (e.target as HTMLInputElement).value;
+            }}"
+          ></ha-textfield>
         </div>
-      </ha-card>
+        <ha-button
+          slot="secondaryAction"
+          @click="${() => {
+            this._showAddZone = false;
+          }}"
+        >
+          ${localize("common.actions.cancel", this.hass.language)}
+        </ha-button>
+        <ha-button
+          slot="primaryAction"
+          raised
+          @click="${this.handleAddZone}"
+          ?disabled="${!this._newZoneName.trim() || this.isSaving}"
+        >
+          ${this.isSaving
+            ? localize("common.saving-messages.adding", this.hass.language)
+            : localize(
+                "panels.zones.cards.add-zone.actions.add",
+                this.hass.language,
+              )}
+        </ha-button>
+      </ha-dialog>
 
-      <ha-card
-        header="${localize(
-          "panels.zones.cards.zone-actions.header",
-          this.hass.language,
-        )}"
-      >
-        <div class="card-content">
-          <div class="action-buttons">
-            <button
+      <!-- Delete confirmation dialog -->
+      ${confirmZone
+        ? html`
+            <ha-dialog
+              open
+              @closed="${() => {
+                this._confirmDeleteZoneId = null;
+              }}"
+              heading="${localize(
+                "common.actions.confirm_delete",
+                this.hass.language,
+              )}"
+            >
+              <p>
+                ${localize(
+                  "common.actions.confirm_delete_zone",
+                  this.hass.language,
+                )}
+              </p>
+              <p><strong>${confirmZone.name}</strong></p>
+              <ha-button
+                slot="secondaryAction"
+                @click="${() => {
+                  this._confirmDeleteZoneId = null;
+                }}"
+              >
+                ${localize("common.actions.cancel", this.hass.language)}
+              </ha-button>
+              <ha-button
+                slot="primaryAction"
+                class="danger-button"
+                @click="${this._confirmDelete}"
+              >
+                ${localize("common.actions.delete", this.hass.language)}
+              </ha-button>
+            </ha-dialog>
+          `
+        : ""}
+
+      <!-- Zone cards -->
+      ${this.zones.map((zone, index) => this.renderZone(zone, index))}
+
+      <!-- Bulk actions card -->
+      <ha-card>
+        <ha-expansion-panel
+          .header="${localize(
+            "common.labels.bulk_actions",
+            this.hass.language,
+          )}"
+        >
+          <div class="card-content bulk-actions">
+            <ha-button
               @click="${this.handleCalculateAllZones}"
               ?disabled="${this.isSaving}"
             >
@@ -1514,8 +1310,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.calculate-all",
                 this.hass.language,
               )}
-            </button>
-            <button
+            </ha-button>
+            <ha-button
               @click="${this.handleUpdateAllZones}"
               ?disabled="${this.isSaving}"
             >
@@ -1523,8 +1319,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.update-all",
                 this.hass.language,
               )}
-            </button>
-            <button
+            </ha-button>
+            <ha-button
               @click="${this.handleResetAllBuckets}"
               ?disabled="${this.isSaving}"
             >
@@ -1532,8 +1328,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.reset-all-buckets",
                 this.hass.language,
               )}
-            </button>
-            <button
+            </ha-button>
+            <ha-button
               @click="${this.handleClearAllWeatherdata}"
               ?disabled="${this.isSaving}"
             >
@@ -1541,40 +1337,134 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 "panels.zones.cards.zone-actions.actions.clear-all-weatherdata",
                 this.hass.language,
               )}
-            </button>
+            </ha-button>
           </div>
-        </div>
+        </ha-expansion-panel>
       </ha-card>
-
-      ${Object.entries(this.zones).map(([key, value]) =>
-        this.renderZone(value, parseInt(key)),
-      )}
     `;
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    // Clean up global debounce timer
     if (this.globalDebounceTimer) {
       clearTimeout(this.globalDebounceTimer);
       this.globalDebounceTimer = null;
     }
-
-    // Clear the zone cache
-    this.zoneCache.clear();
-    // Clear zone creation state when component is disconnected
-    this.isCreatingZone = false;
   }
-
-  /*
-  ${Object.entries(this.zones).map(([key, value]) =>
-            this.renderZone(value, value["id"])
-          )}
-          */
 
   static get styles(): CSSResultGroup {
     return css`
-      ${globalStyle}/* View-specific styles only - most common styles are now in globalStyle */
+      ${globalStyle}
+
+      ha-settings-row {
+        padding: 0 16px;
+      }
+
+      ha-expansion-panel {
+        border-top: 1px solid var(--divider-color);
+      }
+
+      .shortfield {
+        width: 120px;
+      }
+
+      /* Zone status grid */
+      .zone-status-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .status-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px;
+        background: var(--secondary-background-color);
+        border-radius: 8px;
+      }
+
+      .status-label {
+        font-size: 0.75rem;
+        color: var(--secondary-text-color);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .status-value {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--primary-text-color);
+      }
+
+      /* Action bar */
+      .zone-action-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 0;
+        padding-bottom: 8px;
+      }
+
+      /* State badge */
+      .zone-state-badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        align-self: center;
+      }
+
+      .state-automatic {
+        background: var(--success-color, #4caf50);
+        color: white;
+      }
+
+      .state-manual {
+        background: var(--accent-color, var(--primary-color));
+        color: white;
+      }
+
+      .state-disabled {
+        background: var(--disabled-color, #bdbdbd);
+        color: white;
+      }
+
+      /* Danger row in settings */
+      .settings-danger-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-top: 1px solid var(--divider-color);
+        margin-top: 8px;
+      }
+
+      .danger-button {
+        --mdc-theme-primary: var(--error-color);
+        color: var(--error-color);
+      }
+
+      /* Add zone dialog form */
+      .add-zone-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 8px 0;
+        min-width: 300px;
+      }
+
+      .add-zone-form ha-textfield {
+        width: 100%;
+      }
+
+      /* Bulk actions */
+      .bulk-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
     `;
   }
 }
