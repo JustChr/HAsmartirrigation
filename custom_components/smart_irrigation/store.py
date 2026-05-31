@@ -40,6 +40,7 @@ from .const import (
     CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
     CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_DRAINAGE_RATE,
+    CONF_DEFAULT_MANUAL_COORDINATES_ENABLED,
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
@@ -229,6 +230,12 @@ class Config:
     skip_on_wind_enabled = attr.ib(type=bool, default=CONF_DEFAULT_SKIP_WIND_ENABLED)
     wind_threshold = attr.ib(type=float, default=CONF_DEFAULT_WIND_THRESHOLD)
     rain_sensor = attr.ib(type=str, default=CONF_DEFAULT_RAIN_SENSOR)
+    manual_coordinates_enabled = attr.ib(
+        type=bool, default=CONF_DEFAULT_MANUAL_COORDINATES_ENABLED
+    )
+    manual_latitude = attr.ib(type=float, default=None)
+    manual_longitude = attr.ib(type=float, default=None)
+    manual_elevation = attr.ib(type=float, default=None)
 
 
 class MigratableStore(Store):
@@ -710,7 +717,11 @@ class SmartIrrigationStorage:
 
         old = self.config
         changes.pop("id", None)
-        new = self.config = attr.evolve(old, **changes)
+        # Only pass fields that Config actually knows about; extra keys from the
+        # frontend (e.g. manual_coordinates_enabled) cause TypeError in attr.evolve.
+        valid_fields = set(attr.fields_dict(type(old)).keys())
+        filtered = {k: v for k, v in changes.items() if k in valid_fields}
+        new = self.config = attr.evolve(old, **filtered)
         self.async_schedule_save()
         return attr.asdict(new)
 

@@ -1567,11 +1567,12 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                 resultdata[key] = sum(d)
             elif aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM:
                 # Trapezoidal Riemann sum: integrates rate × Δt so the result is
-                # correct at any update frequency. Each interval uses its own Δt.
-                # The anchor for the first interval is the last RETRIEVED_AT stored
-                # in MAPPING_DATA_LAST_CALCULATION when data was cleared after the
-                # previous calculation, giving a correct Δt even for the first
-                # post-clear reading.
+                # correct at any update frequency.
+                # The first entry in data is the anchor left by the previous
+                # calculate (RETRIEVED_AT = calc time, same weather values as the
+                # last reading before that calculation). This means the first
+                # interval's Δt is from the calculation moment to the new reading,
+                # so an immediate re-update+calculate contributes ~0 precipitation.
                 times = []
                 if const.RETRIEVED_AT in data_by_sensor:
                     timestamps = data_by_sensor[const.RETRIEVED_AT]
@@ -1586,31 +1587,21 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                                 err,
                             )
 
-                # Prepend the last-cleared timestamp as a zero-contribution anchor
-                # so the first interval's Δt is measured correctly.
-                prev_retrieved_at = last_calc_data.get(const.RETRIEVED_AT)
-                if prev_retrieved_at and (prev_t := parse_datetime(prev_retrieved_at)):
-                    anchor_times = [prev_t] + times
-                    anchor_d = [0.0] + d  # zero value at anchor → contributes 0
-                else:
-                    anchor_times = times
-                    anchor_d = d
-
-                if len(anchor_d) < 2:
-                    # Only one reading and no anchor: default to 1-hour interval
+                if len(d) < 2:
+                    # Single reading with no anchor: only happens on very first
+                    # collection ever. Default to 1-hour interval.
                     resultdata[key] = float(d[0]) * 1.0
                 else:
                     riemann_sum = 0.0
-                    for i in range(len(anchor_d) - 1):
-                        if len(anchor_times) == len(anchor_d):
+                    for i in range(len(d) - 1):
+                        if len(times) == len(d):
                             dt_hours = max(
-                                (anchor_times[i + 1] - anchor_times[i]).total_seconds()
-                                / 3600,
+                                (times[i + 1] - times[i]).total_seconds() / 3600,
                                 0,
                             )
                         else:
                             dt_hours = 1.0
-                        riemann_sum += ((anchor_d[i] + anchor_d[i + 1]) / 2) * dt_hours
+                        riemann_sum += ((d[i] + d[i + 1]) / 2) * dt_hours
                     resultdata[key] = riemann_sum
             last_calc_data[key] = d[-1]
 
@@ -1794,25 +1785,23 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
             mapping_id = zone.get(const.ZONE_MAPPING)
             if mapping_id is not None:
                 mapping = self.store.get_mapping(mapping_id)
-                # Store the CALCULATION TIME as the Riemann sum anchor.
-                # Using the last reading's RETRIEVED_AT would be wrong: if the
-                # previous update ran 1 hour ago, the anchor would be 1 hour old
-                # and an immediate re-update+calculate would credit a full hour of
-                # precipitation. The calculation time is the correct zero-point —
-                # any precipitation in the next reading counts only for the time
-                # elapsed SINCE this calculation.
-                calc_time = datetime.now()
-                existing_last_calc = (
-                    (mapping.get(const.MAPPING_DATA_LAST_CALCULATION) or {})
-                    if mapping
-                    else {}
+                # Keep the last data entry as a Riemann sum anchor.
+                # Its RETRIEVED_AT is replaced with the calculation time so the
+                # first new reading's Δt is measured from NOW, not from when the
+                # data was originally collected. This prevents a 1-hour default
+                # being used when you update immediately after calculating.
+                # All other values (temperature, humidity, etc.) stay as-is —
+                # they're averaged with future readings which is correct.
+                anchor: list = []
+                if mapping:
+                    data_list = mapping.get(const.MAPPING_DATA) or []
+                    if data_list:
+                        last_entry = dict(data_list[-1])
+                        last_entry[const.RETRIEVED_AT] = datetime.now()
+                        anchor = [last_entry]
+                await self.store.async_update_mapping(
+                    mapping_id, changes={const.MAPPING_DATA: anchor}
                 )
-                existing_last_calc[const.RETRIEVED_AT] = calc_time
-                changes: dict = {
-                    const.MAPPING_DATA: [],
-                    const.MAPPING_DATA_LAST_CALCULATION: existing_last_calc,
-                }
-                await self.store.async_update_mapping(mapping_id, changes=changes)
 
         await self.store.async_update_zone(zone.get(const.ZONE_ID), calc_data)
         async_dispatcher_send(
