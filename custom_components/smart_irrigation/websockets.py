@@ -518,18 +518,18 @@ async def websocket_get_weather_records(hass: HomeAssistant, connection, msg):
                 continue
 
             retrieval_time = data_point.get(const.RETRIEVED_AT)
+            observation_time = data_point.get(const.OBSERVATION_TIME)
 
-            # Format timestamp
-            timestamp_str = None
-            retrieval_time_str = None
+            def _to_iso(val):
+                if isinstance(val, datetime.datetime):
+                    return val.isoformat()
+                if isinstance(val, str):
+                    return val
+                return None
 
-            if retrieval_time:
-                if isinstance(retrieval_time, datetime.datetime):
-                    timestamp_str = retrieval_time.isoformat()
-                    retrieval_time_str = retrieval_time.isoformat()
-                elif isinstance(retrieval_time, str):
-                    timestamp_str = retrieval_time
-                    retrieval_time_str = retrieval_time
+            # "timestamp" = when the station measured it (API dt); falls back to retrieval time
+            timestamp_str = _to_iso(observation_time) or _to_iso(retrieval_time)
+            retrieval_time_str = _to_iso(retrieval_time)
 
             # Extract weather values
             record = {

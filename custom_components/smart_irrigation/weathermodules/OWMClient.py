@@ -17,6 +17,7 @@ from ..const import (
     MAPPING_PRESSURE,
     MAPPING_TEMPERATURE,
     MAPPING_WINDSPEED,
+    OBSERVATION_TIME,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -121,6 +122,7 @@ class OWMClient:  # pylint: disable=invalid-name
                     current_precip,
                 )
 
+                observation_dt = doc.get("dt")
                 parsed_data = {
                     MAPPING_TEMPERATURE: temp,
                     MAPPING_HUMIDITY: humidity,
@@ -129,6 +131,11 @@ class OWMClient:  # pylint: disable=invalid-name
                     MAPPING_DEWPOINT: dew_point,
                     MAPPING_CURRENT_PRECIPITATION: current_precip,
                     MAPPING_PRECIPITATION: current_precip,
+                    OBSERVATION_TIME: (
+                        datetime.datetime.utcfromtimestamp(observation_dt)
+                        if observation_dt
+                        else None
+                    ),
                 }
                 self._cached_data = parsed_data
                 self._last_time_called = datetime.datetime.now()

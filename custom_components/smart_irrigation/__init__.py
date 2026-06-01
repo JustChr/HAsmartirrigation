@@ -393,6 +393,7 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
         self._track_auto_update_time_unsub = None
         self._track_auto_clear_time_unsub = None
         self._track_midnight_time_unsub = None
+        self._pending_track_update_unsub = None  # cancel handle for async_call_later
         self._debounced_update_cancel = {}  # mapping_id -> cancel callback
         # set up auto calc time and auto update time from data
         the_config = self.store.get_config()
@@ -571,12 +572,16 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
         # experiment to use subscriptions to catch all updates instead of just on a time schedule
         await self.update_subscriptions(data)
         if data[const.CONF_AUTO_UPDATE_ENABLED]:
+            # Cancel any previous pending async_call_later before scheduling a new one
+            if self._pending_track_update_unsub:
+                self._pending_track_update_unsub()
+                self._pending_track_update_unsub = None
             delay = 0
             if const.CONF_AUTO_UPDATE_DELAY in data:
                 if int(data[const.CONF_AUTO_UPDATE_DELAY]) > 0:
                     delay = int(data[const.CONF_AUTO_UPDATE_DELAY])
                     _LOGGER.info("Delaying auto update with %s seconds", delay)
-            async_call_later(
+            self._pending_track_update_unsub = async_call_later(
                 self.hass, timedelta(seconds=delay), self.track_update_time
             )
         elif self._track_auto_update_time_unsub:
@@ -1056,6 +1061,8 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
 
     async def track_update_time(self, *args):
         """Track and schedule periodic updates for Smart Irrigation based on configuration."""
+        # The async_call_later that scheduled us has now fired — clear the handle
+        self._pending_track_update_unsub = None
         # perform update once
         # Fire-and-forget: trigger immediate update in background
         self.hass.async_create_task(self._async_update_all())
@@ -2993,6 +3000,22 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
 
     async def async_unload(self):
         """Remove all Smart Irrigation objects."""
+
+        # Cancel all periodic timers so a reloaded coordinator doesn't ghost-write
+        for unsub in [
+            self._pending_track_update_unsub,
+            self._track_auto_update_time_unsub,
+            self._track_auto_calc_time_unsub,
+            self._track_auto_clear_time_unsub,
+            self._track_midnight_time_unsub,
+        ]:
+            if unsub:
+                unsub()
+        self._pending_track_update_unsub = None
+        self._track_auto_update_time_unsub = None
+        self._track_auto_calc_time_unsub = None
+        self._track_auto_clear_time_unsub = None
+        self._track_midnight_time_unsub = None
 
         # Clear in-memory zones dict only; the entity platform manages entity
         # state on unload. Registry entries are preserved so user customizations

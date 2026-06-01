@@ -5,7 +5,7 @@ class SmartIrrigationError(Exception):
     """Exception raised for errors in the Smart Irrigation integration."""
 
 
-VERSION = "v2026.05.23"
+VERSION = "v2026.06.01"
 NAME = "Smart Irrigation"
 MANUFACTURER = "@JustChr"
 
@@ -337,7 +337,8 @@ MAPPING_CONF_AGGREGATE_OPTIONS = [
 ]
 
 # For timestamps
-RETRIEVED_AT = "retrieved"  # on weatherdata
+RETRIEVED_AT = "retrieved"  # when HA fetched the data (datetime.now())
+OBSERVATION_TIME = "observed"  # when the weather station measured it (API dt)
 
 EVENT_IRRIGATE_START = "start_irrigation_all_zones"
 
