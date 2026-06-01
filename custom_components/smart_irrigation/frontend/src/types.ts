@@ -198,8 +198,14 @@ export interface WeatherRecord {
   timestamp: Date;
   temperature?: number;
   humidity?: number;
-  precipitation?: number;
-  pressure?: number;
+  dewpoint?: number;
   wind_speed?: number;
+  pressure?: number;
+  precipitation?: number;
+  current_precipitation?: number;
+  solar_radiation?: number;
+  evapotranspiration?: number;
+  max_temperature?: number;
+  min_temperature?: number;
   retrieval_time?: Date;
 }
