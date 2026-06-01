@@ -1810,6 +1810,7 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
                 await self.store.async_update_mapping(
                     mapping_id, changes={const.MAPPING_DATA: anchor}
                 )
+                calc_data[const.ZONE_NUMBER_OF_DATA_POINTS] = 0
 
         await self.store.async_update_zone(zone.get(const.ZONE_ID), calc_data)
         async_dispatcher_send(
