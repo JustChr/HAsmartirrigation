@@ -555,9 +555,14 @@
   },
   "zone_sequencing": {
     "title": "Zone Sequencing",
-    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next.",
+    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next. Rotating mode cycles through zones, giving each one a limited consecutive run before moving to the next.",
     "parallel": "Parallel (all zones at once)",
-    "sequential": "Sequential (one zone at a time)"
+    "sequential": "Sequential (one zone at a time)",
+    "rotating": "Rotating (zones take turns)",
+    "max_consecutive_duration_label": "Max consecutive run time per zone",
+    "max_consecutive_duration_unit": "minutes",
+    "min_absorption_time_label": "Min. absorption time between slots",
+    "min_absorption_time_unit": "minutes (0 = disabled)"
   },
   "field_help": {
     "zone_size": "The total irrigated area of this zone. Used with throughput to calculate how much water is applied per run.",
