@@ -41,6 +41,8 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
   @property({ type: Boolean })
   private isLoading = true;
 
+  private _initialLoadDone = false;
+
   @property({ type: Boolean })
   private isSaving = false;
 
@@ -97,11 +99,14 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
       return;
     }
 
-    this.isLoading = true;
-    this._scheduleUpdate();
+    const isInitial = !this._initialLoadDone;
+
+    if (isInitial) {
+      this.isLoading = true;
+      this._scheduleUpdate();
+    }
 
     try {
-      // Fetch all data concurrently for better performance
       const [config, zones, modules, allmodules] = await Promise.all([
         fetchConfig(this.hass),
         fetchZones(this.hass),
@@ -113,14 +118,13 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
       this.zones = zones;
       this.modules = modules;
       this.allmodules = allmodules;
+      this._initialLoadDone = true;
 
-      // Clear module cache when data changes
       this.moduleCache.clear();
     } catch (error) {
       console.error("Error fetching data:", error);
-      // Handle error gracefully - keep existing data if fetch fails
     } finally {
-      this.isLoading = false;
+      if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
     }
   }

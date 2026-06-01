@@ -76,6 +76,8 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
   @property({ type: Boolean })
   private isLoading = true;
 
+  private _initialLoadDone = false;
+
   @property({ type: Boolean })
   private isSaving = false;
 
@@ -154,10 +156,11 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
       return;
     }
 
-    try {
-      this.isLoading = true;
+    const isInitial = !this._initialLoadDone;
 
-      // Fetch all data concurrently to reduce total wait time
+    try {
+      if (isInitial) this.isLoading = true;
+
       const [config, zones, mappings] = await Promise.all([
         fetchConfig(this.hass),
         fetchZones(this.hass),
@@ -167,15 +170,12 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
       this.config = config;
       this.zones = zones;
       this.mappings = mappings;
+      this._initialLoadDone = true;
 
-      // Fetch weather records for each mapping
       this._fetchWeatherRecords();
-
-      // Clear the cache when new data is loaded
       this.mappingCache.clear();
     } catch (error) {
       console.error("Error fetching data:", error);
-      // Optionally show user-friendly error message
       handleError(
         {
           body: { message: "Failed to load mapping data" },
@@ -184,8 +184,7 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
         this.shadowRoot?.querySelector("ha-card") as HTMLElement,
       );
     } finally {
-      this.isLoading = false;
-      // Trigger a re-render to ensure UI updates
+      if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
     }
   }

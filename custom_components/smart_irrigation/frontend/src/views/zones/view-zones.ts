@@ -85,6 +85,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   @property({ type: Boolean })
   private isLoading = true;
 
+  private _initialLoadDone = false;
+
   @property({ type: Boolean })
   private isSaving = false;
 
@@ -153,8 +155,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   private async _fetchData(): Promise<void> {
     if (!this.hass) return;
 
+    const isInitial = !this._initialLoadDone;
+
     try {
-      this.isLoading = true;
+      if (isInitial) this.isLoading = true;
 
       const [config, zones, modules, mappings] = await Promise.all([
         fetchConfig(this.hass),
@@ -168,12 +172,13 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       this.modules = modules;
       this.mappings = mappings;
 
+      this._initialLoadDone = true;
       this._fetchWateringCalendars();
       this._fetchWeatherRecords();
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      this.isLoading = false;
+      if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
     }
   }

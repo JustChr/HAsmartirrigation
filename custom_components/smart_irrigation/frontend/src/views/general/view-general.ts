@@ -61,6 +61,8 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
   @property({ type: Boolean })
   private isLoading = true;
 
+  private _initialLoadDone = false;
+
   @property({ type: Boolean })
   private isSaving = false;
 
@@ -123,8 +125,11 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
 
   private async _fetchData(): Promise<void> {
     if (!this.hass) return;
-    this.isLoading = true;
-    this._scheduleUpdate();
+    const isInitial = !this._initialLoadDone;
+    if (isInitial) {
+      this.isLoading = true;
+      this._scheduleUpdate();
+    }
     try {
       const [configResult, weatherConfigResult] = await Promise.all([
         fetchConfig(this.hass),
@@ -152,10 +157,11 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
         CONF_MANUAL_ELEVATION,
         CONF_DAYS_BETWEEN_IRRIGATION,
       ]);
+      this._initialLoadDone = true;
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      this.isLoading = false;
+      if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
     }
   }
