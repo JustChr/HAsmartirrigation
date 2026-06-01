@@ -53,7 +53,7 @@ function me(e,t){return(({finisher:e,descriptor:t})=>(a,i)=>{var n;if(void 0===i
      * @license
      * Copyright 2021 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */var fe;null===(fe=window.HTMLSlotElement)||void 0===fe||fe.prototype.assignedElements;let ve=!1,_e=null;const be=async()=>{if(ve&&_e)return _e;if(customElements.get("ha-checkbox")&&customElements.get("ha-slider")&&customElements.get("ha-panel-config")&&customElements.get("ha-entity-picker"))return Promise.resolve();ve=!0,_e=async function(){try{await new Promise((e=>{"requestIdleCallback"in window?requestIdleCallback((()=>e())):setTimeout((()=>e()),0)})),await customElements.whenDefined("partial-panel-resolver");const e=document.createDocumentFragment(),t=document.createElement("partial-panel-resolver");e.appendChild(t),t.hass={panels:[{url_path:"tmp",component_name:"config"}]},await new Promise((e=>queueMicrotask((()=>e())))),t._updateRoutes(),await t.routerOptions.routes.tmp.load(),await customElements.whenDefined("ha-panel-config"),await new Promise((e=>queueMicrotask((()=>e()))));const a=document.createElement("ha-panel-config");e.appendChild(a),await a.routerOptions.routes.automation.load(),customElements.get("ha-entity-picker")||await Promise.race([customElements.whenDefined("ha-entity-picker"),new Promise((e=>setTimeout(e,3e3)))]),e.textContent=""}catch(e){console.error("Failed to load HA form elements:",e)}}();try{await _e}finally{ve=!1,_e=null}};var ye,we;!function(e){e.language="language",e.system="system",e.comma_decimal="comma_decimal",e.decimal_comma="decimal_comma",e.space_comma="space_comma",e.none="none"}(ye||(ye={})),function(e){e.language="language",e.system="system",e.am_pm="12",e.twenty_four="24"}(we||(we={}));var ke=function(e,t,a,i){i=i||{},a=null==a?{}:a;var n=new Event(t,{bubbles:void 0===i.bubbles||i.bubbles,cancelable:Boolean(i.cancelable),composed:void 0===i.composed||i.composed});return n.detail=a,e.dispatchEvent(n),n};const ze=`v${"2026.06.03"}`,Se="smart_irrigation",$e="precipitation_threshold_mm",xe="Open Weather Map",Ae="Pirate Weather",Te="Open-Meteo",Ee="minutes",Me="hours",De="days",Ce="imperial",Oe="metric",Ne="Dewpoint",je="Evapotranspiration",Pe="Humidity",He="Precipitation",Ie="Current Precipitation",Le="Pressure",Ue="Solar Radiation",Re="Temperature",Be="Windspeed",We="weather_service",Fe="sensor",Ye="static",Ze="pressure_type",Ve="absolute",Ge="relative",qe="none",Ke="source",Xe="sensorentity",Je="static_value",Qe="unit",et="aggregate",tt=["average","first","last","maximum","median","minimum","riemannsum","sum","delta"],at="sq ft",it="l/minute",nt="gal/minute",st="mm/h",rt="in/h",ot="name",lt="size",dt="throughput",ut="state",ct="duration",ht="module",pt="bucket",gt="multiplier",mt="mapping",ft="lead_time",vt="maximum_duration",_t="maximum_bucket",bt="drainage_rate",yt="linked_entity",wt="bucket_threshold",kt="flow_sensor",zt="zone_sequencing",St="sequential",$t="parallel",xt=1,At=2,Tt=3,Et=4,Mt=e=>(...t)=>({_$litDirective$:e,values:t});class Dt{constructor(e){}get _$AU(){return this._$AM._$AU}_$AT(e,t,a){this._$Ct=e,this._$AM=t,this._$Ci=a}_$AS(e,t){return this.update(e,t)}update(e,t){return this.render(...t)}}
+     */var fe;null===(fe=window.HTMLSlotElement)||void 0===fe||fe.prototype.assignedElements;let ve=!1,_e=null;const be=async()=>{if(ve&&_e)return _e;if(customElements.get("ha-checkbox")&&customElements.get("ha-slider")&&customElements.get("ha-panel-config")&&customElements.get("ha-entity-picker"))return Promise.resolve();ve=!0,_e=async function(){try{await new Promise((e=>{"requestIdleCallback"in window?requestIdleCallback((()=>e())):setTimeout((()=>e()),0)})),await customElements.whenDefined("partial-panel-resolver");const e=document.createDocumentFragment(),t=document.createElement("partial-panel-resolver");e.appendChild(t),t.hass={panels:[{url_path:"tmp",component_name:"config"}]},await new Promise((e=>queueMicrotask((()=>e())))),t._updateRoutes(),await t.routerOptions.routes.tmp.load(),await customElements.whenDefined("ha-panel-config"),await new Promise((e=>queueMicrotask((()=>e()))));const a=document.createElement("ha-panel-config");e.appendChild(a),await a.routerOptions.routes.automation.load(),customElements.get("ha-entity-picker")||await Promise.race([customElements.whenDefined("ha-entity-picker"),new Promise((e=>setTimeout(e,3e3)))]),e.textContent=""}catch(e){console.error("Failed to load HA form elements:",e)}}();try{await _e}finally{ve=!1,_e=null}};var ye,we;!function(e){e.language="language",e.system="system",e.comma_decimal="comma_decimal",e.decimal_comma="decimal_comma",e.space_comma="space_comma",e.none="none"}(ye||(ye={})),function(e){e.language="language",e.system="system",e.am_pm="12",e.twenty_four="24"}(we||(we={}));var ke=function(e,t,a,i){i=i||{},a=null==a?{}:a;var n=new Event(t,{bubbles:void 0===i.bubbles||i.bubbles,cancelable:Boolean(i.cancelable),composed:void 0===i.composed||i.composed});return n.detail=a,e.dispatchEvent(n),n};const ze=`v${"2026.06.04"}`,Se="smart_irrigation",$e="precipitation_threshold_mm",xe="Open Weather Map",Ae="Pirate Weather",Te="Open-Meteo",Ee="minutes",Me="hours",De="days",Ce="imperial",Oe="metric",Ne="Dewpoint",je="Evapotranspiration",Pe="Humidity",He="Precipitation",Ie="Current Precipitation",Le="Pressure",Ue="Solar Radiation",Re="Temperature",Be="Windspeed",We="weather_service",Fe="sensor",Ye="static",Ze="pressure_type",Ve="absolute",Ge="relative",qe="none",Ke="source",Xe="sensorentity",Je="static_value",Qe="unit",et="aggregate",tt=["average","first","last","maximum","median","minimum","riemannsum","sum","delta"],at="sq ft",it="l/minute",nt="gal/minute",st="mm/h",rt="in/h",ot="name",lt="size",dt="throughput",ut="state",ct="duration",ht="module",pt="bucket",gt="multiplier",mt="mapping",ft="lead_time",vt="maximum_duration",_t="maximum_bucket",bt="drainage_rate",yt="linked_entity",wt="bucket_threshold",kt="flow_sensor",zt="zone_sequencing",St="sequential",$t="parallel",xt=1,At=2,Tt=3,Et=4,Mt=e=>(...t)=>({_$litDirective$:e,values:t});class Dt{constructor(e){}get _$AU(){return this._$AM._$AU}_$AT(e,t,a){this._$Ct=e,this._$AM=t,this._$Ci=a}_$AS(e,t){return this.update(e,t)}update(e,t){return this.render(...t)}}
 /**
      * @license
      * Copyright 2017 Google LLC
@@ -446,15 +446,12 @@ function me(e,t){return(({finisher:e,descriptor:t})=>(a,i)=>{var n;if(void 0===i
     grid-template-columns: 1fr 0.8fr 1fr 0.8fr 0.8fr;
   }
 
-  .weather-table-scroll {
+  .weather-table {
+    grid-template-columns: 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr 0.7fr 1fr;
     max-height: 400px;
     overflow-y: auto;
     border: 1px solid var(--divider-color);
     border-radius: 4px;
-  }
-
-  .weather-table {
-    grid-template-columns: 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr 0.7fr 1fr;
   }
 
   .calendar-header,
@@ -466,9 +463,6 @@ function me(e,t){return(({finisher:e,descriptor:t})=>(a,i)=>{var n;if(void 0===i
 
   .calendar-header span,
   .weather-header span {
-    position: sticky;
-    top: 0;
-    z-index: 1;
     padding: 4px;
     background: var(--card-background-color);
     border-bottom: 2px solid var(--primary-color);
@@ -2527,47 +2521,45 @@ i.version="2.30.1",n(Ga),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
                 ${Ds("panels.mappings.weather-records.no-data",this.hass.language)}
               </div>
             `:W`
-              <div class="weather-table-scroll">
-                <div class="weather-table">
-                  <div class="weather-header">
-                    <span
-                      >${Ds("panels.mappings.weather-records.timestamp",this.hass.language)}</span
-                    >
-                    <span
-                      >${Ds("panels.mappings.weather-records.temperature",this.hass.language)}</span
-                    >
-                    <span
-                      >${Ds("panels.mappings.weather-records.humidity",this.hass.language)}</span
-                    >
-                    <span
-                      >${Ds("panels.mappings.weather-records.dewpoint",this.hass.language)}</span
-                    >
-                    <span
-                      >${Ds("panels.mappings.weather-records.wind",this.hass.language)}</span
-                    >
-                    <span
-                      >${Ds("panels.mappings.weather-records.pressure",this.hass.language)}</span
-                    >
-                    <span
-                      >${Ds("panels.mappings.weather-records.precipitation",this.hass.language)}</span
-                    >
-                    <span
-                      >${Ds("panels.mappings.weather-records.retrieval-time",this.hass.language)}</span
-                    >
-                  </div>
-                  ${t.map((e=>{const t=e=>{try{const t=Hs(e);return t.isValid()?t.format("MM-DD HH:mm"):"-"}catch(e){return"-"}},a=(e,t,a=1)=>null!=e?e.toFixed(a)+t:"-";return W`
-                      <div class="weather-row">
-                        <span>${t(e.timestamp)}</span>
-                        <span>${a(e.temperature,"°C")}</span>
-                        <span>${a(e.humidity,"%")}</span>
-                        <span>${a(e.dewpoint,"°C")}</span>
-                        <span>${a(e.wind_speed,"m/s")}</span>
-                        <span>${a(e.pressure,"hPa",0)}</span>
-                        <span>${a(e.precipitation,"mm")}</span>
-                        <span>${t(e.retrieval_time)}</span>
-                      </div>
-                    `}))}
+              <div class="weather-table">
+                <div class="weather-header">
+                  <span
+                    >${Ds("panels.mappings.weather-records.timestamp",this.hass.language)}</span
+                  >
+                  <span
+                    >${Ds("panels.mappings.weather-records.temperature",this.hass.language)}</span
+                  >
+                  <span
+                    >${Ds("panels.mappings.weather-records.humidity",this.hass.language)}</span
+                  >
+                  <span
+                    >${Ds("panels.mappings.weather-records.dewpoint",this.hass.language)}</span
+                  >
+                  <span
+                    >${Ds("panels.mappings.weather-records.wind",this.hass.language)}</span
+                  >
+                  <span
+                    >${Ds("panels.mappings.weather-records.pressure",this.hass.language)}</span
+                  >
+                  <span
+                    >${Ds("panels.mappings.weather-records.precipitation",this.hass.language)}</span
+                  >
+                  <span
+                    >${Ds("panels.mappings.weather-records.retrieval-time",this.hass.language)}</span
+                  >
                 </div>
+                ${t.map((e=>{const t=e=>{try{const t=Hs(e);return t.isValid()?t.format("MM-DD HH:mm"):"-"}catch(e){return"-"}},a=(e,t,a=1)=>null!=e?e.toFixed(a)+t:"-";return W`
+                    <div class="weather-row">
+                      <span>${t(e.timestamp)}</span>
+                      <span>${a(e.temperature,"°C")}</span>
+                      <span>${a(e.humidity,"%")}</span>
+                      <span>${a(e.dewpoint,"°C")}</span>
+                      <span>${a(e.wind_speed,"m/s")}</span>
+                      <span>${a(e.pressure,"hPa",0)}</span>
+                      <span>${a(e.precipitation,"mm")}</span>
+                      <span>${t(e.retrieval_time)}</span>
+                    </div>
+                  `}))}
               </div>
             `}
       </div>

@@ -245,85 +245,83 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
               </div>
             `
           : html`
-              <div class="weather-table-scroll">
-                <div class="weather-table">
-                  <div class="weather-header">
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.timestamp",
-                        this.hass.language,
-                      )}</span
-                    >
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.temperature",
-                        this.hass.language,
-                      )}</span
-                    >
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.humidity",
-                        this.hass.language,
-                      )}</span
-                    >
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.dewpoint",
-                        this.hass.language,
-                      )}</span
-                    >
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.wind",
-                        this.hass.language,
-                      )}</span
-                    >
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.pressure",
-                        this.hass.language,
-                      )}</span
-                    >
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.precipitation",
-                        this.hass.language,
-                      )}</span
-                    >
-                    <span
-                      >${localize(
-                        "panels.mappings.weather-records.retrieval-time",
-                        this.hass.language,
-                      )}</span
-                    >
-                  </div>
-                  ${records.map((record) => {
-                    const fmt = (ts: any) => {
-                      try {
-                        const m = moment(ts);
-                        return m.isValid() ? m.format("MM-DD HH:mm") : "-";
-                      } catch {
-                        return "-";
-                      }
-                    };
-                    const n = (v: any, unit: string, decimals = 1) =>
-                      v !== null && v !== undefined
-                        ? v.toFixed(decimals) + unit
-                        : "-";
-                    return html`
-                      <div class="weather-row">
-                        <span>${fmt(record.timestamp)}</span>
-                        <span>${n(record.temperature, "°C")}</span>
-                        <span>${n(record.humidity, "%")}</span>
-                        <span>${n(record.dewpoint, "°C")}</span>
-                        <span>${n(record.wind_speed, "m/s")}</span>
-                        <span>${n(record.pressure, "hPa", 0)}</span>
-                        <span>${n(record.precipitation, "mm")}</span>
-                        <span>${fmt(record.retrieval_time)}</span>
-                      </div>
-                    `;
-                  })}
+              <div class="weather-table">
+                <div class="weather-header">
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.timestamp",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.temperature",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.humidity",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.dewpoint",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.wind",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.pressure",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.precipitation",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.mappings.weather-records.retrieval-time",
+                      this.hass.language,
+                    )}</span
+                  >
                 </div>
+                ${records.map((record) => {
+                  const fmt = (ts: any) => {
+                    try {
+                      const m = moment(ts);
+                      return m.isValid() ? m.format("MM-DD HH:mm") : "-";
+                    } catch {
+                      return "-";
+                    }
+                  };
+                  const n = (v: any, unit: string, decimals = 1) =>
+                    v !== null && v !== undefined
+                      ? v.toFixed(decimals) + unit
+                      : "-";
+                  return html`
+                    <div class="weather-row">
+                      <span>${fmt(record.timestamp)}</span>
+                      <span>${n(record.temperature, "°C")}</span>
+                      <span>${n(record.humidity, "%")}</span>
+                      <span>${n(record.dewpoint, "°C")}</span>
+                      <span>${n(record.wind_speed, "m/s")}</span>
+                      <span>${n(record.pressure, "hPa", 0)}</span>
+                      <span>${n(record.precipitation, "mm")}</span>
+                      <span>${fmt(record.retrieval_time)}</span>
+                    </div>
+                  `;
+                })}
               </div>
             `}
       </div>
