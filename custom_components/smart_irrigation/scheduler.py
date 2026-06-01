@@ -304,8 +304,11 @@ class RecurringScheduleManager:
 
         def azimuth_callback(now, s=schedule):
             self._execute_schedule(s, now)
-            # Re-register for next occurrence
-            self.hass.async_create_task(self._setup_azimuth_tracker(s))
+            # Re-register for next occurrence — thread-safe
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task,
+                self._setup_azimuth_tracker(s),
+            )
 
         _LOGGER.info(
             "Registered azimuth schedule '%s' for %s° at %s",
@@ -362,9 +365,10 @@ class RecurringScheduleManager:
             },
         )
 
-        # Execute the action asynchronously
-        self.hass.async_create_task(
-            self._perform_schedule_action(action, zones, schedule_name)
+        # Schedule on the event loop — safe whether called from the loop or a thread
+        self.hass.loop.call_soon_threadsafe(
+            self.hass.async_create_task,
+            self._perform_schedule_action(action, zones, schedule_name),
         )
 
     async def _perform_schedule_action(
