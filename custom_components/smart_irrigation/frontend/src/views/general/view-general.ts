@@ -43,6 +43,9 @@ import {
   CONF_ZONE_SEQUENCING,
   CONF_ZONE_SEQUENCING_SEQUENTIAL,
   CONF_ZONE_SEQUENCING_PARALLEL,
+  CONF_ZONE_SEQUENCING_ROTATING,
+  CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
+  CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
   CONF_WEATHER_SERVICE_OWM,
   CONF_WEATHER_SERVICE_PW,
   CONF_WEATHER_SERVICE_OPENMETEO,
@@ -1124,6 +1127,9 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
 
   private _renderZoneSequencingCard(): TemplateResult {
     if (!this.hass || !this.config || !this.data) return html``;
+    const isRotating =
+      (this.config.zone_sequencing || CONF_ZONE_SEQUENCING_PARALLEL) ===
+      CONF_ZONE_SEQUENCING_ROTATING;
     return html`
       <ha-card
         header="${localize("zone_sequencing.title", this.hass.language)}"
@@ -1161,8 +1167,75 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
               >
                 ${localize("zone_sequencing.sequential", this.hass.language)}
               </option>
+              <option
+                value="${CONF_ZONE_SEQUENCING_ROTATING}"
+                ?selected="${this.config.zone_sequencing ===
+                CONF_ZONE_SEQUENCING_ROTATING}"
+              >
+                ${localize("zone_sequencing.rotating", this.hass.language)}
+              </option>
             </select>
           </div>
+          ${isRotating
+            ? html`
+                <div class="setting-row">
+                  <label>
+                    ${localize(
+                      "zone_sequencing.max_consecutive_duration_label",
+                      this.hass.language,
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    class="settings-input"
+                    .value="${live(
+                      this.config.zone_sequencing_max_consecutive_duration ?? 5,
+                    )}"
+                    @change="${(e: Event) =>
+                      this.handleConfigChange({
+                        [CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION]:
+                          parseInt((e.target as HTMLInputElement).value, 10) ||
+                          5,
+                      })}"
+                  />
+                  <span class="unit-label">
+                    ${localize(
+                      "zone_sequencing.max_consecutive_duration_unit",
+                      this.hass.language,
+                    )}
+                  </span>
+                </div>
+                <div class="setting-row">
+                  <label>
+                    ${localize(
+                      "zone_sequencing.min_absorption_time_label",
+                      this.hass.language,
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    class="settings-input"
+                    .value="${live(
+                      this.config.zone_sequencing_min_absorption_time ?? 0,
+                    )}"
+                    @change="${(e: Event) =>
+                      this.handleConfigChange({
+                        [CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME]:
+                          parseInt((e.target as HTMLInputElement).value, 10) ||
+                          0,
+                      })}"
+                  />
+                  <span class="unit-label">
+                    ${localize(
+                      "zone_sequencing.min_absorption_time_unit",
+                      this.hass.language,
+                    )}
+                  </span>
+                </div>
+              `
+            : ""}
         </div>
       </ha-card>
     `;

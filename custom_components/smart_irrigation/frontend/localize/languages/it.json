@@ -528,8 +528,13 @@
   },
   "zone_sequencing": {
     "title": "Sequenza zone",
-    "description": "Quando più zone necessitano di irrigazione, scegliere se funzionano contemporaneamente o una dopo l'altra. In modalità sequenziale, il sistema attende che ogni zona finisca prima di avviare la successiva.",
+    "description": "Quando più zone necessitano di irrigazione, scegliere se funzionano contemporaneamente o una dopo l'altra. In modalità sequenziale, il sistema attende che ogni zona finisca prima di avviare la successiva. In modalità rotante, il sistema alterna tra le zone assegnando a ciascuna un tempo massimo consecutivo prima di passare alla successiva.",
     "parallel": "Parallelo (tutte le zone insieme)",
-    "sequential": "Sequenziale (una zona alla volta)"
+    "sequential": "Sequenziale (una zona alla volta)",
+    "rotating": "Rotante (le zone si alternano)",
+    "max_consecutive_duration_label": "Tempo massimo consecutivo per zona",
+    "max_consecutive_duration_unit": "minuti",
+    "min_absorption_time_label": "Tempo minimo di assorbimento tra slot",
+    "min_absorption_time_unit": "minuti (0 = disabilitato)"
   }
 }

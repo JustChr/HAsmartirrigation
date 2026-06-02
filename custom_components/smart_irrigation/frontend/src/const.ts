@@ -147,6 +147,11 @@ export const ZONE_FLOW_SENSOR = "flow_sensor";
 export const CONF_ZONE_SEQUENCING = "zone_sequencing";
 export const CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential";
 export const CONF_ZONE_SEQUENCING_PARALLEL = "parallel";
+export const CONF_ZONE_SEQUENCING_ROTATING = "rotating";
+export const CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION =
+  "zone_sequencing_max_consecutive_duration";
+export const CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME =
+  "zone_sequencing_min_absorption_time";
 
 export const SCHEDULE_TYPE_SUNRISE = "sunrise";
 export const SCHEDULE_TYPE_SUNSET = "sunset";

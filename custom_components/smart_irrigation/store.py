@@ -56,6 +56,8 @@ from .const import (
     CONF_DEFAULT_WEATHER_SERVICE,
     CONF_DEFAULT_WIND_THRESHOLD,
     CONF_DEFAULT_ZONE_SEQUENCING,
+    CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
+    CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
     CONF_IMPERIAL,
     CONF_METRIC,
     CONF_PRECIPITATION_THRESHOLD_MM,
@@ -73,6 +75,8 @@ from .const import (
     CONF_WEATHER_SERVICE_OWM,
     CONF_WIND_THRESHOLD,
     CONF_ZONE_SEQUENCING,
+    CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
+    CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
     DOMAIN,
     MAPPING_CONF_SENSOR,
     MAPPING_CONF_SOURCE,
@@ -225,6 +229,12 @@ class Config:
     seasonal_adjustments = attr.ib(type=list, default=CONF_DEFAULT_SEASONAL_ADJUSTMENTS)
     recurring_schedules = attr.ib(type=list, default=CONF_DEFAULT_RECURRING_SCHEDULES)
     zone_sequencing = attr.ib(type=str, default=CONF_DEFAULT_ZONE_SEQUENCING)
+    zone_sequencing_max_consecutive_duration = attr.ib(
+        type=int, default=CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION
+    )
+    zone_sequencing_min_absorption_time = attr.ib(
+        type=int, default=CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME
+    )
     skip_on_temp_enabled = attr.ib(type=bool, default=CONF_DEFAULT_SKIP_TEMP_ENABLED)
     temp_threshold = attr.ib(type=float, default=CONF_DEFAULT_TEMP_THRESHOLD)
     skip_on_wind_enabled = attr.ib(type=bool, default=CONF_DEFAULT_SKIP_WIND_ENABLED)
@@ -325,6 +335,14 @@ class MigratableStore(Store):
                 ] = CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION
             if CONF_ZONE_SEQUENCING not in data["config"]:
                 data["config"][CONF_ZONE_SEQUENCING] = CONF_DEFAULT_ZONE_SEQUENCING
+            if CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION not in data["config"]:
+                data["config"][
+                    CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION
+                ] = CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION
+            if CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME not in data["config"]:
+                data["config"][
+                    CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME
+                ] = CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME
             if CONF_SKIP_TEMP_ENABLED not in data["config"]:
                 data["config"][CONF_SKIP_TEMP_ENABLED] = CONF_DEFAULT_SKIP_TEMP_ENABLED
             if CONF_TEMP_THRESHOLD not in data["config"]:
@@ -458,6 +476,14 @@ class SmartIrrigationStorage:
                 zone_sequencing=data["config"].get(
                     CONF_ZONE_SEQUENCING,
                     CONF_DEFAULT_ZONE_SEQUENCING,
+                ),
+                zone_sequencing_max_consecutive_duration=data["config"].get(
+                    CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
+                    CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
+                ),
+                zone_sequencing_min_absorption_time=data["config"].get(
+                    CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
+                    CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
                 ),
                 skip_on_temp_enabled=data["config"].get(
                     CONF_SKIP_TEMP_ENABLED,

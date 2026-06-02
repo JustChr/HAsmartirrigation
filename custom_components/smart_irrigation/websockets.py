@@ -105,6 +105,12 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_WIND_THRESHOLD): vol.Coerce(float),
                 vol.Optional(const.CONF_RAIN_SENSOR): vol.Or(str, None),
                 vol.Optional(const.CONF_ZONE_SEQUENCING): cv.string,
+                vol.Optional(
+                    const.CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION
+                ): vol.Coerce(int),
+                vol.Optional(
+                    const.CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME
+                ): vol.Coerce(int),
                 vol.Optional(const.CONF_MANUAL_COORDINATES_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_MANUAL_LATITUDE): vol.Or(float, int, None),
                 vol.Optional(const.CONF_MANUAL_LONGITUDE): vol.Or(float, int, None),
