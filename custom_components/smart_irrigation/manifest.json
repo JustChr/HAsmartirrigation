@@ -7,6 +7,6 @@
   "documentation": "https://github.com/JustChr/HAsmartirrigation",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/JustChr/HAsmartirrigation/issues",
-  "requirements": ["aiofiles"],
+  "requirements": ["aiofiles", "python-dateutil"],
   "version": "v2026.06.07"
 }
