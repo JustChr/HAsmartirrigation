@@ -1416,6 +1416,9 @@ class SmartIrrigationCoordinator(DataUpdateCoordinator):
         # Drop MAX and MIN temp mapping because we calculate it from temp
         data_by_sensor.pop(const.MAPPING_MAX_TEMP, None)
         data_by_sensor.pop(const.MAPPING_MIN_TEMP, None)
+        # Drop OBSERVATION_TIME: it is a datetime object from the weather service
+        # and cannot be aggregated as a numeric sensor value
+        data_by_sensor.pop(const.OBSERVATION_TIME, None)
         return data_by_sensor
 
     def _calc_hour_multiplier(self, data_by_sensor, mapping):
