@@ -845,7 +845,7 @@
     });
     return n.detail = a, e.dispatchEvent(n), n;
   };
-  const ze = `v${"2026.06.06"}`,
+  const ze = `v${"2026.06.07"}`,
     $e = "smart_irrigation",
     Se = "precipitation_threshold_mm",
     xe = "Open Weather Map",
