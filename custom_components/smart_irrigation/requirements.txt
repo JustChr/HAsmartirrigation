@@ -1,3 +1,8 @@
-git+https://github.com/woodcrafty/PyETo.git
+# Runtime requirements for the Smart Irrigation integration.
+# The authoritative list Home Assistant installs is in manifest.json ("requirements").
+# Keep this file in sync with it.
+#
+# Note: PyETo is NOT installed via pip — it is vendored under
+# calcmodules/pyeto/pyeto/ to avoid a git+ dependency (which hassfest rejects).
 aiofiles
 python-dateutil

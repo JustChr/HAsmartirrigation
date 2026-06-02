@@ -144,3 +144,125 @@ def mock_coordinator(mock_store):
     coordinator.unsubscribe_sun_updates = Mock()
 
     return coordinator
+
+
+# ---------------------------------------------------------------------------
+# Fixtures merged from the former custom_components/smart_irrigation/tests
+# conftest during the test-tree consolidation. Imports are kept lazy (inside
+# the fixtures) so that importing this conftest never requires the
+# pytest-homeassistant-custom-component plugin at collection time — that keeps
+# the standalone tests/unit suite runnable without the full HA test stack.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def snapshot(snapshot):
+    """Return snapshot assertion fixture with the Home Assistant extension."""
+    from pytest_homeassistant_custom_component.syrupy import (
+        HomeAssistantSnapshotExtension,
+    )
+
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
+
+
+@pytest.fixture
+def mock_setup_entry():
+    """Override async_setup_entry."""
+    with patch(
+        "custom_components.smart_irrigation.async_setup_entry", return_value=True
+    ) as mock_setup_entry:
+        yield mock_setup_entry
+
+
+@pytest.fixture
+def mock_config_entry():
+    """Return a mock config entry."""
+    from homeassistant.const import CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE
+
+    from custom_components.smart_irrigation import const
+    from tests.common import MockConfigEntry
+
+    return MockConfigEntry(
+        domain=const.DOMAIN,
+        title=const.NAME,
+        data={
+            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_USE_WEATHER_SERVICE: False,
+            CONF_LATITUDE: 52.379189,
+            CONF_LONGITUDE: 4.899431,
+            CONF_ELEVATION: 0,
+        },
+        entry_id="test_entry_id",
+        unique_id="test_unique_id",
+    )
+
+
+@pytest.fixture
+def mock_config_entry_with_weather():
+    """Return a mock config entry with weather service enabled."""
+    from homeassistant.const import CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE
+
+    from custom_components.smart_irrigation import const
+    from tests.common import MockConfigEntry
+
+    return MockConfigEntry(
+        domain=const.DOMAIN,
+        title=const.NAME,
+        data={
+            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_USE_WEATHER_SERVICE: True,
+            const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+            const.CONF_WEATHER_SERVICE_API_KEY: "validate_api_key",
+            CONF_LATITUDE: 52.379189,
+            CONF_LONGITUDE: 4.899431,
+            CONF_ELEVATION: 0,
+        },
+        entry_id="test_entry_id",
+        unique_id="test_unique_id",
+    )
+
+
+# Alias kept for tests that request the longer fixture name.
+@pytest.fixture
+def mock_weather_config_entry(mock_config_entry_with_weather):
+    """Return a mock config entry with weather service enabled."""
+    return mock_config_entry_with_weather
+
+
+@pytest.fixture
+def mock_zone_config():
+    """Return a sample zone configuration."""
+    return {
+        "name": "Test Zone",
+        "bucket": 10.5,
+        "state": "normal",
+        "multiplier": 1.0,
+        "switched": False,
+        "enabled": True,
+        "zone_size": 100,
+        "throughput": 15,
+        "lead_time": 0,
+        "maximum_duration": 3600,
+        "ignore_sensors": False,
+        "show_units": True,
+        "run_freq": 1,
+        "calculated_seconds": 0,
+        "calculated_minutes": 0,
+        "delta": 0,
+        "description": "Test zone description",
+        "old_bucket": 10.0,
+        "sensors": [],
+        "bucket_throughput": 0,
+        "expiry": None,
+        "slope": 1,
+        "base": 0,
+        "peak": 100,
+        "rainblock": False,
+        "rainblock_start": None,
+        "rainblock_end": None,
+        "last_modified": None,
+        "zone_mapping": {},
+        "reference_evapotranspiration": 0,
+        "evapotranspiration": 0,
+        "precipitation": 0,
+    }

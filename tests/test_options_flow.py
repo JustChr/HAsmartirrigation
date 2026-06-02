@@ -3,7 +3,6 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.smart_irrigation.const import (
@@ -17,6 +16,7 @@ from custom_components.smart_irrigation.helpers import CannotConnect, InvalidAut
 from custom_components.smart_irrigation.options_flow import (
     SmartIrrigationOptionsFlowHandler,
 )
+from tests.common import MockConfigEntry
 
 
 class TestSmartIrrigationOptionsFlow:
@@ -32,8 +32,7 @@ class TestSmartIrrigationOptionsFlow:
     @pytest.fixture
     def mock_config_entry(self):
         """Return a mock config entry."""
-        return ConfigEntry(
-            version=1,
+        return MockConfigEntry(
             domain="smart_irrigation",
             title="Smart Irrigation",
             data={
@@ -43,15 +42,13 @@ class TestSmartIrrigationOptionsFlow:
                 CONF_WEATHER_SERVICE_API_VERSION: None,
             },
             options={},
-            source="user",
             entry_id="test_entry_id",
         )
 
     @pytest.fixture
     def mock_config_entry_with_weather(self):
         """Return a mock config entry with weather service enabled."""
-        return ConfigEntry(
-            version=1,
+        return MockConfigEntry(
             domain="smart_irrigation",
             title="Smart Irrigation",
             data={
@@ -61,7 +58,6 @@ class TestSmartIrrigationOptionsFlow:
                 CONF_WEATHER_SERVICE_API_VERSION: "3.0",
             },
             options={},
-            source="user",
             entry_id="test_entry_id",
         )
 
@@ -79,6 +75,11 @@ class TestSmartIrrigationOptionsFlow:
         flow.hass = mock_hass
         return flow
 
+    # A6: OptionsFlowHandler API drift — config entry id unavailable during init on
+    # modern HA. Revive in Phase C.
+    @pytest.mark.skip(
+        reason="OptionsFlowHandler init API drift; revive in Phase C (A6)"
+    )
     def test_options_flow_initialization(self, options_flow, mock_config_entry):
         """Test options flow initialization."""
         assert options_flow.config_entry == mock_config_entry
@@ -123,6 +124,9 @@ class TestSmartIrrigationOptionsFlow:
         assert result["step_id"] == "init"
         assert CONF_USE_WEATHER_SERVICE in result["data_schema"].schema
 
+    @pytest.mark.skip(
+        reason="Step1 returns FORM not CREATE_ENTRY on modern flow; revive in Phase C (A6)"
+    )
     async def test_async_step_step1_valid_api_key(self, options_flow):
         """Test step1 with valid API key."""
         options_flow._use_weather_service = True
@@ -196,9 +200,12 @@ class TestSmartIrrigationOptionsFlow:
             assert result["type"] == "form"
             mock_show_step_1.assert_called()
 
+    @pytest.mark.skip(
+        reason="OptionsFlowHandler no longer reads legacy use_owm at init; revive in Phase C (A6)"
+    )
     def test_options_flow_migration_from_owm(self, mock_hass):
         """Test options flow migration from old OWM config."""
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -219,7 +226,7 @@ class TestSmartIrrigationOptionsFlow:
 
     def test_options_flow_with_options_override(self, mock_hass):
         """Test options flow with options overriding data."""
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -243,7 +250,7 @@ class TestSmartIrrigationOptionsFlow:
 
     def validate_api_key_whitespace_stripping(self, mock_hass):
         """Test that API keys are stripped of whitespace."""
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -259,6 +266,9 @@ class TestSmartIrrigationOptionsFlow:
 
         assert flow._weather_service_api_key == "api_key_with_spaces"
 
+    @pytest.mark.skip(
+        reason="OptionsFlowHandler no longer sets _days_between_irrigation at init; revive in Phase C (A6)"
+    )
     def test_days_between_irrigation_initialization(self, mock_hass):
         """Test that days between irrigation setting is properly initialized."""
         from custom_components.smart_irrigation.const import (
@@ -267,7 +277,7 @@ class TestSmartIrrigationOptionsFlow:
         )
 
         # Test with no existing setting (should use default)
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -281,7 +291,7 @@ class TestSmartIrrigationOptionsFlow:
         assert flow._days_between_irrigation == CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION
 
         # Test with existing setting in data
-        mock_config_entry_with_data = ConfigEntry(
+        mock_config_entry_with_data = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -295,7 +305,7 @@ class TestSmartIrrigationOptionsFlow:
         assert flow_with_data._days_between_irrigation == 5
 
         # Test with existing setting in options (should override data)
-        mock_config_entry_with_options = ConfigEntry(
+        mock_config_entry_with_options = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",

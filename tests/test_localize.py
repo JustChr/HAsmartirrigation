@@ -1,11 +1,31 @@
 """Test the Smart Irrigation localization utilities."""
 
 import json
-from unittest.mock import AsyncMock, mock_open, patch
+from contextlib import contextmanager
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from custom_components.smart_irrigation.localize import get_string_from_data, localize
+
+
+@contextmanager
+def _patch_aiofiles_read(*read_values):
+    """Patch aiofiles.open as an async context manager.
+
+    localize() uses ``async with aiofiles.open(...) as f: await f.read()``.
+    The default ``mock_open()`` only implements the *sync* context manager, so
+    it has no ``__aenter__`` — hence the patched handle is built explicitly.
+    ``read_values`` are returned by successive ``.read()`` calls (the German
+    path reads de.json then falls back to en.json).
+    """
+    handle = MagicMock()
+    handle.read = AsyncMock(side_effect=list(read_values))
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=handle)
+    cm.__aexit__ = AsyncMock(return_value=False)
+    with patch("aiofiles.open", return_value=cm) as p:
+        yield p
 
 
 class TestSmartIrrigationLocalize:
@@ -27,59 +47,37 @@ class TestSmartIrrigationLocalize:
 
     async def test_localize_english(self, mock_translations):
         """Test localization for English."""
-        with patch("aiofiles.open", mock_open()) as mock_file:
-            mock_file.return_value.__aenter__.return_value.read = AsyncMock(
-                return_value=json.dumps(mock_translations["en"])
-            )
-
+        with _patch_aiofiles_read(json.dumps(mock_translations["en"])):
             result = await localize("common.hello", "en")
             assert result == "Hello"
 
     async def test_localize_german(self, mock_translations):
         """Test localization for German."""
-        with patch("aiofiles.open", mock_open()) as mock_file:
-            # First call for German, second call for English fallback
-            mock_file.return_value.__aenter__.return_value.read = AsyncMock(
-                side_effect=[
-                    json.dumps(mock_translations["de"]),
-                    json.dumps(mock_translations["en"]),
-                ]
-            )
-
+        with _patch_aiofiles_read(
+            json.dumps(mock_translations["de"]),
+            json.dumps(mock_translations["en"]),
+        ):
             result = await localize("common.hello", "de")
             assert result == "Hallo"
 
     async def test_localize_fallback_to_english(self, mock_translations):
         """Test fallback to English when German translation is missing."""
-        with patch("aiofiles.open", mock_open()) as mock_file:
-            # First call for German (missing key), second call for English
-            mock_file.return_value.__aenter__.return_value.read = AsyncMock(
-                side_effect=[
-                    json.dumps(mock_translations["de"]),
-                    json.dumps(mock_translations["en"]),
-                ]
-            )
-
+        with _patch_aiofiles_read(
+            json.dumps(mock_translations["de"]),
+            json.dumps(mock_translations["en"]),
+        ):
             result = await localize("zones.enabled", "de")  # Not in German
             assert result == "Enabled"
 
     async def test_localize_unsupported_language(self, mock_translations):
         """Test localization for unsupported language falls back to English."""
-        with patch("aiofiles.open", mock_open()) as mock_file:
-            mock_file.return_value.__aenter__.return_value.read = AsyncMock(
-                return_value=json.dumps(mock_translations["en"])
-            )
-
+        with _patch_aiofiles_read(json.dumps(mock_translations["en"])):
             result = await localize("common.hello", "fr")  # Unsupported
             assert result == "Hello"
 
     async def test_localize_key_not_found(self, mock_translations):
         """Test localization when key is not found."""
-        with patch("aiofiles.open", mock_open()) as mock_file:
-            mock_file.return_value.__aenter__.return_value.read = AsyncMock(
-                return_value=json.dumps(mock_translations["en"])
-            )
-
+        with _patch_aiofiles_read(json.dumps(mock_translations["en"])):
             result = await localize("nonexistent.key", "en")
             assert result == "nonexistent.key"
 
@@ -91,14 +89,10 @@ class TestSmartIrrigationLocalize:
 
     async def test_localize_case_insensitive(self, mock_translations):
         """Test localization is case insensitive for language codes."""
-        with patch("aiofiles.open", mock_open()) as mock_file:
-            mock_file.return_value.__aenter__.return_value.read = AsyncMock(
-                side_effect=[
-                    json.dumps(mock_translations["de"]),
-                    json.dumps(mock_translations["en"]),
-                ]
-            )
-
+        with _patch_aiofiles_read(
+            json.dumps(mock_translations["de"]),
+            json.dumps(mock_translations["en"]),
+        ):
             result = await localize("common.hello", "DE")  # Uppercase
             assert result == "Hallo"
 
