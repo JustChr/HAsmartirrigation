@@ -7,8 +7,10 @@ irrigation runner (C2), which has no behavioral coverage yet.
 """
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator
+from custom_components.smart_irrigation.calculation import CalculationMixin
 from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
 from custom_components.smart_irrigation.services import ServiceHandlersMixin
+from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
 from custom_components.smart_irrigation.watering_calendar import WateringCalendarMixin
 
 
@@ -17,8 +19,30 @@ def test_coordinator_inherits_all_extracted_mixins():
         ServiceHandlersMixin,
         WateringCalendarMixin,
         IrrigationRunnerMixin,
+        CalculationMixin,
+        SkipConditionsMixin,
     ):
         assert issubclass(SmartIrrigationCoordinator, mixin), mixin.__name__
+
+
+def test_calculation_and_skip_methods_present():
+    for name in (
+        "merge_weatherdata_and_sensor_values",
+        "apply_aggregates_to_mapping_data",
+        "_aggregate_sensor_data",
+        "async_calculate_zone",
+        "getModuleInstanceByID",
+        "calculate_module",
+    ):
+        assert hasattr(CalculationMixin, name), name
+    for name in (
+        "_check_skip_conditions",
+        "_check_precipitation_forecast",
+        "_check_rain_sensor",
+        "get_total_duration_all_enabled_zones",
+        "_reset_days_since_irrigation",
+    ):
+        assert hasattr(SkipConditionsMixin, name), name
 
 
 def test_irrigation_runner_methods_present():
