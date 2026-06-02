@@ -1,6 +1,6 @@
 """Test Smart Irrigation integration initialization."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntry
@@ -16,15 +16,13 @@ from custom_components.smart_irrigation import (
     const,
 )
 
-# Quarantined during the test-tree consolidation (refactor plan A6). These tests
-# exercise full integration/coordinator setup against the lightweight mock `hass`
-# from conftest, which returns coroutines/MagicMocks where modern HA setup expects
-# real objects ("'coroutine' object does not support item assignment", config
-# entry id not available, etc.). They were never run by the old CI. Reviving them
-# is part of the Phase C coordinator rework, ideally using the real `hass` fixture.
-pytestmark = pytest.mark.skip(
-    reason="Full integration/coordinator setup vs mock hass; revive in Phase C (A6)"
-)
+# Revived in Phase C (A6) to serve as the safety net for the coordinator
+# constructor/setup rework (C7). The coordinator-construction, days-between, and
+# unload/remove tests run; a few tests remain skipped individually below because
+# they target code that no longer exists in its tested form (a nested
+# handle_core_config_change closure; _convert_precipitation_threshold /
+# _refresh_unit_dependent_data) or pull full setup_entry dependencies
+# (panel_custom / platform forwarding) — see per-test skip reasons.
 
 
 class TestSmartIrrigationIntegration:
@@ -35,6 +33,10 @@ class TestSmartIrrigationIntegration:
         result = await async_setup(hass, {})
         assert result is True
 
+    @pytest.mark.skip(
+        reason="Full async_setup_entry pulls panel_custom/platform forwarding "
+        "unavailable in the bare test hass; revive when C8 reworks setup (A6)"
+    )
     async def test_async_setup_entry_success(
         self,
         hass: HomeAssistant,
@@ -75,6 +77,10 @@ class TestSmartIrrigationIntegration:
             mock_ws.assert_called_once_with(hass)
             mock_services.assert_called_once_with(hass)
 
+    @pytest.mark.skip(
+        reason="Full async_setup_entry pulls panel_custom/platform forwarding "
+        "unavailable in the bare test hass; revive when C8 reworks setup (A6)"
+    )
     async def test_async_setup_entry_with_weather_service(
         self,
         hass: HomeAssistant,
@@ -202,6 +208,11 @@ class TestSmartIrrigationCoordinator:
             await coordinator.update_subscriptions()
             mock_update.assert_called_once()
 
+    @pytest.mark.skip(
+        reason="handle_core_config_change is a nested closure in async_setup_entry "
+        "(not importable) and the test uses the wrong attr name; revive in C7 if the "
+        "handler is promoted to a method (A6)"
+    )
     async def test_unit_system_change_handler(
         self,
         hass: HomeAssistant,
@@ -246,6 +257,10 @@ class TestSmartIrrigationCoordinator:
         coordinator.async_handle_unit_system_change.assert_called_once()
         assert coordinator._previous_unit_system == US_CUSTOMARY_SYSTEM
 
+    @pytest.mark.skip(
+        reason="Patches _convert_precipitation_threshold / _refresh_unit_dependent_data "
+        "which do not exist on the coordinator; revive if those helpers are added (A6)"
+    )
     async def test_async_handle_unit_system_change(
         self,
         hass: HomeAssistant,
@@ -314,6 +329,16 @@ class TestDaysBetweenIrrigation:
             const.CONF_SKIP_IRRIGATION_ON_PRECIPITATION: False,
             const.CONF_USE_WEATHER_SERVICE: False,
         }
+        # The coordinator __init__ calls the SYNC get_config() and indexes the
+        # auto-*-enabled keys directly, so provide a plain dict (not a coroutine).
+        store.get_config = Mock(
+            return_value={
+                const.CONF_AUTO_UPDATE_ENABLED: False,
+                const.CONF_AUTO_CALC_ENABLED: False,
+                const.CONF_AUTO_CLEAR_ENABLED: False,
+                const.CONF_USE_WEATHER_SERVICE: False,
+            }
+        )
         return store
 
     async def test_check_days_between_irrigation_default(
@@ -329,6 +354,15 @@ class TestDaysBetweenIrrigation:
             const.CONF_DAYS_BETWEEN_IRRIGATION: 0,
             const.CONF_DAYS_SINCE_LAST_IRRIGATION: 5,
         }
+        # Sync get_config() used by the coordinator __init__.
+        mock_store.get_config = Mock(
+            return_value={
+                const.CONF_AUTO_UPDATE_ENABLED: False,
+                const.CONF_AUTO_CALC_ENABLED: False,
+                const.CONF_AUTO_CLEAR_ENABLED: False,
+                const.CONF_USE_WEATHER_SERVICE: False,
+            }
+        )
 
         hass.data[const.DOMAIN] = {
             const.CONF_USE_WEATHER_SERVICE: False,

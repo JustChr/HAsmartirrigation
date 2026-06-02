@@ -110,14 +110,27 @@ def mock_store():
     store.get_mappings = Mock(return_value={})
     store.get_modules = Mock(return_value={})
     store.get_zones = Mock(return_value={})
-    # Add get_config method that returns a sync dict - not a coroutine
+    # Add get_config method that returns a sync dict - not a coroutine.
+    # The coordinator __init__ indexes all three auto-*-enabled keys directly,
+    # so they must all be present or construction raises KeyError.
     default_config = {
         const.CONF_AUTO_UPDATE_ENABLED: False,
         const.CONF_AUTO_CALC_ENABLED: False,
+        const.CONF_AUTO_CLEAR_ENABLED: False,
         const.CONF_USE_WEATHER_SERVICE: False,
     }
     store.get_config = Mock(return_value=default_config)
     return store
+
+
+@pytest.fixture
+def mock_session():
+    """Return a mock aiohttp client session.
+
+    The coordinator takes a session argument; it is not used during __init__
+    (weather clients are built from API keys), so a bare AsyncMock suffices.
+    """
+    return AsyncMock()
 
 
 @pytest.fixture
