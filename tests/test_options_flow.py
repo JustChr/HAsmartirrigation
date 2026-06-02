@@ -3,7 +3,6 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.smart_irrigation.const import (
@@ -17,6 +16,7 @@ from custom_components.smart_irrigation.helpers import CannotConnect, InvalidAut
 from custom_components.smart_irrigation.options_flow import (
     SmartIrrigationOptionsFlowHandler,
 )
+from tests.common import MockConfigEntry
 
 
 class TestSmartIrrigationOptionsFlow:
@@ -32,8 +32,7 @@ class TestSmartIrrigationOptionsFlow:
     @pytest.fixture
     def mock_config_entry(self):
         """Return a mock config entry."""
-        return ConfigEntry(
-            version=1,
+        return MockConfigEntry(
             domain="smart_irrigation",
             title="Smart Irrigation",
             data={
@@ -43,15 +42,13 @@ class TestSmartIrrigationOptionsFlow:
                 CONF_WEATHER_SERVICE_API_VERSION: None,
             },
             options={},
-            source="user",
             entry_id="test_entry_id",
         )
 
     @pytest.fixture
     def mock_config_entry_with_weather(self):
         """Return a mock config entry with weather service enabled."""
-        return ConfigEntry(
-            version=1,
+        return MockConfigEntry(
             domain="smart_irrigation",
             title="Smart Irrigation",
             data={
@@ -61,7 +58,6 @@ class TestSmartIrrigationOptionsFlow:
                 CONF_WEATHER_SERVICE_API_VERSION: "3.0",
             },
             options={},
-            source="user",
             entry_id="test_entry_id",
         )
 
@@ -198,7 +194,7 @@ class TestSmartIrrigationOptionsFlow:
 
     def test_options_flow_migration_from_owm(self, mock_hass):
         """Test options flow migration from old OWM config."""
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -219,7 +215,7 @@ class TestSmartIrrigationOptionsFlow:
 
     def test_options_flow_with_options_override(self, mock_hass):
         """Test options flow with options overriding data."""
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -243,7 +239,7 @@ class TestSmartIrrigationOptionsFlow:
 
     def validate_api_key_whitespace_stripping(self, mock_hass):
         """Test that API keys are stripped of whitespace."""
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -267,7 +263,7 @@ class TestSmartIrrigationOptionsFlow:
         )
 
         # Test with no existing setting (should use default)
-        mock_config_entry = ConfigEntry(
+        mock_config_entry = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -281,7 +277,7 @@ class TestSmartIrrigationOptionsFlow:
         assert flow._days_between_irrigation == CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION
 
         # Test with existing setting in data
-        mock_config_entry_with_data = ConfigEntry(
+        mock_config_entry_with_data = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",
@@ -295,7 +291,7 @@ class TestSmartIrrigationOptionsFlow:
         assert flow_with_data._days_between_irrigation == 5
 
         # Test with existing setting in options (should override data)
-        mock_config_entry_with_options = ConfigEntry(
+        mock_config_entry_with_options = MockConfigEntry(
             version=1,
             domain="smart_irrigation",
             title="Smart Irrigation",

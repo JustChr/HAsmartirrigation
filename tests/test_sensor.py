@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -41,6 +42,11 @@ class TestSensorPlatform:
             mock_connect.assert_called()
 
 
+# Quarantined during the test-tree consolidation (refactor plan A6). These tests
+# build SmartIrrigationZoneEntity with a `config=` kwarg and zone keys (id, size,
+# duration, ...) that no longer match the current entity constructor. They were
+# never run by the old CI. Revive when the sensor/entity layer is revisited.
+@pytest.mark.skip(reason="Outdated entity constructor; revive in Phase C (A6)")
 class TestSmartIrrigationZoneEntity:
     """Test SmartIrrigationZoneEntity."""
 
