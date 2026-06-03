@@ -4,7 +4,9 @@
       "delete": "Lösche",
       "edit": "Bearbeiten",
       "save": "Speichern",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "confirm_delete": "Löschen bestätigen",
+      "confirm_delete_zone": "Möchtest du diese Zone wirklich löschen?"
     },
     "labels": {
       "module": "Modul",
@@ -14,7 +16,9 @@
       "enabled": "Aktiviert",
       "disabled": "Deaktiviert",
       "before": "vor",
-      "after": "nach"
+      "after": "nach",
+      "settings": "Einstellungen",
+      "bulk_actions": "Sammelaktionen"
     },
     "attributes": {
       "size": "Größe",
@@ -67,9 +71,9 @@
         "bucket-larger-than-or-equal-to-zero-no-irrigation-necessary": "Wenn der Vorrat >= 0 ist, ist keine Bewässerung nötig und die Dauer ist gleich",
         "maximum-bucket-is": "Der maximale Vorrat ist",
         "max-bucket-variable": "max_bucket",
-        "drainage": "drainage",
-        "drainage-rate": "drainage_rate",
-        "hours": "hours",
+        "drainage": "Drainage",
+        "drainage-rate": "Drainagerate",
+        "hours": "Stunden",
         "drainage-rate-is": "Drainagerate bei Sättigung (Eimer am Maximum) beträgt",
         "current-drainage-is": "Aktuelle Drainage berechnet als",
         "no-drainage": "Aktuelle Drainage ist 0, weil"
@@ -130,8 +134,8 @@
           "header": "Kontinuierliche Sensoraktualisierungen (experimentell)",
           "description": "Experimentelle Funktion für granularere Wetterdaten.",
           "labels": {
-            "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce",
+            "continuousupdates": "Kontinuierliche Aktualisierungen aktivieren",
+            "sensor_debounce": "Sensor-Entprellung",
             "sensor-debounce": "Sensor-Entprellzeit (ms)"
           }
         }
@@ -145,11 +149,11 @@
         "how-to-get-help": {
           "title": "Hilfe bekommen",
           "first-read-the": "Lies zuerst im",
-          "wiki": "Documentation",
+          "wiki": "Dokumentation",
           "if-you-still-need-help": "Benötigst du weiterhin Hilfe, wende dich an das",
           "community-forum": "Community Forum",
           "or-open-a": "oder eröffne einen",
-          "github-issue": "Github Issue",
+          "github-issue": "GitHub-Issue",
           "english-only": "nur Englisch"
         }
       }
@@ -171,13 +175,13 @@
             "median": "Median",
             "minimum": "Minimum",
             "sum": "Summe",
-            "riemannsum": "Riemann sum",
+            "riemannsum": "Riemann-Summe",
             "delta": "Delta"
           },
           "errors": {
             "cannot-delete-mapping-because-zones-use-it": "Diese Sensorgruppe kann nicht entfernt werden, da sie von mindestens einer Zone verwendet wird.",
-            "invalid_source": "Invalid source",
-            "source_does_not_exist": "Source does not exist. Please enter a valid source, such as 'sensor.mysensor'."
+            "invalid_source": "Ungültige Quelle",
+            "source_does_not_exist": "Quelle existiert nicht. Bitte gib eine gültige Quelle ein, z. B. 'sensor.mysensor'."
           },
           "items": {
             "dewpoint": "Taupunkt",
@@ -190,7 +194,7 @@
             "solar radiation": "Sonnenstrahlung",
             "temperature": "Temperatur",
             "windspeed": "Windgeschwindigkeit",
-            "current precipitation": "Current precipitation"
+            "current precipitation": "Aktueller Niederschlag"
           },
           "pressure_types": {
             "absolute": "absolut",
@@ -205,7 +209,7 @@
           "source": "Quelle",
           "sources": {
             "none": "Keine",
-            "weather_service": "Weather service",
+            "weather_service": "Wetterdienst",
             "sensor": "Sensor",
             "static": "Fester Wert"
           }
@@ -220,7 +224,7 @@
       "weather-records": {
         "title": "Wetterdaten",
         "timestamp": "Zeit",
-        "temperature": "Temp",
+        "temperature": "Temp.",
         "humidity": "Feuchte",
         "dewpoint": "Taupunkt",
         "wind": "Wind",
@@ -262,12 +266,13 @@
       "actions": {
         "add": "Hinzufügen",
         "calculate": "Bewässerungsdauer berechnen.",
-        "information": "Information",
+        "information": "Informationen",
         "update": "Wetterdaten aktualisieren.",
         "reset-bucket": "Vorrat zurücksetzen",
         "view-weather-info": "Wetterdaten anzeigen",
-        "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "Bewässerungskalender"
+        "view-weather-info-message": "Wetterdaten verfügbar für",
+        "view-watering-calendar": "Bewässerungskalender",
+        "irrigate_all": "Alle Zonen jetzt ausführen"
       },
       "cards": {
         "add-zone": {
@@ -307,11 +312,13 @@
         "last_calculated": "Zuletzt berechnet",
         "data-last-updated": "Daten zuletzt aktualisiert",
         "data-number-of-data-points": "Anzahl der Messungen",
-        "drainage_rate": "Drainage rate",
+        "drainage_rate": "Drainagerate",
         "linked_entity": "Verknüpfte Schalter/Ventil-Entität",
         "linked_entity_placeholder": "z.B. switch.garten_ventil",
         "irrigate_now": "Jetzt bewässern",
-        "bucket_threshold": "Mindestdefizit für Bewässerung"
+        "bucket_threshold": "Mindestdefizit für Bewässerung",
+        "flow_sensor": "Durchflussmesser-Sensor (optional)",
+        "flow_sensor_placeholder": "z. B. sensor.zone_flow_rate"
       },
       "no_items": "Es ist noch keine Zone vorhanden.",
       "title": "Zonen"
@@ -431,6 +438,9 @@
           "no_linked_zones": "Keine Zonen haben eine verknüpfte Schalter/Ventil-Entität mit berechneter Dauer."
         }
       }
+    },
+    "setup": {
+      "title": "Einrichtung"
     }
   },
   "title": "Smart Irrigation",
@@ -451,61 +461,61 @@
     "help_text": "Auf 0 setzen zum Deaktivieren. Werte von 1–365 Tagen werden unterstützt."
   },
   "irrigation_start_triggers": {
-    "title": "Irrigation Start Triggers",
-    "description": "Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",
-    "add_trigger": "Add Trigger",
-    "edit_trigger": "Edit Trigger",
-    "delete_trigger": "Delete Trigger",
+    "title": "Bewässerungsstart-Auslöser",
+    "description": "Konfiguriere, wann die Bewässerung auf Basis von Sonnenereignissen starten soll. Du kannst mehrere Auslöser für verschiedene Zeitpläne hinzufügen. Bei Sonnenaufgang-Auslösern wird mit einem Versatz von 0 automatisch die Gesamtdauer aller aktivierten Zonen verwendet.",
+    "add_trigger": "Auslöser hinzufügen",
+    "edit_trigger": "Auslöser bearbeiten",
+    "delete_trigger": "Auslöser löschen",
     "trigger_types": {
-      "sunrise": "Sunrise",
-      "sunset": "Sunset",
-      "solar_azimuth": "Solar Azimuth"
+      "sunrise": "Sonnenaufgang",
+      "sunset": "Sonnenuntergang",
+      "solar_azimuth": "Sonnenazimut"
     },
     "fields": {
       "name": {
-        "name": "Trigger Name",
-        "description": "A descriptive name to identify this trigger"
+        "name": "Auslösername",
+        "description": "Ein aussagekräftiger Name zur Identifizierung dieses Auslösers"
       },
       "type": {
-        "name": "Trigger Type",
-        "description": "The type of solar event to trigger on"
+        "name": "Auslösertyp",
+        "description": "Die Art des Sonnenereignisses, das den Auslöser auslöst"
       },
       "enabled": {
-        "name": "Enabled",
-        "description": "Whether this trigger is currently active"
+        "name": "Aktiviert",
+        "description": "Ob dieser Auslöser derzeit aktiv ist"
       },
       "offset_minutes": {
-        "name": "Offset (minutes)",
-        "description": "Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."
+        "name": "Versatz (Minuten)",
+        "description": "Minuten vor (-) oder nach (+) dem Sonnenereignis. Verwende bei Sonnenaufgang-Auslösern 0 für eine automatische Zeitsteuerung auf Basis der gesamten Zonendauer."
       },
       "azimuth_angle": {
-        "name": "Azimuth Angle (degrees)",
-        "description": "Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"
+        "name": "Azimutwinkel (Grad)",
+        "description": "Sonnenazimutwinkel in Grad, wobei 0=Nord, 90=Ost, 180=Süd, 270=West"
       },
       "account_for_duration": {
-        "name": "Account for Duration",
-        "description": "When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."
+        "name": "Dauer berücksichtigen",
+        "description": "Wenn aktiviert, startet die Bewässerung früh genug, um zum angegebenen Zeitpunkt fertig zu sein. Wenn deaktiviert, startet die Bewässerung genau zum angegebenen Zeitpunkt."
       }
     },
     "dialog": {
-      "add_title": "Add Irrigation Start Trigger",
-      "edit_title": "Edit Irrigation Start Trigger",
-      "cancel": "Cancel",
-      "save": "Save",
-      "delete": "Delete"
+      "add_title": "Bewässerungsstart-Auslöser hinzufügen",
+      "edit_title": "Bewässerungsstart-Auslöser bearbeiten",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "delete": "Löschen"
     },
-    "no_triggers": "No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",
-    "offset_auto": "Auto (calculated from total zone duration)",
-    "confirm_delete": "Are you sure you want to delete the trigger '{name}'?",
+    "no_triggers": "Keine Bewässerungsstart-Auslöser konfiguriert. Das System verwendet das Standardverhalten (Sonnenaufgang mit der Gesamtdauer aller Zonen). Füge Auslöser hinzu, um den Bewässerungsstart anzupassen.",
+    "offset_auto": "Automatisch (aus der Gesamtdauer aller Zonen berechnet)",
+    "confirm_delete": "Möchtest du den Auslöser '{name}' wirklich löschen?",
     "validation": {
-      "name_required": "Trigger name is required",
-      "azimuth_invalid": "Azimuth angle must be a valid number"
+      "name_required": "Auslösername ist erforderlich",
+      "azimuth_invalid": "Der Azimutwinkel muss eine gültige Zahl sein"
     },
     "help": {
-      "sunrise_offset": "For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",
-      "sunset_offset": "For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",
-      "azimuth_explanation": "Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",
-      "multiple_triggers": "You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."
+      "sunrise_offset": "Für Sonnenaufgang-Auslöser: Verwende negative Werte, um vor Sonnenaufgang zu starten, positive, um danach zu starten. Setze auf 0, um automatisch früh genug zu starten, damit alle Zonen vor Sonnenaufgang fertig sind.",
+      "sunset_offset": "Für Sonnenuntergang-Auslöser: Verwende negative Werte, um vor Sonnenuntergang zu starten, positive, um nach Sonnenuntergang zu starten.",
+      "azimuth_explanation": "Der Sonnenazimut ist die Himmelsrichtung der Sonne. 0°=Nord, 90°=Ost, 180°=Süd, 270°=West. Du kannst einen beliebigen Winkelwert eingeben (z. B. 450° = 90°, -30° = 330°). Nutze dies, um die Bewässerung auszulösen, wenn die Sonne eine bestimmte Position erreicht.",
+      "multiple_triggers": "Du kannst mehrere Auslöser konfigurieren. Jeder aktivierte Auslöser plant den Bewässerungsstart unabhängig."
     }
   },
   "weather_skip": {
@@ -525,6 +535,121 @@
     "title": "Zonenreihenfolge",
     "description": "Wenn mehrere Zonen bewässert werden müssen, legen Sie fest, ob alle gleichzeitig oder nacheinander laufen. Im sequenziellen Modus wartet das System, bis jede Zone fertig ist, bevor die nächste beginnt.",
     "parallel": "Parallel (alle Zonen gleichzeitig)",
-    "sequential": "Sequenziell (eine Zone nach der anderen)"
+    "sequential": "Sequenziell (eine Zone nach der anderen)",
+    "rotating": "Rotierend (Zonen wechseln sich ab)",
+    "max_consecutive_duration_label": "Max. ununterbrochene Laufzeit pro Zone",
+    "max_consecutive_duration_unit": "Minuten",
+    "min_absorption_time_label": "Min. Aufnahmezeit zwischen den Durchgängen",
+    "min_absorption_time_unit": "Minuten (0 = deaktiviert)"
+  },
+  "weather_service_config": {
+    "title": "Wetterdienst",
+    "description": "Konfiguriere, welcher Wetterdienst für ET-Berechnungen und Überspringbedingungen verwendet wird.",
+    "enabled_label": "Wetterdienst aktivieren",
+    "service_label": "Wetterdienst",
+    "api_key_label": "API-Schlüssel",
+    "api_key_placeholder": "Leer lassen, um den vorhandenen Schlüssel zu behalten",
+    "api_key_configured": "API-Schlüssel ist konfiguriert",
+    "api_key_not_configured": "Kein API-Schlüssel konfiguriert",
+    "api_key_help": "Ein API-Schlüssel von deinem gewählten Wetterdienstanbieter. Open-Meteo benötigt keinen Schlüssel. OpenWeatherMap und Pirate Weather bieten beide kostenlose Kontingente.",
+    "no_api_key_needed": "Open-Meteo ist ein kostenloser Dienst und benötigt keinen API-Schlüssel.",
+    "save_button": "Wettereinstellungen speichern",
+    "saved": "Wettereinstellungen gespeichert",
+    "openmeteo": "Open-Meteo (kostenlos, kein Schlüssel nötig)",
+    "test_button": "Verbindung testen",
+    "test_button_testing": "Wird getestet…",
+    "test_success": "✓ Verbindung erfolgreich",
+    "test_error_invalid_auth": "✗ Ungültiger API-Schlüssel — prüfe, ob er korrekt und aktiv ist",
+    "test_error_cannot_connect": "✗ Verbindung nicht möglich — prüfe deine Internetverbindung",
+    "test_error_no_service": "✗ Wähle zuerst einen Wetterdienst",
+    "test_error_unknown": "✗ Test fehlgeschlagen — unbekannter Fehler",
+    "owm": "OpenWeatherMap",
+    "pw": "Pirate Weather"
+  },
+  "field_help": {
+    "zone_size": "Die gesamte bewässerte Fläche dieser Zone. Wird zusammen mit dem Durchsatz verwendet, um zu berechnen, wie viel Wasser pro Durchgang ausgebracht wird.",
+    "zone_throughput": "Gesamtwasserdurchfluss deines Bewässerungssystems für diese Zone (Liter/Min im metrischen System, Gal/Min im imperialen System). Prüfe das Datenblatt deiner Sprinkler oder miss, wie lange das Füllen eines bekannten Behälters dauert.",
+    "zone_drainage_rate": "Wie schnell überschüssiges Wasser aus dem Boden abfließt, wenn der Eimer voll ist. Typisch: Rasen 50 mm/h, sandiger Boden 100+ mm/h, Lehm 10 mm/h.",
+    "zone_bucket": "Aktuelles Wasserdefizit (negativ) oder -überschuss (positiv) für diese Zone. Die Bewässerung wird ausgelöst, wenn der Eimer unter den Schwellenwert fällt.",
+    "zone_maximum_bucket": "Maximaler Feuchtigkeitsüberschuss, den die Zone aufnehmen kann. Wasser über diesem Wert wird als Abfluss behandelt. Typischer Wert: 50 mm.",
+    "zone_bucket_threshold": "Die Bewässerung wird ausgelöst, wenn der Eimer unter diesen Wert fällt. Muss 0 oder negativ sein. 0 bedeutet, immer dann zu bewässern, wenn ein Defizit besteht.",
+    "zone_multiplier": "Skalierungsfaktor, der auf die berechnete Dauer angewendet wird. Über 1,0 erhöht, unter 1,0 verringert. Nützlich zur Feinabstimmung, ohne physische Messwerte zu ändern.",
+    "zone_lead_time": "Zusätzliche Sekunden vor dem Start der Bewässerung. Nutze dies für das Aufwärmen der Pumpe oder den Druckaufbau im System.",
+    "zone_maximum_duration": "Harte Obergrenze für einen einzelnen Bewässerungsdurchgang in Sekunden. Verhindert unkontrolliertes Bewässern. Standard: 3600 s (1 Stunde).",
+    "zone_linked_entity": "Die HA-Schalter- oder Ventil-Entität, die den Wasserfluss für diese Zone steuert. Diese Entität wird eingeschaltet, wenn die Bewässerung läuft.",
+    "zone_flow_sensor": "Optionaler Sensor zur Messung der tatsächlichen Durchflussrate. Wird nur zur Anzeige verwendet — beeinflusst die Dauerberechnung nicht.",
+    "general_autoupdatedelay": "Sekunden, die nach dem HA-Start bis zum ersten Abruf der Wetterdaten gewartet wird. Ermöglicht es anderen Integrationen, sich zuerst zu initialisieren.",
+    "general_sensor_debounce": "Mindestabstand in Millisekunden zwischen Sensormesswerten, um Rauschen von sich schnell ändernden Sensoren herauszufiltern.",
+    "general_calctime": "Tageszeit, zu der die Bewässerungsdauern aus den gesammelten Wetterdaten neu berechnet werden. Format: HH:MM (24-Stunden).",
+    "general_cleardatatime": "Tageszeit, zu der alte Wetterdaten gelöscht werden. Muss später als die Berechnungszeit eingestellt sein.",
+    "general_days_between": "Mindestanzahl an Tagen zwischen Bewässerungsereignissen für dieselbe Zone. Auf 0 setzen, um zu deaktivieren (bewässern, sobald ein Defizit besteht).",
+    "general_autoupdateinterval": "Wie oft Wetterdaten gesammelt werden. Wähle einen Wert, der frische Daten gegen API-Ratenbegrenzungen abwägt.",
+    "general_precipitation_threshold": "Die Bewässerung wird übersprungen, wenn der vorhergesagte Niederschlag für heute/morgen diesen Wert überschreitet.",
+    "general_temp_threshold": "Die Bewässerung wird übersprungen, wenn die aktuelle Temperatur unter diesem Wert liegt (z. B. zur Vermeidung von Frostschäden).",
+    "general_wind_threshold": "Die Bewässerung wird übersprungen, wenn die Windgeschwindigkeit diesen Wert überschreitet (starker Wind verringert die Effizienz und verursacht Abdrift)."
+  },
+  "wizard": {
+    "title": "Einrichtungsassistent",
+    "open_button": "Einrichtungsassistent",
+    "close": "Schließen",
+    "next": "Weiter",
+    "back": "Zurück",
+    "finish": "Fertigstellen",
+    "skip_step": "Diesen Schritt überspringen",
+    "step_indicator": "Schritt {current} von {total}",
+    "setup_complete_banner": "Einrichtung nicht abgeschlossen. Starte den Assistenten, um zu beginnen.",
+    "open_wizard": "Assistent öffnen",
+    "steps": {
+      "welcome": {
+        "title": "Willkommen bei Smart Irrigation",
+        "intro": "Dieser Assistent führt dich durch die vier Schritte, die nötig sind, damit deine erste Zone automatisch bewässert.",
+        "step1_label": "Wetterdienst — woher die Wetterdaten kommen",
+        "step2_label": "Berechnungsmodul — wie die Bewässerungsdauer berechnet wird",
+        "step3_label": "Sensorgruppe — welche Datenquellen verwendet werden",
+        "step4_label": "Zone — deine erste Bewässerungszone",
+        "tip": "Du kannst jeden Schritt überspringen und ihn später über den Tab „Einrichtung“ konfigurieren."
+      },
+      "weather": {
+        "title": "Wetterdienst",
+        "description": "Wähle, wie Wetterdaten bezogen werden. Open-Meteo ist kostenlos und benötigt keinen API-Schlüssel — für die meisten Nutzer die einfachste Wahl."
+      },
+      "module": {
+        "title": "Berechnungsmodul",
+        "description": "Ein Modul berechnet anhand der Evapotranspiration (ET), wie lange bewässert wird. Das PyETO-Modul (FAO-56-Methode) wird für die meisten Nutzer empfohlen.",
+        "pick_label": "Modultyp auswählen",
+        "no_modules": "Keine Modultypen verfügbar."
+      },
+      "mapping": {
+        "title": "Sensorgruppe",
+        "description": "Eine Sensorgruppe verknüpft jede Wettervariable mit einer Datenquelle. Lege die wichtigsten Variablen unten fest — einzelne Sensorzuordnungen kannst du später über den Tab „Einrichtung → Sensorgruppen“ verfeinern.",
+        "name_label": "Name der Sensorgruppe",
+        "source_label": "Datenquelle für",
+        "use_weather_service": "Wetterdienst",
+        "use_sensor": "Sensor",
+        "use_static": "Statischer Wert",
+        "use_none": "Keine / nicht verwendet"
+      },
+      "zone": {
+        "title": "Erste Zone",
+        "description": "Eine Zone ist ein Bewässerungsbereich (z. B. Rasen, Beet). Lege die physischen Eigenschaften fest, damit das System die korrekte Bewässerungsdauer berechnen kann.",
+        "name_label": "Zonenname",
+        "size_label": "Fläche",
+        "throughput_label": "Sprinkler-Durchsatz",
+        "entity_label": "Verknüpfter Schalter oder Ventil",
+        "entity_placeholder": "z. B. switch.garden_valve",
+        "module_label": "Berechnungsmodul",
+        "mapping_label": "Sensorgruppe"
+      },
+      "done": {
+        "title": "Einrichtung abgeschlossen!",
+        "description": "Deine erste Zone ist bereit. Smart Irrigation berechnet die Bewässerungsdauern nun automatisch auf Basis der Wetterdaten.",
+        "next_steps": "Was du als Nächstes tun kannst:",
+        "tip1": "Gehe zu „Zonen“, um die berechneten Dauern und Eimerwerte anzuzeigen.",
+        "tip2": "Füge über den Tab „Zonen“ weitere Zonen hinzu.",
+        "tip3": "Verfeinere alle Einstellungen über den Tab „Einrichtung“.",
+        "go_zones": "Zu „Zonen“",
+        "go_setup": "Zur Einrichtung"
+      }
+    }
   }
 }
