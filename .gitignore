@@ -50,3 +50,7 @@ Thumbs.db
 # Temporary / scratch files
 *.tmp
 *.bak
+
+# Local WSL dev helper scripts (machine-specific paths)
+_setup_wsl_env.sh
+_wsl_test.sh
