@@ -34,7 +34,6 @@ from homeassistant.helpers.event import (
     async_track_time_change,
     async_track_time_interval,
 )
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
@@ -314,22 +313,25 @@ SmartIrrigationError = const.SmartIrrigationError  # re-exported for backward co
 
 
 class SmartIrrigationCoordinator(
-    DataUpdateCoordinator,
     ServiceHandlersMixin,
     WateringCalendarMixin,
     IrrigationRunnerMixin,
     CalculationMixin,
     SkipConditionsMixin,
 ):
-    """Define an object to hold Smart Irrigation device."""
+    """Define an object to hold Smart Irrigation device.
+
+    This is a plain coordinator: it does all its own scheduling (auto
+    update/calc/clear timers, midnight tracking, debounced updates) and uses none
+    of DataUpdateCoordinator's polling API (no update_interval, no
+    _async_update_data, no listeners), so it does not inherit it.
+    """
 
     def __init__(
         self, hass: HomeAssistant, session, entry, store: SmartIrrigationStorage
     ) -> None:
         """Initialize."""
-        # Initialize the DataUpdateCoordinator base first so self.hass, self.logger
-        # and the base machinery exist before the subclass setup below uses them.
-        super().__init__(hass, _LOGGER, name=const.DOMAIN)
+        self.hass = hass
         self.id = entry.unique_id
         self.entry = entry
         self.store = store

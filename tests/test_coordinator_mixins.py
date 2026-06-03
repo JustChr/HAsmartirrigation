@@ -14,6 +14,14 @@ from custom_components.smart_irrigation.skip_conditions import SkipConditionsMix
 from custom_components.smart_irrigation.watering_calendar import WateringCalendarMixin
 
 
+def test_coordinator_is_plain_not_dataupdatecoordinator():
+    """C6: the coordinator uses none of DataUpdateCoordinator's API, so it no
+    longer inherits it."""
+    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+    assert not issubclass(SmartIrrigationCoordinator, DataUpdateCoordinator)
+
+
 def test_coordinator_inherits_all_extracted_mixins():
     for mixin in (
         ServiceHandlersMixin,
