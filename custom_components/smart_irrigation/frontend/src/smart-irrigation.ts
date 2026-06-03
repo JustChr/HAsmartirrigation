@@ -156,9 +156,9 @@ export class SmartIrrigationPanel extends LitElement {
           <smart-irrigation-view-setup
             .hass=${this.hass}
             .narrow=${this.narrow}
-            @wizard-navigate="${(e: CustomEvent) => {
-              const pg = e.detail?.page ?? "zones";
-              this.navigateToPage(pg);
+            .path=${path}
+            @open-wizard="${() => {
+              this._wizardOpen = true;
             }}"
           ></smart-irrigation-view-setup>
         `;
