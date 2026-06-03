@@ -21,29 +21,35 @@ class SmartIrrigationOptionsFlowHandler(config_entries.OptionsFlow):
         # self.config_entry = config_entry
         self.options = dict(config_entry.options)
         self._errors = {}
-        # migrate from use_owm to weather_service
+        # Base values from entry.data.
+        self._use_weather_service = config_entry.data.get(
+            const.CONF_USE_WEATHER_SERVICE
+        )
+        self._weather_service = config_entry.data.get(const.CONF_WEATHER_SERVICE)
+        self._weather_service_api_key = config_entry.data.get(
+            const.CONF_WEATHER_SERVICE_API_KEY
+        )
+
+        # Legacy use_owm migration: fill in anything entry.data didn't provide.
+        # (Previously these values were set here and then unconditionally clobbered
+        # by the blocks below with data.get(...)=None, so the migration was a no-op.)
         if "use_owm" in config_entry.data:
-            self._use_weather_service = config_entry.data.get("use_owm")
-            self._weather_service = const.CONF_WEATHER_SERVICE_OWM
-            self._weather_service_api_key = config_entry.data.get("owm_api_key")
+            if self._use_weather_service is None:
+                self._use_weather_service = config_entry.data.get("use_owm")
+            if self._weather_service is None:
+                self._weather_service = const.CONF_WEATHER_SERVICE_OWM
+            if self._weather_service_api_key is None:
+                self._weather_service_api_key = config_entry.data.get("owm_api_key")
+
+        # Options override when present (and differ — preserves the prior guard).
         if const.CONF_USE_WEATHER_SERVICE in self.options and self.options.get(
             const.CONF_USE_WEATHER_SERVICE
         ) != config_entry.data.get(const.CONF_USE_WEATHER_SERVICE):
             self._use_weather_service = self.options.get(const.CONF_USE_WEATHER_SERVICE)
-        else:
-            self._use_weather_service = config_entry.data.get(
-                const.CONF_USE_WEATHER_SERVICE
-            )
         if const.CONF_WEATHER_SERVICE in self.options:
             self._weather_service = self.options.get(const.CONF_WEATHER_SERVICE)
-        else:
-            self._weather_service = config_entry.data.get(const.CONF_WEATHER_SERVICE)
         if const.CONF_WEATHER_SERVICE_API_KEY in self.options:
             self._weather_service_api_key = self.options.get(
-                const.CONF_WEATHER_SERVICE_API_KEY
-            )
-        else:
-            self._weather_service_api_key = config_entry.data.get(
                 const.CONF_WEATHER_SERVICE_API_KEY
             )
         if self._weather_service_api_key is not None:

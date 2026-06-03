@@ -199,11 +199,6 @@ class TestSmartIrrigationOptionsFlow:
             assert result["type"] == "form"
             mock_show_step_1.assert_called()
 
-    @pytest.mark.skip(
-        reason="Reveals a real bug: __init__ sets _use_weather_service=True from the "
-        "use_owm migration, then the next block unconditionally overrides it with "
-        "data.get(CONF_USE_WEATHER_SERVICE) (=None). Fix the override, then un-skip (A6)."
-    )
     def test_options_flow_migration_from_owm(self, mock_hass):
         """Test options flow migration from old OWM config."""
         mock_config_entry = MockConfigEntry(
