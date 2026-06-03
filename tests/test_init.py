@@ -33,17 +33,25 @@ class TestSmartIrrigationIntegration:
         result = await async_setup(hass, {})
         assert result is True
 
-    @pytest.mark.skip(
-        reason="Full async_setup_entry pulls panel_custom/platform forwarding "
-        "unavailable in the bare test hass; revive when C8 reworks setup (A6)"
-    )
+    @staticmethod
+    def _sync_get_config(**extra):
+        """A sync get_config() dict the coordinator __init__ can index directly."""
+        cfg = {
+            const.CONF_AUTO_UPDATE_ENABLED: False,
+            const.CONF_AUTO_CALC_ENABLED: False,
+            const.CONF_AUTO_CLEAR_ENABLED: False,
+            const.CONF_USE_WEATHER_SERVICE: False,
+        }
+        cfg.update(extra)
+        return cfg
+
     async def test_async_setup_entry_success(
         self,
         hass: HomeAssistant,
         mock_config_entry: ConfigEntry,
-        mock_hass_config: None,
     ) -> None:
         """Test successful config entry setup."""
+        mock_config_entry.add_to_hass(hass)
         with (
             patch(
                 "custom_components.smart_irrigation.async_get_registry"
@@ -55,15 +63,18 @@ class TestSmartIrrigationIntegration:
                 "custom_components.smart_irrigation.async_register_websockets"
             ) as mock_ws,
             patch(
-                "custom_components.smart_irrigation.register_services"
+                "custom_components.smart_irrigation.async_register_services"
             ) as mock_services,
+            patch.object(
+                hass.config_entries, "async_forward_entry_setups", new=AsyncMock()
+            ),
         ):
             mock_store = AsyncMock()
             mock_store.async_get_config.return_value = {
                 const.CONF_USE_WEATHER_SERVICE: False,
                 const.CONF_WEATHER_SERVICE: None,
             }
-            mock_store.set_up_factory_defaults = AsyncMock()
+            mock_store.get_config = Mock(return_value=self._sync_get_config())
             mock_registry.return_value = mock_store
 
             result = await async_setup_entry(hass, mock_config_entry)
@@ -77,31 +88,34 @@ class TestSmartIrrigationIntegration:
             mock_ws.assert_called_once_with(hass)
             mock_services.assert_called_once_with(hass)
 
-    @pytest.mark.skip(
-        reason="Full async_setup_entry pulls panel_custom/platform forwarding "
-        "unavailable in the bare test hass; revive when C8 reworks setup (A6)"
-    )
     async def test_async_setup_entry_with_weather_service(
         self,
         hass: HomeAssistant,
         mock_weather_config_entry: ConfigEntry,
-        mock_hass_config: None,
     ) -> None:
         """Test config entry setup with weather service enabled."""
+        mock_weather_config_entry.add_to_hass(hass)
         with (
             patch(
                 "custom_components.smart_irrigation.async_get_registry"
             ) as mock_registry,
             patch("custom_components.smart_irrigation.async_register_panel"),
             patch("custom_components.smart_irrigation.async_register_websockets"),
-            patch("custom_components.smart_irrigation.register_services"),
+            patch("custom_components.smart_irrigation.async_register_services"),
+            patch.object(
+                hass.config_entries, "async_forward_entry_setups", new=AsyncMock()
+            ),
         ):
             mock_store = AsyncMock()
             mock_store.async_get_config.return_value = {
                 const.CONF_USE_WEATHER_SERVICE: True,
                 const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
             }
-            mock_store.set_up_factory_defaults = AsyncMock()
+            mock_store.get_config = Mock(
+                return_value=self._sync_get_config(
+                    **{const.CONF_USE_WEATHER_SERVICE: True}
+                )
+            )
             mock_registry.return_value = mock_store
 
             result = await async_setup_entry(hass, mock_weather_config_entry)
