@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Adding...",
       "saving": "Saving..."
+    },
+    "errors": {
+      "load_failed": "Couldn't load data",
+      "save_failed": "Couldn't save changes",
+      "delete_failed": "Couldn't delete",
+      "action_failed": "Action failed"
     }
   },
   "defaults": {

@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Hinzufügen...",
       "saving": "Speichern..."
+    },
+    "errors": {
+      "load_failed": "Daten konnten nicht geladen werden",
+      "save_failed": "Änderungen konnten nicht gespeichert werden",
+      "delete_failed": "Löschen fehlgeschlagen",
+      "action_failed": "Aktion fehlgeschlagen"
     }
   },
   "defaults": {

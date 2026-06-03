@@ -33,7 +33,12 @@ import {
   SmartIrrigationMapping,
   WeatherRecord,
 } from "../../types";
-import { output_unit } from "../../helpers";
+import {
+  output_unit,
+  extractErrorMessage,
+  showToast,
+  showErrorToast,
+} from "../../helpers";
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
 import {
@@ -110,13 +115,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   @property()
   private _newZoneThroughput = "";
 
-  private _extractErrorMessage(err: unknown): string {
-    if (!err) return "Unknown error";
-    if (typeof err === "string") return err;
-    const e = err as any;
-    return e?.body?.message || e?.message || e?.error || JSON.stringify(err);
-  }
-
   private _updateScheduled = false;
   private _scheduleUpdate() {
     if (this._updateScheduled) return;
@@ -180,6 +178,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       this._fetchWeatherRecords();
     } catch (error) {
       console.error("Error fetching data:", error);
+      showErrorToast(this, this.hass, "common.errors.load_failed", error);
     } finally {
       if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
@@ -191,7 +190,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     calculateAllZones(this.hass)
-      .catch((error) => console.error("Failed to calculate all zones:", error))
+      .catch((error) => {
+        console.error("Failed to calculate all zones:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -205,7 +207,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     updateAllZones(this.hass)
-      .catch((error) => console.error("Failed to update all zones:", error))
+      .catch((error) => {
+        console.error("Failed to update all zones:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -219,7 +224,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     resetAllBuckets(this.hass)
-      .catch((error) => console.error("Failed to reset all buckets:", error))
+      .catch((error) => {
+        console.error("Failed to reset all buckets:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -233,9 +241,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     clearAllWeatherdata(this.hass)
-      .catch((error) =>
-        console.error("Failed to clear all weather data:", error),
-      )
+      .catch((error) => {
+        console.error("Failed to clear all weather data:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -281,6 +290,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       .catch((error) => {
         console.error("Failed to add zone:", error);
         this.zones = this.zones.slice(0, -1);
+        showErrorToast(this, this.hass, "common.errors.save_failed", error);
       })
       .finally(() => {
         this.isSaving = false;
@@ -302,7 +312,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.globalDebounceTimer = window.setTimeout(() => {
       this.isSaving = true;
       this.saveToHA(updatedZone)
-        .catch((error) => console.error("Failed to save zone:", error))
+        .catch((error) => {
+          console.error("Failed to save zone:", error);
+          showErrorToast(this, this.hass, "common.errors.save_failed", error);
+        })
         .finally(() => {
           this.isSaving = false;
           this._scheduleUpdate();
@@ -332,6 +345,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     deleteZone(this.hass, zoneId.toString())
       .catch((error) => {
         console.error("Failed to delete zone:", error);
+        showErrorToast(this, this.hass, "common.errors.delete_failed", error);
         this.zones = originalZones;
         this._fetchData().catch((e) =>
           console.error("Failed to refresh data after delete error:", e),
@@ -341,19 +355,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         this.isSaving = false;
         this._scheduleUpdate();
       });
-  }
-
-  private _showToast(message: string): void {
-    // Fire HA's global toast notification (same payload as fireEvent's
-    // "hass-notification", dispatched directly to avoid the typed-event
-    // constraint in custom-card-helpers).
-    this.dispatchEvent(
-      new CustomEvent("hass-notification", {
-        detail: { message },
-        bubbles: true,
-        composed: true,
-      }),
-    );
   }
 
   // Number of zones an "irrigate all" would actually start (linked + duration).
@@ -377,13 +378,15 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
     try {
       await irrigateNow(this.hass, isAll ? undefined : target);
-      this._showToast(
+      showToast(
+        this,
         `${localize("panels.zones.confirm_irrigate.toast_started", this.hass.language)} ${label}`,
       );
     } catch (err) {
-      const msg = this._extractErrorMessage(err);
+      const msg = extractErrorMessage(err);
       console.error("irrigate_now failed", err);
-      this._showToast(
+      showToast(
+        this,
         `${localize("panels.zones.confirm_irrigate.toast_failed", this.hass.language)}: ${msg}`,
       );
     }
@@ -397,7 +400,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this._scheduleUpdate();
     calculateZone(this.hass, zone.id.toString())
       .catch((err) => {
-        const msg = this._extractErrorMessage(err);
+        const msg = extractErrorMessage(err);
         console.error("calculateZone failed:", err);
         this._operationError = msg;
       })
@@ -417,7 +420,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this._scheduleUpdate();
     updateZone(this.hass, zone.id.toString())
       .catch((err) => {
-        const msg = this._extractErrorMessage(err);
+        const msg = extractErrorMessage(err);
         console.error("updateZone failed:", err);
         this._operationError = msg;
       })

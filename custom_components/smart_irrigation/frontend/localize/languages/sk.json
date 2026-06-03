@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Pridávanie...",
       "saving": "Ukladanie..."
+    },
+    "errors": {
+      "load_failed": "Údaje sa nepodarilo načítať",
+      "save_failed": "Zmeny sa nepodarilo uložiť",
+      "delete_failed": "Nepodarilo sa odstrániť",
+      "action_failed": "Akcia zlyhala"
     }
   },
   "defaults": {

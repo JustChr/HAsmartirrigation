@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Toevoegen...",
       "saving": "Opslaan..."
+    },
+    "errors": {
+      "load_failed": "Kan gegevens niet laden",
+      "save_failed": "Kan wijzigingen niet opslaan",
+      "delete_failed": "Kan niet verwijderen",
+      "action_failed": "Actie mislukt"
     }
   },
   "defaults": {

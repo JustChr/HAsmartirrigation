@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Legger til...",
       "saving": "Lagrer..."
+    },
+    "errors": {
+      "load_failed": "Kunne ikke laste data",
+      "save_failed": "Kunne ikke lagre endringene",
+      "delete_failed": "Kunne ikke slette",
+      "action_failed": "Handlingen mislyktes"
     }
   },
   "defaults": {

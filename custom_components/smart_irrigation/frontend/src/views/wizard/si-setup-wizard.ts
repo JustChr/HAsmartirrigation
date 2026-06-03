@@ -28,6 +28,7 @@ import {
 } from "../../const";
 import { localize } from "../../../localize/localize";
 import { globalStyle } from "../../styles/global-style";
+import { extractErrorMessage } from "../../helpers";
 import {
   CONF_WEATHER_SERVICE_OPENMETEO,
   CONF_WEATHER_SERVICE_OWM,
@@ -118,6 +119,7 @@ export class SiSetupWizard extends LitElement {
         weatherCfg.weather_service ?? CONF_WEATHER_SERVICE_OPENMETEO;
     } catch (e) {
       console.error("Wizard: failed to load initial data", e);
+      this._error = extractErrorMessage(e);
     }
     this.requestUpdate();
   }

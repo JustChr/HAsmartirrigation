@@ -47,6 +47,7 @@ import {
 } from "./const";
 import { Dictionary } from "./types";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { localize } from "../localize/localize";
 
 export function getDomain(entity: string | HassEntity) {
   const entity_id: string =
@@ -326,3 +327,40 @@ export const navigate = (
     replace,
   });
 };
+
+/** Best-effort extraction of a human-readable message from a thrown value. */
+export function extractErrorMessage(err: unknown): string {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  const e = err as any;
+  return e?.body?.message || e?.message || e?.error || JSON.stringify(err);
+}
+
+/**
+ * Fire Home Assistant's global toast (hass-notification). Dispatched directly
+ * rather than via fireEvent because custom-card-helpers' typed event map does
+ * not include "hass-notification".
+ */
+export function showToast(node: HTMLElement, message: string): void {
+  node.dispatchEvent(
+    new CustomEvent("hass-notification", {
+      detail: { message },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
+/**
+ * Show a localized error toast: "<localized prefix>: <error detail>".
+ * `prefixKey` is a localize key such as "common.errors.save_failed".
+ */
+export function showErrorToast(
+  node: HTMLElement,
+  hass: HomeAssistant | undefined,
+  prefixKey: string,
+  err: unknown,
+): void {
+  const lang = hass?.language ?? "en";
+  showToast(node, `${localize(prefixKey, lang)}: ${extractErrorMessage(err)}`);
+}
