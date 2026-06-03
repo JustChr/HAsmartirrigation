@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -42,180 +42,89 @@ class TestSensorPlatform:
             mock_connect.assert_called()
 
 
-# Quarantined during the test-tree consolidation (refactor plan A6). These tests
-# build SmartIrrigationZoneEntity with a `config=` kwarg and zone keys (id, size,
-# duration, ...) that no longer match the current entity constructor. They were
-# never run by the old CI. Revive when the sensor/entity layer is revisited.
-@pytest.mark.skip(reason="Outdated entity constructor; revive in Phase C (A6)")
 class TestSmartIrrigationZoneEntity:
-    """Test SmartIrrigationZoneEntity."""
+    """Test SmartIrrigationZoneEntity.
 
-    def test_entity_creation(
-        self,
-        hass: HomeAssistant,
-        mock_zone_config: dict,
-    ) -> None:
-        """Test zone entity creation."""
-        entity_id = f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
+    Rewritten in A6 for the current constructor (individual args, not a config
+    dict) and the current entity behavior (attributes come from constructor args;
+    device_info is per-integration; native_value is the duration).
+    """
 
-        entity = SmartIrrigationZoneEntity(
-            hass=hass,
-            entity_id=entity_id,
-            config=mock_zone_config,
-        )
+    @staticmethod
+    def _make_entity(hass, **overrides):
+        args = {
+            "hass": hass,
+            "id": "1",
+            "name": "Test Zone",
+            "entity_id": f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone",
+            "size": 100.0,
+            "throughput": 10.0,
+            "state": "automatic",
+            "duration": 300,
+            "bucket": 5.5,
+            "last_updated": None,
+            "last_calculated": None,
+            "number_of_data_points": 3,
+            "delta": 2.3,
+            "drainage_rate": 0.0,
+            "current_drainage": 0.0,
+            "multiplier": 1.0,
+            "lead_time": 0,
+            "maximum_duration": 3600,
+            "maximum_bucket": 10.0,
+        }
+        args.update(overrides)
+        return SmartIrrigationZoneEntity(**args)
 
-        assert entity.entity_id == entity_id
-        assert entity.name == mock_zone_config["name"]
-        assert entity._attr_unique_id is not None
+    def test_entity_creation(self, hass: HomeAssistant) -> None:
+        """Construction sets identity from the constructor args."""
+        entity = self._make_entity(hass)
+        assert entity.entity_id == f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
+        assert entity.name == "Test Zone"
+        assert entity.unique_id == entity.entity_id
 
-    def test_entity_properties(
-        self,
-        hass: HomeAssistant,
-        mock_zone_config: dict,
-    ) -> None:
-        """Test zone entity properties."""
-        entity_id = f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
-
-        entity = SmartIrrigationZoneEntity(
-            hass=hass,
-            entity_id=entity_id,
-            config=mock_zone_config,
-        )
-
-        # Test basic properties
+    def test_basic_properties(self, hass: HomeAssistant) -> None:
+        """should_poll/native_value/device_class reflect the duration sensor."""
+        entity = self._make_entity(hass, duration=420)
         assert entity.should_poll is False
-        assert entity.available is True
+        assert entity.native_value == 420
+        assert entity.device_class == SensorDeviceClass.DURATION
 
-        # Test device info
-        device_info = entity.device_info
-        assert device_info is not None
-        assert device_info["identifiers"] == {(const.DOMAIN, "test_zone")}
-        assert device_info["name"] == "Test Zone"
-        assert device_info["manufacturer"] == const.MANUFACTURER
-
-    async def test_entity_state_update(
-        self,
-        hass: HomeAssistant,
-        mock_zone_config: dict,
-    ) -> None:
-        """Test zone entity state updates."""
-        entity_id = f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
-
-        entity = SmartIrrigationZoneEntity(
-            hass=hass,
-            entity_id=entity_id,
-            config=mock_zone_config,
+    def test_extra_state_attributes(self, hass: HomeAssistant) -> None:
+        """Attributes reflect the constructor args."""
+        entity = self._make_entity(
+            hass,
+            bucket=7.2,
+            size=150.0,
+            throughput=12.0,
+            multiplier=1.5,
+            lead_time=30,
+            maximum_duration=1800,
         )
+        attrs = entity.extra_state_attributes
+        assert attrs["bucket"] == 7.2
+        assert attrs["size"] == 150.0
+        assert attrs["throughput"] == 12.0
+        assert attrs["multiplier"] == 1.5
+        assert attrs["lead_time"] == 30
+        assert attrs["maximum_duration"] == 1800
+        assert attrs["state"] == "automatic"
 
-        # Mock state update
-        with patch.object(entity, "async_write_ha_state") as mock_write_state:
-            entity.bucket = 10.5
-            entity.async_write_ha_state()
-            mock_write_state.assert_called_once()
+    def test_device_info(self, hass: HomeAssistant) -> None:
+        """device_info is per-integration (one device for all zones)."""
+        info = self._make_entity(hass).device_info
+        assert info["identifiers"] == {(const.DOMAIN, "smart_irrigation")}
+        assert info["name"] == const.NAME
+        assert info["model"] == const.NAME
+        assert info["manufacturer"] == const.MANUFACTURER
 
-    def test_entity_attributes(
-        self,
-        hass: HomeAssistant,
-        mock_zone_config: dict,
-    ) -> None:
-        """Test zone entity extra state attributes."""
-        entity_id = f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
-
-        entity = SmartIrrigationZoneEntity(
-            hass=hass,
-            entity_id=entity_id,
-            config=mock_zone_config,
-        )
-
-        # Set some test values
-        entity.bucket = 5.5
-        entity.netto_precipitation = 2.3
-        entity.evapotranspiration = 3.2
-        entity.throughput = 10.0
-        entity.size = 100
-
-        attributes = entity.extra_state_attributes
-
-        assert attributes["bucket"] == 5.5
-        assert attributes["netto_precipitation"] == 2.3
-        assert attributes["evapotranspiration"] == 3.2
-        assert attributes["throughput"] == 10.0
-        assert attributes["size"] == 100
-
-    async def test_entity_async_added_to_hass(
-        self,
-        hass: HomeAssistant,
-        mock_zone_config: dict,
-    ) -> None:
-        """Test entity added to Home Assistant."""
-        entity_id = f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
-
-        entity = SmartIrrigationZoneEntity(
-            hass=hass,
-            entity_id=entity_id,
-            config=mock_zone_config,
-        )
-
-        with patch(
-            "custom_components.smart_irrigation.sensor.async_dispatcher_connect"
-        ) as mock_connect:
-            await entity.async_added_to_hass()
-            mock_connect.assert_called()
-
-    async def test_entity_async_will_remove_from_hass(
-        self,
-        hass: HomeAssistant,
-        mock_zone_config: dict,
-    ) -> None:
-        """Test entity removal from Home Assistant."""
-        entity_id = f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
-
-        entity = SmartIrrigationZoneEntity(
-            hass=hass,
-            entity_id=entity_id,
-            config=mock_zone_config,
-        )
-
-        # Mock unsubscriber
-        entity._unsubscriber = Mock()
-
-        await entity.async_will_remove_from_hass()
-
-        entity._unsubscriber.assert_called_once()
-
-    def test_async_handle_unit_system_change(
-        self,
-        hass: HomeAssistant,
-        mock_zone_config: dict,
-    ) -> None:
-        """Test unit system change handling in sensor entity."""
-        entity_id = f"{SENSOR_DOMAIN}.{const.DOMAIN}_test_zone"
-
-        entity = SmartIrrigationZoneEntity(
-            hass=hass,
-            entity_id=entity_id,
-            name=mock_zone_config["name"],
-            id=mock_zone_config["id"],
-            size=mock_zone_config["size"],
-            throughput=mock_zone_config["throughput"],
-            state=mock_zone_config["state"],
-            duration=mock_zone_config["duration"],
-            bucket=mock_zone_config["bucket"],
-            last_updated=mock_zone_config["last_updated"],
-            last_calculated=mock_zone_config["last_calculated"],
-            number_of_data_points=mock_zone_config["number_of_data_points"],
-            delta=mock_zone_config["delta"],
-            drainage_rate=mock_zone_config["drainage_rate"],
-            current_drainage=mock_zone_config["current_drainage"],
-        )
-
-        # Mock the async_schedule_update_ha_state method
+    def test_async_handle_unit_system_change(self, hass: HomeAssistant) -> None:
+        """The unit-system-change handler schedules a forced state refresh."""
+        entity = self._make_entity(hass)
         entity.async_schedule_update_ha_state = Mock()
 
-        # Call the unit system change handler
         entity.async_handle_unit_system_change()
 
-        # Verify state update was scheduled
         entity.async_schedule_update_ha_state.assert_called_once_with(
             force_refresh=True
         )

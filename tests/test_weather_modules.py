@@ -5,6 +5,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from freezegun import freeze_time
 
 from custom_components.smart_irrigation.const import (
     MAPPING_CURRENT_PRECIPITATION,
@@ -154,25 +155,16 @@ class TestOWMClientGetForecastData:
             "list": [slot(self._TOMORROW_TS), slot(self._DAY2_TS)],
         }
 
-    @pytest.mark.skip(
-        reason="datetime.datetime mock recurses (datetime.datetime.utcfromtimestamp "
-        "self-references the patch); revive in Phase C (A6)"
-    )
+    @freeze_time("2024-06-01 06:00:00")
     def test_returns_daily_entries(self):
+        # "today" is frozen to 2024-06-01; the forecast slots are 06-02 and 06-03,
+        # so both are future days and get returned. freeze_time leaves
+        # utcfromtimestamp() working on the real slot timestamps.
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
-        with (
-            patch(
-                "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
-                return_value=_make_response(200, self._forecast_body()),
-            ),
-            patch(
-                "custom_components.smart_irrigation.weathermodules.OWMClient.datetime.datetime"
-            ) as mock_dt,
+        with patch(
+            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            return_value=_make_response(200, self._forecast_body()),
         ):
-            mock_dt.utcnow.return_value = datetime.datetime(2024, 6, 1, 6, 0, 0)
-            mock_dt.utcfromtimestamp.side_effect = datetime.datetime.utcfromtimestamp
-            mock_dt.now.return_value = datetime.datetime(2024, 6, 1, 6, 0, 0)
-            mock_dt.return_value = datetime.datetime(1900, 1, 1, 0, 0, 0)
             data = client.get_forecast_data()
 
         assert data is not None
@@ -182,10 +174,7 @@ class TestOWMClientGetForecastData:
         assert data[0][MAPPING_MAX_TEMP] == pytest.approx(22.0)
         assert data[0][MAPPING_PRECIPITATION] == pytest.approx(1.2)
 
-    @pytest.mark.skip(
-        reason="datetime.datetime mock recurses (datetime.datetime.utcfromtimestamp "
-        "self-references the patch); revive in Phase C (A6)"
-    )
+    @freeze_time("2024-06-01 06:00:00")
     def test_today_excluded(self):
         today_ts = int(
             datetime.datetime(
@@ -220,21 +209,13 @@ class TestOWMClientGetForecastData:
             ],
         }
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
-        with (
-            patch(
-                "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
-                return_value=_make_response(200, body),
-            ),
-            patch(
-                "custom_components.smart_irrigation.weathermodules.OWMClient.datetime.datetime"
-            ) as mock_dt,
+        with patch(
+            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            return_value=_make_response(200, body),
         ):
-            mock_dt.utcnow.return_value = datetime.datetime(2024, 6, 1, 6, 0, 0)
-            mock_dt.utcfromtimestamp.side_effect = datetime.datetime.utcfromtimestamp
-            mock_dt.now.return_value = datetime.datetime(2024, 6, 1, 6, 0, 0)
-            mock_dt.return_value = datetime.datetime(1900, 1, 1, 0, 0, 0)
             data = client.get_forecast_data()
 
+        # the 06-01 slot is "today" and excluded; only the 06-02 slot remains
         assert data is not None
         assert len(data) == 1
         assert data[0][MAPPING_TEMPERATURE] == pytest.approx(18.0)
