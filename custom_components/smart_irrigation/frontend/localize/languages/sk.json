@@ -321,7 +321,14 @@
         "flow_sensor_placeholder": "napr. sensor.zone_flow_rate"
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
-      "title": "Zóny"
+      "title": "Zóny",
+      "confirm_irrigate": {
+        "title": "Spustiť zavlažovanie?",
+        "body": "Týmto sa teraz otvoria prepojené ventily a obídu sa všetky podmienky preskočenia (dážď, teplota, minimálny počet dní medzi zavlažovaniami).",
+        "all_linked_zones": "Všetky prepojené zóny",
+        "toast_started": "Zavlažovanie spustené",
+        "toast_failed": "Zavlažovanie zlyhalo"
+      }
     },
     "schedules": {
       "title": "Plány",

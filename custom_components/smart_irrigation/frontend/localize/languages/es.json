@@ -322,7 +322,14 @@
         "flow_sensor_placeholder": "p. ej. sensor.zone_flow_rate"
       },
       "no_items": "Aún no hay zonas definidas.",
-      "title": "Zonas"
+      "title": "Zonas",
+      "confirm_irrigate": {
+        "title": "¿Iniciar el riego?",
+        "body": "Esto abrirá ahora las válvulas vinculadas e ignora todas las condiciones de exclusión (lluvia, temperatura, días mínimos entre riegos).",
+        "all_linked_zones": "Todas las zonas vinculadas",
+        "toast_started": "Riego iniciado",
+        "toast_failed": "Error en el riego"
+      }
     },
     "schedules": {
       "title": "Programas",

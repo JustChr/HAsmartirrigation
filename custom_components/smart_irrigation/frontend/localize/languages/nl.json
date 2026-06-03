@@ -321,7 +321,14 @@
         "flow_sensor_placeholder": "bijv. sensor.zone_flow_rate"
       },
       "no_items": "Er zijn nog geen zones.",
-      "title": "Zones"
+      "title": "Zones",
+      "confirm_irrigate": {
+        "title": "Irrigatie starten?",
+        "body": "Dit opent nu de gekoppelde klep(pen) en negeert alle uitsluitingsvoorwaarden (regen, temperatuur, minimaal aantal dagen tussen beurten).",
+        "all_linked_zones": "Alle gekoppelde zones",
+        "toast_started": "Irrigatie gestart",
+        "toast_failed": "Irrigatie mislukt"
+      }
     },
     "schedules": {
       "title": "Schema's",

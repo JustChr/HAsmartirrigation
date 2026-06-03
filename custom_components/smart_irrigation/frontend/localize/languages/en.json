@@ -415,7 +415,14 @@
         "bucket_threshold": "Minimum deficit to irrigate"
       },
       "no_items": "There are no zones defined yet.",
-      "title": "Zones"
+      "title": "Zones",
+      "confirm_irrigate": {
+        "title": "Start irrigation?",
+        "body": "This opens the linked valve(s) now and bypasses all skip conditions (rain, temperature, minimum days between watering).",
+        "all_linked_zones": "All linked zones",
+        "toast_started": "Irrigation started",
+        "toast_failed": "Irrigation failed"
+      }
     }
   },
   "title": "Smart Irrigation",

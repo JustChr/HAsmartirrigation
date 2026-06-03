@@ -323,7 +323,14 @@
         "flow_sensor_placeholder": "p. ex. sensor.zone_flow_rate"
       },
       "no_items": "Il n'y a pas encore de zone définie.",
-      "title": "Zones"
+      "title": "Zones",
+      "confirm_irrigate": {
+        "title": "Démarrer l'arrosage ?",
+        "body": "Ceci ouvre maintenant la ou les vannes liées et ignore toutes les conditions d'exclusion (pluie, température, nombre minimal de jours entre les arrosages).",
+        "all_linked_zones": "Toutes les zones liées",
+        "toast_started": "Arrosage démarré",
+        "toast_failed": "Échec de l'arrosage"
+      }
     },
     "schedules": {
       "title": "Planifications",

@@ -321,7 +321,14 @@
         "flow_sensor_placeholder": "z. B. sensor.zone_flow_rate"
       },
       "no_items": "Es ist noch keine Zone vorhanden.",
-      "title": "Zonen"
+      "title": "Zonen",
+      "confirm_irrigate": {
+        "title": "Bewässerung starten?",
+        "body": "Dies öffnet jetzt die verknüpften Ventile und umgeht alle Ausschlussbedingungen (Regen, Temperatur, Mindestabstand zwischen Bewässerungen).",
+        "all_linked_zones": "Alle verknüpften Zonen",
+        "toast_started": "Bewässerung gestartet",
+        "toast_failed": "Bewässerung fehlgeschlagen"
+      }
     },
     "schedules": {
       "title": "Zeitpläne",

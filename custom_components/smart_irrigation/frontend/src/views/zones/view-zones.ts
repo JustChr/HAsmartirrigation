@@ -95,6 +95,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
   @state() private _operationError: string | null = null;
 
+  // Pending irrigate confirmation: "all", a zone id (string), or null.
+  @state() private _confirmIrrigate: string | null = null;
+
   @property()
   private _confirmDeleteZoneId: number | null = null;
 
@@ -338,6 +341,52 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         this.isSaving = false;
         this._scheduleUpdate();
       });
+  }
+
+  private _showToast(message: string): void {
+    // Fire HA's global toast notification (same payload as fireEvent's
+    // "hass-notification", dispatched directly to avoid the typed-event
+    // constraint in custom-card-helpers).
+    this.dispatchEvent(
+      new CustomEvent("hass-notification", {
+        detail: { message },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  // Number of zones an "irrigate all" would actually start (linked + duration).
+  private get _linkedZoneCount(): number {
+    return this.zones.filter((z) => z.linked_entity && (z.duration ?? 0) > 0)
+      .length;
+  }
+
+  private async _doIrrigate(): Promise<void> {
+    const target = this._confirmIrrigate;
+    this._confirmIrrigate = null;
+    if (target === null || !this.hass) return;
+
+    const isAll = target === "all";
+    const zone = isAll
+      ? undefined
+      : this.zones.find((z) => z.id?.toString() === target);
+    const label = isAll
+      ? `(${this._linkedZoneCount})`
+      : `: ${zone?.name ?? target}`;
+
+    try {
+      await irrigateNow(this.hass, isAll ? undefined : target);
+      this._showToast(
+        `${localize("panels.zones.confirm_irrigate.toast_started", this.hass.language)} ${label}`,
+      );
+    } catch (err) {
+      const msg = this._extractErrorMessage(err);
+      console.error("irrigate_now failed", err);
+      this._showToast(
+        `${localize("panels.zones.confirm_irrigate.toast_failed", this.hass.language)}: ${msg}`,
+      );
+    }
   }
 
   private handleCalculateZone(index: number): void {
@@ -742,11 +791,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   class="action-btn"
                   raised
                   @click="${() => {
-                    if (!this.hass) return;
-                    irrigateNow(
-                      this.hass,
-                      zone.id !== undefined ? zone.id.toString() : undefined,
-                    ).catch((e) => console.error("irrigate_now failed", e));
+                    if (zone.id !== undefined) {
+                      this._confirmIrrigate = zone.id.toString();
+                    }
                   }}"
                   ?disabled="${this.isSaving}"
                 >
@@ -1327,10 +1374,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             class="action-btn"
             raised
             @click="${() => {
-              if (!this.hass) return;
-              irrigateNow(this.hass).catch((e) =>
-                console.error("irrigate_now failed", e),
-              );
+              this._confirmIrrigate = "all";
             }}"
             ?disabled="${!hasLinkedZones || this.isSaving}"
           >
@@ -1468,6 +1512,57 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   @click="${this._confirmDelete}"
                 >
                   ${localize("common.actions.delete", this.hass.language)}
+                </button>
+              </div>
+            </ha-dialog>
+          `
+        : ""}
+
+      <!-- Irrigate confirmation dialog -->
+      ${this._confirmIrrigate !== null
+        ? html`
+            <ha-dialog
+              open
+              @closed="${() => {
+                this._confirmIrrigate = null;
+              }}"
+              heading="${localize(
+                "panels.zones.confirm_irrigate.title",
+                this.hass.language,
+              )}"
+            >
+              <p>
+                ${localize(
+                  "panels.zones.confirm_irrigate.body",
+                  this.hass.language,
+                )}
+              </p>
+              <p>
+                <strong>
+                  ${this._confirmIrrigate === "all"
+                    ? `${localize("panels.zones.confirm_irrigate.all_linked_zones", this.hass.language)} (${this._linkedZoneCount})`
+                    : (this.zones.find(
+                        (z) => z.id?.toString() === this._confirmIrrigate,
+                      )?.name ?? this._confirmIrrigate)}
+                </strong>
+              </p>
+              <div class="dialog-footer">
+                <button
+                  class="dialog-btn"
+                  @click="${() => {
+                    this._confirmIrrigate = null;
+                  }}"
+                >
+                  ${localize("common.actions.cancel", this.hass.language)}
+                </button>
+                <button
+                  class="dialog-btn dialog-btn-primary"
+                  @click="${this._doIrrigate}"
+                >
+                  ${localize(
+                    "panels.zones.labels.irrigate_now",
+                    this.hass.language,
+                  )}
                 </button>
               </div>
             </ha-dialog>
