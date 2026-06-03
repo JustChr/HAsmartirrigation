@@ -251,6 +251,28 @@
     padding: 20px;
     color: var(--primary-text-color);
     font-style: italic;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Lightweight CSS spinner — avoids depending on ha-circular-progress /
+     ha-spinner, whose element name changed across HA versions. */
+  .loading-indicator::before {
+    content: "";
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid var(--divider-color, rgba(127, 127, 127, 0.3));
+    border-top-color: var(--primary-color);
+    animation: si-spin 0.8s linear infinite;
+  }
+
+  @keyframes si-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .saving {
@@ -1235,7 +1257,9 @@ i.version="2.30.1",n(Ya),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
     `;}render(){var e,t,a,i;if(!this.hass)return W``;if(this.isLoading)return W`
         <ha-card header="${Es("panels.zones.title",this.hass.language)}">
           <div class="card-content">
-            ${Es("common.loading-messages.general",this.hass.language)}...
+            <div class="loading-indicator">
+              ${Es("common.loading-messages.general",this.hass.language)}
+            </div>
           </div>
         </ha-card>
       `;const n=null!==this._confirmDeleteZoneId?this.zones.find(e=>e.id===this._confirmDeleteZoneId):null,s=this.zones.some(e=>{var t;return e.linked_entity&&(null!==(t=e.duration)&&void 0!==t?t:0)>0;}),r=0===this.zones.length&&0===this.modules.length&&0===this.mappings.length;return W`
@@ -2868,7 +2892,9 @@ i.version="2.30.1",n(Ya),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
           header="${Es("panels.mappings.title",this.hass.language)}"
         >
           <div class="card-content">
-            ${Es("common.loading-messages.general",this.hass.language)}
+            <div class="loading-indicator">
+              ${Es("common.loading-messages.general",this.hass.language)}
+            </div>
           </div>
         </ha-card>
       `:W`
