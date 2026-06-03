@@ -376,29 +376,6 @@
         "edit_title": "Zeitplan bearbeiten"
       }
     },
-    "adjustments": {
-      "title": "Saisonale Anpassungen",
-      "description": "Monatsbasierte Multiplikator- oder Schwellenwertanpassungen für saisonale Bedingungen.",
-      "add": "Anpassung hinzufügen",
-      "no_items": "Noch keine saisonalen Anpassungen konfiguriert.",
-      "zones_all": "Alle Zonen",
-      "zones_specific": "Bestimmte Zonen",
-      "multiplier_hint": "1,0 = keine Änderung, 1,5 = 50% mehr Bewässerung, 0,5 = 50% weniger",
-      "threshold_hint": "Wird zum Zoneneimer addiert. Positiv = mehr Wasser nötig, negativ = weniger.",
-      "fields": {
-        "name": "Name",
-        "enabled": "Aktiviert",
-        "month_start": "Von Monat",
-        "month_end": "Bis Monat",
-        "multiplier_adjustment": "Multiplikatoranpassung",
-        "threshold_adjustment": "Schwellenwertanpassung (mm)",
-        "zones": "Zonen"
-      },
-      "dialog": {
-        "add_title": "Saisonale Anpassung hinzufügen",
-        "edit_title": "Saisonale Anpassung bearbeiten"
-      }
-    },
     "info": {
       "title": "Info",
       "description": "Nächste Bewässerung und Systemstatus anzeigen.",

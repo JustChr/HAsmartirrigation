@@ -3,7 +3,7 @@
 Extracted from __init__.py (Phase C1). The handlers live on a mixin that the
 SmartIrrigationCoordinator inherits, so their bodies are unchanged — they still
 use ``self`` to reach coordinator state (store, hass, calc/update helpers, the
-schedule/seasonal/IU managers). ``async_register_services`` wires each HA service
+schedule/IU managers). ``async_register_services`` wires each HA service
 to the matching handler.
 """
 
@@ -275,59 +275,6 @@ class ServiceHandlersMixin:
             _LOGGER.error("Failed to delete recurring schedule: %s", e)
             raise
 
-    async def handle_create_seasonal_adjustment(self, call):
-        """Create seasonal adjustment service handler."""
-        adjustment_data = dict(call.data)
-        _LOGGER.info(
-            "Create seasonal adjustment service called: %s",
-            adjustment_data.get("name", "Unnamed"),
-        )
-
-        try:
-            await self.seasonal_adjustment_manager.async_create_adjustment(
-                adjustment_data
-            )
-            _LOGGER.info("Successfully created seasonal adjustment")
-        except Exception as e:
-            _LOGGER.error("Failed to create seasonal adjustment: %s", e)
-            raise
-
-    async def handle_update_seasonal_adjustment(self, call):
-        """Update seasonal adjustment service handler."""
-        adjustment_id = call.data.get("adjustment_id")
-        adjustment_data = dict(call.data)
-        adjustment_data.pop("adjustment_id", None)
-
-        _LOGGER.info(
-            "Update seasonal adjustment service called for ID: %s", adjustment_id
-        )
-
-        try:
-            await self.seasonal_adjustment_manager.async_update_adjustment(
-                adjustment_id, adjustment_data
-            )
-            _LOGGER.info("Successfully updated seasonal adjustment")
-        except Exception as e:
-            _LOGGER.error("Failed to update seasonal adjustment: %s", e)
-            raise
-
-    async def handle_delete_seasonal_adjustment(self, call):
-        """Delete seasonal adjustment service handler."""
-        adjustment_id = call.data.get("adjustment_id")
-
-        _LOGGER.info(
-            "Delete seasonal adjustment service called for ID: %s", adjustment_id
-        )
-
-        try:
-            await self.seasonal_adjustment_manager.async_delete_adjustment(
-                adjustment_id
-            )
-            _LOGGER.info("Successfully deleted seasonal adjustment")
-        except Exception as e:
-            _LOGGER.error("Failed to delete seasonal adjustment: %s", e)
-            raise
-
     # Irrigation Unlimited Integration Service Handlers
     async def handle_sync_with_irrigation_unlimited(self, call):
         """Sync with Irrigation Unlimited service handler."""
@@ -503,24 +450,6 @@ def async_register_services(hass: HomeAssistant):
         const.DOMAIN,
         const.SERVICE_DELETE_RECURRING_SCHEDULE,
         coordinator.handle_delete_recurring_schedule,
-    )
-
-    hass.services.async_register(
-        const.DOMAIN,
-        const.SERVICE_CREATE_SEASONAL_ADJUSTMENT,
-        coordinator.handle_create_seasonal_adjustment,
-    )
-
-    hass.services.async_register(
-        const.DOMAIN,
-        const.SERVICE_UPDATE_SEASONAL_ADJUSTMENT,
-        coordinator.handle_update_seasonal_adjustment,
-    )
-
-    hass.services.async_register(
-        const.DOMAIN,
-        const.SERVICE_DELETE_SEASONAL_ADJUSTMENT,
-        coordinator.handle_delete_seasonal_adjustment,
     )
 
     # Irrigation Unlimited integration services

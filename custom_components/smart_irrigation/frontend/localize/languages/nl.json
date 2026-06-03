@@ -376,29 +376,6 @@
         "edit_title": "Schema bewerken"
       }
     },
-    "adjustments": {
-      "title": "Seizoensaanpassingen",
-      "description": "Maandelijkse aanpassingen van vermenigvuldiger of drempel voor seizoensomstandigheden.",
-      "add": "Aanpassing toevoegen",
-      "no_items": "Nog geen seizoensaanpassingen geconfigureerd.",
-      "zones_all": "Alle zones",
-      "zones_specific": "Specifieke zones",
-      "multiplier_hint": "1,0 = geen wijziging, 1,5 = 50% meer bewatering, 0,5 = 50% minder",
-      "threshold_hint": "Toegevoegd aan de zone-emmer. Positief = meer water nodig, negatief = minder.",
-      "fields": {
-        "name": "Naam",
-        "enabled": "Ingeschakeld",
-        "month_start": "Vanaf maand",
-        "month_end": "Tot maand",
-        "multiplier_adjustment": "Vermenigvuldigeraanpassing",
-        "threshold_adjustment": "Drempelaanpassing (mm)",
-        "zones": "Zones"
-      },
-      "dialog": {
-        "add_title": "Seizoensaanpassing toevoegen",
-        "edit_title": "Seizoensaanpassing bewerken"
-      }
-    },
     "info": {
       "title": "Info",
       "description": "Informatie bekijken over de volgende bewatering en systeemstatus.",

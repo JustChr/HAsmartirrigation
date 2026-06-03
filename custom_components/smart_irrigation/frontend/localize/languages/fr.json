@@ -378,29 +378,6 @@
         "edit_title": "Modifier la planification"
       }
     },
-    "adjustments": {
-      "title": "Ajustements saisonniers",
-      "description": "Ajustements mensuels de multiplicateur ou seuil pour les conditions saisonnières.",
-      "add": "Ajouter un ajustement",
-      "no_items": "Aucun ajustement saisonnier configuré.",
-      "zones_all": "Toutes les zones",
-      "zones_specific": "Zones spécifiques",
-      "multiplier_hint": "1,0 = pas de changement, 1,5 = 50% d'irrigation en plus, 0,5 = 50% en moins",
-      "threshold_hint": "Ajouté au réservoir de la zone. Positif = plus d'eau nécessaire, négatif = moins.",
-      "fields": {
-        "name": "Nom",
-        "enabled": "Activé",
-        "month_start": "Depuis le mois",
-        "month_end": "Jusqu'au mois",
-        "multiplier_adjustment": "Ajustement du multiplicateur",
-        "threshold_adjustment": "Ajustement du seuil (mm)",
-        "zones": "Zones"
-      },
-      "dialog": {
-        "add_title": "Ajouter un ajustement saisonnier",
-        "edit_title": "Modifier l'ajustement saisonnier"
-      }
-    },
     "info": {
       "title": "Infos",
       "description": "Afficher les informations sur la prochaine irrigation et l'état du système.",

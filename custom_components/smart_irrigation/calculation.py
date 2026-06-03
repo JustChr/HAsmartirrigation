@@ -476,11 +476,6 @@ class CalculationMixin:
             )
             return
 
-        # Apply seasonal adjustments before updating the zone
-        calc_data = await self.seasonal_adjustment_manager.apply_seasonal_adjustments(
-            calc_data, zone_id
-        )
-
         calc_data[const.ZONE_LAST_CALCULATED] = datetime.now()
         calc_data[const.ZONE_LAST_UPDATED] = datetime.now()
 

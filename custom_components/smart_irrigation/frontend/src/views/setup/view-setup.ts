@@ -6,7 +6,6 @@ import "../general/view-general.ts";
 import "../modules/view-modules.ts";
 import "../mappings/view-mappings.ts";
 import "../schedules/view-schedules.ts";
-import "../adjustments/view-adjustments.ts";
 import "../wizard/si-setup-wizard.ts";
 
 import { globalStyle } from "../../styles/global-style";
@@ -20,7 +19,6 @@ enum ESetupTab {
   Modules = "modules",
   Mappings = "mappings",
   Schedules = "schedules",
-  Adjustments = "adjustments",
   Help = "help",
 }
 
@@ -29,7 +27,6 @@ const SETUP_TAB_LABELS: Record<ESetupTab, string> = {
   [ESetupTab.Modules]: "panels.modules.title",
   [ESetupTab.Mappings]: "panels.mappings.title",
   [ESetupTab.Schedules]: "panels.schedules.title",
-  [ESetupTab.Adjustments]: "panels.adjustments.title",
   [ESetupTab.Help]: "panels.help.title",
 };
 
@@ -126,11 +123,6 @@ export class SmartIrrigationViewSetup extends LitElement {
           .hass="${this.hass}"
           .narrow="${this.narrow}"
         ></smart-irrigation-view-schedules>`;
-      case ESetupTab.Adjustments:
-        return html`<smart-irrigation-view-adjustments
-          .hass="${this.hass}"
-          .narrow="${this.narrow}"
-        ></smart-irrigation-view-adjustments>`;
       case ESetupTab.Help:
         return this._renderHelp();
     }

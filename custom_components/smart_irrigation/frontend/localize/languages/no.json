@@ -378,29 +378,6 @@
         "edit_title": "Rediger tidsplan"
       }
     },
-    "adjustments": {
-      "title": "Sesongkorrigeringer",
-      "description": "Månedlige multiplikator- eller terskelkorrigeringer for sesongtilstand.",
-      "add": "Legg til korrigering",
-      "no_items": "Ingen sesongkorrigeringer konfigurert.",
-      "zones_all": "Alle soner",
-      "zones_specific": "Spesifikke soner",
-      "multiplier_hint": "1,0 = ingen endring, 1,5 = 50% mer vanning, 0,5 = 50% mindre",
-      "threshold_hint": "Legges til sone-beholderen. Positivt = mer vann trengs, negativt = mindre.",
-      "fields": {
-        "name": "Navn",
-        "enabled": "Aktivert",
-        "month_start": "Fra måned",
-        "month_end": "Til måned",
-        "multiplier_adjustment": "Multiplikatorkorrigering",
-        "threshold_adjustment": "Terskelkorrigering (mm)",
-        "zones": "Soner"
-      },
-      "dialog": {
-        "add_title": "Legg til sesongkorrigering",
-        "edit_title": "Rediger sesongkorrigering"
-      }
-    },
     "info": {
       "title": "Info",
       "description": "Vis informasjon om neste vanning og systemstatus.",

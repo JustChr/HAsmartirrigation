@@ -421,29 +421,6 @@
         "edit_title": "Modifica pianificazione"
       }
     },
-    "adjustments": {
-      "title": "Aggiustamenti stagionali",
-      "description": "Aggiustamenti mensili di moltiplicatore o soglia per condizioni stagionali.",
-      "add": "Aggiungi aggiustamento",
-      "no_items": "Nessun aggiustamento stagionale configurato.",
-      "zones_all": "Tutte le zone",
-      "zones_specific": "Zone specifiche",
-      "multiplier_hint": "1,0 = nessuna modifica, 1,5 = 50% più irrigazione, 0,5 = 50% meno",
-      "threshold_hint": "Aggiunto al serbatoio della zona. Positivo = più acqua necessaria, negativo = meno.",
-      "fields": {
-        "name": "Nome",
-        "enabled": "Abilitato",
-        "month_start": "Dal mese",
-        "month_end": "Al mese",
-        "multiplier_adjustment": "Aggiustamento moltiplicatore",
-        "threshold_adjustment": "Aggiustamento soglia (mm)",
-        "zones": "Zone"
-      },
-      "dialog": {
-        "add_title": "Aggiungi aggiustamento stagionale",
-        "edit_title": "Modifica aggiustamento stagionale"
-      }
-    },
     "setup": {
       "title": "Configurazione"
     }

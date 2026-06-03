@@ -377,29 +377,6 @@
         "edit_title": "Editar programa"
       }
     },
-    "adjustments": {
-      "title": "Ajustes estacionales",
-      "description": "Ajustes mensuales de multiplicador o umbral para condiciones estacionales.",
-      "add": "Añadir ajuste",
-      "no_items": "Aún no hay ajustes estacionales configurados.",
-      "zones_all": "Todas las zonas",
-      "zones_specific": "Zonas específicas",
-      "multiplier_hint": "1,0 = sin cambio, 1,5 = 50% más riego, 0,5 = 50% menos",
-      "threshold_hint": "Se añade al depósito de la zona. Positivo = más agua necesaria, negativo = menos.",
-      "fields": {
-        "name": "Nombre",
-        "enabled": "Activado",
-        "month_start": "Desde mes",
-        "month_end": "Hasta mes",
-        "multiplier_adjustment": "Ajuste de multiplicador",
-        "threshold_adjustment": "Ajuste de umbral (mm)",
-        "zones": "Zonas"
-      },
-      "dialog": {
-        "add_title": "Añadir ajuste estacional",
-        "edit_title": "Editar ajuste estacional"
-      }
-    },
     "info": {
       "title": "Información",
       "description": "Ver información sobre el próximo riego y el estado del sistema.",

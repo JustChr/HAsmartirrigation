@@ -49,8 +49,6 @@ CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION = 0
 # Enhanced Scheduling Configuration
 CONF_RECURRING_SCHEDULES = "recurring_schedules"
 CONF_DEFAULT_RECURRING_SCHEDULES = []
-CONF_SEASONAL_ADJUSTMENTS = "seasonal_adjustments"
-CONF_DEFAULT_SEASONAL_ADJUSTMENTS = []
 
 # Recurring Schedule Configuration
 SCHEDULE_TYPE_DAILY = "daily"
@@ -86,16 +84,6 @@ SCHEDULE_CONF_ACTION = "action"  # "calculate", "update", or "irrigate"
 SCHEDULE_CONF_OFFSET_MINUTES = "offset_minutes"
 SCHEDULE_CONF_ACCOUNT_FOR_DURATION = "account_for_duration"
 SCHEDULE_CONF_AZIMUTH_ANGLE = "azimuth_angle"
-
-# Seasonal Adjustment Configuration
-SEASONAL_CONF_ID = "id"
-SEASONAL_CONF_NAME = "name"
-SEASONAL_CONF_ENABLED = "enabled"
-SEASONAL_CONF_MONTH_START = "month_start"
-SEASONAL_CONF_MONTH_END = "month_end"
-SEASONAL_CONF_MULTIPLIER_ADJUSTMENT = "multiplier_adjustment"
-SEASONAL_CONF_THRESHOLD_ADJUSTMENT = "threshold_adjustment"
-SEASONAL_CONF_ZONES = "zones"  # List of zone IDs or "all"
 
 # Irrigation Unlimited Integration
 CONF_IRRIGATION_UNLIMITED_INTEGRATION = "irrigation_unlimited_integration"
@@ -421,14 +409,10 @@ SERVICE_GENERATE_WATERING_CALENDAR = "generate_watering_calendar"
 SERVICE_CREATE_RECURRING_SCHEDULE = "create_recurring_schedule"
 SERVICE_UPDATE_RECURRING_SCHEDULE = "update_recurring_schedule"
 SERVICE_DELETE_RECURRING_SCHEDULE = "delete_recurring_schedule"
-SERVICE_CREATE_SEASONAL_ADJUSTMENT = "create_seasonal_adjustment"
-SERVICE_UPDATE_SEASONAL_ADJUSTMENT = "update_seasonal_adjustment"
-SERVICE_DELETE_SEASONAL_ADJUSTMENT = "delete_seasonal_adjustment"
 SERVICE_SYNC_WITH_IRRIGATION_UNLIMITED = "sync_with_irrigation_unlimited"
 SERVICE_SEND_ZONE_DATA_TO_IU = "send_zone_data_to_irrigation_unlimited"
 SERVICE_GET_IU_SCHEDULE_STATUS = "get_irrigation_unlimited_status"
 
 # Events
 EVENT_RECURRING_SCHEDULE_TRIGGERED = "recurring_schedule_triggered"
-EVENT_SEASONAL_ADJUSTMENT_APPLIED = "seasonal_adjustment_applied"
 EVENT_IU_SYNC_COMPLETED = "irrigation_unlimited_sync_completed"
