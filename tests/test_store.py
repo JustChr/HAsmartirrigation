@@ -8,11 +8,14 @@ from homeassistant.core import HomeAssistant
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.store import async_get_registry
 
-# Quarantined during the test-tree consolidation (refactor plan A6). These tests
-# call store methods that have since been renamed (async_add_zone/mapping/module
-# -> async_get_*) and assert on outdated Store internals. They were never run by
-# the old CI. Revive when store.py is touched in Phase C.
-pytestmark = pytest.mark.skip(reason="Outdated store API; revive in Phase C (A6)")
+# Still quarantined (A6): needs a real rewrite, not a rename. Current store.py:
+#  - uses MigratableStore(hass, STORAGE_VERSION, STORAGE_KEY), not Store(hass, 1, DOMAIN);
+#  - CRUD is async_create_/async_delete_/async_update_* (not async_add_/async_remove_);
+#  - zone ids are ints (async_create_zone does int(new_zone.id) -> the tests' string
+#    ids raise ValueError) and ZoneEntry needs full fields;
+#  - writes go through async_schedule_save(), not async_save() (so the save asserts
+#    don't hold).
+pytestmark = pytest.mark.skip(reason="Needs rewrite for current store API (A6)")
 
 
 class TestSmartIrrigationStore:

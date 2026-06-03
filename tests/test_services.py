@@ -1,182 +1,60 @@
-"""Test Smart Irrigation services."""
+"""Test Smart Irrigation services are registered.
 
-from unittest.mock import AsyncMock, patch
+Revived in Phase C/A6: updated to the current service layer — registration is
+async_register_services (renamed + moved to services.py in C1), and the dead
+ServiceCall() constructions (unused objects built with the pre-2024.8 signature)
+were removed. These verify the services exist on hass after registration; the
+handler wiring itself is covered by tests/test_services_registration.py.
+"""
+
+from unittest.mock import AsyncMock
 
 import pytest
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant
 
-from custom_components.smart_irrigation import const
-
-# Quarantined during the test-tree consolidation (refactor plan A6). These tests
-# construct ServiceCall() with the pre-2024.8 signature (no `hass` argument) and
-# were never run by the old CI. Revive when the service layer is reworked in
-# Phase C (services.py extraction).
-pytestmark = pytest.mark.skip(reason="Outdated ServiceCall API; revive in Phase C (A6)")
+from custom_components.smart_irrigation import async_register_services, const
 
 
 class TestSmartIrrigationServices:
-    """Test Smart Irrigation service calls."""
+    """Test Smart Irrigation service registration."""
 
     @pytest.fixture
     def mock_coordinator(self):
-        """Create a mock coordinator."""
-        coordinator = AsyncMock()
-        coordinator.calculate_zone = AsyncMock()
-        coordinator.calculate_all_zones = AsyncMock()
-        coordinator.update_zone = AsyncMock()
-        coordinator.update_all_zones = AsyncMock()
-        coordinator.set_bucket = AsyncMock()
-        return coordinator
+        """Create a mock coordinator (handlers auto-mocked)."""
+        return AsyncMock()
+
+    def _register(self, hass, mock_coordinator):
+        hass.data[const.DOMAIN] = {"coordinator": mock_coordinator}
+        async_register_services(hass)
 
     async def test_calculate_zone_service(
-        self,
-        hass: HomeAssistant,
-        mock_coordinator: AsyncMock,
+        self, hass: HomeAssistant, mock_coordinator: AsyncMock
     ) -> None:
-        """Test calculate zone service."""
-        # Set up hass data
-        hass.data[const.DOMAIN] = {"coordinator": mock_coordinator}
-
-        # Register the service
-        with patch(
-            "custom_components.smart_irrigation.register_services"
-        ) as mock_register:
-            from custom_components.smart_irrigation import register_services
-
-            register_services(hass)
-            mock_register.assert_called_once()
-
-        # Mock service call
-        service_data = {
-            "entity_id": "sensor.smart_irrigation_test_zone",
-            "delete_weather_data": True,
-        }
-
-        ServiceCall(
-            domain=const.DOMAIN,
-            service="calculate_zone",
-            data=service_data,
-        )
-
-        # Test service exists
-        assert hass.services.has_service(const.DOMAIN, "calculate_zone")
+        self._register(hass, mock_coordinator)
+        assert hass.services.has_service(const.DOMAIN, const.SERVICE_CALCULATE_ZONE)
 
     async def test_calculate_all_zones_service(
-        self,
-        hass: HomeAssistant,
-        mock_coordinator: AsyncMock,
+        self, hass: HomeAssistant, mock_coordinator: AsyncMock
     ) -> None:
-        """Test calculate all zones service."""
-        # Set up hass data
-        hass.data[const.DOMAIN] = {"coordinator": mock_coordinator}
-
-        # Register the service
-        from custom_components.smart_irrigation import register_services
-
-        register_services(hass)
-
-        # Mock service call
-        service_data = {"delete_weather_data": False}
-
-        ServiceCall(
-            domain=const.DOMAIN,
-            service="calculate_all_zones",
-            data=service_data,
+        self._register(hass, mock_coordinator)
+        assert hass.services.has_service(
+            const.DOMAIN, const.SERVICE_CALCULATE_ALL_ZONES
         )
-
-        # Test service exists
-        assert hass.services.has_service(const.DOMAIN, "calculate_all_zones")
 
     async def test_update_zone_service(
-        self,
-        hass: HomeAssistant,
-        mock_coordinator: AsyncMock,
+        self, hass: HomeAssistant, mock_coordinator: AsyncMock
     ) -> None:
-        """Test update zone service."""
-        # Set up hass data
-        hass.data[const.DOMAIN] = {"coordinator": mock_coordinator}
-
-        # Register the service
-        from custom_components.smart_irrigation import register_services
-
-        register_services(hass)
-
-        # Test service exists
-        assert hass.services.has_service(const.DOMAIN, "update_zone")
+        self._register(hass, mock_coordinator)
+        assert hass.services.has_service(const.DOMAIN, const.SERVICE_UPDATE_ZONE)
 
     async def test_update_all_zones_service(
-        self,
-        hass: HomeAssistant,
-        mock_coordinator: AsyncMock,
+        self, hass: HomeAssistant, mock_coordinator: AsyncMock
     ) -> None:
-        """Test update all zones service."""
-        # Set up hass data
-        hass.data[const.DOMAIN] = {"coordinator": mock_coordinator}
-
-        # Register the service
-        from custom_components.smart_irrigation import register_services
-
-        register_services(hass)
-
-        # Test service exists
-        assert hass.services.has_service(const.DOMAIN, "update_all_zones")
+        self._register(hass, mock_coordinator)
+        assert hass.services.has_service(const.DOMAIN, const.SERVICE_UPDATE_ALL_ZONES)
 
     async def test_set_bucket_service(
-        self,
-        hass: HomeAssistant,
-        mock_coordinator: AsyncMock,
+        self, hass: HomeAssistant, mock_coordinator: AsyncMock
     ) -> None:
-        """Test set bucket service."""
-        # Set up hass data
-        hass.data[const.DOMAIN] = {"coordinator": mock_coordinator}
-
-        # Register the service
-        from custom_components.smart_irrigation import register_services
-
-        register_services(hass)
-
-        # Mock service call
-        service_data = {
-            "entity_id": "sensor.smart_irrigation_test_zone",
-            "new_bucket_value": 15.5,
-        }
-
-        ServiceCall(
-            domain=const.DOMAIN,
-            service="set_bucket",
-            data=service_data,
-        )
-
-        # Test service exists
-        assert hass.services.has_service(const.DOMAIN, "set_bucket")
-
-    async def test_service_with_invalid_entity(
-        self,
-        hass: HomeAssistant,
-        mock_coordinator: AsyncMock,
-    ) -> None:
-        """Test service call with invalid entity ID."""
-        # Set up hass data
-        hass.data[const.DOMAIN] = {"coordinator": mock_coordinator}
-
-        # Register the service
-        from custom_components.smart_irrigation import register_services
-
-        register_services(hass)
-
-        # Mock service call with invalid entity
-        service_data = {
-            "entity_id": "sensor.invalid_entity",
-            "delete_weather_data": True,
-        }
-
-        # Test that service call handles invalid entities gracefully
-        # (Actual behavior depends on service implementation)
-        ServiceCall(
-            domain=const.DOMAIN,
-            service="calculate_zone",
-            data=service_data,
-        )
-
-        # Service should exist even with invalid data
-        assert hass.services.has_service(const.DOMAIN, "calculate_zone")
+        self._register(hass, mock_coordinator)
+        assert hass.services.has_service(const.DOMAIN, const.SERVICE_SET_BUCKET)
