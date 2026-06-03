@@ -175,6 +175,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[const.DOMAIN]["coordinator"] = coordinator
     hass.data[const.DOMAIN]["zones"] = {}
 
+    # Set up the auto update/calc/clear timers (awaited, not fire-and-forget).
+    await coordinator.async_setup_timers()
+
     # Set up unit system change listener
     async def handle_core_config_change(event):
         """Handle Home Assistant core configuration changes, specifically unit system changes."""
@@ -324,8 +327,10 @@ class SmartIrrigationCoordinator(
         self, hass: HomeAssistant, session, entry, store: SmartIrrigationStorage
     ) -> None:
         """Initialize."""
+        # Initialize the DataUpdateCoordinator base first so self.hass, self.logger
+        # and the base machinery exist before the subclass setup below uses them.
+        super().__init__(hass, _LOGGER, name=const.DOMAIN)
         self.id = entry.unique_id
-        self.hass = hass
         self.entry = entry
         self.store = store
         self.previous_unit_system = hass.config.units
@@ -402,19 +407,9 @@ class SmartIrrigationCoordinator(
         self._track_midnight_time_unsub = None
         self._pending_track_update_unsub = None  # cancel handle for async_call_later
         self._debounced_update_cancel = {}  # mapping_id -> cancel callback
-        # set up auto calc time and auto update time from data
-        the_config = self.store.get_config()
-        the_config[const.CONF_USE_WEATHER_SERVICE] = self.use_weather_service
-        the_config[const.CONF_WEATHER_SERVICE] = self.weather_service
-        if the_config[const.CONF_AUTO_UPDATE_ENABLED]:
-            # Fire-and-forget: schedule auto update timer setup in background
-            hass.loop.create_task(self.set_up_auto_update_time(the_config))
-        if the_config[const.CONF_AUTO_CALC_ENABLED]:
-            # Fire-and-forget: schedule auto calc timer setup in background
-            hass.loop.create_task(self.set_up_auto_calc_time(the_config))
-        if the_config[const.CONF_AUTO_CLEAR_ENABLED]:
-            # Fire-and-forget: schedule auto clear timer setup in background
-            hass.loop.create_task(self.set_up_auto_clear_time(the_config))
+        # Auto update/calc/clear timers are set up by async_setup_timers(), which
+        # async_setup_entry awaits after construction — see that method. Doing it
+        # here previously required fire-and-forget tasks (unawaited, errors lost).
 
         # Initialize enhanced scheduling managers
         self.recurring_schedule_manager = RecurringScheduleManager(hass, self)
@@ -433,7 +428,23 @@ class SmartIrrigationCoordinator(
             hass, self._reset_event_fired_today, 0, 0, 0
         )
 
-        super().__init__(hass, _LOGGER, name=const.DOMAIN)
+    async def async_setup_timers(self):
+        """Set up the auto update/calc/clear timers from stored config.
+
+        Called (awaited) from async_setup_entry after the coordinator is
+        constructed. Previously this ran in __init__ via fire-and-forget
+        hass.loop.create_task(...), which left timer-setup errors unretrieved and
+        timing nondeterministic. The unsub handles are cancelled in async_unload.
+        """
+        the_config = self.store.get_config()
+        the_config[const.CONF_USE_WEATHER_SERVICE] = self.use_weather_service
+        the_config[const.CONF_WEATHER_SERVICE] = self.weather_service
+        if the_config[const.CONF_AUTO_UPDATE_ENABLED]:
+            await self.set_up_auto_update_time(the_config)
+        if the_config[const.CONF_AUTO_CALC_ENABLED]:
+            await self.set_up_auto_calc_time(the_config)
+        if the_config[const.CONF_AUTO_CLEAR_ENABLED]:
+            await self.set_up_auto_clear_time(the_config)
 
     def _get_config_value(self, key: str, default_value):
         """Get configuration value from Home Assistant config, entry data, or options with fallback to default.

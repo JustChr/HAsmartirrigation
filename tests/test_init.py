@@ -208,6 +208,42 @@ class TestSmartIrrigationCoordinator:
             await coordinator.update_subscriptions()
             mock_update.assert_called_once()
 
+    async def test_timers_set_up_by_async_setup_timers_not_init(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        mock_session: AsyncMock,
+    ) -> None:
+        """C7: auto timers are configured by async_setup_timers (awaited from
+        async_setup_entry), not by fire-and-forget tasks in __init__."""
+        store = AsyncMock()
+        store.get_config = Mock(
+            return_value={
+                const.CONF_AUTO_UPDATE_ENABLED: True,
+                const.CONF_AUTO_CALC_ENABLED: False,
+                const.CONF_AUTO_CLEAR_ENABLED: False,
+                const.CONF_USE_WEATHER_SERVICE: False,
+            }
+        )
+        hass.data[const.DOMAIN] = {
+            const.CONF_USE_WEATHER_SERVICE: False,
+            const.CONF_WEATHER_SERVICE: None,
+        }
+
+        coordinator = SmartIrrigationCoordinator(
+            hass, mock_session, mock_config_entry, store
+        )
+
+        # __init__ must NOT have set up the update timer (no fire-and-forget).
+        assert coordinator._track_auto_update_time_unsub is None
+
+        # async_setup_timers performs the (awaited) setup.
+        with patch.object(
+            coordinator, "set_up_auto_update_time", new_callable=AsyncMock
+        ) as mock_update_timer:
+            await coordinator.async_setup_timers()
+            mock_update_timer.assert_called_once()
+
     @pytest.mark.skip(
         reason="handle_core_config_change is a nested closure in async_setup_entry "
         "(not importable) and the test uses the wrong attr name; revive in C7 if the "
