@@ -38,6 +38,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .calculation import CalculationMixin
+from .config_resolver import resolve_weather_config
 from .helpers import (
     altitudeToPressure,
     check_time,
@@ -80,84 +81,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # store Weather Service info in hass.data
     hass.data.setdefault(const.DOMAIN, {})
     hass.data[const.DOMAIN]["entry"] = entry
-    # load store info into hass.data[const.DOMAIN]
+    # Resolve the effective weather-service config (store defaults -> entry.data
+    # -> entry.options, with the use_owm / legacy-key migrations). See
+    # config_resolver.resolve_weather_config — extracted so this reconciliation
+    # lives in one tested place instead of ~80 inline lines (issue #683).
     config = await store.async_get_config()
-    hass.data[const.DOMAIN][const.CONF_USE_WEATHER_SERVICE] = config.get(
-        const.CONF_USE_WEATHER_SERVICE, const.CONF_DEFAULT_USE_WEATHER_SERVICE
+    hass.data[const.DOMAIN].update(
+        resolve_weather_config(config, entry, existing=hass.data[const.DOMAIN])
     )
-    hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE] = config.get(
-        const.CONF_WEATHER_SERVICE, const.CONF_DEFAULT_WEATHER_SERVICE
-    )
-
-    # check the entry to see if it matches up, if not, set it.
-    if const.CONF_USE_WEATHER_SERVICE in entry.data:
-        hass.data[const.DOMAIN][const.CONF_USE_WEATHER_SERVICE] = entry.data.get(
-            const.CONF_USE_WEATHER_SERVICE
-        )
-        if hass.data[const.DOMAIN][const.CONF_USE_WEATHER_SERVICE]:
-            if const.CONF_WEATHER_SERVICE in entry.data:
-                hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE] = entry.data.get(
-                    const.CONF_WEATHER_SERVICE
-                )
-            if const.CONF_WEATHER_SERVICE_API_KEY in entry.data:
-                hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE_API_KEY] = (
-                    entry.data.get(const.CONF_WEATHER_SERVICE_API_KEY).strip()
-                )
-            hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE_API_VERSION] = (
-                entry.data.get(const.CONF_WEATHER_SERVICE_API_VERSION)
-            )
-    # check for OWM config and migrate accordingly
-    if entry.data.get("use_owm"):
-        if "owm_api_key" in entry.data:
-            hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE_API_KEY] = entry.data[
-                "owm_api_key"
-            ]
-    # Options always override data — they represent the most recent user-configured
-    # values. Previously this only applied options when use_weather_service differed
-    # between data and options, meaning API key or weather service changes were
-    # silently ignored after reconfiguration (issue #683).
-    if const.CONF_USE_WEATHER_SERVICE in entry.options:
-        hass.data[const.DOMAIN][const.CONF_USE_WEATHER_SERVICE] = entry.options.get(
-            const.CONF_USE_WEATHER_SERVICE
-        )
-        if hass.data[const.DOMAIN][const.CONF_USE_WEATHER_SERVICE]:
-            if const.CONF_WEATHER_SERVICE in entry.options:
-                hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE] = entry.options.get(
-                    const.CONF_WEATHER_SERVICE
-                )
-            # Load per-service API keys
-            for key_const in (const.CONF_OWM_API_KEY, const.CONF_PW_API_KEY):
-                if key_const in entry.options:
-                    stored = entry.options.get(key_const)
-                    hass.data[const.DOMAIN][key_const] = (
-                        stored.strip() if stored else None
-                    )
-            # Migration: promote legacy single-slot key to per-service slot
-            if const.CONF_WEATHER_SERVICE_API_KEY in entry.options:
-                legacy_key = entry.options.get(const.CONF_WEATHER_SERVICE_API_KEY)
-                if legacy_key:
-                    legacy_key = legacy_key.strip()
-                    hass.data[const.DOMAIN][
-                        const.CONF_WEATHER_SERVICE_API_KEY
-                    ] = legacy_key
-                    # Only migrate if the per-service slot is not already set
-                    svc = hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE)
-                    if svc == const.CONF_WEATHER_SERVICE_OWM and not hass.data[
-                        const.DOMAIN
-                    ].get(const.CONF_OWM_API_KEY):
-                        hass.data[const.DOMAIN][const.CONF_OWM_API_KEY] = legacy_key
-                    elif svc == const.CONF_WEATHER_SERVICE_PW and not hass.data[
-                        const.DOMAIN
-                    ].get(const.CONF_PW_API_KEY):
-                        hass.data[const.DOMAIN][const.CONF_PW_API_KEY] = legacy_key
-            if const.CONF_WEATHER_SERVICE_API_VERSION in entry.options:
-                hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE_API_VERSION] = (
-                    entry.options.get(const.CONF_WEATHER_SERVICE_API_VERSION)
-                )
-        else:
-            hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE] = None
-            hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE_API_KEY] = None
-            hass.data[const.DOMAIN][const.CONF_WEATHER_SERVICE_API_VERSION] = None
 
     coordinator = SmartIrrigationCoordinator(hass, session, entry, store)
 
