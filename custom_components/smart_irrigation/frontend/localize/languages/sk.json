@@ -4,7 +4,9 @@
       "delete": "Zmazať",
       "edit": "Upraviť",
       "save": "Uložiť",
-      "cancel": "Zrušiť"
+      "cancel": "Zrušiť",
+      "confirm_delete": "Potvrdiť odstránenie",
+      "confirm_delete_zone": "Naozaj chceš odstrániť túto zónu?"
     },
     "labels": {
       "module": "Modul",
@@ -14,10 +16,12 @@
       "enabled": "Povolené",
       "disabled": "Zakázané",
       "before": "pred",
-      "after": "po"
+      "after": "po",
+      "settings": "Nastavenia",
+      "bulk_actions": "Hromadné akcie"
     },
     "attributes": {
-      "size": "size",
+      "size": "veľkosť",
       "throughput": "priepustnosť",
       "state": "stav",
       "bucket": "zásobník",
@@ -67,9 +71,9 @@
         "bucket-larger-than-or-equal-to-zero-no-irrigation-necessary": "Keďže vedro >= 0, nie je potrebné žiadne zavlažovanie a trvanie je nastavené na",
         "maximum-bucket-is": "maximálna veľkosť vedra je",
         "max-bucket-variable": "max_bucket",
-        "drainage": "drainage",
-        "drainage-rate": "drainage_rate",
-        "hours": "hours",
+        "drainage": "odvodnenie",
+        "drainage-rate": "miera odvodnenia",
+        "hours": "hodiny",
         "drainage-rate-is": "Rýchlosť odtoku pri nasýtení (zásobník na maxime) je",
         "current-drainage-is": "Aktuálna drenáž vypočítaná ako",
         "no-drainage": "Aktuálna drenáž je 0, pretože"
@@ -103,7 +107,7 @@
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Upozornenie: Čas aktualizácie údajov o počasí v čase výpočtu alebo po ňom"
           },
-          "header": "Automatic weather data update",
+          "header": "Automatická aktualizácia poveternostných údajov",
           "description": "Automaticky zbierajte a ukladajte údaje o počasí. Údaje o počasí sú potrebné na výpočet segmentov zón a trvania.",
           "labels": {
             "auto-update-enabled": "Automaticky aktualizovať údaje o počasí",
@@ -130,8 +134,8 @@
           "header": "Priebežné aktualizácie senzorov (experimentálne)",
           "description": "Experimentálna funkcia pre podrobnejšie meteorologické dáta.",
           "labels": {
-            "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce",
+            "continuousupdates": "Povoliť priebežné aktualizácie",
+            "sensor_debounce": "Debounce senzora",
             "sensor-debounce": "Čas odrazu senzora (ms)"
           }
         }
@@ -145,7 +149,7 @@
         "how-to-get-help": {
           "title": "Ako získať pomoc",
           "first-read-the": "Najprv si prečítajte",
-          "wiki": "Documentation",
+          "wiki": "Dokumentácia",
           "if-you-still-need-help": "Ak stále potrebujete pomoc, obráťte sa na",
           "community-forum": "komunitné fórum",
           "or-open-a": "alebo otvorte a",
@@ -170,14 +174,14 @@
             "maximum": "Maximum",
             "median": "Medián",
             "minimum": "Minimum",
-            "sum": "Sum",
-            "riemannsum": "Riemann sum",
+            "sum": "Súčet",
+            "riemannsum": "Riemannova suma",
             "delta": "Delta"
           },
           "errors": {
             "cannot-delete-mapping-because-zones-use-it": "Túto skupinu senzorov nemôžete vymazať, pretože ju používa aspoň jedna zóna.",
-            "invalid_source": "Invalid source",
-            "source_does_not_exist": "Source does not exist. Please enter a valid source, such as 'sensor.mysensor'."
+            "invalid_source": "Neplatný zdroj",
+            "source_does_not_exist": "Zdroj neexistuje. Zadaj platný zdroj, napríklad 'sensor.mysensor'."
           },
           "items": {
             "dewpoint": "Rosný bod",
@@ -190,7 +194,7 @@
             "solar radiation": "Slnečné žiarenie",
             "temperature": "Teplota",
             "windspeed": "Rýchlosť vetra",
-            "current precipitation": "Current precipitation"
+            "current precipitation": "Aktuálne zrážky"
           },
           "pressure_types": {
             "absolute": "absolútne",
@@ -205,7 +209,7 @@
           "source": "Zdroj",
           "sources": {
             "none": "Nie je",
-            "weather_service": "Weather service",
+            "weather_service": "Poveternostná služba",
             "sensor": "Snímač",
             "static": "Statická hodnota"
           }
@@ -218,16 +222,16 @@
       "no_items": "Zatiaľ nie je definovaná žiadna skupina senzorov.",
       "title": "Skupiny senzorov",
       "weather-records": {
-        "title": "Weather Records",
-        "timestamp": "Time",
-        "temperature": "Temp",
+        "title": "Záznamy o počasí",
+        "timestamp": "Čas",
+        "temperature": "Tepl.",
         "humidity": "Humidity",
-        "precipitation": "Precip",
-        "retrieval-time": "Retrieved",
-        "no-data": "No weather data available for this sensor group",
-        "dewpoint": "Dew",
-        "wind": "Wind",
-        "pressure": "Press"
+        "precipitation": "Zrážky",
+        "retrieval-time": "Získané",
+        "no-data": "Pre túto skupinu senzorov nie sú dostupné žiadne poveternostné údaje",
+        "dewpoint": "Rosa",
+        "wind": "Vietor",
+        "pressure": "Tlak"
       }
     },
     "modules": {
@@ -250,7 +254,7 @@
             "DontEstimate": "Bez odhadu",
             "EstimateFromSunHours": "Odhad zo slnečných hodín",
             "EstimateFromTemp": "Odhad z teploty",
-            "EstimateFromSunHoursAndTemperature": "Estimate from average of sun hours and temperature"
+            "EstimateFromSunHoursAndTemperature": "Odhad z priemeru hodín slnečného svitu a teploty"
           }
         }
       },
@@ -266,8 +270,9 @@
         "update": "Aktualizovať",
         "reset-bucket": "Resetovať vedro",
         "view-weather-info": "Zobraziť počasie",
-        "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "Kalendár zavlažovania"
+        "view-weather-info-message": "Poveternostné údaje dostupné pre",
+        "view-watering-calendar": "Kalendár zavlažovania",
+        "irrigate_all": "Spustiť všetky zóny teraz"
       },
       "cards": {
         "add-zone": {
@@ -307,11 +312,13 @@
         "last_calculated": "Naposledy vypočítané",
         "data-last-updated": "Údaje boli naposledy aktualizované",
         "data-number-of-data-points": "Počet údajových bodov",
-        "drainage_rate": "Drainage rate",
+        "drainage_rate": "Miera odvodnenia",
         "linked_entity": "Prepojená entita prepínača/ventilu",
         "linked_entity_placeholder": "napr. switch.zahradny_ventil",
         "irrigate_now": "Zavlažiť teraz",
-        "bucket_threshold": "Minimálny deficit pre závlahu"
+        "bucket_threshold": "Minimálny deficit pre závlahu",
+        "flow_sensor": "Senzor prietokomera (voliteľné)",
+        "flow_sensor_placeholder": "napr. sensor.zone_flow_rate"
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
       "title": "Zóny"
@@ -431,6 +438,9 @@
           "no_linked_zones": "Žiadna zóna nemá prepojenú entitu prepínača/ventilu s vypočítanou dobou."
         }
       }
+    },
+    "setup": {
+      "title": "Nastavenie"
     }
   },
   "title": "Inteligentné zavlažovanie",
@@ -451,61 +461,61 @@
     "help_text": "Nastavte na 0 pre deaktiváciu. Podporované sú hodnoty 1-365 dní."
   },
   "irrigation_start_triggers": {
-    "title": "Irrigation Start Triggers",
-    "description": "Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",
-    "add_trigger": "Add Trigger",
-    "edit_trigger": "Edit Trigger",
-    "delete_trigger": "Delete Trigger",
+    "title": "Spúšťače spustenia zavlažovania",
+    "description": "Nakonfiguruj, kedy sa má spustiť zavlažovanie na základe slnečných udalostí. Môžeš pridať viacero spúšťačov pre rôzne harmonogramy. Pri spúšťačoch východu slnka sa pri posune 0 automaticky použije celkové trvanie všetkých povolených zón.",
+    "add_trigger": "Pridať spúšťač",
+    "edit_trigger": "Upraviť spúšťač",
+    "delete_trigger": "Odstrániť spúšťač",
     "trigger_types": {
-      "sunrise": "Sunrise",
-      "sunset": "Sunset",
-      "solar_azimuth": "Solar Azimuth"
+      "sunrise": "Východ slnka",
+      "sunset": "Západ slnka",
+      "solar_azimuth": "Slnečný azimut"
     },
     "fields": {
       "name": {
-        "name": "Trigger Name",
-        "description": "A descriptive name to identify this trigger"
+        "name": "Názov spúšťača",
+        "description": "Popisný názov na identifikáciu tohto spúšťača"
       },
       "type": {
-        "name": "Trigger Type",
-        "description": "The type of solar event to trigger on"
+        "name": "Typ spúšťača",
+        "description": "Typ slnečnej udalosti, na ktorú sa má spustiť"
       },
       "enabled": {
-        "name": "Enabled",
-        "description": "Whether this trigger is currently active"
+        "name": "Povolené",
+        "description": "Či je tento spúšťač momentálne aktívny"
       },
       "offset_minutes": {
-        "name": "Offset (minutes)",
-        "description": "Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."
+        "name": "Posun (minúty)",
+        "description": "Minúty pred (-) alebo po (+) slnečnej udalosti. Pri spúšťačoch východu slnka použi 0 pre automatické načasovanie na základe celkového trvania zón."
       },
       "azimuth_angle": {
-        "name": "Azimuth Angle (degrees)",
-        "description": "Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"
+        "name": "Uhol azimutu (stupne)",
+        "description": "Uhol slnečného azimutu v stupňoch, kde 0=sever, 90=východ, 180=juh, 270=západ"
       },
       "account_for_duration": {
-        "name": "Account for Duration",
-        "description": "When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."
+        "name": "Zohľadniť trvanie",
+        "description": "Ak je povolené, zavlažovanie sa spustí dostatočne skoro, aby skončilo v zadanom čase. Ak je zakázané, zavlažovanie sa spustí presne v zadanom čase."
       }
     },
     "dialog": {
-      "add_title": "Add Irrigation Start Trigger",
-      "edit_title": "Edit Irrigation Start Trigger",
-      "cancel": "Cancel",
-      "save": "Save",
-      "delete": "Delete"
+      "add_title": "Pridať spúšťač spustenia zavlažovania",
+      "edit_title": "Upraviť spúšťač spustenia zavlažovania",
+      "cancel": "Zrušiť",
+      "save": "Uložiť",
+      "delete": "Odstrániť"
     },
-    "no_triggers": "No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",
-    "offset_auto": "Auto (calculated from total zone duration)",
-    "confirm_delete": "Are you sure you want to delete the trigger '{name}'?",
+    "no_triggers": "Nie sú nakonfigurované žiadne spúšťače spustenia zavlažovania. Systém použije predvolené správanie (východ slnka s celkovým trvaním zón). Pridaj spúšťače na prispôsobenie spustenia zavlažovania.",
+    "offset_auto": "Automaticky (vypočítané z celkového trvania zón)",
+    "confirm_delete": "Naozaj chceš odstrániť spúšťač '{name}'?",
     "validation": {
-      "name_required": "Trigger name is required",
-      "azimuth_invalid": "Azimuth angle must be a valid number"
+      "name_required": "Názov spúšťača je povinný",
+      "azimuth_invalid": "Uhol azimutu musí byť platné číslo"
     },
     "help": {
-      "sunrise_offset": "For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",
-      "sunset_offset": "For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",
-      "azimuth_explanation": "Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",
-      "multiple_triggers": "You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."
+      "sunrise_offset": "Pri spúšťačoch východu slnka: použi záporné hodnoty na spustenie pred východom slnka, kladné na spustenie po ňom. Nastav na 0 na automatické spustenie dostatočne skoro, aby sa všetky zóny dokončili pred východom slnka.",
+      "sunset_offset": "Pri spúšťačoch západu slnka: použi záporné hodnoty na spustenie pred západom slnka, kladné na spustenie po západe slnka.",
+      "azimuth_explanation": "Slnečný azimut je kompasový smer slnka. 0°=sever, 90°=východ, 180°=juh, 270°=západ. Môžeš zadať ľubovoľnú hodnotu uhla (napr. 450° = 90°, -30° = 330°). Použi to na spustenie zavlažovania, keď slnko dosiahne konkrétnu polohu.",
+      "multiple_triggers": "Môžeš nakonfigurovať viacero spúšťačov. Každý povolený spúšťač naplánuje spustenie zavlažovania nezávisle."
     }
   },
   "weather_skip": {
@@ -525,6 +535,121 @@
     "title": "Poradie zón",
     "description": "Keď viacero zón potrebuje závlahu, vyberte, či prebiehajú súčasne alebo jedna po druhej. V sekvenčnom režime systém čaká, kým každá zóna skončí, pred spustením ďalšej.",
     "parallel": "Paralelne (všetky zóny súčasne)",
-    "sequential": "Sekvenčne (jedna zóna naraz)"
+    "sequential": "Sekvenčne (jedna zóna naraz)",
+    "rotating": "Rotujúce (zóny sa striedajú)",
+    "max_consecutive_duration_label": "Max. súvislý čas behu na zónu",
+    "max_consecutive_duration_unit": "minúty",
+    "min_absorption_time_label": "Min. čas vsiaknutia medzi cyklami",
+    "min_absorption_time_unit": "minúty (0 = vypnuté)"
+  },
+  "weather_service_config": {
+    "title": "Poveternostná služba",
+    "description": "Nakonfiguruj, ktorá poveternostná služba sa použije na výpočty ET a podmienky preskočenia.",
+    "enabled_label": "Povoliť poveternostnú službu",
+    "service_label": "Poveternostná služba",
+    "api_key_label": "API kľúč",
+    "api_key_placeholder": "Nechaj prázdne na zachovanie existujúceho kľúča",
+    "api_key_configured": "API kľúč je nakonfigurovaný",
+    "api_key_not_configured": "Nie je nakonfigurovaný žiadny API kľúč",
+    "api_key_help": "API kľúč od tebou zvoleného poskytovateľa poveternostnej služby. Open-Meteo nevyžaduje kľúč. OpenWeatherMap aj Pirate Weather ponúkajú bezplatné úrovne.",
+    "no_api_key_needed": "Open-Meteo je bezplatná služba a nevyžaduje API kľúč.",
+    "save_button": "Uložiť nastavenia počasia",
+    "saved": "Nastavenia počasia uložené",
+    "openmeteo": "Open-Meteo (zdarma, bez kľúča)",
+    "test_button": "Otestovať pripojenie",
+    "test_button_testing": "Testuje sa…",
+    "test_success": "✓ Pripojenie úspešné",
+    "test_error_invalid_auth": "✗ Neplatný API kľúč — skontroluj, či je správny a aktívny",
+    "test_error_cannot_connect": "✗ Nedá sa pripojiť — skontroluj svoje internetové pripojenie",
+    "test_error_no_service": "✗ Najprv vyber poveternostnú službu",
+    "test_error_unknown": "✗ Test zlyhal — neznáma chyba",
+    "owm": "OpenWeatherMap",
+    "pw": "Pirate Weather"
+  },
+  "field_help": {
+    "zone_size": "Celková zavlažovaná plocha tejto zóny. Používa sa spolu s prietokom na výpočet množstva vody aplikovaného počas jedného cyklu.",
+    "zone_throughput": "Celkový prietok vody tvojho zavlažovacieho systému pre túto zónu (litre/min v metrickej sústave, gal/min v imperiálnej). Skontroluj technický list svojich postrekovačov alebo zmeraj, ako dlho trvá naplnenie nádoby známeho objemu.",
+    "zone_drainage_rate": "Ako rýchlo prebytočná voda odteká z pôdy, keď je vedro plné. Typicky: trávnik 50 mm/h, piesočnatá pôda 100+ mm/h, íl 10 mm/h.",
+    "zone_bucket": "Aktuálny deficit (záporný) alebo prebytok (kladný) vody pre túto zónu. Zavlažovanie sa spustí, keď vedro klesne pod prahovú hodnotu.",
+    "zone_maximum_bucket": "Maximálny prebytok vlhkosti, ktorý zóna dokáže zadržať. Voda nad touto úrovňou sa považuje za odtok. Typická hodnota: 50 mm.",
+    "zone_bucket_threshold": "Zavlažovanie sa spustí, keď vedro klesne pod túto hodnotu. Musí byť 0 alebo záporná. 0 znamená zavlažovať vždy, keď je deficit.",
+    "zone_multiplier": "Mierka aplikovaná na vypočítané trvanie. Nad 1,0 zvyšuje, pod 1,0 znižuje. Užitočné na jemné doladenie bez zmeny fyzických meraní.",
+    "zone_lead_time": "Sekundy navyše pred spustením zavlažovania. Použi to na zahriatie čerpadla alebo natlakovanie systému.",
+    "zone_maximum_duration": "Pevný horný limit pre jeden zavlažovací cyklus v sekundách. Zabraňuje nekontrolovanému zavlažovaniu. Predvolené: 3600 s (1 hodina).",
+    "zone_linked_entity": "Entita prepínača alebo ventilu v HA, ktorá riadi prietok vody pre túto zónu. Táto entita sa zapne, keď beží zavlažovanie.",
+    "zone_flow_sensor": "Voliteľný senzor merajúci skutočný prietok vody. Používa sa len na vykazovanie — neovplyvňuje výpočet trvania.",
+    "general_autoupdatedelay": "Sekundy čakania po spustení HA pred prvým získaním poveternostných údajov. Umožňuje ostatným integráciám sa najprv inicializovať.",
+    "general_sensor_debounce": "Minimálny odstup v milisekundách medzi načítaniami senzora na odfiltrovanie šumu z rýchlo sa meniacich senzorov.",
+    "general_calctime": "Čas dňa, kedy sa trvania zavlažovania prepočítajú zo získaných poveternostných údajov. Formát: HH:MM (24-hodinový).",
+    "general_cleardatatime": "Čas dňa, kedy sa odstránia staré poveternostné údaje. Musí byť nastavený neskôr ako čas výpočtu.",
+    "general_days_between": "Minimálny počet dní medzi zavlažovaniami tej istej zóny. Nastav na 0 na vypnutie (zavlažovať vždy, keď je deficit).",
+    "general_autoupdateinterval": "Ako často sa získavajú poveternostné údaje. Zvoľ hodnotu, ktorá vyvažuje čerstvé údaje a limity API.",
+    "general_precipitation_threshold": "Zavlažovanie sa preskočí, ak predpovedané zrážky na dnes/zajtra prekročia toto množstvo.",
+    "general_temp_threshold": "Zavlažovanie sa preskočí, ak je aktuálna teplota pod touto hodnotou (napr. na zabránenie poškodeniu mrazom).",
+    "general_wind_threshold": "Zavlažovanie sa preskočí, ak rýchlosť vetra prekročí túto hodnotu (silný vietor znižuje účinnosť a spôsobuje úlet)."
+  },
+  "wizard": {
+    "title": "Sprievodca nastavením",
+    "open_button": "Sprievodca nastavením",
+    "close": "Zavrieť",
+    "next": "Ďalej",
+    "back": "Späť",
+    "finish": "Dokončiť",
+    "skip_step": "Preskočiť tento krok",
+    "step_indicator": "Krok {current} z {total}",
+    "setup_complete_banner": "Nastavenie nie je dokončené. Spusti sprievodcu a začni.",
+    "open_wizard": "Otvoriť sprievodcu",
+    "steps": {
+      "welcome": {
+        "title": "Vitaj v Smart Irrigation",
+        "intro": "Tento sprievodca ťa prevedie štyrmi krokmi potrebnými na to, aby tvoja prvá zóna automaticky zavlažovala.",
+        "step1_label": "Poveternostná služba — odkiaľ získať poveternostné údaje",
+        "step2_label": "Výpočtový modul — ako sa počíta trvanie zavlažovania",
+        "step3_label": "Skupina senzorov — ktoré zdroje údajov použiť",
+        "step4_label": "Zóna — tvoja prvá zavlažovacia zóna",
+        "tip": "Ktorýkoľvek krok môžeš preskočiť a nakonfigurovať ho neskôr na karte Nastavenie."
+      },
+      "weather": {
+        "title": "Poveternostná služba",
+        "description": "Vyber, ako sa získavajú poveternostné údaje. Open-Meteo je zadarmo a nevyžaduje API kľúč — pre väčšinu používateľov najjednoduchšia voľba."
+      },
+      "module": {
+        "title": "Výpočtový modul",
+        "description": "Modul vypočíta, ako dlho zavlažovať, na základe evapotranspirácie (ET). Modul PyETO (metóda FAO-56) sa odporúča pre väčšinu používateľov.",
+        "pick_label": "Vyber typ modulu",
+        "no_modules": "Nie sú dostupné žiadne typy modulov."
+      },
+      "mapping": {
+        "title": "Skupina senzorov",
+        "description": "Skupina senzorov prepája každú poveternostnú premennú s dátovým zdrojom. Nastav kľúčové premenné nižšie — jednotlivé priradenia senzorov môžeš spresniť neskôr na karte Nastavenie → Skupiny senzorov.",
+        "name_label": "Názov skupiny senzorov",
+        "source_label": "Zdroj údajov pre",
+        "use_weather_service": "Poveternostná služba",
+        "use_sensor": "Senzor",
+        "use_static": "Statická hodnota",
+        "use_none": "Žiadny / nepoužité"
+      },
+      "zone": {
+        "title": "Prvá zóna",
+        "description": "Zóna je jedna zavlažovaná plocha (napr. trávnik, záhon). Nastav fyzické vlastnosti, aby systém mohol vypočítať správne trvanie zavlažovania.",
+        "name_label": "Názov zóny",
+        "size_label": "Plocha",
+        "throughput_label": "Prietok postrekovača",
+        "entity_label": "Prepojený prepínač alebo ventil",
+        "entity_placeholder": "napr. switch.garden_valve",
+        "module_label": "Výpočtový modul",
+        "mapping_label": "Skupina senzorov"
+      },
+      "done": {
+        "title": "Nastavenie dokončené!",
+        "description": "Tvoja prvá zóna je pripravená. Smart Irrigation teraz bude automaticky počítať trvania zavlažovania na základe poveternostných údajov.",
+        "next_steps": "Čo môžeš urobiť ďalej:",
+        "tip1": "Prejdi na Zóny a zobraz vypočítané trvania a hodnoty vedra.",
+        "tip2": "Pridaj ďalšie zóny na karte Zóny.",
+        "tip3": "Doladi všetky nastavenia na karte Nastavenie.",
+        "go_zones": "Prejsť na Zóny",
+        "go_setup": "Prejsť na Nastavenie"
+      }
+    }
   }
 }

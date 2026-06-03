@@ -63,160 +63,160 @@
   },
   "services": {
     "calculate_all_zones": {
-      "name": "Calculate all zones",
-      "description": "Calculate all zones in automatic mode",
+      "name": "Alle zones berekenen",
+      "description": "Alle zones in automatische modus berekenen",
       "fields": {
         "delete_weather_data": {
-          "name": "Delete weather data",
-          "description": "Delete weather data after calculation"
+          "name": "Weergegevens verwijderen",
+          "description": "Weergegevens verwijderen na de berekening"
         }
       }
     },
     "calculate_zone": {
-      "name": "Calculate zone",
-      "description": "Calculate specified zone",
+      "name": "Zone berekenen",
+      "description": "Opgegeven zone berekenen",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to calculate"
+          "name": "Entiteit",
+          "description": "Te berekenen zone"
         },
         "delete_weather_data": {
-          "name": "Delete weather data",
-          "description": "Delete weather data for the zone after calculation"
+          "name": "Weergegevens verwijderen",
+          "description": "Weergegevens van de zone verwijderen na de berekening"
         }
       }
     },
     "update_all_zones": {
-      "name": "Update all zones",
-      "description": "Update weatherdata for all zones in automatic mode"
+      "name": "Alle zones bijwerken",
+      "description": "Weergegevens bijwerken voor alle zones in automatische modus"
     },
     "update_zone": {
-      "name": "Update zone",
-      "description": "Update weatherdata for specified zone",
+      "name": "Zone bijwerken",
+      "description": "Weergegevens bijwerken voor de opgegeven zone",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to update"
+          "name": "Entiteit",
+          "description": "Bij te werken zone"
         }
       }
     },
     "set_bucket": {
-      "name": "Set bucket",
-      "description": "Set bucket for a zone to a specific value",
+      "name": "Emmer instellen",
+      "description": "De emmer van een zone op een specifieke waarde instellen",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set bucket for"
+          "name": "Entiteit",
+          "description": "Zone waarvan de emmer ingesteld moet worden"
         },
         "new_bucket_value": {
-          "name": "New bucket value",
-          "description": "new value of the bucket"
+          "name": "Nieuwe emmerwaarde",
+          "description": "Nieuwe waarde van de emmer"
         }
       }
     },
     "set_all_buckets": {
-      "name": "Set all buckets",
-      "description": "Set buckets for all zones to a specific value",
+      "name": "Alle emmers instellen",
+      "description": "De emmers van alle zones op een specifieke waarde instellen",
       "fields": {
         "new_bucket_value": {
-          "name": "New bucket value",
-          "description": "new value of the bucket"
+          "name": "Nieuwe emmerwaarde",
+          "description": "Nieuwe waarde van de emmer"
         }
       }
     },
     "reset_bucket": {
-      "name": "Reset bucket",
-      "description": "Reset bucket for a zone to 0",
+      "name": "Emmer resetten",
+      "description": "De emmer van een zone terugzetten naar 0",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to reset bucket for"
+          "name": "Entiteit",
+          "description": "Zone waarvan de emmer gereset moet worden"
         }
       }
     },
     "reset_all_buckets": {
-      "name": "Reset all buckets",
-      "description": "Reset bucket for all zones to 0"
+      "name": "Alle emmers resetten",
+      "description": "De emmer van alle zones terugzetten naar 0"
     },
     "clear_all_weather_data": {
-      "name": "Clear all weather data",
-      "description": "Clear weather data for all zones"
+      "name": "Alle weergegevens wissen",
+      "description": "Weergegevens voor alle zones wissen"
     },
     "set_multiplier": {
-      "name": "Set multiplier",
-      "description": "Set multiplier for a zone to a specific value",
+      "name": "Vermenigvuldiger instellen",
+      "description": "De vermenigvuldiger van een zone op een specifieke waarde instellen",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set multiplier for"
+          "name": "Entiteit",
+          "description": "Zone waarvan de vermenigvuldiger ingesteld moet worden"
         },
         "new_multiplier_value": {
-          "name": "New multiplier value",
-          "description": "new value of the multiplier"
+          "name": "Nieuwe vermenigvuldigerwaarde",
+          "description": "Nieuwe waarde van de vermenigvuldiger"
         }
       }
     },
     "set_all_multipliers": {
-      "name": "Set all multipliers",
-      "description": "Set multipliers for all zones to a specific value",
+      "name": "Alle vermenigvuldigers instellen",
+      "description": "De vermenigvuldigers van alle zones op een specifieke waarde instellen",
       "fields": {
         "new_multiplier_value": {
-          "name": "New multiplier value",
-          "description": "new value of the multiplier"
+          "name": "Nieuwe vermenigvuldigerwaarde",
+          "description": "Nieuwe waarde van de vermenigvuldiger"
         }
       }
     },
     "set_state": {
-      "name": "Set the state of a zone",
-      "description": "Set the state of a zone to a specific value",
+      "name": "De status van een zone instellen",
+      "description": "De status van een zone op een specifieke waarde instellen",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set state for"
+          "name": "Entiteit",
+          "description": "Zone waarvan de status ingesteld moet worden"
         },
         "new_state_value": {
-          "name": "New state value",
-          "description": "New value of the state"
+          "name": "Nieuwe statuswaarde",
+          "description": "Nieuwe waarde van de status"
         }
       }
     },
     "set_zone": {
-      "name": "Set the values of a zone",
-      "description": "Set all configurable values of a zone",
+      "name": "De waarden van een zone instellen",
+      "description": "Alle configureerbare waarden van een zone instellen",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set configuration values"
+          "name": "Entiteit",
+          "description": "Zone waarvan de configuratiewaarden ingesteld moeten worden"
         },
         "new_bucket_value": {
-          "name": "New bucket value",
-          "description": "New value for the bucket"
+          "name": "Nieuwe emmerwaarde",
+          "description": "Nieuwe waarde voor de emmer"
         },
         "new_multiplier_value": {
-          "name": "New multiplier value",
-          "description": "New value for the multiplier"
+          "name": "Nieuwe vermenigvuldigerwaarde",
+          "description": "Nieuwe waarde voor de vermenigvuldiger"
         },
         "new_duration_value": {
-          "name": "New duration value",
-          "description": "New value for the duration"
+          "name": "Nieuwe duurwaarde",
+          "description": "Nieuwe waarde voor de duur"
         },
         "new_state_value": {
-          "name": "New state value",
-          "description": "New value of the state"
+          "name": "Nieuwe statuswaarde",
+          "description": "Nieuwe waarde van de status"
         },
         "new_throughput_value": {
-          "name": "New throughput value",
-          "description": "New value for the throughput"
+          "name": "Nieuwe doorvoerwaarde",
+          "description": "Nieuwe waarde voor de doorvoer"
         }
       }
     },
     "generate_watering_calendar": {
-      "name": "Generate watering calendar",
-      "description": "Generate a 12-month watering calendar for irrigation zones based on representative climate data",
+      "name": "Irrigatiekalender genereren",
+      "description": "Genereer een irrigatiekalender van 12 maanden voor irrigatiezones op basis van representatieve klimaatgegevens",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to generate watering calendar for"
+          "name": "Entiteit",
+          "description": "Zone waarvoor de irrigatiekalender gegenereerd moet worden"
         }
       }
     }

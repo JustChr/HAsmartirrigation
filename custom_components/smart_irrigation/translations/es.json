@@ -17,36 +17,36 @@
         }
       },
       "step1": {
-        "title": "Weather service API set up",
+        "title": "Configuración de la API del servicio meteorológico",
         "description": "Si necesita ayuda con la configuración, consulte https://github.com/JustChr/HAsmartirrigation",
         "data": {
-          "weather_service": "Weather service to use",
+          "weather_service": "Servicio meteorológico a utilizar",
           "weather_service_api_key": "API key for weather service",
-          "weather_service_api_version": "Weather service API version"
+          "weather_service_api_version": "Versión de la API del servicio meteorológico"
         }
       }
     }
   },
   "options": {
     "error": {
-      "auth": "Weather service API key or version incorrect",
+      "auth": "Clave API o versión del servicio meteorológico incorrecta",
       "invalid_coordinates": "Coordenadas inválidas. Verifique los valores de latitud (-90 a 90) y longitud (-180 a 180)."
     },
     "step": {
       "init": {
-        "title": "Weather service API set up",
+        "title": "Configuración de la API del servicio meteorológico",
         "description": "Si necesita ayuda con la configuración, consulte https://github.com/JustChr/HAsmartirrigation",
         "data": {
           "use_weather_service": "Use a weather service (Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irigation will not be able to use forecasts."
         }
       },
       "step1": {
-        "title": "Weather service API set up",
+        "title": "Configuración de la API del servicio meteorológico",
         "description": "Si necesita ayuda con la configuración, consulte https://github.com/JustChr/HAsmartirrigation",
         "data": {
-          "weather_service": "Weather service to use",
+          "weather_service": "Servicio meteorológico a utilizar",
           "weather_service_api_key": "API key for weather service",
-          "weather_service_api_version": "Weather service API version"
+          "weather_service_api_version": "Versión de la API del servicio meteorológico"
         }
       },
       "coordinates": {
@@ -63,160 +63,160 @@
   },
   "services": {
     "calculate_all_zones": {
-      "name": "Calculate all zones",
-      "description": "Calculate all zones in automatic mode",
+      "name": "Calcular todas las zonas",
+      "description": "Calcular todas las zonas en modo automático",
       "fields": {
         "delete_weather_data": {
-          "name": "Delete weather data",
-          "description": "Delete weather data after calculation"
+          "name": "Eliminar datos meteorológicos",
+          "description": "Eliminar los datos meteorológicos tras el cálculo"
         }
       }
     },
     "calculate_zone": {
-      "name": "Calculate zone",
-      "description": "Calculate specified zone",
+      "name": "Calcular zona",
+      "description": "Calcular la zona especificada",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to calculate"
+          "name": "Entidad",
+          "description": "Zona a calcular"
         },
         "delete_weather_data": {
-          "name": "Delete weather data",
-          "description": "Delete weather data for the zone after calculation"
+          "name": "Eliminar datos meteorológicos",
+          "description": "Eliminar los datos meteorológicos de la zona tras el cálculo"
         }
       }
     },
     "update_all_zones": {
-      "name": "Update all zones",
-      "description": "Update weatherdata for all zones in automatic mode"
+      "name": "Actualizar todas las zonas",
+      "description": "Actualizar los datos meteorológicos de todas las zonas en modo automático"
     },
     "update_zone": {
-      "name": "Update zone",
-      "description": "Update weatherdata for specified zone",
+      "name": "Actualizar zona",
+      "description": "Actualizar los datos meteorológicos de la zona especificada",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to update"
+          "name": "Entidad",
+          "description": "Zona a actualizar"
         }
       }
     },
     "set_bucket": {
-      "name": "Set bucket",
-      "description": "Set bucket for a zone to a specific value",
+      "name": "Establecer depósito",
+      "description": "Establecer el depósito de una zona en un valor específico",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set bucket for"
+          "name": "Entidad",
+          "description": "Zona cuyo depósito se va a establecer"
         },
         "new_bucket_value": {
-          "name": "New bucket value",
-          "description": "new value of the bucket"
+          "name": "Nuevo valor del depósito",
+          "description": "Nuevo valor del depósito"
         }
       }
     },
     "set_all_buckets": {
-      "name": "Set all buckets",
-      "description": "Set buckets for all zones to a specific value",
+      "name": "Establecer todos los depósitos",
+      "description": "Establecer los depósitos de todas las zonas en un valor específico",
       "fields": {
         "new_bucket_value": {
-          "name": "New bucket value",
-          "description": "new value of the bucket"
+          "name": "Nuevo valor del depósito",
+          "description": "Nuevo valor del depósito"
         }
       }
     },
     "reset_bucket": {
-      "name": "Reset bucket",
-      "description": "Reset bucket for a zone to 0",
+      "name": "Restablecer depósito",
+      "description": "Restablecer el depósito de una zona a 0",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to reset bucket for"
+          "name": "Entidad",
+          "description": "Zona cuyo depósito se va a restablecer"
         }
       }
     },
     "reset_all_buckets": {
-      "name": "Reset all buckets",
-      "description": "Reset bucket for all zones to 0"
+      "name": "Restablecer todos los depósitos",
+      "description": "Restablecer el depósito de todas las zonas a 0"
     },
     "clear_all_weather_data": {
-      "name": "Clear all weather data",
-      "description": "Clear weather data for all zones"
+      "name": "Borrar todos los datos meteorológicos",
+      "description": "Borrar los datos meteorológicos de todas las zonas"
     },
     "set_multiplier": {
-      "name": "Set multiplier",
-      "description": "Set multiplier for a zone to a specific value",
+      "name": "Establecer multiplicador",
+      "description": "Establecer el multiplicador de una zona en un valor específico",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set multiplier for"
+          "name": "Entidad",
+          "description": "Zona cuyo multiplicador se va a establecer"
         },
         "new_multiplier_value": {
-          "name": "New multiplier value",
-          "description": "new value of the multiplier"
+          "name": "Nuevo valor del multiplicador",
+          "description": "Nuevo valor del multiplicador"
         }
       }
     },
     "set_all_multipliers": {
-      "name": "Set all multipliers",
-      "description": "Set multipliers for all zones to a specific value",
+      "name": "Establecer todos los multiplicadores",
+      "description": "Establecer los multiplicadores de todas las zonas en un valor específico",
       "fields": {
         "new_multiplier_value": {
-          "name": "New multiplier value",
-          "description": "new value of the multiplier"
+          "name": "Nuevo valor del multiplicador",
+          "description": "Nuevo valor del multiplicador"
         }
       }
     },
     "set_state": {
-      "name": "Set the state of a zone",
-      "description": "Set the state of a zone to a specific value",
+      "name": "Establecer el estado de una zona",
+      "description": "Establecer el estado de una zona en un valor específico",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set state for"
+          "name": "Entidad",
+          "description": "Zona cuyo estado se va a establecer"
         },
         "new_state_value": {
-          "name": "New state value",
-          "description": "New value of the state"
+          "name": "Nuevo valor del estado",
+          "description": "Nuevo valor del estado"
         }
       }
     },
     "set_zone": {
-      "name": "Set the values of a zone",
-      "description": "Set all configurable values of a zone",
+      "name": "Establecer los valores de una zona",
+      "description": "Establecer todos los valores configurables de una zona",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to set configuration values"
+          "name": "Entidad",
+          "description": "Zona cuyos valores de configuración se van a establecer"
         },
         "new_bucket_value": {
-          "name": "New bucket value",
-          "description": "New value for the bucket"
+          "name": "Nuevo valor del depósito",
+          "description": "Nuevo valor para el depósito"
         },
         "new_multiplier_value": {
-          "name": "New multiplier value",
-          "description": "New value for the multiplier"
+          "name": "Nuevo valor del multiplicador",
+          "description": "Nuevo valor para el multiplicador"
         },
         "new_duration_value": {
-          "name": "New duration value",
-          "description": "New value for the duration"
+          "name": "Nuevo valor de la duración",
+          "description": "Nuevo valor para la duración"
         },
         "new_state_value": {
-          "name": "New state value",
-          "description": "New value of the state"
+          "name": "Nuevo valor del estado",
+          "description": "Nuevo valor del estado"
         },
         "new_throughput_value": {
-          "name": "New throughput value",
-          "description": "New value for the throughput"
+          "name": "Nuevo valor del caudal",
+          "description": "Nuevo valor para el caudal"
         }
       }
     },
     "generate_watering_calendar": {
-      "name": "Generate watering calendar",
-      "description": "Generate a 12-month watering calendar for irrigation zones based on representative climate data",
+      "name": "Generar calendario de riego",
+      "description": "Generar un calendario de riego de 12 meses para las zonas de riego basado en datos climáticos representativos",
       "fields": {
         "entity": {
-          "name": "Entity",
-          "description": "Zone to generate watering calendar for"
+          "name": "Entidad",
+          "description": "Zona para la que generar el calendario de riego"
         }
       }
     }

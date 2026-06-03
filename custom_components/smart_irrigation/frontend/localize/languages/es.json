@@ -4,7 +4,9 @@
       "delete": "Eliminar",
       "edit": "Editar",
       "save": "Guardar",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "confirm_delete": "Confirmar eliminación",
+      "confirm_delete_zone": "¿Seguro que quieres eliminar esta zona?"
     },
     "labels": {
       "module": "Módulo",
@@ -14,7 +16,9 @@
       "enabled": "Activado",
       "disabled": "Desactivado",
       "before": "antes",
-      "after": "después"
+      "after": "después",
+      "settings": "Ajustes",
+      "bulk_actions": "Acciones masivas"
     },
     "attributes": {
       "size": "Tamaño",
@@ -67,9 +71,9 @@
         "bucket-larger-than-or-equal-to-zero-no-irrigation-necessary": "Como cubo >= 0, no es necesario regar y la duración se fija en",
         "maximum-bucket-is": "El tamaño máximo de cubo es",
         "max-bucket-variable": "max_bucket",
-        "drainage": "drainage",
-        "drainage-rate": "drainage_rate",
-        "hours": "hours",
+        "drainage": "drenaje",
+        "drainage-rate": "tasa de drenaje",
+        "hours": "horas",
         "drainage-rate-is": "La tasa de drenaje cuando está saturado (depósito al máximo) es",
         "current-drainage-is": "El drenaje actual se calcula como",
         "no-drainage": "El drenaje actual es 0 porque"
@@ -97,7 +101,7 @@
             "auto-calc-time": "Calcular en",
             "calc-time": "Calcular a las"
           },
-          "description": "Calculation takes collected weather data up to that point and updates the bucket for each automatic zone. Then, the duration is adjusted based on the new bucket value and the collected weather data is removed."
+          "description": "El cálculo toma los datos meteorológicos recopilados hasta ese momento y actualiza el depósito de cada zona automática. Después, la duración se ajusta según el nuevo valor del depósito y se eliminan los datos meteorológicos recopilados."
         },
         "automatic-update": {
           "errors": {
@@ -110,29 +114,29 @@
             "auto-update-interval": "Actualizar datos del sensor cada",
             "auto-update-schedule": "Programa de actualización",
             "auto-update-time": "Actualizar a las",
-            "auto-update-delay": "Update delay"
+            "auto-update-delay": "Retraso de actualización"
           },
           "options": {
             "days": "días",
             "hours": "horas",
             "minutes": "minutos"
           },
-          "description": "Collect and store weather data automatically. Weather data is required to calculate zone buckets and durations."
+          "description": "Recopila y almacena datos meteorológicos automáticamente. Los datos meteorológicos son necesarios para calcular los depósitos y las duraciones de las zonas."
         },
         "automatic-clear": {
-          "header": "Automatic weather data pruning",
-          "description": "Automatically remove collected weather data at a configured time. Use this to make sure that there is no left over weather data from previous days. Don't remove the weather data before you calculate and only use this option if you expect the automatic update to collect weather data after you calculated for the day. Ideally, you want to prune as late in the day as possible.",
+          "header": "Limpieza automática de datos meteorológicos",
+          "description": "Elimina automáticamente los datos meteorológicos recopilados a una hora configurada. Úsalo para asegurarte de que no queden datos meteorológicos de días anteriores. No elimines los datos meteorológicos antes de calcular y usa esta opción solo si esperas que la actualización automática recopile datos meteorológicos después de calcular para el día. Lo ideal es limpiar lo más tarde posible del día.",
           "labels": {
-            "automatic-clear-enabled": "Automatically clear collected weather data",
-            "automatic-clear-time": "Clear weather data at"
+            "automatic-clear-enabled": "Borrar automáticamente los datos meteorológicos recopilados",
+            "automatic-clear-time": "Borrar datos meteorológicos a las"
           }
         },
         "continuousupdates": {
           "header": "Actualizaciones continuas de sensores (experimental)",
           "description": "Función experimental para datos meteorológicos más detallados.",
           "labels": {
-            "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce",
+            "continuousupdates": "Activar actualizaciones continuas",
+            "sensor_debounce": "Antirrebote del sensor",
             "sensor-debounce": "Tiempo de antirrebote del sensor (ms)"
           }
         }
@@ -146,11 +150,11 @@
         "how-to-get-help": {
           "title": "Cómo obtener ayuda",
           "first-read-the": "Primero lee la",
-          "wiki": "Documentation",
+          "wiki": "Documentación",
           "if-you-still-need-help": "Si aún necesitas ayuda, puedes:",
           "community-forum": "Comunidad/Foro",
           "or-open-a": "o abrir un",
-          "github-issue": "Github Issue",
+          "github-issue": "Incidencia en GitHub",
           "english-only": "sólo en inglés"
         }
       }
@@ -172,13 +176,13 @@
             "median": "Mediana",
             "minimum": "Mínimo",
             "sum": "Suma",
-            "riemannsum": "Riemann sum",
+            "riemannsum": "Suma de Riemann",
             "delta": "Delta"
           },
           "errors": {
             "cannot-delete-mapping-because-zones-use-it": "No puedes eliminar este grupo de sensores porque hay al menos una zona que lo está usando.",
-            "invalid_source": "Invalid source",
-            "source_does_not_exist": "Source does not exist. Please enter a valid source, such as 'sensor.mysensor'."
+            "invalid_source": "Origen no válido",
+            "source_does_not_exist": "El origen no existe. Introduce un origen válido, como 'sensor.mysensor'."
           },
           "items": {
             "dewpoint": "Punto de rocío",
@@ -191,7 +195,7 @@
             "solar radiation": "Radiación solar",
             "temperature": "Temperatura",
             "windspeed": "Velocidad del viento",
-            "current precipitation": "Current precipitation"
+            "current precipitation": "Precipitación actual"
           },
           "sensor-aggregate-of-sensor-values-to-calculate": "de los valores de los sensores para calcular la duración",
           "sensor-aggregate-use-the": "Usar la",
@@ -201,15 +205,15 @@
           "source": "Fuente",
           "sources": {
             "none": "Ninguno",
-            "weather_service": "Weather service",
+            "weather_service": "Servicio meteorológico",
             "sensor": "Sensor",
             "static": "Valor estático"
           },
           "pressure_types": {
-            "absolute": "absolute",
-            "relative": "relative"
+            "absolute": "absoluta",
+            "relative": "relativa"
           },
-          "pressure-type": "Pressure is"
+          "pressure-type": "La presión es"
         }
       },
       "description": "Añada uno o más grupos de sensores que recuperen datos meteorológicos de Weather service, de sensores o de una combinación de éstos. Puede asignar cada grupo de sensores a una o más zonas",
@@ -219,16 +223,16 @@
       "no_items": "Aún no hay grupos de sensores definidos.",
       "title": "Grupos de sensores",
       "weather-records": {
-        "title": "Weather Records",
-        "timestamp": "Time",
-        "temperature": "Temp",
+        "title": "Registros meteorológicos",
+        "timestamp": "Hora",
+        "temperature": "Temp.",
         "humidity": "Humidity",
-        "precipitation": "Precip",
-        "retrieval-time": "Retrieved",
-        "no-data": "No weather data available for this sensor group",
-        "dewpoint": "Dew",
-        "wind": "Wind",
-        "pressure": "Press"
+        "precipitation": "Precip.",
+        "retrieval-time": "Obtenido",
+        "no-data": "No hay datos meteorológicos disponibles para este grupo de sensores",
+        "dewpoint": "Rocío",
+        "wind": "Viento",
+        "pressure": "Presión"
       }
     },
     "modules": {
@@ -251,7 +255,7 @@
             "DontEstimate": "No estimar",
             "EstimateFromSunHours": "Estimar desde horas de sol",
             "EstimateFromTemp": "Estimar desde temperatura",
-            "EstimateFromSunHoursAndTemperature": "Estimate from average of sun hours and temperature"
+            "EstimateFromSunHoursAndTemperature": "Estimar a partir del promedio de horas de sol y temperatura"
           }
         }
       },
@@ -267,8 +271,9 @@
         "update": "Actualizar",
         "reset-bucket": "Resetear cubo",
         "view-weather-info": "Ver datos meteorológicos",
-        "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "Calendario de riego"
+        "view-weather-info-message": "Datos meteorológicos disponibles para",
+        "view-watering-calendar": "Calendario de riego",
+        "irrigate_all": "Ejecutar todas las zonas ahora"
       },
       "cards": {
         "add-zone": {
@@ -282,7 +287,7 @@
             "calculate-all": "Calcular todas las zonas",
             "update-all": "Actualizar todas las zonas",
             "reset-all-buckets": "Resetear todos los cubos",
-            "clear-all-weatherdata": "Clear all weather data"
+            "clear-all-weatherdata": "Borrar todos los datos meteorológicos"
           },
           "header": "Acciones en todas las zonas"
         }
@@ -305,14 +310,16 @@
         },
         "throughput": "Rendimiento",
         "maximum-bucket": "Cubo máximo",
-        "last_calculated": "Last calculated",
-        "data-last-updated": "Data last updated",
-        "data-number-of-data-points": "Number of data points",
-        "drainage_rate": "Drainage rate",
+        "last_calculated": "Último cálculo",
+        "data-last-updated": "Datos actualizados por última vez",
+        "data-number-of-data-points": "Número de puntos de datos",
+        "drainage_rate": "Tasa de drenaje",
         "linked_entity": "Entidad de interruptor/válvula vinculada",
         "linked_entity_placeholder": "p.ej. switch.valvula_jardin",
         "irrigate_now": "Regar ahora",
-        "bucket_threshold": "Déficit mínimo para regar"
+        "bucket_threshold": "Déficit mínimo para regar",
+        "flow_sensor": "Sensor de caudalímetro (opcional)",
+        "flow_sensor_placeholder": "p. ej. sensor.zone_flow_rate"
       },
       "no_items": "Aún no hay zonas definidas.",
       "title": "Zonas"
@@ -394,7 +401,7 @@
       }
     },
     "info": {
-      "title": "Info",
+      "title": "Información",
       "description": "Ver información sobre el próximo riego y el estado del sistema.",
       "configuration-not-available": "Configuración no disponible.",
       "cards": {
@@ -432,6 +439,9 @@
           "no_linked_zones": "Ninguna zona tiene una entidad de interruptor/válvula vinculada con duración calculada."
         }
       }
+    },
+    "setup": {
+      "title": "Configuración"
     }
   },
   "title": "Smart Irrigation",
@@ -452,61 +462,61 @@
     "help_text": "Establezca 0 para desactivar. Se admiten valores de 1 a 365 días."
   },
   "irrigation_start_triggers": {
-    "title": "Irrigation Start Triggers",
-    "description": "Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",
-    "add_trigger": "Add Trigger",
-    "edit_trigger": "Edit Trigger",
-    "delete_trigger": "Delete Trigger",
+    "title": "Disparadores de inicio de riego",
+    "description": "Configura cuándo debe iniciarse el riego según eventos solares. Puedes añadir varios disparadores para diferentes horarios. Para los disparadores de amanecer, dejar el desfase en 0 usará automáticamente la duración total de todas las zonas activadas.",
+    "add_trigger": "Añadir disparador",
+    "edit_trigger": "Editar disparador",
+    "delete_trigger": "Eliminar disparador",
     "trigger_types": {
-      "sunrise": "Sunrise",
-      "sunset": "Sunset",
-      "solar_azimuth": "Solar Azimuth"
+      "sunrise": "Amanecer",
+      "sunset": "Atardecer",
+      "solar_azimuth": "Acimut solar"
     },
     "fields": {
       "name": {
-        "name": "Trigger Name",
-        "description": "A descriptive name to identify this trigger"
+        "name": "Nombre del disparador",
+        "description": "Un nombre descriptivo para identificar este disparador"
       },
       "type": {
-        "name": "Trigger Type",
-        "description": "The type of solar event to trigger on"
+        "name": "Tipo de disparador",
+        "description": "El tipo de evento solar con el que activar"
       },
       "enabled": {
-        "name": "Enabled",
-        "description": "Whether this trigger is currently active"
+        "name": "Activado",
+        "description": "Si este disparador está actualmente activo"
       },
       "offset_minutes": {
-        "name": "Offset (minutes)",
-        "description": "Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."
+        "name": "Desfase (minutos)",
+        "description": "Minutos antes (-) o después (+) del evento solar. Para los disparadores de amanecer, usa 0 para una temporización automática basada en la duración total de las zonas."
       },
       "azimuth_angle": {
-        "name": "Azimuth Angle (degrees)",
-        "description": "Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"
+        "name": "Ángulo de acimut (grados)",
+        "description": "Ángulo de acimut solar en grados donde 0=Norte, 90=Este, 180=Sur, 270=Oeste"
       },
       "account_for_duration": {
-        "name": "Account for Duration",
-        "description": "When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."
+        "name": "Tener en cuenta la duración",
+        "description": "Si está activado, el riego comenzará con suficiente antelación para terminar a la hora indicada. Si está desactivado, el riego comenzará exactamente a la hora indicada."
       }
     },
     "dialog": {
-      "add_title": "Add Irrigation Start Trigger",
-      "edit_title": "Edit Irrigation Start Trigger",
-      "cancel": "Cancel",
-      "save": "Save",
-      "delete": "Delete"
+      "add_title": "Añadir disparador de inicio de riego",
+      "edit_title": "Editar disparador de inicio de riego",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "delete": "Eliminar"
     },
-    "no_triggers": "No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",
-    "offset_auto": "Auto (calculated from total zone duration)",
-    "confirm_delete": "Are you sure you want to delete the trigger '{name}'?",
+    "no_triggers": "No hay disparadores de inicio de riego configurados. El sistema usará el comportamiento predeterminado (amanecer con la duración total de las zonas). Añade disparadores para personalizar cuándo comienza el riego.",
+    "offset_auto": "Automático (calculado a partir de la duración total de las zonas)",
+    "confirm_delete": "¿Seguro que quieres eliminar el disparador '{name}'?",
     "validation": {
-      "name_required": "Trigger name is required",
-      "azimuth_invalid": "Azimuth angle must be a valid number"
+      "name_required": "El nombre del disparador es obligatorio",
+      "azimuth_invalid": "El ángulo de acimut debe ser un número válido"
     },
     "help": {
-      "sunrise_offset": "For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",
-      "sunset_offset": "For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",
-      "azimuth_explanation": "Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",
-      "multiple_triggers": "You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."
+      "sunrise_offset": "Para los disparadores de amanecer: usa valores negativos para empezar antes del amanecer, positivos para empezar después. Pon 0 para empezar automáticamente con tiempo suficiente para completar todas las zonas antes del amanecer.",
+      "sunset_offset": "Para los disparadores de atardecer: usa valores negativos para empezar antes del atardecer, positivos para empezar después del atardecer.",
+      "azimuth_explanation": "El acimut solar es la dirección de la brújula del sol. 0°=Norte, 90°=Este, 180°=Sur, 270°=Oeste. Puedes introducir cualquier valor de ángulo (p. ej., 450° = 90°, -30° = 330°). Úsalo para activar el riego cuando el sol alcance una posición concreta.",
+      "multiple_triggers": "Puedes configurar varios disparadores. Cada disparador activado programará los inicios de riego de forma independiente."
     }
   },
   "weather_skip": {
@@ -526,6 +536,121 @@
     "title": "Secuencia de zonas",
     "description": "Cuando varias zonas necesitan riego, elija si se ejecutan al mismo tiempo o una tras otra. En modo secuencial, el sistema espera a que cada zona termine antes de iniciar la siguiente.",
     "parallel": "Paralelo (todas las zonas a la vez)",
-    "sequential": "Secuencial (una zona a la vez)"
+    "sequential": "Secuencial (una zona a la vez)",
+    "rotating": "Rotativo (las zonas se turnan)",
+    "max_consecutive_duration_label": "Tiempo máx. de ejecución consecutiva por zona",
+    "max_consecutive_duration_unit": "minutos",
+    "min_absorption_time_label": "Tiempo mín. de absorción entre turnos",
+    "min_absorption_time_unit": "minutos (0 = desactivado)"
+  },
+  "weather_service_config": {
+    "title": "Servicio meteorológico",
+    "description": "Configura qué servicio meteorológico usar para los cálculos de ET y las condiciones de omisión.",
+    "enabled_label": "Activar servicio meteorológico",
+    "service_label": "Servicio meteorológico",
+    "api_key_label": "Clave API",
+    "api_key_placeholder": "Déjalo en blanco para conservar la clave existente",
+    "api_key_configured": "La clave API está configurada",
+    "api_key_not_configured": "No hay clave API configurada",
+    "api_key_help": "Una clave API de tu proveedor de servicio meteorológico elegido. Open-Meteo no requiere clave. OpenWeatherMap y Pirate Weather ofrecen niveles gratuitos.",
+    "no_api_key_needed": "Open-Meteo es un servicio gratuito y no requiere clave API.",
+    "save_button": "Guardar ajustes meteorológicos",
+    "saved": "Ajustes meteorológicos guardados",
+    "openmeteo": "Open-Meteo (gratis, sin clave)",
+    "test_button": "Probar conexión",
+    "test_button_testing": "Probando…",
+    "test_success": "✓ Conexión correcta",
+    "test_error_invalid_auth": "✗ Clave API no válida — comprueba que sea correcta y esté activa",
+    "test_error_cannot_connect": "✗ No se puede conectar — comprueba tu conexión a internet",
+    "test_error_no_service": "✗ Selecciona primero un servicio meteorológico",
+    "test_error_unknown": "✗ Prueba fallida — error desconocido",
+    "owm": "OpenWeatherMap",
+    "pw": "Pirate Weather"
+  },
+  "field_help": {
+    "zone_size": "La superficie total regada de esta zona. Se usa junto con el caudal para calcular cuánta agua se aplica por ciclo.",
+    "zone_throughput": "Flujo total de agua de tu sistema de riego para esta zona (litros/min en métrico, gal/min en imperial). Consulta la ficha técnica de tus aspersores o mídelo cronometrando cuánto tarda en llenarse un recipiente conocido.",
+    "zone_drainage_rate": "La rapidez con que el agua sobrante drena del suelo cuando el depósito está lleno. Típico: césped 50 mm/h, suelo arenoso 100+ mm/h, arcilla 10 mm/h.",
+    "zone_bucket": "Déficit (negativo) o superávit (positivo) de agua actual de esta zona. El riego se activa cuando el depósito cae por debajo del umbral.",
+    "zone_maximum_bucket": "Superávit máximo de humedad que la zona puede retener. El agua por encima de este nivel se trata como escorrentía. Valor típico: 50 mm.",
+    "zone_bucket_threshold": "El riego se activa cuando el depósito cae por debajo de este valor. Debe ser 0 o negativo. 0 significa regar siempre que haya déficit.",
+    "zone_multiplier": "Factor de escala aplicado a la duración calculada. Por encima de 1,0 aumenta, por debajo de 1,0 disminuye. Útil para ajustar sin cambiar las mediciones físicas.",
+    "zone_lead_time": "Segundos adicionales antes de que comience el riego. Úsalo para el calentamiento de la bomba o la presurización del sistema.",
+    "zone_maximum_duration": "Límite máximo absoluto para cualquier ciclo de riego individual en segundos. Evita el riego descontrolado. Predeterminado: 3600 s (1 hora).",
+    "zone_linked_entity": "La entidad de interruptor o válvula de HA que controla el flujo de agua de esta zona. Esta entidad se activa cuando se ejecuta el riego.",
+    "zone_flow_sensor": "Sensor opcional que mide el caudal real. Se usa solo para informes — no afecta a los cálculos de duración.",
+    "general_autoupdatedelay": "Segundos a esperar tras iniciar HA antes de la primera obtención de datos meteorológicos. Permite que otras integraciones se inicialicen primero.",
+    "general_sensor_debounce": "Intervalo mínimo en milisegundos entre lecturas del sensor para filtrar el ruido de sensores que cambian rápidamente.",
+    "general_calctime": "Hora del día en que se recalculan las duraciones de riego a partir de los datos meteorológicos recopilados. Formato: HH:MM (24 horas).",
+    "general_cleardatatime": "Hora del día en que se purgan los datos meteorológicos antiguos. Debe ser posterior a la hora de cálculo.",
+    "general_days_between": "Días mínimos entre eventos de riego para la misma zona. Pon 0 para desactivar (regar siempre que haya déficit).",
+    "general_autoupdateinterval": "Con qué frecuencia se recopilan los datos meteorológicos. Elige un valor que equilibre datos frescos con los límites de la API.",
+    "general_precipitation_threshold": "El riego se omite si la precipitación prevista para hoy/mañana supera esta cantidad.",
+    "general_temp_threshold": "El riego se omite si la temperatura actual es inferior a este valor (p. ej. para evitar daños por heladas).",
+    "general_wind_threshold": "El riego se omite si la velocidad del viento supera este valor (el viento fuerte reduce la eficiencia y causa deriva)."
+  },
+  "wizard": {
+    "title": "Asistente de configuración",
+    "open_button": "Asistente de configuración",
+    "close": "Cerrar",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "finish": "Finalizar",
+    "skip_step": "Omitir este paso",
+    "step_indicator": "Paso {current} de {total}",
+    "setup_complete_banner": "Configuración incompleta. Ejecuta el asistente para empezar.",
+    "open_wizard": "Abrir asistente",
+    "steps": {
+      "welcome": {
+        "title": "Bienvenido a Smart Irrigation",
+        "intro": "Este asistente te guía por los cuatro pasos necesarios para que tu primera zona riegue automáticamente.",
+        "step1_label": "Servicio meteorológico — de dónde obtener los datos meteorológicos",
+        "step2_label": "Módulo de cálculo — cómo se calcula la duración del riego",
+        "step3_label": "Grupo de sensores — qué fuentes de datos usar",
+        "step4_label": "Zona — tu primera zona de riego",
+        "tip": "Puedes omitir cualquier paso y configurarlo más tarde desde la pestaña Configuración."
+      },
+      "weather": {
+        "title": "Servicio meteorológico",
+        "description": "Elige cómo obtener los datos meteorológicos. Open-Meteo es gratuito y no requiere clave API — es la opción más sencilla para la mayoría."
+      },
+      "module": {
+        "title": "Módulo de cálculo",
+        "description": "Un módulo calcula cuánto regar según la evapotranspiración (ET). El módulo PyETO (método FAO-56) es el recomendado para la mayoría.",
+        "pick_label": "Seleccionar tipo de módulo",
+        "no_modules": "No hay tipos de módulo disponibles."
+      },
+      "mapping": {
+        "title": "Grupo de sensores",
+        "description": "Un grupo de sensores vincula cada variable meteorológica con una fuente de datos. Define las variables clave a continuación — podrás refinar las asignaciones de sensores individuales más tarde en la pestaña Configuración → Grupos de sensores.",
+        "name_label": "Nombre del grupo de sensores",
+        "source_label": "Fuente de datos para",
+        "use_weather_service": "Servicio meteorológico",
+        "use_sensor": "Sensor",
+        "use_static": "Valor estático",
+        "use_none": "Ninguna / sin usar"
+      },
+      "zone": {
+        "title": "Primera zona",
+        "description": "Una zona es un área de riego (p. ej. césped, parterre). Define las propiedades físicas para que el sistema pueda calcular la duración de riego correcta.",
+        "name_label": "Nombre de la zona",
+        "size_label": "Superficie",
+        "throughput_label": "Caudal del aspersor",
+        "entity_label": "Interruptor o válvula vinculados",
+        "entity_placeholder": "p. ej. switch.garden_valve",
+        "module_label": "Módulo de cálculo",
+        "mapping_label": "Grupo de sensores"
+      },
+      "done": {
+        "title": "¡Configuración completada!",
+        "description": "Tu primera zona está lista. Smart Irrigation ahora calculará las duraciones de riego automáticamente según los datos meteorológicos.",
+        "next_steps": "Qué puedes hacer a continuación:",
+        "tip1": "Ve a Zonas para ver las duraciones calculadas y los valores del depósito.",
+        "tip2": "Añade más zonas desde la pestaña Zonas.",
+        "tip3": "Ajusta todos los parámetros desde la pestaña Configuración.",
+        "go_zones": "Ir a Zonas",
+        "go_setup": "Ir a Configuración"
+      }
+    }
   }
 }

@@ -4,7 +4,9 @@
       "delete": "Cancella",
       "edit": "Modifica",
       "save": "Salva",
-      "cancel": "Annulla"
+      "cancel": "Annulla",
+      "confirm_delete": "Conferma eliminazione",
+      "confirm_delete_zone": "Vuoi davvero eliminare questa zona?"
     },
     "labels": {
       "module": "Modulo",
@@ -14,15 +16,17 @@
       "enabled": "Abilitato",
       "disabled": "Disabilitato",
       "before": "prima",
-      "after": "dopo"
+      "after": "dopo",
+      "settings": "Impostazioni",
+      "bulk_actions": "Azioni multiple"
     },
     "units": {
       "seconds": "secondi"
     },
     "attributes": {
-      "size": "size",
-      "throughput": "throughput",
-      "state": "state",
+      "size": "dimensione",
+      "throughput": "portata",
+      "state": "stato",
       "bucket": "serbatoio",
       "last_updated": "ultimo aggiornamento",
       "last_calculated": "ultimo calcolo",
@@ -111,7 +115,7 @@
             "auto-update-interval": "Aggiorna i dati del sensore ogni",
             "auto-update-schedule": "Pianificazione aggiornamento",
             "auto-update-time": "Aggiorna alle",
-            "auto-update-delay": "Update delay"
+            "auto-update-delay": "Ritardo di aggiornamento"
           },
           "options": {
             "days": "giorni",
@@ -146,7 +150,7 @@
         "how-to-get-help": {
           "title": "Come ottenere aiuto",
           "first-read-the": "Per prima cosa, leggi il",
-          "wiki": "Documentation",
+          "wiki": "Documentazione",
           "if-you-still-need-help": "Se hai ancora bisogno di aiuto, contatta il",
           "community-forum": "Forum della Comunità",
           "or-open-a": "oppure apri un",
@@ -248,7 +252,7 @@
           "source": "Fonte",
           "sources": {
             "none": "Nessuna",
-            "weather_service": "Weather service",
+            "weather_service": "Servizio meteo",
             "sensor": "Sensore",
             "static": "Valore statico"
           }
@@ -263,14 +267,14 @@
       "weather-records": {
         "title": "Record meteo (ultimi 10)",
         "timestamp": "Tempo",
-        "temperature": "Temp",
+        "temperature": "Temp.",
         "humidity": "Umidità",
-        "precipitation": "Precip",
+        "precipitation": "Precip.",
         "retrieval-time": "Recuperato",
         "no-data": "Non sono disponibili dati meteo per questo gruppo di sensori",
-        "dewpoint": "Dew",
-        "wind": "Wind",
-        "pressure": "Press"
+        "dewpoint": "Rugiada",
+        "wind": "Vento",
+        "pressure": "Press."
       }
     },
     "modules": {
@@ -311,7 +315,8 @@
         "view-weather-info": "Visualizza dati meteo",
         "view-weather-info-message": "Informazioni meteo disponibili per",
         "view-weather-info-todo": "TODO: Implementare la navigazione ai dettagli del gruppo di sensori",
-        "view-watering-calendar": "Calendario irrigazione"
+        "view-watering-calendar": "Calendario irrigazione",
+        "irrigate_all": "Esegui tutte le zone ora"
       },
       "cards": {
         "add-zone": {
@@ -352,11 +357,13 @@
         "data-last-updated": "Ultimo aggiornamento dei dati",
         "data-number-of-data-points": "Numero di dati",
         "tasso_di_drenaggio": "tasso di drenaggio",
-        "drainage_rate": "Drainage rate",
+        "drainage_rate": "Tasso di drenaggio",
         "linked_entity": "Entità interruttore/valvola collegata",
         "linked_entity_placeholder": "es. switch.valvola_giardino",
         "irrigate_now": "Irriga ora",
-        "bucket_threshold": "Deficit minimo per irrigare"
+        "bucket_threshold": "Deficit minimo per irrigare",
+        "flow_sensor": "Sensore del flussometro (opzionale)",
+        "flow_sensor_placeholder": "ad es. sensor.zone_flow_rate"
       },
       "no_items": "Non ci sono ancora zone definite.",
       "title": "Zone"
@@ -436,6 +443,9 @@
         "add_title": "Aggiungi aggiustamento stagionale",
         "edit_title": "Modifica aggiustamento stagionale"
       }
+    },
+    "setup": {
+      "title": "Configurazione"
     }
   },
   "title": "Smart Irrigation",
@@ -456,61 +466,61 @@
     "help_text": "Impostare 0 per disabilitare. Sono supportati valori da 1 a 365 giorni."
   },
   "irrigation_start_triggers": {
-    "title": "Irrigation Start Triggers",
-    "description": "Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",
-    "add_trigger": "Add Trigger",
-    "edit_trigger": "Edit Trigger",
-    "delete_trigger": "Delete Trigger",
+    "title": "Trigger di avvio irrigazione",
+    "description": "Configura quando deve iniziare l'irrigazione in base agli eventi solari. Puoi aggiungere più trigger per orari diversi. Per i trigger all'alba, lasciando lo scostamento a 0 verrà usata automaticamente la durata totale di tutte le zone abilitate.",
+    "add_trigger": "Aggiungi trigger",
+    "edit_trigger": "Modifica trigger",
+    "delete_trigger": "Elimina trigger",
     "trigger_types": {
-      "sunrise": "Sunrise",
-      "sunset": "Sunset",
-      "solar_azimuth": "Solar Azimuth"
+      "sunrise": "Alba",
+      "sunset": "Tramonto",
+      "solar_azimuth": "Azimut solare"
     },
     "fields": {
       "name": {
-        "name": "Trigger Name",
-        "description": "A descriptive name to identify this trigger"
+        "name": "Nome del trigger",
+        "description": "Un nome descrittivo per identificare questo trigger"
       },
       "type": {
-        "name": "Trigger Type",
-        "description": "The type of solar event to trigger on"
+        "name": "Tipo di trigger",
+        "description": "Il tipo di evento solare su cui attivare"
       },
       "enabled": {
-        "name": "Enabled",
-        "description": "Whether this trigger is currently active"
+        "name": "Abilitato",
+        "description": "Se questo trigger è attualmente attivo"
       },
       "offset_minutes": {
-        "name": "Offset (minutes)",
-        "description": "Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."
+        "name": "Scostamento (minuti)",
+        "description": "Minuti prima (-) o dopo (+) l'evento solare. Per i trigger all'alba, usa 0 per una temporizzazione automatica basata sulla durata totale delle zone."
       },
       "azimuth_angle": {
-        "name": "Azimuth Angle (degrees)",
-        "description": "Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"
+        "name": "Angolo di azimut (gradi)",
+        "description": "Angolo di azimut solare in gradi dove 0=Nord, 90=Est, 180=Sud, 270=Ovest"
       },
       "account_for_duration": {
-        "name": "Account for Duration",
-        "description": "When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."
+        "name": "Considera la durata",
+        "description": "Se abilitato, l'irrigazione inizierà abbastanza presto da terminare all'ora specificata. Se disabilitato, l'irrigazione inizierà esattamente all'ora specificata."
       }
     },
     "dialog": {
-      "add_title": "Add Irrigation Start Trigger",
-      "edit_title": "Edit Irrigation Start Trigger",
-      "cancel": "Cancel",
-      "save": "Save",
-      "delete": "Delete"
+      "add_title": "Aggiungi trigger di avvio irrigazione",
+      "edit_title": "Modifica trigger di avvio irrigazione",
+      "cancel": "Annulla",
+      "save": "Salva",
+      "delete": "Elimina"
     },
-    "no_triggers": "No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",
-    "offset_auto": "Auto (calculated from total zone duration)",
-    "confirm_delete": "Are you sure you want to delete the trigger '{name}'?",
+    "no_triggers": "Nessun trigger di avvio irrigazione configurato. Il sistema userà il comportamento predefinito (alba con la durata totale delle zone). Aggiungi trigger per personalizzare l'avvio dell'irrigazione.",
+    "offset_auto": "Automatico (calcolato dalla durata totale delle zone)",
+    "confirm_delete": "Vuoi davvero eliminare il trigger '{name}'?",
     "validation": {
-      "name_required": "Trigger name is required",
-      "azimuth_invalid": "Azimuth angle must be a valid number"
+      "name_required": "Il nome del trigger è obbligatorio",
+      "azimuth_invalid": "L'angolo di azimut deve essere un numero valido"
     },
     "help": {
-      "sunrise_offset": "For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",
-      "sunset_offset": "For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",
-      "azimuth_explanation": "Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",
-      "multiple_triggers": "You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."
+      "sunrise_offset": "Per i trigger all'alba: usa valori negativi per iniziare prima dell'alba, positivi per iniziare dopo. Imposta 0 per iniziare automaticamente con abbastanza anticipo da completare tutte le zone prima dell'alba.",
+      "sunset_offset": "Per i trigger al tramonto: usa valori negativi per iniziare prima del tramonto, positivi per iniziare dopo il tramonto.",
+      "azimuth_explanation": "L'azimut solare è la direzione bussolare del sole. 0°=Nord, 90°=Est, 180°=Sud, 270°=Ovest. Puoi inserire qualsiasi valore di angolo (ad es. 450° = 90°, -30° = 330°). Usalo per attivare l'irrigazione quando il sole raggiunge una posizione specifica.",
+      "multiple_triggers": "Puoi configurare più trigger. Ogni trigger abilitato pianificherà gli avvii dell'irrigazione in modo indipendente."
     }
   },
   "weather_skip": {
@@ -536,5 +546,115 @@
     "max_consecutive_duration_unit": "minuti",
     "min_absorption_time_label": "Tempo minimo di assorbimento tra slot",
     "min_absorption_time_unit": "minuti (0 = disabilitato)"
+  },
+  "weather_service_config": {
+    "title": "Servizio meteo",
+    "description": "Configura quale servizio meteo usare per i calcoli ET e le condizioni di salto.",
+    "enabled_label": "Abilita servizio meteo",
+    "service_label": "Servizio meteo",
+    "api_key_label": "Chiave API",
+    "api_key_placeholder": "Lascia vuoto per mantenere la chiave esistente",
+    "api_key_configured": "La chiave API è configurata",
+    "api_key_not_configured": "Nessuna chiave API configurata",
+    "api_key_help": "Una chiave API del provider di servizio meteo scelto. Open-Meteo non richiede una chiave. OpenWeatherMap e Pirate Weather offrono entrambi piani gratuiti.",
+    "no_api_key_needed": "Open-Meteo è un servizio gratuito e non richiede una chiave API.",
+    "save_button": "Salva impostazioni meteo",
+    "saved": "Impostazioni meteo salvate",
+    "openmeteo": "Open-Meteo (gratuito, senza chiave)",
+    "test_button": "Prova connessione",
+    "test_button_testing": "Test in corso…",
+    "test_success": "✓ Connessione riuscita",
+    "test_error_invalid_auth": "✗ Chiave API non valida — verifica che sia corretta e attiva",
+    "test_error_cannot_connect": "✗ Impossibile connettersi — controlla la connessione internet",
+    "test_error_no_service": "✗ Seleziona prima un servizio meteo",
+    "test_error_unknown": "✗ Test fallito — errore sconosciuto",
+    "owm": "OpenWeatherMap",
+    "pw": "Pirate Weather"
+  },
+  "field_help": {
+    "zone_size": "L'area irrigata totale di questa zona. Usata con la portata per calcolare quanta acqua viene erogata per ciclo.",
+    "zone_throughput": "Flusso d'acqua totale del tuo impianto di irrigazione per questa zona (litri/min in metrico, gal/min in imperiale). Controlla la scheda tecnica degli irrigatori o misura cronometrando quanto tempo serve a riempire un contenitore di volume noto.",
+    "zone_drainage_rate": "La velocità con cui l'acqua in eccesso drena dal terreno quando il secchio è pieno. Tipico: prato 50 mm/h, terreno sabbioso 100+ mm/h, argilla 10 mm/h.",
+    "zone_bucket": "Deficit (negativo) o surplus (positivo) idrico attuale di questa zona. L'irrigazione si attiva quando il secchio scende sotto la soglia.",
+    "zone_maximum_bucket": "Surplus di umidità massimo che la zona può trattenere. L'acqua oltre questo livello è trattata come deflusso. Valore tipico: 50 mm.",
+    "zone_bucket_threshold": "L'irrigazione si attiva quando il secchio scende sotto questo valore. Deve essere 0 o negativo. 0 significa irrigare ogni volta che c'è un deficit.",
+    "zone_multiplier": "Fattore di scala applicato alla durata calcolata. Sopra 1,0 aumenta, sotto 1,0 diminuisce. Utile per la messa a punto senza modificare le misure fisiche.",
+    "zone_lead_time": "Secondi aggiuntivi prima dell'avvio dell'irrigazione. Usali per il riscaldamento della pompa o la pressurizzazione dell'impianto.",
+    "zone_maximum_duration": "Limite massimo assoluto per un singolo ciclo di irrigazione in secondi. Previene irrigazioni incontrollate. Predefinito: 3600 s (1 ora).",
+    "zone_linked_entity": "L'entità interruttore o valvola di HA che controlla il flusso d'acqua per questa zona. Questa entità viene attivata quando l'irrigazione è in funzione.",
+    "zone_flow_sensor": "Sensore opzionale che misura la portata d'acqua effettiva. Usato solo per i report — non influisce sul calcolo della durata.",
+    "general_autoupdatedelay": "Secondi di attesa dopo l'avvio di HA prima del primo recupero dei dati meteo. Consente alle altre integrazioni di inizializzarsi prima.",
+    "general_sensor_debounce": "Intervallo minimo in millisecondi tra le letture del sensore per filtrare il rumore dei sensori che cambiano rapidamente.",
+    "general_calctime": "Ora del giorno in cui le durate di irrigazione vengono ricalcolate dai dati meteo raccolti. Formato: HH:MM (24 ore).",
+    "general_cleardatatime": "Ora del giorno in cui i vecchi dati meteo vengono eliminati. Deve essere impostata dopo l'ora di calcolo.",
+    "general_days_between": "Giorni minimi tra gli eventi di irrigazione per la stessa zona. Imposta 0 per disabilitare (irrigare ogni volta che c'è un deficit).",
+    "general_autoupdateinterval": "Con quale frequenza vengono raccolti i dati meteo. Scegli un valore che bilanci dati aggiornati e limiti dell'API.",
+    "general_precipitation_threshold": "L'irrigazione viene saltata se le precipitazioni previste per oggi/domani superano questa quantità.",
+    "general_temp_threshold": "L'irrigazione viene saltata se la temperatura attuale è inferiore a questo valore (ad es. per prevenire danni da gelo).",
+    "general_wind_threshold": "L'irrigazione viene saltata se la velocità del vento supera questo valore (il vento forte riduce l'efficienza e causa deriva)."
+  },
+  "wizard": {
+    "title": "Configurazione guidata",
+    "open_button": "Configurazione guidata",
+    "close": "Chiudi",
+    "next": "Avanti",
+    "back": "Indietro",
+    "finish": "Fine",
+    "skip_step": "Salta questo passaggio",
+    "step_indicator": "Passaggio {current} di {total}",
+    "setup_complete_banner": "Configurazione non completata. Avvia la procedura guidata per iniziare.",
+    "open_wizard": "Apri procedura guidata",
+    "steps": {
+      "welcome": {
+        "title": "Benvenuto in Smart Irrigation",
+        "intro": "Questa procedura guidata ti accompagna nei quattro passaggi necessari per far irrigare automaticamente la tua prima zona.",
+        "step1_label": "Servizio meteo — dove ottenere i dati meteo",
+        "step2_label": "Modulo di calcolo — come viene calcolata la durata dell'irrigazione",
+        "step3_label": "Gruppo di sensori — quali fonti di dati usare",
+        "step4_label": "Zona — la tua prima zona di irrigazione",
+        "tip": "Puoi saltare qualsiasi passaggio e configurarlo in seguito dalla scheda Configurazione."
+      },
+      "weather": {
+        "title": "Servizio meteo",
+        "description": "Scegli come ottenere i dati meteo. Open-Meteo è gratuito e non richiede una chiave API — è la scelta più semplice per la maggior parte degli utenti."
+      },
+      "module": {
+        "title": "Modulo di calcolo",
+        "description": "Un modulo calcola quanto irrigare in base all'evapotraspirazione (ET). Il modulo PyETO (metodo FAO-56) è consigliato per la maggior parte degli utenti.",
+        "pick_label": "Seleziona il tipo di modulo",
+        "no_modules": "Nessun tipo di modulo disponibile."
+      },
+      "mapping": {
+        "title": "Gruppo di sensori",
+        "description": "Un gruppo di sensori collega ogni variabile meteo a una fonte di dati. Imposta le variabili chiave qui sotto — potrai perfezionare le singole associazioni dei sensori in seguito dalla scheda Configurazione → Gruppi di sensori.",
+        "name_label": "Nome del gruppo di sensori",
+        "source_label": "Fonte di dati per",
+        "use_weather_service": "Servizio meteo",
+        "use_sensor": "Sensore",
+        "use_static": "Valore statico",
+        "use_none": "Nessuna / non usata"
+      },
+      "zone": {
+        "title": "Prima zona",
+        "description": "Una zona è un'area di irrigazione (ad es. prato, aiuola). Imposta le proprietà fisiche affinché il sistema possa calcolare la durata di irrigazione corretta.",
+        "name_label": "Nome della zona",
+        "size_label": "Area",
+        "throughput_label": "Portata dell'irrigatore",
+        "entity_label": "Interruttore o valvola collegati",
+        "entity_placeholder": "ad es. switch.garden_valve",
+        "module_label": "Modulo di calcolo",
+        "mapping_label": "Gruppo di sensori"
+      },
+      "done": {
+        "title": "Configurazione completata!",
+        "description": "La tua prima zona è pronta. Smart Irrigation calcolerà ora le durate di irrigazione automaticamente in base ai dati meteo.",
+        "next_steps": "Cosa puoi fare ora:",
+        "tip1": "Vai su Zone per vedere le durate calcolate e i valori del secchio.",
+        "tip2": "Aggiungi altre zone dalla scheda Zone.",
+        "tip3": "Perfeziona tutte le impostazioni dalla scheda Configurazione.",
+        "go_zones": "Vai a Zone",
+        "go_setup": "Vai a Configurazione"
+      }
+    }
   }
 }

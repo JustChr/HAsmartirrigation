@@ -4,7 +4,9 @@
       "delete": "Slett",
       "edit": "Rediger",
       "save": "Lagre",
-      "cancel": "Avbryt"
+      "cancel": "Avbryt",
+      "confirm_delete": "Bekreft sletting",
+      "confirm_delete_zone": "Er du sikker på at du vil slette denne sonen?"
     },
     "labels": {
       "module": "Modul",
@@ -14,7 +16,9 @@
       "enabled": "Aktivert",
       "disabled": "Deaktivert",
       "before": "før",
-      "after": "etter"
+      "after": "etter",
+      "settings": "Innstillinger",
+      "bulk_actions": "Masseoperasjoner"
     },
     "attributes": {
       "size": "størrelse",
@@ -56,7 +60,7 @@
         "steps-taken-to-calculate-duration": "For å beregne nøyaktig varighet, ble følgende trinn utført",
         "precipitation-rate-defined-as": "Nedbørshastigheten er definert som",
         "duration-is-calculated-as": "Varigheten beregnes som",
-        "bucket": "bucket",
+        "bucket": "bøtte",
         "precipitation-rate-variable": "nedbørshastighet",
         "multiplier-is-applied": "Nå blir multiplikatoren brukt. Multiplikatoren er",
         "duration-after-multiplier-is": "derfor er varigheten",
@@ -67,9 +71,9 @@
         "bucket-larger-than-or-equal-to-zero-no-irrigation-necessary": "Siden bucket >= 0, Ingen vanning er nødvendig, og varigheten er satt til",
         "maximum-bucket-is": "maksimum bucket stærrelse er",
         "max-bucket-variable": "max_bucket",
-        "drainage": "drainage",
-        "drainage-rate": "drainage_rate",
-        "hours": "hours",
+        "drainage": "drenering",
+        "drainage-rate": "dreneringsrate",
+        "hours": "timer",
         "drainage-rate-is": "Dreneringshastigheten ved metning (beholder på maks) er",
         "current-drainage-is": "Gjeldende drenering beregnet som",
         "no-drainage": "Gjeldende drenering er 0 fordi"
@@ -97,7 +101,7 @@
             "auto-calc-time": "Beregn ved",
             "calc-time": "Beregn kl."
           },
-          "description": "Calculation takes collected weather data up to that point and updates the bucket for each automatic zone. Then, the duration is adjusted based on the new bucket value and the collected weather data is removed."
+          "description": "Beregningen bruker værdataene som er samlet inn frem til da, og oppdaterer bøtten for hver automatiske sone. Deretter justeres varigheten basert på den nye bøtteverdien, og de innsamlede værdataene fjernes."
         },
         "automatic-update": {
           "errors": {
@@ -110,29 +114,29 @@
             "auto-update-interval": "Oppdater sensordata hvert",
             "auto-update-schedule": "Oppdateringsplan",
             "auto-update-time": "Oppdater kl.",
-            "auto-update-delay": "Update delay"
+            "auto-update-delay": "Oppdateringsforsinkelse"
           },
           "options": {
             "days": "dager",
             "hours": "timer",
             "minutes": "minutter"
           },
-          "description": "Collect and store weather data automatically. Weather data is required to calculate zone buckets and durations."
+          "description": "Samle inn og lagre værdata automatisk. Værdata kreves for å beregne sonebøtter og varigheter."
         },
         "automatic-clear": {
-          "header": "Automatic weather data pruning",
-          "description": "Automatically remove collected weather data at a configured time. Use this to make sure that there is no left over weather data from previous days. Don't remove the weather data before you calculate and only use this option if you expect the automatic update to collect weather data after you calculated for the day. Ideally, you want to prune as late in the day as possible.",
+          "header": "Automatisk rydding av værdata",
+          "description": "Fjern innsamlede værdata automatisk på et konfigurert tidspunkt. Bruk dette for å sikre at det ikke er igjen værdata fra tidligere dager. Ikke fjern værdataene før du beregner, og bruk bare dette alternativet hvis du forventer at den automatiske oppdateringen samler inn værdata etter at du har beregnet for dagen. Ideelt sett rydder du så sent på dagen som mulig.",
           "labels": {
-            "automatic-clear-enabled": "Automatically clear collected weather data",
-            "automatic-clear-time": "Clear weather data at"
+            "automatic-clear-enabled": "Tøm innsamlede værdata automatisk",
+            "automatic-clear-time": "Tøm værdata kl."
           }
         },
         "continuousupdates": {
           "header": "Kontinuerlige sensoroppdateringer (eksperimentell)",
           "description": "Eksperimentell funksjon for mer granulære værdata.",
           "labels": {
-            "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce",
+            "continuousupdates": "Aktiver kontinuerlige oppdateringer",
+            "sensor_debounce": "Sensor-debounce",
             "sensor-debounce": "Sensor-debouncetid (ms)"
           }
         }
@@ -172,13 +176,13 @@
             "median": "Median",
             "minimum": "Minimum",
             "sum": "Sum",
-            "riemannsum": "Riemann sum",
+            "riemannsum": "Riemann-sum",
             "delta": "Delta"
           },
           "errors": {
             "cannot-delete-mapping-because-zones-use-it": "Du kan ikke slette denne sensorguppen fordi minst én sone bruker den.",
-            "invalid_source": "Invalid source",
-            "source_does_not_exist": "Source does not exist. Please enter a valid source, such as 'sensor.mysensor'."
+            "invalid_source": "Ugyldig kilde",
+            "source_does_not_exist": "Kilden finnes ikke. Angi en gyldig kilde, for eksempel 'sensor.mysensor'."
           },
           "items": {
             "dewpoint": "Duggpunkt",
@@ -191,7 +195,7 @@
             "solar radiation": "Solstråling",
             "temperature": "Temperatur",
             "windspeed": "Vindhastighet",
-            "current precipitation": "Current precipitation"
+            "current precipitation": "Nåværende nedbør"
           },
           "sensor-aggregate-of-sensor-values-to-calculate": "av sensordata for å beregne varighet",
           "sensor-aggregate-use-the": "Bruk",
@@ -201,15 +205,15 @@
           "source": "Kilde",
           "sources": {
             "none": "Ingen",
-            "weather_service": "Weather service",
+            "weather_service": "Værtjeneste",
             "sensor": "Sensor",
             "static": "Statisk verdi"
           },
           "pressure_types": {
-            "absolute": "absolute",
-            "relative": "relative"
+            "absolute": "absolutt",
+            "relative": "relativ"
           },
-          "pressure-type": "Pressure is"
+          "pressure-type": "Trykket er"
         }
       },
       "description": "Legg til en eller flere sensorgupper som henter værdata fra Weather service, fra sensorer eller en kombinasjon av disse. Du kan tilordne hver sensorguppe til en eller flere soner",
@@ -219,16 +223,16 @@
       "no_items": "Det er ingen definerte sensorgupper ennå.",
       "title": "Sensorgupper",
       "weather-records": {
-        "title": "Weather Records",
-        "timestamp": "Time",
-        "temperature": "Temp",
+        "title": "Værregistreringer",
+        "timestamp": "Tid",
+        "temperature": "Temp.",
         "humidity": "Humidity",
-        "precipitation": "Precip",
-        "retrieval-time": "Retrieved",
-        "no-data": "No weather data available for this sensor group",
-        "dewpoint": "Dew",
-        "wind": "Wind",
-        "pressure": "Press"
+        "precipitation": "Nedbør",
+        "retrieval-time": "Hentet",
+        "no-data": "Ingen værdata tilgjengelig for denne sensorgruppen",
+        "dewpoint": "Dugg",
+        "wind": "Vind",
+        "pressure": "Trykk"
       }
     },
     "modules": {
@@ -251,7 +255,7 @@
             "DontEstimate": "Ikke beregn",
             "EstimateFromSunHours": "Beregn fra soltimer",
             "EstimateFromTemp": "Beregn fra temperatur",
-            "EstimateFromSunHoursAndTemperature": "Estimate from average of sun hours and temperature"
+            "EstimateFromSunHoursAndTemperature": "Estimer fra gjennomsnittet av soltimer og temperatur"
           }
         }
       },
@@ -267,8 +271,9 @@
         "update": "Oppdater",
         "reset-bucket": "Nullstill bøtte",
         "view-weather-info": "Se værdata",
-        "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "Vanningskalender"
+        "view-weather-info-message": "Værdata tilgjengelig for",
+        "view-watering-calendar": "Vanningskalender",
+        "irrigate_all": "Kjør alle soner nå"
       },
       "cards": {
         "add-zone": {
@@ -282,7 +287,7 @@
             "calculate-all": "Beregn alle soner",
             "update-all": "Oppdater alle soner",
             "reset-all-buckets": "Nullstill alle bøtter",
-            "clear-all-weatherdata": "Clear all weather data"
+            "clear-all-weatherdata": "Tøm alle værdata"
           },
           "header": "Handlinger på alle soner"
         }
@@ -305,14 +310,16 @@
         },
         "throughput": "Gjennomstrømning",
         "maximum-bucket": "Maksimal bøtte",
-        "last_calculated": "Last calculated",
-        "data-last-updated": "Data last updated",
-        "data-number-of-data-points": "Number of data points",
-        "drainage_rate": "Drainage rate",
+        "last_calculated": "Sist beregnet",
+        "data-last-updated": "Data sist oppdatert",
+        "data-number-of-data-points": "Antall datapunkter",
+        "drainage_rate": "Dreneringsrate",
         "linked_entity": "Tilknyttet bryter/ventil-enhet",
         "linked_entity_placeholder": "f.eks. switch.hage_ventil",
         "irrigate_now": "Vann nå",
-        "bucket_threshold": "Minimum underskudd for vanning"
+        "bucket_threshold": "Minimum underskudd for vanning",
+        "flow_sensor": "Strømningsmåler-sensor (valgfritt)",
+        "flow_sensor_placeholder": "f.eks. sensor.zone_flow_rate"
       },
       "no_items": "Det er ingen definerte soner ennå.",
       "title": "Soner"
@@ -433,6 +440,9 @@
           "no_linked_zones": "Ingen soner har en tilknyttet bryter/ventil-enhet med beregnet varighet."
         }
       }
+    },
+    "setup": {
+      "title": "Oppsett"
     }
   },
   "coordinate_config": {
@@ -453,61 +463,61 @@
   },
   "title": "Smart Irrigation",
   "irrigation_start_triggers": {
-    "title": "Irrigation Start Triggers",
-    "description": "Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",
-    "add_trigger": "Add Trigger",
-    "edit_trigger": "Edit Trigger",
-    "delete_trigger": "Delete Trigger",
+    "title": "Utløsere for vanningsstart",
+    "description": "Konfigurer når vanningen skal starte basert på solhendelser. Du kan legge til flere utløsere for ulike tidsplaner. For soloppgangsutløsere vil et forskyvning på 0 automatisk bruke den totale varigheten av alle aktiverte soner.",
+    "add_trigger": "Legg til utløser",
+    "edit_trigger": "Rediger utløser",
+    "delete_trigger": "Slett utløser",
     "trigger_types": {
-      "sunrise": "Sunrise",
-      "sunset": "Sunset",
-      "solar_azimuth": "Solar Azimuth"
+      "sunrise": "Soloppgang",
+      "sunset": "Solnedgang",
+      "solar_azimuth": "Solazimut"
     },
     "fields": {
       "name": {
-        "name": "Trigger Name",
-        "description": "A descriptive name to identify this trigger"
+        "name": "Utløsernavn",
+        "description": "Et beskrivende navn for å identifisere denne utløseren"
       },
       "type": {
-        "name": "Trigger Type",
-        "description": "The type of solar event to trigger on"
+        "name": "Utløsertype",
+        "description": "Typen solhendelse å utløse på"
       },
       "enabled": {
-        "name": "Enabled",
-        "description": "Whether this trigger is currently active"
+        "name": "Aktivert",
+        "description": "Om denne utløseren er aktiv nå"
       },
       "offset_minutes": {
-        "name": "Offset (minutes)",
-        "description": "Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."
+        "name": "Forskyvning (minutter)",
+        "description": "Minutter før (-) eller etter (+) solhendelsen. For soloppgangsutløsere, bruk 0 for automatisk timing basert på total sonevarighet."
       },
       "azimuth_angle": {
-        "name": "Azimuth Angle (degrees)",
-        "description": "Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"
+        "name": "Azimutvinkel (grader)",
+        "description": "Solazimutvinkel i grader der 0=Nord, 90=Øst, 180=Sør, 270=Vest"
       },
       "account_for_duration": {
-        "name": "Account for Duration",
-        "description": "When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."
+        "name": "Ta hensyn til varighet",
+        "description": "Når aktivert starter vanningen tidlig nok til å bli ferdig til angitt tidspunkt. Når deaktivert starter vanningen nøyaktig på angitt tidspunkt."
       }
     },
     "dialog": {
-      "add_title": "Add Irrigation Start Trigger",
-      "edit_title": "Edit Irrigation Start Trigger",
-      "cancel": "Cancel",
-      "save": "Save",
-      "delete": "Delete"
+      "add_title": "Legg til utløser for vanningsstart",
+      "edit_title": "Rediger utløser for vanningsstart",
+      "cancel": "Avbryt",
+      "save": "Lagre",
+      "delete": "Slett"
     },
-    "no_triggers": "No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",
-    "offset_auto": "Auto (calculated from total zone duration)",
-    "confirm_delete": "Are you sure you want to delete the trigger '{name}'?",
+    "no_triggers": "Ingen utløsere for vanningsstart konfigurert. Systemet bruker standardatferden (soloppgang med total sonevarighet). Legg til utløsere for å tilpasse når vanningen starter.",
+    "offset_auto": "Automatisk (beregnet fra total sonevarighet)",
+    "confirm_delete": "Er du sikker på at du vil slette utløseren '{name}'?",
     "validation": {
-      "name_required": "Trigger name is required",
-      "azimuth_invalid": "Azimuth angle must be a valid number"
+      "name_required": "Utløsernavn er påkrevd",
+      "azimuth_invalid": "Azimutvinkelen må være et gyldig tall"
     },
     "help": {
-      "sunrise_offset": "For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",
-      "sunset_offset": "For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",
-      "azimuth_explanation": "Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",
-      "multiple_triggers": "You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."
+      "sunrise_offset": "For soloppgangsutløsere: Bruk negative verdier for å starte før soloppgang, positive for å starte etter. Sett til 0 for automatisk å starte tidlig nok til å fullføre alle soner før soloppgang.",
+      "sunset_offset": "For solnedgangsutløsere: Bruk negative verdier for å starte før solnedgang, positive for å starte etter solnedgang.",
+      "azimuth_explanation": "Solazimut er kompassretningen til solen. 0°=Nord, 90°=Øst, 180°=Sør, 270°=Vest. Du kan angi en hvilken som helst vinkelverdi (f.eks. 450° = 90°, -30° = 330°). Bruk dette til å utløse vanning når solen når en bestemt posisjon.",
+      "multiple_triggers": "Du kan konfigurere flere utløsere. Hver aktiverte utløser planlegger vanningsstart uavhengig."
     }
   },
   "weather_skip": {
@@ -527,6 +537,121 @@
     "title": "Sonesekvens",
     "description": "Når flere soner trenger vanning, velg om de kjører samtidig eller én etter én. I sekvensiell modus venter systemet til hver sone er ferdig før neste starter.",
     "parallel": "Parallell (alle soner samtidig)",
-    "sequential": "Sekvensiell (én sone om gangen)"
+    "sequential": "Sekvensiell (én sone om gangen)",
+    "rotating": "Roterende (soner bytter på)",
+    "max_consecutive_duration_label": "Maks. sammenhengende kjøretid per sone",
+    "max_consecutive_duration_unit": "minutter",
+    "min_absorption_time_label": "Min. absorpsjonstid mellom økter",
+    "min_absorption_time_unit": "minutter (0 = deaktivert)"
+  },
+  "weather_service_config": {
+    "title": "Værtjeneste",
+    "description": "Konfigurer hvilken værtjeneste som skal brukes for ET-beregninger og hopp over-betingelser.",
+    "enabled_label": "Aktiver værtjeneste",
+    "service_label": "Værtjeneste",
+    "api_key_label": "API-nøkkel",
+    "api_key_placeholder": "La stå tom for å beholde eksisterende nøkkel",
+    "api_key_configured": "API-nøkkel er konfigurert",
+    "api_key_not_configured": "Ingen API-nøkkel konfigurert",
+    "api_key_help": "En API-nøkkel fra den valgte værtjenesteleverandøren din. Open-Meteo krever ingen nøkkel. OpenWeatherMap og Pirate Weather tilbyr begge gratis nivåer.",
+    "no_api_key_needed": "Open-Meteo er en gratis tjeneste og krever ingen API-nøkkel.",
+    "save_button": "Lagre værinnstillinger",
+    "saved": "Værinnstillinger lagret",
+    "openmeteo": "Open-Meteo (gratis, ingen nøkkel nødvendig)",
+    "test_button": "Test tilkobling",
+    "test_button_testing": "Tester…",
+    "test_success": "✓ Tilkobling vellykket",
+    "test_error_invalid_auth": "✗ Ugyldig API-nøkkel — sjekk at den er riktig og aktiv",
+    "test_error_cannot_connect": "✗ Kan ikke koble til — sjekk internettforbindelsen din",
+    "test_error_no_service": "✗ Velg en værtjeneste først",
+    "test_error_unknown": "✗ Test mislyktes — ukjent feil",
+    "owm": "OpenWeatherMap",
+    "pw": "Pirate Weather"
+  },
+  "field_help": {
+    "zone_size": "Det totale vannede arealet for denne sonen. Brukes sammen med gjennomstrømningen for å beregne hvor mye vann som tilføres per kjøring.",
+    "zone_throughput": "Total vanngjennomstrømning for vanningssystemet ditt for denne sonen (liter/min i metrisk, gal/min i imperisk). Sjekk databladet for sprederne dine eller mål ved å ta tiden på hvor lang tid det tar å fylle en beholder med kjent volum.",
+    "zone_drainage_rate": "Hvor raskt overflødig vann dreneres fra jorden når bøtten er full. Typisk: plen 50 mm/t, sandjord 100+ mm/t, leire 10 mm/t.",
+    "zone_bucket": "Nåværende vannunderskudd (negativt) eller -overskudd (positivt) for denne sonen. Vanning utløses når bøtten faller under terskelen.",
+    "zone_maximum_bucket": "Maksimalt fuktoverskudd sonen kan holde på. Vann over dette nivået behandles som avrenning. Typisk verdi: 50 mm.",
+    "zone_bucket_threshold": "Vanning utløses når bøtten faller under denne verdien. Må være 0 eller negativ. 0 betyr å vanne så snart det er et underskudd.",
+    "zone_multiplier": "Skaleringsfaktor som brukes på den beregnede varigheten. Over 1,0 øker, under 1,0 reduserer. Nyttig for finjustering uten å endre fysiske målinger.",
+    "zone_lead_time": "Ekstra sekunder før vanningen starter. Bruk dette for oppvarming av pumpen eller trykksetting av systemet.",
+    "zone_maximum_duration": "Hard øvre grense for én enkelt vanningskjøring i sekunder. Hindrer ukontrollert vanning. Standard: 3600 s (1 time).",
+    "zone_linked_entity": "HA-bryter- eller ventilenheten som styrer vannstrømmen for denne sonen. Denne enheten slås på når vanningen kjører.",
+    "zone_flow_sensor": "Valgfri sensor som måler faktisk vannstrømningsrate. Brukes bare til rapportering — påvirker ikke varighetsberegninger.",
+    "general_autoupdatedelay": "Sekunder å vente etter at HA starter før første henting av værdata. Lar andre integrasjoner initialisere først.",
+    "general_sensor_debounce": "Minimum mellomrom i millisekunder mellom sensoravlesninger for å filtrere bort støy fra raskt skiftende sensorer.",
+    "general_calctime": "Tidspunkt på dagen da vanningsvarighetene beregnes på nytt fra innsamlede værdata. Format: TT:MM (24-timers).",
+    "general_cleardatatime": "Tidspunkt på dagen da gamle værdata slettes. Må settes senere enn beregningstidspunktet.",
+    "general_days_between": "Minimum antall dager mellom vanninger for samme sone. Sett til 0 for å deaktivere (vann så snart det er et underskudd).",
+    "general_autoupdateinterval": "Hvor ofte værdata samles inn. Velg en verdi som balanserer ferske data mot API-grenser.",
+    "general_precipitation_threshold": "Vanning hoppes over hvis varslet nedbør for i dag/i morgen overstiger denne mengden.",
+    "general_temp_threshold": "Vanning hoppes over hvis nåværende temperatur er under denne verdien (f.eks. for å forhindre frostskade).",
+    "general_wind_threshold": "Vanning hoppes over hvis vindhastigheten overstiger denne verdien (sterk vind reduserer effektiviteten og forårsaker avdrift)."
+  },
+  "wizard": {
+    "title": "Oppsettsveiviser",
+    "open_button": "Oppsettsveiviser",
+    "close": "Lukk",
+    "next": "Neste",
+    "back": "Tilbake",
+    "finish": "Fullfør",
+    "skip_step": "Hopp over dette trinnet",
+    "step_indicator": "Trinn {current} av {total}",
+    "setup_complete_banner": "Oppsett ikke fullført. Kjør veiviseren for å komme i gang.",
+    "open_wizard": "Åpne veiviser",
+    "steps": {
+      "welcome": {
+        "title": "Velkommen til Smart Irrigation",
+        "intro": "Denne veiviseren leder deg gjennom de fire trinnene som trengs for å få den første sonen din til å vanne automatisk.",
+        "step1_label": "Værtjeneste — hvor værdataene hentes fra",
+        "step2_label": "Beregningsmodul — hvordan vanningsvarigheten beregnes",
+        "step3_label": "Sensorgruppe — hvilke datakilder som skal brukes",
+        "step4_label": "Sone — din første vanningssone",
+        "tip": "Du kan hoppe over et hvilket som helst trinn og konfigurere det senere fra Oppsett-fanen."
+      },
+      "weather": {
+        "title": "Værtjeneste",
+        "description": "Velg hvordan værdata hentes. Open-Meteo er gratis og krever ingen API-nøkkel — det enkleste valget for de fleste."
+      },
+      "module": {
+        "title": "Beregningsmodul",
+        "description": "En modul beregner hvor lenge det skal vannes basert på evapotranspirasjon (ET). PyETO-modulen (FAO-56-metoden) anbefales for de fleste.",
+        "pick_label": "Velg modultype",
+        "no_modules": "Ingen modultyper tilgjengelig."
+      },
+      "mapping": {
+        "title": "Sensorgruppe",
+        "description": "En sensorgruppe kobler hver værvariabel til en datakilde. Angi nøkkelvariablene nedenfor — du kan finjustere individuelle sensortilordninger senere fra Oppsett → Sensorgrupper-fanen.",
+        "name_label": "Navn på sensorgruppe",
+        "source_label": "Datakilde for",
+        "use_weather_service": "Værtjeneste",
+        "use_sensor": "Sensor",
+        "use_static": "Statisk verdi",
+        "use_none": "Ingen / ikke brukt"
+      },
+      "zone": {
+        "title": "Første sone",
+        "description": "En sone er ett vanningsområde (f.eks. plen, bed). Angi de fysiske egenskapene slik at systemet kan beregne riktig vanningsvarighet.",
+        "name_label": "Sonenavn",
+        "size_label": "Areal",
+        "throughput_label": "Spredergjennomstrømning",
+        "entity_label": "Tilkoblet bryter eller ventil",
+        "entity_placeholder": "f.eks. switch.garden_valve",
+        "module_label": "Beregningsmodul",
+        "mapping_label": "Sensorgruppe"
+      },
+      "done": {
+        "title": "Oppsett fullført!",
+        "description": "Den første sonen din er klar. Smart Irrigation vil nå beregne vanningsvarigheter automatisk basert på værdata.",
+        "next_steps": "Hva du kan gjøre videre:",
+        "tip1": "Gå til Soner for å se beregnede varigheter og bøtteverdier.",
+        "tip2": "Legg til flere soner fra Soner-fanen.",
+        "tip3": "Finjuster alle innstillinger fra Oppsett-fanen.",
+        "go_zones": "Gå til Soner",
+        "go_setup": "Gå til Oppsett"
+      }
+    }
   }
 }

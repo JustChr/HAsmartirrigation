@@ -4,7 +4,9 @@
       "delete": "Verwijderen",
       "edit": "Bewerken",
       "save": "Opslaan",
-      "cancel": "Annuleren"
+      "cancel": "Annuleren",
+      "confirm_delete": "Verwijderen bevestigen",
+      "confirm_delete_zone": "Weet je zeker dat je deze zone wilt verwijderen?"
     },
     "labels": {
       "module": "Module",
@@ -14,7 +16,9 @@
       "enabled": "Ingeschakeld",
       "disabled": "Uitgeschakeld",
       "before": "voor",
-      "after": "na"
+      "after": "na",
+      "settings": "Instellingen",
+      "bulk_actions": "Bulkacties"
     },
     "attributes": {
       "size": "afmeting",
@@ -67,9 +71,9 @@
         "bucket-larger-than-or-equal-to-zero-no-irrigation-necessary": "Omdat de voorraad >= 0 is er geen irrigatie nodig en is de duur gelijk aan",
         "maximum-bucket-is": "maximale voorraad grootte is",
         "max-bucket-variable": "max_bucket",
-        "drainage": "drainage",
-        "drainage-rate": "drainage_rate",
-        "hours": "hours",
+        "drainage": "afwatering",
+        "drainage-rate": "afwateringssnelheid",
+        "hours": "uren",
         "drainage-rate-is": "Drainagesnelheid bij verzadiging (emmer op maximum) is",
         "current-drainage-is": "Huidige drainage berekend als",
         "no-drainage": "Huidige drainage is 0 omdat"
@@ -130,8 +134,8 @@
           "header": "Continue sensorupdates (experimenteel)",
           "description": "Experimentele functie voor gedetailleerdere weergegevens.",
           "labels": {
-            "continuousupdates": "Enable continuous updates",
-            "sensor_debounce": "Sensor debounce",
+            "continuousupdates": "Continue updates inschakelen",
+            "sensor_debounce": "Sensor-debounce",
             "sensor-debounce": "Sensor-debouncetijd (ms)"
           }
         }
@@ -145,11 +149,11 @@
         "how-to-get-help": {
           "title": "Hulp vragen",
           "first-read-the": "Allereerst, lees de",
-          "wiki": "Documentation",
+          "wiki": "Documentatie",
           "if-you-still-need-help": "Als je hierna nog steeds hulp nodig hebt, laat een bericht achter op het",
-          "community-forum": "Community forum",
+          "community-forum": "Communityforum",
           "or-open-a": "of open een",
-          "github-issue": "Github Issue",
+          "github-issue": "GitHub-issue",
           "english-only": "alleen Engels"
         }
       }
@@ -171,13 +175,13 @@
             "median": "Mediaan",
             "minimum": "Minimum",
             "sum": "Totaal",
-            "riemannsum": "Riemann sum",
+            "riemannsum": "Riemann-som",
             "delta": "Delta"
           },
           "errors": {
             "cannot-delete-mapping-because-zones-use-it": "Deze sensorgroep kan niet worden verwijderd omdat er minimaal een zone gebruik van maakt.",
-            "invalid_source": "Invalid source",
-            "source_does_not_exist": "Source does not exist. Please enter a valid source, such as 'sensor.mysensor'."
+            "invalid_source": "Ongeldige bron",
+            "source_does_not_exist": "Bron bestaat niet. Voer een geldige bron in, zoals 'sensor.mysensor'."
           },
           "items": {
             "dewpoint": "Dauwpunt",
@@ -190,7 +194,7 @@
             "solar radiation": "Zonnestraling",
             "temperature": "Temperatuur",
             "windspeed": "Wind snelheid",
-            "current precipitation": "Current precipitation"
+            "current precipitation": "Huidige neerslag"
           },
           "pressure_types": {
             "absolute": "absoluut",
@@ -205,7 +209,7 @@
           "source": "Bron",
           "sources": {
             "none": "Geen",
-            "weather_service": "Weather service",
+            "weather_service": "Weerdienst",
             "sensor": "Sensor",
             "static": "Vaste waarde"
           }
@@ -213,21 +217,21 @@
       },
       "description": "Voeg een of meer sensorgroepen toe die weergegevens ophalen van Weather service, van sensoren of een combinatie. Elke sensorgroep kan worden gebruikt voor een of meerdere zones",
       "labels": {
-        "mapping-name": "Name"
+        "mapping-name": "Naam"
       },
       "no_items": "Er zijn nog geen sensorgroepen.",
       "title": "Sensorgroepen",
       "weather-records": {
-        "title": "Weather Records",
-        "timestamp": "Time",
-        "temperature": "Temp",
+        "title": "Weerregistraties",
+        "timestamp": "Tijd",
+        "temperature": "Temp.",
         "humidity": "Humidity",
-        "precipitation": "Precip",
-        "retrieval-time": "Retrieved",
-        "no-data": "No weather data available for this sensor group",
-        "dewpoint": "Dew",
+        "precipitation": "Neersl.",
+        "retrieval-time": "Opgehaald",
+        "no-data": "Geen weergegevens beschikbaar voor deze sensorgroep",
+        "dewpoint": "Dauw",
         "wind": "Wind",
-        "pressure": "Press"
+        "pressure": "Druk"
       }
     },
     "modules": {
@@ -250,7 +254,7 @@
             "DontEstimate": "Niet berekenen",
             "EstimateFromSunHours": "Gebaseerd op zon uren",
             "EstimateFromTemp": "Gebaseerd op temperatuur",
-            "EstimateFromSunHoursAndTemperature": "Estimate from average of sun hours and temperature"
+            "EstimateFromSunHoursAndTemperature": "Schatten op basis van het gemiddelde van zonuren en temperatuur"
           }
         }
       },
@@ -266,8 +270,9 @@
         "update": "Bijwerken",
         "reset-bucket": "Leeg voorraad",
         "view-weather-info": "Weergegevens bekijken",
-        "view-weather-info-message": "Weather data available for",
-        "view-watering-calendar": "Bewateringskalender"
+        "view-weather-info-message": "Weergegevens beschikbaar voor",
+        "view-watering-calendar": "Bewateringskalender",
+        "irrigate_all": "Alle zones nu uitvoeren"
       },
       "cards": {
         "add-zone": {
@@ -307,11 +312,13 @@
         "last_calculated": "Berekend op",
         "data-last-updated": "Bijgewerkt op",
         "data-number-of-data-points": "Aantal datapunten",
-        "drainage_rate": "Drainage rate",
+        "drainage_rate": "Afwateringssnelheid",
         "linked_entity": "Gekoppelde schakelaar/klep-entiteit",
         "linked_entity_placeholder": "bijv. switch.tuin_klep",
         "irrigate_now": "Nu bewateren",
-        "bucket_threshold": "Minimum tekort voor bewatering"
+        "bucket_threshold": "Minimum tekort voor bewatering",
+        "flow_sensor": "Doorstroommeter-sensor (optioneel)",
+        "flow_sensor_placeholder": "bijv. sensor.zone_flow_rate"
       },
       "no_items": "Er zijn nog geen zones.",
       "title": "Zones"
@@ -431,6 +438,9 @@
           "no_linked_zones": "Geen zones hebben een gekoppelde schakelaar/klep-entiteit met berekende duur."
         }
       }
+    },
+    "setup": {
+      "title": "Instellen"
     }
   },
   "title": "Smart Irrigation",
@@ -451,61 +461,61 @@
     "help_text": "Stel in op 0 om uit te schakelen. Waarden van 1-365 dagen worden ondersteund."
   },
   "irrigation_start_triggers": {
-    "title": "Irrigation Start Triggers",
-    "description": "Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",
-    "add_trigger": "Add Trigger",
-    "edit_trigger": "Edit Trigger",
-    "delete_trigger": "Delete Trigger",
+    "title": "Irrigatiestart-triggers",
+    "description": "Configureer wanneer de irrigatie moet starten op basis van zonne-evenementen. Je kunt meerdere triggers toevoegen voor verschillende schema's. Voor zonsopkomst-triggers gebruikt een offset van 0 automatisch de totale duur van alle ingeschakelde zones.",
+    "add_trigger": "Trigger toevoegen",
+    "edit_trigger": "Trigger bewerken",
+    "delete_trigger": "Trigger verwijderen",
     "trigger_types": {
-      "sunrise": "Sunrise",
-      "sunset": "Sunset",
-      "solar_azimuth": "Solar Azimuth"
+      "sunrise": "Zonsopkomst",
+      "sunset": "Zonsondergang",
+      "solar_azimuth": "Zonsazimut"
     },
     "fields": {
       "name": {
-        "name": "Trigger Name",
-        "description": "A descriptive name to identify this trigger"
+        "name": "Triggernaam",
+        "description": "Een beschrijvende naam om deze trigger te identificeren"
       },
       "type": {
-        "name": "Trigger Type",
-        "description": "The type of solar event to trigger on"
+        "name": "Triggertype",
+        "description": "Het type zonne-evenement om op te triggeren"
       },
       "enabled": {
-        "name": "Enabled",
-        "description": "Whether this trigger is currently active"
+        "name": "Ingeschakeld",
+        "description": "Of deze trigger momenteel actief is"
       },
       "offset_minutes": {
-        "name": "Offset (minutes)",
-        "description": "Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."
+        "name": "Offset (minuten)",
+        "description": "Minuten voor (-) of na (+) het zonne-evenement. Gebruik voor zonsopkomst-triggers 0 voor automatische timing op basis van de totale zoneduur."
       },
       "azimuth_angle": {
-        "name": "Azimuth Angle (degrees)",
-        "description": "Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"
+        "name": "Azimuthoek (graden)",
+        "description": "Zonsazimuthoek in graden waarbij 0=Noord, 90=Oost, 180=Zuid, 270=West"
       },
       "account_for_duration": {
-        "name": "Account for Duration",
-        "description": "When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."
+        "name": "Rekening houden met duur",
+        "description": "Indien ingeschakeld start de irrigatie vroeg genoeg om op het opgegeven tijdstip klaar te zijn. Indien uitgeschakeld start de irrigatie precies op het opgegeven tijdstip."
       }
     },
     "dialog": {
-      "add_title": "Add Irrigation Start Trigger",
-      "edit_title": "Edit Irrigation Start Trigger",
-      "cancel": "Cancel",
-      "save": "Save",
-      "delete": "Delete"
+      "add_title": "Irrigatiestart-trigger toevoegen",
+      "edit_title": "Irrigatiestart-trigger bewerken",
+      "cancel": "Annuleren",
+      "save": "Opslaan",
+      "delete": "Verwijderen"
     },
-    "no_triggers": "No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",
-    "offset_auto": "Auto (calculated from total zone duration)",
-    "confirm_delete": "Are you sure you want to delete the trigger '{name}'?",
+    "no_triggers": "Geen irrigatiestart-triggers geconfigureerd. Het systeem gebruikt het standaardgedrag (zonsopkomst met de totale zoneduur). Voeg triggers toe om aan te passen wanneer de irrigatie start.",
+    "offset_auto": "Automatisch (berekend uit de totale zoneduur)",
+    "confirm_delete": "Weet je zeker dat je de trigger '{name}' wilt verwijderen?",
     "validation": {
-      "name_required": "Trigger name is required",
-      "azimuth_invalid": "Azimuth angle must be a valid number"
+      "name_required": "Triggernaam is verplicht",
+      "azimuth_invalid": "De azimuthoek moet een geldig getal zijn"
     },
     "help": {
-      "sunrise_offset": "For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",
-      "sunset_offset": "For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",
-      "azimuth_explanation": "Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",
-      "multiple_triggers": "You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."
+      "sunrise_offset": "Voor zonsopkomst-triggers: gebruik negatieve waarden om vóór zonsopkomst te starten, positieve om erna te starten. Zet op 0 om automatisch vroeg genoeg te starten om alle zones vóór zonsopkomst te voltooien.",
+      "sunset_offset": "Voor zonsondergang-triggers: gebruik negatieve waarden om vóór zonsondergang te starten, positieve om na zonsondergang te starten.",
+      "azimuth_explanation": "De zonsazimut is de kompasrichting van de zon. 0°=Noord, 90°=Oost, 180°=Zuid, 270°=West. Je kunt elke hoekwaarde invoeren (bijv. 450° = 90°, -30° = 330°). Gebruik dit om de irrigatie te triggeren wanneer de zon een specifieke positie bereikt.",
+      "multiple_triggers": "Je kunt meerdere triggers configureren. Elke ingeschakelde trigger plant irrigatiestarts onafhankelijk."
     }
   },
   "weather_skip": {
@@ -525,6 +535,121 @@
     "title": "Zone-volgorde",
     "description": "Als meerdere zones irrigatie nodig hebben, kies of ze tegelijkertijd of na elkaar worden uitgevoerd. In sequentiële modus wacht het systeem tot elke zone klaar is voordat de volgende start.",
     "parallel": "Parallel (alle zones tegelijk)",
-    "sequential": "Sequentieel (één zone tegelijk)"
+    "sequential": "Sequentieel (één zone tegelijk)",
+    "rotating": "Roterend (zones wisselen elkaar af)",
+    "max_consecutive_duration_label": "Max. aaneengesloten looptijd per zone",
+    "max_consecutive_duration_unit": "minuten",
+    "min_absorption_time_label": "Min. absorptietijd tussen runs",
+    "min_absorption_time_unit": "minuten (0 = uitgeschakeld)"
+  },
+  "weather_service_config": {
+    "title": "Weerdienst",
+    "description": "Configureer welke weerdienst gebruikt wordt voor ET-berekeningen en overslaan-voorwaarden.",
+    "enabled_label": "Weerdienst inschakelen",
+    "service_label": "Weerdienst",
+    "api_key_label": "API-sleutel",
+    "api_key_placeholder": "Laat leeg om de bestaande sleutel te behouden",
+    "api_key_configured": "API-sleutel is geconfigureerd",
+    "api_key_not_configured": "Geen API-sleutel geconfigureerd",
+    "api_key_help": "Een API-sleutel van je gekozen weerdienstaanbieder. Open-Meteo vereist geen sleutel. OpenWeatherMap en Pirate Weather bieden beide gratis niveaus.",
+    "no_api_key_needed": "Open-Meteo is een gratis dienst en vereist geen API-sleutel.",
+    "save_button": "Weerinstellingen opslaan",
+    "saved": "Weerinstellingen opgeslagen",
+    "openmeteo": "Open-Meteo (gratis, geen sleutel nodig)",
+    "test_button": "Verbinding testen",
+    "test_button_testing": "Bezig met testen…",
+    "test_success": "✓ Verbinding geslaagd",
+    "test_error_invalid_auth": "✗ Ongeldige API-sleutel — controleer of deze correct en actief is",
+    "test_error_cannot_connect": "✗ Kan geen verbinding maken — controleer je internetverbinding",
+    "test_error_no_service": "✗ Selecteer eerst een weerdienst",
+    "test_error_unknown": "✗ Test mislukt — onbekende fout",
+    "owm": "OpenWeatherMap",
+    "pw": "Pirate Weather"
+  },
+  "field_help": {
+    "zone_size": "Het totale geïrrigeerde oppervlak van deze zone. Wordt samen met de doorvoer gebruikt om te berekenen hoeveel water per run wordt toegediend.",
+    "zone_throughput": "Totale waterstroom van je irrigatiesysteem voor deze zone (liter/min in metriek, gal/min in imperiaal). Raadpleeg het gegevensblad van je sproeiers of meet hoe lang het duurt om een bak met bekende inhoud te vullen.",
+    "zone_drainage_rate": "Hoe snel overtollig water uit de bodem wegloopt als de emmer vol is. Typisch: gazon 50 mm/u, zandgrond 100+ mm/u, klei 10 mm/u.",
+    "zone_bucket": "Huidig watertekort (negatief) of -overschot (positief) voor deze zone. Irrigatie wordt geactiveerd wanneer de emmer onder de drempel zakt.",
+    "zone_maximum_bucket": "Maximaal vochtoverschot dat de zone kan vasthouden. Water boven dit niveau wordt als afstroming behandeld. Typische waarde: 50 mm.",
+    "zone_bucket_threshold": "Irrigatie wordt geactiveerd wanneer de emmer onder deze waarde zakt. Moet 0 of negatief zijn. 0 betekent irrigeren zodra er een tekort is.",
+    "zone_multiplier": "Schaalfactor toegepast op de berekende duur. Boven 1,0 verhoogt, onder 1,0 verlaagt. Handig voor fijnafstemming zonder fysieke metingen te wijzigen.",
+    "zone_lead_time": "Extra seconden voordat de irrigatie start. Gebruik dit voor het opwarmen van de pomp of het op druk brengen van het systeem.",
+    "zone_maximum_duration": "Harde bovengrens voor één enkele irrigatierun in seconden. Voorkomt ongecontroleerd water geven. Standaard: 3600 s (1 uur).",
+    "zone_linked_entity": "De HA-schakelaar- of klep-entiteit die de waterstroom voor deze zone regelt. Deze entiteit wordt ingeschakeld wanneer de irrigatie draait.",
+    "zone_flow_sensor": "Optionele sensor die het werkelijke waterdebiet meet. Alleen voor rapportage — heeft geen invloed op duurberekeningen.",
+    "general_autoupdatedelay": "Seconden om te wachten na het starten van HA voordat de eerste weergegevens worden opgehaald. Geeft andere integraties de kans om eerst te initialiseren.",
+    "general_sensor_debounce": "Minimale tussentijd in milliseconden tussen sensormetingen om ruis van snel veranderende sensoren weg te filteren.",
+    "general_calctime": "Tijdstip van de dag waarop de irrigatieduren opnieuw worden berekend uit de verzamelde weergegevens. Formaat: UU:MM (24-uurs).",
+    "general_cleardatatime": "Tijdstip van de dag waarop oude weergegevens worden gewist. Moet later worden ingesteld dan de berekeningstijd.",
+    "general_days_between": "Minimum aantal dagen tussen irrigatiebeurten voor dezelfde zone. Zet op 0 om uit te schakelen (irrigeren zodra er een tekort is).",
+    "general_autoupdateinterval": "Hoe vaak weergegevens worden verzameld. Kies een waarde die verse gegevens afweegt tegen API-limieten.",
+    "general_precipitation_threshold": "Irrigatie wordt overgeslagen als de voorspelde neerslag voor vandaag/morgen deze hoeveelheid overschrijdt.",
+    "general_temp_threshold": "Irrigatie wordt overgeslagen als de huidige temperatuur onder deze waarde ligt (bijv. om vorstschade te voorkomen).",
+    "general_wind_threshold": "Irrigatie wordt overgeslagen als de windsnelheid deze waarde overschrijdt (harde wind vermindert de efficiëntie en veroorzaakt drift)."
+  },
+  "wizard": {
+    "title": "Configuratiewizard",
+    "open_button": "Configuratiewizard",
+    "close": "Sluiten",
+    "next": "Volgende",
+    "back": "Terug",
+    "finish": "Voltooien",
+    "skip_step": "Deze stap overslaan",
+    "step_indicator": "Stap {current} van {total}",
+    "setup_complete_banner": "Configuratie niet voltooid. Voer de wizard uit om te beginnen.",
+    "open_wizard": "Wizard openen",
+    "steps": {
+      "welcome": {
+        "title": "Welkom bij Smart Irrigation",
+        "intro": "Deze wizard leidt je door de vier stappen die nodig zijn om je eerste zone automatisch te laten irrigeren.",
+        "step1_label": "Weerdienst — waar de weergegevens vandaan komen",
+        "step2_label": "Berekeningsmodule — hoe de irrigatieduur wordt berekend",
+        "step3_label": "Sensorgroep — welke gegevensbronnen te gebruiken",
+        "step4_label": "Zone — je eerste irrigatiezone",
+        "tip": "Je kunt elke stap overslaan en deze later configureren via het tabblad Instellen."
+      },
+      "weather": {
+        "title": "Weerdienst",
+        "description": "Kies hoe je weergegevens ophaalt. Open-Meteo is gratis en vereist geen API-sleutel — de eenvoudigste keuze voor de meeste gebruikers."
+      },
+      "module": {
+        "title": "Berekeningsmodule",
+        "description": "Een module berekent hoe lang te irrigeren op basis van evapotranspiratie (ET). De PyETO-module (FAO-56-methode) wordt voor de meeste gebruikers aanbevolen.",
+        "pick_label": "Moduletype selecteren",
+        "no_modules": "Geen moduletypen beschikbaar."
+      },
+      "mapping": {
+        "title": "Sensorgroep",
+        "description": "Een sensorgroep koppelt elke weervariabele aan een gegevensbron. Stel hieronder de belangrijkste variabelen in — afzonderlijke sensortoewijzingen kun je later verfijnen via het tabblad Instellen → Sensorgroepen.",
+        "name_label": "Naam van de sensorgroep",
+        "source_label": "Gegevensbron voor",
+        "use_weather_service": "Weerdienst",
+        "use_sensor": "Sensor",
+        "use_static": "Statische waarde",
+        "use_none": "Geen / niet gebruikt"
+      },
+      "zone": {
+        "title": "Eerste zone",
+        "description": "Een zone is één irrigatiegebied (bijv. gazon, plantenbed). Stel de fysieke eigenschappen in zodat het systeem de juiste irrigatieduur kan berekenen.",
+        "name_label": "Zonenaam",
+        "size_label": "Oppervlak",
+        "throughput_label": "Sproeierdoorvoer",
+        "entity_label": "Gekoppelde schakelaar of klep",
+        "entity_placeholder": "bijv. switch.garden_valve",
+        "module_label": "Berekeningsmodule",
+        "mapping_label": "Sensorgroep"
+      },
+      "done": {
+        "title": "Configuratie voltooid!",
+        "description": "Je eerste zone is klaar. Smart Irrigation berekent nu automatisch de irrigatieduren op basis van weergegevens.",
+        "next_steps": "Wat je hierna kunt doen:",
+        "tip1": "Ga naar Zones om de berekende duren en emmerwaarden te bekijken.",
+        "tip2": "Voeg meer zones toe via het tabblad Zones.",
+        "tip3": "Verfijn alle instellingen via het tabblad Instellen.",
+        "go_zones": "Naar Zones",
+        "go_setup": "Naar Instellen"
+      }
+    }
   }
 }
