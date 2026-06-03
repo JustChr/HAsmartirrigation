@@ -4425,8 +4425,8 @@ i.version="2.30.1",n(Ya),i.fn=ls,i.min=Ja,i.max=Qa,i.now=ei,i.utc=g,i.unix=ds,i.
         }
 
         .view > * {
-          width: 600px;
-          max-width: 600px;
+          width: 100%;
+          max-width: 960px;
         }
 
         .view > *:last-child {
