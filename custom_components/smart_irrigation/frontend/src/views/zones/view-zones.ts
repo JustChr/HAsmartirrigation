@@ -684,6 +684,58 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     `;
   }
 
+  /** Human-friendly duration for the at-a-glance decision line. */
+  private _fmtDurationShort(seconds: number): string {
+    const s = Math.round(seconds);
+    if (s < 60) return `${s} s`;
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return rem ? `${m} min ${rem} s` : `${m} min`;
+  }
+
+  /**
+   * At-a-glance answer to "will this zone water, and why" — the daily question.
+   * Derived from existing zone fields (state / duration / last_calculated).
+   */
+  private _renderZoneDecision(zone: SmartIrrigationZone): TemplateResult {
+    if (!this.hass) return html``;
+    const lang = this.hass.language;
+    const duration = zone.duration ?? 0;
+
+    let text: string;
+    let cls: string;
+    let icon: string;
+    if (zone.state === SmartIrrigationZoneState.Disabled) {
+      text = localize("panels.zones.status.decision_disabled", lang);
+      cls = "neutral";
+      icon = "mdi:power-off";
+    } else if (duration > 0) {
+      text = localize(
+        "panels.zones.status.decision_water",
+        lang,
+        "{duration}",
+        this._fmtDurationShort(duration),
+      );
+      cls = "water";
+      icon = "mdi:water";
+    } else if (zone.last_calculated) {
+      text = localize("panels.zones.status.decision_no_water", lang);
+      cls = "ok";
+      icon = "mdi:check-circle-outline";
+    } else {
+      text = localize("panels.zones.status.decision_unknown", lang);
+      cls = "unknown";
+      icon = "mdi:help-circle-outline";
+    }
+
+    return html`
+      <div class="zone-decision ${cls}">
+        <ha-icon icon="${icon}"></ha-icon>
+        <span>${text}</span>
+      </div>
+    `;
+  }
+
   private renderZone(zone: SmartIrrigationZone, index: number): TemplateResult {
     if (!this.hass) return html``;
 
@@ -709,10 +761,19 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           </span>
         </div>
 
+        <!-- AT-A-GLANCE DECISION -->
+        ${this._renderZoneDecision(zone)}
+
         <!-- STATUS -->
         <div class="card-content">
           <div class="zone-status-grid">
-            <div class="status-item">
+            <div
+              class="status-item"
+              title="${localize(
+                "panels.zones.help.bucket",
+                this.hass.language,
+              )}"
+            >
               <span class="status-label"
                 >${localize(
                   "panels.zones.labels.bucket",
@@ -769,6 +830,22 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             ? html`
                 <button
                   class="action-btn"
+                  title="${localize(
+                    "panels.zones.help.update",
+                    this.hass.language,
+                  )}"
+                  @click="${() => this.handleUpdateZone(index)}"
+                  ?disabled="${this.isSaving}"
+                >
+                  <ha-icon slot="icon" icon="mdi:update"></ha-icon>
+                  ${localize("panels.zones.actions.update", this.hass.language)}
+                </button>
+                <button
+                  class="action-btn"
+                  title="${localize(
+                    "panels.zones.help.calculate",
+                    this.hass.language,
+                  )}"
                   @click="${() => this.handleCalculateZone(index)}"
                   ?disabled="${this.isSaving}"
                 >
@@ -777,14 +854,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                     "panels.zones.actions.calculate",
                     this.hass.language,
                   )}
-                </button>
-                <button
-                  class="action-btn"
-                  @click="${() => this.handleUpdateZone(index)}"
-                  ?disabled="${this.isSaving}"
-                >
-                  <ha-icon slot="icon" icon="mdi:update"></ha-icon>
-                  ${localize("panels.zones.actions.update", this.hass.language)}
                 </button>
               `
             : ""}
@@ -1669,6 +1738,44 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
       .shortfield {
         width: 120px;
+      }
+
+      /* At-a-glance decision line */
+      .zone-decision {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 16px 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        line-height: 1.35;
+      }
+
+      .zone-decision ha-icon {
+        flex-shrink: 0;
+        --mdc-icon-size: 22px;
+      }
+
+      .zone-decision.water {
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.12);
+        color: var(--primary-color);
+      }
+
+      .zone-decision.ok {
+        background: rgba(76, 175, 80, 0.12);
+        color: var(--success-color, #2e7d32);
+      }
+
+      .zone-decision.neutral {
+        background: var(--secondary-background-color);
+        color: var(--secondary-text-color);
+      }
+
+      .zone-decision.unknown {
+        background: rgba(255, 152, 0, 0.12);
+        color: var(--warning-color, #ed6c02);
       }
 
       /* Zone status grid */

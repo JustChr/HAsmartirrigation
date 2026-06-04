@@ -422,6 +422,19 @@
       },
       "no_items": "There are no zones defined yet.",
       "title": "Zones",
+      "status": {
+        "decision_disabled": "Turned off — this zone won't be watered automatically.",
+        "decision_water": "Watering needed: about {duration} on the next scheduled run.",
+        "decision_no_water": "No watering needed right now — the soil has enough moisture.",
+        "decision_unknown": "Not calculated yet — press Update, then Calculate to check.",
+        "last_checked": "Last checked",
+        "never": "never"
+      },
+      "help": {
+        "bucket": "Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",
+        "calculate": "Works out how long to water from the latest data. Run this after Update.",
+        "update": "Fetches the latest weather/sensor data for this zone."
+      },
       "confirm_irrigate": {
         "title": "Start irrigation?",
         "body": "This opens the linked valve(s) now and bypasses all skip conditions (rain, temperature, minimum days between watering).",
