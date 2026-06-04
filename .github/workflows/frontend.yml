@@ -39,3 +39,15 @@ jobs:
 
       - name: Build (lint + rollup + babel)
         run: npm run build
+
+      - name: Verify committed bundle is up to date
+        # The bundle is committed and shipped in the release tag, so it must
+        # match the current source. Fail if a rebuild changes it (i.e. someone
+        # edited .ts or bumped the version without rebuilding dist).
+        run: |
+          if ! git diff --quiet -- dist/smart-irrigation.js; then
+            echo "::error::dist/smart-irrigation.js is out of date - rebuild the frontend and commit the result."
+            git --no-pager diff --stat -- dist/smart-irrigation.js
+            exit 1
+          fi
+          echo "dist bundle is in sync with source."

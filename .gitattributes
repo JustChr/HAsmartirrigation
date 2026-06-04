@@ -1,0 +1,4 @@
+# The built panel bundle is committed (HACS installs the tag's source tree).
+# Pin it to LF so the CI freshness check (rebuild + git diff) is never tripped
+# by line-ending conversion between platforms.
+custom_components/smart_irrigation/frontend/dist/smart-irrigation.js text eol=lf
