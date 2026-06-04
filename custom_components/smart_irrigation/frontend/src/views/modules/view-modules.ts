@@ -23,7 +23,7 @@ import {
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
 import { DOMAIN } from "../../const";
-import { prettyPrint, getPart } from "../../helpers";
+import { prettyPrint, getPart, showErrorToast } from "../../helpers";
 import { mdiDelete } from "@mdi/js";
 
 @customElement("smart-irrigation-view-modules")
@@ -123,6 +123,7 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
       this.moduleCache.clear();
     } catch (error) {
       console.error("Error fetching data:", error);
+      showErrorToast(this, this.hass, "common.errors.load_failed", error);
     } finally {
       if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
@@ -211,6 +212,7 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
       }
     } catch (error) {
       console.error("Error removing module:", error);
+      showErrorToast(this, this.hass, "common.errors.delete_failed", error);
       // Rollback optimistic update on error
       await this._fetchData();
     } finally {
@@ -229,6 +231,7 @@ class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
       // Data will be updated via WebSocket subscription
     } catch (error) {
       console.error("Error saving module:", error);
+      showErrorToast(this, this.hass, "common.errors.save_failed", error);
       throw error; // Re-throw to handle in calling function
     }
   }

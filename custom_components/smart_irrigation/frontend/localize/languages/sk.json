@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Pridávanie...",
       "saving": "Ukladanie..."
+    },
+    "errors": {
+      "load_failed": "Údaje sa nepodarilo načítať",
+      "save_failed": "Zmeny sa nepodarilo uložiť",
+      "delete_failed": "Nepodarilo sa odstrániť",
+      "action_failed": "Akcia zlyhala"
     }
   },
   "defaults": {
@@ -321,7 +327,14 @@
         "flow_sensor_placeholder": "napr. sensor.zone_flow_rate"
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
-      "title": "Zóny"
+      "title": "Zóny",
+      "confirm_irrigate": {
+        "title": "Spustiť zavlažovanie?",
+        "body": "Týmto sa teraz otvoria prepojené ventily a obídu sa všetky podmienky preskočenia (dážď, teplota, minimálny počet dní medzi zavlažovaniami).",
+        "all_linked_zones": "Všetky prepojené zóny",
+        "toast_started": "Zavlažovanie spustené",
+        "toast_failed": "Zavlažovanie zlyhalo"
+      }
     },
     "schedules": {
       "title": "Plány",
@@ -374,29 +387,6 @@
       "dialog": {
         "add_title": "Pridať plán",
         "edit_title": "Upraviť plán"
-      }
-    },
-    "adjustments": {
-      "title": "Sezónne úpravy",
-      "description": "Mesačné úpravy multiplikátora alebo prahu pre sezónne podmienky.",
-      "add": "Pridať úpravu",
-      "no_items": "Žiadne sezónne úpravy nie sú nakonfigurované.",
-      "zones_all": "Všetky zóny",
-      "zones_specific": "Konkrétne zóny",
-      "multiplier_hint": "1,0 = bez zmeny, 1,5 = 50% viac závlahy, 0,5 = 50% menej",
-      "threshold_hint": "Pridané do zásobníka zóny. Kladné = viac vody potrebné, záporné = menej.",
-      "fields": {
-        "name": "Názov",
-        "enabled": "Povolené",
-        "month_start": "Od mesiaca",
-        "month_end": "Do mesiaca",
-        "multiplier_adjustment": "Úprava multiplikátora",
-        "threshold_adjustment": "Úprava prahu (mm)",
-        "zones": "Zóny"
-      },
-      "dialog": {
-        "add_title": "Pridať sezónnu úpravu",
-        "edit_title": "Upraviť sezónnu úpravu"
       }
     },
     "info": {

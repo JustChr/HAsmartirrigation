@@ -20,6 +20,7 @@ import {
   SCHEDULE_TYPE_SOLAR_AZIMUTH,
 } from "../../const";
 import { SmartIrrigationZone } from "../../types";
+import { showErrorToast } from "../../helpers";
 
 const DAYS = [
   "monday",
@@ -105,6 +106,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
       this._zones = zones || [];
     } catch (e) {
       console.error("Failed to load schedules", e);
+      showErrorToast(this, this.hass, "common.errors.load_failed", e);
     } finally {
       this._isLoading = false;
     }
@@ -136,6 +138,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
       await this._load();
     } catch (e) {
       console.error("Failed to save schedule", e);
+      showErrorToast(this, this.hass, "common.errors.save_failed", e);
     }
   }
 
@@ -145,6 +148,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
       await this._load();
     } catch (e) {
       console.error("Failed to delete schedule", e);
+      showErrorToast(this, this.hass, "common.errors.delete_failed", e);
     }
   }
 

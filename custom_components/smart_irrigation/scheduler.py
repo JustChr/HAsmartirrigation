@@ -378,10 +378,17 @@ class RecurringScheduleManager:
         try:
             if action == "calculate":
                 if zones == "all":
-                    await self.coordinator._async_calculate_all()
+                    await self.coordinator._async_calculate_all(
+                        delete_weather_data=True
+                    )
                 else:
+                    # Per-zone calculate must aggregate the mapping's weather data
+                    # first; route through async_update_zone_config (ATTR_CALCULATE),
+                    # which does the aggregation + forecast fetch before calculating.
                     for zone_id in zones:
-                        await self.coordinator.async_calculate_zone(zone_id)
+                        await self.coordinator.async_update_zone_config(
+                            zone_id, {const.ATTR_CALCULATE: True}
+                        )
             elif action == "update":
                 if zones == "all":
                     await self.coordinator._async_update_all()
@@ -451,187 +458,3 @@ class RecurringScheduleManager:
     def get_schedules(self) -> list[dict[str, Any]]:
         """Get all schedules."""
         return self._schedules.copy()
-
-
-class SeasonalAdjustmentManager:
-    """Manages seasonal adjustments for Smart Irrigation."""
-
-    def __init__(self, hass: HomeAssistant, coordinator) -> None:
-        """Initialize the seasonal adjustment manager."""
-        self.hass = hass
-        self.coordinator = coordinator
-        self._adjustments = []
-
-    async def async_load_adjustments(self) -> None:
-        """Load seasonal adjustments from configuration."""
-        config = await self.coordinator.store.async_get_config()
-        self._adjustments = config.get(const.CONF_SEASONAL_ADJUSTMENTS, [])
-
-    async def async_create_adjustment(self, adjustment_data: dict[str, Any]) -> None:
-        """Create a new seasonal adjustment."""
-        # Validate adjustment data
-        self._validate_adjustment_data(adjustment_data)
-
-        # Add unique ID if not provided
-        if const.SEASONAL_CONF_ID not in adjustment_data:
-            adjustment_data[const.SEASONAL_CONF_ID] = self._generate_adjustment_id()
-
-        # Add to adjustments list
-        self._adjustments.append(adjustment_data)
-
-        # Save configuration
-        await self._save_adjustments()
-
-        _LOGGER.info(
-            "Created seasonal adjustment: %s", adjustment_data[const.SEASONAL_CONF_NAME]
-        )
-
-    async def async_update_adjustment(
-        self, adjustment_id: str, adjustment_data: dict[str, Any]
-    ) -> None:
-        """Update an existing seasonal adjustment."""
-        # Find the adjustment
-        adjustment_index = None
-        for i, adjustment in enumerate(self._adjustments):
-            if adjustment[const.SEASONAL_CONF_ID] == adjustment_id:
-                adjustment_index = i
-                break
-
-        if adjustment_index is None:
-            raise ValueError(f"Adjustment with ID {adjustment_id} not found")
-
-        # Validate updated data
-        self._validate_adjustment_data(adjustment_data)
-
-        # Update adjustment
-        self._adjustments[adjustment_index].update(adjustment_data)
-
-        # Save configuration
-        await self._save_adjustments()
-
-        _LOGGER.info(
-            "Updated seasonal adjustment: %s",
-            adjustment_data.get(const.SEASONAL_CONF_NAME, adjustment_id),
-        )
-
-    async def async_delete_adjustment(self, adjustment_id: str) -> None:
-        """Delete a seasonal adjustment."""
-        # Remove from adjustments list
-        self._adjustments = [
-            a for a in self._adjustments if a[const.SEASONAL_CONF_ID] != adjustment_id
-        ]
-
-        # Save configuration
-        await self._save_adjustments()
-
-        _LOGGER.info("Deleted seasonal adjustment: %s", adjustment_id)
-
-    async def apply_seasonal_adjustments(
-        self, zone_data: dict[str, Any], zone_id: int | None = None
-    ) -> dict[str, Any]:
-        """Apply applicable seasonal adjustments to zone data."""
-        current_month = datetime.datetime.now().month
-        applied_adjustments = []
-
-        for adjustment in self._adjustments:
-            if not adjustment.get(const.SEASONAL_CONF_ENABLED, True):
-                continue
-
-            # Check if adjustment applies to this zone
-            adjustment_zones = adjustment.get(const.SEASONAL_CONF_ZONES, "all")
-            if adjustment_zones != "all" and zone_id not in adjustment_zones:
-                continue
-
-            # Check if current month is within adjustment period
-            month_start = adjustment.get(const.SEASONAL_CONF_MONTH_START, 1)
-            month_end = adjustment.get(const.SEASONAL_CONF_MONTH_END, 12)
-
-            if month_start <= month_end:
-                # Normal range (e.g., March to September)
-                in_range = month_start <= current_month <= month_end
-            else:
-                # Cross-year range (e.g., November to February)
-                in_range = current_month >= month_start or current_month <= month_end
-
-            if not in_range:
-                continue
-
-            # Apply multiplier adjustment
-            multiplier_adj = adjustment.get(
-                const.SEASONAL_CONF_MULTIPLIER_ADJUSTMENT, 1.0
-            )
-            if multiplier_adj != 1.0 and const.ZONE_MULTIPLIER in zone_data:
-                old_multiplier = zone_data[const.ZONE_MULTIPLIER]
-                zone_data[const.ZONE_MULTIPLIER] = old_multiplier * multiplier_adj
-                applied_adjustments.append(
-                    {
-                        "name": adjustment[const.SEASONAL_CONF_NAME],
-                        "type": "multiplier",
-                        "old_value": old_multiplier,
-                        "new_value": zone_data[const.ZONE_MULTIPLIER],
-                        "adjustment": multiplier_adj,
-                    }
-                )
-
-            # Apply threshold adjustment (if applicable)
-            threshold_adj = adjustment.get(
-                const.SEASONAL_CONF_THRESHOLD_ADJUSTMENT, 0.0
-            )
-            if threshold_adj != 0.0 and const.ZONE_BUCKET in zone_data:
-                zone_data[const.ZONE_BUCKET] += threshold_adj
-                applied_adjustments.append(
-                    {
-                        "name": adjustment[const.SEASONAL_CONF_NAME],
-                        "type": "threshold",
-                        "adjustment": threshold_adj,
-                    }
-                )
-
-        # Fire event if adjustments were applied
-        if applied_adjustments:
-            self.hass.bus.fire(
-                f"{const.DOMAIN}_{const.EVENT_SEASONAL_ADJUSTMENT_APPLIED}",
-                {
-                    "zone_id": zone_id,
-                    "adjustments": applied_adjustments,
-                    "month": current_month,
-                    "timestamp": datetime.datetime.now().isoformat(),
-                },
-            )
-
-            _LOGGER.info(
-                "Applied %d seasonal adjustments to zone %s",
-                len(applied_adjustments),
-                zone_id,
-            )
-
-        return zone_data
-
-    async def _save_adjustments(self) -> None:
-        """Save adjustments to configuration."""
-        await self.coordinator.store.async_update_config(
-            {const.CONF_SEASONAL_ADJUSTMENTS: self._adjustments}
-        )
-
-    def _validate_adjustment_data(self, adjustment_data: dict[str, Any]) -> None:
-        """Validate adjustment data."""
-        required_fields = [const.SEASONAL_CONF_NAME]
-        for field in required_fields:
-            if field not in adjustment_data:
-                raise ValueError(f"Missing required field: {field}")
-
-        # Validate month range
-        month_start = adjustment_data.get(const.SEASONAL_CONF_MONTH_START, 1)
-        month_end = adjustment_data.get(const.SEASONAL_CONF_MONTH_END, 12)
-
-        if not (1 <= month_start <= 12) or not (1 <= month_end <= 12):
-            raise ValueError("Month values must be between 1 and 12")
-
-    def _generate_adjustment_id(self) -> str:
-        """Generate a unique adjustment ID."""
-
-        return f"adjustment_{uuid.uuid4().hex[:8]}"
-
-    def get_adjustments(self) -> list[dict[str, Any]]:
-        """Get all adjustments."""
-        return self._adjustments.copy()

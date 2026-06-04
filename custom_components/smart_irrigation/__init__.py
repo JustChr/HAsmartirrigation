@@ -50,7 +50,7 @@ from .helpers import (
 from .irrigation import IrrigationRunnerMixin
 from .irrigation_unlimited import IrrigationUnlimitedIntegration
 from .panel import async_register_panel, remove_panel
-from .scheduler import RecurringScheduleManager, SeasonalAdjustmentManager
+from .scheduler import RecurringScheduleManager
 from .services import ServiceHandlersMixin, async_register_services
 from .skip_conditions import SkipConditionsMixin
 from .store import SmartIrrigationStorage, async_get_registry
@@ -180,7 +180,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Initialize enhanced scheduling managers
     await coordinator.recurring_schedule_manager.async_load_schedules()
-    await coordinator.seasonal_adjustment_manager.async_load_adjustments()
     await coordinator.irrigation_unlimited_integration.async_initialize()
 
     await coordinator.update_subscriptions()
@@ -346,7 +345,6 @@ class SmartIrrigationCoordinator(
 
         # Initialize enhanced scheduling managers
         self.recurring_schedule_manager = RecurringScheduleManager(hass, self)
-        self.seasonal_adjustment_manager = SeasonalAdjustmentManager(hass, self)
         self.irrigation_unlimited_integration = IrrigationUnlimitedIntegration(
             hass, self
         )

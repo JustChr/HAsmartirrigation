@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Legger til...",
       "saving": "Lagrer..."
+    },
+    "errors": {
+      "load_failed": "Kunne ikke laste data",
+      "save_failed": "Kunne ikke lagre endringene",
+      "delete_failed": "Kunne ikke slette",
+      "action_failed": "Handlingen mislyktes"
     }
   },
   "defaults": {
@@ -322,7 +328,14 @@
         "flow_sensor_placeholder": "f.eks. sensor.zone_flow_rate"
       },
       "no_items": "Det er ingen definerte soner ennå.",
-      "title": "Soner"
+      "title": "Soner",
+      "confirm_irrigate": {
+        "title": "Starte vanning?",
+        "body": "Dette åpner nå de tilkoblede ventilene og overstyrer alle hoppe-over-betingelser (regn, temperatur, minste antall dager mellom vanninger).",
+        "all_linked_zones": "Alle tilkoblede soner",
+        "toast_started": "Vanning startet",
+        "toast_failed": "Vanning mislyktes"
+      }
     },
     "title": "Smart vanning",
     "schedules": {
@@ -376,29 +389,6 @@
       "dialog": {
         "add_title": "Legg til tidsplan",
         "edit_title": "Rediger tidsplan"
-      }
-    },
-    "adjustments": {
-      "title": "Sesongkorrigeringer",
-      "description": "Månedlige multiplikator- eller terskelkorrigeringer for sesongtilstand.",
-      "add": "Legg til korrigering",
-      "no_items": "Ingen sesongkorrigeringer konfigurert.",
-      "zones_all": "Alle soner",
-      "zones_specific": "Spesifikke soner",
-      "multiplier_hint": "1,0 = ingen endring, 1,5 = 50% mer vanning, 0,5 = 50% mindre",
-      "threshold_hint": "Legges til sone-beholderen. Positivt = mer vann trengs, negativt = mindre.",
-      "fields": {
-        "name": "Navn",
-        "enabled": "Aktivert",
-        "month_start": "Fra måned",
-        "month_end": "Til måned",
-        "multiplier_adjustment": "Multiplikatorkorrigering",
-        "threshold_adjustment": "Terskelkorrigering (mm)",
-        "zones": "Soner"
-      },
-      "dialog": {
-        "add_title": "Legg til sesongkorrigering",
-        "edit_title": "Rediger sesongkorrigering"
       }
     },
     "info": {

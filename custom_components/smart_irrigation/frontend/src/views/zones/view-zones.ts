@@ -33,7 +33,12 @@ import {
   SmartIrrigationMapping,
   WeatherRecord,
 } from "../../types";
-import { output_unit } from "../../helpers";
+import {
+  output_unit,
+  extractErrorMessage,
+  showToast,
+  showErrorToast,
+} from "../../helpers";
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
 import {
@@ -95,6 +100,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
   @state() private _operationError: string | null = null;
 
+  // Pending irrigate confirmation: "all", a zone id (string), or null.
+  @state() private _confirmIrrigate: string | null = null;
+
   @property()
   private _confirmDeleteZoneId: number | null = null;
 
@@ -106,13 +114,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
   @property()
   private _newZoneThroughput = "";
-
-  private _extractErrorMessage(err: unknown): string {
-    if (!err) return "Unknown error";
-    if (typeof err === "string") return err;
-    const e = err as any;
-    return e?.body?.message || e?.message || e?.error || JSON.stringify(err);
-  }
 
   private _updateScheduled = false;
   private _scheduleUpdate() {
@@ -177,6 +178,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       this._fetchWeatherRecords();
     } catch (error) {
       console.error("Error fetching data:", error);
+      showErrorToast(this, this.hass, "common.errors.load_failed", error);
     } finally {
       if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
@@ -188,7 +190,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     calculateAllZones(this.hass)
-      .catch((error) => console.error("Failed to calculate all zones:", error))
+      .catch((error) => {
+        console.error("Failed to calculate all zones:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -202,7 +207,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     updateAllZones(this.hass)
-      .catch((error) => console.error("Failed to update all zones:", error))
+      .catch((error) => {
+        console.error("Failed to update all zones:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -216,7 +224,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     resetAllBuckets(this.hass)
-      .catch((error) => console.error("Failed to reset all buckets:", error))
+      .catch((error) => {
+        console.error("Failed to reset all buckets:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -230,9 +241,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.isSaving = true;
     this._scheduleUpdate();
     clearAllWeatherdata(this.hass)
-      .catch((error) =>
-        console.error("Failed to clear all weather data:", error),
-      )
+      .catch((error) => {
+        console.error("Failed to clear all weather data:", error);
+        showErrorToast(this, this.hass, "common.errors.action_failed", error);
+      })
       .finally(() => {
         this.isSaving = false;
         this._fetchData().catch((e) =>
@@ -278,6 +290,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       .catch((error) => {
         console.error("Failed to add zone:", error);
         this.zones = this.zones.slice(0, -1);
+        showErrorToast(this, this.hass, "common.errors.save_failed", error);
       })
       .finally(() => {
         this.isSaving = false;
@@ -299,7 +312,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this.globalDebounceTimer = window.setTimeout(() => {
       this.isSaving = true;
       this.saveToHA(updatedZone)
-        .catch((error) => console.error("Failed to save zone:", error))
+        .catch((error) => {
+          console.error("Failed to save zone:", error);
+          showErrorToast(this, this.hass, "common.errors.save_failed", error);
+        })
         .finally(() => {
           this.isSaving = false;
           this._scheduleUpdate();
@@ -329,6 +345,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     deleteZone(this.hass, zoneId.toString())
       .catch((error) => {
         console.error("Failed to delete zone:", error);
+        showErrorToast(this, this.hass, "common.errors.delete_failed", error);
         this.zones = originalZones;
         this._fetchData().catch((e) =>
           console.error("Failed to refresh data after delete error:", e),
@@ -340,6 +357,41 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       });
   }
 
+  // Number of zones an "irrigate all" would actually start (linked + duration).
+  private get _linkedZoneCount(): number {
+    return this.zones.filter((z) => z.linked_entity && (z.duration ?? 0) > 0)
+      .length;
+  }
+
+  private async _doIrrigate(): Promise<void> {
+    const target = this._confirmIrrigate;
+    this._confirmIrrigate = null;
+    if (target === null || !this.hass) return;
+
+    const isAll = target === "all";
+    const zone = isAll
+      ? undefined
+      : this.zones.find((z) => z.id?.toString() === target);
+    const label = isAll
+      ? `(${this._linkedZoneCount})`
+      : `: ${zone?.name ?? target}`;
+
+    try {
+      await irrigateNow(this.hass, isAll ? undefined : target);
+      showToast(
+        this,
+        `${localize("panels.zones.confirm_irrigate.toast_started", this.hass.language)} ${label}`,
+      );
+    } catch (err) {
+      const msg = extractErrorMessage(err);
+      console.error("irrigate_now failed", err);
+      showToast(
+        this,
+        `${localize("panels.zones.confirm_irrigate.toast_failed", this.hass.language)}: ${msg}`,
+      );
+    }
+  }
+
   private handleCalculateZone(index: number): void {
     const zone = this.zones[index];
     if (!zone || zone.id == undefined || !this.hass) return;
@@ -348,7 +400,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this._scheduleUpdate();
     calculateZone(this.hass, zone.id.toString())
       .catch((err) => {
-        const msg = this._extractErrorMessage(err);
+        const msg = extractErrorMessage(err);
         console.error("calculateZone failed:", err);
         this._operationError = msg;
       })
@@ -368,7 +420,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this._scheduleUpdate();
     updateZone(this.hass, zone.id.toString())
       .catch((err) => {
-        const msg = this._extractErrorMessage(err);
+        const msg = extractErrorMessage(err);
         console.error("updateZone failed:", err);
         this._operationError = msg;
       })
@@ -742,11 +794,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   class="action-btn"
                   raised
                   @click="${() => {
-                    if (!this.hass) return;
-                    irrigateNow(
-                      this.hass,
-                      zone.id !== undefined ? zone.id.toString() : undefined,
-                    ).catch((e) => console.error("irrigate_now failed", e));
+                    if (zone.id !== undefined) {
+                      this._confirmIrrigate = zone.id.toString();
+                    }
                   }}"
                   ?disabled="${this.isSaving}"
                 >
@@ -1251,10 +1301,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       return html`
         <ha-card header="${localize("panels.zones.title", this.hass.language)}">
           <div class="card-content">
-            ${localize(
-              "common.loading-messages.general",
-              this.hass.language,
-            )}...
+            <div class="loading-indicator">
+              ${localize("common.loading-messages.general", this.hass.language)}
+            </div>
           </div>
         </ha-card>
       `;
@@ -1327,10 +1376,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             class="action-btn"
             raised
             @click="${() => {
-              if (!this.hass) return;
-              irrigateNow(this.hass).catch((e) =>
-                console.error("irrigate_now failed", e),
-              );
+              this._confirmIrrigate = "all";
             }}"
             ?disabled="${!hasLinkedZones || this.isSaving}"
           >
@@ -1468,6 +1514,57 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   @click="${this._confirmDelete}"
                 >
                   ${localize("common.actions.delete", this.hass.language)}
+                </button>
+              </div>
+            </ha-dialog>
+          `
+        : ""}
+
+      <!-- Irrigate confirmation dialog -->
+      ${this._confirmIrrigate !== null
+        ? html`
+            <ha-dialog
+              open
+              @closed="${() => {
+                this._confirmIrrigate = null;
+              }}"
+              heading="${localize(
+                "panels.zones.confirm_irrigate.title",
+                this.hass.language,
+              )}"
+            >
+              <p>
+                ${localize(
+                  "panels.zones.confirm_irrigate.body",
+                  this.hass.language,
+                )}
+              </p>
+              <p>
+                <strong>
+                  ${this._confirmIrrigate === "all"
+                    ? `${localize("panels.zones.confirm_irrigate.all_linked_zones", this.hass.language)} (${this._linkedZoneCount})`
+                    : (this.zones.find(
+                        (z) => z.id?.toString() === this._confirmIrrigate,
+                      )?.name ?? this._confirmIrrigate)}
+                </strong>
+              </p>
+              <div class="dialog-footer">
+                <button
+                  class="dialog-btn"
+                  @click="${() => {
+                    this._confirmIrrigate = null;
+                  }}"
+                >
+                  ${localize("common.actions.cancel", this.hass.language)}
+                </button>
+                <button
+                  class="dialog-btn dialog-btn-primary"
+                  @click="${this._doIrrigate}"
+                >
+                  ${localize(
+                    "panels.zones.labels.irrigate_now",
+                    this.hass.language,
+                  )}
                 </button>
               </div>
             </ha-dialog>

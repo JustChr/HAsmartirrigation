@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Añadiendo...",
       "saving": "Guardando..."
+    },
+    "errors": {
+      "load_failed": "No se pudieron cargar los datos",
+      "save_failed": "No se pudieron guardar los cambios",
+      "delete_failed": "No se pudo eliminar",
+      "action_failed": "La acción falló"
     }
   },
   "defaults": {
@@ -322,7 +328,14 @@
         "flow_sensor_placeholder": "p. ej. sensor.zone_flow_rate"
       },
       "no_items": "Aún no hay zonas definidas.",
-      "title": "Zonas"
+      "title": "Zonas",
+      "confirm_irrigate": {
+        "title": "¿Iniciar el riego?",
+        "body": "Esto abrirá ahora las válvulas vinculadas e ignora todas las condiciones de exclusión (lluvia, temperatura, días mínimos entre riegos).",
+        "all_linked_zones": "Todas las zonas vinculadas",
+        "toast_started": "Riego iniciado",
+        "toast_failed": "Error en el riego"
+      }
     },
     "schedules": {
       "title": "Programas",
@@ -375,29 +388,6 @@
       "dialog": {
         "add_title": "Añadir programa",
         "edit_title": "Editar programa"
-      }
-    },
-    "adjustments": {
-      "title": "Ajustes estacionales",
-      "description": "Ajustes mensuales de multiplicador o umbral para condiciones estacionales.",
-      "add": "Añadir ajuste",
-      "no_items": "Aún no hay ajustes estacionales configurados.",
-      "zones_all": "Todas las zonas",
-      "zones_specific": "Zonas específicas",
-      "multiplier_hint": "1,0 = sin cambio, 1,5 = 50% más riego, 0,5 = 50% menos",
-      "threshold_hint": "Se añade al depósito de la zona. Positivo = más agua necesaria, negativo = menos.",
-      "fields": {
-        "name": "Nombre",
-        "enabled": "Activado",
-        "month_start": "Desde mes",
-        "month_end": "Hasta mes",
-        "multiplier_adjustment": "Ajuste de multiplicador",
-        "threshold_adjustment": "Ajuste de umbral (mm)",
-        "zones": "Zonas"
-      },
-      "dialog": {
-        "add_title": "Añadir ajuste estacional",
-        "edit_title": "Editar ajuste estacional"
       }
     },
     "info": {

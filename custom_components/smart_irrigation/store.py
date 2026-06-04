@@ -46,7 +46,6 @@ from .const import (
     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
     CONF_DEFAULT_RAIN_SENSOR,
     CONF_DEFAULT_RECURRING_SCHEDULES,
-    CONF_DEFAULT_SEASONAL_ADJUSTMENTS,
     CONF_DEFAULT_SENSOR_DEBOUNCE,
     CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION,
     CONF_DEFAULT_SKIP_TEMP_ENABLED,
@@ -63,7 +62,6 @@ from .const import (
     CONF_PRECIPITATION_THRESHOLD_MM,
     CONF_RAIN_SENSOR,
     CONF_RECURRING_SCHEDULES,
-    CONF_SEASONAL_ADJUSTMENTS,
     CONF_SENSOR_DEBOUNCE,
     CONF_SKIP_IRRIGATION_ON_PRECIPITATION,
     CONF_SKIP_TEMP_ENABLED,
@@ -226,7 +224,6 @@ class Config:
     days_since_last_irrigation = attr.ib(
         type=int, default=CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION
     )
-    seasonal_adjustments = attr.ib(type=list, default=CONF_DEFAULT_SEASONAL_ADJUSTMENTS)
     recurring_schedules = attr.ib(type=list, default=CONF_DEFAULT_RECURRING_SCHEDULES)
     zone_sequencing = attr.ib(type=str, default=CONF_DEFAULT_ZONE_SEQUENCING)
     zone_sequencing_max_consecutive_duration = attr.ib(
@@ -508,10 +505,6 @@ class SmartIrrigationStorage:
                 recurring_schedules=data["config"].get(
                     CONF_RECURRING_SCHEDULES,
                     CONF_DEFAULT_RECURRING_SCHEDULES,
-                ),
-                seasonal_adjustments=data["config"].get(
-                    CONF_SEASONAL_ADJUSTMENTS,
-                    CONF_DEFAULT_SEASONAL_ADJUSTMENTS,
                 ),
             )
 

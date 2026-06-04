@@ -56,7 +56,11 @@ import {
   MAPPING_CONF_PRESSURE_RELATIVE,
   MAPPING_CURRENT_PRECIPITATION,
 } from "../../const";
-import { getOptionsForMappingType, handleError } from "../../helpers";
+import {
+  getOptionsForMappingType,
+  handleError,
+  showErrorToast,
+} from "../../helpers";
 import { mdiConsoleNetworkOutline, mdiDelete } from "@mdi/js";
 import moment from "moment";
 
@@ -366,6 +370,7 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
       })
       .catch((error) => {
         console.error("Failed to add mapping:", error);
+        showErrorToast(this, this.hass, "common.errors.save_failed", error);
         // Revert optimistic update on error
         this.mappings = this.mappings.slice(0, -1);
       })
@@ -401,6 +406,7 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
     deleteMapping(this.hass, mappingid.toString())
       .catch((error) => {
         console.error("Failed to delete mapping:", error);
+        showErrorToast(this, this.hass, "common.errors.delete_failed", error);
         // Revert the local change if deletion failed
         this.mappings = originalMappings;
         this._fetchData().catch((fetchError) => {
@@ -439,6 +445,7 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
       this.saveToHA(updatedMapping)
         .catch((error) => {
           console.error("Failed to save mapping:", error);
+          showErrorToast(this, this.hass, "common.errors.save_failed", error);
         })
         .finally(() => {
           this.isSaving = false;
@@ -1335,7 +1342,9 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
           header="${localize("panels.mappings.title", this.hass.language)}"
         >
           <div class="card-content">
-            ${localize("common.loading-messages.general", this.hass.language)}
+            <div class="loading-indicator">
+              ${localize("common.loading-messages.general", this.hass.language)}
+            </div>
           </div>
         </ha-card>
       `;

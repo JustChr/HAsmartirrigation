@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Adding...",
       "saving": "Saving..."
+    },
+    "errors": {
+      "load_failed": "Couldn't load data",
+      "save_failed": "Couldn't save changes",
+      "delete_failed": "Couldn't delete",
+      "action_failed": "Action failed"
     }
   },
   "defaults": {
@@ -192,29 +198,6 @@
       "dialog": {
         "add_title": "Add Schedule",
         "edit_title": "Edit Schedule"
-      }
-    },
-    "adjustments": {
-      "title": "Seasonal Adjustments",
-      "description": "Apply month-based multiplier or bucket adjustments to automatically adapt irrigation for seasonal conditions.",
-      "add": "Add Adjustment",
-      "no_items": "No seasonal adjustments configured yet. Click 'Add Adjustment' to get started.",
-      "zones_all": "All zones",
-      "zones_specific": "Specific zones",
-      "multiplier_hint": "1.0 = no change, 1.5 = 50% more irrigation, 0.5 = 50% less",
-      "threshold_hint": "Added to the zone bucket. Positive = more water needed, negative = less.",
-      "fields": {
-        "name": "Name",
-        "enabled": "Enabled",
-        "month_start": "From month",
-        "month_end": "To month",
-        "multiplier_adjustment": "Multiplier adjustment",
-        "threshold_adjustment": "Bucket threshold adjustment (mm)",
-        "zones": "Zones"
-      },
-      "dialog": {
-        "add_title": "Add Seasonal Adjustment",
-        "edit_title": "Edit Seasonal Adjustment"
       }
     },
     "setup": {
@@ -438,7 +421,14 @@
         "bucket_threshold": "Minimum deficit to irrigate"
       },
       "no_items": "There are no zones defined yet.",
-      "title": "Zones"
+      "title": "Zones",
+      "confirm_irrigate": {
+        "title": "Start irrigation?",
+        "body": "This opens the linked valve(s) now and bypasses all skip conditions (rain, temperature, minimum days between watering).",
+        "all_linked_zones": "All linked zones",
+        "toast_started": "Irrigation started",
+        "toast_failed": "Irrigation failed"
+      }
     }
   },
   "title": "Smart Irrigation",

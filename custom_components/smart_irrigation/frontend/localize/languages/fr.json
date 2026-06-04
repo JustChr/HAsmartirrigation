@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Ajout...",
       "saving": "Enregistrement..."
+    },
+    "errors": {
+      "load_failed": "Impossible de charger les données",
+      "save_failed": "Impossible d'enregistrer les modifications",
+      "delete_failed": "Impossible de supprimer",
+      "action_failed": "Échec de l'action"
     }
   },
   "defaults": {
@@ -323,7 +329,14 @@
         "flow_sensor_placeholder": "p. ex. sensor.zone_flow_rate"
       },
       "no_items": "Il n'y a pas encore de zone définie.",
-      "title": "Zones"
+      "title": "Zones",
+      "confirm_irrigate": {
+        "title": "Démarrer l'arrosage ?",
+        "body": "Ceci ouvre maintenant la ou les vannes liées et ignore toutes les conditions d'exclusion (pluie, température, nombre minimal de jours entre les arrosages).",
+        "all_linked_zones": "Toutes les zones liées",
+        "toast_started": "Arrosage démarré",
+        "toast_failed": "Échec de l'arrosage"
+      }
     },
     "schedules": {
       "title": "Planifications",
@@ -376,29 +389,6 @@
       "dialog": {
         "add_title": "Ajouter une planification",
         "edit_title": "Modifier la planification"
-      }
-    },
-    "adjustments": {
-      "title": "Ajustements saisonniers",
-      "description": "Ajustements mensuels de multiplicateur ou seuil pour les conditions saisonnières.",
-      "add": "Ajouter un ajustement",
-      "no_items": "Aucun ajustement saisonnier configuré.",
-      "zones_all": "Toutes les zones",
-      "zones_specific": "Zones spécifiques",
-      "multiplier_hint": "1,0 = pas de changement, 1,5 = 50% d'irrigation en plus, 0,5 = 50% en moins",
-      "threshold_hint": "Ajouté au réservoir de la zone. Positif = plus d'eau nécessaire, négatif = moins.",
-      "fields": {
-        "name": "Nom",
-        "enabled": "Activé",
-        "month_start": "Depuis le mois",
-        "month_end": "Jusqu'au mois",
-        "multiplier_adjustment": "Ajustement du multiplicateur",
-        "threshold_adjustment": "Ajustement du seuil (mm)",
-        "zones": "Zones"
-      },
-      "dialog": {
-        "add_title": "Ajouter un ajustement saisonnier",
-        "edit_title": "Modifier l'ajustement saisonnier"
       }
     },
     "info": {

@@ -199,6 +199,28 @@ export const globalStyle = css`
     padding: 20px;
     color: var(--primary-text-color);
     font-style: italic;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Lightweight CSS spinner — avoids depending on ha-circular-progress /
+     ha-spinner, whose element name changed across HA versions. */
+  .loading-indicator::before {
+    content: "";
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid var(--divider-color, rgba(127, 127, 127, 0.3));
+    border-top-color: var(--primary-color);
+    animation: si-spin 0.8s linear infinite;
+  }
+
+  @keyframes si-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .saving {

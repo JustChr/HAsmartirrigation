@@ -1,17 +1,17 @@
 import { LitElement, html, CSSResultGroup, css } from "lit";
-import { property, state, customElement } from "lit/decorators.js";
+import { property, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 
 import "../general/view-general.ts";
 import "../modules/view-modules.ts";
 import "../mappings/view-mappings.ts";
 import "../schedules/view-schedules.ts";
-import "../adjustments/view-adjustments.ts";
-import "../wizard/si-setup-wizard.ts";
 
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
 import { ISSUES_URL } from "../../const";
+import { navigate } from "../../helpers";
+import { exportPath, Path } from "../../common/navigation";
 
 const DOCS_URL = "https://justchr.github.io/HAsmartirrigation/";
 
@@ -20,7 +20,6 @@ enum ESetupTab {
   Modules = "modules",
   Mappings = "mappings",
   Schedules = "schedules",
-  Adjustments = "adjustments",
   Help = "help",
 }
 
@@ -29,7 +28,6 @@ const SETUP_TAB_LABELS: Record<ESetupTab, string> = {
   [ESetupTab.Modules]: "panels.modules.title",
   [ESetupTab.Mappings]: "panels.mappings.title",
   [ESetupTab.Schedules]: "panels.schedules.title",
-  [ESetupTab.Adjustments]: "panels.adjustments.title",
   [ESetupTab.Help]: "panels.help.title",
 };
 
@@ -38,53 +36,40 @@ export class SmartIrrigationViewSetup extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property({ type: Boolean }) public narrow!: boolean;
 
-  @property()
-  private _activeTab: ESetupTab = ESetupTab.General;
+  @property({ attribute: false }) public path?: Path;
 
-  @state() private _wizardOpen = false;
+  // Active sub-tab is derived from the URL subpage so it is deep-linkable and
+  // survives in-session back/forward. Falls back to General for unknown values.
+  private get _activeTab(): ESetupTab {
+    const sub = this.path?.subpage;
+    return (Object.values(ESetupTab) as string[]).includes(sub ?? "")
+      ? (sub as ESetupTab)
+      : ESetupTab.General;
+  }
+
+  private _selectTab(tab: ESetupTab) {
+    navigate(this, exportPath("setup", tab));
+  }
 
   private _openWizard() {
-    this._wizardOpen = true;
-  }
-
-  private _onWizardClose() {
-    this._wizardOpen = false;
-  }
-
-  private _onWizardNavigate(e: CustomEvent) {
-    const { page } = e.detail as { page: string };
+    // The panel shell owns the single wizard instance.
     this.dispatchEvent(
-      new CustomEvent("wizard-navigate", {
-        detail: { page },
-        bubbles: true,
-        composed: true,
-      }),
+      new CustomEvent("open-wizard", { bubbles: true, composed: true }),
     );
-    this._wizardOpen = false;
   }
 
   render() {
     if (!this.hass) return html``;
 
+    const activeTab = this._activeTab;
     return html`
-      ${this._wizardOpen
-        ? html`
-            <si-setup-wizard
-              .hass="${this.hass}"
-              @wizard-close="${this._onWizardClose}"
-              @wizard-navigate="${this._onWizardNavigate}"
-            ></si-setup-wizard>
-          `
-        : ""}
       <div class="setup-container">
         <nav class="setup-nav">
           ${Object.values(ESetupTab).map(
             (tab) => html`
               <button
-                class="setup-nav-btn ${this._activeTab === tab ? "active" : ""}"
-                @click="${() => {
-                  this._activeTab = tab;
-                }}"
+                class="setup-nav-btn ${activeTab === tab ? "active" : ""}"
+                @click="${() => this._selectTab(tab)}"
               >
                 ${localize(SETUP_TAB_LABELS[tab], this.hass.language)}
               </button>
@@ -98,14 +83,14 @@ export class SmartIrrigationViewSetup extends LitElement {
             ✦ ${localize("wizard.open_button", this.hass.language)}
           </button>
         </nav>
-        <div class="setup-content">${this._renderContent()}</div>
+        <div class="setup-content">${this._renderContent(activeTab)}</div>
       </div>
     `;
   }
 
-  private _renderContent() {
+  private _renderContent(activeTab: ESetupTab) {
     if (!this.hass) return html``;
-    switch (this._activeTab) {
+    switch (activeTab) {
       case ESetupTab.General:
         return html`<smart-irrigation-view-general
           .hass="${this.hass}"
@@ -126,11 +111,6 @@ export class SmartIrrigationViewSetup extends LitElement {
           .hass="${this.hass}"
           .narrow="${this.narrow}"
         ></smart-irrigation-view-schedules>`;
-      case ESetupTab.Adjustments:
-        return html`<smart-irrigation-view-adjustments
-          .hass="${this.hass}"
-          .narrow="${this.narrow}"
-        ></smart-irrigation-view-adjustments>`;
       case ESetupTab.Help:
         return this._renderHelp();
     }

@@ -15,7 +15,7 @@ import {
 import "../../components/si-field";
 import { SubscribeMixin } from "../../subscribe-mixin";
 import { localize } from "../../../localize/localize";
-import { output_unit, pick, handleError } from "../../helpers";
+import { output_unit, pick, handleError, showErrorToast } from "../../helpers";
 import { loadHaForm } from "../../load-ha-elements";
 import { SmartIrrigationConfig } from "../../types";
 import { globalStyle } from "../../styles/global-style";
@@ -163,6 +163,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       this._initialLoadDone = true;
     } catch (error) {
       console.error("Error fetching data:", error);
+      showErrorToast(this, this.hass, "common.errors.load_failed", error);
     } finally {
       if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
@@ -216,6 +217,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       await this._fetchData();
     } catch (error) {
       console.error("Failed to save weather config:", error);
+      showErrorToast(this, this.hass, "common.errors.save_failed", error);
     } finally {
       this._weatherSaving = false;
       this._scheduleUpdate();

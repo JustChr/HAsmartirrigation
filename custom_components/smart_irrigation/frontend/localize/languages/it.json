@@ -42,6 +42,12 @@
     "saving-messages": {
       "adding": "Aggiungendo...",
       "saving": "Salvataggio..."
+    },
+    "errors": {
+      "load_failed": "Impossibile caricare i dati",
+      "save_failed": "Impossibile salvare le modifiche",
+      "delete_failed": "Impossibile eliminare",
+      "action_failed": "Azione non riuscita"
     }
   },
   "defaults": {
@@ -366,7 +372,14 @@
         "flow_sensor_placeholder": "ad es. sensor.zone_flow_rate"
       },
       "no_items": "Non ci sono ancora zone definite.",
-      "title": "Zone"
+      "title": "Zone",
+      "confirm_irrigate": {
+        "title": "Avviare l'irrigazione?",
+        "body": "Verranno aperte ora le valvole collegate, ignorando tutte le condizioni di esclusione (pioggia, temperatura, giorni minimi tra le irrigazioni).",
+        "all_linked_zones": "Tutte le zone collegate",
+        "toast_started": "Irrigazione avviata",
+        "toast_failed": "Irrigazione non riuscita"
+      }
     },
     "schedules": {
       "title": "Pianificazioni",
@@ -419,29 +432,6 @@
       "dialog": {
         "add_title": "Aggiungi pianificazione",
         "edit_title": "Modifica pianificazione"
-      }
-    },
-    "adjustments": {
-      "title": "Aggiustamenti stagionali",
-      "description": "Aggiustamenti mensili di moltiplicatore o soglia per condizioni stagionali.",
-      "add": "Aggiungi aggiustamento",
-      "no_items": "Nessun aggiustamento stagionale configurato.",
-      "zones_all": "Tutte le zone",
-      "zones_specific": "Zone specifiche",
-      "multiplier_hint": "1,0 = nessuna modifica, 1,5 = 50% più irrigazione, 0,5 = 50% meno",
-      "threshold_hint": "Aggiunto al serbatoio della zona. Positivo = più acqua necessaria, negativo = meno.",
-      "fields": {
-        "name": "Nome",
-        "enabled": "Abilitato",
-        "month_start": "Dal mese",
-        "month_end": "Al mese",
-        "multiplier_adjustment": "Aggiustamento moltiplicatore",
-        "threshold_adjustment": "Aggiustamento soglia (mm)",
-        "zones": "Zone"
-      },
-      "dialog": {
-        "add_title": "Aggiungi aggiustamento stagionale",
-        "edit_title": "Modifica aggiustamento stagionale"
       }
     },
     "setup": {
