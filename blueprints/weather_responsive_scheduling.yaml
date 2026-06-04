@@ -121,15 +121,11 @@ action:
   - condition: template
     value_template: "{{ current_wind <= wind_threshold }}"
 
-  # Apply seasonal adjustments
-  - service: smart_irrigation.create_seasonal_adjustment
+  # Apply the seasonal multiplier to every zone.
+  # (Replaces the removed create_seasonal_adjustment service.)
+  - service: smart_irrigation.set_all_multipliers
     data:
-      name: "Auto Seasonal Adjustment {{ now().strftime('%Y-%m') }}"
-      enabled: true
-      month_start: "{{ current_month }}"
-      month_end: "{{ current_month }}"
-      multiplier_adjustment: "{{ seasonal_multiplier }}"
-      zones: "all"
+      new_multiplier_value: "{{ seasonal_multiplier | float }}"
 
   # Calculate zones with weather consideration
   - repeat:
