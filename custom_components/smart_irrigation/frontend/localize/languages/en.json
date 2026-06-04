@@ -199,11 +199,16 @@
         "end_date": "End date (optional)",
         "offset_minutes": "Offset from sunrise/sunset",
         "account_for_duration": "Start early so irrigation finishes at trigger time",
-        "azimuth_angle": "Solar azimuth angle"
+        "azimuth_angle": "Solar azimuth angle",
+        "time_anchor": "Time marks the"
       },
       "dialog": {
         "add_title": "Add Schedule",
         "edit_title": "Edit Schedule"
+      },
+      "time_anchor": {
+        "start": "Start of irrigation",
+        "finish": "End of irrigation"
       }
     },
     "setup": {

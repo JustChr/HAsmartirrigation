@@ -56,7 +56,8 @@ interface Schedule {
   day_of_month?: number;
   interval_hours?: number;
   offset_minutes?: number;
-  account_for_duration?: boolean;
+  account_for_duration?: boolean; // legacy; superseded by time_anchor
+  time_anchor?: string; // "start" | "finish"
   azimuth_angle?: number;
   action: string;
   zones: string | string[];
@@ -453,21 +454,48 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
           >
         </div>
       </div>
-      <div class="field-row">
+    `;
+  }
+
+  /**
+   * Start-vs-finish anchor. Only meaningful for an irrigate action on a type
+   * with a fixed target time (everything except interval). "Finish" fires the
+   * run early enough that it ends at the configured time, using the live
+   * estimated duration.
+   */
+  private _renderTimeAnchorField() {
+    const s = this._editingSchedule;
+    if (s.action !== "irrigate" || s.type === "interval") return html``;
+    // Mirror the backend's legacy resolution: only solar schedules ever honored
+    // account_for_duration (True => finish); everything else defaults to start.
+    const isSolar = ["sunrise", "sunset", "solar_azimuth"].includes(s.type);
+    const legacyFinish = isSolar && s.account_for_duration !== false;
+    const current = s.time_anchor ?? (legacyFinish ? "finish" : "start");
+    return html`
+      <div class="field">
         <label
           >${localize(
-            "panels.schedules.fields.account_for_duration",
+            "panels.schedules.fields.time_anchor",
             this.hass.language,
           )}</label
         >
-        <input
-          type="checkbox"
-          ?checked="${s.account_for_duration !== false}"
+        <select
           @change=${(e: Event) =>
             this._update({
-              account_for_duration: (e.target as HTMLInputElement).checked,
+              time_anchor: (e.target as HTMLSelectElement).value,
             })}
-        />
+        >
+          ${["start", "finish"].map(
+            (a) => html`
+              <option value="${a}" ?selected="${current === a}">
+                ${localize(
+                  `panels.schedules.time_anchor.${a}`,
+                  this.hass.language,
+                )}
+              </option>
+            `,
+          )}
+        </select>
       </div>
     `;
   }
@@ -564,7 +592,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
             </select>
           </div>
 
-          ${this._renderZonePicker()}
+          ${this._renderTimeAnchorField()} ${this._renderZonePicker()}
 
           <div class="field-row">
             <label

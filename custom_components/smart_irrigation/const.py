@@ -82,8 +82,14 @@ SCHEDULE_CONF_END_DATE = "end_date"
 SCHEDULE_CONF_ZONES = "zones"  # List of zone IDs or "all"
 SCHEDULE_CONF_ACTION = "action"  # "calculate", "update", or "irrigate"
 SCHEDULE_CONF_OFFSET_MINUTES = "offset_minutes"
-SCHEDULE_CONF_ACCOUNT_FOR_DURATION = "account_for_duration"
+SCHEDULE_CONF_ACCOUNT_FOR_DURATION = "account_for_duration"  # legacy; see time_anchor
 SCHEDULE_CONF_AZIMUTH_ANGLE = "azimuth_angle"
+# Whether the schedule's time marks when irrigation STARTS or when it FINISHES.
+# "finish" fires early enough (time − estimated duration) that the run ends at
+# the configured time. Supersedes account_for_duration for all schedule types.
+SCHEDULE_CONF_TIME_ANCHOR = "time_anchor"
+SCHEDULE_TIME_ANCHOR_START = "start"
+SCHEDULE_TIME_ANCHOR_FINISH = "finish"
 
 # Irrigation Unlimited Integration
 CONF_IRRIGATION_UNLIMITED_INTEGRATION = "irrigation_unlimited_integration"

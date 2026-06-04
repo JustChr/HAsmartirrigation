@@ -5,8 +5,10 @@ import logging
 import uuid
 from typing import Any
 
+import homeassistant.util.dt as dt_util
 from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import (
     async_track_point_in_utc_time,
     async_track_sunrise,
@@ -14,6 +16,7 @@ from homeassistant.helpers.event import (
     async_track_time_change,
     async_track_time_interval,
 )
+from homeassistant.helpers.sun import get_astral_event_next
 
 from . import const
 from .helpers import find_next_solar_azimuth_time, normalize_azimuth_angle
@@ -30,12 +33,39 @@ class RecurringScheduleManager:
         self.coordinator = coordinator
         self._schedule_trackers = {}
         self._schedules = []
+        self._unsub_rearm = None
 
     async def async_load_schedules(self) -> None:
         """Load recurring schedules from configuration."""
         config = await self.coordinator.store.async_get_config()
         self._schedules = config.get(const.CONF_RECURRING_SCHEDULES, [])
         await self._setup_schedule_trackers()
+
+        # Re-arm finish-anchored schedules whenever durations may have changed
+        # (a calculate dispatches _config_updated). This keeps the computed
+        # start time (target − duration) fresh without polling.
+        if getattr(self, "_unsub_rearm", None) is None:
+            self._unsub_rearm = async_dispatcher_connect(
+                self.hass,
+                const.DOMAIN + "_config_updated",
+                self._on_config_updated,
+            )
+
+    @callback
+    def _on_config_updated(self, *_args) -> None:
+        """React to config/duration changes by re-arming finish schedules."""
+        self.hass.async_create_task(self.async_rearm_finish_schedules())
+
+    async def async_rearm_finish_schedules(self) -> None:
+        """Recompute and re-arm start times for finish-anchored schedules."""
+        for schedule in self._schedules:
+            if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
+                continue
+            if self._time_anchor(schedule) != const.SCHEDULE_TIME_ANCHOR_FINISH:
+                continue
+            if schedule[const.SCHEDULE_CONF_TYPE] == const.SCHEDULE_TYPE_INTERVAL:
+                continue
+            await self._reregister_tracker(schedule)
 
     async def async_create_schedule(self, schedule_data: dict[str, Any]) -> None:
         """Create a new recurring schedule."""
@@ -129,7 +159,17 @@ class RecurringScheduleManager:
         schedule_id = schedule[const.SCHEDULE_CONF_ID]
         schedule_type = schedule[const.SCHEDULE_CONF_TYPE]
 
-        if schedule_type == const.SCHEDULE_TYPE_DAILY:
+        # "Finish at time" needs a dynamic start (target − duration), so it uses
+        # a one-shot, self-rescheduling tracker. Only meaningful for an irrigate
+        # action (calculate/update have no run to finish) and for types with a
+        # fixed target time (not interval).
+        if (
+            self._time_anchor(schedule) == const.SCHEDULE_TIME_ANCHOR_FINISH
+            and schedule_type != const.SCHEDULE_TYPE_INTERVAL
+            and schedule.get(const.SCHEDULE_CONF_ACTION) == "irrigate"
+        ):
+            tracker = await self._setup_finish_tracker(schedule)
+        elif schedule_type == const.SCHEDULE_TYPE_DAILY:
             tracker = await self._setup_daily_tracker(schedule)
         elif schedule_type == const.SCHEDULE_TYPE_WEEKLY:
             tracker = await self._setup_weekly_tracker(schedule)
@@ -148,6 +188,152 @@ class RecurringScheduleManager:
             return
 
         self._schedule_trackers[schedule_id] = tracker
+
+    # --- "finish at time" anchoring -----------------------------------------
+
+    @staticmethod
+    def _time_anchor(schedule: dict[str, Any]) -> str:
+        """Resolve a schedule's time anchor ('start' | 'finish').
+
+        Falls back to the legacy ``account_for_duration`` flag, which only ever
+        affected solar schedules.
+        """
+        anchor = schedule.get(const.SCHEDULE_CONF_TIME_ANCHOR)
+        if anchor in (
+            const.SCHEDULE_TIME_ANCHOR_START,
+            const.SCHEDULE_TIME_ANCHOR_FINISH,
+        ):
+            return anchor
+        if schedule.get(const.SCHEDULE_CONF_TYPE) in (
+            const.SCHEDULE_TYPE_SUNRISE,
+            const.SCHEDULE_TYPE_SUNSET,
+            const.SCHEDULE_TYPE_SOLAR_AZIMUTH,
+        ) and schedule.get(const.SCHEDULE_CONF_ACCOUNT_FOR_DURATION, True):
+            return const.SCHEDULE_TIME_ANCHOR_FINISH
+        return const.SCHEDULE_TIME_ANCHOR_START
+
+    async def _estimate_duration(self, schedule: dict[str, Any]) -> int:
+        """Estimated wall-clock run length (seconds) for the schedule's zones."""
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+        return await self.coordinator.get_total_irrigation_duration(zones)
+
+    @staticmethod
+    def _clock_day_matches(schedule: dict[str, Any], dt_local) -> bool:
+        """Whether a clock-type schedule should run on dt_local's day."""
+        stype = schedule[const.SCHEDULE_CONF_TYPE]
+        if stype == const.SCHEDULE_TYPE_DAILY:
+            return True
+        if stype == const.SCHEDULE_TYPE_WEEKLY:
+            day_map = {
+                "monday": 0,
+                "tuesday": 1,
+                "wednesday": 2,
+                "thursday": 3,
+                "friday": 4,
+                "saturday": 5,
+                "sunday": 6,
+            }
+            days = [
+                d.lower() for d in schedule.get(const.SCHEDULE_CONF_DAYS_OF_WEEK, [])
+            ]
+            return any(day_map.get(d) == dt_local.weekday() for d in days)
+        if stype == const.SCHEDULE_TYPE_MONTHLY:
+            return dt_local.day == schedule.get(const.SCHEDULE_CONF_DAY_OF_MONTH, 1)
+        return False
+
+    async def _next_target_time(self, schedule: dict[str, Any]):
+        """Next UTC datetime the schedule's configured time occurs.
+
+        This is the anchor-agnostic *target* (e.g. sunrise, or 06:00 on a
+        matching day) plus any configured offset. Returns None if it can't be
+        determined.
+        """
+        stype = schedule[const.SCHEDULE_CONF_TYPE]
+        offset = datetime.timedelta(
+            minutes=schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
+        )
+        now_utc = dt_util.utcnow()
+
+        if stype == const.SCHEDULE_TYPE_SUNRISE:
+            return get_astral_event_next(self.hass, "sunrise", now_utc) + offset
+        if stype == const.SCHEDULE_TYPE_SUNSET:
+            return get_astral_event_next(self.hass, "sunset", now_utc) + offset
+        if stype == const.SCHEDULE_TYPE_SOLAR_AZIMUTH:
+            ha_cfg = self.hass.config.as_dict()
+            next_time = find_next_solar_azimuth_time(
+                ha_cfg.get(CONF_LATITUDE, 45.0),
+                ha_cfg.get(CONF_LONGITUDE, 0.0),
+                normalize_azimuth_angle(
+                    schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
+                ),
+                datetime.datetime.now(),
+            )
+            if next_time is None:
+                return None
+            return dt_util.as_utc(next_time) + offset
+
+        # Clock types: next local HH:MM that falls on a matching day.
+        hour, minute = map(
+            int, schedule.get(const.SCHEDULE_CONF_TIME, "06:00").split(":")
+        )
+        local_now = dt_util.now()
+        candidate = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        for _ in range(367):
+            if candidate > local_now and self._clock_day_matches(schedule, candidate):
+                return dt_util.as_utc(candidate)
+            candidate += datetime.timedelta(days=1)
+        return None
+
+    async def _setup_finish_tracker(self, schedule: dict[str, Any]) -> Any:
+        """One-shot tracker that fires at (target − duration) so the run ends at
+        the configured time. Re-arms itself for the next occurrence."""
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        target = await self._next_target_time(schedule)
+        if target is None:
+            _LOGGER.warning(
+                "Finish schedule '%s': could not determine next target time", name
+            )
+            return None
+
+        duration = await self._estimate_duration(schedule)
+        fire_time = target - datetime.timedelta(seconds=duration)
+        now_utc = dt_util.utcnow()
+        if fire_time <= now_utc:
+            _LOGGER.warning(
+                "Finish schedule '%s': start (%s = target %s − %ss) already passed; "
+                "running as soon as possible",
+                name,
+                fire_time,
+                target,
+                duration,
+            )
+            fire_time = now_utc + datetime.timedelta(seconds=2)
+
+        _LOGGER.info(
+            "Finish schedule '%s': target %s, est. duration %ss → start %s",
+            name,
+            target,
+            duration,
+            fire_time,
+        )
+
+        def finish_callback(now, s=schedule):
+            self._execute_schedule(s, now)
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task, self._reregister_tracker(s)
+            )
+
+        return async_track_point_in_utc_time(self.hass, finish_callback, fire_time)
+
+    async def _reregister_tracker(self, schedule: dict[str, Any]) -> None:
+        """Cancel and rebuild a schedule's tracker (used by self-rescheduling
+        finish/azimuth trackers and by the duration-change re-arm)."""
+        schedule_id = schedule[const.SCHEDULE_CONF_ID]
+        old = self._schedule_trackers.get(schedule_id)
+        if old:
+            old()
+            self._schedule_trackers[schedule_id] = None
+        await self._setup_schedule_tracker(schedule)
 
     async def _setup_daily_tracker(self, schedule: dict[str, Any]) -> Any:
         """Set up a daily schedule tracker."""
@@ -215,92 +401,45 @@ class RecurringScheduleManager:
         )
 
     async def _setup_sunrise_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Set up a sunrise-based schedule tracker."""
+        """Sunrise schedule tracker (start anchor). Finish anchor goes through
+        _setup_finish_tracker."""
         offset_minutes = schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
-        account_for_duration = schedule.get(
-            const.SCHEDULE_CONF_ACCOUNT_FOR_DURATION, True
-        )
-
-        if account_for_duration:
-            total_duration = (
-                await self.coordinator.get_total_duration_all_enabled_zones()
-            )
-            offset_seconds = (offset_minutes * 60) - total_duration
-        else:
-            offset_seconds = offset_minutes * 60
-
         _LOGGER.info(
-            "Registered sunrise schedule '%s' with offset %ss",
+            "Registered sunrise schedule '%s' (start, offset %s min)",
             schedule.get(const.SCHEDULE_CONF_NAME),
-            offset_seconds,
+            offset_minutes,
         )
         return async_track_sunrise(
             self.hass,
             lambda now: self._execute_schedule(schedule, now),
-            datetime.timedelta(seconds=offset_seconds),
+            datetime.timedelta(minutes=offset_minutes),
         )
 
     async def _setup_sunset_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Set up a sunset-based schedule tracker."""
+        """Sunset schedule tracker (start anchor). Finish anchor goes through
+        _setup_finish_tracker."""
         offset_minutes = schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
-        account_for_duration = schedule.get(
-            const.SCHEDULE_CONF_ACCOUNT_FOR_DURATION, True
-        )
-
-        if account_for_duration:
-            total_duration = (
-                await self.coordinator.get_total_duration_all_enabled_zones()
-            )
-            offset_seconds = (offset_minutes * 60) - total_duration
-        else:
-            offset_seconds = offset_minutes * 60
-
         _LOGGER.info(
-            "Registered sunset schedule '%s' with offset %ss",
+            "Registered sunset schedule '%s' (start, offset %s min)",
             schedule.get(const.SCHEDULE_CONF_NAME),
-            offset_seconds,
+            offset_minutes,
         )
         return async_track_sunset(
             self.hass,
             lambda now: self._execute_schedule(schedule, now),
-            datetime.timedelta(seconds=offset_seconds),
+            datetime.timedelta(minutes=offset_minutes),
         )
 
     async def _setup_azimuth_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Set up a solar azimuth-based schedule tracker (one-shot, self-rescheduling)."""
-        azimuth_angle = normalize_azimuth_angle(
-            schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
-        )
-        offset_minutes = schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
-        account_for_duration = schedule.get(
-            const.SCHEDULE_CONF_ACCOUNT_FOR_DURATION, True
-        )
-
-        ha_cfg = self.hass.config.as_dict()
-        latitude = ha_cfg.get(CONF_LATITUDE, 45.0)
-        longitude = ha_cfg.get(CONF_LONGITUDE, 0.0)
-
-        next_time = find_next_solar_azimuth_time(
-            latitude, longitude, azimuth_angle, datetime.datetime.now()
-        )
-        if next_time is None:
+        """Solar azimuth schedule tracker (start anchor; one-shot, self-rescheduling).
+        Finish anchor goes through _setup_finish_tracker."""
+        target = await self._next_target_time(schedule)
+        if target is None:
             _LOGGER.warning(
                 "Could not calculate next azimuth time for schedule '%s'",
                 schedule.get(const.SCHEDULE_CONF_NAME),
             )
             return None
-
-        if account_for_duration:
-            total_duration = (
-                await self.coordinator.get_total_duration_all_enabled_zones()
-            )
-            trigger_time = (
-                next_time
-                + datetime.timedelta(minutes=offset_minutes)
-                - datetime.timedelta(seconds=total_duration)
-            )
-        else:
-            trigger_time = next_time + datetime.timedelta(minutes=offset_minutes)
 
         def azimuth_callback(now, s=schedule):
             self._execute_schedule(s, now)
@@ -308,16 +447,15 @@ class RecurringScheduleManager:
             # async_track_point_in_utc_time callbacks may fire outside the event loop
             self.hass.loop.call_soon_threadsafe(
                 self.hass.async_create_task,
-                self._setup_azimuth_tracker(s),
+                self._reregister_tracker(s),
             )
 
         _LOGGER.info(
-            "Registered azimuth schedule '%s' for %s° at %s",
+            "Registered azimuth schedule '%s' (start) at %s",
             schedule.get(const.SCHEDULE_CONF_NAME),
-            azimuth_angle,
-            trigger_time,
+            target,
         )
-        return async_track_point_in_utc_time(self.hass, azimuth_callback, trigger_time)
+        return async_track_point_in_utc_time(self.hass, azimuth_callback, target)
 
     async def _remove_schedule_tracker(self, schedule_id: str) -> None:
         """Remove a schedule tracker."""
@@ -412,8 +550,9 @@ class RecurringScheduleManager:
                 self.hass.bus.fire(
                     f"{const.DOMAIN}_{const.EVENT_IRRIGATE_START}", event_data
                 )
-                # Directly control linked entities, then reset counter
-                await self.coordinator._irrigate_linked_entities()
+                # Directly control linked entities (restricted to the schedule's
+                # target zones), then reset counter
+                await self.coordinator._irrigate_linked_entities(zones)
                 await self.coordinator._reset_days_since_irrigation()
 
             _LOGGER.info(

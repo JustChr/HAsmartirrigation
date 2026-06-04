@@ -422,11 +422,16 @@
         "end_date": "Dátum konca (voliteľné)",
         "offset_minutes": "Posun od východu/západu slnka",
         "account_for_duration": "Spustiť skoro, aby závlaha skončila v cieľovom čase",
-        "azimuth_angle": "Uhol slnečného azimutu"
+        "azimuth_angle": "Uhol slnečného azimutu",
+        "time_anchor": "Čas označuje"
       },
       "dialog": {
         "add_title": "Pridať plán",
         "edit_title": "Upraviť plán"
+      },
+      "time_anchor": {
+        "start": "Začiatok zavlažovania",
+        "finish": "Koniec zavlažovania"
       }
     },
     "info": {

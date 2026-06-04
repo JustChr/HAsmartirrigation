@@ -424,11 +424,16 @@
         "end_date": "Date de fin (optionnel)",
         "offset_minutes": "Décalage par rapport au lever/coucher du soleil",
         "account_for_duration": "Démarrer tôt pour que l'irrigation se termine à l'heure cible",
-        "azimuth_angle": "Angle d'azimut solaire"
+        "azimuth_angle": "Angle d'azimut solaire",
+        "time_anchor": "Lheure correspond au"
       },
       "dialog": {
         "add_title": "Ajouter une planification",
         "edit_title": "Modifier la planification"
+      },
+      "time_anchor": {
+        "start": "Début de larrosage",
+        "finish": "Fin de larrosage"
       }
     },
     "info": {

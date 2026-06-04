@@ -467,11 +467,16 @@
         "end_date": "Data di fine (opzionale)",
         "offset_minutes": "Offset dall'alba/tramonto",
         "account_for_duration": "Iniziare prima affinché l'irrigazione finisca all'orario target",
-        "azimuth_angle": "Angolo di azimut solare"
+        "azimuth_angle": "Angolo di azimut solare",
+        "time_anchor": "Lorario indica"
       },
       "dialog": {
         "add_title": "Aggiungi pianificazione",
         "edit_title": "Modifica pianificazione"
+      },
+      "time_anchor": {
+        "start": "Inizio dellirrigazione",
+        "finish": "Fine dellirrigazione"
       }
     },
     "setup": {

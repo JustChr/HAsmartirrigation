@@ -423,11 +423,16 @@
         "end_date": "Fecha de fin (opcional)",
         "offset_minutes": "Desplazamiento desde amanecer/atardecer",
         "account_for_duration": "Iniciar antes para que el riego termine a la hora objetivo",
-        "azimuth_angle": "Ángulo de azimut solar"
+        "azimuth_angle": "Ángulo de azimut solar",
+        "time_anchor": "La hora marca el"
       },
       "dialog": {
         "add_title": "Añadir programa",
         "edit_title": "Editar programa"
+      },
+      "time_anchor": {
+        "start": "Inicio del riego",
+        "finish": "Fin del riego"
       }
     },
     "info": {

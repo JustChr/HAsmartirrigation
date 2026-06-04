@@ -422,11 +422,16 @@
         "end_date": "Enddatum (optional)",
         "offset_minutes": "Versatz von Sonnenaufgang/-untergang",
         "account_for_duration": "Früh starten, damit Bewässerung zur Zielzeit endet",
-        "azimuth_angle": "Sonnenazimutwinkel"
+        "azimuth_angle": "Sonnenazimutwinkel",
+        "time_anchor": "Zeitpunkt markiert"
       },
       "dialog": {
         "add_title": "Zeitplan hinzufügen",
         "edit_title": "Zeitplan bearbeiten"
+      },
+      "time_anchor": {
+        "start": "Beginn der Bewässerung",
+        "finish": "Ende der Bewässerung"
       }
     },
     "info": {
