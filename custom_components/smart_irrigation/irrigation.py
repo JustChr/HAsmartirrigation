@@ -26,10 +26,16 @@ class IrrigationRunnerMixin:
     """
 
     @callback
-    async def _irrigate_linked_entities(self):
-        """Directly control linked valve/switch entities for all zones needing irrigation."""
+    async def _irrigate_linked_entities(self, zone_ids=None):
+        """Directly control linked valve/switch entities for zones needing irrigation.
+
+        ``zone_ids`` optionally restricts to a schedule's target zones (an
+        iterable of ids, or None/"all" for every eligible zone).
+        """
         zones = await self.store.async_get_zones()
         sequencing = self.store.config.zone_sequencing
+        want_all = zone_ids is None or zone_ids == "all"
+        target = None if want_all else {int(z) for z in zone_ids}
 
         zones_to_irrigate = [
             z
@@ -39,6 +45,7 @@ class IrrigationRunnerMixin:
             and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
             and (z.get(const.ZONE_BUCKET) or 0)
             < (z.get(const.ZONE_BUCKET_THRESHOLD) or 0)
+            and (target is None or int(z.get(const.ZONE_ID)) in target)
         ]
 
         if not zones_to_irrigate:
@@ -343,8 +350,22 @@ class IrrigationRunnerMixin:
                     )
                     timed_remaining[zid] -= slot
                     _LOGGER.info("Rotating irrigation: finished slot for %s", entity_id)
+                    if timed_remaining[zid] <= 0:
+                        # Zone fully irrigated across its slots — replenish bucket.
+                        await self._reset_zone_bucket_after_run(zid)
 
                 last_finish[zid] = loop.time()
+
+    async def _reset_zone_bucket_after_run(self, zone_id) -> None:
+        """Zero a zone's bucket after a completed timed run.
+
+        The duration was computed to deliver exactly the accumulated deficit
+        (|bucket|), so once the valve has run for the full duration the deficit
+        is replenished and the bucket returns to 0. The flow-meter path does the
+        equivalent based on measured volume; this is the timed-run counterpart.
+        """
+        await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: 0.0})
+        _LOGGER.info("Zone %s: bucket reset to 0 after irrigation run", zone_id)
 
     async def _irrigate_zones_sequential(self, zones: list):
         """Irrigate zones one after another, skipping zones with no duration."""
@@ -371,6 +392,7 @@ class IrrigationRunnerMixin:
                 await self.hass.services.async_call(
                     domain, "turn_off", {"entity_id": entity_id}
                 )
+                await self._reset_zone_bucket_after_run(zone[const.ZONE_ID])
             _LOGGER.info("Sequential irrigation: finished %s", entity_id)
 
     async def _irrigate_zones_parallel(self, zones: list):
@@ -396,12 +418,15 @@ class IrrigationRunnerMixin:
                     domain, "turn_on", {"entity_id": entity_id}
                 )
 
-                async def _turn_off(eid=entity_id, dom=domain, dur=duration):
+                async def _turn_off(
+                    eid=entity_id, dom=domain, dur=duration, zid=zone[const.ZONE_ID]
+                ):
                     await asyncio.sleep(dur)
                     await self.hass.services.async_call(
                         dom, "turn_off", {"entity_id": eid}
                     )
                     _LOGGER.info("Parallel irrigation: turned off %s", eid)
+                    await self._reset_zone_bucket_after_run(zid)
 
                 asyncio.create_task(_turn_off())
 

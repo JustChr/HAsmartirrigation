@@ -51,6 +51,43 @@ class SkipConditionsMixin:
                 total_duration += zone.get(const.ZONE_DURATION, 0)
         return total_duration
 
+    async def get_total_irrigation_duration(self, zone_ids=None) -> int:
+        """Estimate the wall-clock irrigation time (seconds) for the given zones.
+
+        Sequencing-aware, used to anchor "finish at time" schedules:
+          - parallel:              max(duration) — all valves run at once
+          - sequential / rotating: sum(duration) — one after another
+            (rotating's absorption gaps are intentionally not modelled; it is
+            anchored as the sequential sum by design)
+
+        ``zone_ids`` is an iterable of zone ids to include, or None/"all" for
+        every enabled (automatic/manual) zone. Only zones with a positive
+        duration count.
+        """
+        zones = await self.store.async_get_zones()
+        want_all = zone_ids is None or zone_ids == "all"
+        target = None if want_all else {int(z) for z in zone_ids}
+
+        durations = []
+        for zone in zones:
+            if zone.get(const.ZONE_STATE) not in (
+                const.ZONE_STATE_AUTOMATIC,
+                const.ZONE_STATE_MANUAL,
+            ):
+                continue
+            if target is not None and int(zone.get(const.ZONE_ID)) not in target:
+                continue
+            duration = zone.get(const.ZONE_DURATION, 0) or 0
+            if duration > 0:
+                durations.append(duration)
+
+        if not durations:
+            return 0
+
+        if self.store.config.zone_sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL:
+            return int(max(durations))
+        return int(sum(durations))
+
     async def _check_precipitation_forecast(self) -> bool:
         """Check if precipitation is forecasted and should skip irrigation.
 

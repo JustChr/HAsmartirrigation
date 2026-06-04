@@ -424,11 +424,16 @@
         "end_date": "Sluttdato (valgfritt)",
         "offset_minutes": "Forskyvning fra soloppgang/-nedgang",
         "account_for_duration": "Start tidlig slik at vanningen er ferdig til måltidspunktet",
-        "azimuth_angle": "Solazimutt-vinkel"
+        "azimuth_angle": "Solazimutt-vinkel",
+        "time_anchor": "Tidspunktet angir"
       },
       "dialog": {
         "add_title": "Legg til tidsplan",
         "edit_title": "Rediger tidsplan"
+      },
+      "time_anchor": {
+        "start": "Start på vanningen",
+        "finish": "Slutt på vanningen"
       }
     },
     "info": {

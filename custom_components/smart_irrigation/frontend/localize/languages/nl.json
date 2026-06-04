@@ -422,11 +422,16 @@
         "end_date": "Einddatum (optioneel)",
         "offset_minutes": "Offset van zonsopgang/-ondergang",
         "account_for_duration": "Vroeg starten zodat bewatering eindigt op doeltijd",
-        "azimuth_angle": "Zonneazimuthoek"
+        "azimuth_angle": "Zonneazimuthoek",
+        "time_anchor": "Tijd markeert het"
       },
       "dialog": {
         "add_title": "Schema toevoegen",
         "edit_title": "Schema bewerken"
+      },
+      "time_anchor": {
+        "start": "Begin van de bewatering",
+        "finish": "Einde van de bewatering"
       }
     },
     "info": {
