@@ -40,8 +40,16 @@ export class SmartIrrigationPanel extends LitElement {
   }
 
   async firstUpdated() {
-    // Always land on Zones when the panel first mounts
-    navigate(this, exportPath(EMenuItems.Zones));
+    // Land on Zones only when the URL doesn't already point at a known
+    // top-level page. This honors deep links and page refreshes (e.g. a Setup
+    // sub-tab) instead of bouncing the user back to Zones every mount. (UX H5)
+    const currentPage = getPath().page;
+    const isKnownPage = (Object.values(EMenuItems) as string[]).includes(
+      currentPage,
+    );
+    if (!isKnownPage) {
+      navigate(this, exportPath(EMenuItems.Zones));
+    }
 
     window.addEventListener("location-changed", () => {
       if (!window.location.pathname.includes(PLATFORM)) return;
