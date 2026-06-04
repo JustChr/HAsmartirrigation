@@ -5,7 +5,7 @@ class SmartIrrigationError(Exception):
     """Exception raised for errors in the Smart Irrigation integration."""
 
 
-VERSION = "v2026.06.09"
+VERSION = "v2026.06.10"
 NAME = "Smart Irrigation"
 MANUFACTURER = "@JustChr"
 
