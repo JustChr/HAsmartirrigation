@@ -188,16 +188,6 @@ export class SmartIrrigationMapping {
   }
 }
 
-export interface SmartIrrigationInfo {
-  next_irrigation_start?: Date;
-  next_irrigation_duration?: number;
-  next_irrigation_zones?: string[];
-  irrigation_reason?: string;
-  sunrise_time?: Date;
-  total_irrigation_duration?: number;
-  irrigation_explanation?: string;
-}
-
 export interface WeatherRecord {
   timestamp: Date;
   temperature?: number;

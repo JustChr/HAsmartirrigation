@@ -146,12 +146,6 @@ export const deleteMapping = (
   });
 };
 
-// Backend API for irrigation info
-export const fetchIrrigationInfo = (hass: HomeAssistant): Promise<any> =>
-  hass.callWS({
-    type: DOMAIN + "/info",
-  });
-
 // Backend API for weather records for a mapping
 export const fetchMappingWeatherRecords = (
   hass: HomeAssistant,
