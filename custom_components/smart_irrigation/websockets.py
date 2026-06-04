@@ -153,9 +153,12 @@ class SmartIrrigationModuleView(HomeAssistantView):
         hass = request.app["hass"]
         coordinator = hass.data[const.DOMAIN]["coordinator"]
         module = int(data[const.MODULE_ID]) if const.MODULE_ID in data else None
-        await coordinator.async_update_module_config(module, data)
+        result = await coordinator.async_update_module_config(module, data)
         async_dispatcher_send(hass, const.DOMAIN + "_update_frontend")
-        return self.json({"success": True})
+        response = {"success": True}
+        if isinstance(result, dict) and result.get(const.MODULE_ID) is not None:
+            response["id"] = result[const.MODULE_ID]
+        return self.json(response)
 
 
 class SmartIrrigationAllModuleView(HomeAssistantView):
@@ -204,9 +207,12 @@ class SmartIrrigationMappingView(HomeAssistantView):
                 const.MAPPING_DATA_LAST_CALCULATION,
             )
         }
-        await coordinator.async_update_mapping_config(mapping, sanitized)
+        result = await coordinator.async_update_mapping_config(mapping, sanitized)
         async_dispatcher_send(hass, const.DOMAIN + "_update_frontend")
-        return self.json({"success": True})
+        response = {"success": True}
+        if isinstance(result, dict) and result.get(const.MAPPING_ID) is not None:
+            response["id"] = result[const.MAPPING_ID]
+        return self.json(response)
 
 
 class SmartIrrigationZoneView(HomeAssistantView):

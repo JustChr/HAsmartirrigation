@@ -1318,8 +1318,10 @@ class SmartIrrigationCoordinator(
             )
         else:
             # create a module
-            await self.store.async_create_module(data)
+            entry = await self.store.async_create_module(data)
             await self.store.async_get_config()
+            return entry
+        return None
 
     async def async_update_mapping_config(
         self, mapping_id: int | None = None, data: dict | None = None
@@ -1340,11 +1342,12 @@ class SmartIrrigationCoordinator(
             data = {}
         if mapping_id is not None:
             mapping_id = int(mapping_id)
+        created = None
         if const.ATTR_REMOVE in data:
             # delete a mapping
             res = self.store.get_mapping(mapping_id)
             if not res:
-                return
+                return None
             await self.store.async_delete_mapping(mapping_id)
         elif mapping_id is not None and self.store.get_mapping(mapping_id):
             # modify a mapping
@@ -1354,11 +1357,12 @@ class SmartIrrigationCoordinator(
             )
         else:
             # create a mapping
-            await self.store.async_create_mapping(data)
+            created = await self.store.async_create_mapping(data)
             await self.store.async_get_config()
 
         # update the list of sensors to follow - then unsubscribe / subscribe
         await self.update_subscriptions()
+        return created
 
     def check_mapping_sources(self, mapping_id):
         """Check which data sources (weather service, sensor, static value) are present in a mapping.

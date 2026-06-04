@@ -4,6 +4,8 @@ import { HomeAssistant } from "custom-card-helpers";
 
 import {
   fetchAllModules,
+  fetchModules,
+  fetchMappings,
   fetchConfig,
   saveModule,
   saveMapping,
@@ -12,6 +14,7 @@ import {
   saveWeatherConfig,
   testWeatherConfig,
   WeatherConfig,
+  SaveResult,
 } from "../../data/websockets";
 import {
   SmartIrrigationConfig,
@@ -183,8 +186,16 @@ export class SiSetupWizard extends LitElement {
     }
   }
 
+  // Only the Weather step is genuinely optional (a setup can rely on sensors
+  // or static values instead). Module, Sensor Group and Zone are required —
+  // skipping them produces a zone that can never calculate, so they are not
+  // skippable. See UX review C2.
+  private get _canSkipCurrentStep(): boolean {
+    return this._step === WizardStep.Weather;
+  }
+
   private _skipStep() {
-    if (this._step < WizardStep.Done) {
+    if (this._canSkipCurrentStep && this._step < WizardStep.Done) {
       this._step = (this._step + 1) as WizardStep;
       this._error = "";
     }
@@ -201,21 +212,49 @@ export class SiSetupWizard extends LitElement {
     );
   }
 
+  /**
+   * Resolve the id of an entry the wizard just created. The POST endpoint
+   * returns it directly; if an older backend omits it, fall back to fetching
+   * the list and taking the highest id (the wizard only ever *creates*, so the
+   * newest entry is the one we just saved).
+   */
+  private async _resolveSavedId(
+    result: SaveResult,
+    fetcher: () => Promise<{ id?: number }[]>,
+  ): Promise<number | undefined> {
+    if (typeof result?.id === "number") return result.id;
+    try {
+      const items = await fetcher();
+      const ids = items
+        .map((i) => i.id)
+        .filter((id): id is number => typeof id === "number");
+      return ids.length ? Math.max(...ids) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async _saveModule() {
-    if (this._availableModules.length === 0) return;
+    if (this._availableModules.length === 0) {
+      throw new Error(
+        "No calculation module is available to configure. Cannot continue.",
+      );
+    }
     const template = this._availableModules[this._selectedModuleIndex];
-    const result = (await saveModule(this.hass, {
+    const result = await saveModule(this.hass, {
       name: template.name,
       description: template.description,
       config: { ...template.config, ...this._moduleConfig },
       schema: template.schema,
-    })) as unknown as { id?: number };
-    // After save, re-fetch to get the new ID
-    // The API doesn't return the ID directly, so we track it after
-    // a subsequent fetchModules call would be needed; for now store undefined
-    // and let the zone step pick the first available module.
-    this._savedModuleId =
-      typeof result === "object" && result?.id ? result.id : undefined;
+    });
+    this._savedModuleId = await this._resolveSavedId(result, () =>
+      fetchModules(this.hass),
+    );
+    if (this._savedModuleId === undefined) {
+      throw new Error(
+        "The calculation module was saved but could not be linked. Please try again.",
+      );
+    }
   }
 
   private async _saveMapping() {
@@ -244,20 +283,36 @@ export class SiSetupWizard extends LitElement {
       mappings[param] = { [MAPPING_CONF_SOURCE]: defaultSource };
     }
 
-    const result = (await saveMapping(this.hass, {
+    const result = await saveMapping(this.hass, {
       name: this._mappingName,
       mappings,
-    })) as unknown as { id?: number };
-    this._savedMappingId =
-      typeof result === "object" && result?.id ? result.id : undefined;
+    });
+    this._savedMappingId = await this._resolveSavedId(result, () =>
+      fetchMappings(this.hass),
+    );
+    if (this._savedMappingId === undefined) {
+      throw new Error(
+        "The sensor group was saved but could not be linked. Please try again.",
+      );
+    }
   }
 
   private async _saveZone() {
     if (!this._zoneName.trim()) throw new Error("Zone name is required");
+    const size = parseFloat(this._zoneSize);
+    const throughput = parseFloat(this._zoneThroughput);
+    if (!(size > 0)) {
+      throw new Error("Zone size must be greater than 0.");
+    }
+    if (!(throughput > 0)) {
+      throw new Error(
+        "Throughput must be greater than 0 (zones can't water otherwise).",
+      );
+    }
     await saveZone(this.hass, {
       name: this._zoneName.trim(),
-      size: parseFloat(this._zoneSize) || 0,
-      throughput: parseFloat(this._zoneThroughput) || 0,
+      size,
+      throughput,
       state: SmartIrrigationZoneState.Automatic,
       duration: 0,
       bucket: 0,
@@ -391,7 +446,7 @@ export class SiSetupWizard extends LitElement {
               ${localize("wizard.back", lang)}
             </button>`
           : ""}
-        ${this._step > WizardStep.Welcome && this._step < WizardStep.Done
+        ${this._canSkipCurrentStep
           ? html`<button
               class="wizard-btn ghost"
               @click="${this._skipStep}"

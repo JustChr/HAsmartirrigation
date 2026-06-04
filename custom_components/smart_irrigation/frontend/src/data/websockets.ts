@@ -106,10 +106,16 @@ export const fetchAllModules = (
     type: DOMAIN + "/allmodules",
   });
 
+/** POST response for create/update endpoints. `id` is present on create. */
+export interface SaveResult {
+  success: boolean;
+  id?: number;
+}
+
 export const saveModule = (
   hass: HomeAssistant,
   config: Partial<SmartIrrigationModule>,
-): Promise<boolean> => {
+): Promise<SaveResult> => {
   return hass.callApi("POST", DOMAIN + "/modules", config);
 };
 
@@ -132,7 +138,7 @@ export const fetchMappings = (
 export const saveMapping = (
   hass: HomeAssistant,
   config: Partial<SmartIrrigationMapping>,
-): Promise<boolean> => {
+): Promise<SaveResult> => {
   return hass.callApi("POST", DOMAIN + "/mappings", config);
 };
 
