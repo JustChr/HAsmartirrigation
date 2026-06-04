@@ -53,6 +53,15 @@ function Invoke-Checked {
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
 
+# The pre-commit hook runs `python -m black/ruff` on staged .py files (const.py
+# is bumped here). Put the repo venv first on PATH so the hook finds those tools
+# regardless of which python is ambient in the caller's shell.
+$venvBin = Join-Path $RepoRoot ".venv/Scripts"   # Windows venv layout
+if (-not (Test-Path $venvBin)) { $venvBin = Join-Path $RepoRoot ".venv/bin" }
+if (Test-Path $venvBin) {
+  $env:PATH = "$venvBin$([IO.Path]::PathSeparator)$env:PATH"
+}
+
 $ConstPath    = "custom_components/smart_irrigation/const.py"
 $ManifestPath = "custom_components/smart_irrigation/manifest.json"
 $PkgPath      = "custom_components/smart_irrigation/frontend/package.json"
