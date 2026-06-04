@@ -428,12 +428,32 @@
         "decision_no_water": "No watering needed right now — the soil has enough moisture.",
         "decision_unknown": "Not calculated yet — press Update, then Calculate to check.",
         "last_checked": "Last checked",
-        "never": "never"
+        "never": "never",
+        "saved": "Saved"
       },
       "help": {
         "bucket": "Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",
         "calculate": "Works out how long to water from the latest data. Run this after Update.",
-        "update": "Fetches the latest weather/sensor data for this zone."
+        "update": "Fetches the latest weather/sensor data for this zone.",
+        "irrigate_link_entity": "Link a switch/valve in this zone's settings to enable manual watering."
+      },
+      "calendar": {
+        "no_data": "No watering calendar data available for this zone.",
+        "error_prefix": "Error generating calendar:",
+        "month": "Month",
+        "et": "ET (mm)",
+        "precipitation": "Precipitation (mm)",
+        "watering": "Watering (L)",
+        "avg_temp": "Avg Temp (°C)",
+        "method_prefix": "Method:"
+      },
+      "confirm_action": {
+        "reset_bucket_title": "Reset this zone's bucket?",
+        "reset_bucket_body": "This sets the bucket back to 0, discarding the accumulated moisture balance for this zone.",
+        "reset_all_buckets_title": "Reset all buckets?",
+        "reset_all_buckets_body": "This sets every zone's bucket back to 0, discarding the accumulated moisture balance. Watering calculations start fresh from the next update.",
+        "clear_weather_title": "Clear all weather data?",
+        "clear_weather_body": "This deletes all collected weather and sensor records for every zone. Zones will need fresh data before they can calculate again."
       },
       "confirm_irrigate": {
         "title": "Start irrigation?",
@@ -598,6 +618,12 @@
     "finish": "Finish",
     "skip_step": "Skip this step",
     "step_indicator": "Step {current} of {total}",
+    "stepper": {
+      "weather": "Weather",
+      "module": "Module",
+      "mapping": "Sensor Group",
+      "zone": "Zone"
+    },
     "setup_complete_banner": "Setup not complete. Run the wizard to get started.",
     "open_wizard": "Open Wizard",
     "steps": {

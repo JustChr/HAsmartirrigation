@@ -89,6 +89,10 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
     null;
   private _testResultTimer: number | null = null;
 
+  // Transient feedback for debounced auto-save of settings (UX H3).
+  @state() private _saveStatus: "idle" | "saving" | "saved" = "idle";
+  private _savedResetTimer: number | null = null;
+
   private _updateScheduled = false;
   private _scheduleUpdate() {
     if (this._updateScheduled) return;
@@ -194,10 +198,11 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       </div>`;
     }
     return html`
-      ${this._renderWeatherServiceCard()} ${this._renderAutoUpdateCard()}
-      ${this._renderAutoCalcCard()} ${this._renderAutoClearCard()}
-      ${this._renderContinuousUpdatesCard()} ${this._renderWeatherSkipCard()}
-      ${this._renderCoordinateCard()} ${this._renderDaysBetweenIrrigationCard()}
+      ${this._renderSaveStatus()} ${this._renderWeatherServiceCard()}
+      ${this._renderAutoUpdateCard()} ${this._renderAutoCalcCard()}
+      ${this._renderAutoClearCard()} ${this._renderContinuousUpdatesCard()}
+      ${this._renderWeatherSkipCard()} ${this._renderCoordinateCard()}
+      ${this._renderDaysBetweenIrrigationCard()}
       ${this._renderZoneSequencingCard()}
     `;
   }
@@ -1248,13 +1253,16 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
   ): Promise<void> {
     if (!this.hass || !this.data) return;
     this.isSaving = true;
+    this._saveStatus = "saving";
     this._scheduleUpdate();
     try {
       this.data = { ...this.data, ...changes };
       this._scheduleUpdate();
       await saveConfig(this.hass, this.data);
+      this._markSaved();
     } catch (error) {
       console.error("Error saving config:", error);
+      this._saveStatus = "idle";
       handleError(
         error,
         this.shadowRoot!.querySelector("ha-card") as HTMLElement,
@@ -1266,17 +1274,79 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
     }
   }
 
+  /** Flash a "Saved" chip, then fade back to idle. */
+  private _markSaved(): void {
+    this._saveStatus = "saved";
+    if (this._savedResetTimer) clearTimeout(this._savedResetTimer);
+    this._savedResetTimer = window.setTimeout(() => {
+      this._saveStatus = "idle";
+      this._scheduleUpdate();
+    }, 2000);
+  }
+
+  private _renderSaveStatus(): TemplateResult {
+    if (!this.hass || this._saveStatus === "idle") return html``;
+    const saving = this._saveStatus === "saving";
+    return html`
+      <div class="save-status-float ${this._saveStatus}">
+        <ha-icon
+          icon="${saving ? "mdi:content-save-outline" : "mdi:check-circle"}"
+        ></ha-icon>
+        ${localize(
+          saving
+            ? "common.saving-messages.saving"
+            : "panels.zones.status.saved",
+          this.hass.language,
+        )}
+      </div>
+    `;
+  }
+
   private handleConfigChange(changes: Partial<SmartIrrigationConfig>): void {
     this.debouncedSave(changes);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    if (this._savedResetTimer) {
+      clearTimeout(this._savedResetTimer);
+      this._savedResetTimer = null;
+    }
   }
 
   static get styles(): CSSResultGroup {
     return css`
       ${globalStyle}
+
+      /* Floating auto-save status chip (UX H3) */
+      .save-status-float {
+        position: sticky;
+        top: 8px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin: 0 0 8px auto;
+        width: fit-content;
+        padding: 4px 10px;
+        border-radius: 14px;
+        background: var(--card-background-color);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        font-size: 0.8125rem;
+        font-weight: 500;
+      }
+
+      .save-status-float ha-icon {
+        --mdc-icon-size: 18px;
+      }
+
+      .save-status-float.saving {
+        color: var(--secondary-text-color);
+      }
+
+      .save-status-float.saved {
+        color: var(--success-color, #2e7d32);
+      }
 
       .description-text {
         font-size: 0.875rem;

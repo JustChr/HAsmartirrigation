@@ -393,7 +393,13 @@ export class SiSetupWizard extends LitElement {
   }
 
   private _renderStepper(): TemplateResult {
-    const stepLabels = ["Weather", "Module", "Sensor Group", "Zone"];
+    const lang = this.hass?.language ?? "en";
+    const stepLabels = [
+      localize("wizard.stepper.weather", lang),
+      localize("wizard.stepper.module", lang),
+      localize("wizard.stepper.mapping", lang),
+      localize("wizard.stepper.zone", lang),
+    ];
     return html`
       ${stepLabels.map((label, i) => {
         const stepNum = i + 1;

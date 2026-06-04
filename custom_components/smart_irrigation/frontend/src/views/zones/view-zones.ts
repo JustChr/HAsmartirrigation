@@ -103,6 +103,18 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   // Pending irrigate confirmation: "all", a zone id (string), or null.
   @state() private _confirmIrrigate: string | null = null;
 
+  // Generic confirmation for destructive actions (reset bucket(s), clear data).
+  @state() private _pendingConfirm: {
+    title: string;
+    body: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null = null;
+
+  // Transient feedback for debounced auto-save of zone settings (UX H3).
+  @state() private _saveStatus: "idle" | "saving" | "saved" = "idle";
+  private _savedResetTimer: number | null = null;
+
   @property()
   private _confirmDeleteZoneId: number | null = null;
 
@@ -311,9 +323,12 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
     this.globalDebounceTimer = window.setTimeout(() => {
       this.isSaving = true;
+      this._saveStatus = "saving";
       this.saveToHA(updatedZone)
+        .then(() => this._markSaved())
         .catch((error) => {
           console.error("Failed to save zone:", error);
+          this._saveStatus = "idle";
           showErrorToast(this, this.hass, "common.errors.save_failed", error);
         })
         .finally(() => {
@@ -390,6 +405,41 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         `${localize("panels.zones.confirm_irrigate.toast_failed", this.hass.language)}: ${msg}`,
       );
     }
+  }
+
+  private _runPendingConfirm(): void {
+    const c = this._pendingConfirm;
+    this._pendingConfirm = null;
+    c?.onConfirm();
+  }
+
+  /** Flash a "Saved" chip, then fade back to idle. */
+  private _markSaved(): void {
+    this._saveStatus = "saved";
+    if (this._savedResetTimer) clearTimeout(this._savedResetTimer);
+    this._savedResetTimer = window.setTimeout(() => {
+      this._saveStatus = "idle";
+      this._scheduleUpdate();
+    }, 2000);
+    this._scheduleUpdate();
+  }
+
+  private _renderSaveStatus(): TemplateResult {
+    if (!this.hass || this._saveStatus === "idle") return html``;
+    const saving = this._saveStatus === "saving";
+    return html`
+      <span class="save-status ${this._saveStatus}">
+        <ha-icon
+          icon="${saving ? "mdi:content-save-outline" : "mdi:check-circle"}"
+        ></ha-icon>
+        ${localize(
+          saving
+            ? "common.saving-messages.saving"
+            : "panels.zones.status.saved",
+          this.hass.language,
+        )}
+      </span>
+    `;
   }
 
   private handleCalculateZone(index: number): void {
@@ -588,18 +638,46 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           ? html`
               <div class="calendar-note">
                 ${zoneCalendar?.error
-                  ? `Error generating calendar: ${zoneCalendar.error}`
-                  : "No watering calendar data available for this zone"}
+                  ? `${localize("panels.zones.calendar.error_prefix", this.hass.language)} ${zoneCalendar.error}`
+                  : localize(
+                      "panels.zones.calendar.no_data",
+                      this.hass.language,
+                    )}
               </div>
             `
           : html`
               <div class="calendar-table">
                 <div class="calendar-header">
-                  <span>Month</span>
-                  <span>ET (mm)</span>
-                  <span>Precipitation (mm)</span>
-                  <span>Watering (L)</span>
-                  <span>Avg Temp (°C)</span>
+                  <span
+                    >${localize(
+                      "panels.zones.calendar.month",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.zones.calendar.et",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.zones.calendar.precipitation",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.zones.calendar.watering",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span
+                    >${localize(
+                      "panels.zones.calendar.avg_temp",
+                      this.hass.language,
+                    )}</span
+                  >
                 </div>
                 ${monthlyEstimates.map(
                   (estimate) => html`
@@ -636,7 +714,11 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
               ${zoneCalendar?.calculation_method
                 ? html`
                     <div class="calendar-info">
-                      Method: ${zoneCalendar.calculation_method}
+                      ${localize(
+                        "panels.zones.calendar.method_prefix",
+                        this.hass.language,
+                      )}
+                      ${zoneCalendar.calculation_method}
                     </div>
                   `
                 : ""}
@@ -875,7 +957,29 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   )}
                 </button>
               `
-            : ""}
+            : !zone.linked_entity
+              ? html`
+                  <button
+                    class="action-btn"
+                    disabled
+                    title="${localize(
+                      "panels.zones.help.irrigate_link_entity",
+                      this.hass.language,
+                    )}"
+                  >
+                    ${localize(
+                      "panels.zones.labels.irrigate_now",
+                      this.hass.language,
+                    )}
+                  </button>
+                  <span class="zones-top-note">
+                    ${localize(
+                      "panels.zones.help.irrigate_link_entity",
+                      this.hass.language,
+                    )}
+                  </span>
+                `
+              : ""}
         </div>
 
         <!-- SETTINGS EXPANSION -->
@@ -1300,8 +1404,27 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           <div class="settings-danger-row">
             <button
               class="action-btn"
-              @click="${() =>
-                this.handleEditZone(index, { ...zone, [ZONE_BUCKET]: 0.0 })}"
+              @click="${() => {
+                this._pendingConfirm = {
+                  title: localize(
+                    "panels.zones.confirm_action.reset_bucket_title",
+                    this.hass!.language,
+                  ),
+                  body: localize(
+                    "panels.zones.confirm_action.reset_bucket_body",
+                    this.hass!.language,
+                  ),
+                  confirmLabel: localize(
+                    "panels.zones.actions.reset-bucket",
+                    this.hass!.language,
+                  ),
+                  onConfirm: () =>
+                    this.handleEditZone(index, {
+                      ...zone,
+                      [ZONE_BUCKET]: 0.0,
+                    }),
+                };
+              }}"
               ?disabled="${this.isSaving}"
             >
               ${localize(
@@ -1433,6 +1556,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           <div class="name">
             ${localize("panels.zones.title", this.hass.language)}
           </div>
+          ${this._renderSaveStatus()}
           <ha-icon-button
             .path="${mdiPlus}"
             @click="${() => {
@@ -1640,6 +1764,37 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           `
         : ""}
 
+      <!-- Generic destructive-action confirmation dialog -->
+      ${this._pendingConfirm
+        ? html`
+            <ha-dialog
+              open
+              @closed="${() => {
+                this._pendingConfirm = null;
+              }}"
+              heading="${this._pendingConfirm.title}"
+            >
+              <p>${this._pendingConfirm.body}</p>
+              <div class="dialog-footer">
+                <button
+                  class="dialog-btn"
+                  @click="${() => {
+                    this._pendingConfirm = null;
+                  }}"
+                >
+                  ${localize("common.actions.cancel", this.hass.language)}
+                </button>
+                <button
+                  class="dialog-btn dialog-btn-danger"
+                  @click="${this._runPendingConfirm}"
+                >
+                  ${this._pendingConfirm.confirmLabel}
+                </button>
+              </div>
+            </ha-dialog>
+          `
+        : ""}
+
       <!-- Operation error banner -->
       ${this._operationError
         ? html`
@@ -1688,9 +1843,27 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
               this.hass.language,
             )}
           </button>
+        </div>
+        <div class="card-content bulk-actions bulk-actions-danger">
           <button
-            class="action-btn"
-            @click="${this.handleResetAllBuckets}"
+            class="action-btn danger-button"
+            @click="${() => {
+              this._pendingConfirm = {
+                title: localize(
+                  "panels.zones.confirm_action.reset_all_buckets_title",
+                  this.hass!.language,
+                ),
+                body: localize(
+                  "panels.zones.confirm_action.reset_all_buckets_body",
+                  this.hass!.language,
+                ),
+                confirmLabel: localize(
+                  "panels.zones.cards.zone-actions.actions.reset-all-buckets",
+                  this.hass!.language,
+                ),
+                onConfirm: () => this.handleResetAllBuckets(),
+              };
+            }}"
             ?disabled="${this.isSaving}"
           >
             ${localize(
@@ -1699,8 +1872,24 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             )}
           </button>
           <button
-            class="action-btn"
-            @click="${this.handleClearAllWeatherdata}"
+            class="action-btn danger-button"
+            @click="${() => {
+              this._pendingConfirm = {
+                title: localize(
+                  "panels.zones.confirm_action.clear_weather_title",
+                  this.hass!.language,
+                ),
+                body: localize(
+                  "panels.zones.confirm_action.clear_weather_body",
+                  this.hass!.language,
+                ),
+                confirmLabel: localize(
+                  "panels.zones.cards.zone-actions.actions.clear-all-weatherdata",
+                  this.hass!.language,
+                ),
+                onConfirm: () => this.handleClearAllWeatherdata(),
+              };
+            }}"
             ?disabled="${this.isSaving}"
           >
             ${localize(
@@ -1721,6 +1910,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     if (this.globalDebounceTimer) {
       clearTimeout(this.globalDebounceTimer);
       this.globalDebounceTimer = null;
+    }
+    if (this._savedResetTimer) {
+      clearTimeout(this._savedResetTimer);
+      this._savedResetTimer = null;
     }
   }
 
@@ -1814,6 +2007,29 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         gap: 8px;
         padding-top: 0;
         padding-bottom: 8px;
+      }
+
+      /* Auto-save status chip */
+      .save-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+        margin-right: 8px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+      }
+
+      .save-status ha-icon {
+        --mdc-icon-size: 18px;
+      }
+
+      .save-status.saving {
+        color: var(--secondary-text-color);
+      }
+
+      .save-status.saved {
+        color: var(--success-color, #2e7d32);
       }
 
       /* State badge */
@@ -2009,6 +2225,18 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+      }
+
+      /* Destructive bulk actions, visually separated from routine ones */
+      .bulk-actions-danger {
+        border-top: 1px solid var(--divider-color);
+        margin-top: 4px;
+        padding-top: 12px;
+      }
+
+      .action-btn.danger-button {
+        color: var(--error-color);
+        border-color: var(--error-color);
       }
 
       /* Operation error banner */
