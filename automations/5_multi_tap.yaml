@@ -152,8 +152,8 @@ action:
                         - if:
                             - condition: template
                               value_template: >-
-                                {{states('switch.sprinklercontroller_enable_zone_'+repeat.item.zid|string()
-                                == 'on')}}
+                                {{ states('switch.sprinklercontroller_enable_zone_'
+                                + repeat.item.zid|string()) == 'on' }}
                           then:
                             - service: smart_irrigation.reset_bucket
                               target:

@@ -24,10 +24,10 @@ condition:
             value_template: "{{ now().isoweekday() == 1 }}"
 action:
   - service: switch.turn_on
-      data: {}
-      entity_id: switch.irrigation_tap1
+    data: {}
+    entity_id: switch.irrigation_tap1
   - delay:
-    seconds: '{{states("sensor.[zone_name"])}}'
+      seconds: '{{ states("sensor.smart_irrigation_[zone_name]") }}'
   - service: switch.turn_off
     data: {}
     entity_id: switch.irrigation_tap1
