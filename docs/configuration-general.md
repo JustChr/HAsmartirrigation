@@ -58,6 +58,8 @@ If enabled, irrigation is skipped when the **total** forecasted precipitation ac
 - **Forecast look-ahead (days)** — how many upcoming forecast days are added together for this check. The forecast starts at *tomorrow* (today is excluded), so `1` (the default) means just the next day, `2` the next two days, and so on.
 - **Upgrade note:** before `v2026.06.13` this window was hard-wired to two days. The default is now **1 day**, so an existing install will skip less aggressively than before. If you preferred the old behaviour, set the look-ahead back to `2`.
 
+![](assets/images/configuration-general-skip-1.png)
+
 #### Skip on low temperature
 If enabled, irrigation is skipped when the current temperature (from the weather service) is below the configured threshold (in °C). Useful for avoiding irrigation in near-freezing conditions.
 

@@ -14,6 +14,8 @@ This is an actively maintained community fork of [jeroenterheerdt/HAsmartirrigat
 
 This integration calculates how long to run your irrigation system to compensate for moisture loss caused by [evapotranspiration](https://en.wikipedia.org/wiki/Evapotranspiration). It takes precipitation (rain, snow) and evaporation into account and tells you exactly how many seconds to irrigate — no more guesswork.
 
+![Zones dashboard](docs/assets/images/usage-dashboard-1.png)
+
 - Water only what evaporated — no over- or under-watering
 - Tracks a running moisture balance ("bucket") per zone
 - Supports multiple zones, each with its own size, throughput, module, and sensor group
