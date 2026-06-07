@@ -30,4 +30,17 @@ export default [
     plugins: [...plugins],
     context: 'window'
   },
+  {
+    // Lovelace custom card (auto-registered via add_extra_js_url) so non-admin
+    // users get an everyday zones dashboard outside the admin-only panel.
+    input: 'src/smart-irrigation-card.ts',
+    output: {
+      dir: 'dist',
+      format: 'iife',
+      inlineDynamicImports: true,
+      sourcemap: false,
+    },
+    plugins: [...plugins],
+    context: 'window'
+  },
 ];

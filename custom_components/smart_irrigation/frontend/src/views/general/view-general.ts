@@ -849,6 +849,36 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                     }}"
                   />
                 </div>
+                <div class="setting-row">
+                  <label>
+                    ${localize(
+                      "weather_skip.lookahead_label",
+                      this.hass.language,
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    min="1"
+                    max="5"
+                    step="1"
+                    inputmode="numeric"
+                    .value="${this.config.precipitation_forecast_days ?? 1}"
+                    @input="${(e: Event) => {
+                      const v = parseInt(
+                        (e.target as HTMLInputElement).value,
+                        10,
+                      );
+                      if (!isNaN(v) && v >= 1)
+                        this.handleConfigChange({
+                          precipitation_forecast_days: v,
+                        });
+                    }}"
+                  />
+                </div>
+                <div class="description-text">
+                  ${localize("weather_skip.lookahead_help", this.hass.language)}
+                </div>
               `
             : ""}
 

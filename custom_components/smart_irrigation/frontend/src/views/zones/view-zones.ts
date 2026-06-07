@@ -1,5 +1,5 @@
 import { TemplateResult, LitElement, html, CSSResultGroup, css } from "lit";
-import { property, state, customElement } from "lit/decorators.js";
+import { property, state } from "lit/decorators.js";
 import { HomeAssistant } from "custom-card-helpers";
 import { loadHaForm } from "../../load-ha-elements";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
@@ -44,10 +44,23 @@ import moment from "moment";
  * reporting and management live in Setup → Zones; a gear icon on each card
  * deep-links there. (UX restructure N2/N3.)
  */
-@customElement("smart-irrigation-view-zones")
 class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   hass?: HomeAssistant;
   @property() config?: SmartIrrigationConfig;
+
+  /**
+   * Hide admin-only deep links (per-zone settings gear, "set up a schedule",
+   * the first-run wizard banner). Set by the Lovelace card so non-admin users
+   * see a clean operational view. (Default false = full admin panel.)
+   */
+  @property({ type: Boolean }) hideSettingsLinks = false;
+
+  /**
+   * Which action buttons to expose. "full" = update/calculate/irrigate (panel),
+   * "irrigate" = irrigate only (card), "none" = read-only.
+   */
+  @property({ attribute: false }) actionsMode: "full" | "irrigate" | "none" =
+    "full";
 
   @property({ type: Array })
   private zones: SmartIrrigationZone[] = [];
@@ -342,13 +355,15 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     );
   }
 
-  private _guardChip(check: SkipCheck): TemplateResult {
-    const detail = this._guardDetail(check);
-    return html`
-      <span class="guard-chip ${check.would_skip ? "triggered" : ""}">
-        ${this._guardLabel(check)}${detail ? html` · ${detail}` : ""}
-      </span>
-    `;
+  /** Multi-line "why the next run will skip" text for the info-icon tooltip. */
+  private _skipDetailText(): string {
+    const lang = this.hass!.language;
+    const lines = this._triggeredGuards.map((c) => {
+      const detail = this._guardDetail(c);
+      return detail ? `${this._guardLabel(c)}: ${detail}` : this._guardLabel(c);
+    });
+    lines.push(`(${localize("panels.zones.outlook.provisional", lang)})`);
+    return lines.join("\n");
   }
 
   private _openSchedules(): void {
@@ -387,7 +402,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     const lang = this.hass.language;
     const nextRun = this._nextIrrigateRun;
     const triggered = this._triggeredGuards;
-    const guards = this._activeGuards;
     const last = this._outlook.last_skip_evaluation;
 
     // No automatic irrigate schedule → make the manual-only reality explicit.
@@ -398,11 +412,17 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             <div class="outlook-line outlook-headline">
               <ha-icon icon="mdi:calendar-alert"></ha-icon>
               <span>${localize("panels.zones.outlook.no_schedule", lang)}</span>
-              <button class="outlook-link" @click="${this._openSchedules}">
-                ${localize("panels.zones.outlook.setup_schedule", lang)}
-              </button>
+              ${this.hideSettingsLinks
+                ? ""
+                : html`
+                    <button
+                      class="outlook-link"
+                      @click="${this._openSchedules}"
+                    >
+                      ${localize("panels.zones.outlook.setup_schedule", lang)}
+                    </button>
+                  `}
             </div>
-            ${guards.length > 0 ? this._renderGuardsLine(guards) : ""}
             ${last ? this._renderLastRunLine(last) : ""}
           </div>
         </ha-card>
@@ -430,17 +450,11 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             ? html`
                 <div class="outlook-line outlook-skip">
                   <ha-icon icon="mdi:alert"></ha-icon>
-                  <span>
-                    ${localize("panels.zones.outlook.will_skip", lang)}
-                    <span class="outlook-dim"
-                      >(${localize(
-                        "panels.zones.outlook.provisional",
-                        lang,
-                      )})</span
-                    >
-                  </span>
-                  <span class="guard-chips">
-                    ${triggered.map((c) => this._guardChip(c))}
+                  <span
+                    >${localize("panels.zones.outlook.will_skip", lang)}</span
+                  >
+                  <span class="outlook-info" title="${this._skipDetailText()}">
+                    <ha-icon icon="mdi:information-outline"></ha-icon>
                   </span>
                 </div>
               `
@@ -452,24 +466,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   >
                 </div>
               `}
-          ${guards.length > 0 ? this._renderGuardsLine(guards) : ""}
           ${last ? this._renderLastRunLine(last) : ""}
         </div>
       </ha-card>
-    `;
-  }
-
-  private _renderGuardsLine(guards: SkipCheck[]): TemplateResult {
-    const lang = this.hass!.language;
-    return html`
-      <div class="outlook-line outlook-guards">
-        <span class="outlook-dim"
-          >${localize("panels.zones.outlook.active_guards", lang)}:</span
-        >
-        <span class="guard-chips">
-          ${guards.map((c) => this._guardChip(c))}
-        </span>
-      </div>
     `;
   }
 
@@ -618,14 +617,18 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
               this.hass.language,
             )}
           </span>
-          <ha-icon-button
-            .path="${mdiCog}"
-            title="${localize(
-              "panels.zones.actions.open_settings",
-              this.hass.language,
-            )}"
-            @click="${() => this._openZoneSettings(zone)}"
-          ></ha-icon-button>
+          ${this.hideSettingsLinks
+            ? ""
+            : html`
+                <ha-icon-button
+                  .path="${mdiCog}"
+                  title="${localize(
+                    "panels.zones.actions.open_settings",
+                    this.hass.language,
+                  )}"
+                  @click="${() => this._openZoneSettings(zone)}"
+                ></ha-icon-button>
+              `}
         </div>
 
         <!-- AT-A-GLANCE DECISION -->
@@ -660,7 +663,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
         <!-- ACTION BUTTONS -->
         <div class="card-content zone-action-bar">
-          ${zone.state === SmartIrrigationZoneState.Automatic
+          ${this.actionsMode === "full" &&
+          zone.state === SmartIrrigationZoneState.Automatic
             ? html`
                 <button
                   class="action-btn"
@@ -671,7 +675,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   @click="${() => this.handleUpdateZone(index)}"
                   ?disabled="${this.isSaving}"
                 >
-                  <ha-icon slot="icon" icon="mdi:update"></ha-icon>
+                  <ha-icon icon="mdi:update"></ha-icon>
                   ${localize("panels.zones.actions.update", this.hass.language)}
                 </button>
                 <button
@@ -683,7 +687,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   @click="${() => this.handleCalculateZone(index)}"
                   ?disabled="${this.isSaving}"
                 >
-                  <ha-icon slot="icon" icon="mdi:calculator"></ha-icon>
+                  <ha-icon icon="mdi:calculator"></ha-icon>
                   ${localize(
                     "panels.zones.actions.calculate",
                     this.hass.language,
@@ -691,7 +695,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                 </button>
               `
             : ""}
-          ${zone.linked_entity && (zone.duration ?? 0) > 0
+          ${this.actionsMode !== "none" &&
+          zone.linked_entity &&
+          (zone.duration ?? 0) > 0
             ? html`
                 <button
                   class="action-btn"
@@ -703,6 +709,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   }}"
                   ?disabled="${this.isSaving}"
                 >
+                  <ha-icon icon="mdi:water"></ha-icon>
                   ${localize(
                     "panels.zones.labels.irrigate_now",
                     this.hass.language,
@@ -719,6 +726,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                       this.hass.language,
                     )}"
                   >
+                    <ha-icon icon="mdi:water"></ha-icon>
                     ${localize(
                       "panels.zones.labels.irrigate_now",
                       this.hass.language,
@@ -761,37 +769,45 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
     return html`
       ${isFirstTime
-        ? html`
-            <ha-card class="setup-banner-card">
-              <div class="setup-banner">
-                <div class="setup-banner-icon">🌱</div>
-                <div class="setup-banner-content">
-                  <div class="setup-banner-title">
-                    ${localize("wizard.title", this.hass.language)}
-                  </div>
-                  <div class="setup-banner-desc">
-                    ${localize(
-                      "wizard.setup_complete_banner",
-                      this.hass.language,
-                    )}
-                  </div>
+        ? this.hideSettingsLinks
+          ? html`
+              <ha-card>
+                <div class="card-content description-text">
+                  ${localize("panels.zones.no_items", this.hass.language)}
                 </div>
-                <button
-                  class="action-btn setup-banner-btn"
-                  @click="${() => {
-                    this.dispatchEvent(
-                      new CustomEvent("open-wizard", {
-                        bubbles: true,
-                        composed: true,
-                      }),
-                    );
-                  }}"
-                >
-                  ${localize("wizard.open_wizard", this.hass.language)}
-                </button>
-              </div>
-            </ha-card>
-          `
+              </ha-card>
+            `
+          : html`
+              <ha-card class="setup-banner-card">
+                <div class="setup-banner">
+                  <div class="setup-banner-icon">🌱</div>
+                  <div class="setup-banner-content">
+                    <div class="setup-banner-title">
+                      ${localize("wizard.title", this.hass.language)}
+                    </div>
+                    <div class="setup-banner-desc">
+                      ${localize(
+                        "wizard.setup_complete_banner",
+                        this.hass.language,
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    class="action-btn setup-banner-btn"
+                    @click="${() => {
+                      this.dispatchEvent(
+                        new CustomEvent("open-wizard", {
+                          bubbles: true,
+                          composed: true,
+                        }),
+                      );
+                    }}"
+                  >
+                    ${localize("wizard.open_wizard", this.hass.language)}
+                  </button>
+                </div>
+              </ha-card>
+            `
         : ""}
       ${!isFirstTime ? this._renderOutlookBanner() : ""}
 
@@ -803,48 +819,62 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           </div>
         </div>
         <div class="card-content zones-top-actions">
-          <button
-            class="action-btn"
-            raised
-            title="${localize(
-              "panels.zones.help.irrigate_all",
-              this.hass.language,
-            )}"
-            @click="${() => {
-              this._confirmIrrigate = "all";
-            }}"
-            ?disabled="${!hasLinkedZones || this.isSaving}"
-          >
-            ${localize("panels.zones.actions.irrigate_all", this.hass.language)}
-          </button>
-          <button
-            class="action-btn"
-            title="${localize(
-              "panels.zones.help.update_all",
-              this.hass.language,
-            )}"
-            @click="${this.handleUpdateAllZones}"
-            ?disabled="${this.isSaving}"
-          >
-            ${localize(
-              "panels.zones.cards.zone-actions.actions.update-all",
-              this.hass.language,
-            )}
-          </button>
-          <button
-            class="action-btn"
-            title="${localize(
-              "panels.zones.help.calculate_all",
-              this.hass.language,
-            )}"
-            @click="${this.handleCalculateAllZones}"
-            ?disabled="${this.isSaving}"
-          >
-            ${localize(
-              "panels.zones.cards.zone-actions.actions.calculate-all",
-              this.hass.language,
-            )}
-          </button>
+          ${this.actionsMode === "full"
+            ? html`
+                <button
+                  class="action-btn"
+                  title="${localize(
+                    "panels.zones.help.update_all",
+                    this.hass.language,
+                  )}"
+                  @click="${this.handleUpdateAllZones}"
+                  ?disabled="${this.isSaving}"
+                >
+                  <ha-icon icon="mdi:update"></ha-icon>
+                  ${localize(
+                    "panels.zones.cards.zone-actions.actions.update-all",
+                    this.hass.language,
+                  )}
+                </button>
+                <button
+                  class="action-btn"
+                  title="${localize(
+                    "panels.zones.help.calculate_all",
+                    this.hass.language,
+                  )}"
+                  @click="${this.handleCalculateAllZones}"
+                  ?disabled="${this.isSaving}"
+                >
+                  <ha-icon icon="mdi:calculator"></ha-icon>
+                  ${localize(
+                    "panels.zones.cards.zone-actions.actions.calculate-all",
+                    this.hass.language,
+                  )}
+                </button>
+              `
+            : ""}
+          ${this.actionsMode !== "none"
+            ? html`
+                <button
+                  class="action-btn"
+                  raised
+                  title="${localize(
+                    "panels.zones.help.irrigate_all",
+                    this.hass.language,
+                  )}"
+                  @click="${() => {
+                    this._confirmIrrigate = "all";
+                  }}"
+                  ?disabled="${!hasLinkedZones || this.isSaving}"
+                >
+                  <ha-icon icon="mdi:water"></ha-icon>
+                  ${localize(
+                    "panels.zones.actions.irrigate_all",
+                    this.hass.language,
+                  )}
+                </button>
+              `
+            : ""}
           ${!hasLinkedZones
             ? html`<span class="zones-top-note"
                 >${localize(
@@ -1031,25 +1061,16 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         font-weight: 400;
       }
 
-      .guard-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
+      /* Info icon carrying the "why it will skip" detail as a native tooltip */
+      .outlook-info {
+        display: inline-flex;
+        align-items: center;
+        cursor: help;
       }
 
-      .guard-chip {
-        font-size: 0.75rem;
-        padding: 2px 8px;
-        border-radius: 12px;
-        background: var(--secondary-background-color);
-        color: var(--secondary-text-color);
-        white-space: nowrap;
-      }
-
-      .guard-chip.triggered {
-        background: rgba(255, 152, 0, 0.18);
+      .outlook-info ha-icon {
+        --mdc-icon-size: 18px;
         color: var(--warning-color, #ed6c02);
-        font-weight: 500;
       }
 
       .outlook-link {
@@ -1233,6 +1254,16 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       }
     `;
   }
+}
+
+// Guarded define: both the admin panel bundle and the Lovelace card bundle
+// register this element, and both can be loaded in the same document (panel +
+// dashboard). Skip the second define instead of throwing.
+if (!customElements.get("smart-irrigation-view-zones")) {
+  customElements.define(
+    "smart-irrigation-view-zones",
+    SmartIrrigationViewZones,
+  );
 }
 
 export { SmartIrrigationViewZones };

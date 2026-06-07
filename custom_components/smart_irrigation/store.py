@@ -43,6 +43,7 @@ from .const import (
     CONF_DEFAULT_MANUAL_COORDINATES_ENABLED,
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
+    CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS,
     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
     CONF_DEFAULT_RAIN_SENSOR,
     CONF_DEFAULT_RECURRING_SCHEDULES,
@@ -59,6 +60,7 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
     CONF_IMPERIAL,
     CONF_METRIC,
+    CONF_PRECIPITATION_FORECAST_DAYS,
     CONF_PRECIPITATION_THRESHOLD_MM,
     CONF_RAIN_SENSOR,
     CONF_RECURRING_SCHEDULES,
@@ -218,6 +220,9 @@ class Config:
     precipitation_threshold_mm = attr.ib(
         type=float, default=CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM
     )
+    precipitation_forecast_days = attr.ib(
+        type=int, default=CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS
+    )
     days_between_irrigation = attr.ib(
         type=int, default=CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION
     )
@@ -322,6 +327,10 @@ class MigratableStore(Store):
                 data["config"][
                     CONF_PRECIPITATION_THRESHOLD_MM
                 ] = CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM
+            if CONF_PRECIPITATION_FORECAST_DAYS not in data["config"]:
+                data["config"][
+                    CONF_PRECIPITATION_FORECAST_DAYS
+                ] = CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS
             if CONF_DAYS_BETWEEN_IRRIGATION not in data["config"]:
                 data["config"][
                     CONF_DAYS_BETWEEN_IRRIGATION
@@ -461,6 +470,10 @@ class SmartIrrigationStorage:
                 precipitation_threshold_mm=data["config"].get(
                     CONF_PRECIPITATION_THRESHOLD_MM,
                     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
+                ),
+                precipitation_forecast_days=data["config"].get(
+                    CONF_PRECIPITATION_FORECAST_DAYS,
+                    CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS,
                 ),
                 days_between_irrigation=data["config"].get(
                     CONF_DAYS_BETWEEN_IRRIGATION,

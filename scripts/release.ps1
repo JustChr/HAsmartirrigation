@@ -68,6 +68,8 @@ $PkgPath      = "custom_components/smart_irrigation/frontend/package.json"
 $FrontendDir  = "custom_components/smart_irrigation/frontend"
 $DistRel      = "dist/smart-irrigation.js"
 $DistPath     = "$FrontendDir/$DistRel"
+$CardRel      = "dist/smart-irrigation-card.js"
+$CardPath     = "$FrontendDir/$CardRel"
 
 # --- preflight ------------------------------------------------------------
 $branch = (git rev-parse --abbrev-ref HEAD).Trim()
@@ -115,18 +117,22 @@ try {
   if (-not (Test-Path node_modules)) { Invoke-Checked { npm ci } }
   Invoke-Checked { npx rollup -c }
   Invoke-Checked { npx babel dist/smart-irrigation.js --out-file dist/smart-irrigation.js }
+  Invoke-Checked { npx babel dist/smart-irrigation-card.js --out-file dist/smart-irrigation-card.js }
 } finally { Pop-Location }
 
 # const.ts embeds `v${pkg.version}`, which rollup keeps as `v${"<VerNoPrefix>"}`,
-# so the contiguous literal in the bundle is the no-prefix version.
-if (-not (Select-String -Path $DistPath -Pattern ([regex]::Escape($VerNoPrefix)) -Quiet)) {
-  throw "Built bundle does not contain $VerNoPrefix - aborting before commit."
+# so the contiguous literal in the bundle is the no-prefix version. Both bundles
+# import const.ts, so both must embed it.
+foreach ($p in @($DistPath, $CardPath)) {
+  if (-not (Select-String -Path $p -Pattern ([regex]::Escape($VerNoPrefix)) -Quiet)) {
+    throw "Built bundle $p does not contain $VerNoPrefix - aborting before commit."
+  }
 }
-Write-Host "Frontend rebuilt and verified to embed $Version"
+Write-Host "Frontend rebuilt and verified to embed $Version (panel + card)"
 
 # --- commit, tag, push, release ------------------------------------------
 Invoke-Checked { git add $ConstPath $ManifestPath $PkgPath }
-Invoke-Checked { git add -f $DistPath }   # dist is gitignored but tracked
+Invoke-Checked { git add -f $DistPath $CardPath }   # dist is gitignored but tracked
 Invoke-Checked { git commit -m "build: release $Version" }
 Invoke-Checked { git tag $Version }
 Invoke-Checked { git push origin master }

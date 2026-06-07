@@ -98,6 +98,7 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_IRRIGATION_START_TRIGGERS): vol.Coerce(list),
                 vol.Optional(const.CONF_SKIP_IRRIGATION_ON_PRECIPITATION): cv.boolean,
                 vol.Optional(const.CONF_PRECIPITATION_THRESHOLD_MM): vol.Coerce(float),
+                vol.Optional(const.CONF_PRECIPITATION_FORECAST_DAYS): vol.Coerce(int),
                 vol.Optional(const.CONF_DAYS_BETWEEN_IRRIGATION): vol.Coerce(int),
                 vol.Optional(const.CONF_SKIP_TEMP_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_TEMP_THRESHOLD): vol.Coerce(float),

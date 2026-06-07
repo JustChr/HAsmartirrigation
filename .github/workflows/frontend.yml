@@ -45,9 +45,9 @@ jobs:
         # match the current source. Fail if a rebuild changes it (i.e. someone
         # edited .ts or bumped the version without rebuilding dist).
         run: |
-          if ! git diff --quiet -- dist/smart-irrigation.js; then
-            echo "::error::dist/smart-irrigation.js is out of date - rebuild the frontend and commit the result."
-            git --no-pager diff --stat -- dist/smart-irrigation.js
+          if ! git diff --quiet -- dist/smart-irrigation.js dist/smart-irrigation-card.js; then
+            echo "::error::A committed dist bundle is out of date - rebuild the frontend and commit the result."
+            git --no-pager diff --stat -- dist/smart-irrigation.js dist/smart-irrigation-card.js
             exit 1
           fi
-          echo "dist bundle is in sync with source."
+          echo "dist bundles are in sync with source."

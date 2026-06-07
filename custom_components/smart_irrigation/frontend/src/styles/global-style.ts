@@ -103,6 +103,10 @@ export const globalStyle = css`
 
   /* Shared action button style (used instead of ha-button which may not load) */
   button.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     background: var(--primary-color);
     border: none;
     border-radius: 4px;
@@ -115,6 +119,11 @@ export const globalStyle = css`
     padding: 8px 16px;
     text-transform: uppercase;
     transition: opacity 0.15s;
+  }
+
+  button.action-btn ha-icon {
+    --mdc-icon-size: 18px;
+    flex-shrink: 0;
   }
 
   button.action-btn:hover {

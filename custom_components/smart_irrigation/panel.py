@@ -8,6 +8,8 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
 from .const import (
+    CARD_FILENAME,
+    CARD_URL,
     CUSTOM_COMPONENTS,
     DOMAIN,
     INTEGRATION_FOLDER,
@@ -27,11 +29,19 @@ async def async_register_panel(hass: HomeAssistant):
     root_dir = Path(hass.config.path(CUSTOM_COMPONENTS)) / INTEGRATION_FOLDER
     panel_dir = root_dir / PANEL_FOLDER
     view_url = panel_dir / PANEL_FILENAME
+    card_url = panel_dir / CARD_FILENAME
 
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(PANEL_URL, str(view_url), cache_headers=False)]
+        [
+            StaticPathConfig(PANEL_URL, str(view_url), cache_headers=False),
+            StaticPathConfig(CARD_URL, str(card_url), cache_headers=False),
+        ]
     )
-    # hass.http.register_static_path(PANEL_URL, str(view_url), False)
+
+    # Load the Lovelace card bundle for every user (admin panel is admin-only,
+    # but the card lets non-admins add a zones dashboard). add_extra_js_url is
+    # idempotent, so this is safe across reloads.
+    frontend.add_extra_js_url(hass, CARD_URL)
 
     await panel_custom.async_register_panel(
         hass,

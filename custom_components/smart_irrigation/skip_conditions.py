@@ -128,8 +128,15 @@ class SkipConditionsMixin:
             )
             if not forecast_data:
                 return result
+            days = max(
+                1,
+                config.get(
+                    const.CONF_PRECIPITATION_FORECAST_DAYS,
+                    const.CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS,
+                ),
+            )
             total = 0.0
-            for day_data in forecast_data[:2]:
+            for day_data in forecast_data[:days]:
                 if const.MAPPING_PRECIPITATION in day_data:
                     total += day_data[const.MAPPING_PRECIPITATION]
             result["available"] = True
@@ -355,9 +362,18 @@ class SkipConditionsMixin:
                 _LOGGER.debug("No forecast data available")
                 return False
 
-            # Check precipitation for today and tomorrow
+            # Sum precipitation across the configured look-ahead window. Weather
+            # clients return future days only (today excluded), so days=1 means
+            # the next forecast day.
+            days = max(
+                1,
+                config.get(
+                    const.CONF_PRECIPITATION_FORECAST_DAYS,
+                    const.CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS,
+                ),
+            )
             total_precipitation = 0.0
-            for day_data in forecast_data[:2]:  # Check today and tomorrow only
+            for day_data in forecast_data[:days]:
                 if const.MAPPING_PRECIPITATION in day_data:
                     total_precipitation += day_data[const.MAPPING_PRECIPITATION]
 

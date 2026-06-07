@@ -6,6 +6,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.smart_irrigation.const import (
+    CARD_URL,
     DOMAIN,
     PANEL_ICON,
     PANEL_NAME,
@@ -30,13 +31,21 @@ class TestSmartIrrigationPanel:
 
     async def test_async_register_panel(self, mock_hass):
         """Test panel registration."""
-        with patch(
-            "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
-        ) as mock_register:
+        with (
+            patch(
+                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+            ) as mock_register,
+            patch(
+                "custom_components.smart_irrigation.panel.frontend.add_extra_js_url"
+            ) as mock_extra_js,
+        ):
             await async_register_panel(mock_hass)
 
             # Verify static path registration
             mock_hass.http.async_register_static_paths.assert_called_once()
+
+            # The Lovelace card bundle is loaded for all users
+            mock_extra_js.assert_called_once_with(mock_hass, CARD_URL)
 
             # Verify panel registration
             mock_register.assert_called_once()
@@ -52,22 +61,26 @@ class TestSmartIrrigationPanel:
             assert call_args[1]["config"] == {}
 
     async def test_async_register_panel_static_path_config(self, mock_hass):
-        """Test panel registration static path configuration."""
-        with patch(
-            "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+        """Test panel registration static path configuration (panel + card)."""
+        with (
+            patch(
+                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+            ),
+            patch("custom_components.smart_irrigation.panel.frontend.add_extra_js_url"),
         ):
             await async_register_panel(mock_hass)
 
-            # Check the static path configuration
+            # Both the panel bundle and the card bundle are served.
             call_args = mock_hass.http.async_register_static_paths.call_args[0][0]
-            assert len(call_args) == 1
+            assert len(call_args) == 2
 
-            static_config = call_args[0]
-            assert static_config.url_path == PANEL_URL
-            assert static_config.cache_headers is False
-            # Path should point to the panel file
-            assert "smart_irrigation" in str(static_config.path)
-            assert "frontend/dist/smart-irrigation.js" in str(static_config.path)
+            by_url = {c.url_path: c for c in call_args}
+            assert set(by_url) == {PANEL_URL, CARD_URL}
+            assert by_url[PANEL_URL].cache_headers is False
+            assert "frontend/dist/smart-irrigation.js" in str(by_url[PANEL_URL].path)
+            assert "frontend/dist/smart-irrigation-card.js" in str(
+                by_url[CARD_URL].path
+            )
 
     def test_remove_panel(self, mock_hass):
         """Test panel removal."""
@@ -82,8 +95,11 @@ class TestSmartIrrigationPanel:
         """Test that panel path is constructed correctly."""
         mock_hass.config.path.return_value = "/test/config"
 
-        with patch(
-            "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+        with (
+            patch(
+                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+            ),
+            patch("custom_components.smart_irrigation.panel.frontend.add_extra_js_url"),
         ):
             await async_register_panel(mock_hass)
 

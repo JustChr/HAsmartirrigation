@@ -33,6 +33,7 @@ export class SmartIrrigationConfig {
   sensor_debounce: number;
   skip_irrigation_on_precipitation: boolean;
   precipitation_threshold_mm: number;
+  precipitation_forecast_days: number;
   manual_coordinates_enabled: boolean;
   manual_latitude?: number;
   manual_longitude?: number;
@@ -63,6 +64,7 @@ export class SmartIrrigationConfig {
     this.sensor_debounce = 100;
     this.skip_irrigation_on_precipitation = false;
     this.precipitation_threshold_mm = 2.0;
+    this.precipitation_forecast_days = 1;
     this.manual_coordinates_enabled = false;
     this.manual_latitude = undefined;
     this.manual_longitude = undefined;

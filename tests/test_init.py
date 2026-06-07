@@ -574,3 +574,68 @@ class TestDaysBetweenIrrigation:
         assert coordinator._last_skip_evaluation is not None
         assert coordinator._last_skip_evaluation["would_skip"] is True
         assert "timestamp" in coordinator._last_skip_evaluation
+
+
+class _FakeForecastClient:
+    """Minimal weather client exposing a fixed forecast for skip tests."""
+
+    def __init__(self, days):
+        self._days = days
+
+    def get_forecast_data(self):
+        return self._days
+
+
+class TestPrecipitationLookAhead:
+    """The precipitation skip respects the configurable look-ahead window."""
+
+    async def test_lookahead_window_controls_skip(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+        mock_session: AsyncMock,
+    ) -> None:
+        """1-day window sees only the next day; 2-day window sums two days."""
+        cfg = {
+            const.CONF_SKIP_IRRIGATION_ON_PRECIPITATION: True,
+            const.CONF_PRECIPITATION_THRESHOLD_MM: 2.0,
+            const.CONF_USE_WEATHER_SERVICE: True,
+            const.CONF_PRECIPITATION_FORECAST_DAYS: 1,
+        }
+        mock_store = AsyncMock()
+        mock_store.async_get_config.return_value = cfg
+        # Constructor reads the SYNC get_config(); keep weather off there so it
+        # doesn't try to build a real client (we inject a fake below).
+        mock_store.get_config = Mock(
+            return_value={
+                const.CONF_AUTO_UPDATE_ENABLED: False,
+                const.CONF_AUTO_CALC_ENABLED: False,
+                const.CONF_AUTO_CLEAR_ENABLED: False,
+                const.CONF_USE_WEATHER_SERVICE: False,
+            }
+        )
+        hass.data[const.DOMAIN] = {
+            const.CONF_USE_WEATHER_SERVICE: False,
+            const.CONF_WEATHER_SERVICE: None,
+        }
+        coordinator = SmartIrrigationCoordinator(
+            hass, mock_session, mock_config_entry, mock_store
+        )
+        # next forecast day is dry, the day after has 5 mm of rain
+        coordinator._WeatherServiceClient = _FakeForecastClient(
+            [
+                {const.MAPPING_PRECIPITATION: 0.0},
+                {const.MAPPING_PRECIPITATION: 5.0},
+            ]
+        )
+
+        # 1-day window: only the dry next day counts -> no skip
+        res = await coordinator._eval_precipitation(cfg)
+        assert res["observed"] == 0.0
+        assert res["would_skip"] is False
+
+        # 2-day window: 0 + 5 mm >= 2 mm threshold -> skip
+        cfg[const.CONF_PRECIPITATION_FORECAST_DAYS] = 2
+        res = await coordinator._eval_precipitation(cfg)
+        assert res["observed"] == 5.0
+        assert res["would_skip"] is True

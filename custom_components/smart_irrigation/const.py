@@ -26,6 +26,10 @@ CONF_SKIP_IRRIGATION_ON_PRECIPITATION = "skip_irrigation_on_precipitation"
 CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION = False
 CONF_PRECIPITATION_THRESHOLD_MM = "precipitation_threshold_mm"
 CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM = 2.0  # 2mm threshold
+# How many forecast days to sum when checking precipitation. The weather clients
+# return future days only (today is excluded), so 1 = the next forecast day.
+CONF_PRECIPITATION_FORECAST_DAYS = "precipitation_forecast_days"
+CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS = 1
 
 CONF_SKIP_TEMP_ENABLED = "skip_on_temp_enabled"
 CONF_TEMP_THRESHOLD = "temp_threshold"  # °C — skip if temperature is BELOW this
@@ -205,6 +209,12 @@ PANEL_URL = "/api/panel_custom/smart-irrigation"
 PANEL_TITLE = NAME
 PANEL_ICON = "mdi:sprinkler"
 PANEL_NAME = "smart-irrigation"
+
+# Lovelace custom card: a second bundle served to all users (not just admins)
+# and auto-loaded via add_extra_js_url, so non-admins can add the zones card to
+# their own dashboards.
+CARD_FILENAME = "dist/smart-irrigation-card.js"
+CARD_URL = "/smart_irrigation_card/smart-irrigation-card.js"
 
 ATTR_REMOVE = "remove"
 ATTR_CALCULATE = "calculate"
