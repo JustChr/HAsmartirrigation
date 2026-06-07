@@ -23,7 +23,9 @@ type: custom:smart-irrigation-zones-card
 
 ## What it shows
 
-The card shows the same per-zone status as the dashboard — the [decision](usage-dashboard.md#per-zone-decision), the bucket and [live estimate](usage-dashboard.md#live-estimate), the next scheduled run, and the global [outlook banner](usage-dashboard.md#outlook-banner) — **without** the settings gear, schedule links or the setup wizard.
+The card shows the same per-zone status as the dashboard — the [decision](usage-dashboard.md#per-zone-decision), the bucket and [live estimate](usage-dashboard.md#live-estimate), the next scheduled run, and the global [outlook banner](usage-dashboard.md#outlook-banner) — **without** the settings gear, schedule links or the setup wizard. With the default `actions: irrigate`, only the **Irrigate** buttons are shown (no Update / Calculate).
+
+![](assets/images/usage-lovelace-card-1.png)
 
 ## Permissions
 
