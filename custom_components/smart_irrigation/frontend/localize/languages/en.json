@@ -444,7 +444,13 @@
         "decision_unknown": "Not calculated yet — press Update, then Calculate to check.",
         "last_checked": "Last checked",
         "never": "never",
-        "saved": "Saved"
+        "saved": "Saved",
+        "estimate_now": "Now",
+        "estimate_tag": "est.",
+        "estimate_method": {
+          "hourly": "Live estimate from hourly weather since the last calculation",
+          "proxy": "Estimate distributed from today's forecast since the last calculation"
+        }
       },
       "help": {
         "bucket": "Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",
@@ -463,6 +469,7 @@
         "targets_zones": "{count} zones",
         "will_skip": "Next run will likely be skipped",
         "will_run": "Conditions look clear for the next run.",
+        "why_skipped": "Why?",
         "provisional": "forecast — may change",
         "active_guards": "Active guards",
         "last_run": "Last run",

@@ -352,7 +352,13 @@
         "decision_unknown": "Nog niet berekend — druk op Bijwerken en daarna Bereken om te controleren.",
         "last_checked": "Laatst gecontroleerd",
         "never": "nooit",
-        "saved": "Opgeslagen"
+        "saved": "Opgeslagen",
+        "estimate_now": "Nu",
+        "estimate_tag": "schat.",
+        "estimate_method": {
+          "hourly": "Live schatting op basis van uurlijks weer sinds de laatste berekening",
+          "proxy": "Schatting verdeeld op basis van de verwachting van vandaag sinds de laatste berekening"
+        }
       },
       "help": {
         "bucket": "Bodemvochtbalans (voorraad). Een negatieve waarde betekent dat de bodem droog is en de zone water nodig heeft.",
@@ -371,6 +377,7 @@
         "targets_zones": "{count} zones",
         "will_skip": "Volgende beurt wordt waarschijnlijk overgeslagen",
         "will_run": "De omstandigheden lijken gunstig voor de volgende beurt.",
+        "why_skipped": "Waarom?",
         "provisional": "voorspelling — kan veranderen",
         "active_guards": "Actieve voorwaarden",
         "last_run": "Laatste beurt",

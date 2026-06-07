@@ -352,7 +352,13 @@
         "decision_unknown": "Ešte nevypočítané — stlačte Aktualizovať a potom Vypočítať na kontrolu.",
         "last_checked": "Naposledy skontrolované",
         "never": "nikdy",
-        "saved": "Uložené"
+        "saved": "Uložené",
+        "estimate_now": "Teraz",
+        "estimate_tag": "odh.",
+        "estimate_method": {
+          "hourly": "Živý odhad z hodinového počasia od posledného výpočtu",
+          "proxy": "Odhad rozložený z dnešnej predpovede od posledného výpočtu"
+        }
       },
       "help": {
         "bucket": "Bilancia vlhkosti pôdy (vedro). Záporná hodnota znamená, že pôda je suchá a zóna potrebuje vodu.",
@@ -371,6 +377,7 @@
         "targets_zones": "{count} zón",
         "will_skip": "Ďalšie spustenie sa pravdepodobne preskočí",
         "will_run": "Podmienky pre ďalšie spustenie vyzerajú priaznivo.",
+        "why_skipped": "Prečo?",
         "provisional": "predpoveď — môže sa zmeniť",
         "active_guards": "Aktívne podmienky",
         "last_run": "Posledné spustenie",

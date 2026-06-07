@@ -354,7 +354,13 @@
         "decision_unknown": "Pas encore calculé — appuyez sur Mettre à jour, puis Calculer pour vérifier.",
         "last_checked": "Dernière vérification",
         "never": "jamais",
-        "saved": "Enregistré"
+        "saved": "Enregistré",
+        "estimate_now": "Maintenant",
+        "estimate_tag": "est.",
+        "estimate_method": {
+          "hourly": "Estimation en direct à partir de la météo horaire depuis le dernier calcul",
+          "proxy": "Estimation répartie à partir de la prévision du jour depuis le dernier calcul"
+        }
       },
       "help": {
         "bucket": "Bilan d'humidité du sol (seau). Une valeur négative signifie que le sol est sec et que la zone a besoin d'eau.",
@@ -373,6 +379,7 @@
         "targets_zones": "{count} zones",
         "will_skip": "Le prochain cycle sera probablement ignoré",
         "will_run": "Les conditions semblent favorables pour le prochain cycle.",
+        "why_skipped": "Pourquoi ?",
         "provisional": "prévision — peut changer",
         "active_guards": "Conditions actives",
         "last_run": "Dernier cycle",

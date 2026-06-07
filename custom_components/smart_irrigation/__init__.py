@@ -49,6 +49,7 @@ from .helpers import (
 )
 from .irrigation import IrrigationRunnerMixin
 from .irrigation_unlimited import IrrigationUnlimitedIntegration
+from .live_estimate import LiveEstimateMixin
 from .panel import async_register_panel, remove_panel
 from .scheduler import RecurringScheduleManager
 from .services import ServiceHandlersMixin, async_register_services
@@ -248,6 +249,7 @@ class SmartIrrigationCoordinator(
     IrrigationRunnerMixin,
     CalculationMixin,
     SkipConditionsMixin,
+    LiveEstimateMixin,
 ):
     """Define an object to hold Smart Irrigation device.
 

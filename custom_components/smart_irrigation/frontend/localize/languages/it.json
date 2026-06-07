@@ -397,7 +397,13 @@
         "decision_unknown": "Non ancora calcolato — premi Aggiorna, poi Calcola per verificare.",
         "last_checked": "Ultimo controllo",
         "never": "mai",
-        "saved": "Salvato"
+        "saved": "Salvato",
+        "estimate_now": "Ora",
+        "estimate_tag": "stima",
+        "estimate_method": {
+          "hourly": "Stima live dai dati meteo orari dall'ultimo calcolo",
+          "proxy": "Stima distribuita dalla previsione di oggi dall'ultimo calcolo"
+        }
       },
       "help": {
         "bucket": "Bilancio di umidità del suolo (secchio). Un valore negativo significa che il terreno è asciutto e la zona ha bisogno d'acqua.",
@@ -416,6 +422,7 @@
         "targets_zones": "{count} zone",
         "will_skip": "La prossima esecuzione sarà probabilmente saltata",
         "will_run": "Le condizioni sembrano favorevoli per la prossima esecuzione.",
+        "why_skipped": "Perché?",
         "provisional": "previsione — può cambiare",
         "active_guards": "Condizioni attive",
         "last_run": "Ultima esecuzione",

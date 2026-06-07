@@ -353,7 +353,13 @@
         "decision_unknown": "Aún sin calcular — pulsa Actualizar y luego Calcular para comprobar.",
         "last_checked": "Última comprobación",
         "never": "nunca",
-        "saved": "Guardado"
+        "saved": "Guardado",
+        "estimate_now": "Ahora",
+        "estimate_tag": "est.",
+        "estimate_method": {
+          "hourly": "Estimación en vivo del tiempo horario desde el último cálculo",
+          "proxy": "Estimación distribuida de la previsión de hoy desde el último cálculo"
+        }
       },
       "help": {
         "bucket": "Balance de humedad del suelo (cubo). Un valor negativo significa que el suelo está seco y la zona necesita agua.",
@@ -372,6 +378,7 @@
         "targets_zones": "{count} zonas",
         "will_skip": "El próximo riego probablemente se omitirá",
         "will_run": "Las condiciones parecen despejadas para el próximo riego.",
+        "why_skipped": "¿Por qué?",
         "provisional": "previsión — puede cambiar",
         "active_guards": "Condiciones activas",
         "last_run": "Último riego",

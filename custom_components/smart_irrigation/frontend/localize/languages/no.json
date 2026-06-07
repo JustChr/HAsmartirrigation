@@ -353,7 +353,13 @@
         "decision_unknown": "Ikke beregnet ennå — trykk Oppdater og deretter Beregn for å sjekke.",
         "last_checked": "Sist sjekket",
         "never": "aldri",
-        "saved": "Lagret"
+        "saved": "Lagret",
+        "estimate_now": "Nå",
+        "estimate_tag": "est.",
+        "estimate_method": {
+          "hourly": "Sanntidsestimat fra timesvær siden forrige beregning",
+          "proxy": "Estimat fordelt fra dagens varsel siden forrige beregning"
+        }
       },
       "help": {
         "bucket": "Jordfuktighetsbalanse (bøtte). En negativ verdi betyr at jorda er tørr og sonen trenger vann.",
@@ -372,6 +378,7 @@
         "targets_zones": "{count} soner",
         "will_skip": "Neste kjøring blir trolig hoppet over",
         "will_run": "Forholdene ser klare ut for neste kjøring.",
+        "why_skipped": "Hvorfor?",
         "provisional": "varsel — kan endre seg",
         "active_guards": "Aktive betingelser",
         "last_run": "Forrige kjøring",

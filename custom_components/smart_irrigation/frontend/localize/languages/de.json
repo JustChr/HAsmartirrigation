@@ -352,7 +352,13 @@
         "decision_unknown": "Noch nicht berechnet — auf Aktualisieren und dann Berechnen drücken.",
         "last_checked": "Zuletzt geprüft",
         "never": "nie",
-        "saved": "Gespeichert"
+        "saved": "Gespeichert",
+        "estimate_now": "Jetzt",
+        "estimate_tag": "gesch.",
+        "estimate_method": {
+          "hourly": "Live-Schätzung aus stündlichem Wetter seit der letzten Berechnung",
+          "proxy": "Schätzung aus der heutigen Vorhersage seit der letzten Berechnung"
+        }
       },
       "help": {
         "bucket": "Bodenfeuchte-Bilanz (Vorrat). Ein negativer Wert bedeutet, dass der Boden trocken ist und die Zone Wasser braucht.",
@@ -371,6 +377,7 @@
         "targets_zones": "{count} Zonen",
         "will_skip": "Nächster Lauf wird wahrscheinlich übersprungen",
         "will_run": "Bedingungen für den nächsten Lauf sehen gut aus.",
+        "why_skipped": "Warum?",
         "provisional": "Vorhersage — kann sich ändern",
         "active_guards": "Aktive Bedingungen",
         "last_run": "Letzter Lauf",

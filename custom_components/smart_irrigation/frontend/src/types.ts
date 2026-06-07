@@ -117,11 +117,22 @@ export interface UpcomingRun {
   interval_hours?: number;
 }
 
+/** Read-only intra-day "live status" estimate for one zone. */
+export interface ZoneEstimate {
+  available: boolean;
+  method: "hourly" | "proxy" | string | null;
+  et_since: number | null;
+  precip_since: number | null;
+  live_deficit: number | null;
+  as_of: string | null;
+}
+
 export interface IrrigationOutlook {
   weather_service_enabled: boolean;
   skip_preview: SkipPreview;
   last_skip_evaluation: (SkipPreview & { timestamp: string }) | null;
   upcoming_runs: UpcomingRun[];
+  zone_estimates?: Record<string, ZoneEstimate>;
 }
 
 export interface IrrigationStartTrigger {

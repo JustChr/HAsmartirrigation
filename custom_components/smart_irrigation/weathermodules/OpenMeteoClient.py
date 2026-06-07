@@ -39,6 +39,10 @@ OPENMETEO_URL = (
 # Wind height correction factor: 10 m → 2 m (Allen et al. FAO-56)
 _WIND_10M_TO_2M = 4.87 / math.log((67.8 * 10) - 5.42)
 
+# W m-2 → MJ m-2 hour-1 (×3600 s / 1e6 J). Open-Meteo's hourly
+# shortwave_radiation is the preceding-hour mean in W m-2.
+_W_TO_MJ_HOUR = 0.0036
+
 
 class OpenMeteoClient:
     """Open-Meteo weather client. No API key required."""
@@ -211,3 +215,66 @@ class OpenMeteoClient:
         ) as ex:
             _LOGGER.error("Open-Meteo get_forecast_data error: %s", ex)
             return None
+
+    def get_hourly_data(self):
+        """Return today's elapsed hourly rows (local) for the intra-day estimate.
+
+        Returns ``(rows, tz_offset_h)`` or ``(None, None)`` on failure. Each row:
+        ``{time, hour, doy, temperature, humidity, wind_2m, solar_mj_h,
+        precipitation}`` with the hour midpoint in local clock time. Only hours
+        from local midnight up to (and including) the current hour are returned.
+        """
+        try:
+            doc = self._fetch()
+            hourly = doc.get("hourly", {})
+            times = hourly.get("time", [])
+            if not times:
+                return None, None
+            tz_offset_h = doc.get("utc_offset_seconds", 0) / 3600.0
+            # 'time' entries are local (timezone=auto in the request URL).
+            now_local = datetime.datetime.utcnow() + datetime.timedelta(
+                hours=tz_offset_h
+            )
+            today = now_local.date()
+
+            temp = hourly.get("temperature_2m", [])
+            rh = hourly.get("relative_humidity_2m", [])
+            wind = hourly.get("wind_speed_10m", [])
+            rad = hourly.get("shortwave_radiation", [])
+            precip = hourly.get("precipitation", [])
+
+            rows = []
+            for i, tstr in enumerate(times):
+                dt = datetime.datetime.fromisoformat(tstr)
+                if dt.date() != today or dt > now_local:
+                    continue
+
+                def g(arr, idx=i):
+                    return arr[idx] if idx < len(arr) else None
+
+                t, h, w = g(temp), g(rh), g(wind)
+                if None in (t, h, w):
+                    continue
+                rows.append(
+                    {
+                        "time": tstr,
+                        "hour": dt.hour + 0.5,
+                        "doy": dt.timetuple().tm_yday,
+                        "temperature": t,
+                        "humidity": h,
+                        "wind_2m": self._wind_2m(w),
+                        "solar_mj_h": (g(rad) or 0.0) * _W_TO_MJ_HOUR,
+                        "precipitation": g(precip) or 0.0,
+                    }
+                )
+            return rows, tz_offset_h
+
+        except (
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            IndexError,
+            ValueError,
+        ) as ex:
+            _LOGGER.error("Open-Meteo get_hourly_data error: %s", ex)
+            return None, None

@@ -84,6 +84,11 @@ class SkipConditionsMixin:
         config = await self.store.async_get_config()
         skip_preview = await self.async_evaluate_skip_conditions()
         upcoming = await self.recurring_schedule_manager.async_get_upcoming_runs()
+        try:
+            zone_estimates = await self.async_get_zone_estimates()
+        except Exception as e:  # noqa: BLE001 — outlook must not fail on the estimate
+            _LOGGER.debug("Intra-day estimates unavailable: %s", e)
+            zone_estimates = {}
         return {
             "weather_service_enabled": bool(
                 config.get(
@@ -94,6 +99,7 @@ class SkipConditionsMixin:
             "skip_preview": skip_preview,
             "last_skip_evaluation": getattr(self, "_last_skip_evaluation", None),
             "upcoming_runs": upcoming,
+            "zone_estimates": zone_estimates,
         }
 
     async def _eval_precipitation(self, config) -> dict:

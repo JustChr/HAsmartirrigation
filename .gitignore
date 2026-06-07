@@ -54,6 +54,7 @@ Thumbs.db
 # Local WSL dev helper scripts (machine-specific paths)
 _setup_wsl_env.sh
 _wsl_test.sh
+_et_estimate_diag.py
 
 # Claude Code local (personal) settings - not for the public fork
 .claude/settings.local.json

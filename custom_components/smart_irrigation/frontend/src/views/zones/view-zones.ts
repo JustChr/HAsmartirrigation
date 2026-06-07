@@ -23,6 +23,7 @@ import {
   IrrigationOutlook,
   UpcomingRun,
   SkipCheck,
+  ZoneEstimate,
 } from "../../types";
 import {
   output_unit,
@@ -79,6 +80,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
   // Pending irrigate confirmation: "all", a zone id (string), or null.
   @state() private _confirmIrrigate: string | null = null;
+
+  // Whether the "why won't it run" skip reasons are expanded (tap-friendly).
+  @state() private _skipDetailsOpen = false;
 
   private _updateScheduled = false;
   private _scheduleUpdate() {
@@ -355,15 +359,24 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     );
   }
 
-  /** Multi-line "why the next run will skip" text for the info-icon tooltip. */
-  private _skipDetailText(): string {
+  /** Expandable "why the next run will skip" reasons (tap-friendly on mobile). */
+  private _renderSkipReasons(): TemplateResult {
     const lang = this.hass!.language;
-    const lines = this._triggeredGuards.map((c) => {
-      const detail = this._guardDetail(c);
-      return detail ? `${this._guardLabel(c)}: ${detail}` : this._guardLabel(c);
-    });
-    lines.push(`(${localize("panels.zones.outlook.provisional", lang)})`);
-    return lines.join("\n");
+    return html`
+      <div class="outlook-line outlook-skip-reasons">
+        <ul class="skip-reasons">
+          ${this._triggeredGuards.map((c) => {
+            const detail = this._guardDetail(c);
+            return html`<li>
+              ${this._guardLabel(c)}${detail ? html` — ${detail}` : ""}
+            </li>`;
+          })}
+        </ul>
+      </div>
+      <div class="outlook-line outlook-dim skip-reasons-note">
+        ${localize("panels.zones.outlook.provisional", lang)}
+      </div>
+    `;
   }
 
   private _openSchedules(): void {
@@ -453,10 +466,31 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   <span
                     >${localize("panels.zones.outlook.will_skip", lang)}</span
                   >
-                  <span class="outlook-info" title="${this._skipDetailText()}">
-                    <ha-icon icon="mdi:information-outline"></ha-icon>
-                  </span>
+                  <button
+                    class="outlook-info-btn"
+                    aria-expanded="${this._skipDetailsOpen}"
+                    title="${localize(
+                      "panels.zones.outlook.why_skipped",
+                      lang,
+                    )}"
+                    @click="${() => {
+                      this._skipDetailsOpen = !this._skipDetailsOpen;
+                    }}"
+                  >
+                    <ha-icon
+                      icon="${this._skipDetailsOpen
+                        ? "mdi:chevron-up"
+                        : "mdi:information-outline"}"
+                    ></ha-icon>
+                    <span class="outlook-info-label"
+                      >${localize(
+                        "panels.zones.outlook.why_skipped",
+                        lang,
+                      )}</span
+                    >
+                  </button>
                 </div>
+                ${this._skipDetailsOpen ? this._renderSkipReasons() : ""}
               `
             : html`
                 <div class="outlook-line outlook-clear">
@@ -569,6 +603,42 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     `;
   }
 
+  private _zoneEstimate(zone: SmartIrrigationZone): ZoneEstimate | undefined {
+    if (zone.id === undefined) return undefined;
+    return this._outlook?.zone_estimates?.[String(zone.id)];
+  }
+
+  /**
+   * Read-only "live" deficit estimate chip for the status line. Distinct from
+   * the official bucket (which drives irrigation) — this just shows the
+   * estimated drift since the last calculation.
+   */
+  private _renderZoneEstimate(zone: SmartIrrigationZone): TemplateResult {
+    if (!this.hass) return html``;
+    const est = this._zoneEstimate(zone);
+    if (!est || !est.available || est.live_deficit == null) return html``;
+    const lang = this.hass.language;
+    const unit = output_unit(this.config, ZONE_BUCKET);
+    const color =
+      est.live_deficit < 0 ? "var(--warning-color)" : "var(--success-color)";
+    const methodKey = est.method === "proxy" ? "proxy" : "hourly";
+    const detail =
+      localize(`panels.zones.status.estimate_method.${methodKey}`, lang) +
+      (est.as_of ? ` · ${moment(est.as_of).format("HH:mm")}` : "");
+    return html`
+      <span class="status-sep">·</span>
+      <span class="zone-estimate" title="${detail}">
+        ${localize("panels.zones.status.estimate_now", lang)}
+        <strong style="color: ${color}"
+          >≈ ${est.live_deficit.toFixed(2)} ${unit}</strong
+        >
+        <span class="estimate-tag"
+          >${localize("panels.zones.status.estimate_tag", lang)}</span
+        >
+      </span>
+    `;
+  }
+
   /** Per-zone "next run" fragment for the status line, when one is scheduled. */
   private _renderZoneNextRun(zone: SmartIrrigationZone): TemplateResult {
     if (!this.hass) return html``;
@@ -657,7 +727,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
               )}:
               <strong>${lastChecked}</strong>
             </span>
-            ${this._renderZoneNextRun(zone)}
+            ${this._renderZoneEstimate(zone)} ${this._renderZoneNextRun(zone)}
           </div>
         </div>
 
@@ -1061,16 +1131,51 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         font-weight: 400;
       }
 
-      /* Info icon carrying the "why it will skip" detail as a native tooltip */
-      .outlook-info {
+      /* Tap-to-expand "why it will skip" toggle (works on touch + desktop) */
+      .outlook-info-btn {
         display: inline-flex;
         align-items: center;
-        cursor: help;
+        gap: 2px;
+        background: transparent;
+        border: none;
+        color: var(--warning-color, #ed6c02);
+        cursor: pointer;
+        font: inherit;
+        padding: 4px 6px;
+        border-radius: 6px;
       }
 
-      .outlook-info ha-icon {
+      .outlook-info-btn:hover {
+        background: rgba(255, 152, 0, 0.12);
+      }
+
+      .outlook-info-btn ha-icon {
         --mdc-icon-size: 18px;
+      }
+
+      .outlook-info-label {
+        font-size: 0.8125rem;
+        text-decoration: underline;
+      }
+
+      /* Expanded skip reasons */
+      .outlook-skip-reasons {
         color: var(--warning-color, #ed6c02);
+      }
+
+      .skip-reasons {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 0.85rem;
+      }
+
+      .skip-reasons li {
+        margin: 2px 0;
+      }
+
+      .skip-reasons-note {
+        font-size: 0.8rem;
+        font-style: italic;
       }
 
       .outlook-link {
@@ -1102,6 +1207,18 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
       .status-sep {
         opacity: 0.5;
+      }
+
+      /* Read-only "live" estimate chip */
+      .zone-estimate {
+        cursor: help;
+      }
+
+      .estimate-tag {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.65;
       }
 
       /* Action bar */
