@@ -756,7 +756,7 @@
       ge = !1, ve = null;
     }
   };
-  const fe = `v${"2026.06.12"}`,
+  const fe = `v${"2026.06.13"}`,
     be = "smart_irrigation",
     ke = "metric",
     ye = "bucket",
