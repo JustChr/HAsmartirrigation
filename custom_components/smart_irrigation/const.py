@@ -261,6 +261,11 @@ ZONE_LEAD_TIME = "lead_time"
 ZONE_MAXIMUM_DURATION = "maximum_duration"
 ZONE_MAXIMUM_BUCKET = "maximum_bucket"
 ZONE_LAST_CALCULATED = "last_calculated"
+# Internal per-zone watermark: the instant up to which this zone has already
+# folded shared mapping weather data into its bucket. Separate from the
+# user-facing last_calculated so each zone consumes its own window of the shared
+# buffer (multiple zones can use the same mapping). See calculation.py.
+ZONE_LAST_CONSUMED = "last_consumed_at"
 ZONE_LAST_UPDATED = "last_updated"
 ZONE_NUMBER_OF_DATA_POINTS = "number_of_data_points"
 ZONE_DRAINAGE_RATE = "drainage_rate"

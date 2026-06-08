@@ -212,6 +212,51 @@ class TestZoneOperations:
         assert created_zone[const.ZONE_ID] is not None
 
     @pytest.mark.asyncio
+    async def test_new_zone_anchors_last_consumed_at(self, hass):
+        """A newly created zone anchors its consumption watermark at ~now."""
+        import datetime
+
+        store = SmartIrrigationStorage(hass)
+        await store.async_load()
+
+        before = datetime.datetime.now()
+        created = await store.async_create_zone(
+            {
+                const.ZONE_NAME: "Anchored",
+                const.ZONE_SIZE: 50.0,
+                const.ZONE_THROUGHPUT: 10.0,
+                const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+            }
+        )
+        after = datetime.datetime.now()
+
+        watermark = created[const.ZONE_LAST_CONSUMED]
+        assert watermark is not None
+        assert before <= watermark <= after
+
+    @pytest.mark.asyncio
+    async def test_update_zone_persists_last_consumed_at(self, hass):
+        """The watermark round-trips through async_update_zone."""
+        import datetime
+
+        store = SmartIrrigationStorage(hass)
+        await store.async_load()
+        created = await store.async_create_zone(
+            {
+                const.ZONE_NAME: "Watermark",
+                const.ZONE_SIZE: 50.0,
+                const.ZONE_THROUGHPUT: 10.0,
+                const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+            }
+        )
+        new_mark = datetime.datetime(2026, 6, 8, 12, 0, 0)
+        await store.async_update_zone(
+            created[const.ZONE_ID], {const.ZONE_LAST_CONSUMED: new_mark}
+        )
+        zone = store.get_zone(created[const.ZONE_ID])
+        assert zone[const.ZONE_LAST_CONSUMED] == new_mark
+
+    @pytest.mark.asyncio
     async def test_async_save_zone_update(self, store_with_zones):
         """Test updating existing zone."""
         zones = await store_with_zones.async_get_zones()
@@ -514,7 +559,7 @@ class TestBasicFunctionality:
             const.ZONE_THROUGHPUT: 10.0,
             const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
         }
-        created_zone = await store.async_create_zone(zone_data)
+        await store.async_create_zone(zone_data)
 
         # Verify data persistence
         config = await store.async_get_config()
