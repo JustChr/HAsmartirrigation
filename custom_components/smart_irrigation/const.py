@@ -177,10 +177,6 @@ CONF_DEFAULT_AUTO_UPDATE_ENABLED = True
 CONF_AUTO_UPDATE_DELAY = "autoupdatedelay"
 CONF_DEFAULT_AUTO_UPDATE_DELAY = "0"
 CONF_AUTO_UPDATE_INTERVAL = "autoupdateinterval"
-CONF_AUTO_CLEAR_ENABLED = "autoclearenabled"
-CONF_DEFAULT_AUTO_CLEAR_ENABLED = True
-CONF_CLEAR_TIME = "cleardatatime"
-CONF_DEFAULT_CLEAR_TIME = "23:59"
 CONF_DEFAULT_AUTO_UPDATE_INTERVAL = "1"
 CONF_UNITS = "units"
 CONF_IMPERIAL = "imperial"
@@ -191,10 +187,6 @@ CONF_DEFAULT_MAXIMUM_DURATION = (
 )
 CONF_DEFAULT_MAXIMUM_BUCKET = 24  # mm default maximum bucket of 24mm
 CONF_DEFAULT_DRAINAGE_RATE = 50.8  # mm / hour (=2 inch per hour)
-CONF_DEFAULT_CONTINUOUS_UPDATES = False  # continuous updates are disabled by default
-CONF_CONTINUOUS_UPDATES = "continuousupdates"
-CONF_SENSOR_DEBOUNCE = "sensor_debounce"
-CONF_DEFAULT_SENSOR_DEBOUNCE = 100  # milliseconds, 0 = disabled
 
 # PyETO specific config consts
 CONF_PYETO_COASTAL = "coastal"

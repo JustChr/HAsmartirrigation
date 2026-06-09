@@ -25,15 +25,11 @@ import {
   AUTO_UPDATE_SCHEDULE_HOURLY,
   AUTO_UPDATE_SCHEDULE_MINUTELY,
   CONF_AUTO_CALC_ENABLED,
-  CONF_AUTO_CLEAR_ENABLED,
   CONF_AUTO_UPDATE_ENABLED,
   CONF_AUTO_UPDATE_INTERVAL,
   CONF_AUTO_UPDATE_SCHEDULE,
   CONF_AUTO_UPDATE_TIME,
   CONF_CALC_TIME,
-  CONF_CLEAR_TIME,
-  CONF_CONTINUOUS_UPDATES,
-  CONF_SENSOR_DEBOUNCE,
   CONF_PRECIPITATION_THRESHOLD_MM,
   CONF_MANUAL_COORDINATES_ENABLED,
   CONF_MANUAL_LATITUDE,
@@ -154,10 +150,6 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
         CONF_AUTO_UPDATE_SCHEDULE,
         CONF_AUTO_UPDATE_TIME,
         CONF_AUTO_UPDATE_INTERVAL,
-        CONF_AUTO_CLEAR_ENABLED,
-        CONF_CLEAR_TIME,
-        CONF_CONTINUOUS_UPDATES,
-        CONF_SENSOR_DEBOUNCE,
         CONF_MANUAL_COORDINATES_ENABLED,
         CONF_MANUAL_LATITUDE,
         CONF_MANUAL_LONGITUDE,
@@ -201,9 +193,8 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       ${this._renderSaveStatus()} ${this._renderSection("weather")}
       ${this._renderWeatherServiceCard()} ${this._renderWeatherSkipCard()}
       ${this._renderSection("automation")} ${this._renderAutoUpdateCard()}
-      ${this._renderAutoCalcCard()} ${this._renderContinuousUpdatesCard()}
-      ${this._renderSection("location")} ${this._renderCoordinateCard()}
-      ${this._renderSection("watering")}
+      ${this._renderAutoCalcCard()} ${this._renderSection("location")}
+      ${this._renderCoordinateCard()} ${this._renderSection("watering")}
       ${this._renderDaysBetweenIrrigationCard()}
       ${this._renderZoneSequencingCard()}
     `;
@@ -676,69 +667,6 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       </ha-card>
     `;
   }
-
-  private _renderContinuousUpdatesCard(): TemplateResult {
-    if (!this.hass || !this.config || !this.data) return html``;
-    return html`
-      <ha-card
-        header="${localize(
-          "panels.general.cards.continuousupdates.header",
-          this.hass.language,
-        )}"
-      >
-        <div class="card-content description-text">
-          ${localize(
-            "panels.general.cards.continuousupdates.description",
-            this.hass.language,
-          )}
-        </div>
-        <div class="card-content">
-          <div class="setting-row">
-            <label>
-              ${localize(
-                "panels.general.cards.continuousupdates.labels.continuousupdates",
-                this.hass.language,
-              )}
-            </label>
-            <ha-switch
-              .checked="${this.config.continuousupdates}"
-              @change="${(e: Event) =>
-                this.handleConfigChange({
-                  continuousupdates: (e.target as HTMLInputElement).checked,
-                })}"
-            ></ha-switch>
-          </div>
-          ${this.data.continuousupdates
-            ? html`
-                <div class="setting-row">
-                  <label>
-                    ${localize(
-                      "panels.general.cards.continuousupdates.labels.sensor_debounce",
-                      this.hass.language,
-                    )}
-                    (ms)
-                  </label>
-                  <input
-                    type="number"
-                    class="settings-input shortfield"
-                    min="0"
-                    step="1"
-                    inputmode="numeric"
-                    .value="${this.config.sensor_debounce ?? 100}"
-                    @input="${(e: Event) => {
-                      const v = parseInt((e.target as HTMLInputElement).value);
-                      if (!isNaN(v))
-                        this.handleConfigChange({ sensor_debounce: v });
-                    }}"
-                  />
-                </div>
-              `
-            : ""}
-        </div>
-      </ha-card>
-    `;
-  }
-
   private _renderWeatherSkipCard(): TemplateResult {
     if (!this.hass || !this.config || !this.data) return html``;
     return html`

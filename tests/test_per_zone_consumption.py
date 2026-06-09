@@ -33,7 +33,6 @@ async def coord(hass):
     entry.options = {}
     c = SmartIrrigationCoordinator(hass, None, entry, store)
     c.store = store
-    c.update_subscriptions = AsyncMock()
     # Avoid needing a real ET module / weather client.
     c.calculate_module = AsyncMock(
         return_value={const.ZONE_BUCKET: -1.0, const.ZONE_DURATION: 0}

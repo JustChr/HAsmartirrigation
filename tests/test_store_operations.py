@@ -1,11 +1,36 @@
 """Comprehensive tests for Smart Irrigation store operations."""
 
 import contextlib
+from unittest.mock import AsyncMock
 
 import pytest
 
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.store import SmartIrrigationStorage
+
+
+@pytest.mark.asyncio
+async def test_load_drops_non_irrigate_schedules(hass):
+    """Recurring schedules are irrigation-only; calculate/update/legacy drop."""
+    store = SmartIrrigationStorage(hass)
+    store._store.async_load = AsyncMock(
+        return_value={
+            "config": {
+                const.CONF_RECURRING_SCHEDULES: [
+                    {"id": "1", "action": "irrigate", "name": "water"},
+                    {"id": "2", "action": "calculate", "name": "calc"},
+                    {"id": "3", "action": "update", "name": "upd"},
+                    {"id": "4", "name": "no-action"},  # missing action -> drop
+                ],
+            },
+            "zones": [],
+            "modules": [],
+            "mappings": [],
+        }
+    )
+    await store.async_load()
+    kept = store.get_config()[const.CONF_RECURRING_SCHEDULES]
+    assert [s["id"] for s in kept] == ["1"]
 
 
 class TestSmartIrrigationStorageBasics:

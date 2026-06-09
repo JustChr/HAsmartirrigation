@@ -28,7 +28,6 @@ def mock_store():
 
     from custom_components.smart_irrigation.const import (
         CONF_AUTO_CALC_ENABLED,
-        CONF_AUTO_CLEAR_ENABLED,
         CONF_AUTO_UPDATE_ENABLED,
         CONF_USE_WEATHER_SERVICE,
         CONF_WEATHER_SERVICE,
@@ -43,7 +42,6 @@ def mock_store():
         CONF_WEATHER_SERVICE: None,
         CONF_AUTO_UPDATE_ENABLED: False,
         CONF_AUTO_CALC_ENABLED: False,
-        CONF_AUTO_CLEAR_ENABLED: False,
         START_EVENT_FIRED_TODAY: False,
     }
 
@@ -78,7 +76,6 @@ def mock_store():
             CONF_WEATHER_SERVICE: None,
             CONF_AUTO_UPDATE_ENABLED: False,
             CONF_AUTO_CALC_ENABLED: False,
-            CONF_AUTO_CLEAR_ENABLED: False,
             START_EVENT_FIRED_TODAY: False,
         }
     )

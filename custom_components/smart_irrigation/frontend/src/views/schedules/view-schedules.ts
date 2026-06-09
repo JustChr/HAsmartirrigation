@@ -162,14 +162,6 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return l || type;
   }
 
-  private _actionLabel(action: string) {
-    const l = localize(
-      `panels.schedules.actions.${action}`,
-      this.hass.language,
-    );
-    return l || action;
-  }
-
   private _zonesLabel(zones: string | string[]) {
     if (zones === "all")
       return localize("panels.schedules.zones_all", this.hass.language);
@@ -567,32 +559,8 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
             </select>
           </div>
 
-          ${this._renderTypeFields()}
-
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.action",
-                this.hass.language,
-              )}</label
-            >
-            <select
-              @change=${(e: Event) =>
-                this._update({
-                  action: (e.target as HTMLSelectElement).value,
-                })}
-            >
-              ${["calculate", "update", "irrigate"].map(
-                (a) => html`
-                  <option value="${a}" ?selected="${s.action === a}">
-                    ${this._actionLabel(a)}
-                  </option>
-                `,
-              )}
-            </select>
-          </div>
-
-          ${this._renderTimeAnchorField()} ${this._renderZonePicker()}
+          ${this._renderTypeFields()} ${this._renderTimeAnchorField()}
+          ${this._renderZonePicker()}
 
           <div class="field-row">
             <label
@@ -745,15 +713,6 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                         </div>
                       `
                     : ""}
-                  <div class="info-row">
-                    <span class="info-label"
-                      >${localize(
-                        "panels.schedules.fields.action",
-                        this.hass.language,
-                      )}:</span
-                    >
-                    <span>${this._actionLabel(s.action)}</span>
-                  </div>
                   <div class="info-row">
                     <span class="info-label"
                       >${localize(

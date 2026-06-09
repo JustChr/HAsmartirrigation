@@ -116,7 +116,6 @@ def mock_store():
     default_config = {
         const.CONF_AUTO_UPDATE_ENABLED: False,
         const.CONF_AUTO_CALC_ENABLED: False,
-        const.CONF_AUTO_CLEAR_ENABLED: False,
         const.CONF_USE_WEATHER_SERVICE: False,
     }
     store.get_config = Mock(return_value=default_config)
@@ -140,7 +139,6 @@ def mock_coordinator(mock_store):
     coordinator.id = "test_coordinator_id"
     coordinator.store = mock_store
     coordinator.use_weather_service = False
-    coordinator.update_subscriptions = AsyncMock()
     coordinator.async_unload = AsyncMock()
     coordinator.async_delete_config = AsyncMock()
     coordinator.setup_SmartIrrigation_entities = AsyncMock()

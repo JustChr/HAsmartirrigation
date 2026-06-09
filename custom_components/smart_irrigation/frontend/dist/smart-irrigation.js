@@ -1095,7 +1095,7 @@
       },
       schedules: {
         title: "Schedules",
-        description: "Create recurring schedules to automatically calculate, update, or irrigate your zones. No automations needed.",
+        description: "Create recurring schedules to automatically irrigate your zones at specific times. No automations needed.",
         add: "Add Schedule",
         no_items: "No schedules configured yet. Click 'Add Schedule' to get started.",
         zones_all: "All zones",
@@ -5265,7 +5265,7 @@
       t && (this.isLoading = !0, this._scheduleUpdate());
       try {
         const [t, s] = await Promise.all([Pa(this.hass), Ga(this.hass)]);
-        this.config = t, this._weatherConfig = s, this._useWeatherService = s.use_weather_service, this._weatherService = null !== (e = s.weather_service) && void 0 !== e ? e : ze, this.data = (i = this.config, a = ["calctime", "autocalcenabled", "autoupdateenabled", "autoupdateschedule", "autoupdatefirsttime", "autoupdateinterval", "autoclearenabled", "cleardatatime", "continuousupdates", "sensor_debounce", "manual_coordinates_enabled", "manual_latitude", "manual_longitude", "manual_elevation", "days_between_irrigation"], i ? Object.entries(i).filter(([e]) => a.includes(e)).reduce((e, [t, i]) => Object.assign(e, {
+        this.config = t, this._weatherConfig = s, this._useWeatherService = s.use_weather_service, this._weatherService = null !== (e = s.weather_service) && void 0 !== e ? e : ze, this.data = (i = this.config, a = ["calctime", "autocalcenabled", "autoupdateenabled", "autoupdateschedule", "autoupdatefirsttime", "autoupdateinterval", "manual_coordinates_enabled", "manual_latitude", "manual_longitude", "manual_elevation", "days_between_irrigation"], i ? Object.entries(i).filter(([e]) => a.includes(e)).reduce((e, [t, i]) => Object.assign(e, {
           [t]: i
         }), {}) : {}), this._initialLoadDone = !0;
       } catch (e) {
@@ -5288,9 +5288,8 @@
       ${this._renderSaveStatus()} ${this._renderSection("weather")}
       ${this._renderWeatherServiceCard()} ${this._renderWeatherSkipCard()}
       ${this._renderSection("automation")} ${this._renderAutoUpdateCard()}
-      ${this._renderAutoCalcCard()} ${this._renderContinuousUpdatesCard()}
-      ${this._renderSection("location")} ${this._renderCoordinateCard()}
-      ${this._renderSection("watering")}
+      ${this._renderAutoCalcCard()} ${this._renderSection("location")}
+      ${this._renderCoordinateCard()} ${this._renderSection("watering")}
       ${this._renderDaysBetweenIrrigationCard()}
       ${this._renderZoneSequencingCard()}
     ` : F`<div class="loading-indicator">
@@ -5579,53 +5578,6 @@
                     @input="${e => this.handleConfigChange({
         calctime: e.target.value
       })}"
-                  />
-                </div>
-              ` : ""}
-        </div>
-      </ha-card>
-    ` : F``;
-    }
-    _renderContinuousUpdatesCard() {
-      var e;
-      return this.hass && this.config && this.data ? F`
-      <ha-card
-        header="${Sa("panels.general.cards.continuousupdates.header", this.hass.language)}"
-      >
-        <div class="card-content description-text">
-          ${Sa("panels.general.cards.continuousupdates.description", this.hass.language)}
-        </div>
-        <div class="card-content">
-          <div class="setting-row">
-            <label>
-              ${Sa("panels.general.cards.continuousupdates.labels.continuousupdates", this.hass.language)}
-            </label>
-            <ha-switch
-              .checked="${this.config.continuousupdates}"
-              @change="${e => this.handleConfigChange({
-        continuousupdates: e.target.checked
-      })}"
-            ></ha-switch>
-          </div>
-          ${this.data.continuousupdates ? F`
-                <div class="setting-row">
-                  <label>
-                    ${Sa("panels.general.cards.continuousupdates.labels.sensor_debounce", this.hass.language)}
-                    (ms)
-                  </label>
-                  <input
-                    type="number"
-                    class="settings-input shortfield"
-                    min="0"
-                    step="1"
-                    inputmode="numeric"
-                    .value="${null !== (e = this.config.sensor_debounce) && void 0 !== e ? e : 100}"
-                    @input="${e => {
-        const t = parseInt(e.target.value);
-        isNaN(t) || this.handleConfigChange({
-          sensor_debounce: t
-        });
-      }}"
                   />
                 </div>
               ` : ""}
@@ -8566,9 +8518,6 @@
     _typeLabel(e) {
       return Sa(`panels.schedules.types.${e}`, this.hass.language) || e;
     }
-    _actionLabel(e) {
-      return Sa(`panels.schedules.actions.${e}`, this.hass.language) || e;
-    }
     _zonesLabel(e) {
       if ("all" === e) return Sa("panels.schedules.zones_all", this.hass.language);
       if (Array.isArray(e)) {
@@ -8873,26 +8822,8 @@
             </select>
           </div>
 
-          ${this._renderTypeFields()}
-
-          <div class="field">
-            <label
-              >${Sa("panels.schedules.fields.action", this.hass.language)}</label
-            >
-            <select
-              @change=${e => this._update({
-        action: e.target.value
-      })}
-            >
-              ${["calculate", "update", "irrigate"].map(t => F`
-                  <option value="${t}" ?selected="${e.action === t}">
-                    ${this._actionLabel(t)}
-                  </option>
-                `)}
-            </select>
-          </div>
-
-          ${this._renderTimeAnchorField()} ${this._renderZonePicker()}
+          ${this._renderTypeFields()} ${this._renderTimeAnchorField()}
+          ${this._renderZonePicker()}
 
           <div class="field-row">
             <label
@@ -9007,12 +8938,6 @@
                           >
                         </div>
                       ` : ""}
-                  <div class="info-row">
-                    <span class="info-label"
-                      >${Sa("panels.schedules.fields.action", this.hass.language)}:</span
-                    >
-                    <span>${this._actionLabel(e.action)}</span>
-                  </div>
                   <div class="info-row">
                     <span class="info-label"
                       >${Sa("panels.schedules.fields.zones", this.hass.language)}:</span

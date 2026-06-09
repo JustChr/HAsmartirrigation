@@ -1,6 +1,5 @@
 """The Smart Irrigation Integration."""
 
-import contextlib
 import logging
 from datetime import datetime, timedelta
 
@@ -10,10 +9,8 @@ from homeassistant.const import (
     CONF_ELEVATION,
     CONF_LATITUDE,
     CONF_LONGITUDE,
-    STATE_UNAVAILABLE,
-    STATE_UNKNOWN,
 )
-from homeassistant.core import Event, HomeAssistant, State, asyncio, callback
+from homeassistant.core import HomeAssistant, asyncio, callback
 from homeassistant.helpers import (
     config_validation as cv,
 )
@@ -30,7 +27,6 @@ from homeassistant.helpers.dispatcher import (
 )
 from homeassistant.helpers.event import (
     async_call_later,
-    async_track_state_change_event,
     async_track_time_change,
     async_track_time_interval,
 )
@@ -183,7 +179,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     await coordinator.recurring_schedule_manager.async_load_schedules()
     await coordinator.irrigation_unlimited_integration.async_initialize()
 
-    await coordinator.update_subscriptions()
     return True
 
 
@@ -337,11 +332,9 @@ class SmartIrrigationCoordinator(
         )
         self._track_auto_calc_time_unsub = None
         self._track_auto_update_time_unsub = None
-        self._track_auto_clear_time_unsub = None
         self._track_midnight_time_unsub = None
         self._pending_track_update_unsub = None  # cancel handle for async_call_later
-        self._debounced_update_cancel = {}  # mapping_id -> cancel callback
-        # Auto update/calc/clear timers are set up by async_setup_timers(), which
+        # Auto update/calc timers are set up by async_setup_timers(), which
         # async_setup_entry awaits after construction — see that method. Doing it
         # here previously required fire-and-forget tasks (unawaited, errors lost).
 
@@ -354,11 +347,6 @@ class SmartIrrigationCoordinator(
         self.irrigation_unlimited_integration = IrrigationUnlimitedIntegration(
             hass, self
         )
-
-        # WIP v2024.6.X:
-        # experiment with subscriptions on sensors
-        self._sensor_subscriptions = []
-        self._sensors_to_subscribe_to = []
 
         # set up midnight tracking
         self._track_midnight_time_unsub = async_track_time_change(
@@ -380,8 +368,6 @@ class SmartIrrigationCoordinator(
             await self.set_up_auto_update_time(the_config)
         if the_config[const.CONF_AUTO_CALC_ENABLED]:
             await self.set_up_auto_calc_time(the_config)
-        if the_config[const.CONF_AUTO_CLEAR_ENABLED]:
-            await self.set_up_auto_clear_time(the_config)
 
     def _get_config_value(self, key: str, default_value):
         """Get configuration value from Home Assistant config, entry data, or options with fallback to default.
@@ -517,15 +503,10 @@ class SmartIrrigationCoordinator(
         await self.set_up_auto_calc_time(data)
         # handle auto update changes, includings updating OWMClient cache settings
         await self.set_up_auto_update_time(data)
-        # handle auto clear changes
-        await self.set_up_auto_clear_time(data)
         await self.store.async_update_config(data)
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated")
 
     async def set_up_auto_update_time(self, data):  # noqa: D102
-        # WIP v2024.6.X:
-        # experiment to use subscriptions to catch all updates instead of just on a time schedule
-        await self.update_subscriptions(data)
         if data[const.CONF_AUTO_UPDATE_ENABLED]:
             # Cancel any previous pending async_call_later before scheduling a new one
             if self._pending_track_update_unsub:
@@ -543,398 +524,6 @@ class SmartIrrigationCoordinator(
             self._track_auto_update_time_unsub()
             self._track_auto_update_time_unsub = None
             await self.store.async_update_config(data)
-
-    async def update_subscriptions(self, config=None):
-        """Update sensor subscriptions for Smart Irrigation coordinator."""
-        # WIP v2024.6.X: move to subscriptions
-        # remove all existing sensor subscriptions
-        _LOGGER.debug("[update_subscriptions]: removing all sensor subscriptions")
-        for s in self._sensor_subscriptions:
-            with contextlib.suppress(Exception):
-                s()
-
-        # reset last calculation data
-        mappings = await self.store.async_get_mappings()
-        async with asyncio.TaskGroup() as tg:
-            for mapping in mappings:
-                mapping[const.MAPPING_DATA_LAST_CALCULATION] = {}
-                tg.create_task(
-                    self.store.async_update_mapping(
-                        mapping[const.MAPPING_ID],
-                        {const.MAPPING_DATA_LAST_CALCULATION: {}},
-                    )
-                )
-
-        # check if continuous updates are enabled, if not, skip this
-        # and log a debug message
-        if config is None:
-            config = await self.store.async_get_config()
-        if not config.get(const.CONF_CONTINUOUS_UPDATES):
-            _LOGGER.debug(
-                "[update_subscriptions]: continuous updates are disabled, skipping"
-            )
-            return
-
-        # subscribe to all sensors
-        self._sensors_to_subscribe_to = await self.get_sensors_to_subscribe_to()
-
-        if self._sensors_to_subscribe_to is not None:
-            for s in self._sensors_to_subscribe_to:
-                _LOGGER.debug("[update_subscriptions]: subscribing to %s", s)
-                self._sensor_subscriptions.append(
-                    async_track_state_change_event(
-                        self.hass,
-                        s,
-                        self.async_sensor_state_changed,
-                    )
-                )
-
-    async def get_sensors_to_subscribe_to(self):
-        """Return a list of sensor entity IDs to subscribe to for state changes."""
-        zones = await self.store.async_get_zones()
-        mappings = await self._get_unique_mappings_for_automatic_zones(zones)
-        sensors_to_subscribe_to = []
-        # loop over the mappings and store sensor data
-        for mapping_id in mappings:
-            (
-                owm_in_mapping,
-                sensor_in_mapping,
-                static_in_mapping,
-            ) = self.check_mapping_sources(mapping_id=mapping_id)
-            mapping = self.store.get_mapping(mapping_id)
-            if mapping is None:
-                _LOGGER.debug(
-                    "[get_sensors_to_subscribe_to]: mapping %s: is None",
-                    mapping_id,
-                )
-                continue
-
-            _LOGGER.debug(
-                "[get_sensors_to_subscribe_to]: mapping %s: %s",
-                mapping_id,
-                mapping[const.MAPPING_MAPPINGS],
-            )
-            if sensor_in_mapping:
-                for key, the_map in mapping[const.MAPPING_MAPPINGS].items():
-                    _LOGGER.debug("[get_sensors_to_subscribe_to]: %s %s", key, the_map)
-                    if not isinstance(the_map, str):
-                        if the_map.get(
-                            const.MAPPING_CONF_SOURCE
-                        ) == const.MAPPING_CONF_SOURCE_SENSOR and the_map.get(
-                            const.MAPPING_CONF_SENSOR
-                        ):
-                            # this mapping maps to a sensor, so retrieve its value from HA
-                            if (
-                                the_map.get(const.MAPPING_CONF_SENSOR)
-                                not in sensors_to_subscribe_to
-                            ):
-                                sensors_to_subscribe_to.append(
-                                    the_map.get(const.MAPPING_CONF_SENSOR)
-                                )
-                            else:
-                                _LOGGER.debug(
-                                    "[get_sensors_to_subscribe_to]: already added"
-                                )
-                        else:
-                            _LOGGER.debug(
-                                "[get_sensors_to_subscribe_to]: not mapped to a sensor"
-                            )
-                    else:
-                        _LOGGER.debug(
-                            "[get_sensors_to_subscribe_to]: the_map is a str, skipping"
-                        )
-            else:
-                _LOGGER.debug("[get_sensors_to_subscribe_to]: sensor not in mapping")
-
-        return sensors_to_subscribe_to
-
-    async def async_sensor_state_changed(
-        self, event: Event
-    ) -> None:  # old signature: entity, old_state, new_state):
-        """Handle a sensor state change event."""
-        timestamp = datetime.now()
-
-        # old_state_obj = event.data.get("old_state")
-        new_state_obj: State | None = event.data.get("new_state")
-        if new_state_obj is None:
-            return
-        entity = event.data.get("entity_id")
-        the_new_state = new_state_obj.state
-
-        # ignore states that don't have an actual value
-        if new_state_obj.state in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]:
-            _LOGGER.debug(
-                "[async_sensor_state_changed]: new state for %s is %s, ignoring",
-                entity,
-                the_new_state,
-            )
-            return
-        _LOGGER.debug(
-            "[async_sensor_state_changed]: new state for %s is %s",
-            entity,
-            the_new_state,
-        )
-
-        # get sensor debounce time from config
-        debounce = 0
-        the_config = await self.store.async_get_config()
-        if the_config[const.CONF_SENSOR_DEBOUNCE]:
-            debounce = int(the_config[const.CONF_SENSOR_DEBOUNCE])
-            _LOGGER.debug(
-                "[async_sensor_state_changed]: sensor debounce is %s ms", debounce
-            )
-
-        # get the mapping that uses this sensor
-        mappings = await self.store.async_get_mappings()
-        for mapping in mappings:
-            if not mapping.get(const.MAPPING_MAPPINGS):
-                continue
-            for key, val in mapping.get(const.MAPPING_MAPPINGS).items():
-                if isinstance(val, str) or val.get(const.MAPPING_CONF_SENSOR) != entity:
-                    continue
-
-                # add the mapping data with the new sensor value
-                # conversion to metric
-                mapping_data = mapping.get(const.MAPPING_DATA) or []
-                mapping_data.append(
-                    {
-                        key: convert_mapping_to_metric(
-                            float(the_new_state),
-                            key,
-                            val.get(const.MAPPING_CONF_UNIT),
-                            self.hass.config.units is METRIC_SYSTEM,
-                        ),
-                        const.RETRIEVED_AT: timestamp,
-                    }
-                )
-                # store the value in the last entry
-                data_last_entry = mapping.get(const.MAPPING_DATA_LAST_ENTRY)
-                if data_last_entry is None:
-                    data_last_entry = {}
-                data_last_entry[key] = mapping_data[-1][key]
-                changes = {
-                    const.MAPPING_DATA: mapping_data,
-                    const.MAPPING_DATA_LAST_ENTRY: data_last_entry,
-                }
-                await self.store.async_update_mapping(
-                    mapping.get(const.MAPPING_ID), changes
-                )
-                _LOGGER.debug(
-                    "[async_sensor_state_changed]: updated sensor group %s %s",
-                    mapping.get(const.MAPPING_ID),
-                    key,
-                )
-
-            mapping_id = mapping.get(const.MAPPING_ID)
-            if debounce > 0:
-                # Cancel any previously scheduled update for this mapping
-                if mapping_id in self._debounced_update_cancel:
-                    _LOGGER.debug(
-                        "[async_sensor_state_changed]: cancelling previously scheduled update for mapping_id=%s",
-                        mapping_id,
-                    )
-                    self._debounced_update_cancel[mapping_id]()
-                    del self._debounced_update_cancel[mapping_id]
-
-                # Schedule the update for this mapping
-                _LOGGER.debug(
-                    "[async_sensor_state_changed]: scheduling update in %s ms for mapping_id=%s",
-                    debounce,
-                    mapping_id,
-                )
-                self._debounced_update_cancel[mapping_id] = async_call_later(
-                    self.hass,
-                    timedelta(milliseconds=debounce),
-                    lambda now, mid=mapping_id: (
-                        _LOGGER.debug("[debounce lambda] Fired for mapping_id=%s", mid),
-                        self.hass.loop.call_soon_threadsafe(
-                            lambda: self.hass.async_create_task(
-                                self.async_continuous_update_for_mapping(mid)
-                            )
-                        ),
-                        self._debounced_update_cancel.pop(
-                            mid, None
-                        ),  # Remove after firing
-                    )[-1],
-                )
-            else:
-                _LOGGER.debug(
-                    "[async_sensor_state_changed]: no debounce, doing update now for mapping_id=%s",
-                    mapping_id,
-                )
-                await self.async_continuous_update_for_mapping(mapping_id)
-
-    async def async_continuous_update_for_mapping(self, mapping_id):
-        """Perform a continuous update for a specific mapping if it does not use a weather service.
-
-        Args:
-            mapping_id: The ID of the mapping to update.
-
-        This method checks if the mapping uses a weather service to avoid unnecessary API calls,
-        and if not, updates and calculates all automatic zones that use this mapping, assuming their modules do not use forecasting.
-
-        """
-        self._debounced_update_cancel.pop(mapping_id, None)
-
-        if mapping_id is None:
-            return
-        mapping = self.store.get_mapping(mapping_id)
-        if mapping is None:
-            return
-
-        _LOGGER.info(
-            "[async_continuous_update_for_mapping] considering sensor group %s",
-            mapping_id,
-        )
-        (
-            weather_service_in_mapping,
-            sensor_in_mapping,
-            static_in_mapping,
-        ) = self.check_mapping_sources(mapping_id)
-        if weather_service_in_mapping:
-            _LOGGER.info(
-                "[async_continuous_update_for_mapping] sensor group uses weather service, skipping automatic update to avoid API calls that can incur costs"
-            )
-            return
-
-        # add static sensor values
-        if static_in_mapping:
-            static_values = self.build_static_values_for_mapping(mapping)
-            mapping_data = mapping.get(const.MAPPING_DATA) or []
-            mapping_data.append(static_values)
-            await self.store.async_update_mapping(
-                mapping_id,
-                {
-                    const.MAPPING_DATA: mapping_data,
-                },
-            )
-            _LOGGER.debug(
-                "[async_continuous_update_for_mapping]: added static values %s",
-                static_values,
-            )
-
-        # TODO: convert relative pressure to absolute?
-
-        # Nothing to consume if the shared buffer is empty.
-        if not (mapping.get(const.MAPPING_DATA) or []):
-            _LOGGER.debug(
-                "[async_continuous_update_for_mapping] no data available",
-            )
-            return
-
-        # TODO: maybe calc each module once here
-
-        # calculate each zone in this mapping
-        zones = await self._get_zones_that_use_this_mapping(mapping_id)
-        zones_to_calculate = []
-        for z in zones:
-            zones_to_calculate.append(z)
-            zone = self.store.get_zone(z)
-            if zone is None or zone.get(const.ZONE_STATE) != const.ZONE_STATE_AUTOMATIC:
-                _LOGGER.info(
-                    "[async_continuous_update_for_mapping] zone %s is not automatic, skipping",
-                    z,
-                )
-                continue
-            if zone.get(const.ZONE_MODULE) is None:
-                _LOGGER.info(
-                    "[async_continuous_update_for_mapping] zone %s has no module, skipping",
-                    z,
-                )
-                continue
-
-            # check the module is not pyeto or if it is, that it does not use forecasting
-            mod = self.store.get_module(zone.get(const.ZONE_MODULE))
-            if mod is None:
-                continue
-
-            can_calculate = False
-            if mod.get(const.MODULE_NAME) != "PyETO":
-                can_calculate = True
-                _LOGGER.info(
-                    "[async_continuous_update_for_mapping]: module is not PyETO, so we can calculate for zone %s",
-                    zone.get(const.ZONE_ID),
-                )
-            else:
-                # module is PyETO. Check the config for forecast days == 0
-                _LOGGER.debug(
-                    "[async_continuous_update_for_mapping]: module is PyETO, checking config"
-                )
-                if mod.get(const.MODULE_CONFIG):
-                    _LOGGER.debug(
-                        "[async_continuous_update_for_mapping]: module has config: %s",
-                        mod.get(const.MODULE_CONFIG),
-                    )
-                    _LOGGER.debug(
-                        "[async_continuous_update_for_mapping]: mod.get(forecast_days,0) returns forecast_days: %s",
-                        mod.get(const.MODULE_CONFIG).get(
-                            const.CONF_PYETO_FORECAST_DAYS, 0
-                        ),
-                    )
-                    # there is a config on the module, so let's check it
-                    if (
-                        mod.get(const.MODULE_CONFIG).get(
-                            const.CONF_PYETO_FORECAST_DAYS, 0
-                        )
-                        == 0
-                        or mod.get(const.MODULE_CONFIG).get(
-                            const.CONF_PYETO_FORECAST_DAYS
-                        )
-                        == "0"
-                        or mod.get(const.MODULE_CONFIG).get(
-                            const.CONF_PYETO_FORECAST_DAYS
-                        )
-                        is None
-                    ):
-                        can_calculate = True
-                        _LOGGER.info(
-                            "Checked config for PyETO module on zone %s, forecast_days==0 or None, so we can calculate",
-                            zone.get(const.ZONE_ID),
-                        )
-                    else:
-                        _LOGGER.info(
-                            "Checked config for PyETO module on zone %s, forecast_days>0, skipping to avoid API calls that can incur costs",
-                            zone.get(const.ZONE_ID),
-                        )
-                else:
-                    # default config for pyeto is forecast = 0, since there is no config we can calculate
-                    can_calculate = True
-                    _LOGGER.info(
-                        "[async_continuous_update_for_mapping] for sensor group %s: sensor group does use weather service, skipping automatic update to avoid API calls that can incur costs",
-                        mapping_id,
-                    )
-
-            _LOGGER.debug(
-                "[async_continuous_update_for_mapping]: can_calculate: %s",
-                can_calculate,
-            )
-            if can_calculate:
-                # get the zone and calculate
-                _LOGGER.debug(
-                    "[async_continuous_update_for_mapping] for sensor group %s: calculating zone %s",
-                    mapping_id,
-                    zone.get(const.ZONE_ID),
-                )
-                # Each zone consumes its own window of the shared buffer.
-                await self.async_calculate_zone(z, continuous=True, prune=False)
-                zones_to_calculate.remove(z)
-            else:
-                _LOGGER.info(
-                    "[async_continuous_update_for_mapping] for sensor group %s: zone %s has module %s that uses forecasting, skipping to avoid API calls that can incur costs",
-                    mapping_id,
-                    z,
-                    mod.get(const.MODULE_NAME),
-                )
-
-        # Prune the shared buffer to the oldest enabled-zone watermark. Zones we
-        # did not calculate (e.g. PyETO-with-forecast) keep their older watermark,
-        # so their unconsumed data is retained automatically.
-        _LOGGER.debug(
-            "[async_continuous_update_for_mapping] for sensor group %s: pruning buffer (uncalculated zones: %s)",
-            mapping_id,
-            zones_to_calculate,
-        )
-        await self._prune_mapping_buffer(mapping_id)
 
     async def set_up_auto_calc_time(self, data):
         """Set up the automatic calculation time for Smart Irrigation based on configuration data."""
@@ -972,22 +561,6 @@ class SmartIrrigationCoordinator(
                 self._track_auto_calc_time_unsub()
                 self._track_auto_calc_time_unsub = None
             await self.store.async_update_config(data)
-
-    async def set_up_auto_clear_time(self, data):
-        """Deprecated: the scheduled auto-clear is no longer registered.
-
-        Weather data is now consumed per-zone (each zone has its own
-        ``last_consumed_at`` watermark) and the shared buffer is pruned to the
-        oldest enabled-zone watermark with a hard retention cap, so a scheduled
-        wholesale wipe is redundant — and would discard data a lagging zone has
-        not consumed yet. The manual "clear all weather data" action remains for
-        an explicit reset. We still tear down any tracker left from a previous
-        version and persist the config (the stored flag is now inert).
-        """
-        if self._track_auto_clear_time_unsub:
-            self._track_auto_clear_time_unsub()
-            self._track_auto_clear_time_unsub = None
-        await self.store.async_update_config(data)
 
     async def track_update_time(self, *args):
         """Track and schedule periodic updates for Smart Irrigation based on configuration."""
@@ -1160,18 +733,6 @@ class SmartIrrigationCoordinator(
                 sensor_in_mapping,
                 static_in_mapping,
             ) = self.check_mapping_sources(mapping_id=mapping_id)
-            the_config = await self.store.async_get_config()
-            if the_config.get(const.CONF_CONTINUOUS_UPDATES) and not owm_in_mapping:
-                # if continuous updates are enabled, we do not need to update the mappings here for pure sensor mappings
-                _LOGGER.debug(
-                    "Continuous updates are enabled, skipping update for sensor group %s because it is not dependent on weather service and should already be included in the continuous updates",
-                    mapping_id,
-                )
-                continue
-            _LOGGER.debug(
-                "Continuous updates are enabled, but updating sensor group %s as part of scheduled updates because it is dependent on weather service and therefore is not included in continuous updates",
-                mapping_id,
-            )
             mapping = self.store.get_mapping(mapping_id)
             weatherdata = None
             if self.use_weather_service and owm_in_mapping:
@@ -1341,8 +902,6 @@ class SmartIrrigationCoordinator(
             created = await self.store.async_create_mapping(data)
             await self.store.async_get_config()
 
-        # update the list of sensors to follow - then unsubscribe / subscribe
-        await self.update_subscriptions()
         return created
 
     def check_mapping_sources(self, mapping_id):
@@ -1560,7 +1119,6 @@ class SmartIrrigationCoordinator(
             # modify a zone
             entry = await self.store.async_update_zone(zone_id, data)
             async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
-            await self.update_subscriptions()
             # make sure to update the HA entity here by listening to this in sensor.py.
             # this should be called by changes from the UI (by user) or by a calculation module (updating a duration), which should be done in python
         else:
@@ -1614,7 +1172,6 @@ class SmartIrrigationCoordinator(
             self._pending_track_update_unsub,
             self._track_auto_update_time_unsub,
             self._track_auto_calc_time_unsub,
-            self._track_auto_clear_time_unsub,
             self._track_midnight_time_unsub,
         ]:
             if unsub:
@@ -1622,7 +1179,6 @@ class SmartIrrigationCoordinator(
         self._pending_track_update_unsub = None
         self._track_auto_update_time_unsub = None
         self._track_auto_calc_time_unsub = None
-        self._track_auto_clear_time_unsub = None
         self._track_midnight_time_unsub = None
 
         # Clear in-memory zones dict only; the entity platform manages entity

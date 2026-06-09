@@ -17,26 +17,20 @@ from .const import (
     ATTR_NEW_BUCKET_VALUE,
     ATTR_NEW_MULTIPLIER_VALUE,
     CONF_AUTO_CALC_ENABLED,
-    CONF_AUTO_CLEAR_ENABLED,
     CONF_AUTO_UPDATE_DELAY,
     CONF_AUTO_UPDATE_ENABLED,
     CONF_AUTO_UPDATE_INTERVAL,
     CONF_AUTO_UPDATE_SCHEDULE,
     CONF_CALC_TIME,
-    CONF_CLEAR_TIME,
-    CONF_CONTINUOUS_UPDATES,
     CONF_DAYS_BETWEEN_IRRIGATION,
     CONF_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_AUTO_CALC_ENABLED,
-    CONF_DEFAULT_AUTO_CLEAR_ENABLED,
     CONF_DEFAULT_AUTO_UPDATE_DELAY,
     CONF_DEFAULT_AUTO_UPDATE_ENABLED,
     CONF_DEFAULT_AUTO_UPDATE_INTERVAL,
     CONF_DEFAULT_AUTO_UPDATE_SCHEDULE,
     CONF_DEFAULT_BUCKET_THRESHOLD,
     CONF_DEFAULT_CALC_TIME,
-    CONF_DEFAULT_CLEAR_TIME,
-    CONF_DEFAULT_CONTINUOUS_UPDATES,
     CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
     CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_DRAINAGE_RATE,
@@ -47,7 +41,6 @@ from .const import (
     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
     CONF_DEFAULT_RAIN_SENSOR,
     CONF_DEFAULT_RECURRING_SCHEDULES,
-    CONF_DEFAULT_SENSOR_DEBOUNCE,
     CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION,
     CONF_DEFAULT_SKIP_TEMP_ENABLED,
     CONF_DEFAULT_SKIP_WIND_ENABLED,
@@ -64,7 +57,6 @@ from .const import (
     CONF_PRECIPITATION_THRESHOLD_MM,
     CONF_RAIN_SENSOR,
     CONF_RECURRING_SCHEDULES,
-    CONF_SENSOR_DEBOUNCE,
     CONF_SKIP_IRRIGATION_ON_PRECIPITATION,
     CONF_SKIP_TEMP_ENABLED,
     CONF_SKIP_WIND_ENABLED,
@@ -108,6 +100,7 @@ from .const import (
     MODULE_ID,
     MODULE_NAME,
     MODULE_SCHEMA,
+    SCHEDULE_CONF_ACTION,
     ZONE_BUCKET,
     ZONE_BUCKET_THRESHOLD,
     ZONE_CURRENT_DRAINAGE,
@@ -212,12 +205,6 @@ class Config:
     autoupdateschedule = attr.ib(type=str, default=CONF_DEFAULT_AUTO_UPDATE_SCHEDULE)
     autoupdatedelay = attr.ib(type=str, default=CONF_DEFAULT_AUTO_UPDATE_DELAY)
     autoupdateinterval = attr.ib(type=str, default=CONF_DEFAULT_AUTO_UPDATE_INTERVAL)
-    autoclearenabled = attr.ib(type=bool, default=CONF_DEFAULT_AUTO_CLEAR_ENABLED)
-    cleardatatime = attr.ib(type=str, default=CONF_DEFAULT_CLEAR_TIME)
-    continuousupdates = attr.ib(
-        type=bool, default=CONF_DEFAULT_CONTINUOUS_UPDATES
-    )  # continuous updates are disabled by default for now
-    sensor_debounce = attr.ib(type=int, default=CONF_DEFAULT_SENSOR_DEBOUNCE)
     skip_irrigation_on_precipitation = attr.ib(
         type=bool, default=CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION
     )
@@ -414,10 +401,6 @@ class SmartIrrigationStorage:
             autoupdateschedule=CONF_DEFAULT_AUTO_UPDATE_SCHEDULE,
             autoupdatedelay=CONF_DEFAULT_AUTO_UPDATE_DELAY,
             autoupdateinterval=CONF_DEFAULT_AUTO_UPDATE_INTERVAL,
-            autoclearenabled=CONF_DEFAULT_AUTO_CLEAR_ENABLED,
-            cleardatatime=CONF_DEFAULT_CLEAR_TIME,
-            continuousupdates=CONF_DEFAULT_CONTINUOUS_UPDATES,
-            sensor_debounce=CONF_DEFAULT_SENSOR_DEBOUNCE,
         )
         zones: OrderedDict[str, ZoneEntry] = OrderedDict()
         modules: OrderedDict[str, ModuleEntry] = OrderedDict()
@@ -454,18 +437,6 @@ class SmartIrrigationStorage:
                 ),
                 autoupdateinterval=data["config"].get(
                     CONF_AUTO_UPDATE_INTERVAL, CONF_DEFAULT_AUTO_UPDATE_INTERVAL
-                ),
-                autoclearenabled=data["config"].get(
-                    CONF_AUTO_CLEAR_ENABLED, CONF_DEFAULT_AUTO_CLEAR_ENABLED
-                ),
-                cleardatatime=data["config"].get(
-                    CONF_CLEAR_TIME, CONF_DEFAULT_CLEAR_TIME
-                ),
-                continuousupdates=data["config"].get(
-                    CONF_CONTINUOUS_UPDATES, CONF_DEFAULT_CONTINUOUS_UPDATES
-                ),
-                sensor_debounce=data["config"].get(
-                    CONF_SENSOR_DEBOUNCE, CONF_DEFAULT_SENSOR_DEBOUNCE
                 ),
                 skip_irrigation_on_precipitation=data["config"].get(
                     CONF_SKIP_IRRIGATION_ON_PRECIPITATION,
@@ -519,10 +490,17 @@ class SmartIrrigationStorage:
                     CONF_RAIN_SENSOR,
                     CONF_DEFAULT_RAIN_SENSOR,
                 ),
-                recurring_schedules=data["config"].get(
-                    CONF_RECURRING_SCHEDULES,
-                    CONF_DEFAULT_RECURRING_SCHEDULES,
-                ),
+                # Recurring schedules are irrigation-only now; calculate/update
+                # are handled by the global daily settings. Drop any legacy
+                # calculate/update schedules on load (they would just duplicate
+                # the global tasks).
+                recurring_schedules=[
+                    s
+                    for s in data["config"].get(
+                        CONF_RECURRING_SCHEDULES, CONF_DEFAULT_RECURRING_SCHEDULES
+                    )
+                    if s.get(SCHEDULE_CONF_ACTION) == "irrigate"
+                ],
             )
 
             if "zones" in data:

@@ -1005,7 +1005,7 @@
       },
       schedules: {
         title: "Schedules",
-        description: "Create recurring schedules to automatically calculate, update, or irrigate your zones. No automations needed.",
+        description: "Create recurring schedules to automatically irrigate your zones at specific times. No automations needed.",
         add: "Add Schedule",
         no_items: "No schedules configured yet. Click 'Add Schedule' to get started.",
         zones_all: "All zones",

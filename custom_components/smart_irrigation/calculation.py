@@ -94,7 +94,7 @@ class CalculationMixin:
                 zone.get(const.ZONE_ID), {const.ZONE_LAST_CONSUMED: now}
             )
 
-    async def _aggregate_for_zone(self, zone, *, now, continuous=False):
+    async def _aggregate_for_zone(self, zone, *, now):
         """Aggregate this zone's window of its mapping's shared buffer.
 
         Returns ``(weatherdata, n_points)`` where ``n_points`` is the number of
@@ -110,13 +110,11 @@ class CalculationMixin:
         readings = mapping.get(const.MAPPING_DATA) or []
         watermark = _as_datetime(zone.get(const.ZONE_LAST_CONSUMED))
         _, window = select_window(readings, watermark)
-        last_entry = mapping.get(const.MAPPING_DATA_LAST_ENTRY) if continuous else None
         weatherdata = aggregate_window(
             readings,
             watermark,
             mapping.get(const.MAPPING_MAPPINGS) or {},
             now=now,
-            last_entry=last_entry,
         )
         return weatherdata, len(window)
 
@@ -190,26 +188,7 @@ class CalculationMixin:
         mapping keep their independent history).
         """
         _LOGGER.info("Calculating all automatic zones")
-        unfiltered_zones = await self.store.async_get_zones()
-
-        # When continuous updates are on, pure-sensor zones are already handled
-        # there; only weather-service zones need the scheduled calculation.
-        the_config = await self.store.async_get_config()
-        if the_config.get(const.CONF_CONTINUOUS_UPDATES):
-            zones = []
-            for z in unfiltered_zones:
-                weather_service_in_mapping, _, _ = self.check_mapping_sources(
-                    mapping_id=z.get(const.ZONE_MAPPING)
-                )
-                if weather_service_in_mapping:
-                    zones.append(z)
-                else:
-                    _LOGGER.debug(
-                        "[async_calculate_all]: skipping pure-sensor zone %s (continuous updates handle it)",
-                        z.get(const.ZONE_ID),
-                    )
-        else:
-            zones = unfiltered_zones
+        zones = await self.store.async_get_zones()
 
         now = datetime.now()
         forecastdata = None
@@ -241,7 +220,7 @@ class CalculationMixin:
             await self._prune_mapping_buffer(mapping_id, now=now)
 
     async def async_calculate_zone(
-        self, zone_id, forecastdata=None, *, now=None, continuous=False, prune=True
+        self, zone_id, forecastdata=None, *, now=None, prune=True
     ):
         """Calculate one zone from its own window of the shared mapping buffer.
 
@@ -253,7 +232,6 @@ class CalculationMixin:
             zone_id: the zone to calculate.
             forecastdata: optional pre-fetched forecast for PyETO-with-forecast.
             now: shared "now" so the watermark and multiplier agree (calc-all).
-            continuous: backfill missing sensors from the mapping's last entry.
             prune: prune the buffer afterwards (False for calc-all, which prunes
                 once at the end).
         """
@@ -264,9 +242,7 @@ class CalculationMixin:
         if zone is None:
             return
 
-        weatherdata, n_points = await self._aggregate_for_zone(
-            zone, now=now, continuous=continuous
-        )
+        weatherdata, n_points = await self._aggregate_for_zone(zone, now=now)
         if weatherdata is None:
             _LOGGER.debug(
                 "async_calculate_zone: no weather data to consume for zone %s",

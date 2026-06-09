@@ -39,7 +39,6 @@ class TestSmartIrrigationIntegration:
         cfg = {
             const.CONF_AUTO_UPDATE_ENABLED: False,
             const.CONF_AUTO_CALC_ENABLED: False,
-            const.CONF_AUTO_CLEAR_ENABLED: False,
             const.CONF_USE_WEATHER_SERVICE: False,
         }
         cfg.update(extra)
@@ -198,30 +197,6 @@ class TestSmartIrrigationCoordinator:
         assert coordinator.entry == mock_config_entry
         assert coordinator.store == mock_store
 
-    async def test_coordinator_update_subscriptions(
-        self,
-        hass: HomeAssistant,
-        mock_config_entry: ConfigEntry,
-        mock_store: AsyncMock,
-        mock_session: AsyncMock,
-    ) -> None:
-        """Test coordinator update subscriptions."""
-        hass.data[const.DOMAIN] = {
-            const.CONF_USE_WEATHER_SERVICE: False,
-            const.CONF_WEATHER_SERVICE: None,
-        }
-
-        coordinator = SmartIrrigationCoordinator(
-            hass, mock_session, mock_config_entry, mock_store
-        )
-
-        # Mock the update_subscriptions method
-        with patch.object(
-            coordinator, "update_subscriptions", new_callable=AsyncMock
-        ) as mock_update:
-            await coordinator.update_subscriptions()
-            mock_update.assert_called_once()
-
     async def test_timers_set_up_by_async_setup_timers_not_init(
         self,
         hass: HomeAssistant,
@@ -235,7 +210,6 @@ class TestSmartIrrigationCoordinator:
             return_value={
                 const.CONF_AUTO_UPDATE_ENABLED: True,
                 const.CONF_AUTO_CALC_ENABLED: False,
-                const.CONF_AUTO_CLEAR_ENABLED: False,
                 const.CONF_USE_WEATHER_SERVICE: False,
             }
         )
@@ -385,7 +359,6 @@ class TestDaysBetweenIrrigation:
             return_value={
                 const.CONF_AUTO_UPDATE_ENABLED: False,
                 const.CONF_AUTO_CALC_ENABLED: False,
-                const.CONF_AUTO_CLEAR_ENABLED: False,
                 const.CONF_USE_WEATHER_SERVICE: False,
             }
         )
@@ -409,7 +382,6 @@ class TestDaysBetweenIrrigation:
             return_value={
                 const.CONF_AUTO_UPDATE_ENABLED: False,
                 const.CONF_AUTO_CALC_ENABLED: False,
-                const.CONF_AUTO_CLEAR_ENABLED: False,
                 const.CONF_USE_WEATHER_SERVICE: False,
             }
         )
@@ -610,7 +582,6 @@ class TestPrecipitationLookAhead:
             return_value={
                 const.CONF_AUTO_UPDATE_ENABLED: False,
                 const.CONF_AUTO_CALC_ENABLED: False,
-                const.CONF_AUTO_CLEAR_ENABLED: False,
                 const.CONF_USE_WEATHER_SERVICE: False,
             }
         )
