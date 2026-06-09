@@ -525,7 +525,13 @@
       }
     },
     "setup": {
-      "title": "Oppsett"
+      "title": "Oppsett",
+      "tabs": {
+        "weather_location": "Vær og posisjon",
+        "my_zones": "Mine soner",
+        "when_to_water": "Når vanne",
+        "advanced": "Avansert"
+      }
     }
   },
   "coordinate_config": {

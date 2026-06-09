@@ -51,6 +51,13 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
   @property() narrow!: boolean;
   @property() path!: Path;
 
+  // Which subset of settings cards to render. The Setup hub mounts this view
+  // twice under task-shaped tabs: "weather-location" (Weather & Location) and
+  // "when-to-water" (When to Water). "all" keeps the original single-page
+  // layout as a safe fallback. Each instance edits only its own fields, and the
+  // backend merges partial config updates, so two instances don't clobber.
+  @property() section: "weather-location" | "when-to-water" | "all" = "all";
+
   @property() data?: Partial<SmartIrrigationConfig>;
   @property() config?: SmartIrrigationConfig;
 
@@ -190,15 +197,35 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
         ${localize("common.loading-messages.general", this.hass.language)}
       </div>`;
     }
-    return html`
-      ${this._renderSaveStatus()} ${this._renderSection("weather")}
-      ${this._renderWeatherServiceCard()} ${this._renderWeatherSkipCard()}
-      ${this._renderSection("automation")} ${this._renderAutoUpdateCard()}
-      ${this._renderAutoCalcCard()} ${this._renderSection("location")}
-      ${this._renderCoordinateCard()} ${this._renderSection("watering")}
-      ${this._renderDaysBetweenIrrigationCard()}
-      ${this._renderZoneSequencingCard()}
-    `;
+    return html`${this._renderSaveStatus()} ${this._renderCards()}`;
+  }
+
+  private _renderCards(): TemplateResult {
+    switch (this.section) {
+      case "weather-location":
+        return html`
+          ${this._renderSection("weather")} ${this._renderWeatherServiceCard()}
+          ${this._renderSection("location")} ${this._renderCoordinateCard()}
+        `;
+      case "when-to-water":
+        return html`
+          ${this._renderSection("automation")} ${this._renderAutoUpdateCard()}
+          ${this._renderAutoCalcCard()} ${this._renderWeatherSkipCard()}
+          ${this._renderSection("watering")}
+          ${this._renderDaysBetweenIrrigationCard()}
+          ${this._renderZoneSequencingCard()}
+        `;
+      default:
+        return html`
+          ${this._renderSection("weather")} ${this._renderWeatherServiceCard()}
+          ${this._renderWeatherSkipCard()} ${this._renderSection("automation")}
+          ${this._renderAutoUpdateCard()} ${this._renderAutoCalcCard()}
+          ${this._renderSection("location")} ${this._renderCoordinateCard()}
+          ${this._renderSection("watering")}
+          ${this._renderDaysBetweenIrrigationCard()}
+          ${this._renderZoneSequencingCard()}
+        `;
+    }
   }
 
   /** Labelled section divider grouping the settings cards (UX N5). */

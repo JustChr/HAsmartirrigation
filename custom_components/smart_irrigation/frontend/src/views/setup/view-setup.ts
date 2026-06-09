@@ -16,21 +16,22 @@ import { exportPath, Path } from "../../common/navigation";
 
 const DOCS_URL = "https://justchr.github.io/HAsmartirrigation/";
 
+// Task-shaped tabs: organized around what the user wants to do, not the
+// underlying data model. Modules + Sensor Groups are demoted into "Advanced"
+// (the zone editor already references them inline for the common case).
 enum ESetupTab {
-  General = "general",
+  WeatherLocation = "weather-location",
   Zones = "zones",
-  Modules = "modules",
-  Mappings = "mappings",
-  Schedules = "schedules",
+  WhenToWater = "when-to-water",
+  Advanced = "advanced",
   Help = "help",
 }
 
 const SETUP_TAB_LABELS: Record<ESetupTab, string> = {
-  [ESetupTab.General]: "panels.general.title",
-  [ESetupTab.Zones]: "panels.zones.title",
-  [ESetupTab.Modules]: "panels.modules.title",
-  [ESetupTab.Mappings]: "panels.mappings.title",
-  [ESetupTab.Schedules]: "panels.schedules.title",
+  [ESetupTab.WeatherLocation]: "panels.setup.tabs.weather_location",
+  [ESetupTab.Zones]: "panels.setup.tabs.my_zones",
+  [ESetupTab.WhenToWater]: "panels.setup.tabs.when_to_water",
+  [ESetupTab.Advanced]: "panels.setup.tabs.advanced",
   [ESetupTab.Help]: "panels.help.title",
 };
 
@@ -42,12 +43,13 @@ export class SmartIrrigationViewSetup extends LitElement {
   @property({ attribute: false }) public path?: Path;
 
   // Active sub-tab is derived from the URL subpage so it is deep-linkable and
-  // survives in-session back/forward. Falls back to General for unknown values.
+  // survives in-session back/forward. Falls back to Weather & Location for
+  // unknown values (incl. legacy URLs like /setup/general or /setup/modules).
   private get _activeTab(): ESetupTab {
     const sub = this.path?.subpage;
     return (Object.values(ESetupTab) as string[]).includes(sub ?? "")
       ? (sub as ESetupTab)
-      : ESetupTab.General;
+      : ESetupTab.WeatherLocation;
   }
 
   private _selectTab(tab: ESetupTab) {
@@ -95,10 +97,11 @@ export class SmartIrrigationViewSetup extends LitElement {
   private _renderContent(activeTab: ESetupTab) {
     if (!this.hass) return html``;
     switch (activeTab) {
-      case ESetupTab.General:
+      case ESetupTab.WeatherLocation:
         return html`<smart-irrigation-view-general
           .hass="${this.hass}"
           .narrow="${this.narrow}"
+          section="weather-location"
         ></smart-irrigation-view-general>`;
       case ESetupTab.Zones:
         return html`<smart-irrigation-view-zone-settings
@@ -106,21 +109,29 @@ export class SmartIrrigationViewSetup extends LitElement {
           .narrow="${this.narrow}"
           .path="${this.path}"
         ></smart-irrigation-view-zone-settings>`;
-      case ESetupTab.Modules:
-        return html`<smart-irrigation-view-modules
-          .hass="${this.hass}"
-          .narrow="${this.narrow}"
-        ></smart-irrigation-view-modules>`;
-      case ESetupTab.Mappings:
-        return html`<smart-irrigation-view-mappings
-          .hass="${this.hass}"
-          .narrow="${this.narrow}"
-        ></smart-irrigation-view-mappings>`;
-      case ESetupTab.Schedules:
-        return html`<smart-irrigation-view-schedules
-          .hass="${this.hass}"
-          .narrow="${this.narrow}"
-        ></smart-irrigation-view-schedules>`;
+      case ESetupTab.WhenToWater:
+        return html`
+          <smart-irrigation-view-general
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+            section="when-to-water"
+          ></smart-irrigation-view-general>
+          <smart-irrigation-view-schedules
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+          ></smart-irrigation-view-schedules>
+        `;
+      case ESetupTab.Advanced:
+        return html`
+          <smart-irrigation-view-modules
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+          ></smart-irrigation-view-modules>
+          <smart-irrigation-view-mappings
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+          ></smart-irrigation-view-mappings>
+        `;
       case ESetupTab.Help:
         return this._renderHelp();
     }

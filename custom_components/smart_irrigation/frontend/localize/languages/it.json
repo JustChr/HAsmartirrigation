@@ -528,7 +528,13 @@
       }
     },
     "setup": {
-      "title": "Configurazione"
+      "title": "Configurazione",
+      "tabs": {
+        "weather_location": "Meteo e posizione",
+        "my_zones": "Le mie zone",
+        "when_to_water": "Quando irrigare",
+        "advanced": "Avanzate"
+      }
     }
   },
   "title": "Smart Irrigation",

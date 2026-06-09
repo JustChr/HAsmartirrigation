@@ -387,7 +387,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private _openSchedules(): void {
-    navigate(this, exportPath("setup", "schedules"));
+    // Schedules now live under the task-shaped "When to Water" Setup tab.
+    navigate(this, exportPath("setup", "when-to-water"));
   }
 
   /** Human label for a run's action verb (Water / Recalculate / Refresh data). */

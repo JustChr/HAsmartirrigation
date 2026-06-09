@@ -523,7 +523,13 @@
       }
     },
     "setup": {
-      "title": "Einrichtung"
+      "title": "Einrichtung",
+      "tabs": {
+        "weather_location": "Wetter & Standort",
+        "my_zones": "Meine Zonen",
+        "when_to_water": "Wann bewässern",
+        "advanced": "Erweitert"
+      }
     }
   },
   "title": "Smart Irrigation",

@@ -523,7 +523,13 @@
       }
     },
     "setup": {
-      "title": "Nastavenie"
+      "title": "Nastavenie",
+      "tabs": {
+        "weather_location": "Počasie a poloha",
+        "my_zones": "Moje zóny",
+        "when_to_water": "Kedy zavlažovať",
+        "advanced": "Pokročilé"
+      }
     }
   },
   "title": "Inteligentné zavlažovanie",

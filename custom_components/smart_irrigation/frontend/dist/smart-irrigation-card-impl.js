@@ -1062,7 +1062,13 @@
         }
       },
       setup: {
-        title: "Setup"
+        title: "Setup",
+        tabs: {
+          weather_location: "Weather & Location",
+          my_zones: "My Zones",
+          when_to_water: "When to Water",
+          advanced: "Advanced"
+        }
       },
       help: {
         title: "Help",
@@ -4062,7 +4068,7 @@
     `;
     }
     _openSchedules() {
-      ki(0, Ti("setup", "schedules"));
+      ki(0, Ti("setup", "when-to-water"));
     }
     _runActionLabel(e) {
       return wi(`panels.zones.outlook.actions.${e.action}`, this.hass.language);

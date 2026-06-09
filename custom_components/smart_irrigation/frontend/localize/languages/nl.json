@@ -523,7 +523,13 @@
       }
     },
     "setup": {
-      "title": "Instellen"
+      "title": "Instellen",
+      "tabs": {
+        "weather_location": "Weer & locatie",
+        "my_zones": "Mijn zones",
+        "when_to_water": "Wanneer water geven",
+        "advanced": "Geavanceerd"
+      }
     }
   },
   "title": "Smart Irrigation",
