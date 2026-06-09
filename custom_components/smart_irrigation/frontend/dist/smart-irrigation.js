@@ -830,7 +830,7 @@
       fe = !1, _e = null;
     }
   };
-  const ye = `v${"2026.06.15"}`,
+  const ye = `v${"2026.06.16"}`,
     we = "smart_irrigation",
     $e = ["de", "en", "es", "fr", "it", "nl", "no", "sk"],
     xe = "precipitation_threshold_mm",
