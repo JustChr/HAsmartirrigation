@@ -12,6 +12,8 @@
     "babel:impl": "babel dist/smart-irrigation-card-impl.js --out-file dist/smart-irrigation-card-impl.js",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "rollup -c --watch"
   },
   "repository": {
@@ -51,6 +53,7 @@
     "prettier": "*",
     "rollup": "*",
     "rollup-plugin-typescript2": "*",
-    "typescript": "*"
+    "typescript": "*",
+    "vitest": "^4.1.8"
   }
 }
