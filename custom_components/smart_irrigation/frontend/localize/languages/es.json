@@ -666,7 +666,7 @@
   "field_help": {
     "zone_size": "La superficie total regada de esta zona. Se usa junto con el caudal para calcular cuánta agua se aplica por ciclo.",
     "zone_throughput": "Flujo total de agua de tu sistema de riego para esta zona (litros/min en métrico, gal/min en imperial). Consulta la ficha técnica de tus aspersores o mídelo cronometrando cuánto tarda en llenarse un recipiente conocido.",
-    "zone_drainage_rate": "La rapidez con que el agua sobrante drena del suelo cuando el depósito está lleno. Típico: césped 50 mm/h, suelo arenoso 100+ mm/h, arcilla 10 mm/h.",
+    "zone_drainage_rate": "Qué tan rápido drena el agua sobrante un suelo saturado. ~20 mm/h para suelo medio/franco; menor (2–10) para arcilla pesada, mayor para suelo arenoso.",
     "zone_bucket": "Déficit (negativo) o superávit (positivo) de agua actual de esta zona. El riego se activa cuando el depósito cae por debajo del umbral.",
     "zone_maximum_bucket": "Superávit máximo de humedad que la zona puede retener. El agua por encima de este nivel se trata como escorrentía. Valor típico: 50 mm.",
     "zone_bucket_threshold": "El riego se activa cuando el depósito cae por debajo de este valor. Debe ser 0 o negativo. 0 significa regar siempre que haya déficit.",

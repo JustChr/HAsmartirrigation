@@ -665,7 +665,7 @@
   "field_help": {
     "zone_size": "Celková zavlažovaná plocha tejto zóny. Používa sa spolu s prietokom na výpočet množstva vody aplikovaného počas jedného cyklu.",
     "zone_throughput": "Celkový prietok vody tvojho zavlažovacieho systému pre túto zónu (litre/min v metrickej sústave, gal/min v imperiálnej). Skontroluj technický list svojich postrekovačov alebo zmeraj, ako dlho trvá naplnenie nádoby známeho objemu.",
-    "zone_drainage_rate": "Ako rýchlo prebytočná voda odteká z pôdy, keď je vedro plné. Typicky: trávnik 50 mm/h, piesočnatá pôda 100+ mm/h, íl 10 mm/h.",
+    "zone_drainage_rate": "Ako rýchlo nasýtená pôda odvádza prebytočnú vodu. ~20 mm/h pre stredne ťažkú/hlinitú pôdu; nižšie (2–10) pre ťažký íl, vyššie pre piesočnatú pôdu.",
     "zone_bucket": "Aktuálny deficit (záporný) alebo prebytok (kladný) vody pre túto zónu. Zavlažovanie sa spustí, keď vedro klesne pod prahovú hodnotu.",
     "zone_maximum_bucket": "Maximálny prebytok vlhkosti, ktorý zóna dokáže zadržať. Voda nad touto úrovňou sa považuje za odtok. Typická hodnota: 50 mm.",
     "zone_bucket_threshold": "Zavlažovanie sa spustí, keď vedro klesne pod túto hodnotu. Musí byť 0 alebo záporná. 0 znamená zavlažovať vždy, keď je deficit.",

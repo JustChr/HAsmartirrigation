@@ -665,7 +665,7 @@
   "field_help": {
     "zone_size": "Het totale geïrrigeerde oppervlak van deze zone. Wordt samen met de doorvoer gebruikt om te berekenen hoeveel water per run wordt toegediend.",
     "zone_throughput": "Totale waterstroom van je irrigatiesysteem voor deze zone (liter/min in metriek, gal/min in imperiaal). Raadpleeg het gegevensblad van je sproeiers of meet hoe lang het duurt om een bak met bekende inhoud te vullen.",
-    "zone_drainage_rate": "Hoe snel overtollig water uit de bodem wegloopt als de emmer vol is. Typisch: gazon 50 mm/u, zandgrond 100+ mm/u, klei 10 mm/u.",
+    "zone_drainage_rate": "Hoe snel verzadigde grond overtollig water afvoert. ~20 mm/u voor gemiddelde/leemgrond; lager (2–10) voor zware klei, hoger voor zandgrond.",
     "zone_bucket": "Huidig watertekort (negatief) of -overschot (positief) voor deze zone. Irrigatie wordt geactiveerd wanneer de emmer onder de drempel zakt.",
     "zone_maximum_bucket": "Maximaal vochtoverschot dat de zone kan vasthouden. Water boven dit niveau wordt als afstroming behandeld. Typische waarde: 50 mm.",
     "zone_bucket_threshold": "Irrigatie wordt geactiveerd wanneer de emmer onder deze waarde zakt. Moet 0 of negatief zijn. 0 betekent irrigeren zodra er een tekort is.",

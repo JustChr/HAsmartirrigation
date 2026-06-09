@@ -667,7 +667,7 @@
   "field_help": {
     "zone_size": "La surface arrosée totale de cette zone. Utilisée avec le débit pour calculer la quantité d'eau appliquée par passage.",
     "zone_throughput": "Débit d'eau total de votre système d'arrosage pour cette zone (litres/min en métrique, gal/min en impérial). Consultez la fiche technique de vos arroseurs ou mesurez le temps nécessaire pour remplir un récipient de volume connu.",
-    "zone_drainage_rate": "La vitesse à laquelle l'eau excédentaire s'évacue du sol lorsque le réservoir est plein. Typique : pelouse 50 mm/h, sol sableux 100+ mm/h, argile 10 mm/h.",
+    "zone_drainage_rate": "Vitesse à laquelle un sol saturé draine l’excès d’eau. ~20 mm/h pour un sol moyen/limoneux ; plus bas (2–10) pour l’argile lourde, plus haut pour un sol sableux.",
     "zone_bucket": "Déficit (négatif) ou excédent (positif) d'eau actuel de cette zone. L'arrosage se déclenche lorsque le réservoir descend sous le seuil.",
     "zone_maximum_bucket": "Excédent d'humidité maximal que la zone peut retenir. L'eau au-delà de ce niveau est considérée comme du ruissellement. Valeur typique : 50 mm.",
     "zone_bucket_threshold": "L'arrosage se déclenche lorsque le réservoir descend sous cette valeur. Doit être 0 ou négatif. 0 signifie arroser dès qu'il y a un déficit.",

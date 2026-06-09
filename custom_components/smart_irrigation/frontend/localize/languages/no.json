@@ -667,7 +667,7 @@
   "field_help": {
     "zone_size": "Det totale vannede arealet for denne sonen. Brukes sammen med gjennomstrømningen for å beregne hvor mye vann som tilføres per kjøring.",
     "zone_throughput": "Total vanngjennomstrømning for vanningssystemet ditt for denne sonen (liter/min i metrisk, gal/min i imperisk). Sjekk databladet for sprederne dine eller mål ved å ta tiden på hvor lang tid det tar å fylle en beholder med kjent volum.",
-    "zone_drainage_rate": "Hvor raskt overflødig vann dreneres fra jorden når bøtten er full. Typisk: plen 50 mm/t, sandjord 100+ mm/t, leire 10 mm/t.",
+    "zone_drainage_rate": "Hvor raskt mettet jord drenerer overskuddsvann. ~20 mm/t for middels/leirjord; lavere (2–10) for tung leire, høyere for sandjord.",
     "zone_bucket": "Nåværende vannunderskudd (negativt) eller -overskudd (positivt) for denne sonen. Vanning utløses når bøtten faller under terskelen.",
     "zone_maximum_bucket": "Maksimalt fuktoverskudd sonen kan holde på. Vann over dette nivået behandles som avrenning. Typisk verdi: 50 mm.",
     "zone_bucket_threshold": "Vanning utløses når bøtten faller under denne verdien. Må være 0 eller negativ. 0 betyr å vanne så snart det er et underskudd.",

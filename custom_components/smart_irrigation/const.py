@@ -186,7 +186,9 @@ CONF_DEFAULT_MAXIMUM_DURATION = (
     3600  # default maximum duration to one hour == 3600 seconds
 )
 CONF_DEFAULT_MAXIMUM_BUCKET = 24  # mm default maximum bucket of 24mm
-CONF_DEFAULT_DRAINAGE_RATE = 50.8  # mm / hour (=2 inch per hour)
+# mm/hour at saturation. 20 suits medium/loam soil; lower for heavy clay
+# (~2-10), higher for sand. Was 50.8 (2 in/h, sandy) — too fast for most.
+CONF_DEFAULT_DRAINAGE_RATE = 20.0
 
 # PyETO specific config consts
 CONF_PYETO_COASTAL = "coastal"

@@ -1608,7 +1608,7 @@
     Jt = {
       zone_size: "The total irrigated area of this zone. Used with throughput to calculate how much water is applied per run.",
       zone_throughput: "Total water flow of your irrigation system for this zone (litres/min in metric, gal/min in imperial). Check your sprinkler datasheet or measure by timing how long it takes to fill a known container.",
-      zone_drainage_rate: "How fast excess water drains from the soil when the bucket is full. Typical: lawn 50 mm/h, sandy soil 100+ mm/h, clay 10 mm/h.",
+      zone_drainage_rate: "How fast saturated soil drains excess water. ~20 mm/h suits medium/loam soil; lower (2–10) for heavy clay, higher for sandy soil.",
       zone_bucket: "Current water deficit (negative) or surplus (positive) for this zone. Irrigation triggers when bucket drops below the threshold.",
       zone_maximum_bucket: "Maximum moisture surplus the zone can hold. Water above this level is treated as runoff. Typical value: 50 mm.",
       zone_bucket_threshold: "Irrigation triggers when the bucket drops below this value. Must be 0 or negative. 0 means irrigate whenever there is any deficit.",
@@ -6590,27 +6590,30 @@
       }));
     }
     handleAddZone() {
+      var e;
       if (!this._newZoneName.trim()) return;
-      const e = {
-        name: this._newZoneName.trim(),
-        size: Math.round(100 * (parseFloat(this._newZoneSize) || 0)) / 100,
-        throughput: Math.round(100 * (parseFloat(this._newZoneThroughput) || 0)) / 100,
-        state: is.Automatic,
-        duration: 0,
-        bucket: 0,
-        module: void 0,
-        delta: 0,
-        explanation: "",
-        multiplier: 1,
-        mapping: void 0,
-        lead_time: 0,
-        maximum_duration: void 0,
-        maximum_bucket: void 0,
-        drainage_rate: void 0,
-        current_drainage: 0,
-        linked_entity: this._newZoneEntity || void 0
-      };
-      this.zones = [...this.zones, e], this.isSaving = !0, this._showAddZone = !1, this.saveToHA(e).then(() => (this._newZoneName = "", this._newZoneSize = "", this._newZoneThroughput = "", this._newZoneEntity = "", this._fetchData())).catch(e => {
+      const t = null !== (e = this.modules.find(e => "PyETO" === e.name)) && void 0 !== e ? e : this.modules[0],
+        i = this.mappings[0],
+        a = {
+          name: this._newZoneName.trim(),
+          size: Math.round(100 * (parseFloat(this._newZoneSize) || 0)) / 100,
+          throughput: Math.round(100 * (parseFloat(this._newZoneThroughput) || 0)) / 100,
+          state: is.Automatic,
+          duration: 0,
+          bucket: 0,
+          module: null == t ? void 0 : t.id,
+          delta: 0,
+          explanation: "",
+          multiplier: 1,
+          mapping: null == i ? void 0 : i.id,
+          lead_time: 0,
+          maximum_duration: void 0,
+          maximum_bucket: void 0,
+          drainage_rate: void 0,
+          current_drainage: 0,
+          linked_entity: this._newZoneEntity || void 0
+        };
+      this.zones = [...this.zones, a], this.isSaving = !0, this._showAddZone = !1, this.saveToHA(a).then(() => (this._newZoneName = "", this._newZoneSize = "", this._newZoneThroughput = "", this._newZoneEntity = "", this._fetchData())).catch(e => {
         console.error("Failed to add zone:", e), this.zones = this.zones.slice(0, -1), Da(this, this.hass, "common.errors.save_failed", e);
       }).finally(() => {
         this.isSaving = !1, this._scheduleUpdate();
@@ -6768,6 +6771,9 @@
             <span slot="heading"
               >${Ca("panels.zones.labels.drainage_rate", this.hass.language)}
               (${La(this.config, $t)})</span
+            >
+            <span slot="description"
+              >${Ca("field_help.zone_drainage_rate", this.hass.language)}</span
             >
             <input
               type="number"

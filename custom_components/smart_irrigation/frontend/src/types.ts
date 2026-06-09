@@ -235,7 +235,7 @@ export class SmartIrrigationZone {
     this.maximum_duration = 3600; //default maximum duration to one hour = 3600 seconds
     this.maximum_bucket = 50; //default maximum bucket size to 50 mm
     this.last_calculated = undefined;
-    this.drainage_rate = 50.8; //default mm / hour (=2 inch per hour)
+    this.drainage_rate = 20; // default mm/hour at saturation (medium soil)
     this.current_drainage = 0;
     this.bucket_threshold = -10; // require a 10 mm deficit before irrigating
   }

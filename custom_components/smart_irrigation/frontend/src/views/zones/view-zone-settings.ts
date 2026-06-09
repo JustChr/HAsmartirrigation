@@ -233,6 +233,14 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   private handleAddZone(): void {
     if (!this._newZoneName.trim()) return;
 
+    // Link the new zone to the standard calculation module + sensor group so it
+    // can calculate out of the box (a zone with no module/mapping never does).
+    // Prefer the factory-default PyETO module; fall back to the first available.
+    // The default sensor group is the first mapping.
+    const stdModule =
+      this.modules.find((m) => m.name === "PyETO") ?? this.modules[0];
+    const stdMapping = this.mappings[0];
+
     const newZone: SmartIrrigationZone = {
       name: this._newZoneName.trim(),
       size: Math.round((parseFloat(this._newZoneSize) || 0) * 100) / 100,
@@ -241,11 +249,11 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
       state: SmartIrrigationZoneState.Automatic,
       duration: 0,
       bucket: 0,
-      module: undefined,
+      module: stdModule?.id,
       delta: 0,
       explanation: "",
       multiplier: 1,
-      mapping: undefined,
+      mapping: stdMapping?.id,
       lead_time: 0,
       maximum_duration: undefined,
       maximum_bucket: undefined,
@@ -497,6 +505,12 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                 this.hass.language,
               )}
               (${output_unit(this.config, ZONE_DRAINAGE_RATE)})</span
+            >
+            <span slot="description"
+              >${localize(
+                "field_help.zone_drainage_rate",
+                this.hass.language,
+              )}</span
             >
             <input
               type="number"

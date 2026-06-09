@@ -670,7 +670,7 @@
   "field_help": {
     "zone_size": "L'area irrigata totale di questa zona. Usata con la portata per calcolare quanta acqua viene erogata per ciclo.",
     "zone_throughput": "Flusso d'acqua totale del tuo impianto di irrigazione per questa zona (litri/min in metrico, gal/min in imperiale). Controlla la scheda tecnica degli irrigatori o misura cronometrando quanto tempo serve a riempire un contenitore di volume noto.",
-    "zone_drainage_rate": "La velocità con cui l'acqua in eccesso drena dal terreno quando il secchio è pieno. Tipico: prato 50 mm/h, terreno sabbioso 100+ mm/h, argilla 10 mm/h.",
+    "zone_drainage_rate": "Quanto velocemente il terreno saturo drena l’acqua in eccesso. ~20 mm/h per terreno medio/limoso; più basso (2–10) per argilla pesante, più alto per terreno sabbioso.",
     "zone_bucket": "Deficit (negativo) o surplus (positivo) idrico attuale di questa zona. L'irrigazione si attiva quando il secchio scende sotto la soglia.",
     "zone_maximum_bucket": "Surplus di umidità massimo che la zona può trattenere. L'acqua oltre questo livello è trattata come deflusso. Valore tipico: 50 mm.",
     "zone_bucket_threshold": "L'irrigazione si attiva quando il secchio scende sotto questo valore. Deve essere 0 o negativo. 0 significa irrigare ogni volta che c'è un deficit.",
