@@ -331,8 +331,8 @@
     }) : void 0,
     E = "$lit$",
     A = `lit$${(Math.random() + "").slice(9)}$`,
-    C = "?" + A,
-    T = `<${C}>`,
+    T = "?" + A,
+    C = `<${T}>`,
     O = document,
     H = () => O.createComment(""),
     M = e => null === e || "object" != typeof e && "function" != typeof e,
@@ -372,7 +372,7 @@
         h = 0;
       for (; h < i.length && (r.lastIndex = h, l = r.exec(i), null !== l);) h = r.lastIndex, r === I ? "!--" === l[1] ? r = P : void 0 !== l[1] ? r = D : void 0 !== l[2] ? (j.test(l[2]) && (s = RegExp("</" + l[2], "g")), r = R) : void 0 !== l[3] && (r = R) : r === R ? ">" === l[0] ? (r = null != s ? s : I, c = -1) : void 0 === l[1] ? c = -2 : (c = r.lastIndex - l[2].length, o = l[1], r = void 0 === l[3] ? R : '"' === l[3] ? U : B) : r === U || r === B ? r = R : r === P || r === D ? r = I : (r = R, s = void 0);
       const d = r === R && e[t + 1].startsWith("/>") ? " " : "";
-      n += r === I ? i + T : c >= 0 ? (a.push(o), i.slice(0, c) + E + i.slice(c) + A + d) : i + A + (-2 === c ? (a.push(void 0), t) : d);
+      n += r === I ? i + C : c >= 0 ? (a.push(o), i.slice(0, c) + E + i.slice(c) + A + d) : i + A + (-2 === c ? (a.push(void 0), t) : d);
     }
     return [V(e, n + (e[i] || "<?>") + (2 === t ? "</svg>" : "")), a];
   };
@@ -428,7 +428,7 @@
               a.append(e[t], H());
             }
           }
-        } else if (8 === a.nodeType) if (a.data === C) o.push({
+        } else if (8 === a.nodeType) if (a.data === T) o.push({
           type: 2,
           index: s
         });else {
@@ -839,8 +839,8 @@
     ze = "Open-Meteo",
     Ee = "minutes",
     Ae = "hours",
-    Ce = "days",
-    Te = "imperial",
+    Te = "days",
+    Ce = "imperial",
     Oe = "metric",
     He = "Dewpoint",
     Me = "Evapotranspiration",
@@ -893,8 +893,8 @@
     zt = "zone_sequencing_min_absorption_time",
     Et = 1,
     At = 2,
-    Ct = 3,
-    Tt = 4,
+    Tt = 3,
+    Ct = 4,
     Ot = e => (...t) => ({
       _$litDirective$: e,
       values: t
@@ -1915,7 +1915,7 @@
       return "string" != typeof a ? (t.minimumSignificantDigits = i.length, t.maximumSignificantDigits = i.length) : "+" === a ? t.minimumSignificantDigits = i.length : "#" === i[0] ? t.maximumSignificantDigits = i.length : (t.minimumSignificantDigits = i.length, t.maximumSignificantDigits = i.length + ("string" == typeof a ? a.length : 0)), "";
     }), t;
   }
-  function Ci(e) {
+  function Ti(e) {
     switch (e) {
       case "sign-auto":
         return {
@@ -1955,7 +1955,7 @@
         };
     }
   }
-  function Ti(e) {
+  function Ci(e) {
     var t;
     if ("E" === e[0] && "E" === e[1] ? (t = {
       notation: "engineering"
@@ -1969,7 +1969,7 @@
     return t;
   }
   function Oi(e) {
-    var t = Ci(e);
+    var t = Ti(e);
     return t || {};
   }
   function Hi(e) {
@@ -2080,9 +2080,9 @@
           trailingZeroDisplay: "stripIfInteger"
         }) : r && (t = a(a({}, t), Ai(r)));
       } else if (Si.test(n.stem)) t = a(a({}, t), Ai(n.stem));else {
-        var o = Ci(n.stem);
+        var o = Ti(n.stem);
         o && (t = a(a({}, t), o));
-        var l = Ti(n.stem);
+        var l = Ci(n.stem);
         l && (t = a(a({}, t), l));
       }
     }
@@ -3282,7 +3282,7 @@
         return F``;
     }
   }
-  function Ca(e, t) {
+  function Ta(e, t) {
     !function (e, t) {
       za(e, "show-dialog", {
         dialogTag: "error-dialog",
@@ -3297,7 +3297,7 @@
     ${e.error}:${e.body.message ? F` ${e.body.message} ` : ""}
   `);
   }
-  const Ta = (e, t, i = !1) => {
+  const Ca = (e, t, i = !1) => {
     i ? history.replaceState(null, "", t) : history.pushState(null, "", t), za(window, "location-changed", {
       replace: i
     });
@@ -4218,7 +4218,7 @@
           zone: String(e.id)
         }
       } : void 0;
-      Ta(0, t ? Qa("setup", "zones", t) : Qa("setup", "zones"));
+      Ca(0, t ? Qa("setup", "zones", t) : Qa("setup", "zones"));
     }
     _runTargetsZone(e, t) {
       return "all" === e.zones || !(!Array.isArray(e.zones) || void 0 === t.id) && e.zones.map(e => Number(e)).includes(Number(t.id));
@@ -4287,7 +4287,7 @@
     `;
     }
     _openSchedules() {
-      Ta(0, Qa("setup", "schedules"));
+      Ca(0, Qa("setup", "schedules"));
     }
     _runActionLabel(e) {
       return Sa(`panels.zones.outlook.actions.${e.action}`, this.hass.language);
@@ -4779,9 +4779,11 @@
         color: var(--warning-color, #ed6c02);
       }
 
-      /* Global outlook banner */
+      /* Global outlook banner — tinted like the per-zone status banners so the
+         two read at the same visual weight. */
       .outlook-card {
         border-left: 4px solid var(--primary-color);
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.06);
       }
 
       .outlook {
@@ -4796,7 +4798,7 @@
         align-items: center;
         flex-wrap: wrap;
         gap: 8px;
-        font-size: 0.875rem;
+        font-size: 0.9rem;
         line-height: 1.35;
       }
 
@@ -4806,7 +4808,8 @@
       }
 
       .outlook-headline {
-        font-size: 0.95rem;
+        font-size: 1rem;
+        font-weight: 500;
       }
 
       .outlook-headline ha-icon {
@@ -5086,7 +5089,7 @@
   const ls = {},
     cs = Ot(class extends Ht {
       constructor(e) {
-        if (super(e), e.type !== Ct && e.type !== Et && e.type !== Tt) throw Error("The `live` directive is not allowed on child or event bindings");
+        if (super(e), e.type !== Tt && e.type !== Et && e.type !== Ct) throw Error("The `live` directive is not allowed on child or event bindings");
         if (!(e => void 0 === e.strings)(e)) throw Error("`live` bindings can only contain a single expression");
       }
       render(e) {
@@ -5096,9 +5099,9 @@
         if (t === Z || t === W) return t;
         const i = e.element,
           a = e.name;
-        if (e.type === Ct) {
+        if (e.type === Tt) {
           if (t === i[a]) return Z;
-        } else if (e.type === Tt) {
+        } else if (e.type === Ct) {
           if (!!t === i.hasAttribute(a)) return Z;
         } else if (e.type === Et && i.getAttribute(a) === t + "") return Z;
         return ((e, t = ls) => {
@@ -5285,9 +5288,9 @@
       ${this._renderSaveStatus()} ${this._renderSection("weather")}
       ${this._renderWeatherServiceCard()} ${this._renderWeatherSkipCard()}
       ${this._renderSection("automation")} ${this._renderAutoUpdateCard()}
-      ${this._renderAutoCalcCard()} ${this._renderAutoClearCard()}
-      ${this._renderContinuousUpdatesCard()} ${this._renderSection("location")}
-      ${this._renderCoordinateCard()} ${this._renderSection("watering")}
+      ${this._renderAutoCalcCard()} ${this._renderContinuousUpdatesCard()}
+      ${this._renderSection("location")} ${this._renderCoordinateCard()}
+      ${this._renderSection("watering")}
       ${this._renderDaysBetweenIrrigationCard()}
       ${this._renderZoneSequencingCard()}
     ` : F`<div class="loading-indicator">
@@ -5511,8 +5514,8 @@
                         ${Sa("panels.general.cards.automatic-update.options.hours", this.hass.language)}
                       </option>
                       <option
-                        value="${Ce}"
-                        ?selected="${this.data.autoupdateschedule === Ce}"
+                        value="${Te}"
+                        ?selected="${this.data.autoupdateschedule === Te}"
                       >
                         ${Sa("panels.general.cards.automatic-update.options.days", this.hass.language)}
                       </option>
@@ -5575,45 +5578,6 @@
                     .value="${this.config.calctime}"
                     @input="${e => this.handleConfigChange({
         calctime: e.target.value
-      })}"
-                  />
-                </div>
-              ` : ""}
-        </div>
-      </ha-card>
-    ` : F``;
-    }
-    _renderAutoClearCard() {
-      return this.hass && this.config && this.data ? F`
-      <ha-card
-        header="${Sa("panels.general.cards.automatic-clear.header", this.hass.language)}"
-      >
-        <div class="card-content description-text">
-          ${Sa("panels.general.cards.automatic-clear.description", this.hass.language)}
-        </div>
-        <div class="card-content">
-          <div class="setting-row">
-            <label>
-              ${Sa("panels.general.cards.automatic-clear.labels.automatic-clear-enabled", this.hass.language)}
-            </label>
-            <ha-switch
-              .checked="${this.config.autoclearenabled}"
-              @change="${e => this.handleConfigChange({
-        autoclearenabled: e.target.checked
-      })}"
-            ></ha-switch>
-          </div>
-          ${this.data.autoclearenabled ? F`
-                <div class="setting-row">
-                  <label>
-                    ${Sa("panels.general.cards.automatic-clear.labels.automatic-clear-time", this.hass.language)}
-                  </label>
-                  <input
-                    type="text"
-                    class="settings-input shortfield"
-                    .value="${this.config.cleardatatime}"
-                    @input="${e => this.handleConfigChange({
-        cleardatatime: e.target.value
       })}"
                   />
                 </div>
@@ -7857,7 +7821,7 @@
       }
       if (i.length > 0) {
         const e = null === (t = this.shadowRoot) || void 0 === t ? void 0 : t.querySelector("ha-card");
-        throw e && Ca({
+        throw e && Ta({
           body: {
             message: Sa("panels.mappings.cards.mapping.errors.source_does_not_exist", this.hass.language) + ": " + i.join(", ")
           },
@@ -8312,7 +8276,7 @@
               system: Oe
             }, {
               unit: "°F",
-              system: Te
+              system: Ce
             }];
           case Ne:
           case Me:
@@ -8321,7 +8285,7 @@
               system: Oe
             }, {
               unit: "in",
-              system: Te
+              system: Ce
             }];
           case Ie:
             return [{
@@ -8329,12 +8293,12 @@
               system: Oe
             }, {
               unit: st,
-              system: Te
+              system: Ce
             }];
           case Le:
             return [{
               unit: "%",
-              system: [Oe, Te]
+              system: [Oe, Ce]
             }];
           case Pe:
             return [{
@@ -8345,10 +8309,10 @@
               system: Oe
             }, {
               unit: "psi",
-              system: Te
+              system: Ce
             }, {
               unit: "inch Hg",
-              system: Te
+              system: Ce
             }];
           case Be:
             return [{
@@ -8359,7 +8323,7 @@
               system: Oe
             }, {
               unit: "mile/h",
-              system: Te
+              system: Ce
             }];
           case De:
             return [{
@@ -8370,10 +8334,10 @@
               system: Oe
             }, {
               unit: "W/sq ft",
-              system: Te
+              system: Ce
             }, {
               unit: "MJ/day/sq ft",
-              system: Te
+              system: Ce
             }];
           default:
             return [];
@@ -9223,7 +9187,7 @@
       return Object.values(fs).includes(null != t ? t : "") ? t : fs.General;
     }
     _selectTab(e) {
-      Ta(0, Qa("setup", e));
+      Ca(0, Qa("setup", e));
     }
     _openWizard() {
       this.dispatchEvent(new CustomEvent("open-wizard", {
@@ -10492,7 +10456,7 @@
     }
     async firstUpdated() {
       const e = Ja().page;
-      Object.values(xs).includes(e) || Ta(0, Qa(xs.Zones)), window.addEventListener("location-changed", () => {
+      Object.values(xs).includes(e) || Ca(0, Qa(xs.Zones)), window.addEventListener("location-changed", () => {
         if (!window.location.pathname.includes("smart-irrigation")) return;
         const e = performance.now();
         e - this._lastNavigationTime < this._navigationThrottleDelay || (this._lastNavigationTime = e, this._scheduleUpdate());
@@ -10599,14 +10563,14 @@
     navigateToPage(e) {
       if (e !== Ja().page) {
         const t = Qa(e);
-        Ta(0, t), this.requestUpdate();
+        Ca(0, t), this.requestUpdate();
       } else scrollTo(0, 0);
     }
     handlePageSelected(e) {
       const t = e.detail.name;
       if (t !== Ja().page) {
         const e = Qa(t);
-        Ta(0, e), this.requestUpdate();
+        Ca(0, e), this.requestUpdate();
       } else scrollTo(0, 0);
     }
     static get styles() {
@@ -10708,7 +10672,9 @@
 
         .view > * {
           width: 100%;
-          max-width: 960px;
+          /* Use the available width on wide screens; cap only so text lines
+             don't get uncomfortably long on ultra-wide monitors. */
+          max-width: 1400px;
         }
 
         .view > *:last-child {

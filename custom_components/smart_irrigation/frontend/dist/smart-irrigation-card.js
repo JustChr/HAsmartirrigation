@@ -13,6 +13,13 @@
     getCardSize() {
       return 6;
     }
+    getGridOptions() {
+      return {
+        columns: "full",
+        rows: "auto",
+        min_columns: 6
+      };
+    }
     static getStubConfig() {
       return {};
     }

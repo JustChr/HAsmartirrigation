@@ -4554,9 +4554,11 @@
         color: var(--warning-color, #ed6c02);
       }
 
-      /* Global outlook banner */
+      /* Global outlook banner — tinted like the per-zone status banners so the
+         two read at the same visual weight. */
       .outlook-card {
         border-left: 4px solid var(--primary-color);
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.06);
       }
 
       .outlook {
@@ -4571,7 +4573,7 @@
         align-items: center;
         flex-wrap: wrap;
         gap: 8px;
-        font-size: 0.875rem;
+        font-size: 0.9rem;
         line-height: 1.35;
       }
 
@@ -4581,7 +4583,8 @@
       }
 
       .outlook-headline {
-        font-size: 0.95rem;
+        font-size: 1rem;
+        font-weight: 500;
       }
 
       .outlook-headline ha-icon {

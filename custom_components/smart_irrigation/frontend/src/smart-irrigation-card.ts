@@ -63,6 +63,12 @@ class SmartIrrigationZonesCardStub extends HTMLElement {
     return 6;
   }
 
+  // Default to full width in the modern sections (grid) dashboard so the zone
+  // list actually uses the space it is given. Users can still resize it.
+  public getGridOptions(): Record<string, unknown> {
+    return { columns: "full", rows: "auto", min_columns: 6 };
+  }
+
   static getStubConfig(): Record<string, unknown> {
     return {};
   }

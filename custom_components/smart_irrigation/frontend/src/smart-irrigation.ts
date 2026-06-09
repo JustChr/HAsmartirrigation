@@ -327,7 +327,9 @@ export class SmartIrrigationPanel extends LitElement {
 
         .view > * {
           width: 100%;
-          max-width: 960px;
+          /* Use the available width on wide screens; cap only so text lines
+             don't get uncomfortably long on ultra-wide monitors. */
+          max-width: 1400px;
         }
 
         .view > *:last-child {

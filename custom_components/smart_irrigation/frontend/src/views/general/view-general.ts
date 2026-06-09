@@ -201,9 +201,9 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       ${this._renderSaveStatus()} ${this._renderSection("weather")}
       ${this._renderWeatherServiceCard()} ${this._renderWeatherSkipCard()}
       ${this._renderSection("automation")} ${this._renderAutoUpdateCard()}
-      ${this._renderAutoCalcCard()} ${this._renderAutoClearCard()}
-      ${this._renderContinuousUpdatesCard()} ${this._renderSection("location")}
-      ${this._renderCoordinateCard()} ${this._renderSection("watering")}
+      ${this._renderAutoCalcCard()} ${this._renderContinuousUpdatesCard()}
+      ${this._renderSection("location")} ${this._renderCoordinateCard()}
+      ${this._renderSection("watering")}
       ${this._renderDaysBetweenIrrigationCard()}
       ${this._renderZoneSequencingCard()}
     `;
@@ -667,63 +667,6 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                     @input="${(e: Event) =>
                       this.handleConfigChange({
                         calctime: (e.target as HTMLInputElement).value,
-                      })}"
-                  />
-                </div>
-              `
-            : ""}
-        </div>
-      </ha-card>
-    `;
-  }
-
-  private _renderAutoClearCard(): TemplateResult {
-    if (!this.hass || !this.config || !this.data) return html``;
-    return html`
-      <ha-card
-        header="${localize(
-          "panels.general.cards.automatic-clear.header",
-          this.hass.language,
-        )}"
-      >
-        <div class="card-content description-text">
-          ${localize(
-            "panels.general.cards.automatic-clear.description",
-            this.hass.language,
-          )}
-        </div>
-        <div class="card-content">
-          <div class="setting-row">
-            <label>
-              ${localize(
-                "panels.general.cards.automatic-clear.labels.automatic-clear-enabled",
-                this.hass.language,
-              )}
-            </label>
-            <ha-switch
-              .checked="${this.config.autoclearenabled}"
-              @change="${(e: Event) =>
-                this.handleConfigChange({
-                  autoclearenabled: (e.target as HTMLInputElement).checked,
-                })}"
-            ></ha-switch>
-          </div>
-          ${this.data.autoclearenabled
-            ? html`
-                <div class="setting-row">
-                  <label>
-                    ${localize(
-                      "panels.general.cards.automatic-clear.labels.automatic-clear-time",
-                      this.hass.language,
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    class="settings-input shortfield"
-                    .value="${this.config.cleardatatime}"
-                    @input="${(e: Event) =>
-                      this.handleConfigChange({
-                        cleardatatime: (e.target as HTMLInputElement).value,
                       })}"
                   />
                 </div>
