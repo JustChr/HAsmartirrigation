@@ -10,7 +10,6 @@ import {
   fetchMappings,
   saveMapping,
   fetchZones,
-  fetchMappingWeatherRecords,
 } from "../../data/websockets";
 import { SubscribeMixin } from "../../subscribe-mixin";
 
@@ -18,7 +17,6 @@ import {
   SmartIrrigationConfig,
   SmartIrrigationZone,
   SmartIrrigationMapping,
-  WeatherRecord,
 } from "../../types";
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
@@ -62,7 +60,6 @@ import {
   showErrorToast,
 } from "../../helpers";
 import { mdiConsoleNetworkOutline, mdiDelete } from "@mdi/js";
-import { formatMonthDayTime, isValidDate } from "../../common/datetime";
 
 @customElement("smart-irrigation-view-mappings")
 class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
@@ -73,9 +70,6 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
   private zones: SmartIrrigationZone[] = [];
   @property({ type: Array })
   private mappings: SmartIrrigationMapping[] = [];
-
-  @property({ type: Map })
-  private weatherRecords = new Map<number, WeatherRecord[]>();
 
   @property({ type: Boolean })
   private isLoading = true;
@@ -176,7 +170,6 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
       this.mappings = mappings;
       this._initialLoadDone = true;
 
-      this._fetchWeatherRecords();
       this.mappingCache.clear();
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -185,143 +178,6 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
       if (isInitial) this.isLoading = false;
       this._scheduleUpdate();
     }
-  }
-
-  private async _fetchWeatherRecords(): Promise<void> {
-    if (!this.hass) {
-      return;
-    }
-
-    // Fetch weather records for each mapping
-    for (const mapping of this.mappings) {
-      if (mapping.id !== undefined) {
-        try {
-          const records = await fetchMappingWeatherRecords(
-            this.hass,
-            mapping.id.toString(),
-            0,
-          );
-          this.weatherRecords.set(mapping.id, records);
-        } catch (error) {
-          console.error(
-            `Failed to fetch weather records for mapping ${mapping.id}:`,
-            error,
-          );
-          // Set empty array on error to ensure the UI doesn't break
-          this.weatherRecords.set(mapping.id, []);
-        }
-      }
-    }
-    this._scheduleUpdate();
-  }
-
-  private renderWeatherRecords(
-    mapping: SmartIrrigationMapping,
-  ): TemplateResult {
-    if (!this.hass) {
-      return html``;
-    }
-
-    const records =
-      mapping.id !== undefined ? this.weatherRecords.get(mapping.id) || [] : [];
-    return html`
-      <div class="weather-records">
-        <h4>
-          ${localize(
-            "panels.mappings.weather-records.title",
-            this.hass.language,
-          )}
-        </h4>
-        ${records.length === 0
-          ? html`
-              <div class="weather-note">
-                ${localize(
-                  "panels.mappings.weather-records.no-data",
-                  this.hass.language,
-                )}
-              </div>
-            `
-          : html`
-              <div class="weather-table">
-                <div class="weather-header">
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.timestamp",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.temperature",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.humidity",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.dewpoint",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.wind",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.pressure",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.precipitation",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.mappings.weather-records.retrieval-time",
-                      this.hass.language,
-                    )}</span
-                  >
-                </div>
-                ${records.map((record) => {
-                  const fmt = (ts: any) => {
-                    try {
-                      return isValidDate(ts) ? formatMonthDayTime(ts) : "-";
-                    } catch {
-                      return "-";
-                    }
-                  };
-                  const n = (v: any, unit: string, decimals = 1) =>
-                    v !== null && v !== undefined
-                      ? v.toFixed(decimals) + unit
-                      : "-";
-                  return html`
-                    <div class="weather-row">
-                      <span>${fmt(record.timestamp)}</span>
-                      <span>${n(record.temperature, "°C")}</span>
-                      <span>${n(record.humidity, "%")}</span>
-                      <span>${n(record.dewpoint, "°C")}</span>
-                      <span>${n(record.wind_speed, "m/s")}</span>
-                      <span>${n(record.pressure, "hPa", 0)}</span>
-                      <span>${n(record.precipitation, "mm")}</span>
-                      <span>${fmt(record.retrieval_time)}</span>
-                    </div>
-                  `;
-                })}
-              </div>
-            `}
-      </div>
-    `;
   }
 
   private handleAddMapping(): void {
@@ -1441,7 +1297,6 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
                 })}"
             />
             ${this.renderMappingSettings(mapping, index)}
-            ${this.renderWeatherRecords(mapping)}
             ${numberofzonesusingthismapping
               ? html`<div class="weather-note">
                   ${localize(
