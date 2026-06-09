@@ -534,7 +534,8 @@
       },
       "weather_data": {
         "forecast_title": "Værvarsel",
-        "forecast_none": "Værvarsel er tilgjengelig når en værtjeneste er aktivert."
+        "forecast_none": "Værvarsel er tilgjengelig når en værtjeneste er aktivert.",
+        "seasonal_title": "Sesongutsikt"
       }
     }
   },

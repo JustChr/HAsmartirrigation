@@ -532,7 +532,8 @@
       },
       "weather_data": {
         "forecast_title": "Predpoveď",
-        "forecast_none": "Predpoveď je dostupná, keď je zapnutá poveternostná služba."
+        "forecast_none": "Predpoveď je dostupná, keď je zapnutá poveternostná služba.",
+        "seasonal_title": "Sezónny výhľad"
       }
     }
   },

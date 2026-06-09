@@ -532,7 +532,8 @@
       },
       "weather_data": {
         "forecast_title": "Verwachting",
-        "forecast_none": "De verwachting is beschikbaar wanneer een weerdienst is ingeschakeld."
+        "forecast_none": "De verwachting is beschikbaar wanneer een weerdienst is ingeschakeld.",
+        "seasonal_title": "Seizoensvooruitzicht"
       }
     }
   },

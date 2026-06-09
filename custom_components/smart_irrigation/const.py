@@ -276,7 +276,10 @@ ZONE_DRAINAGE_RATE = "drainage_rate"
 ZONE_CURRENT_DRAINAGE = "current_drainage"
 ZONE_LINKED_ENTITY = "linked_entity"
 ZONE_BUCKET_THRESHOLD = "bucket_threshold"
-CONF_DEFAULT_BUCKET_THRESHOLD = 0.0  # mm; water whenever bucket < 0 (any deficit)
+# mm; new zones require a 10 mm deficit before irrigating (bucket < -10).
+# Stored 0-or-negative; 0 = irrigate on any deficit. Existing zones keep their
+# stored value — this only seeds newly created zones.
+CONF_DEFAULT_BUCKET_THRESHOLD = -10.0
 ZONE_FLOW_SENSOR = "flow_sensor"
 FLOW_POLL_INTERVAL = 15  # seconds between flow meter readings
 

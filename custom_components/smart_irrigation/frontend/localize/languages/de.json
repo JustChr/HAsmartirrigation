@@ -532,7 +532,8 @@
       },
       "weather_data": {
         "forecast_title": "Vorhersage",
-        "forecast_none": "Die Vorhersage ist verfügbar, wenn ein Wetterdienst aktiviert ist."
+        "forecast_none": "Die Vorhersage ist verfügbar, wenn ein Wetterdienst aktiviert ist.",
+        "seasonal_title": "Saisonaler Ausblick"
       }
     }
   },

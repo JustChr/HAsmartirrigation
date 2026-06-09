@@ -537,7 +537,8 @@
       },
       "weather_data": {
         "forecast_title": "Previsioni",
-        "forecast_none": "Le previsioni sono disponibili quando è attivo un servizio meteo."
+        "forecast_none": "Le previsioni sono disponibili quando è attivo un servizio meteo.",
+        "seasonal_title": "Prospettiva stagionale"
       }
     }
   },

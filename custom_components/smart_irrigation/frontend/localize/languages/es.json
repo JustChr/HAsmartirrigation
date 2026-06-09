@@ -533,7 +533,8 @@
       },
       "weather_data": {
         "forecast_title": "Pronóstico",
-        "forecast_none": "El pronóstico está disponible cuando hay un servicio meteorológico activado."
+        "forecast_none": "El pronóstico está disponible cuando hay un servicio meteorológico activado.",
+        "seasonal_title": "Perspectiva estacional"
       }
     }
   },

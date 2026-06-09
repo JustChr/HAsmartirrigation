@@ -1071,7 +1071,8 @@
         },
         weather_data: {
           forecast_title: "Forecast",
-          forecast_none: "Forecast is available when a weather service is enabled."
+          forecast_none: "Forecast is available when a weather service is enabled.",
+          seasonal_title: "Seasonal outlook"
         }
       },
       help: {

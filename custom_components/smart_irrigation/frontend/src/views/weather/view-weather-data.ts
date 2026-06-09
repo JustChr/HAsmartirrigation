@@ -13,6 +13,7 @@ import {
   WeatherForecast,
   fetchMappings,
   fetchMappingWeatherRecords,
+  fetchWateringCalendar,
 } from "../../data/websockets";
 import { formatMonthDayTime, isValidDate } from "../../common/datetime";
 import { convertWeather, formatWeather } from "../../common/units";
@@ -34,6 +35,9 @@ export class SmartIrrigationViewWeatherData extends SubscribeMixin(LitElement) {
   @state() private _loading = true;
   // Display unit system (false = imperial). Backend values are always metric.
   @state() private _metric = true;
+  // Monthly climate estimates (ET/precip/temp) — location-global, same for all
+  // zones, so shown once here. Per-zone watering volume stays in My Zones.
+  @state() private _climate: any[] = [];
 
   public hassSubscribe(): Promise<UnsubscribeFunc>[] {
     this._fetch();
@@ -47,14 +51,22 @@ export class SmartIrrigationViewWeatherData extends SubscribeMixin(LitElement) {
   private async _fetch(): Promise<void> {
     if (!this.hass) return;
     try {
-      const [forecast, mappings, config] = await Promise.all([
+      const [forecast, mappings, config, calendar] = await Promise.all([
         fetchWeatherForecast(this.hass),
         fetchMappings(this.hass),
         fetchConfig(this.hass),
+        fetchWateringCalendar(this.hass),
       ]);
       this._forecast = forecast;
       this._mappings = mappings || [];
       this._metric = config?.units !== CONF_IMPERIAL;
+      // Calendar is keyed by zone id; the climate columns are identical across
+      // zones, so take the first zone's monthly estimates.
+      const calZones = calendar ? Object.values(calendar) : [];
+      this._climate =
+        calZones.length > 0
+          ? (calZones[0] as any)?.monthly_estimates || []
+          : [];
 
       const records = new Map<number, any[]>();
       await Promise.all(
@@ -84,7 +96,74 @@ export class SmartIrrigationViewWeatherData extends SubscribeMixin(LitElement) {
 
   render(): TemplateResult {
     if (!this.hass) return html``;
-    return html`${this._renderForecast()} ${this._renderRecords()}`;
+    return html`${this._renderForecast()} ${this._renderRecords()}
+    ${this._renderSeasonal()}`;
+  }
+
+  private _renderSeasonal(): TemplateResult {
+    if (!this.hass) return html``;
+    const lang = this.hass.language;
+    return html`
+      <ha-card
+        header="${localize("panels.setup.weather_data.seasonal_title", lang)}"
+      >
+        <div class="card-content">
+          ${this._climate.length === 0
+            ? html`<div class="weather-note">
+                ${localize("panels.zones.calendar.no_data", lang)}
+              </div>`
+            : html`
+                <div class="seasonal-table">
+                  <div class="weather-header">
+                    <span
+                      >${localize("panels.zones.calendar.month", lang)}</span
+                    >
+                    <span>${localize("panels.zones.calendar.et", lang)}</span>
+                    <span
+                      >${localize(
+                        "panels.zones.calendar.precipitation",
+                        lang,
+                      )}</span
+                    >
+                    <span
+                      >${localize("panels.zones.calendar.avg_temp", lang)}</span
+                    >
+                  </div>
+                  ${this._climate.map(
+                    (m: any) => html`
+                      <div class="weather-row">
+                        <span
+                          >${m.month_name || `Month ${m.month}` || "-"}</span
+                        >
+                        <span
+                          >${formatWeather(
+                            m.estimated_et_mm,
+                            "precipitation",
+                            this._metric,
+                          )}</span
+                        >
+                        <span
+                          >${formatWeather(
+                            m.average_precipitation_mm,
+                            "precipitation",
+                            this._metric,
+                          )}</span
+                        >
+                        <span
+                          >${formatWeather(
+                            m.average_temperature_c,
+                            "temperature",
+                            this._metric,
+                          )}</span
+                        >
+                      </div>
+                    `,
+                  )}
+                </div>
+              `}
+        </div>
+      </ha-card>
+    `;
   }
 
   private _renderForecast(): TemplateResult {
@@ -373,6 +452,15 @@ export class SmartIrrigationViewWeatherData extends SubscribeMixin(LitElement) {
       .forecast-meta ha-icon {
         --mdc-icon-size: 16px;
         color: var(--secondary-text-color);
+      }
+
+      /* 4-column seasonal/climate table (month + ET + precip + temp). Reuses the
+         globalStyle .weather-header / .weather-row (display:contents) cells. */
+      .seasonal-table {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 8px;
+        font-size: 0.85em;
       }
     `;
   }

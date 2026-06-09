@@ -237,7 +237,7 @@ export class SmartIrrigationZone {
     this.last_calculated = undefined;
     this.drainage_rate = 50.8; //default mm / hour (=2 inch per hour)
     this.current_drainage = 0;
-    this.bucket_threshold = 0;
+    this.bucket_threshold = -10; // require a 10 mm deficit before irrigating
   }
 }
 

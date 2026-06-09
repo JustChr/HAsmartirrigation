@@ -114,6 +114,9 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   @property()
   private _newZoneThroughput = "";
 
+  @property()
+  private _newZoneEntity = "";
+
   private _updateScheduled = false;
   private _scheduleUpdate() {
     if (this._updateScheduled) return;
@@ -256,6 +259,7 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
       maximum_bucket: undefined,
       drainage_rate: undefined,
       current_drainage: 0,
+      linked_entity: this._newZoneEntity || undefined,
     };
 
     this.zones = [...this.zones, newZone];
@@ -267,6 +271,7 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
         this._newZoneName = "";
         this._newZoneSize = "";
         this._newZoneThroughput = "";
+        this._newZoneEntity = "";
         return this._fetchData();
       })
       .catch((error) => {
@@ -1117,6 +1122,8 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
             .name="${this._newZoneName}"
             .size="${this._newZoneSize}"
             .throughput="${this._newZoneThroughput}"
+            .linkedEntity="${this._newZoneEntity}"
+            showEntity
             @name-changed="${(e: CustomEvent) => {
               this._newZoneName = e.detail.value;
             }}"
@@ -1125,6 +1132,9 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
             }}"
             @throughput-changed="${(e: CustomEvent) => {
               this._newZoneThroughput = e.detail.value;
+            }}"
+            @entity-changed="${(e: CustomEvent) => {
+              this._newZoneEntity = e.detail.value;
             }}"
           ></si-zone-form>
         </div>
