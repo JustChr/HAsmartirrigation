@@ -1,7 +1,7 @@
 import { TemplateResult, LitElement, html, css, CSSResultGroup } from "lit";
 import { query } from "lit/decorators.js";
 import { property, customElement } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
+import { HomeAssistant } from "../../types";
 import { loadHaForm } from "../../load-ha-elements";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
 import {
@@ -62,7 +62,7 @@ import {
   showErrorToast,
 } from "../../helpers";
 import { mdiConsoleNetworkOutline, mdiDelete } from "@mdi/js";
-import moment from "moment";
+import { formatMonthDayTime, isValidDate } from "../../common/datetime";
 
 @customElement("smart-irrigation-view-mappings")
 class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
@@ -296,8 +296,7 @@ class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
                 ${records.map((record) => {
                   const fmt = (ts: any) => {
                     try {
-                      const m = moment(ts);
-                      return m.isValid() ? m.format("MM-DD HH:mm") : "-";
+                      return isValidDate(ts) ? formatMonthDayTime(ts) : "-";
                     } catch {
                       return "-";
                     }

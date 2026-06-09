@@ -6,9 +6,10 @@
   "scripts": {
     "build": "npm run lint && npm run rollup && npm run babel",
     "rollup": "rollup -c",
-    "babel": "npm run babel:panel && npm run babel:card",
-    "babel:panel": "./node_modules/.bin/babel dist/smart-irrigation.js --out-file dist/smart-irrigation.js",
-    "babel:card": "./node_modules/.bin/babel dist/smart-irrigation-card.js --out-file dist/smart-irrigation-card.js",
+    "babel": "npm run babel:panel && npm run babel:card && npm run babel:impl",
+    "babel:panel": "babel dist/smart-irrigation.js --out-file dist/smart-irrigation.js",
+    "babel:card": "babel dist/smart-irrigation-card.js --out-file dist/smart-irrigation-card.js",
+    "babel:impl": "babel dist/smart-irrigation-card-impl.js --out-file dist/smart-irrigation-card-impl.js",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "start": "rollup -c --watch"
@@ -25,10 +26,9 @@
   "homepage": "https://github.com/JustChr/HAsmartirrigation#readme",
   "dependencies": {
     "@mdi/js": "*",
-    "custom-card-helpers": "^1.9.0",
+    "home-assistant-js-websocket": "^6.1.1",
     "intl-messageformat": "*",
-    "lit": "^2.7.6",
-    "moment": "^2.29.4"
+    "lit": "^2.7.6"
   },
   "devDependencies": {
     "@babel/cli": "*",

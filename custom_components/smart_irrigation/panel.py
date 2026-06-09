@@ -12,7 +12,11 @@ from .const import (
     CARD_URL,
     CUSTOM_COMPONENTS,
     DOMAIN,
+    FULL_CARD_FILENAME,
+    FULL_CARD_URL,
     INTEGRATION_FOLDER,
+    LANG_FOLDER,
+    LANG_URL,
     PANEL_FILENAME,
     PANEL_FOLDER,
     PANEL_ICON,
@@ -30,11 +34,18 @@ async def async_register_panel(hass: HomeAssistant):
     panel_dir = root_dir / PANEL_FOLDER
     view_url = panel_dir / PANEL_FILENAME
     card_url = panel_dir / CARD_FILENAME
+    full_card_url = panel_dir / FULL_CARD_FILENAME
+    lang_dir = panel_dir / LANG_FOLDER
 
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(PANEL_URL, str(view_url), cache_headers=False),
             StaticPathConfig(CARD_URL, str(card_url), cache_headers=False),
+            # Heavy card implementation, lazy-imported by the stub on first render.
+            StaticPathConfig(FULL_CARD_URL, str(full_card_url), cache_headers=False),
+            # Per-language translation JSON (only en is bundled into the
+            # frontend; the rest are fetched on demand from here).
+            StaticPathConfig(LANG_URL, str(lang_dir), cache_headers=False),
         ]
     )
 

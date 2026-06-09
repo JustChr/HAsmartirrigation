@@ -1,6 +1,6 @@
 import { LitElement, html, CSSResultGroup, css } from "lit";
 import { property, state, customElement } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
+import { HomeAssistant } from "./types";
 import { loadHaForm } from "./load-ha-elements";
 import { navigate } from "./helpers";
 
@@ -11,7 +11,11 @@ import "./views/wizard/si-setup-wizard.ts";
 import { commonStyle } from "./styles";
 import { VERSION, PLATFORM, ISSUES_URL } from "./const";
 const DOCS_URL = "https://justchr.github.io/HAsmartirrigation/";
-import { localize } from "../localize/localize";
+import {
+  ensureTranslations,
+  isTranslationLoaded,
+  localize,
+} from "../localize/localize";
 import { exportPath, getPath, Path } from "./common/navigation";
 
 enum EMenuItems {
@@ -77,7 +81,24 @@ export class SmartIrrigationPanel extends LitElement {
       });
   }
 
+  /**
+   * Kick off the active-language fetch (no-op for English/loaded) and re-render
+   * once it resolves. Only English is bundled; other languages load on demand.
+   */
+  private _ensureLanguage() {
+    if (this.hass && !isTranslationLoaded(this.hass.language)) {
+      ensureTranslations(this.hass.language).then(() => this.requestUpdate());
+    }
+  }
+
   render() {
+    // Hold the first paint for non-English users until their strings load
+    // (sub-second) instead of flashing English, then swapping.
+    if (this.hass && !isTranslationLoaded(this.hass.language)) {
+      this._ensureLanguage();
+      return html``;
+    }
+
     const path = getPath();
 
     // Check what tab components are available
@@ -306,7 +327,9 @@ export class SmartIrrigationPanel extends LitElement {
 
         .view > * {
           width: 100%;
-          max-width: 960px;
+          /* Use the available width on wide screens; cap only so text lines
+             don't get uncomfortably long on ultra-wide monitors. */
+          max-width: 1400px;
         }
 
         .view > *:last-child {

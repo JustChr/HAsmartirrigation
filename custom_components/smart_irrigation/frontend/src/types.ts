@@ -1,5 +1,34 @@
+import type {
+  Connection,
+  HassConfig,
+  HassEntities,
+  MessageBase,
+} from "home-assistant-js-websocket";
+
 export interface Dictionary<TValue> {
   [id: string]: TValue;
+}
+
+/**
+ * Minimal Home Assistant frontend object — the subset of properties this
+ * integration actually reads. Replaces the `HomeAssistant` type formerly
+ * imported from `custom-card-helpers` (now removed). If a future view needs
+ * another `hass.*` field, add it here.
+ */
+export interface HomeAssistant {
+  language: string;
+  states: HassEntities;
+  config: HassConfig;
+  connection: Connection;
+  panels: Record<string, { config: Record<string, any> | null }>;
+  localize: (key: string, ...args: any[]) => string;
+  callApi: <T>(
+    method: string,
+    path: string,
+    parameters?: Record<string, any>,
+    headers?: Record<string, string>,
+  ) => Promise<T>;
+  callWS: <T>(msg: MessageBase | Record<string, any>) => Promise<T>;
 }
 
 /*export interface AlarmEntity extends HassEntity {

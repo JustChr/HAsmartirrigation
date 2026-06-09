@@ -1,6 +1,6 @@
 import { LitElement, html, css, CSSResultGroup, TemplateResult } from "lit";
 import { property, state, customElement } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
+import { HomeAssistant } from "../../types";
 
 import {
   fetchAllModules,

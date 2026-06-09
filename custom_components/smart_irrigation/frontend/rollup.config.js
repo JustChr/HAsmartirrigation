@@ -31,9 +31,23 @@ export default [
     context: 'window'
   },
   {
-    // Lovelace custom card (auto-registered via add_extra_js_url) so non-admin
-    // users get an everyday zones dashboard outside the admin-only panel.
+    // Tiny Lovelace card stub (auto-registered via add_extra_js_url) so it
+    // loads on every page cheaply; it lazy-imports the impl bundle below only
+    // when a card actually renders.
     input: 'src/smart-irrigation-card.ts',
+    output: {
+      dir: 'dist',
+      format: 'iife',
+      inlineDynamicImports: true,
+      sourcemap: false,
+    },
+    plugins: [...plugins],
+    context: 'window'
+  },
+  {
+    // Heavy card implementation, lazy-loaded by the stub. Served as a separate
+    // static file so non-card pages never download it.
+    input: 'src/smart-irrigation-card-impl.ts',
     output: {
       dir: 'dist',
       format: 'iife',

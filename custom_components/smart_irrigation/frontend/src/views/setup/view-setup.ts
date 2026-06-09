@@ -1,6 +1,6 @@
 import { LitElement, html, CSSResultGroup, css } from "lit";
 import { property, customElement } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
+import { HomeAssistant } from "../../types";
 
 import "../general/view-general.ts";
 import "../zones/view-zone-settings.ts";

@@ -216,6 +216,18 @@ PANEL_NAME = "smart-irrigation"
 CARD_FILENAME = "dist/smart-irrigation-card.js"
 CARD_URL = "/smart_irrigation_card/smart-irrigation-card.js"
 
+# The card file above is a tiny stub auto-loaded on every page; it lazy-imports
+# this heavy implementation bundle only when a card actually renders (keep
+# FULL_CARD_URL in sync with const.ts).
+FULL_CARD_FILENAME = "dist/smart-irrigation-card-impl.js"
+FULL_CARD_URL = "/smart_irrigation_card/smart-irrigation-card-impl.js"
+
+# Localization static files: only en.json is bundled into the frontend
+# bundles; the other languages are served from here and fetched on demand by
+# the frontend (keep LANG_URL in sync with LANG_BASE_URL in frontend const.ts).
+LANG_FOLDER = "localize/languages"
+LANG_URL = "/smart_irrigation_static/languages"
+
 ATTR_REMOVE = "remove"
 ATTR_CALCULATE = "calculate"
 ATTR_CALCULATE_ALL = "calculate_all"

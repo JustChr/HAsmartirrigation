@@ -1,6 +1,6 @@
 import { TemplateResult, html } from "lit";
-import { HomeAssistant, stateIcon, fireEvent } from "custom-card-helpers";
 import { HassEntity } from "home-assistant-js-websocket";
+import { HomeAssistant } from "./types";
 import {
   CONF_IMPERIAL,
   CONF_METRIC,
@@ -49,6 +49,26 @@ import { Dictionary } from "./types";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { localize } from "../localize/localize";
 
+/**
+ * Dispatch a composed, bubbling CustomEvent — a local replacement for
+ * `custom-card-helpers`' `fireEvent` (now removed). Used for HA's dialog and
+ * navigation events.
+ */
+function fireEvent(
+  node: HTMLElement | Window,
+  type: string,
+  detail?: unknown,
+): void {
+  node.dispatchEvent(
+    new CustomEvent(type, {
+      detail,
+      bubbles: true,
+      composed: true,
+      cancelable: false,
+    }),
+  );
+}
+
 export function getDomain(entity: string | HassEntity) {
   const entity_id: string =
     typeof entity == "string" ? entity : entity.entity_id;
@@ -56,9 +76,6 @@ export function getDomain(entity: string | HassEntity) {
   return String(entity_id.split(".").shift());
 }
 
-export function computeIcon(entity: HassEntity) {
-  return stateIcon(entity);
-}
 export function parseBoolean(value?: string | number | boolean | null) {
   value = value?.toString().toLowerCase();
   return value === "on" || value === "true" || value === "1";
@@ -336,11 +353,6 @@ export function extractErrorMessage(err: unknown): string {
   return e?.body?.message || e?.message || e?.error || JSON.stringify(err);
 }
 
-/**
- * Fire Home Assistant's global toast (hass-notification). Dispatched directly
- * rather than via fireEvent because custom-card-helpers' typed event map does
- * not include "hass-notification".
- */
 /**
  * Format a duration in seconds for display (UX N1).
  * < 60s -> "45 s"; otherwise "6 min" or "6 min 30 s".

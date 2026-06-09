@@ -1,31 +1,63 @@
-import * as de from "./languages/de.json";
 import * as en from "./languages/en.json";
-import * as es from "./languages/es.json";
-import * as fr from "./languages/fr.json";
-import * as it from "./languages/it.json";
-import * as nl from "./languages/nl.json";
-import * as no from "./languages/no.json";
-import * as sk from "./languages/sk.json";
 
 import IntlMessageFormat from "intl-messageformat";
+import { AVAILABLE_LANGUAGES, LANG_BASE_URL } from "../src/const";
 
-const languages: any = {
-  de: de,
-  en: en,
-  es: es,
-  fr: fr,
-  it: it,
-  nl: nl,
-  no: no,
-  sk: sk,
-};
+// Only English is bundled (built-in fallback). Every other supported language
+// is fetched once from the integration's static path and cached here, so the
+// frontend bundles no longer carry all 8 languages. `localize()` falls back to
+// English for any language or key not (yet) loaded.
+const languages: Record<string, any> = { en };
+const loaders: Record<string, Promise<void>> = {};
+
+/** Normalize an HA language code ("de-DE") to a supported base code ("de"). */
+function baseLang(language: string): string {
+  return language
+    .replace(/['"]+/g, "")
+    .split(/[-_]/)[0]
+    .toLowerCase();
+}
+
+/**
+ * True when the active language is ready to render: English (built in), an
+ * already-fetched language, or an unsupported code (which renders as English).
+ */
+export function isTranslationLoaded(language: string): boolean {
+  const lang = baseLang(language);
+  return (
+    lang in languages || !AVAILABLE_LANGUAGES.includes(lang) // unsupported -> en
+  );
+}
+
+/**
+ * Ensure the active language's strings are available. Resolves immediately for
+ * English / already-loaded / unsupported languages; otherwise fetches the JSON
+ * once and caches it. On failure it keeps English as the fallback. The returned
+ * promise lets callers re-render once the strings are in.
+ */
+export function ensureTranslations(language: string): Promise<void> {
+  const lang = baseLang(language);
+  if (isTranslationLoaded(language)) return Promise.resolve();
+  if (!loaders[lang]) {
+    loaders[lang] = fetch(`${LANG_BASE_URL}/${lang}.json`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data) => {
+        languages[lang] = data;
+      })
+      .catch(() => {
+        // Keep English as the fallback; cache so we don't refetch on re-render.
+        languages[lang] = languages["en"];
+      });
+  }
+  return loaders[lang];
+}
 
 export function localize(
   string: string,
   language: string,
   ...args: any[]
 ): string {
-  const lang = language.replace(/['"]+/g, "");
+  const lang = baseLang(language);
   let translated: string;
 
   try {

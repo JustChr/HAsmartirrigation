@@ -8,6 +8,8 @@ from homeassistant.core import HomeAssistant
 from custom_components.smart_irrigation.const import (
     CARD_URL,
     DOMAIN,
+    FULL_CARD_URL,
+    LANG_URL,
     PANEL_ICON,
     PANEL_NAME,
     PANEL_TITLE,
@@ -61,7 +63,7 @@ class TestSmartIrrigationPanel:
             assert call_args[1]["config"] == {}
 
     async def test_async_register_panel_static_path_config(self, mock_hass):
-        """Test panel registration static path configuration (panel + card)."""
+        """Test panel static paths: panel bundle, card stub, card impl, langs."""
         with (
             patch(
                 "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
@@ -70,17 +72,22 @@ class TestSmartIrrigationPanel:
         ):
             await async_register_panel(mock_hass)
 
-            # Both the panel bundle and the card bundle are served.
+            # The panel bundle, the tiny card stub, the lazy card impl and the
+            # per-language translation JSON are all served.
             call_args = mock_hass.http.async_register_static_paths.call_args[0][0]
-            assert len(call_args) == 2
+            assert len(call_args) == 4
 
             by_url = {c.url_path: c for c in call_args}
-            assert set(by_url) == {PANEL_URL, CARD_URL}
+            assert set(by_url) == {PANEL_URL, CARD_URL, FULL_CARD_URL, LANG_URL}
             assert by_url[PANEL_URL].cache_headers is False
             assert "frontend/dist/smart-irrigation.js" in str(by_url[PANEL_URL].path)
             assert "frontend/dist/smart-irrigation-card.js" in str(
                 by_url[CARD_URL].path
             )
+            assert "frontend/dist/smart-irrigation-card-impl.js" in str(
+                by_url[FULL_CARD_URL].path
+            )
+            assert "frontend/localize/languages" in str(by_url[LANG_URL].path)
 
     def test_remove_panel(self, mock_hass):
         """Test panel removal."""

@@ -7,6 +7,28 @@ export const PLATFORM = "smart-irrigation";
 export const DOMAIN = "smart_irrigation";
 export const editConfigService = "edit_config";
 
+// Localization: only en.json is bundled (built-in fallback); the other
+// languages are served as static JSON and fetched on demand. Keep
+// AVAILABLE_LANGUAGES in sync with localize/languages/*.json and LANG_BASE_URL
+// in sync with LANG_URL in const.py.
+export const LANG_BASE_URL = "/smart_irrigation_static/languages";
+
+// The zones card is served as a tiny stub (auto-loaded on every page) that
+// lazy-imports this heavy implementation bundle only when a card renders.
+// Keep in sync with FULL_CARD_URL in const.py.
+export const FULL_CARD_URL =
+  "/smart_irrigation_card/smart-irrigation-card-impl.js";
+export const AVAILABLE_LANGUAGES = [
+  "de",
+  "en",
+  "es",
+  "fr",
+  "it",
+  "nl",
+  "no",
+  "sk",
+];
+
 export const CONF_CALC_TIME = "calctime";
 export const CONF_AUTO_CALC_ENABLED = "autocalcenabled";
 export const CONF_AUTO_UPDATE_ENABLED = "autoupdateenabled";

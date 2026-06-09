@@ -2,7 +2,7 @@ import { TemplateResult, LitElement, html, CSSResultGroup, css } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { live } from "lit/directives/live.js";
 import { property, state, customElement } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
+import { HomeAssistant } from "../../types";
 import { loadHaForm } from "../../load-ha-elements";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
 import { mdiDelete, mdiPlus } from "@mdi/js";
@@ -56,7 +56,7 @@ import {
   ZONE_BUCKET_THRESHOLD,
   ZONE_FLOW_SENSOR,
 } from "../../const";
-import moment from "moment";
+import { formatMonthDayTime, isValidDate } from "../../common/datetime";
 import "../../components/si-field";
 
 /**
@@ -498,8 +498,7 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                 ${records.map((record) => {
                   const fmt = (ts: any) => {
                     try {
-                      const m = moment(ts);
-                      return m.isValid() ? m.format("MM-DD HH:mm") : "-";
+                      return isValidDate(ts) ? formatMonthDayTime(ts) : "-";
                     } catch {
                       return "-";
                     }

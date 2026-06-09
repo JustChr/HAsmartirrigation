@@ -2,7 +2,7 @@ import { TemplateResult, LitElement, html, css, CSSResultGroup } from "lit";
 import { live } from "lit/directives/live.js";
 import { query } from "lit/decorators.js";
 import { property, customElement } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
+import { HomeAssistant } from "../../types";
 import { loadHaForm } from "../../load-ha-elements";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
 import {

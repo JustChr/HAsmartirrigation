@@ -1,18 +1,19 @@
-import { LitElement, html, TemplateResult } from "lit";
-import { property, state } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
-import { SmartIrrigationViewZones } from "./views/zones/view-zones";
-import { VERSION } from "./const";
+import { VERSION, FULL_CARD_URL } from "./const";
 
 /**
- * Lovelace card that mirrors the everyday Zones dashboard for non-admin users.
+ * Tiny registration stub for the Smart Irrigation zones card.
  *
  * The full Smart Irrigation panel is admin-only (panel_custom require_admin),
- * but the underlying websocket/HTTP endpoints are available to any authenticated
- * user. This card reuses the panel's zone view with the admin-only deep links
- * hidden (settings gear, schedule setup, first-run wizard) and, by default, only
- * the manual "Irrigate" actions exposed — so household members can see status
- * and water on demand without touching configuration.
+ * but the underlying websocket/HTTP endpoints are available to any
+ * authenticated user. This card reuses the panel's zone view with the
+ * admin-only deep links hidden and, by default, only the manual "Irrigate"
+ * actions exposed — so household members can see status and water on demand
+ * without touching configuration.
+ *
+ * This file is auto-loaded into the HA app shell on EVERY page (via
+ * add_extra_js_url), so it is deliberately tiny: it registers the element and
+ * advertises the card in the picker, but defers the heavy view bundle
+ * (`smart-irrigation-card-impl.js`) until a card is actually rendered.
  *
  * Config:
  *   type: custom:smart-irrigation-zones-card
@@ -23,36 +24,68 @@ interface ZonesCardConfig {
   actions?: "irrigate" | "none" | "full";
 }
 
-// Pull the shared view in so it is registered in this bundle too (its own
-// define is guarded, so loading alongside the admin panel bundle is safe).
-void SmartIrrigationViewZones;
+let implPromise: Promise<unknown> | undefined;
 
-export class SmartIrrigationZonesCard extends LitElement {
-  @property({ attribute: false }) public hass?: HomeAssistant;
-  @state() private _config?: ZonesCardConfig;
+/**
+ * Lazy-load the heavy implementation bundle. The URL is passed through a
+ * function boundary so the bundler emits a real runtime import (a string
+ * literal would be statically resolved/bundled, defeating the split).
+ */
+function loadImpl(): Promise<unknown> {
+  if (!implPromise) {
+    const url: string = FULL_CARD_URL;
+    implPromise = import(/* @vite-ignore */ url);
+  }
+  return implPromise;
+}
+
+class SmartIrrigationZonesCardStub extends HTMLElement {
+  private _config?: ZonesCardConfig;
+  private _hass?: unknown;
+  private _inner?: HTMLElement & {
+    hass?: unknown;
+    setConfig?: (c: ZonesCardConfig) => void;
+  };
 
   public setConfig(config: ZonesCardConfig): void {
     this._config = config;
+    void this._mount();
+  }
+
+  // Lovelace assigns hass frequently; forward it to the inner element once it
+  // exists (and cache it for the pre-load window).
+  set hass(hass: unknown) {
+    this._hass = hass;
+    if (this._inner) this._inner.hass = hass;
   }
 
   public getCardSize(): number {
     return 6;
   }
 
+  // Default to full width in the modern sections (grid) dashboard so the zone
+  // list actually uses the space it is given. Users can still resize it.
+  public getGridOptions(): Record<string, unknown> {
+    return { columns: "full", rows: "auto", min_columns: 6 };
+  }
+
   static getStubConfig(): Record<string, unknown> {
     return {};
   }
 
-  protected render(): TemplateResult {
-    if (!this.hass || !this._config) return html``;
-    const mode = this._config.actions ?? "irrigate";
-    return html`
-      <smart-irrigation-view-zones
-        .hass=${this.hass}
-        .hideSettingsLinks=${true}
-        .actionsMode=${mode}
-      ></smart-irrigation-view-zones>
-    `;
+  private async _mount(): Promise<void> {
+    await loadImpl();
+    if (!this._inner) {
+      this._inner = document.createElement(
+        "smart-irrigation-zones-card-impl",
+      ) as HTMLElement & {
+        hass?: unknown;
+        setConfig?: (c: ZonesCardConfig) => void;
+      };
+      this.appendChild(this._inner);
+    }
+    if (this._hass) this._inner.hass = this._hass;
+    if (this._config) this._inner.setConfig?.(this._config);
   }
 }
 
@@ -61,7 +94,7 @@ export class SmartIrrigationZonesCard extends LitElement {
 if (!customElements.get("smart-irrigation-zones-card")) {
   customElements.define(
     "smart-irrigation-zones-card",
-    SmartIrrigationZonesCard,
+    SmartIrrigationZonesCardStub,
   );
 }
 
@@ -83,7 +116,7 @@ if (!w.customCards.some((c) => c.type === "smart-irrigation-zones-card")) {
     preview: false,
   });
   // Conventional card banner; also pins the build version into this bundle so
-  // the release verification (each bundle must embed the version) holds.
+  // the release verification (panel + card stub must embed the version) holds.
   console.info(
     `%c smart-irrigation-zones-card %c ${VERSION} `,
     "color: white; background: #3949ab; font-weight: 700;",

@@ -1,6 +1,6 @@
 import { LitElement, html, css, CSSResultGroup } from "lit";
 import { property, customElement, state } from "lit/decorators.js";
-import { HomeAssistant } from "custom-card-helpers";
+import { HomeAssistant } from "../types";
 import { mdiClose } from "@mdi/js";
 
 @customElement("error-dialog")
