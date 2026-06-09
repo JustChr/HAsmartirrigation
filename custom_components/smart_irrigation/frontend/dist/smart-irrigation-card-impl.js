@@ -4027,9 +4027,10 @@
     _zoneHasDeficit(e) {
       var t, i, r;
       const n = null !== (t = e.duration) && void 0 !== t ? t : 0,
-        o = Number(null !== (i = e.bucket) && void 0 !== i ? i : 0),
-        a = Number(null !== (r = e.bucket_threshold) && void 0 !== r ? r : 0);
-      return n > 0 && o < a;
+        o = Number(null !== (i = e.bucket_threshold) && void 0 !== i ? i : 0),
+        a = this._zoneEstimate(e),
+        s = a && a.available && null != a.live_deficit ? a.live_deficit : Number(null !== (r = e.bucket) && void 0 !== r ? r : 0);
+      return n > 0 && s < o;
     }
     _formatRunTime(e) {
       if (!this.hass) return "";

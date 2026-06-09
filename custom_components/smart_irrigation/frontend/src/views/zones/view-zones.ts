@@ -322,12 +322,22 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     return this._activeGuards.filter((c) => c.would_skip);
   }
 
-  /** Per-zone irrigation gate, mirroring the backend runner. */
+  /**
+   * Per-zone irrigation gate. Mirrors the backend runner, but prefers the live
+   * intra-day deficit estimate over the once-daily calc's stored bucket when
+   * available — it reflects ET/rain since the last calc, so the "watering
+   * needed?" verdict stays current (e.g. flips to "no" after rain). Falls back
+   * to the stored bucket when no estimate exists.
+   */
   private _zoneHasDeficit(zone: SmartIrrigationZone): boolean {
     const duration = zone.duration ?? 0;
-    const bucket = Number(zone.bucket ?? 0);
     const threshold = Number(zone.bucket_threshold ?? 0);
-    return duration > 0 && bucket < threshold;
+    const est = this._zoneEstimate(zone);
+    const deficit =
+      est && est.available && est.live_deficit != null
+        ? est.live_deficit
+        : Number(zone.bucket ?? 0);
+    return duration > 0 && deficit < threshold;
   }
 
   /** Compact local time for a run, e.g. "today 06:00" / "tomorrow 06:00". */

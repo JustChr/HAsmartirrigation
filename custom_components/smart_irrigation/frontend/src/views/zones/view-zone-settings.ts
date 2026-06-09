@@ -15,7 +15,6 @@ import {
   fetchMappings,
   resetAllBuckets,
   clearAllWeatherdata,
-  fetchWateringCalendar,
 } from "../../data/websockets";
 import { SubscribeMixin } from "../../subscribe-mixin";
 
@@ -50,9 +49,7 @@ import {
   ZONE_LINKED_ENTITY,
   ZONE_BUCKET_THRESHOLD,
   ZONE_FLOW_SENSOR,
-  CONF_IMPERIAL,
 } from "../../const";
-import { formatWeather, formatVolume } from "../../common/units";
 import "../../components/si-field";
 import "../../components/si-zone-form";
 
@@ -74,9 +71,6 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   private modules: SmartIrrigationModule[] = [];
   @property({ type: Array })
   private mappings: SmartIrrigationMapping[] = [];
-
-  @property({ type: Map })
-  private wateringCalendars = new Map<number, any>();
 
   @property({ type: Boolean })
   private isLoading = true;
@@ -193,8 +187,6 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
       this.modules = modules;
       this.mappings = mappings;
       this._initialLoadDone = true;
-
-      this._fetchWateringCalendars();
     } catch (error) {
       console.error("Error fetching data:", error);
       showErrorToast(this, this.hass, "common.errors.load_failed", error);
@@ -382,137 +374,6 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
     `;
   }
 
-  private async _fetchWateringCalendars(): Promise<void> {
-    if (!this.hass) return;
-    for (const zone of this.zones) {
-      if (zone.id !== undefined) {
-        try {
-          const calendar = await fetchWateringCalendar(
-            this.hass,
-            zone.id.toString(),
-          );
-          this.wateringCalendars.set(zone.id, calendar);
-        } catch (error) {
-          console.error(
-            `Failed to fetch watering calendar for zone ${zone.id}:`,
-            error,
-          );
-        }
-      }
-    }
-    this._scheduleUpdate();
-  }
-
-  private renderWateringCalendar(zone: SmartIrrigationZone): TemplateResult {
-    if (!this.hass || typeof zone.id !== "number") return html``;
-    const calendarData = this.wateringCalendars.get(zone.id);
-    const zoneCalendar =
-      calendarData && zone.id in calendarData ? calendarData[zone.id] : null;
-    const monthlyEstimates = zoneCalendar?.monthly_estimates || [];
-
-    return html`
-      <div class="card-content">
-        ${monthlyEstimates.length === 0
-          ? html`
-              <div class="calendar-note">
-                ${zoneCalendar?.error
-                  ? `${localize("panels.zones.calendar.error_prefix", this.hass.language)} ${zoneCalendar.error}`
-                  : localize(
-                      "panels.zones.calendar.no_data",
-                      this.hass.language,
-                    )}
-              </div>
-            `
-          : html`
-              <div class="calendar-table">
-                <div class="calendar-header">
-                  <span
-                    >${localize(
-                      "panels.zones.calendar.month",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.zones.calendar.et",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.zones.calendar.precipitation",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.zones.calendar.watering",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span
-                    >${localize(
-                      "panels.zones.calendar.avg_temp",
-                      this.hass.language,
-                    )}</span
-                  >
-                </div>
-                ${monthlyEstimates.map((estimate) => {
-                  const metric = this.config?.units !== CONF_IMPERIAL;
-                  return html`
-                    <div class="calendar-row">
-                      <span
-                        >${estimate.month_name ||
-                        `Month ${estimate.month}` ||
-                        "-"}</span
-                      >
-                      <span
-                        >${formatWeather(
-                          estimate.estimated_et_mm,
-                          "precipitation",
-                          metric,
-                        )}</span
-                      >
-                      <span
-                        >${formatWeather(
-                          estimate.average_precipitation_mm,
-                          "precipitation",
-                          metric,
-                        )}</span
-                      >
-                      <span
-                        >${formatVolume(
-                          estimate.estimated_watering_volume_liters,
-                          metric,
-                        )}</span
-                      >
-                      <span
-                        >${formatWeather(
-                          estimate.average_temperature_c,
-                          "temperature",
-                          metric,
-                        )}</span
-                      >
-                    </div>
-                  `;
-                })}
-              </div>
-              ${zoneCalendar?.calculation_method
-                ? html`
-                    <div class="calendar-info">
-                      ${localize(
-                        "panels.zones.calendar.method_prefix",
-                        this.hass.language,
-                      )}
-                      ${zoneCalendar.calculation_method}
-                    </div>
-                  `
-                : ""}
-            `}
-      </div>
-    `;
-  }
-
   private async saveToHA(zone: SmartIrrigationZone): Promise<void> {
     if (!this.hass) throw new Error("Home Assistant connection not available");
     await saveZone(this.hass, zone);
@@ -555,19 +416,15 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   private renderZone(zone: SmartIrrigationZone, index: number): TemplateResult {
     if (!this.hass) return html``;
 
-    const expanded = zone.id !== undefined && zone.id === this._targetZoneId;
-
     return html`
       <ha-card id="zone-${zone.id ?? "new"}">
         <div class="card-header">
           <div class="name">${zone.name}</div>
         </div>
 
-        <!-- SETTINGS EXPANSION -->
-        <ha-expansion-panel
-          ?expanded="${expanded}"
-          .header="${localize("common.labels.settings", this.hass.language)}"
-        >
+        <!-- Settings shown directly (no longer collapsible — the calendar that
+             used to sit alongside it moved to the Weather & Location tab). -->
+        <div class="card-content zone-settings">
           <ha-settings-row>
             <span slot="heading"
               >${localize("panels.zones.labels.name", this.hass.language)}</span
@@ -1024,7 +881,7 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
               ${localize("common.actions.delete", this.hass.language)}
             </button>
           </div>
-        </ha-expansion-panel>
+        </div>
 
         <!-- EXPLANATION EXPANSION -->
         ${zone.explanation && zone.explanation.length > 0
@@ -1040,18 +897,8 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
             `
           : ""}
 
-        <!-- Weather records now live on the Weather & Location tab (shown per
-             sensor group, not repeated per zone). -->
-
-        <!-- CALENDAR EXPANSION -->
-        <ha-expansion-panel
-          .header="${localize(
-            "panels.zones.actions.view-watering-calendar",
-            this.hass.language,
-          )}"
-        >
-          ${this.renderWateringCalendar(zone)}
-        </ha-expansion-panel>
+        <!-- Weather records + the watering/seasonal calendar now live on the
+             Weather & Location tab (climate is the same for every zone). -->
       </ha-card>
     `;
   }
