@@ -530,6 +530,10 @@
         "my_zones": "Mis zonas",
         "when_to_water": "Cuándo regar",
         "advanced": "Avanzado"
+      },
+      "weather_data": {
+        "forecast_title": "Pronóstico",
+        "forecast_none": "El pronóstico está disponible cuando hay un servicio meteorológico activado."
       }
     }
   },

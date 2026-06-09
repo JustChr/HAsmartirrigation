@@ -165,6 +165,25 @@ export const fetchMappingWeatherRecords = (
     limit: limit,
   });
 
+// Weather service daily forecast (forward-looking; one entry per upcoming day)
+export interface ForecastDay {
+  date: string;
+  temp_min: number | null;
+  temp_max: number | null;
+  precipitation: number | null;
+  windspeed: number | null;
+}
+
+export interface WeatherForecast {
+  available: boolean;
+  days: ForecastDay[];
+}
+
+export const fetchWeatherForecast = (
+  hass: HomeAssistant,
+): Promise<WeatherForecast> =>
+  hass.callWS({ type: DOMAIN + "/weather_forecast" });
+
 // Backend API for watering calendar for a zone
 export const fetchWateringCalendar = (
   hass: HomeAssistant,

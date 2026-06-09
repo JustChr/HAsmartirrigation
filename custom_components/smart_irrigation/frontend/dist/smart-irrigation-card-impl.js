@@ -1068,6 +1068,10 @@
           my_zones: "My Zones",
           when_to_water: "When to Water",
           advanced: "Advanced"
+        },
+        weather_data: {
+          forecast_title: "Forecast",
+          forecast_none: "Forecast is available when a weather service is enabled."
         }
       },
       help: {

@@ -335,8 +335,8 @@
     T = `<${C}>`,
     O = document,
     H = () => O.createComment(""),
-    L = e => null === e || "object" != typeof e && "function" != typeof e,
-    M = Array.isArray,
+    M = e => null === e || "object" != typeof e && "function" != typeof e,
+    L = Array.isArray,
     N = "[ \t\n\f\r]",
     I = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,
     P = /-->/g,
@@ -450,7 +450,7 @@
     var s, n, r, o;
     if (t === W) return t;
     let l = void 0 !== a ? null === (s = i._$Co) || void 0 === s ? void 0 : s[a] : i._$Cl;
-    const c = L(t) ? void 0 : t._$litDirective$;
+    const c = M(t) ? void 0 : t._$litDirective$;
     return (null == l ? void 0 : l.constructor) !== c && (null === (n = null == l ? void 0 : l._$AO) || void 0 === n || n.call(l, !1), void 0 === c ? l = void 0 : (l = new c(e), l._$AT(e, i, a)), void 0 !== a ? (null !== (r = (o = i)._$Co) && void 0 !== r ? r : o._$Co = [])[a] = l : i._$Cl = l), void 0 !== l && (t = Y(e, l._$AS(e, t.values), l, a)), t;
   }
   class J {
@@ -512,7 +512,7 @@
       return this._$AB;
     }
     _$AI(e, t = this) {
-      e = Y(this, e, t), L(e) ? e === Z || null == e || "" === e ? (this._$AH !== Z && this._$AR(), this._$AH = Z) : e !== this._$AH && e !== W && this._(e) : void 0 !== e._$litType$ ? this.g(e) : void 0 !== e.nodeType ? this.$(e) : (e => M(e) || "function" == typeof (null == e ? void 0 : e[Symbol.iterator]))(e) ? this.T(e) : this._(e);
+      e = Y(this, e, t), M(e) ? e === Z || null == e || "" === e ? (this._$AH !== Z && this._$AR(), this._$AH = Z) : e !== this._$AH && e !== W && this._(e) : void 0 !== e._$litType$ ? this.g(e) : void 0 !== e.nodeType ? this.$(e) : (e => L(e) || "function" == typeof (null == e ? void 0 : e[Symbol.iterator]))(e) ? this.T(e) : this._(e);
     }
     k(e) {
       return this._$AA.parentNode.insertBefore(e, this._$AB);
@@ -521,7 +521,7 @@
       this._$AH !== e && (this._$AR(), this._$AH = this.k(e));
     }
     _(e) {
-      this._$AH !== Z && L(this._$AH) ? this._$AA.nextSibling.data = e : this.$(O.createTextNode(e)), this._$AH = e;
+      this._$AH !== Z && M(this._$AH) ? this._$AA.nextSibling.data = e : this.$(O.createTextNode(e)), this._$AH = e;
     }
     g(e) {
       var t;
@@ -541,7 +541,7 @@
       return void 0 === t && G.set(e.strings, t = new X(e)), t;
     }
     T(e) {
-      M(this._$AH) || (this._$AH = [], this._$AR());
+      L(this._$AH) || (this._$AH = [], this._$AR());
       const t = this._$AH;
       let i,
         a = 0;
@@ -573,10 +573,10 @@
     _$AI(e, t = this, i, a) {
       const s = this.strings;
       let n = !1;
-      if (void 0 === s) e = Y(this, e, t, 0), n = !L(e) || e !== this._$AH && e !== W, n && (this._$AH = e);else {
+      if (void 0 === s) e = Y(this, e, t, 0), n = !M(e) || e !== this._$AH && e !== W, n && (this._$AH = e);else {
         const a = e;
         let r, o;
-        for (e = s[0], r = 0; r < s.length - 1; r++) o = Y(this, a[i + r], t, r), o === W && (o = this._$AH[r]), n || (n = !L(o) || o !== this._$AH[r]), o === Z ? e = Z : e !== Z && (e += (null != o ? o : "") + s[r + 1]), this._$AH[r] = o;
+        for (e = s[0], r = 0; r < s.length - 1; r++) o = Y(this, a[i + r], t, r), o === W && (o = this._$AH[r]), n || (n = !M(o) || o !== this._$AH[r]), o === Z ? e = Z : e !== Z && (e += (null != o ? o : "") + s[r + 1]), this._$AH[r] = o;
       }
       n && !a && this.j(e);
     }
@@ -843,8 +843,8 @@
     Te = "imperial",
     Oe = "metric",
     He = "Dewpoint",
-    Le = "Evapotranspiration",
-    Me = "Humidity",
+    Me = "Evapotranspiration",
+    Le = "Humidity",
     Ne = "Precipitation",
     Ie = "Current Precipitation",
     Pe = "Pressure",
@@ -919,7 +919,7 @@
        * Copyright 2017 Google LLC
        * SPDX-License-Identifier: BSD-3-Clause
        */
-  class Lt extends Ht {
+  class Mt extends Ht {
     constructor(e) {
       if (super(e), this.et = Z, e.type !== At) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
     }
@@ -937,8 +937,8 @@
       };
     }
   }
-  Lt.directiveName = "unsafeHTML", Lt.resultType = 1;
-  const Mt = Ot(Lt);
+  Mt.directiveName = "unsafeHTML", Mt.resultType = 1;
+  const Lt = Ot(Mt);
   var Nt = {
       loading: "Loading",
       saving: "Saving",
@@ -1158,6 +1158,10 @@
           my_zones: "My Zones",
           when_to_water: "When to Water",
           advanced: "Advanced"
+        },
+        weather_data: {
+          forecast_title: "Forecast",
+          forecast_none: "Forecast is available when a weather service is enabled."
         }
       },
       help: {
@@ -2094,8 +2098,8 @@
     }
     return t;
   }
-  var Li,
-    Mi = {
+  var Mi,
+    Li = {
       "001": ["H", "h"],
       419: ["h", "H", "hB", "hb"],
       AC: ["H", "h", "hb", "hB"],
@@ -2387,7 +2391,7 @@
     }
     var i,
       a = e.language;
-    return "root" !== a && (i = e.maximize().region), (Mi[i || ""] || Mi[a || ""] || Mi["".concat(a, "-001")] || Mi["001"])[0];
+    return "root" !== a && (i = e.maximize().region), (Li[i || ""] || Li[a || ""] || Li["".concat(a, "-001")] || Li["001"])[0];
   }
   var Ii = new RegExp("^".concat(yi.source, "*")),
     Pi = new RegExp("".concat(yi.source, "*$"));
@@ -2408,7 +2412,7 @@
     },
     Gi = !0;
   try {
-    Gi = "a" === (null === (Li = ea("([^\\p{White_Space}\\p{Pattern_Syntax}]*)", "yu").exec("a")) || void 0 === Li ? void 0 : Li[0]);
+    Gi = "a" === (null === (Mi = ea("([^\\p{White_Space}\\p{Pattern_Syntax}]*)", "yu").exec("a")) || void 0 === Mi ? void 0 : Mi[0]);
   } catch (P) {
     Gi = !1;
   }
@@ -3276,14 +3280,14 @@
   function Aa(e, t) {
     switch (t) {
       case ft:
-        return e.units == Oe ? F`${Mt(at)}` : F`${Mt(st)}`;
+        return e.units == Oe ? F`${Lt(at)}` : F`${Lt(st)}`;
       case xe:
       case dt:
-        return e.units == Oe ? F`${Mt("mm")}` : F`${Mt("in")}`;
+        return e.units == Oe ? F`${Lt("mm")}` : F`${Lt("in")}`;
       case rt:
-        return e.units == Oe ? F`${Mt("m<sup>2</sup>")}` : F`${Mt(et)}`;
+        return e.units == Oe ? F`${Lt("m<sup>2</sup>")}` : F`${Lt(et)}`;
       case ot:
-        return e.units == Oe ? F`${Mt(tt)}` : F`${Mt(it)}`;
+        return e.units == Oe ? F`${Lt(tt)}` : F`${Lt(it)}`;
       default:
         return F``;
     }
@@ -3293,7 +3297,7 @@
       za(e, "show-dialog", {
         dialogTag: "error-dialog",
         dialogImport: () => Promise.resolve().then(function () {
-          return Es;
+          return As;
         }),
         dialogParams: {
           error: t
@@ -3324,11 +3328,11 @@
       composed: !0
     }));
   }
-  function La(e, t, i, a) {
+  function Ma(e, t, i, a) {
     var s;
     Ha(e, `${Sa(i, null !== (s = null == t ? void 0 : t.language) && void 0 !== s ? s : "en")}: ${Oa(a)}`);
   }
-  var Ma = "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
+  var La = "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
     Na = "M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z",
     Ia = "M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z";
   const Pa = e => e.callWS({
@@ -4135,7 +4139,7 @@
         })]);
         this.config = i, this.zones = a, this._outlook = s, this._initialLoadDone = !0;
       } catch (e) {
-        console.error("Error fetching data:", e), La(this, this.hass, "common.errors.load_failed", e);
+        console.error("Error fetching data:", e), Ma(this, this.hass, "common.errors.load_failed", e);
       } finally {
         e && (this.isLoading = !1), this._scheduleUpdate();
       }
@@ -4146,7 +4150,7 @@
       this.hass && (this.isSaving = !0, this._scheduleUpdate(), (e = this.hass, e.callApi("POST", we + "/zones", {
         calculate_all: !0
       })).catch(e => {
-        console.error("Failed to calculate all zones:", e), La(this, this.hass, "common.errors.action_failed", e);
+        console.error("Failed to calculate all zones:", e), Ma(this, this.hass, "common.errors.action_failed", e);
       }).finally(() => {
         this.isSaving = !1, this._fetchData().catch(e => console.error("fetchData after calc-all:", e));
       }));
@@ -4156,7 +4160,7 @@
       this.hass && (this.isSaving = !0, this._scheduleUpdate(), (e = this.hass, e.callApi("POST", we + "/zones", {
         update_all: !0
       })).catch(e => {
-        console.error("Failed to update all zones:", e), La(this, this.hass, "common.errors.action_failed", e);
+        console.error("Failed to update all zones:", e), Ma(this, this.hass, "common.errors.action_failed", e);
       }).finally(() => {
         this.isSaving = !1, this._fetchData().catch(e => console.error("fetchData after update-all:", e));
       }));
@@ -4722,7 +4726,7 @@
                 ></ha-icon>
                 <span class="error-banner-msg">${this._operationError}</span>
                 <ha-icon-button
-                  .path="${Ma}"
+                  .path="${La}"
                   @click="${() => {
         this._operationError = null;
       }}"
@@ -5532,7 +5536,7 @@
           [t]: i
         }), {}) : {}), this._initialLoadDone = !0;
       } catch (e) {
-        console.error("Error fetching data:", e), La(this, this.hass, "common.errors.load_failed", e);
+        console.error("Error fetching data:", e), Ma(this, this.hass, "common.errors.load_failed", e);
       } finally {
         t && (this.isLoading = !1), this._scheduleUpdate();
       }
@@ -5591,7 +5595,7 @@
         try {
           await qa(this.hass, this._useWeatherService, this._useWeatherService ? this._weatherService : null, this._newApiKey || null), this._newApiKey = "", await this._fetchData();
         } catch (e) {
-          console.error("Failed to save weather config:", e), La(this, this.hass, "common.errors.save_failed", e);
+          console.error("Failed to save weather config:", e), Ma(this, this.hass, "common.errors.save_failed", e);
         } finally {
           this._weatherSaving = !1, this._scheduleUpdate();
         }
@@ -5945,7 +5949,7 @@
             manual_elevation: null != s ? s : null
           })), this._applyCoordinates(await Va(this.hass));
         } catch (e) {
-          console.error("Failed to save coordinates:", e), La(this, this.hass, "common.errors.save_failed", e);
+          console.error("Failed to save coordinates:", e), Ma(this, this.hass, "common.errors.save_failed", e);
         } finally {
           this._coordsSaving = !1, this._scheduleUpdate();
         }
@@ -6181,7 +6185,7 @@
         try {
           this.data = Object.assign(Object.assign({}, this.data), e), this._scheduleUpdate(), await (t = this.hass, i = this.data, t.callApi("POST", we + "/config", i)), this._markSaved();
         } catch (e) {
-          console.error("Error saving config:", e), this._saveStatus = "idle", La(this, this.hass, "common.errors.save_failed", e), await this._fetchData();
+          console.error("Error saving config:", e), this._saveStatus = "idle", Ma(this, this.hass, "common.errors.save_failed", e), await this._fetchData();
         } finally {
           this.isSaving = !1, this._scheduleUpdate();
         }
@@ -6514,7 +6518,7 @@
   })], ps.prototype, "showEntity", void 0), ps = s([de("si-zone-form")], ps);
   let gs = class extends Ka(ce) {
     constructor() {
-      super(...arguments), this.zones = [], this.modules = [], this.mappings = [], this.wateringCalendars = new Map(), this.weatherRecords = new Map(), this.isLoading = !0, this._initialLoadDone = !1, this._scrolledToTarget = !1, this.isSaving = !1, this._showAddZone = !1, this._pendingConfirm = null, this._saveStatus = "idle", this._savedResetTimer = null, this._confirmDeleteZoneId = null, this._newZoneName = "", this._newZoneSize = "", this._newZoneThroughput = "", this._updateScheduled = !1, this.globalDebounceTimer = null;
+      super(...arguments), this.zones = [], this.modules = [], this.mappings = [], this.wateringCalendars = new Map(), this.isLoading = !0, this._initialLoadDone = !1, this._scrolledToTarget = !1, this.isSaving = !1, this._showAddZone = !1, this._pendingConfirm = null, this._saveStatus = "idle", this._savedResetTimer = null, this._confirmDeleteZoneId = null, this._newZoneName = "", this._newZoneSize = "", this._newZoneThroughput = "", this._updateScheduled = !1, this.globalDebounceTimer = null;
     }
     _scheduleUpdate() {
       this._updateScheduled || (this._updateScheduled = !0, requestAnimationFrame(() => {
@@ -6559,9 +6563,9 @@
       try {
         e && (this.isLoading = !0);
         const [t, i, a, s] = await Promise.all([Pa(this.hass), Da(this.hass), Ra(this.hass), Fa(this.hass)]);
-        this.config = t, this.zones = i, this.modules = a, this.mappings = s, this._initialLoadDone = !0, this._fetchWateringCalendars(), this._fetchWeatherRecords();
+        this.config = t, this.zones = i, this.modules = a, this.mappings = s, this._initialLoadDone = !0, this._fetchWateringCalendars();
       } catch (e) {
-        console.error("Error fetching data:", e), La(this, this.hass, "common.errors.load_failed", e);
+        console.error("Error fetching data:", e), Ma(this, this.hass, "common.errors.load_failed", e);
       } finally {
         e && (this.isLoading = !1), this._scheduleUpdate();
       }
@@ -6571,7 +6575,7 @@
       this.hass && (this.isSaving = !0, this._scheduleUpdate(), (e = this.hass, e.callApi("POST", we + "/zones", {
         reset_all_buckets: !0
       })).catch(e => {
-        console.error("Failed to reset all buckets:", e), La(this, this.hass, "common.errors.action_failed", e);
+        console.error("Failed to reset all buckets:", e), Ma(this, this.hass, "common.errors.action_failed", e);
       }).finally(() => {
         this.isSaving = !1, this._fetchData().catch(e => console.error("fetchData after reset:", e));
       }));
@@ -6581,7 +6585,7 @@
       this.hass && (this.isSaving = !0, this._scheduleUpdate(), (e = this.hass, e.callApi("POST", we + "/zones", {
         clear_all_weatherdata: !0
       })).catch(e => {
-        console.error("Failed to clear all weather data:", e), La(this, this.hass, "common.errors.action_failed", e);
+        console.error("Failed to clear all weather data:", e), Ma(this, this.hass, "common.errors.action_failed", e);
       }).finally(() => {
         this.isSaving = !1, this._fetchData().catch(e => console.error("fetchData after clear-weather:", e));
       }));
@@ -6607,7 +6611,7 @@
         current_drainage: 0
       };
       this.zones = [...this.zones, e], this.isSaving = !0, this._showAddZone = !1, this.saveToHA(e).then(() => (this._newZoneName = "", this._newZoneSize = "", this._newZoneThroughput = "", this._fetchData())).catch(e => {
-        console.error("Failed to add zone:", e), this.zones = this.zones.slice(0, -1), La(this, this.hass, "common.errors.save_failed", e);
+        console.error("Failed to add zone:", e), this.zones = this.zones.slice(0, -1), Ma(this, this.hass, "common.errors.save_failed", e);
       }).finally(() => {
         this.isSaving = !1, this._scheduleUpdate();
       });
@@ -6615,7 +6619,7 @@
     handleEditZone(e, t) {
       this.hass && (this.zones = this.zones.map((i, a) => a === e ? t : i), this.globalDebounceTimer && clearTimeout(this.globalDebounceTimer), this.globalDebounceTimer = window.setTimeout(() => {
         this.isSaving = !0, this._saveStatus = "saving", this.saveToHA(t).then(() => this._markSaved()).catch(e => {
-          console.error("Failed to save zone:", e), this._saveStatus = "idle", La(this, this.hass, "common.errors.save_failed", e);
+          console.error("Failed to save zone:", e), this._saveStatus = "idle", Ma(this, this.hass, "common.errors.save_failed", e);
         }).finally(() => {
           this.isSaving = !1, this._scheduleUpdate();
         }), this.globalDebounceTimer = null;
@@ -6635,7 +6639,7 @@
         id: s,
         remove: !0
       })).catch(e => {
-        console.error("Failed to delete zone:", e), La(this, this.hass, "common.errors.delete_failed", e), this.zones = i, this._fetchData().catch(e => console.error("Failed to refresh data after delete error:", e));
+        console.error("Failed to delete zone:", e), Ma(this, this.hass, "common.errors.delete_failed", e), this.zones = i, this._fetchData().catch(e => console.error("Failed to refresh data after delete error:", e));
       }).finally(() => {
         this.isSaving = !1, this._scheduleUpdate();
       });
@@ -6661,17 +6665,6 @@
       </span>
     `;
     }
-    async _fetchWeatherRecords() {
-      if (this.hass) {
-        for (const e of this.zones) if (void 0 !== e.id && void 0 !== e.mapping) try {
-          const t = await Za(this.hass, e.mapping.toString(), 0);
-          this.weatherRecords.set(e.id, t);
-        } catch (t) {
-          console.error(`Failed to fetch weather records for zone ${e.id}:`, t);
-        }
-        this._scheduleUpdate();
-      }
-    }
     async _fetchWateringCalendars() {
       if (this.hass) {
         for (const i of this.zones) if (void 0 !== i.id) try {
@@ -6686,70 +6679,6 @@
         var e, t;
         this._scheduleUpdate();
       }
-    }
-    renderWeatherRecords(e) {
-      if (!this.hass || "number" != typeof e.id) return F``;
-      const t = this.weatherRecords.get(e.id) || [];
-      return F`
-      <div class="card-content">
-        ${0 === t.length ? F`
-              <div class="weather-note">
-                ${Sa("panels.mappings.weather-records.no-data", this.hass.language)}
-              </div>
-            ` : F`
-              <div class="weather-table">
-                <div class="weather-header">
-                  <span
-                    >${Sa("panels.mappings.weather-records.timestamp", this.hass.language)}</span
-                  >
-                  <span
-                    >${Sa("panels.mappings.weather-records.temperature", this.hass.language)}</span
-                  >
-                  <span
-                    >${Sa("panels.mappings.weather-records.humidity", this.hass.language)}</span
-                  >
-                  <span
-                    >${Sa("panels.mappings.weather-records.dewpoint", this.hass.language)}</span
-                  >
-                  <span
-                    >${Sa("panels.mappings.weather-records.wind", this.hass.language)}</span
-                  >
-                  <span
-                    >${Sa("panels.mappings.weather-records.pressure", this.hass.language)}</span
-                  >
-                  <span
-                    >${Sa("panels.mappings.weather-records.precipitation", this.hass.language)}</span
-                  >
-                  <span
-                    >${Sa("panels.mappings.weather-records.retrieval-time", this.hass.language)}</span
-                  >
-                </div>
-                ${t.map(e => {
-        const t = e => {
-            try {
-              return as(e) ? ns(e) : "-";
-            } catch (e) {
-              return "-";
-            }
-          },
-          i = (e, t, i = 1) => null != e ? e.toFixed(i) + t : "-";
-        return F`
-                    <div class="weather-row">
-                      <span>${t(e.timestamp)}</span>
-                      <span>${i(e.temperature, "°C")}</span>
-                      <span>${i(e.humidity, "%")}</span>
-                      <span>${i(e.dewpoint, "°C")}</span>
-                      <span>${i(e.wind_speed, "m/s")}</span>
-                      <span>${i(e.pressure, "hPa", 0)}</span>
-                      <span>${i(e.precipitation, "mm")}</span>
-                      <span>${t(e.retrieval_time)}</span>
-                    </div>
-                  `;
-      })}
-              </div>
-            `}
-      </div>
-    `;
     }
     renderWateringCalendar(e) {
       if (!this.hass || "number" != typeof e.id) return F``;
@@ -7215,18 +7144,12 @@
               <ha-expansion-panel
                 .header="${Sa("panels.zones.actions.information", this.hass.language)}"
               >
-                <div class="card-content">${Mt(e.explanation)}</div>
+                <div class="card-content">${Lt(e.explanation)}</div>
               </ha-expansion-panel>
             ` : ""}
 
-        <!-- WEATHER EXPANSION -->
-        ${void 0 !== e.mapping ? F`
-              <ha-expansion-panel
-                .header="${Sa("panels.zones.actions.view-weather-info", this.hass.language)}"
-              >
-                ${this.renderWeatherRecords(e)}
-              </ha-expansion-panel>
-            ` : ""}
+        <!-- Weather records now live on the Weather & Location tab (shown per
+             sensor group, not repeated per zone). -->
 
         <!-- CALENDAR EXPANSION -->
         <ha-expansion-panel
@@ -7598,8 +7521,6 @@
   })], gs.prototype, "mappings", void 0), s([pe({
     type: Map
   })], gs.prototype, "wateringCalendars", void 0), s([pe({
-    type: Map
-  })], gs.prototype, "weatherRecords", void 0), s([pe({
     type: Boolean
   })], gs.prototype, "isLoading", void 0), s([pe({
     type: Boolean
@@ -7646,7 +7567,7 @@
         const [e, t, i, a] = await Promise.all([Pa(this.hass), Da(this.hass), Ra(this.hass), Ua(this.hass)]);
         this.config = e, this.zones = t, this.modules = i, this.allmodules = a, this._initialLoadDone = !0, this.moduleCache.clear();
       } catch (e) {
-        console.error("Error fetching data:", e), La(this, this.hass, "common.errors.load_failed", e);
+        console.error("Error fetching data:", e), Ma(this, this.hass, "common.errors.load_failed", e);
       } finally {
         e && (this.isLoading = !1), this._scheduleUpdate();
       }
@@ -7685,7 +7606,7 @@
             remove: !0
           })));
         } catch (e) {
-          console.error("Error removing module:", e), La(this, this.hass, "common.errors.delete_failed", e), await this._fetchData();
+          console.error("Error removing module:", e), Ma(this, this.hass, "common.errors.delete_failed", e), await this._fetchData();
         } finally {
           this.isSaving = !1, this._scheduleUpdate();
         }
@@ -7696,7 +7617,7 @@
       if (this.hass) try {
         await ja(this.hass, e);
       } catch (e) {
-        throw console.error("Error saving module:", e), La(this, this.hass, "common.errors.save_failed", e), e;
+        throw console.error("Error saving module:", e), Ma(this, this.hass, "common.errors.save_failed", e), e;
       }
     }
     renderModule(e, t) {
@@ -7913,7 +7834,7 @@
         const [t, i, a] = await Promise.all([Pa(this.hass), Da(this.hass), Fa(this.hass)]);
         this.config = t, this.zones = i, this.mappings = a, this._initialLoadDone = !0, this._fetchWeatherRecords(), this.mappingCache.clear();
       } catch (e) {
-        console.error("Error fetching data:", e), La(this, this.hass, "common.errors.load_failed", e);
+        console.error("Error fetching data:", e), Ma(this, this.hass, "common.errors.load_failed", e);
       } finally {
         e && (this.isLoading = !1), this._scheduleUpdate();
       }
@@ -8000,8 +7921,8 @@
       if (!this.mappingNameInput.value.trim()) return;
       const e = {
           [He]: "",
-          [Le]: "",
           [Me]: "",
+          [Le]: "",
           [Ne]: "",
           [Ie]: "",
           [Pe]: "",
@@ -8014,7 +7935,7 @@
           mappings: e
         };
       this.mappings = [...this.mappings, t], this.isSaving = !0, this.saveToHA(t).then(() => (this.mappingNameInput.value = "", this._fetchData())).catch(e => {
-        console.error("Failed to add mapping:", e), La(this, this.hass, "common.errors.save_failed", e), this.mappings = this.mappings.slice(0, -1);
+        console.error("Failed to add mapping:", e), Ma(this, this.hass, "common.errors.save_failed", e), this.mappings = this.mappings.slice(0, -1);
       }).finally(() => {
         this.isSaving = !1, this._scheduleUpdate();
       });
@@ -8028,7 +7949,7 @@
         id: n,
         remove: !0
       })).catch(e => {
-        console.error("Failed to delete mapping:", e), La(this, this.hass, "common.errors.delete_failed", e), this.mappings = a, this._fetchData().catch(e => {
+        console.error("Failed to delete mapping:", e), Ma(this, this.hass, "common.errors.delete_failed", e), this.mappings = a, this._fetchData().catch(e => {
           console.error("Failed to refresh data after delete error:", e);
         });
       }).finally(() => {
@@ -8038,7 +7959,7 @@
     handleEditMapping(e, t) {
       this.mappings[e] = t, t.id && this.mappingCache.delete(t.id.toString()), this.globalDebounceTimer && clearTimeout(this.globalDebounceTimer), this.globalDebounceTimer = window.setTimeout(() => {
         this.isSaving = !0, this.saveToHA(t).catch(e => {
-          console.error("Failed to save mapping:", e), La(this, this.hass, "common.errors.save_failed", e);
+          console.error("Failed to save mapping:", e), Ma(this, this.hass, "common.errors.save_failed", e);
         }).finally(() => {
           this.isSaving = !1, this._scheduleUpdate();
         }), this.globalDebounceTimer = null;
@@ -8141,7 +8062,7 @@
     }
     renderSimpleRadioOptions(e, t, i) {
       if (!this.hass || !this.config) return F``;
-      const a = t === Le || t === De,
+      const a = t === Me || t === De,
         s = i[Ve];
       return F`
       ${!a && this.config.use_weather_service ? F`
@@ -8217,7 +8138,7 @@
     }
     renderSourceOptions(e, t, i) {
       if (!this.hass) return F``;
-      const a = t === Le || t === De;
+      const a = t === Me || t === De;
       return F`
       <div class="mappingsettingline">
         <label for="${`${t}_${e}`}_source">
@@ -8516,7 +8437,7 @@
               system: Te
             }];
           case Ne:
-          case Le:
+          case Me:
             return [{
               unit: "mm",
               system: Oe
@@ -8532,7 +8453,7 @@
               unit: st,
               system: Te
             }];
-          case Me:
+          case Le:
             return [{
               unit: "%",
               system: [Oe, Te]
@@ -8752,7 +8673,7 @@
         })), Da(this.hass)]);
         this._schedules = t || [], this._zones = i || [];
       } catch (e) {
-        console.error("Failed to load schedules", e), La(this, this.hass, "common.errors.load_failed", e);
+        console.error("Failed to load schedules", e), Ma(this, this.hass, "common.errors.load_failed", e);
       } finally {
         this._isLoading = !1;
       }
@@ -8783,7 +8704,7 @@
           schedule: t
         }))(this.hass, e), this._closeDialog(), await this._load();
       } catch (e) {
-        console.error("Failed to save schedule", e), La(this, this.hass, "common.errors.save_failed", e);
+        console.error("Failed to save schedule", e), Ma(this, this.hass, "common.errors.save_failed", e);
       }
     }
     async _delete(e) {
@@ -8793,7 +8714,7 @@
           schedule_id: i
         })), await this._load();
       } catch (e) {
-        console.error("Failed to delete schedule", e), La(this, this.hass, "common.errors.delete_failed", e);
+        console.error("Failed to delete schedule", e), Ma(this, this.hass, "common.errors.delete_failed", e);
       }
       var t, i;
     }
@@ -9378,22 +9299,252 @@
   s([pe({
     attribute: !1
   })], _s.prototype, "hass", void 0), s([ge()], _s.prototype, "_schedules", void 0), s([ge()], _s.prototype, "_zones", void 0), s([ge()], _s.prototype, "_isLoading", void 0), s([ge()], _s.prototype, "_showDialog", void 0), s([ge()], _s.prototype, "_editingSchedule", void 0), s([ge()], _s.prototype, "_editingId", void 0), _s = s([de("smart-irrigation-view-schedules")], _s);
-  var bs;
+  let bs = class extends Ka(ce) {
+    constructor() {
+      super(...arguments), this._forecast = null, this._mappings = [], this._records = new Map(), this._loading = !0;
+    }
+    hassSubscribe() {
+      return this._fetch(), [this.hass.connection.subscribeMessage(() => this._fetch(), {
+        type: we + "_config_updated"
+      })];
+    }
+    async _fetch() {
+      var e;
+      if (this.hass) try {
+        const [t, i] = await Promise.all([(e = this.hass, e.callWS({
+          type: we + "/weather_forecast"
+        })), Fa(this.hass)]);
+        this._forecast = t, this._mappings = i || [];
+        const a = new Map();
+        await Promise.all(this._mappings.map(async e => {
+          if (void 0 !== e.id) try {
+            a.set(e.id, (await Za(this.hass, e.id.toString(), 0)) || []);
+          } catch (e) {}
+        })), this._records = a;
+      } catch (e) {
+        console.error("Failed to fetch weather data", e);
+      } finally {
+        this._loading = !1;
+      }
+    }
+    render() {
+      return this.hass ? F`${this._renderForecast()} ${this._renderRecords()}` : F``;
+    }
+    _renderForecast() {
+      if (!this.hass) return F``;
+      const e = this.hass.language,
+        t = this._forecast;
+      return F`
+      <ha-card
+        header="${Sa("panels.setup.weather_data.forecast_title", e)}"
+      >
+        <div class="card-content">
+          ${t && t.available && 0 !== t.days.length ? F`
+                <div class="forecast-row">
+                  ${t.days.map(t => this._renderForecastDay(t, e))}
+                </div>
+              ` : F`<div class="weather-note">
+                ${Sa("panels.setup.weather_data.forecast_none", e)}
+              </div>`}
+        </div>
+      </ha-card>
+    `;
+    }
+    _renderForecastDay(e, t) {
+      const i = (() => {
+          try {
+            return new Intl.DateTimeFormat(t, {
+              weekday: "short",
+              month: "short",
+              day: "numeric"
+            }).format(new Date(e.date + "T00:00:00"));
+          } catch (t) {
+            return e.date;
+          }
+        })(),
+        a = (e, t, i = 1) => null != e ? e.toFixed(i) + t : "-";
+      return F`
+      <div class="forecast-day">
+        <div class="forecast-date">${i}</div>
+        <div class="forecast-temps">
+          <span class="hi">${a(e.temp_max, "°")}</span>
+          <span class="lo">${a(e.temp_min, "°")}</span>
+        </div>
+        <div class="forecast-meta">
+          <ha-icon icon="mdi:weather-rainy"></ha-icon>${a(e.precipitation, " mm")}
+        </div>
+        <div class="forecast-meta">
+          <ha-icon icon="mdi:weather-windy"></ha-icon>${a(e.windspeed, " m/s")}
+        </div>
+      </div>
+    `;
+    }
+    _renderRecords() {
+      if (!this.hass) return F``;
+      const e = this.hass.language;
+      return this._loading && 0 === this._mappings.length ? F`<ha-card
+        header="${Sa("panels.mappings.weather-records.title", e)}"
+      >
+        <div class="card-content">
+          <div class="loading-indicator">
+            ${Sa("common.loading-messages.general", e)}
+          </div>
+        </div>
+      </ha-card>` : 0 === this._mappings.length ? F`<ha-card
+        header="${Sa("panels.mappings.weather-records.title", e)}"
+      >
+        <div class="card-content">
+          <div class="weather-note">
+            ${Sa("panels.mappings.no_items", e)}
+          </div>
+        </div>
+      </ha-card>` : F`${this._mappings.map(t => this._renderMappingRecords(t, e))}`;
+    }
+    _renderMappingRecords(e, t) {
+      const i = void 0 !== e.id && this._records.get(e.id) || [],
+        a = `${Sa("panels.mappings.weather-records.title", t)} — ${e.name}`,
+        s = e => {
+          try {
+            return as(e) ? ns(e) : "-";
+          } catch (e) {
+            return "-";
+          }
+        },
+        n = (e, t, i = 1) => null != e ? e.toFixed(i) + t : "-";
+      return F`
+      <ha-card header="${a}">
+        <div class="card-content">
+          ${0 === i.length ? F`<div class="weather-note">
+                ${Sa("panels.mappings.weather-records.no-data", t)}
+              </div>` : F`
+                <div class="weather-table">
+                  <div class="weather-header">
+                    <span
+                      >${Sa("panels.mappings.weather-records.timestamp", t)}</span
+                    >
+                    <span
+                      >${Sa("panels.mappings.weather-records.temperature", t)}</span
+                    >
+                    <span
+                      >${Sa("panels.mappings.weather-records.humidity", t)}</span
+                    >
+                    <span
+                      >${Sa("panels.mappings.weather-records.dewpoint", t)}</span
+                    >
+                    <span
+                      >${Sa("panels.mappings.weather-records.wind", t)}</span
+                    >
+                    <span
+                      >${Sa("panels.mappings.weather-records.pressure", t)}</span
+                    >
+                    <span
+                      >${Sa("panels.mappings.weather-records.precipitation", t)}</span
+                    >
+                    <span
+                      >${Sa("panels.mappings.weather-records.retrieval-time", t)}</span
+                    >
+                  </div>
+                  ${i.map(e => F`
+                      <div class="weather-row">
+                        <span>${s(e.timestamp)}</span>
+                        <span>${n(e.temperature, "°C")}</span>
+                        <span>${n(e.humidity, "%")}</span>
+                        <span>${n(e.dewpoint, "°C")}</span>
+                        <span>${n(e.wind_speed, "m/s")}</span>
+                        <span>${n(e.pressure, "hPa", 0)}</span>
+                        <span>${n(e.precipitation, "mm")}</span>
+                        <span>${s(e.retrieval_time)}</span>
+                      </div>
+                    `)}
+                </div>
+              `}
+        </div>
+      </ha-card>
+    `;
+    }
+    static get styles() {
+      return d`
+      ${es}
+
+      :host {
+        display: block;
+        width: 100%;
+      }
+
+      .forecast-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .forecast-day {
+        flex: 0 0 auto;
+        min-width: 92px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 12px;
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        background: var(--secondary-background-color);
+      }
+
+      .forecast-date {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+
+      .forecast-temps {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+
+      .forecast-temps .hi {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+
+      .forecast-temps .lo {
+        font-size: 0.9rem;
+        color: var(--secondary-text-color);
+      }
+
+      .forecast-meta {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+      }
+
+      .forecast-meta ha-icon {
+        --mdc-icon-size: 16px;
+        color: var(--secondary-text-color);
+      }
+    `;
+    }
+  };
+  s([pe()], bs.prototype, "narrow", void 0), s([ge()], bs.prototype, "_forecast", void 0), s([ge()], bs.prototype, "_mappings", void 0), s([ge()], bs.prototype, "_records", void 0), s([ge()], bs.prototype, "_loading", void 0), bs = s([de("smart-irrigation-view-weather-data")], bs);
+  var ys;
   !function (e) {
     e.WeatherLocation = "weather-location", e.Zones = "zones", e.WhenToWater = "when-to-water", e.Advanced = "advanced", e.Help = "help";
-  }(bs || (bs = {}));
-  const ys = {
-    [bs.WeatherLocation]: "panels.setup.tabs.weather_location",
-    [bs.Zones]: "panels.setup.tabs.my_zones",
-    [bs.WhenToWater]: "panels.setup.tabs.when_to_water",
-    [bs.Advanced]: "panels.setup.tabs.advanced",
-    [bs.Help]: "panels.help.title"
+  }(ys || (ys = {}));
+  const ws = {
+    [ys.WeatherLocation]: "panels.setup.tabs.weather_location",
+    [ys.Zones]: "panels.setup.tabs.my_zones",
+    [ys.WhenToWater]: "panels.setup.tabs.when_to_water",
+    [ys.Advanced]: "panels.setup.tabs.advanced",
+    [ys.Help]: "panels.help.title"
   };
-  let ws = class extends ce {
+  let $s = class extends ce {
     get _activeTab() {
       var e;
       const t = null === (e = this.path) || void 0 === e ? void 0 : e.subpage;
-      return Object.values(bs).includes(null != t ? t : "") ? t : bs.WeatherLocation;
+      return Object.values(ys).includes(null != t ? t : "") ? t : ys.WeatherLocation;
     }
     _selectTab(e) {
       Ta(0, Qa("setup", e));
@@ -9410,12 +9561,12 @@
       return F`
       <div class="setup-container">
         <nav class="setup-nav">
-          ${Object.values(bs).map(t => F`
+          ${Object.values(ys).map(t => F`
               <button
                 class="setup-nav-btn ${e === t ? "active" : ""}"
                 @click="${() => this._selectTab(t)}"
               >
-                ${Sa(ys[t], this.hass.language)}
+                ${Sa(ws[t], this.hass.language)}
               </button>
             `)}
           <button
@@ -9434,19 +9585,25 @@
     _renderContent(e) {
       if (!this.hass) return F``;
       switch (e) {
-        case bs.WeatherLocation:
-          return F`<smart-irrigation-view-general
-          .hass="${this.hass}"
-          .narrow="${this.narrow}"
-          section="weather-location"
-        ></smart-irrigation-view-general>`;
-        case bs.Zones:
+        case ys.WeatherLocation:
+          return F`
+          <smart-irrigation-view-general
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+            section="weather-location"
+          ></smart-irrigation-view-general>
+          <smart-irrigation-view-weather-data
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+          ></smart-irrigation-view-weather-data>
+        `;
+        case ys.Zones:
           return F`<smart-irrigation-view-zone-settings
           .hass="${this.hass}"
           .narrow="${this.narrow}"
           .path="${this.path}"
         ></smart-irrigation-view-zone-settings>`;
-        case bs.WhenToWater:
+        case ys.WhenToWater:
           return F`
           <smart-irrigation-view-general
             .hass="${this.hass}"
@@ -9458,7 +9615,7 @@
             .narrow="${this.narrow}"
           ></smart-irrigation-view-schedules>
         `;
-        case bs.Advanced:
+        case ys.Advanced:
           return F`
           <smart-irrigation-view-modules
             .hass="${this.hass}"
@@ -9469,7 +9626,7 @@
             .narrow="${this.narrow}"
           ></smart-irrigation-view-mappings>
         `;
-        case bs.Help:
+        case ys.Help:
           return this._renderHelp();
       }
     }
@@ -9579,19 +9736,19 @@
     `;
     }
   };
-  var $s;
+  var xs;
   s([pe({
     attribute: !1
-  })], ws.prototype, "hass", void 0), s([pe({
+  })], $s.prototype, "hass", void 0), s([pe({
     type: Boolean
-  })], ws.prototype, "narrow", void 0), s([pe({
+  })], $s.prototype, "narrow", void 0), s([pe({
     attribute: !1
-  })], ws.prototype, "path", void 0), ws = s([de("smart-irrigation-view-setup")], ws), function (e) {
+  })], $s.prototype, "path", void 0), $s = s([de("smart-irrigation-view-setup")], $s), function (e) {
     e[e.Welcome = 0] = "Welcome", e[e.Weather = 1] = "Weather", e[e.Module = 2] = "Module", e[e.Mapping = 3] = "Mapping", e[e.Zone = 4] = "Zone", e[e.Done = 5] = "Done";
-  }($s || ($s = {}));
-  let xs = class extends ce {
+  }(xs || (xs = {}));
+  let ks = class extends ce {
     constructor() {
-      super(...arguments), this._step = $s.Welcome, this._saving = !1, this._error = "", this._confirmClose = !1, this._siConfig = null, this._useWeather = !1, this._weatherService = ze, this._apiKey = "", this._weatherConfig = null, this._availableModules = [], this._selectedModuleIndex = 0, this._moduleConfig = {}, this._mappingName = "My Sensor Group", this._tempSource = Ue, this._humiditySource = Ue, this._precipSource = Ue, this._zoneName = "My Zone", this._zoneSize = "", this._zoneThroughput = "", this._zoneEntity = "";
+      super(...arguments), this._step = xs.Welcome, this._saving = !1, this._error = "", this._confirmClose = !1, this._siConfig = null, this._useWeather = !1, this._weatherService = ze, this._apiKey = "", this._weatherConfig = null, this._availableModules = [], this._selectedModuleIndex = 0, this._moduleConfig = {}, this._mappingName = "My Sensor Group", this._tempSource = Ue, this._humiditySource = Ue, this._precipSource = Ue, this._zoneName = "My Zone", this._zoneSize = "", this._zoneThroughput = "", this._zoneEntity = "";
     }
     async connectedCallback() {
       super.connectedCallback(), await this._loadInitialData();
@@ -9627,22 +9784,22 @@
       this._error = "";
       try {
         switch (this._saving = !0, this._step) {
-          case $s.Welcome:
-            this._step = $s.Weather;
+          case xs.Welcome:
+            this._step = xs.Weather;
             break;
-          case $s.Weather:
-            await this._saveWeather(), this._step = $s.Module;
+          case xs.Weather:
+            await this._saveWeather(), this._step = xs.Module;
             break;
-          case $s.Module:
-            await this._saveModule(), this._step = $s.Mapping;
+          case xs.Module:
+            await this._saveModule(), this._step = xs.Mapping;
             break;
-          case $s.Mapping:
-            await this._saveMapping(), this._step = $s.Zone;
+          case xs.Mapping:
+            await this._saveMapping(), this._step = xs.Zone;
             break;
-          case $s.Zone:
-            await this._saveZone(), this._step = $s.Done;
+          case xs.Zone:
+            await this._saveZone(), this._step = xs.Done;
             break;
-          case $s.Done:
+          case xs.Done:
             this._close();
         }
       } catch (e) {
@@ -9652,13 +9809,13 @@
       }
     }
     _back() {
-      this._step > $s.Welcome && (this._step = this._step - 1, this._error = "");
+      this._step > xs.Welcome && (this._step = this._step - 1, this._error = "");
     }
     get _canSkipCurrentStep() {
-      return this._step === $s.Weather;
+      return this._step === xs.Weather;
     }
     _skipStep() {
-      this._canSkipCurrentStep && this._step < $s.Done && (this._step = this._step + 1, this._error = "");
+      this._canSkipCurrentStep && this._step < xs.Done && (this._step = this._step + 1, this._error = "");
     }
     async _saveWeather() {
       await qa(this.hass, this._useWeather, this._useWeather ? this._weatherService : null, this._apiKey || null);
@@ -9689,7 +9846,7 @@
           [Be]: {
             [Ve]: this._tempSource
           },
-          [Me]: {
+          [Le]: {
             [Ve]: this._humiditySource
           },
           [Ne]: {
@@ -9748,7 +9905,7 @@
               <ha-icon icon="mdi:close"></ha-icon>
             </button>
           </div>
-          ${this._step !== $s.Welcome && this._step !== $s.Done ? F`<div class="wizard-stepper">${this._renderStepper()}</div>` : ""}
+          ${this._step !== xs.Welcome && this._step !== xs.Done ? F`<div class="wizard-stepper">${this._renderStepper()}</div>` : ""}
           <div class="wizard-body">
             ${this._renderStep(i)}
             ${this._error ? F`<div class="wizard-error">${this._error}</div>` : ""}
@@ -9784,7 +9941,7 @@
     `;
     }
     _onOverlayClick(e) {
-      e.target === e.currentTarget && (this._step > $s.Welcome && this._step < $s.Done ? this._confirmClose = !0 : this._close());
+      e.target === e.currentTarget && (this._step > xs.Welcome && this._step < xs.Done ? this._confirmClose = !0 : this._close());
     }
     _renderStepper() {
       var e, t;
@@ -9809,26 +9966,26 @@
     }
     _renderStep(e) {
       switch (this._step) {
-        case $s.Welcome:
+        case xs.Welcome:
           return this._renderWelcome(e);
-        case $s.Weather:
+        case xs.Weather:
           return this._renderWeather(e);
-        case $s.Module:
+        case xs.Module:
           return this._renderModule(e);
-        case $s.Mapping:
+        case xs.Mapping:
           return this._renderMapping(e);
-        case $s.Zone:
+        case xs.Zone:
           return this._renderZone(e);
-        case $s.Done:
+        case xs.Done:
           return this._renderDone(e);
         default:
           return F``;
       }
     }
     _renderFooter(e) {
-      return this._step === $s.Done ? F`` : F`
+      return this._step === xs.Done ? F`` : F`
       <div class="footer-left">
-        ${this._step > $s.Welcome ? F`<button
+        ${this._step > xs.Welcome ? F`<button
               class="wizard-btn secondary"
               @click="${this._back}"
               ?disabled="${this._saving}"
@@ -9848,7 +10005,7 @@
         @click="${this._next}"
         ?disabled="${this._saving}"
       >
-        ${this._saving ? Sa("common.saving-messages.saving", e) : this._step === $s.Welcome || this._step < $s.Zone ? Sa("wizard.next", e) : Sa("wizard.finish", e)}
+        ${this._saving ? Sa("common.saving-messages.saving", e) : this._step === xs.Welcome || this._step < xs.Zone ? Sa("wizard.next", e) : Sa("wizard.finish", e)}
       </button>
     `;
     }
@@ -10526,12 +10683,12 @@
   };
   s([pe({
     attribute: !1
-  })], xs.prototype, "hass", void 0), s([ge()], xs.prototype, "_step", void 0), s([ge()], xs.prototype, "_saving", void 0), s([ge()], xs.prototype, "_error", void 0), s([ge()], xs.prototype, "_confirmClose", void 0), s([ge()], xs.prototype, "_siConfig", void 0), s([ge()], xs.prototype, "_useWeather", void 0), s([ge()], xs.prototype, "_weatherService", void 0), s([ge()], xs.prototype, "_apiKey", void 0), s([ge()], xs.prototype, "_weatherConfig", void 0), s([ge()], xs.prototype, "_availableModules", void 0), s([ge()], xs.prototype, "_selectedModuleIndex", void 0), s([ge()], xs.prototype, "_moduleConfig", void 0), s([ge()], xs.prototype, "_mappingName", void 0), s([ge()], xs.prototype, "_tempSource", void 0), s([ge()], xs.prototype, "_humiditySource", void 0), s([ge()], xs.prototype, "_precipSource", void 0), s([ge()], xs.prototype, "_zoneName", void 0), s([ge()], xs.prototype, "_zoneSize", void 0), s([ge()], xs.prototype, "_zoneThroughput", void 0), s([ge()], xs.prototype, "_zoneEntity", void 0), xs = s([de("si-setup-wizard")], xs);
-  const ks = es;
-  var Ss;
+  })], ks.prototype, "hass", void 0), s([ge()], ks.prototype, "_step", void 0), s([ge()], ks.prototype, "_saving", void 0), s([ge()], ks.prototype, "_error", void 0), s([ge()], ks.prototype, "_confirmClose", void 0), s([ge()], ks.prototype, "_siConfig", void 0), s([ge()], ks.prototype, "_useWeather", void 0), s([ge()], ks.prototype, "_weatherService", void 0), s([ge()], ks.prototype, "_apiKey", void 0), s([ge()], ks.prototype, "_weatherConfig", void 0), s([ge()], ks.prototype, "_availableModules", void 0), s([ge()], ks.prototype, "_selectedModuleIndex", void 0), s([ge()], ks.prototype, "_moduleConfig", void 0), s([ge()], ks.prototype, "_mappingName", void 0), s([ge()], ks.prototype, "_tempSource", void 0), s([ge()], ks.prototype, "_humiditySource", void 0), s([ge()], ks.prototype, "_precipSource", void 0), s([ge()], ks.prototype, "_zoneName", void 0), s([ge()], ks.prototype, "_zoneSize", void 0), s([ge()], ks.prototype, "_zoneThroughput", void 0), s([ge()], ks.prototype, "_zoneEntity", void 0), ks = s([de("si-setup-wizard")], ks);
+  const Ss = es;
+  var zs;
   !function (e) {
     e.Zones = "zones", e.Setup = "setup";
-  }(Ss || (Ss = {})), e.SmartIrrigationPanel = class extends ce {
+  }(zs || (zs = {})), e.SmartIrrigationPanel = class extends ce {
     constructor() {
       super(...arguments), this._wizardOpen = !1, this._updateScheduled = !1, this._lastNavigationTime = 0, this._navigationThrottleDelay = 100;
     }
@@ -10542,7 +10699,7 @@
     }
     async firstUpdated() {
       const e = Ja().page;
-      Object.values(Ss).includes(e) || Ta(0, Qa(Ss.Zones)), window.addEventListener("location-changed", () => {
+      Object.values(zs).includes(e) || Ta(0, Qa(zs.Zones)), window.addEventListener("location-changed", () => {
         if (!window.location.pathname.includes("smart-irrigation")) return;
         const e = performance.now();
         e - this._lastNavigationTime < this._navigationThrottleDelay || (this._lastNavigationTime = e, this._scheduleUpdate());
@@ -10580,7 +10737,7 @@
 
         ${t && i ? F`
               <ha-tab-group @wa-tab-show=${this.handlePageSelected}>
-                ${Object.values(Ss).map(t => F`
+                ${Object.values(zs).map(t => F`
                     <ha-tab-group-tab
                       slot="nav"
                       panel="${t}"
@@ -10592,7 +10749,7 @@
               </ha-tab-group>
             ` : F`
               <div class="custom-tabs">
-                ${Object.values(Ss).map(t => F`
+                ${Object.values(zs).map(t => F`
                     <button
                       class="custom-tab ${e.page === t ? "active" : ""}"
                       @click=${() => this.navigateToPage(t)}
@@ -10660,7 +10817,7 @@
       } else scrollTo(0, 0);
     }
     static get styles() {
-      return [ks, d`
+      return [Ss, d`
         :host {
           color: var(--primary-text-color);
           --paper-card-header-color: var(--primary-text-color);
@@ -10780,7 +10937,7 @@
     type: Boolean,
     reflect: !0
   })], e.SmartIrrigationPanel.prototype, "narrow", void 0), s([ge()], e.SmartIrrigationPanel.prototype, "_wizardOpen", void 0), e.SmartIrrigationPanel = s([de("smart-irrigation")], e.SmartIrrigationPanel);
-  let zs = class extends ce {
+  let Es = class extends ce {
     async showDialog(e) {
       this._params = e, await this.updateComplete;
     }
@@ -10800,7 +10957,7 @@
             <ha-icon-button
               slot="navigationIcon"
               dialogAction="cancel"
-              .path=${Ma}
+              .path=${La}
             ></ha-icon-button>
             <span class="errortitle" slot="title">
               ${this.hass.localize("state_badge.default.error")}
@@ -10837,11 +10994,11 @@
   };
   s([pe({
     attribute: !1
-  })], zs.prototype, "hass", void 0), s([ge()], zs.prototype, "_params", void 0), zs = s([de("error-dialog")], zs);
-  var Es = Object.freeze({
+  })], Es.prototype, "hass", void 0), s([ge()], Es.prototype, "_params", void 0), Es = s([de("error-dialog")], Es);
+  var As = Object.freeze({
     __proto__: null,
     get ErrorDialog() {
-      return zs;
+      return Es;
     }
   });
   Object.defineProperty(e, "__esModule", {

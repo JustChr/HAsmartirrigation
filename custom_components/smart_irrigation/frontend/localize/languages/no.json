@@ -531,6 +531,10 @@
         "my_zones": "Mine soner",
         "when_to_water": "Når vanne",
         "advanced": "Avansert"
+      },
+      "weather_data": {
+        "forecast_title": "Værvarsel",
+        "forecast_none": "Værvarsel er tilgjengelig når en værtjeneste er aktivert."
       }
     }
   },

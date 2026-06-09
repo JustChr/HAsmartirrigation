@@ -529,6 +529,10 @@
         "my_zones": "Moje zóny",
         "when_to_water": "Kedy zavlažovať",
         "advanced": "Pokročilé"
+      },
+      "weather_data": {
+        "forecast_title": "Predpoveď",
+        "forecast_none": "Predpoveď je dostupná, keď je zapnutá poveternostná služba."
       }
     }
   },

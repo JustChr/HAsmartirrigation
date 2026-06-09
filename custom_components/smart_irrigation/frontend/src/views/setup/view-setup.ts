@@ -7,6 +7,7 @@ import "../zones/view-zone-settings.ts";
 import "../modules/view-modules.ts";
 import "../mappings/view-mappings.ts";
 import "../schedules/view-schedules.ts";
+import "../weather/view-weather-data.ts";
 
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
@@ -98,11 +99,17 @@ export class SmartIrrigationViewSetup extends LitElement {
     if (!this.hass) return html``;
     switch (activeTab) {
       case ESetupTab.WeatherLocation:
-        return html`<smart-irrigation-view-general
-          .hass="${this.hass}"
-          .narrow="${this.narrow}"
-          section="weather-location"
-        ></smart-irrigation-view-general>`;
+        return html`
+          <smart-irrigation-view-general
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+            section="weather-location"
+          ></smart-irrigation-view-general>
+          <smart-irrigation-view-weather-data
+            .hass="${this.hass}"
+            .narrow="${this.narrow}"
+          ></smart-irrigation-view-weather-data>
+        `;
       case ESetupTab.Zones:
         return html`<smart-irrigation-view-zone-settings
           .hass="${this.hass}"

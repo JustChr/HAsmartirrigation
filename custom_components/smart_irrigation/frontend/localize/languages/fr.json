@@ -531,6 +531,10 @@
         "my_zones": "Mes zones",
         "when_to_water": "Quand arroser",
         "advanced": "Avancé"
+      },
+      "weather_data": {
+        "forecast_title": "Prévisions",
+        "forecast_none": "Les prévisions sont disponibles lorsqu’un service météo est activé."
       }
     }
   },

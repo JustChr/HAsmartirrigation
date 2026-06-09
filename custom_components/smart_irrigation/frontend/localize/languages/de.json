@@ -529,6 +529,10 @@
         "my_zones": "Meine Zonen",
         "when_to_water": "Wann bewässern",
         "advanced": "Erweitert"
+      },
+      "weather_data": {
+        "forecast_title": "Vorhersage",
+        "forecast_none": "Die Vorhersage ist verfügbar, wenn ein Wetterdienst aktiviert ist."
       }
     }
   },

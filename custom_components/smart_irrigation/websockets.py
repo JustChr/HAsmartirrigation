@@ -19,6 +19,7 @@ from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
     async_dispatcher_send,
 )
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
@@ -763,6 +764,53 @@ async def websocket_save_coordinates(hass: HomeAssistant, connection, msg):
     connection.send_result(msg["id"], {"success": True})
 
 
+@async_response
+async def websocket_get_weather_forecast(hass: HomeAssistant, connection, msg):
+    """Return the weather service's daily forecast (one entry per upcoming day).
+
+    Reuses the coordinator's weather client (the same forecast already used for
+    the precip look-ahead skip). The clients return a normalized list of per-day
+    dicts starting tomorrow, with no date field, so we attach the date here.
+    Values are metric (the frontend labels units; value conversion is the
+    separate H7-units follow-up).
+    """
+    use_weather_service = hass.data[const.DOMAIN].get(
+        const.CONF_USE_WEATHER_SERVICE, False
+    )
+    coordinator = hass.data[const.DOMAIN].get("coordinator")
+    client = getattr(coordinator, "_WeatherServiceClient", None)
+    if not use_weather_service or client is None:
+        connection.send_result(msg["id"], {"available": False, "days": []})
+        return
+
+    try:
+        raw = await hass.async_add_executor_job(client.get_forecast_data)
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.warning("Weather forecast fetch failed: %s", exc)
+        connection.send_result(msg["id"], {"available": False, "days": []})
+        return
+
+    if not raw:
+        connection.send_result(msg["id"], {"available": False, "days": []})
+        return
+
+    today = dt_util.now().date()
+    days = []
+    for i, day in enumerate(raw):
+        days.append(
+            {
+                # All clients skip "today" and start at tomorrow.
+                "date": (today + datetime.timedelta(days=i + 1)).isoformat(),
+                "temp_min": day.get(const.MAPPING_MIN_TEMP),
+                "temp_max": day.get(const.MAPPING_MAX_TEMP),
+                "precipitation": day.get(const.MAPPING_PRECIPITATION),
+                "windspeed": day.get(const.MAPPING_WINDSPEED),
+            }
+        )
+
+    connection.send_result(msg["id"], {"available": True, "days": days})
+
+
 async def async_register_websockets(hass: HomeAssistant):
     """Register Smart Irrigation HTTP views and websocket commands."""
     hass.http.register_view(SmartIrrigationConfigView)
@@ -939,5 +987,13 @@ async def async_register_websockets(hass: HomeAssistant):
                 vol.Optional("manual_longitude"): vol.Any(float, int, None),
                 vol.Optional("manual_elevation"): vol.Any(float, int, None),
             }
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/weather_forecast",
+        websocket_get_weather_forecast,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {vol.Required("type"): const.DOMAIN + "/weather_forecast"}
         ),
     )

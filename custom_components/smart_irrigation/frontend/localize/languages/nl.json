@@ -529,6 +529,10 @@
         "my_zones": "Mijn zones",
         "when_to_water": "Wanneer water geven",
         "advanced": "Geavanceerd"
+      },
+      "weather_data": {
+        "forecast_title": "Verwachting",
+        "forecast_none": "De verwachting is beschikbaar wanneer een weerdienst is ingeschakeld."
       }
     }
   },
