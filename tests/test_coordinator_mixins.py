@@ -36,8 +36,8 @@ def test_coordinator_inherits_all_extracted_mixins():
 def test_calculation_and_skip_methods_present():
     for name in (
         "merge_weatherdata_and_sensor_values",
-        "apply_aggregates_to_mapping_data",
-        "_aggregate_sensor_data",
+        "_aggregate_for_zone",
+        "_prune_mapping_buffer",
         "async_calculate_zone",
         "getModuleInstanceByID",
         "calculate_module",

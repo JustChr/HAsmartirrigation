@@ -571,9 +571,7 @@ class RecurringScheduleManager:
         try:
             if action == "calculate":
                 if zones == "all":
-                    await self.coordinator._async_calculate_all(
-                        delete_weather_data=True
-                    )
+                    await self.coordinator._async_calculate_all()
                 else:
                     # Per-zone calculate must aggregate the mapping's weather data
                     # first; route through async_update_zone_config (ATTR_CALCULATE),

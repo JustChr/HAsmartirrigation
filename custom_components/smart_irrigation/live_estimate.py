@@ -128,6 +128,11 @@ class LiveEstimateMixin:
             bucket_mm = to_mm(bucket)
             max_bucket_mm = to_mm(max_bucket)
             last_calc = _parse_utc_naive(zone.get(const.ZONE_LAST_CALCULATED))
+            # A never-calculated zone has no anchor for the "since calc" window;
+            # showing a whole-day estimate would be misleading (and looks like a
+            # shared, un-anchored value). Offer no estimate until the first calc.
+            if last_calc is None:
+                return result
 
             rows = inputs["rows"]
             if rows:

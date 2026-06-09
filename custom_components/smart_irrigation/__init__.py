@@ -815,10 +815,8 @@ class SmartIrrigationCoordinator(
 
         # TODO: convert relative pressure to absolute?
 
-        # if there is sensor data for this mapping, apply aggregates to it.
-        sensor_values = await self.apply_aggregates_to_mapping_data(mapping, True)
-        if not sensor_values:
-            # no data to calculate with!
+        # Nothing to consume if the shared buffer is empty.
+        if not (mapping.get(const.MAPPING_DATA) or []):
             _LOGGER.debug(
                 "[async_continuous_update_for_mapping] no data available",
             )
@@ -917,7 +915,8 @@ class SmartIrrigationCoordinator(
                     mapping_id,
                     zone.get(const.ZONE_ID),
                 )
-                await self.async_calculate_zone(z, sensor_values)
+                # Each zone consumes its own window of the shared buffer.
+                await self.async_calculate_zone(z, continuous=True, prune=False)
                 zones_to_calculate.remove(z)
             else:
                 _LOGGER.info(
@@ -927,25 +926,15 @@ class SmartIrrigationCoordinator(
                     mod.get(const.MODULE_NAME),
                 )
 
-        # remove weather data from this mapping unless there are zones we did not calculate!
+        # Prune the shared buffer to the oldest enabled-zone watermark. Zones we
+        # did not calculate (e.g. PyETO-with-forecast) keep their older watermark,
+        # so their unconsumed data is retained automatically.
         _LOGGER.debug(
-            "[async_continuous_update_for_mapping] for sensor group %s: zones_to_calculate: %s. if this is empty this means that all zones for this sensor group have been calculated and therefore we can remove the weather data",
+            "[async_continuous_update_for_mapping] for sensor group %s: pruning buffer (uncalculated zones: %s)",
             mapping_id,
             zones_to_calculate,
         )
-        if zones_to_calculate and len(zones_to_calculate) > 0:
-            _LOGGER.debug(
-                "[async_continuous_update_for_mapping] for sensor group %s: did not calculate all zones, keeping weather data for the sensor group",
-                mapping_id,
-            )
-        else:
-            _LOGGER.debug(
-                "clearing weather data for sensor group %s since we calculated all dependent zones",
-                mapping_id,
-            )
-            changes = {}
-            changes[const.MAPPING_DATA] = []
-            await self.store.async_update_mapping(mapping_id, changes=changes)
+        await self._prune_mapping_buffer(mapping_id)
 
     async def set_up_auto_calc_time(self, data):
         """Set up the automatic calculation time for Smart Irrigation based on configuration data."""
@@ -985,33 +974,19 @@ class SmartIrrigationCoordinator(
             await self.store.async_update_config(data)
 
     async def set_up_auto_clear_time(self, data):
-        """Set up the automatic clear time for Smart Irrigation based on configuration data."""
-        # unsubscribe from any existing track_time_changes
+        """Deprecated: the scheduled auto-clear is no longer registered.
+
+        Weather data is now consumed per-zone (each zone has its own
+        ``last_consumed_at`` watermark) and the shared buffer is pruned to the
+        oldest enabled-zone watermark with a hard retention cap, so a scheduled
+        wholesale wipe is redundant — and would discard data a lagging zone has
+        not consumed yet. The manual "clear all weather data" action remains for
+        an explicit reset. We still tear down any tracker left from a previous
+        version and persist the config (the stored flag is now inert).
+        """
         if self._track_auto_clear_time_unsub:
             self._track_auto_clear_time_unsub()
             self._track_auto_clear_time_unsub = None
-        if data[const.CONF_AUTO_CLEAR_ENABLED]:
-            # make sure to unsub any existing and add for clear time
-            if check_time(data[const.CONF_CLEAR_TIME]):
-                timesplit = data[const.CONF_CLEAR_TIME].split(":")
-
-                self._track_auto_clear_time_unsub = async_track_time_change(
-                    self.hass,
-                    self._async_clear_all_weatherdata,
-                    hour=timesplit[0],
-                    minute=timesplit[1],
-                    second=0,
-                )
-                _LOGGER.info(
-                    "Scheduled auto clear of weatherdata for %s",
-                    data[const.CONF_CLEAR_TIME],
-                )
-            else:
-                _LOGGER.warning(
-                    "Scheduled auto clear time is not valid: %s",
-                    data[const.CONF_CLEAR_TIME],
-                )
-                raise ValueError("Time is not a valid time")
         await self.store.async_update_config(data)
 
     async def track_update_time(self, *args):
@@ -1514,12 +1489,11 @@ class SmartIrrigationCoordinator(
         elif const.ATTR_CALCULATE in data:
             # calculate a specific zone
             _LOGGER.info("Calculating zone %s", zone_id)
-            if data is not None:
-                data.pop(const.ATTR_CALCULATE)
-            delete_weather_data = data.get(const.ATTR_DELETE_WEATHER_DATA, True)
+            data.pop(const.ATTR_CALCULATE, None)
+            # Obsolete: the shared buffer is consumed per-zone and pruned, never
+            # cleared by a single zone's calculation.
+            data.pop(const.ATTR_DELETE_WEATHER_DATA, None)
 
-            # aggregate sensor data
-            weatherdata = None
             zone = self.store.get_zone(zone_id)
             if zone is None:
                 raise SmartIrrigationError(f"Zone {zone_id} not found")
@@ -1528,9 +1502,7 @@ class SmartIrrigationCoordinator(
             mapping = (
                 self.store.get_mapping(mapping_id) if mapping_id is not None else None
             )
-            if mapping is not None and mapping.get(const.MAPPING_DATA):
-                weatherdata = await self.apply_aggregates_to_mapping_data(mapping)
-            else:
+            if mapping is None or not mapping.get(const.MAPPING_DATA):
                 if mapping_id is None:
                     msg = f"Zone '{zone_name}' has no mapping configured. Assign a mapping with sensor data before calculating."
                 else:
@@ -1560,14 +1532,13 @@ class SmartIrrigationCoordinator(
                     _LOGGER.error("[async_update_zone_config] %s", msg)
                     raise SmartIrrigationError(msg)
 
-            await self.async_calculate_zone(
-                zone_id, weatherdata, forecastdata, delete_weather_data
-            )
+            # async_calculate_zone aggregates this zone's own window internally.
+            await self.async_calculate_zone(zone_id, forecastdata)
         elif const.ATTR_CALCULATE_ALL in data:
             # calculate all zones
             _LOGGER.info("Calculating all zones")
             data.pop(const.ATTR_CALCULATE_ALL)
-            await self._async_calculate_all(delete_weather_data=True)
+            await self._async_calculate_all()
 
         elif const.ATTR_UPDATE in data:
             _LOGGER.info("Updating zone %s", zone_id)

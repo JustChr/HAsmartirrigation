@@ -27,10 +27,11 @@ def _make_manager():
 
 
 @pytest.mark.asyncio
-async def test_calculate_all_passes_delete_weather_data():
+async def test_calculate_all_calls_calculate_all():
     manager, coordinator = _make_manager()
     await manager._perform_schedule_action("calculate", "all", "sched")
-    coordinator._async_calculate_all.assert_awaited_once_with(delete_weather_data=True)
+    # Per-zone consumption: no wholesale clear flag any more.
+    coordinator._async_calculate_all.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio

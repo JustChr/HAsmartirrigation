@@ -29,9 +29,7 @@ class ServiceHandlersMixin:
     async def handle_calculate_all_zones(self, call):
         """Calculate all zones."""
         _LOGGER.info("Calculate all zones service called")
-        await self._async_calculate_all(
-            call.data.get(const.ATTR_DELETE_WEATHER_DATA, True)
-        )
+        await self._async_calculate_all()
 
     async def handle_calculate_zone(self, call):
         """Calculate specific zone."""
@@ -44,11 +42,7 @@ class ServiceHandlersMixin:
                     # find zone_id for zone with name
                     zone_id = state.attributes.get(const.ZONE_ID)
                     if zone_id is not None:
-                        data = {}
-                        data[const.ATTR_CALCULATE] = const.ATTR_CALCULATE
-                        data[const.ATTR_DELETE_WEATHER_DATA] = call.data.get(
-                            const.ATTR_DELETE_WEATHER_DATA, True
-                        )
+                        data = {const.ATTR_CALCULATE: const.ATTR_CALCULATE}
                         await self.async_update_zone_config(zone_id=zone_id, data=data)
 
     async def handle_update_all_zones(self, call):

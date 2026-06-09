@@ -7,10 +7,8 @@ calculation module, and computing the ET delta / bucket / duration per zone.
 Protected by tests/test_calculate_module.py (calculate_module characterization).
 """
 
-import asyncio
 import logging
-import statistics
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
@@ -18,8 +16,22 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 from . import const
 from .helpers import convert_between, loadModules, parse_datetime
 from .localize import localize
+from .weather_aggregate import aggregate_window, select_window
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long a reading may linger in the shared mapping buffer before it is pruned
+# regardless of zone watermarks (bounds storage if a zone stops consuming).
+BUFFER_RETENTION = timedelta(days=7)
+
+
+def _as_datetime(value):
+    """Coerce a stored watermark/timestamp (datetime or ISO string) to datetime."""
+    if isinstance(value, datetime):
+        return value
+    if value is None:
+        return None
+    return parse_datetime(value)
 
 
 class CalculationMixin:
@@ -62,412 +74,207 @@ class CalculationMixin:
 
         return retval
 
-    async def apply_aggregates_to_mapping_data(self, mapping, continuous_updates=False):
-        """Apply aggregation functions to mapping data and return the aggregated result.
-
-        Args:
-            mapping: The mapping dictionary containing sensor data.
-            continuous_updates: Whether continuous updates are enabled.
-
-        Returns:
-            dict or None: Aggregated mapping data or None if no data is available.
-
-        """
-        _LOGGER.debug("[apply_aggregates_to_mapping_data]: mapping: %s", mapping)
-        data = mapping.get(const.MAPPING_DATA)
-        if not data:
-            return None
-
-        data_by_sensor = self._group_data_by_sensor(data)
-        resultdata = {}
-
-        hour_multiplier = self._calc_hour_multiplier(data_by_sensor, mapping)
-        resultdata[const.MAPPING_DATA_MULTIPLIER] = hour_multiplier
-
-        if continuous_updates:
-            self._fill_missing_from_last_entry(mapping, data_by_sensor)
-
-        await self._aggregate_sensor_data(data_by_sensor, mapping, resultdata)
-
-        _LOGGER.debug("[apply_aggregates_to_mapping_data] returns %s", resultdata)
-        return resultdata
-
-    def _group_data_by_sensor(self, data):
-        """Group mapping data by sensor key."""
-        data_by_sensor = {}
-        for d in data:
-            if isinstance(d, dict):
-                for key, val in d.items():
-                    if val is not None:
-                        data_by_sensor.setdefault(key, []).append(val)
-        # Drop MAX and MIN temp mapping because we calculate it from temp
-        data_by_sensor.pop(const.MAPPING_MAX_TEMP, None)
-        data_by_sensor.pop(const.MAPPING_MIN_TEMP, None)
-        # OBSERVATION_TIME is a datetime object and cannot be aggregated as a numeric sensor value
-        data_by_sensor.pop(const.OBSERVATION_TIME, None)
-        return data_by_sensor
-
-    def _calc_hour_multiplier(self, data_by_sensor, mapping):
-        """Process retrieved_at timestamps and calculate hour multiplier."""
-
-        # get interval from last calculation to now
-        diff = None
-        last_calc_time = None
-        if last_calc := mapping.get(const.MAPPING_DATA_LAST_CALCULATION):
-            last_calc_time = parse_datetime(last_calc.get(const.MAPPING_TIMESTAMP))
-            if last_calc_time:
-                diff = datetime.now() - last_calc_time
-                _LOGGER.debug(
-                    "[_calc_hour_multiplier]: mapping last calculated: %s",
-                    last_calc_time,
-                )
-        if last_calc_time is None:
-            _LOGGER.debug(
-                "[_calc_hour_multiplier]: mapping has never been calculated, using retrieved_ats",
-            )
-            if const.RETRIEVED_AT not in data_by_sensor:
-                _LOGGER.error(
-                    "[_calc_hour_multiplier]: missing RETRIEVED_AT, returning 0"
-                )
-                return 0
-            retrieved_ats = data_by_sensor.pop(const.RETRIEVED_AT)
-            hour_multiplier = 1.0
-            formatted_retrieved_ats = []
-            for item in retrieved_ats:
-                if parsed := parse_datetime(item):
-                    formatted_retrieved_ats.append(parsed)
-            if not formatted_retrieved_ats:
-                _LOGGER.error(
-                    "[_calc_hour_multiplier]: retrieved_ats empty, returning 0"
-                )
-                return 0
-            first_retrieved_at = min(formatted_retrieved_ats)
-            last_retrieved_at = max(formatted_retrieved_ats)
-            diff = last_retrieved_at - first_retrieved_at
-            _LOGGER.debug(
-                "[_calc_hour_multiplier]: first_retrieved_at: %s, last_retrieved_at: %s",
-                first_retrieved_at,
-                last_retrieved_at,
-            )
-
-        # Get interval in hours, then days
-        diff_in_hours = abs(diff.total_seconds() / 3600)
-        hour_multiplier = diff_in_hours / 24
-        _LOGGER.debug(
-            "[_calc_hour_multiplier]: diff: %s diff_in_seconds: %s, diff_in_hours: %s, hour_multiplier: %s",
-            diff,
-            diff.total_seconds(),
-            diff_in_hours,
-            hour_multiplier,
-        )
-        return hour_multiplier
-
-    async def _aggregate_sensor_data(self, data_by_sensor, mapping, resultdata):
-        """Aggregate sensor data by configured or default aggregate."""
-        last_calc_data = mapping.get(const.MAPPING_DATA_LAST_CALCULATION) or {}
-        last_calc_data[const.MAPPING_TIMESTAMP] = datetime.now()
-
-        for key, d in data_by_sensor.items():
-            if key == const.RETRIEVED_AT:
-                continue
-            d = [float(i) for i in d]
-
-            aggregate = const.MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT
-            mappings = mapping.get(const.MAPPING_MAPPINGS, {})
-            if key == const.MAPPING_PRECIPITATION:
-                # Default aggregate for precipitation depends on the source.
-                # Cumulative sensors (rain gauge counting up all day) use DELTA.
-                # Weather service sources provide per-period snapshots (rain.1h,
-                # precipIntensity) — these must be SUMmed, not delta-diffed.
-                precip_source = (
-                    mappings.get(const.MAPPING_PRECIPITATION, {}).get(
-                        const.MAPPING_CONF_SOURCE
-                    )
-                    if mappings
-                    else None
-                )
-                if precip_source == const.MAPPING_CONF_SOURCE_WEATHER_SERVICE:
-                    # Weather APIs report precipitation as a rate (mm/h).
-                    # Riemann sum integrates rate × time-delta so the result is
-                    # correct at any update frequency, not just hourly.
-                    aggregate = const.MAPPING_CONF_AGGREGATE_RIEMANNSUM
-                else:
-                    aggregate = (
-                        const.MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION
-                    )
-            elif key == const.MAPPING_TEMPERATURE:
-                resultdata[const.MAPPING_MAX_TEMP] = max(d)
-                resultdata[const.MAPPING_MIN_TEMP] = min(d)
-            if key in mappings:
-                aggregate = mappings[key].get(
-                    const.MAPPING_CONF_AGGREGATE,
-                    aggregate,
-                )
-
-            _LOGGER.debug(
-                "[_aggregate_sensor_data]: aggregation loop: key: %s, aggregate: %s, data: %s",
-                key,
-                aggregate,
-                d,
-            )
-
-            if aggregate == const.MAPPING_CONF_AGGREGATE_DELTA:
-                # Fetch value from last calculation
-                last_calc_value = last_calc_data.get(key)
-                if last_calc_value is None:
-                    _LOGGER.debug(
-                        "[_aggregate_sensor_data]: last calc value is not set, using d[0] = %s",
-                        d[0],
-                    )
-                    last_calc_value = d[0]
-                # Accumulate values
-                prev = last_calc_value
-                result = 0
-                for val in d:
-                    # Detect resets to zero (i.e. passing midnight)
-                    if val < prev:
-                        if val == 0:
-                            _LOGGER.debug(
-                                "[_aggregate_sensor_data]: detected reset to zero",
-                                val,
-                                prev,
-                            )
-                            prev = 0
-                        else:
-                            _LOGGER.warning(
-                                "[_aggregate_sensor_data]: value decreased (%s < %s), skipping",
-                                val,
-                                prev,
-                            )
-                            prev = val
-                    result += val - prev
-                    prev = val
-                _LOGGER.debug(
-                    "[_aggregate_sensor_data]: last calc value: %s change: %s",
-                    last_calc_value,
-                    result,
-                )
-                resultdata[key] = result
-
-            elif len(d) < 2:
-                if key == const.MAPPING_TEMPERATURE:
-                    resultdata[const.MAPPING_MAX_TEMP] = d[0]
-                    resultdata[const.MAPPING_MIN_TEMP] = d[0]
-                resultdata[key] = d[0]
-
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_AVERAGE:
-                resultdata[key] = statistics.mean(d)
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_FIRST:
-                resultdata[key] = d[0]
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_LAST:
-                resultdata[key] = d[-1]
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_MAXIMUM:
-                resultdata[key] = max(d)
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_MINIMUM:
-                resultdata[key] = min(d)
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_MEDIAN:
-                resultdata[key] = statistics.median(d)
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_SUM:
-                resultdata[key] = sum(d)
-            elif aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM:
-                # Trapezoidal Riemann sum: integrates rate × Δt so the result is
-                # correct at any update frequency.
-                # The first entry in data is the anchor left by the previous
-                # calculate (RETRIEVED_AT = calc time, same weather values as the
-                # last reading before that calculation). This means the first
-                # interval's Δt is from the calculation moment to the new reading,
-                # so an immediate re-update+calculate contributes ~0 precipitation.
-                times = []
-                if const.RETRIEVED_AT in data_by_sensor:
-                    timestamps = data_by_sensor[const.RETRIEVED_AT]
-                    if len(timestamps) == len(d):
-                        try:
-                            for t in timestamps:
-                                if parsed := parse_datetime(t):
-                                    times.append(parsed)
-                        except (ValueError, TypeError) as err:
-                            _LOGGER.error(
-                                "[_aggregate_sensor_data]: Failed to parse timestamps for Riemann sum: %s",
-                                err,
-                            )
-
-                if len(d) < 2:
-                    # Single reading with no anchor: only happens on very first
-                    # collection ever. Default to 1-hour interval.
-                    resultdata[key] = float(d[0]) * 1.0
-                else:
-                    riemann_sum = 0.0
-                    for i in range(len(d) - 1):
-                        if len(times) == len(d):
-                            dt_hours = max(
-                                (times[i + 1] - times[i]).total_seconds() / 3600,
-                                0,
-                            )
-                        else:
-                            dt_hours = 1.0
-                        riemann_sum += ((d[i] + d[i + 1]) / 2) * dt_hours
-                    resultdata[key] = riemann_sum
-            last_calc_data[key] = d[-1]
-
-        # update LAST_CALCULATION entry
-        await self.store.async_update_mapping(
-            mapping.get(const.MAPPING_ID),
-            {
-                const.MAPPING_DATA_LAST_CALCULATION: last_calc_data,
-            },
-        )
-        _LOGGER.debug(
-            "[_aggregate_sensor_data] updating MAPPING_DATA_LAST_CALCULATION: %s",
-            last_calc_data,
-        )
-
-    def _fill_missing_from_last_entry(self, mapping, data_by_sensor):
-        """Fill missing keys in data_by_sensor from last entry data."""
-        last_entry = mapping.get(const.MAPPING_DATA_LAST_ENTRY)
-        _LOGGER.debug(
-            "[_fill_missing_from_last_entry]: last entry data for sensor group %s: %s",
-            mapping.get(const.MAPPING_ID),
-            last_entry,
-        )
-        if not last_entry:
-            return
-        for key, val in last_entry.items():
-            if key not in data_by_sensor and val is not None:
-                _LOGGER.debug(
-                    "[_fill_missing_from_last_entry]: %s is missing from data_by_sensor, adding %s from last entry",
-                    key,
-                    val,
-                )
-                data_by_sensor[key] = [val]
-
     async def _async_clear_all_weatherdata(self, *args):
+        """Wipe every mapping's weather buffer and re-anchor zone watermarks.
+
+        The manual "reset all weather data" action. Resetting each zone's
+        last_consumed_at to now keeps the per-zone watermarks consistent with the
+        now-empty buffer (otherwise a zone would try to consume a window that no
+        longer exists).
+        """
         _LOGGER.info("Clearing all weatherdata")
+        now = datetime.now()
         mappings = await self.store.async_get_mappings()
         for mapping in mappings:
-            changes = {}
-            changes[const.MAPPING_DATA] = []
-            changes[const.MAPPING_DATA_LAST_CALCULATION] = {}
             await self.store.async_update_mapping(
-                mapping.get(const.MAPPING_ID), changes
+                mapping.get(const.MAPPING_ID), {const.MAPPING_DATA: []}
+            )
+        for zone in await self.store.async_get_zones():
+            await self.store.async_update_zone(
+                zone.get(const.ZONE_ID), {const.ZONE_LAST_CONSUMED: now}
             )
 
-    async def _async_calculate_all(self, delete_weather_data):
-        _LOGGER.info("Calculating all automatic zones")
-        # get all zones that are in automatic and for all of those, loop over the unique list of mappings
-        # are any modules using OWM / sensors?
+    async def _aggregate_for_zone(self, zone, *, now, continuous=False):
+        """Aggregate this zone's window of its mapping's shared buffer.
 
+        Returns ``(weatherdata, n_points)`` where ``n_points`` is the number of
+        new readings in the zone's window, or ``(None, 0)`` when there is nothing
+        to consume (no mapping/data).
+        """
+        mapping_id = zone.get(const.ZONE_MAPPING)
+        if mapping_id is None:
+            return None, 0
+        mapping = self.store.get_mapping(mapping_id)
+        if not mapping:
+            return None, 0
+        readings = mapping.get(const.MAPPING_DATA) or []
+        watermark = _as_datetime(zone.get(const.ZONE_LAST_CONSUMED))
+        _, window = select_window(readings, watermark)
+        last_entry = mapping.get(const.MAPPING_DATA_LAST_ENTRY) if continuous else None
+        weatherdata = aggregate_window(
+            readings,
+            watermark,
+            mapping.get(const.MAPPING_MAPPINGS) or {},
+            now=now,
+            last_entry=last_entry,
+        )
+        return weatherdata, len(window)
+
+    async def _prune_mapping_buffer(self, mapping_id, *, now=None):
+        """Drop buffer readings no enabled zone needs any more.
+
+        Keeps everything after the oldest enabled-zone watermark (so no zone
+        loses unconsumed data) plus the single boundary reading just before it
+        (each zone's delta/Riemann baseline), and hard-drops anything older than
+        the retention cap. Disabled zones do not hold the buffer.
+        """
+        if mapping_id is None:
+            return
+        if now is None:
+            now = datetime.now()
+        mapping = self.store.get_mapping(mapping_id)
+        if not mapping:
+            return
+        readings = mapping.get(const.MAPPING_DATA) or []
+        if not readings:
+            return
+
+        cap_cutoff = now - BUFFER_RETENTION
+        watermarks = []
+        any_unconsumed = False
+        for zid in await self._get_zones_that_use_this_mapping(mapping_id):
+            z = self.store.get_zone(zid)
+            if z is None or z.get(const.ZONE_STATE) == const.ZONE_STATE_DISABLED:
+                continue
+            wm = _as_datetime(z.get(const.ZONE_LAST_CONSUMED))
+            if wm is None:
+                any_unconsumed = True
+            else:
+                watermarks.append(wm)
+        if any_unconsumed or not watermarks:
+            cutoff = cap_cutoff
+        else:
+            cutoff = max(cap_cutoff, min(watermarks))
+
+        kept = []
+        boundary = None
+        boundary_dt = None
+        for r in readings:
+            rt = (
+                _as_datetime(r.get(const.RETRIEVED_AT)) if isinstance(r, dict) else None
+            )
+            if rt is None or rt > cutoff:
+                kept.append(r)
+            elif boundary_dt is None or rt >= boundary_dt:
+                boundary, boundary_dt = r, rt
+        if boundary is not None:
+            kept.insert(0, boundary)
+        if len(kept) != len(readings):
+            _LOGGER.debug(
+                "[_prune_mapping_buffer] mapping %s: %s -> %s readings (cutoff %s)",
+                mapping_id,
+                len(readings),
+                len(kept),
+                cutoff,
+            )
+            await self.store.async_update_mapping(
+                mapping_id, {const.MAPPING_DATA: kept}
+            )
+
+    async def _async_calculate_all(self, *args):
+        """Calculate every automatic zone, each over its own consumption window.
+
+        Each zone consumes ``(last_consumed_at, now]`` of its mapping's shared
+        buffer and advances its own watermark; the buffer is pruned once per
+        touched mapping at the end (never cleared wholesale, so zones sharing a
+        mapping keep their independent history).
+        """
+        _LOGGER.info("Calculating all automatic zones")
         unfiltered_zones = await self.store.async_get_zones()
 
-        # skip over zones that use pure sensors (not weather service) if continuous updates are enabled
+        # When continuous updates are on, pure-sensor zones are already handled
+        # there; only weather-service zones need the scheduled calculation.
         the_config = await self.store.async_get_config()
-        zones = []
         if the_config.get(const.CONF_CONTINUOUS_UPDATES):
-            _LOGGER.debug(
-                "Continuous updates are enabled, filtering out pure sensor zones"
-            )
-            # filter zones and only add zone if it uses a weather service
+            zones = []
             for z in unfiltered_zones:
-                mapping_id = z.get(const.ZONE_MAPPING)
-                weather_service_in_mapping, sensor_in_mapping, static_in_mapping = (
-                    self.check_mapping_sources(mapping_id=mapping_id)
+                weather_service_in_mapping, _, _ = self.check_mapping_sources(
+                    mapping_id=z.get(const.ZONE_MAPPING)
                 )
                 if weather_service_in_mapping:
-                    _LOGGER.debug(
-                        "[async_calculate_all]: zone %s uses a weather service so should be included in the calculation even though continuous updates are on",
-                        z.get(const.ZONE_ID),
-                    )
                     zones.append(z)
                 else:
                     _LOGGER.debug(
-                        "[async_calculate_all]: Skipping zone %s from calculation because it uses a pure sensor mapping and continuous updates are enabled",
+                        "[async_calculate_all]: skipping pure-sensor zone %s (continuous updates handle it)",
                         z.get(const.ZONE_ID),
                     )
         else:
-            # no need to filter, continue with unfiltered zones
             zones = unfiltered_zones
 
-        # TODO: convert relative pressure to absolute?
-
-        # apply aggregates to sensor data for each mapping
-        mapping_ids = await self._get_unique_mappings_for_automatic_zones(zones)
-        aggregated_mapping_data = {}
-        for mapping_id in mapping_ids:
-            mapping = self.store.get_mapping(mapping_id)
-            if mapping.get(const.MAPPING_DATA):
-                aggregated_mapping_data[mapping_id] = (
-                    await self.apply_aggregates_to_mapping_data(mapping, True)
-                )
-
-        # TODO: maybe calc each module once here
-
-        # loop over zones and calculate
+        now = datetime.now()
         forecastdata = None
+        touched_mappings = set()
         for zone in zones:
-            # get forecast data if needed (once)
+            if zone.get(const.ZONE_STATE) != const.ZONE_STATE_AUTOMATIC:
+                continue
+            # fetch forecast once if any PyETO-with-forecast zone needs it
             modinst = await self.getModuleInstanceByID(zone.get(const.ZONE_MODULE))
             if modinst and modinst.name == "PyETO" and modinst.forecast_days > 0:
                 if self.use_weather_service:
-                    # get forecast info from OWM
                     if forecastdata is None:
                         forecastdata = await self.hass.async_add_executor_job(
                             self._WeatherServiceClient.get_forecast_data
                         )
-                    # _LOGGER.debug("Retrieved forecast data: %s", forecastdata)
                 else:
                     _LOGGER.error(
-                        "Error calculating zone %s: You have configured forecasting but there is no OWM API configured. Either configure the OWM API or stop using forecasting on the PyETO module",
+                        "Error calculating zone %s: forecasting configured but no weather service API is set",
                         zone.get(const.ZONE_NAME),
                     )
                     continue
-            # calculate the zone
-            if zone.get(const.ZONE_STATE) == const.ZONE_STATE_AUTOMATIC:
-                mapping_id = zone.get(const.ZONE_MAPPING)
-                weatherdata = aggregated_mapping_data.get(mapping_id)
-                if not weatherdata:
-                    _LOGGER.error(
-                        "[async_calculate_all] Error calculating zone %s: no sensor data available",
-                        zone.get(const.ZONE_NAME),
-                    )
-                    continue
-                await self.async_calculate_zone(
-                    zone.get(const.ZONE_ID), weatherdata, forecastdata
-                )
+            await self.async_calculate_zone(
+                zone.get(const.ZONE_ID), forecastdata, now=now, prune=False
+            )
+            touched_mappings.add(zone.get(const.ZONE_MAPPING))
 
-        # remove mapping data from all mappings used
-        if delete_weather_data:
-            async with asyncio.TaskGroup() as tg:
-                for mapping_id in mapping_ids:
-                    changes = {}
-                    changes[const.MAPPING_DATA] = []
-                    if mapping_id is not None:
-                        _LOGGER.debug(
-                            "[async_calculate_all] Clearing sensor data for mapping %s",
-                            mapping_id,
-                        )
-                        tg.create_task(
-                            self.store.async_update_mapping(mapping_id, changes)
-                        )
+        # Prune each touched mapping once all its zones have advanced.
+        for mapping_id in touched_mappings:
+            await self._prune_mapping_buffer(mapping_id, now=now)
 
     async def async_calculate_zone(
-        self, zone_id, weatherdata, forecastdata=None, delete_weather_data=False
+        self, zone_id, forecastdata=None, *, now=None, continuous=False, prune=True
     ):
-        """Calculate irrigation values for a specific zone.
+        """Calculate one zone from its own window of the shared mapping buffer.
+
+        The zone consumes ``(last_consumed_at, now]`` of its mapping's readings
+        and advances its watermark. The shared buffer is NOT cleared here (other
+        zones may still need it) — it is pruned by ``_prune_mapping_buffer``.
 
         Args:
-            zone_id: The ID of the zone to calculate.
-            delete_weather_data: Whether to delete weather data.
-
+            zone_id: the zone to calculate.
+            forecastdata: optional pre-fetched forecast for PyETO-with-forecast.
+            now: shared "now" so the watermark and multiplier agree (calc-all).
+            continuous: backfill missing sensors from the mapping's last entry.
+            prune: prune the buffer afterwards (False for calc-all, which prunes
+                once at the end).
         """
         _LOGGER.debug("async_calculate_zone: Calculating zone %s", zone_id)
+        if now is None:
+            now = datetime.now()
         zone = self.store.get_zone(zone_id)
+        if zone is None:
+            return
 
-        # make sure we convert forecast data pressure to absolute!
-        calc_data = await self.calculate_module(
-            zone,
-            weatherdata,
-            forecastdata,
+        weatherdata, n_points = await self._aggregate_for_zone(
+            zone, now=now, continuous=continuous
         )
+        if weatherdata is None:
+            _LOGGER.debug(
+                "async_calculate_zone: no weather data to consume for zone %s",
+                zone_id,
+            )
+            return
 
+        calc_data = await self.calculate_module(zone, weatherdata, forecastdata)
         if calc_data is None:
             _LOGGER.error(
                 "async_calculate_zone: calculation returned no result for zone %s "
@@ -476,34 +283,15 @@ class CalculationMixin:
             )
             return
 
-        calc_data[const.ZONE_LAST_CALCULATED] = datetime.now()
-        calc_data[const.ZONE_LAST_UPDATED] = datetime.now()
-
-        # check if data contains delete data true, if so delete the weather data
-        if delete_weather_data:
-            mapping_id = zone.get(const.ZONE_MAPPING)
-            if mapping_id is not None:
-                mapping = self.store.get_mapping(mapping_id)
-                # Keep the last data entry as a Riemann sum anchor.
-                # Its RETRIEVED_AT is replaced with the calculation time so the
-                # first new reading's Δt is measured from NOW, not from when the
-                # data was originally collected. This prevents a 1-hour default
-                # being used when you update immediately after calculating.
-                # All other values (temperature, humidity, etc.) stay as-is —
-                # they're averaged with future readings which is correct.
-                anchor: list = []
-                if mapping:
-                    data_list = mapping.get(const.MAPPING_DATA) or []
-                    if data_list:
-                        last_entry = dict(data_list[-1])
-                        last_entry[const.RETRIEVED_AT] = datetime.now()
-                        anchor = [last_entry]
-                await self.store.async_update_mapping(
-                    mapping_id, changes={const.MAPPING_DATA: anchor}
-                )
-                calc_data[const.ZONE_NUMBER_OF_DATA_POINTS] = 0
+        calc_data[const.ZONE_LAST_CALCULATED] = now
+        calc_data[const.ZONE_LAST_UPDATED] = now
+        # Advance this zone's watermark so it never re-consumes this window.
+        calc_data[const.ZONE_LAST_CONSUMED] = now
+        calc_data[const.ZONE_NUMBER_OF_DATA_POINTS] = n_points
 
         await self.store.async_update_zone(zone.get(const.ZONE_ID), calc_data)
+        if prune:
+            await self._prune_mapping_buffer(zone.get(const.ZONE_MAPPING), now=now)
         async_dispatcher_send(
             self.hass,
             const.DOMAIN + "_config_updated",

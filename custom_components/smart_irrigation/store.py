@@ -116,6 +116,8 @@ from .const import (
     ZONE_DURATION,
     ZONE_FLOW_SENSOR,
     ZONE_ID,
+    ZONE_LAST_CALCULATED,
+    ZONE_LAST_CONSUMED,
     ZONE_LAST_UPDATED,
     ZONE_LEAD_TIME,
     ZONE_LINKED_ENTITY,
@@ -162,6 +164,8 @@ class ZoneEntry:
     maximum_duration = attr.ib(type=float, default=CONF_DEFAULT_MAXIMUM_DURATION)
     maximum_bucket = attr.ib(type=float, default=CONF_DEFAULT_MAXIMUM_BUCKET)
     last_calculated = attr.ib(type=datetime, default=None)
+    # Per-zone consumption watermark for the shared mapping weather buffer.
+    last_consumed_at = attr.ib(type=datetime, default=None)
     last_updated = attr.ib(type=datetime, default=None)
     number_of_data_points = attr.ib(type=int, default=0)
     drainage_rate = attr.ib(type=float, default=CONF_DEFAULT_DRAINAGE_RATE)
@@ -542,6 +546,14 @@ class SmartIrrigationStorage:
                         maximum_bucket=zone.get(
                             ZONE_MAXIMUM_BUCKET, CONF_DEFAULT_MAXIMUM_BUCKET
                         ),
+                        last_calculated=zone.get(ZONE_LAST_CALCULATED, None),
+                        # Migration: existing zones (pre last_consumed_at) inherit
+                        # their last_calculated as the consumption watermark; None
+                        # falls back to the buffer span at calc time.
+                        last_consumed_at=zone.get(
+                            ZONE_LAST_CONSUMED,
+                            zone.get(ZONE_LAST_CALCULATED, None),
+                        ),
                         last_updated=zone.get(ZONE_LAST_UPDATED, None),
                         number_of_data_points=zone.get(
                             ZONE_NUMBER_OF_DATA_POINTS, None
@@ -773,6 +785,11 @@ class SmartIrrigationStorage:
         if not new_zone.id:
             zones = await self.async_get_zones()
             new_zone = attr.evolve(new_zone, id=self.generate_next_id(zones))
+        # Anchor the consumption watermark at creation time so a brand-new zone's
+        # first calculation only covers weather data collected from now on (not a
+        # backlog of up to the 7-day buffer).
+        if new_zone.last_consumed_at is None:
+            new_zone = attr.evolve(new_zone, last_consumed_at=datetime.datetime.now())
         self.zones[int(new_zone.id)] = new_zone
         self.async_schedule_save()
         return attr.asdict(new_zone)

@@ -71,10 +71,15 @@ def test_rows_since_none_returns_all():
     assert LiveEstimateMixin._rows_since(rows, None, 2.0) == rows
 
 
+# A last-calc early enough today that the whole _rows() window is "since calc"
+# (00:00 UTC -> 02:00 local at tz +2, before the 10:00 first row).
+_EARLY_TODAY = datetime.datetime.combine(datetime.date.today(), datetime.time(0, 0))
+
+
 def test_intraday_metric_hourly_balance():
     coord = _Coord(METRIC_SYSTEM)
     inputs = {"client": _client(), "rows": _rows(), "tz": 2.0, "forecast": None}
-    zone = {"bucket": -2.0, "maximum_bucket": 24, "last_calculated": None}
+    zone = {"bucket": -2.0, "maximum_bucket": 24, "last_calculated": _EARLY_TODAY}
     est = coord._intraday_for_zone(zone, inputs)
 
     et = rigorous_et_since(_rows(), 48.39, 16.23, 2.0, 180)
@@ -88,7 +93,7 @@ def test_intraday_imperial_converts_units():
     coord = _Coord(US_CUSTOMARY_SYSTEM)
     inputs = {"client": _client(), "rows": _rows(), "tz": 2.0, "forecast": None}
     # bucket given in inches
-    zone = {"bucket": -0.1, "maximum_bucket": 1.0, "last_calculated": None}
+    zone = {"bucket": -0.1, "maximum_bucket": 1.0, "last_calculated": _EARLY_TODAY}
     est = coord._intraday_for_zone(zone, inputs)
 
     et_mm = rigorous_et_since(_rows(), 48.39, 16.23, 2.0, 180)
@@ -98,6 +103,14 @@ def test_intraday_imperial_converts_units():
     # result is reported in inches; ET is positive, so deficit grows (more negative)
     assert est["live_deficit"] < -0.1
     assert abs(est["live_deficit"] - round(expected_live_in, 3)) < 1e-3
+
+
+def test_intraday_unavailable_until_first_calc():
+    """A never-calculated zone (last_calculated None) gets no estimate."""
+    coord = _Coord(METRIC_SYSTEM)
+    inputs = {"client": _client(), "rows": _rows(), "tz": 2.0, "forecast": None}
+    zone = {"bucket": -2.0, "maximum_bucket": 24, "last_calculated": None}
+    assert coord._intraday_for_zone(zone, inputs)["available"] is False
 
 
 def test_intraday_unavailable_without_bucket_or_coords():
