@@ -273,6 +273,7 @@ ZONE_LAST_CALCULATED = "last_calculated"
 # buffer (multiple zones can use the same mapping). See calculation.py.
 ZONE_LAST_CONSUMED = "last_consumed_at"
 ZONE_LAST_UPDATED = "last_updated"
+ZONE_LAST_IRRIGATION = "last_irrigation"
 ZONE_NUMBER_OF_DATA_POINTS = "number_of_data_points"
 ZONE_DRAINAGE_RATE = "drainage_rate"
 ZONE_CURRENT_DRAINAGE = "current_drainage"

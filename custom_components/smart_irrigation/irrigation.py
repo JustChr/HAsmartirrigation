@@ -10,7 +10,9 @@ the rotating / sequential / parallel strategies based on config.
 import asyncio
 import logging
 
+import homeassistant.util.dt as dt_util
 from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
@@ -125,7 +127,14 @@ class IrrigationRunnerMixin:
                 actual_mm = convert_between(const.UNIT_MM, const.UNIT_INCH, actual_mm)
             original_bucket = zone.get(const.ZONE_BUCKET) or 0.0
             new_bucket = min(0.0, original_bucket + actual_mm)
-            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
+            await self.store.async_update_zone(
+                zone_id,
+                {
+                    const.ZONE_BUCKET: new_bucket,
+                    const.ZONE_LAST_IRRIGATION: dt_util.now(),
+                },
+            )
+            async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
             _LOGGER.info(
                 "Zone %s: bucket updated %.3f → %.3f (%s%.2f mm delivered%s)",
                 zone_id,
@@ -364,7 +373,11 @@ class IrrigationRunnerMixin:
         is replenished and the bucket returns to 0. The flow-meter path does the
         equivalent based on measured volume; this is the timed-run counterpart.
         """
-        await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: 0.0})
+        await self.store.async_update_zone(
+            zone_id,
+            {const.ZONE_BUCKET: 0.0, const.ZONE_LAST_IRRIGATION: dt_util.now()},
+        )
+        async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
         _LOGGER.info("Zone %s: bucket reset to 0 after irrigation run", zone_id)
 
     async def _irrigate_zones_sequential(self, zones: list):

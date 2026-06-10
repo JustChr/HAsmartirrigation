@@ -111,6 +111,7 @@ from .const import (
     ZONE_ID,
     ZONE_LAST_CALCULATED,
     ZONE_LAST_CONSUMED,
+    ZONE_LAST_IRRIGATION,
     ZONE_LAST_UPDATED,
     ZONE_LEAD_TIME,
     ZONE_LINKED_ENTITY,
@@ -160,6 +161,9 @@ class ZoneEntry:
     # Per-zone consumption watermark for the shared mapping weather buffer.
     last_consumed_at = attr.ib(type=datetime, default=None)
     last_updated = attr.ib(type=datetime, default=None)
+    # When this zone last actually irrigated (set by the runner). Persisted so
+    # the "Last irrigation" sensor survives restarts.
+    last_irrigation = attr.ib(type=datetime, default=None)
     number_of_data_points = attr.ib(type=int, default=0)
     drainage_rate = attr.ib(type=float, default=CONF_DEFAULT_DRAINAGE_RATE)
     current_drainage = attr.ib(type=float, default=0)
@@ -533,6 +537,9 @@ class SmartIrrigationStorage:
                             zone.get(ZONE_LAST_CALCULATED, None),
                         ),
                         last_updated=zone.get(ZONE_LAST_UPDATED, None),
+                        # Migration: existing zones have no recorded last
+                        # irrigation until they next water.
+                        last_irrigation=zone.get(ZONE_LAST_IRRIGATION, None),
                         number_of_data_points=zone.get(
                             ZONE_NUMBER_OF_DATA_POINTS, None
                         ),

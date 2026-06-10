@@ -159,6 +159,9 @@ class TestBucketResetAfterRun:
     async def test_resets_to_zero(self, coordinator, mock_store):
         mock_store.async_update_zone = AsyncMock()
         await coordinator._reset_zone_bucket_after_run(5)
-        mock_store.async_update_zone.assert_awaited_once_with(
-            5, {const.ZONE_BUCKET: 0.0}
-        )
+        # Resets the bucket to 0 and records the irrigation time (dynamic value).
+        mock_store.async_update_zone.assert_awaited_once()
+        zone_id_arg, changes = mock_store.async_update_zone.await_args[0]
+        assert zone_id_arg == 5
+        assert changes[const.ZONE_BUCKET] == 0.0
+        assert const.ZONE_LAST_IRRIGATION in changes
