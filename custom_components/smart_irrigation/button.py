@@ -1,0 +1,198 @@
+"""Button platform for Smart Irrigation integration.
+
+Per zone (on the zone's device): irrigate this zone now (bypasses skip
+conditions, like the panel's button / the irrigate_now service).
+
+Global (on the hub device): irrigate all zones now, recalculate all zones,
+refresh weather data — mirroring the three global dashboard actions.
+"""
+
+import logging
+
+from homeassistant.components.button import DOMAIN as PLATFORM
+from homeassistant.components.button import ButtonEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import slugify
+
+from . import const
+from .entity import hub_device_info, zone_device_info
+
+_LOGGER = logging.getLogger(__name__)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_devices: AddEntitiesCallback,
+) -> None:
+    """Set up Smart Irrigation button entities."""
+
+    @callback
+    def async_add_button_entity(config: dict) -> None:
+        """Add the per-zone irrigate-now button for each registered zone."""
+        if const.DOMAIN not in hass.data:
+            return
+        registered = hass.data[const.DOMAIN].setdefault("zone_buttons", {})
+        if config["id"] in registered:
+            return
+        entity_id = "{}.{}_irrigate_now".format(
+            PLATFORM, const.DOMAIN + "_" + slugify(config["name"])
+        )
+        entity = SmartIrrigationZoneIrrigateNowButton(hass, entity_id, config)
+        registered[config["id"]] = [entity]
+        async_add_devices([entity])
+
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, const.DOMAIN + "_register_entity", async_add_button_entity
+        )
+    )
+
+    # Global actions live on the hub device and exist once.
+    async_add_devices(
+        [
+            SmartIrrigationIrrigateAllButton(hass),
+            SmartIrrigationCalculateAllButton(hass),
+            SmartIrrigationUpdateWeatherButton(hass),
+        ]
+    )
+
+
+def _coordinator(hass: HomeAssistant):
+    """The coordinator, or None when the integration is not (yet) set up."""
+    try:
+        return hass.data[const.DOMAIN]["coordinator"]
+    except (KeyError, AttributeError):
+        return None
+
+
+class SmartIrrigationZoneIrrigateNowButton(ButtonEntity):
+    """Start an immediate irrigation run for one zone."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:sprinkler"
+
+    def __init__(self, hass: HomeAssistant, entity_id: str, zone: dict) -> None:
+        """Initialize from the zone config dict."""
+        self._hass = hass
+        self.entity_id = entity_id
+        self._zone_id = zone[const.ZONE_ID]
+        self._zone_name = zone[const.ZONE_NAME]
+
+        async_dispatcher_connect(
+            hass, const.DOMAIN + "_config_updated", self._async_zone_updated
+        )
+
+    @callback
+    def _async_zone_updated(self, zone_id=None):
+        """Track zone renames so the friendly name stays current."""
+        if self._zone_id != zone_id or not (self.hass and self.hass.data):
+            return
+        zone = self.hass.data[const.DOMAIN]["coordinator"].store.get_zone(self._zone_id)
+        if zone:
+            self._zone_name = zone.get(const.ZONE_NAME, self._zone_name)
+            self.async_schedule_update_ha_state()
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return f"{const.DOMAIN}_{self._zone_id}_irrigate_now"
+
+    @property
+    def name(self) -> str:
+        """Return friendly name."""
+        return f"{self._zone_name} Irrigate now"
+
+    @property
+    def device_info(self) -> dict:
+        """Group under the per-zone device."""
+        return zone_device_info(self._hass, self._zone_id, self._zone_name)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return zone identification attributes."""
+        return {
+            "zone_id": self._zone_id,
+            "zone_name": self._zone_name,
+        }
+
+    async def async_press(self) -> None:
+        """Irrigate this zone now (skip conditions bypassed)."""
+        coordinator = _coordinator(self._hass)
+        if coordinator is None:
+            _LOGGER.warning("Irrigate now: coordinator not available")
+            return
+        await coordinator.async_irrigate_now(str(self._zone_id))
+
+
+class SmartIrrigationHubButton(ButtonEntity):
+    """Base for the global hub-device action buttons."""
+
+    _attr_should_poll = False
+    suffix = ""
+    label = ""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        """Initialize the hub button."""
+        self._hass = hass
+        self.entity_id = f"{PLATFORM}.{const.DOMAIN}_{self.suffix}"
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return f"{const.DOMAIN}_{self.suffix}"
+
+    @property
+    def name(self) -> str:
+        """Return friendly name."""
+        return f"{const.NAME} {self.label}"
+
+    @property
+    def device_info(self) -> dict:
+        """Group under the hub device."""
+        return hub_device_info(self._hass)
+
+
+class SmartIrrigationIrrigateAllButton(SmartIrrigationHubButton):
+    """Water all zones now (bypasses skip conditions)."""
+
+    suffix = "irrigate_all"
+    label = "Water all zones now"
+    _attr_icon = "mdi:sprinkler-variant"
+
+    async def async_press(self) -> None:
+        """Irrigate all eligible zones now."""
+        coordinator = _coordinator(self._hass)
+        if coordinator is not None:
+            await coordinator.async_irrigate_now()
+
+
+class SmartIrrigationCalculateAllButton(SmartIrrigationHubButton):
+    """Recalculate the durations of all automatic zones."""
+
+    suffix = "calculate_all"
+    label = "Recalculate durations"
+    _attr_icon = "mdi:calculator"
+
+    async def async_press(self) -> None:
+        """Run the daily calculation for all automatic zones."""
+        coordinator = _coordinator(self._hass)
+        if coordinator is not None:
+            await coordinator._async_calculate_all()  # noqa: SLF001
+
+
+class SmartIrrigationUpdateWeatherButton(SmartIrrigationHubButton):
+    """Collect fresh weather data for all automatic zones."""
+
+    suffix = "update_weather"
+    label = "Refresh weather data"
+    _attr_icon = "mdi:weather-cloudy-arrow-right"
+
+    async def async_press(self) -> None:
+        """Fetch and store fresh weather data."""
+        coordinator = _coordinator(self._hass)
+        if coordinator is not None:
+            await coordinator._async_update_all()  # noqa: SLF001

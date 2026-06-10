@@ -158,7 +158,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.config_entries.async_update_entry(entry, unique_id=coordinator.id, data={})
 
     _LOGGER.info("Calling async_forward_entry_setups")
-    await hass.config_entries.async_forward_entry_setups(entry, [PLATFORM, "number"])
+    await hass.config_entries.async_forward_entry_setups(
+        entry, [PLATFORM, "number", "binary_sensor", "button"]
+    )
     _LOGGER.info("Finished calling async_forward_entry_setups")
     # update listener for options flow
     entry.async_on_unload(entry.add_update_listener(options_update_listener))
@@ -214,6 +216,8 @@ async def async_unload_entry(hass: HomeAssistant, entry):
         await asyncio.gather(
             hass.config_entries.async_forward_entry_unload(entry, PLATFORM),
             hass.config_entries.async_forward_entry_unload(entry, "number"),
+            hass.config_entries.async_forward_entry_unload(entry, "binary_sensor"),
+            hass.config_entries.async_forward_entry_unload(entry, "button"),
         )
     )
     if not unload_ok:
@@ -1159,17 +1163,38 @@ class SmartIrrigationCoordinator(
         return res
 
     async def async_remove_entity(self, zone_id: str):
-        """Remove an entity corresponding to the given zone ID from Home Assistant.
+        """Remove all entities (and the device) of the given zone from HA.
 
         Args:
-            zone_id: The ID of the zone whose entity should be removed.
+            zone_id: The ID of the zone whose entities should be removed.
 
         """
         entity_registry = er.async_get(self.hass)
         zone_id = int(zone_id)
-        entity = self.hass.data[const.DOMAIN]["zones"][zone_id]
-        entity_registry.async_remove(entity.entity_id)
-        self.hass.data[const.DOMAIN]["zones"].pop(zone_id, None)
+        data = self.hass.data[const.DOMAIN]
+        trackers = (
+            "zones",
+            "bucket_sensors",
+            "multiplier_numbers",
+            "zone_extra_sensors",
+            "zone_binary_sensors",
+            "zone_buttons",
+        )
+        for key in trackers:
+            tracked = data.get(key, {}).pop(zone_id, None)
+            if tracked is None:
+                continue
+            entities = tracked if isinstance(tracked, list) else [tracked]
+            for entity in entities:
+                if entity_registry.async_get(entity.entity_id):
+                    entity_registry.async_remove(entity.entity_id)
+        # Drop the zone's device as well (it would linger empty otherwise).
+        device_registry = dr.async_get(self.hass)
+        device = device_registry.async_get_device(
+            identifiers={(const.DOMAIN, f"{self.id}_zone_{zone_id}")}
+        )
+        if device:
+            device_registry.async_remove_device(device.id)
 
     async def async_unload(self):
         """Remove all Smart Irrigation objects."""

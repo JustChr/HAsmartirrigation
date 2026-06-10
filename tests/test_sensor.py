@@ -11,6 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.sensor import (
     SmartIrrigationZoneEntity,
+    _to_aware_datetime,
     async_setup_entry,
 )
 
@@ -118,6 +119,24 @@ class TestSmartIrrigationZoneEntity:
         assert info["model"] == "Irrigation zone"
         assert info["manufacturer"] == const.MANUFACTURER
         assert info["via_device"] == (const.DOMAIN, "smart_irrigation")
+
+    def test_to_aware_datetime(self) -> None:
+        """Naive stored timestamps become local-aware; garbage becomes None."""
+        import datetime
+
+        import homeassistant.util.dt as dt_util
+
+        naive = _to_aware_datetime("2026-06-10 21:00:00")
+        assert naive is not None
+        assert naive.tzinfo == dt_util.DEFAULT_TIME_ZONE
+
+        aware_src = datetime.datetime(2026, 6, 10, 19, tzinfo=datetime.timezone.utc)
+        assert _to_aware_datetime(aware_src.isoformat()) == aware_src
+        assert _to_aware_datetime(aware_src) == aware_src
+
+        assert _to_aware_datetime(None) is None
+        assert _to_aware_datetime("not-a-date") is None
+        assert _to_aware_datetime(42) is None
 
     def test_async_handle_unit_system_change(self, hass: HomeAssistant) -> None:
         """The unit-system-change handler schedules a forced state refresh."""
