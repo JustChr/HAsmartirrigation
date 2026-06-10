@@ -219,6 +219,10 @@ class CalculationMixin:
         for mapping_id in touched_mappings:
             await self._prune_mapping_buffer(mapping_id, now=now)
 
+        # Buckets just changed → the cached intraday estimates are stale
+        # (they are anchored to last_calculated). Refresh once for everyone.
+        await self.async_refresh_zone_estimates()
+
     async def async_calculate_zone(
         self, zone_id, forecastdata=None, *, now=None, prune=True
     ):

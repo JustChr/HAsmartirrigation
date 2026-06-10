@@ -161,6 +161,38 @@ def test_intraday_unavailable_until_first_calc():
     assert coord._intraday_for_zone(zone, inputs)["available"] is False
 
 
+async def test_estimate_cache_lazy_compute_and_refresh(monkeypatch):
+    """The cached getter computes once on demand; refresh recomputes + notifies."""
+    coord = _Coord(METRIC_SYSTEM)
+    dispatched = []
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.live_estimate.async_dispatcher_send",
+        lambda *args: dispatched.append(args),
+    )
+    computed = {"count": 0}
+
+    async def fake_get():
+        computed["count"] += 1
+        return {"1": {"available": True, "live_deficit": -1.0}}
+
+    coord.async_get_zone_estimates = fake_get
+
+    # no cache yet -> first cached request computes (and notifies)
+    out = await coord.async_get_cached_zone_estimates()
+    assert out == {"1": {"available": True, "live_deficit": -1.0}}
+    assert computed["count"] == 1
+    assert dispatched and dispatched[0][1] == const.DOMAIN + "_estimates_updated"
+
+    # second request is served from the cache (no recompute)
+    assert await coord.async_get_cached_zone_estimates() is out
+    assert computed["count"] == 1
+
+    # explicit refresh (update/calc cycle) recomputes and re-notifies
+    await coord.async_refresh_zone_estimates()
+    assert computed["count"] == 2
+    assert len(dispatched) == 2
+
+
 def test_intraday_unavailable_without_bucket_or_coords():
     coord = _Coord(METRIC_SYSTEM)
     rows = _rows()

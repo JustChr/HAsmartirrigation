@@ -15,6 +15,7 @@ import datetime
 import logging
 
 import homeassistant.util.dt as dt_util
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
@@ -234,3 +235,23 @@ class LiveEstimateMixin:
             if est["available"]:
                 out[str(zone.get(const.ZONE_ID))] = est
         return out
+
+    async def async_refresh_zone_estimates(self) -> dict:
+        """Recompute the estimates, cache them, and notify the live sensors.
+
+        Called from the existing weather-update and daily-calculation cycles —
+        deliberately NOT a separate timer. Both the per-zone live-deficit
+        sensors and the panel outlook are served from this one cache so the
+        weather client is only hit once per cycle.
+        """
+        estimates = await self.async_get_zone_estimates()
+        self._zone_estimates_cache = estimates
+        async_dispatcher_send(self.hass, const.DOMAIN + "_estimates_updated")
+        return estimates
+
+    async def async_get_cached_zone_estimates(self) -> dict:
+        """Serve the cached estimates, computing them once if not cached yet."""
+        cache = getattr(self, "_zone_estimates_cache", None)
+        if cache is None:
+            return await self.async_refresh_zone_estimates()
+        return cache

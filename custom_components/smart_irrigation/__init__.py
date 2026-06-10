@@ -271,6 +271,9 @@ class SmartIrrigationCoordinator(
             const.CONF_WEATHER_SERVICE, None
         )
         self._WeatherServiceClient = None
+        # Per-zone intraday estimates, refreshed on the update/calc cycles
+        # (see LiveEstimateMixin.async_refresh_zone_estimates).
+        self._zone_estimates_cache = None
         if self.use_weather_service:
             # Get effective coordinates before creating weather service clients
             effective_lat, effective_lon, effective_elev = (
@@ -831,6 +834,10 @@ class SmartIrrigationCoordinator(
                         "[async_update_all] No weather data to parse for sensor group %s",
                         mapping_id,
                     )
+
+        # Fresh weather data in → refresh the cached intraday estimates once
+        # for everyone (live-deficit sensors + panel outlook).
+        await self.async_refresh_zone_estimates()
 
     async def async_update_module_config(
         self, module_id: int | None = None, data: dict | None = None

@@ -85,7 +85,9 @@ class SkipConditionsMixin:
         skip_preview = await self.async_evaluate_skip_conditions()
         upcoming = await self.recurring_schedule_manager.async_get_upcoming_runs()
         try:
-            zone_estimates = await self.async_get_zone_estimates()
+            # Served from the cache maintained by the update/calc cycles
+            # (computed once on demand if no cycle has run yet).
+            zone_estimates = await self.async_get_cached_zone_estimates()
         except Exception as e:  # noqa: BLE001 — outlook must not fail on the estimate
             _LOGGER.debug("Intra-day estimates unavailable: %s", e)
             zone_estimates = {}
