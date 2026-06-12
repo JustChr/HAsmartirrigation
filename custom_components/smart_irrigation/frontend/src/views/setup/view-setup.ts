@@ -2,13 +2,13 @@ import { LitElement, html, CSSResultGroup, css } from "lit";
 import { property, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "../../types";
 
-import "../general/view-general.ts";
-import "../zones/view-zone-settings.ts";
-import "../modules/view-modules.ts";
-import "../mappings/view-mappings.ts";
-import "../schedules/view-schedules.ts";
-import "../weather/view-weather-data.ts";
-import "../experimental/view-experimental.ts";
+import "../general/view-general";
+import "../zones/view-zone-settings";
+import "../modules/view-modules";
+import "../mappings/view-mappings";
+import "../schedules/view-schedules";
+import "../weather/view-weather-data";
+import "../experimental/view-experimental";
 
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";

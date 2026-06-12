@@ -112,8 +112,6 @@ The frontend is a TypeScript / Lit bundle. After editing files in `custom_compon
 ```bash
 cd custom_components/smart_irrigation/frontend
 npm run build
-# On Windows, the babel step fails — run separately:
-npx babel dist/smart-irrigation.js --out-file dist/smart-irrigation.js
 ```
 
 The compiled `dist/smart-irrigation.js` is committed to the repo (gitignored but tracked) so users don't need Node.js to run the integration.

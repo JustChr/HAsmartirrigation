@@ -118,9 +118,6 @@ Push-Location $FrontendDir
 try {
   if (-not (Test-Path node_modules)) { Invoke-Checked { npm ci } }
   Invoke-Checked { npx rollup -c }
-  Invoke-Checked { npx babel dist/smart-irrigation.js --out-file dist/smart-irrigation.js }
-  Invoke-Checked { npx babel dist/smart-irrigation-card.js --out-file dist/smart-irrigation-card.js }
-  Invoke-Checked { npx babel dist/smart-irrigation-card-impl.js --out-file dist/smart-irrigation-card-impl.js }
 } finally { Pop-Location }
 
 # const.ts embeds `v${pkg.version}`, which rollup keeps as `v${"<VerNoPrefix>"}`,

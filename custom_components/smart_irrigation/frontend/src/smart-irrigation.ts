@@ -4,9 +4,9 @@ import { HomeAssistant } from "./types";
 import { loadHaForm } from "./load-ha-elements";
 import { navigate } from "./helpers";
 
-import "./views/zones/view-zones.ts";
-import "./views/setup/view-setup.ts";
-import "./views/wizard/si-setup-wizard.ts";
+import "./views/zones/view-zones";
+import "./views/setup/view-setup";
+import "./views/wizard/si-setup-wizard";
 
 import { commonStyle } from "./styles";
 import { VERSION, PLATFORM, ISSUES_URL } from "./const";
