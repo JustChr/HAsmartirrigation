@@ -6,7 +6,7 @@ title: Configuration: Sensor groups
 
 > Main page: [Configuration](configuration.md)<br/>
 > Previous: [Module configuration](configuration-modules.md)<br/>
-> Next: [Usage](usage.md)
+> Next: [Experimental](configuration-experimental.md)
 
 Sensor groups live under **Setup → Advanced**. The setup wizard creates and wires a sensor group for you, so most setups never need this page — come here to mix sensors with a weather service or share one group across zones.
 
@@ -60,4 +60,4 @@ Use the button at the bottom to delete a sensor group. Note you can only delete 
 Now you are ready to [use the integration](usage.md)!
 > Main page: [Configuration](configuration.md)<br/>
 > Previous: [Module configuration](configuration-modules.md)<br>
-> Next: [Usage](usage.md)
+> Next: [Experimental](configuration-experimental.md)
