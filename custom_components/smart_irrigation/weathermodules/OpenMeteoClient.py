@@ -34,6 +34,10 @@ OPENMETEO_URL = (
     "&timezone=auto"
     "&wind_speed_unit=ms"
     "&forecast_days=7"
+    # One past day so the intra-day estimate's window can reach back to a daily
+    # calc that ran the previous evening (anchored to last_calculated, not local
+    # midnight). get_hourly_data() then windows these rows to the calc time.
+    "&past_days=1"
 )
 
 # Wind height correction factor: 10 m → 2 m (Allen et al. FAO-56)
@@ -217,12 +221,14 @@ class OpenMeteoClient:
             return None
 
     def get_hourly_data(self):
-        """Return today's elapsed hourly rows (local) for the intra-day estimate.
+        """Return elapsed hourly rows (local) for the intra-day estimate.
 
         Returns ``(rows, tz_offset_h)`` or ``(None, None)`` on failure. Each row:
         ``{time, hour, doy, temperature, humidity, wind_2m, solar_mj_h,
-        precipitation}`` with the hour midpoint in local clock time. Only hours
-        from local midnight up to (and including) the current hour are returned.
+        precipitation}`` with the hour midpoint in local clock time. Rows cover
+        the past day plus today up to (and including) the current hour — the
+        caller windows them to the last daily calc, which may have run the
+        previous evening, so a since-midnight slice would truncate the window.
         """
         try:
             doc = self._fetch()
@@ -235,7 +241,6 @@ class OpenMeteoClient:
             now_local = datetime.datetime.utcnow() + datetime.timedelta(
                 hours=tz_offset_h
             )
-            today = now_local.date()
 
             temp = hourly.get("temperature_2m", [])
             rh = hourly.get("relative_humidity_2m", [])
@@ -246,7 +251,7 @@ class OpenMeteoClient:
             rows = []
             for i, tstr in enumerate(times):
                 dt = datetime.datetime.fromisoformat(tstr)
-                if dt.date() != today or dt > now_local:
+                if dt > now_local:
                     continue
 
                 def g(arr, idx=i):

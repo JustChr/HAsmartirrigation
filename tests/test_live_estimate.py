@@ -10,10 +10,14 @@ from types import SimpleNamespace
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
 from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.et_estimate import rigorous_et_since
+from custom_components.smart_irrigation.et_estimate import (
+    estimate_daily_et0_hargreaves,
+    proxy_et_since,
+    rigorous_et_since,
+)
 from custom_components.smart_irrigation.live_estimate import (
     LiveEstimateMixin,
-    _parse_utc_naive,
+    _parse_local_naive,
 )
 
 
@@ -46,21 +50,27 @@ def _rows():
     return rows
 
 
-def test_parse_utc_naive():
+def test_parse_local_naive():
+    import homeassistant.util.dt as dt_util
+
+    # naive (the store's convention) is returned unchanged — interpreted local
+    assert _parse_local_naive("2026-06-07T12:00:00") == datetime.datetime(
+        2026, 6, 7, 12
+    )
+    # an aware value (shouldn't occur for these fields) is converted to local
     aware = datetime.datetime(2026, 6, 7, 12, tzinfo=datetime.timezone.utc)
-    assert _parse_utc_naive(aware) == datetime.datetime(2026, 6, 7, 12)
-    assert _parse_utc_naive("2026-06-07T12:00:00") == datetime.datetime(2026, 6, 7, 12)
-    assert _parse_utc_naive(None) is None
-    assert _parse_utc_naive("not-a-date") is None
+    assert _parse_local_naive(aware) == dt_util.as_local(aware).replace(tzinfo=None)
+    assert _parse_local_naive(None) is None
+    assert _parse_local_naive("not-a-date") is None
 
 
 def test_rows_since_filters_to_after_last_calc():
     rows = _rows()  # hours 10..13 local
-    # last calc today 11:00 LOCAL -> with tz +2, that's 09:00 UTC naive
-    last_calc_utc = datetime.datetime.combine(
-        datetime.date.today(), datetime.time(9, 0)
+    # last calc today 11:00 LOCAL — compared directly to the (local) rows
+    last_calc_local = datetime.datetime.combine(
+        datetime.date.today(), datetime.time(11, 0)
     )
-    window = LiveEstimateMixin._rows_since(rows, last_calc_utc, 2.0)
+    window = LiveEstimateMixin._rows_since(rows, last_calc_local)
     hours = [r["hour"] for r in window]
     # hours whose end (>hour+1) is after 11:00 local -> 11,12,13 (the 11:00 row
     # ends at 12:00 > 11:00). The 10:00 row (ends 11:00) is excluded.
@@ -69,11 +79,11 @@ def test_rows_since_filters_to_after_last_calc():
 
 def test_rows_since_none_returns_all():
     rows = _rows()
-    assert LiveEstimateMixin._rows_since(rows, None, 2.0) == rows
+    assert LiveEstimateMixin._rows_since(rows, None) == rows
 
 
 # A last-calc early enough today that the whole _rows() window is "since calc"
-# (00:00 UTC -> 02:00 local at tz +2, before the 10:00 first row).
+# (00:00 local, before the 10:00 first row).
 _EARLY_TODAY = datetime.datetime.combine(datetime.date.today(), datetime.time(0, 0))
 
 
@@ -104,6 +114,75 @@ def test_intraday_imperial_converts_units():
     # result is reported in inches; ET is positive, so deficit grows (more negative)
     assert est["live_deficit"] < -0.1
     assert abs(est["live_deficit"] - round(expected_live_in, 3)) < 1e-3
+
+
+def test_intraday_proxy_no_spurious_et_right_after_calc(monkeypatch):
+    """Regression: last_calculated is naive LOCAL. Reading it as UTC used to
+    shove the proxy anchor onto the next calendar day (a +tz day-boundary jump),
+    so a whole day's ET got subtracted the instant the daily calc ran — the
+    yellow "live" line dropping ~a day's ET below the bucket. Immediately after a
+    calc the window is ~0, so live_deficit must ~= bucket regardless of offset.
+    """
+    import custom_components.smart_irrigation.live_estimate as le
+
+    # "now" == the calc instant; local tz +2 (the offset that exposed the bug).
+    tz = datetime.timezone(datetime.timedelta(hours=2))
+    now_local = datetime.datetime(2026, 6, 11, 23, 31, tzinfo=tz)
+    monkeypatch.setattr(le.dt_util, "now", lambda: now_local)
+
+    coord = _Coord(METRIC_SYSTEM)
+    coord.store = SimpleNamespace(get_mapping=lambda _mid: None)  # no precip
+    forecast = [{const.MAPPING_MIN_TEMP: 14.0, const.MAPPING_MAX_TEMP: 28.0}]
+    inputs = {"client": _client(), "rows": None, "tz": None, "forecast": forecast}
+    zone = {
+        "bucket": -2.0,
+        "maximum_bucket": 24,
+        # stored as the store does: naive LOCAL, the same instant as "now"
+        "last_calculated": now_local.replace(tzinfo=None),
+    }
+    est = coord._intraday_for_zone(zone, inputs)
+
+    assert est["available"] is True
+    assert est["method"] == "proxy"
+    # essentially no time elapsed -> ET ~ 0 -> live ~ bucket (not bucket - a day)
+    assert abs(est["et_since"]) < 1e-6
+    assert abs(est["live_deficit"] - (-2.0)) < 1e-6
+
+
+def test_intraday_proxy_window_spans_midnight(monkeypatch):
+    """The proxy window must follow last_calc across midnight, not reset at 00:00.
+
+    Calc ran yesterday 18:00 local; "now" is today 06:30. The window is the
+    remaining hours of the calc day (18..23) plus today's elapsed (00..06), not
+    just today since midnight.
+    """
+    import custom_components.smart_irrigation.live_estimate as le
+
+    tz = datetime.timezone(datetime.timedelta(hours=2))
+    now_local = datetime.datetime(2026, 6, 12, 6, 30, tzinfo=tz)
+    monkeypatch.setattr(le.dt_util, "now", lambda: now_local)
+
+    coord = _Coord(METRIC_SYSTEM)
+    coord.store = SimpleNamespace(get_mapping=lambda _mid: None)
+    tmin, tmax = 14.0, 30.0
+    forecast = [{const.MAPPING_MIN_TEMP: tmin, const.MAPPING_MAX_TEMP: tmax}]
+    inputs = {"client": _client(), "rows": None, "tz": None, "forecast": forecast}
+    zone = {
+        "bucket": 5.0,
+        "maximum_bucket": 24,
+        "last_calculated": datetime.datetime(2026, 6, 11, 18, 0),  # naive local
+    }
+    est = coord._intraday_for_zone(zone, inputs)
+
+    lat, lon = 48.39, 16.23
+    doy = now_local.timetuple().tm_yday
+    elapsed = [h + 0.5 for h in range(18, 24)] + [h + 0.5 for h in range(0, 7)]
+    expected = proxy_et_since(
+        estimate_daily_et0_hargreaves(tmin, tmax, lat, doy), lat, lon, doy, 2.0, elapsed
+    )
+    assert est["method"] == "proxy"
+    assert abs(est["et_since"] - round(expected, 2)) < 1e-9
+    assert est["et_since"] > 0  # daytime hours of both sides contribute
 
 
 def test_observed_precip_is_time_weighted_not_plain_sum():

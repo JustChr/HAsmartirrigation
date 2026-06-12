@@ -32,8 +32,17 @@ from .weather_aggregate import aggregate_window
 _LOGGER = logging.getLogger(__name__)
 
 
-def _parse_utc_naive(value):
-    """Parse a stored datetime/ISO string to a naive-UTC datetime, or None."""
+def _parse_local_naive(value):
+    """Parse a stored last_calculated/last_updated to a NAIVE LOCAL datetime.
+
+    The store writes these as naive *local* datetimes (``datetime.now()`` in
+    ``calculation.py``); an aware value (shouldn't occur for these fields) is
+    converted to local. Mirrors ``sensor._to_aware_datetime``'s convention
+    (naive == local). Reading them as UTC shifts the intra-day window by the
+    local UTC offset — on the proxy path that pushes the anchor onto the next
+    calendar day, so a whole day's ET is spuriously subtracted right after the
+    daily calc (until the next weather update "heals" it).
+    """
     if value is None:
         return None
     if isinstance(value, str):
@@ -43,7 +52,7 @@ def _parse_utc_naive(value):
             return None
     if isinstance(value, datetime.datetime):
         if value.tzinfo is not None:
-            return value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            return dt_util.as_local(value).replace(tzinfo=None)
         return value
     return None
 
@@ -105,21 +114,22 @@ class LiveEstimateMixin:
         return agg.get(const.MAPPING_PRECIPITATION, 0.0) or 0.0
 
     @staticmethod
-    def _rows_since(rows, last_calc_utc, tz_offset_h):
+    def _rows_since(rows, last_calc_local):
         """Hourly rows whose hour ends after ``last_calc`` (window = since calc).
 
-        ``rows`` are local (location tz); ``last_calc_utc`` is naive UTC.
+        Both ``rows`` (their ``time``) and ``last_calc_local`` are local clock
+        time, so they compare directly — no tz offset is applied (the anchor is
+        already local; see :func:`_parse_local_naive`).
         """
-        if not last_calc_utc:
+        if not last_calc_local:
             return rows
-        last_local = last_calc_utc + datetime.timedelta(hours=tz_offset_h)
         out = []
         for r in rows:
             try:
                 rdt = datetime.datetime.fromisoformat(r["time"])
             except (ValueError, KeyError):
                 continue
-            if rdt + datetime.timedelta(hours=1) > last_local:
+            if rdt + datetime.timedelta(hours=1) > last_calc_local:
                 out.append(r)
         return out
 
@@ -161,7 +171,7 @@ class LiveEstimateMixin:
             bucket_mm = to_mm(bucket)
             max_bucket_mm = to_mm(max_bucket)
             drainage_rate_mm = to_mm(zone.get(const.ZONE_DRAINAGE_RATE)) or 0.0
-            last_calc = _parse_utc_naive(zone.get(const.ZONE_LAST_CALCULATED))
+            last_calc = _parse_local_naive(zone.get(const.ZONE_LAST_CALCULATED))
             # A never-calculated zone has no anchor for the "since calc" window;
             # showing a whole-day estimate would be misleading (and looks like a
             # shared, un-anchored value). Offer no estimate until the first calc.
@@ -171,7 +181,7 @@ class LiveEstimateMixin:
             rows = inputs["rows"]
             if rows:
                 tz = inputs["tz"] or 0.0
-                window = self._rows_since(rows, last_calc, tz)
+                window = self._rows_since(rows, last_calc)
                 et_mm = rigorous_et_since(window, lat, lon, tz, elevation)
                 precip_mm = sum(r.get("precipitation", 0.0) for r in window)
                 method = "hourly"
@@ -192,14 +202,22 @@ class LiveEstimateMixin:
                     else 0.0
                 )
                 doy = local.timetuple().tm_yday
-                start_hour = 0
-                if last_calc is not None:
-                    last_local = dt_util.as_local(
-                        last_calc.replace(tzinfo=datetime.timezone.utc)
-                    )
-                    if last_local.date() == local.date():
-                        start_hour = last_local.hour
-                elapsed = [h + 0.5 for h in range(start_hour, local.hour + 1)]
+                # Window = elapsed hours since the last daily calc, anchored to
+                # its LOCAL wall-clock time (last_calc is naive local). When the
+                # calc was on a previous day the window spans midnight, so
+                # accumulate the remaining hours of the calc day plus today's
+                # elapsed hours rather than resetting to 00:00 — the two days'
+                # daily ET0 are ~equal over a <=24 h window (today's is used).
+                days_ago = (local.date() - last_calc.date()).days
+                if days_ago <= 0:
+                    elapsed = [h + 0.5 for h in range(last_calc.hour, local.hour + 1)]
+                elif days_ago == 1:
+                    elapsed = [h + 0.5 for h in range(last_calc.hour, 24)] + [
+                        h + 0.5 for h in range(0, local.hour + 1)
+                    ]
+                else:
+                    # Stale calc (>1 day old) — fall back to today's elapsed only.
+                    elapsed = [h + 0.5 for h in range(0, local.hour + 1)]
                 daily = estimate_daily_et0_hargreaves(tmin, tmax, lat, doy)
                 et_mm = proxy_et_since(daily, lat, lon, doy, tz, elapsed)
                 # No hourly precip series on this source — use the precipitation
@@ -213,9 +231,10 @@ class LiveEstimateMixin:
             # Hours elapsed since the last daily calc — the same window the ET
             # and precip deltas cover — so any surplus above field capacity is
             # drained over exactly that window (mirrors the daily calc's
-            # capacity cap + drainage, integrated analytically).
-            now_utc = dt_util.utcnow().replace(tzinfo=None)
-            elapsed_hours = max(0.0, (now_utc - last_calc).total_seconds() / 3600.0)
+            # capacity cap + drainage, integrated analytically). Compared in
+            # local time since last_calc is naive local (see _parse_local_naive).
+            now_local = dt_util.now().replace(tzinfo=None)
+            elapsed_hours = max(0.0, (now_local - last_calc).total_seconds() / 3600.0)
             live_mm = live_deficit(
                 bucket_mm,
                 et_mm,
