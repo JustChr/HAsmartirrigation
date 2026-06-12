@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4ac7f5"/>
+      <stop offset="1" stop-color="#0a7dd1"/>
+    </linearGradient>
+  </defs>
+  <!-- water droplet -->
+  <path d="M128 24 C128 24 204 118 204 166 C204 207.9 170 242 128 242 C86 242 52 207.9 52 166 C52 118 128 24 128 24 Z" fill="url(#water)"/>
+  <!-- soft highlight -->
+  <ellipse cx="99" cy="120" rx="17" ry="27" fill="#ffffff" opacity="0.22" transform="rotate(-24 99 120)"/>
+  <!-- calculation / live-status pulse -->
+  <path d="M74 173 H103 L118 143 L138 199 L153 169 H182" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
