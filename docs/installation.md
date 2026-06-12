@@ -4,13 +4,14 @@ title: Installation
 ---
 # Installation
 
-Installing Smart Irrigation takes a few minutes and consists of three steps:
+Installing Smart Irrigation takes a few minutes:
 
-1. [Download and register the integration](installation-download.md) — via HACS (recommended) or manually
-2. Enter your location coordinates (pre-filled from your Home Assistant configuration)
-3. [Configure a weather service](installation-weatherservice.md) — Open Weather Map, Pirate Weather, or your own sensors
+1. [Download and register the integration](installation-download.md) — via HACS (recommended) or manually.
+2. [Choose a weather service](installation-weatherservice.md) when you add the integration — Open-Meteo (free, no API key), Open Weather Map, Pirate Weather, or opt out and use your own sensors.
 
 ![](assets/images/installation-1.png)
+
+Your location is taken from your Home Assistant **home zone**; you can adjust the coordinates later in the panel under **Setup → Weather & Location**.
 
 Once installed, a **Smart Irrigation** entry appears in **Settings → Devices & Services** and a panel appears in the sidebar. [Use the panel to configure your zones, sensor groups, and modules](configuration.md).
 

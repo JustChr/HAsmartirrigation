@@ -8,35 +8,38 @@ title: Installation: Configuring weather service
 > Previous: [Downloading the integration](installation-download.md)<br/>
 > Next: [Configuration](configuration.md) or [Changing your settings for weather service](installation-options.md)
 
-The installation wizard allows you to determine if you want to use a weather service and if so, which one. Three services are supported:
+When you add the integration (**Settings → Devices & Services → Add Integration → Smart Irrigation**), a short two-step setup asks how you want to get weather data. You can change any of this later from the panel under **Setup → Weather & Location**.
 
-- **Open-Meteo** — free and **requires no API key**. The easiest way to get started.
-- **Open Weather Map** — requires a (free-tier) API key; see below.
-- **Pirate Weather** — requires an API key; see below.
+## Step 1 — Do you want to use a weather service?
 
-If you pick a service that needs a key, the wizard will ask for it. See below for instructions on how to get an API key for Open Weather Map or Pirate Weather.
+Give the integration a name and choose whether to **use a weather service**.
 
-Let's walk through the wizard: 
-1. The first page here allows you to disable or enable the use of a weather service. If you disable this option and click `Submit` you will not be able to use forecasting in your [calculation modules](configuration-modules.md). If you enable this and click `Submit`, the next screen will allow you to set up the weather service you want to use. If you use a weather service, make sure your Home Assistant home zone coordinates are set correctly so the data is correct. This is especially true if you set the coordinates manually in the configuration.yaml. Although we recommend using a weather service by providing an free API key, you _can_ skip it. Skipping it, however, disables any ability to forecast. If it is disabled you need to use another source, such as your own weather station, exclusively. If you turn it off, you will not be able to use forecasts. If you intent to use a weather service for at least part of the weather data, including forecasting, leave this option on.
-![](assets/images/installation-weatherservice-1.png)
+- **Leave it on** if you want the integration to pull weather data and/or forecasts from an online service. You'll pick the service in the next step.
+- **Turn it off** if you want to rely entirely on your own sensors (configured later in a [sensor group](configuration-sensor-groups.md)). In that case there are no forecasts, so forecast-based features — the precipitation [skip condition](configuration-general.md#skip-conditions) and PyETO's *forecast days* — won't be available.
 
+> If you use a weather service, make sure your Home Assistant **home-zone coordinates** are correct, as the data is fetched for that location. You can also set coordinates manually later in the panel.
 
-5. On this page, select the weather service you want to use (Open-Meteo, Open Weather Map, or Pirate Weather). For Open-Meteo there's nothing more to enter; for Open Weather Map and Pirate Weather, enter the API key for the service (see below on how to get an API key).
-![](assets/images/installation-weatherservice-2.png)
-6. If the API key is correct you will see a success message. If you get an error you need to double check you have the right API key. Especially for Open Weather Map it can take a long time for an API key to become active.
+## Step 2 — Pick a weather service
 
-![](assets/images/installation-1.png)
+Three services are supported:
 
-After the integration has been installed, you will find a new panel named 'Smart Irrigation' in your side bar. [Use it to configure your set up](configuration.md).
+| Service | API key | Notes |
+|---|---|---|
+| **Open-Meteo** | **Not required** | Free, no sign-up — the easiest way to get started. |
+| **Open Weather Map** | Required | Free tier available; see below. |
+| **Pirate Weather** | Required | See below. |
 
-You have now finished the installation of Smart Irrigation and are ready to continue to [Configuration](configuration.md)!
+Select a service and, for Open Weather Map or Pirate Weather, paste its API key (leave the key blank for Open-Meteo). If the key is valid you'll see a success message; if not, double-check it — newly created keys can take a while to activate.
 
-## Getting Open Weather Map API Key
+After setup finishes, a **Smart Irrigation** panel appears in your sidebar. [Use it to configure your zones, sensor groups and modules](configuration.md).
 
-Go to [OpenWeatherMap](https://openweathermap.org) and create an account. You can enter any company and purpose while creating an account. After creating your account, You will need to sign up for the paid (but free for limited API calls) OneCall API 3.0 plan if you do not have a key already. Make sure to enter credit card information to get the API truly activated. Then, go to API Keys and get your key. If the key does not work right away, no worries. The email you should have received from OpenWeaterMap says it will be activated 'within the next couple of hours'. So if it does not work right away, be patient a bit. If you are worried about the cost of the API, You can put a rate limit below the paid threshold in the "Billing plans" page of your profile. If you are currently using API 2.5, move to 3.0 ASAP as API 2.5 is going to be closed in June 2024.
+## Getting an Open Weather Map API key
 
-## Getting Pirate Weather API key
-Follow the instructions on this page (see `API Key` section): https://docs.pirateweather.net/en/latest/API/.
+Create an account at [OpenWeatherMap](https://openweathermap.org). You need the **One Call API 3.0** plan (free for a limited number of calls per day, but it requires a card on file to activate). Then open **API keys** and copy your key. A new key can take a couple of hours to become active, so don't worry if it doesn't work immediately. To avoid any charge, set a call limit below the free threshold on the **Billing plans** page of your profile.
+
+## Getting a Pirate Weather API key
+
+Follow the instructions on the [Pirate Weather API docs](https://docs.pirateweather.net/en/latest/API/) (see the `API Key` section).
 
 > Main page: [Installation](installation.md)<br/>
 > Previous: [Downloading the integration](installation-download.md)<br/>
