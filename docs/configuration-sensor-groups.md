@@ -20,17 +20,17 @@ It's recommended to use actual sensor sources as much as you can and only rely o
 
 The following data can be provided:
 
-| Data | Required | Available sources | Available units | Expected aggregation | Expected aggregation for continuous updates |
-|---|---|---|---|--|--|
-|**Current precipitation (unused)**|No|Weather Service<br/>Sensor<br/>Static value|in/h<br/>mm/h|Average|Last|
-|**Dewpoint**|Yes|Weather Service<br/>Sensor<br/>Static value|°C<br/>°F|Average|Last|
-|**Evapotranspiration**|No|None (module will calculate it)<br/>Sensor<br/>Static value|in<br/>mm|Average|Last|
-|**Humidity**|Yes|Weather Service<br/>Sensor<br/>Static value|%|Average|Last|
-|**Total precipitation**|Yes|Weather Service<br/>Sensor<br/>Static value|in<br/>mm|Delta|Delta|
-|**Pressure** (*see notes below the table)|Yes|Weather Service<br/>Sensor<br/>Static value|hPa<br/>inch Hg<br/>millibar<br/>psi|Average|Last|
-|**Solar Radiation**|No|None (requires module to estimate it)<br/>Sensor<br/>Static value|MJ/day/m2<br/>MJ/day/sq ft<br/>W/m2<br/>W/sq ft|Average|Riemann Sum|
-|**Temperature**|Yes|Weather Service<br/>Sensor<br/>Static value|°C<br/>°F|Average|Last|
-|**Wind speed**|Yes|Weather Service<br/>Sensor<br/>Static value|meter/s<br/>mile/h<br/>km/h|Average|Last|
+| Data | Required | Available sources | Available units | Expected aggregation |
+|---|---|---|---|--|
+|**Current precipitation (unused)**|No|Weather Service<br/>Sensor<br/>Static value|in/h<br/>mm/h|Average|
+|**Dewpoint**|Yes|Weather Service<br/>Sensor<br/>Static value|°C<br/>°F|Average|
+|**Evapotranspiration**|No|None (module will calculate it)<br/>Sensor<br/>Static value|in<br/>mm|Average|
+|**Humidity**|Yes|Weather Service<br/>Sensor<br/>Static value|%|Average|
+|**Total precipitation**|Yes|Weather Service<br/>Sensor<br/>Static value|in<br/>mm|Delta|
+|**Pressure** (*see notes below the table)|Yes|Weather Service<br/>Sensor<br/>Static value|hPa<br/>inch Hg<br/>millibar<br/>psi|Average|
+|**Solar Radiation**|No|None (requires module to estimate it)<br/>Sensor<br/>Static value|MJ/day/m2<br/>MJ/day/sq ft<br/>W/m2<br/>W/sq ft|Average|
+|**Temperature**|Yes|Weather Service<br/>Sensor<br/>Static value|°C<br/>°F|Average|
+|**Wind speed**|Yes|Weather Service<br/>Sensor<br/>Static value|meter/s<br/>mile/h<br/>km/h|Average|
 
 Please note:
 - If you use a [weather service](installation-weatherservice.md), make sure your home zone coordinates are set correctly so the data is correct. This is especially true if you set the coordinates manually in the configuration.yaml.
@@ -47,7 +47,6 @@ Please note:
    ```
 - Total precipitation is the total amount of precipitation you want to take into account for the calculations. Use the 'Delta' aggregation type along with a sensor source that accumulates over a time period, usually named something like 'daily rain', 'weekly rain', or 'total rain'. The delta aggregation will correctly handle value resets (such as daily rain becoming zero at midnight). Keep in mind that the total precipitation is expected to be a total over the time period, not the current precipitation rate.
 - Current preciptation is currently unused. Total precipitation should be used instead.
-- When using continuous updates, all aggregations are expected to be set to `Last`, with the exception of Solar Radiation and Total Precipitation, which need to be set to `Riemann Sum` and `Delta`, respectively.
 
 ## Deleting a sensor group
 ![](assets/images/configuration-sensor-groups-1.png)

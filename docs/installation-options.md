@@ -7,11 +7,15 @@ title: Installation: Options
 > Main page: [Installation](installation.md)<br/>
 > Next: [Updating the installed version](installation-updating.md)
 
-To change which weather service you are using or to update your API key, follow these steps:
-1. In Home Assistant go to Settings > Devices & services.
-2. Select the 'Smart Irrigation' card.
-3. ![](assets/images/installation-options-1.png) Under 'Integration entities' click `Configure`.
-4. [Follow the instructions on screen, which are detailed in the installation docs](installation-weatherservice.md).
+Weather service and location settings are now managed entirely from the **Smart Irrigation panel** — not from the Home Assistant integration dialog. (Clicking **Configure** on the integration card simply redirects you to the panel.)
+
+To change which weather service you use or update your API key:
+
+1. Open the **Smart Irrigation** panel from the sidebar.
+2. Go to **Setup → Weather & Location**.
+3. Toggle the weather service, pick a different service, or enter a new API key, then use **Test** to confirm the key works and **Save**.
+
+Your location coordinates are configured on the same tab.
 
 > Main page: [Installation](installation.md)<br/>
 > Next: [Updating the installed version](installation-updating.md)

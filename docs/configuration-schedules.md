@@ -5,10 +5,11 @@ title: Configuration: Schedules
 # Schedules
 
 > Main page: [Configuration](configuration.md)<br/>
-> Previous: [Zone configuration](configuration-zones.md)<br/>
-> Next: [Sensor group configuration](configuration-sensor-groups.md)
+> Previous: [General configuration](configuration-general.md)
 
-The **Schedules** tab lets you create recurring schedules that automatically calculate, update, or irrigate your zones — no Home Assistant automations needed.
+Recurring schedules let you irrigate your zones automatically on a repeating cadence — no Home Assistant automations needed. They live under **Setup → When to Water**.
+
+Weather updates and duration calculations run on their own automatic times set in [General configuration](configuration-general.md#automatic-weather-data-update) — schedules here are about *when to actually water*.
 
 ## Creating a schedule
 
@@ -38,16 +39,11 @@ The day of the month (1–31) the schedule should fire.
 ### Interval (interval type only)
 The number of hours between runs.
 
-### Action
-
-| Action | What it does |
-|---|---|
-| **Calculate** | Runs the irrigation duration calculation for the selected zones. Updates the duration sensor without controlling any valves. |
-| **Update** | Collects fresh weather data for the selected zones' sensor groups. |
-| **Irrigate** | Fires the `smart_irrigation_start_irrigation_all_zones` event **and** directly controls all [linked entities](configuration-zones.md#linked-entity) for zones with duration > 0. |
+### What a schedule does
+When a schedule fires it **irrigates**: it controls all [linked entities](configuration-zones.md#linked-entity) for the targeted zones that have a calculated duration > 0, and also fires the `smart_irrigation_start_irrigation_all_zones` event for any automation-based setups.
 
 ### Zones
-Choose **All zones** or select specific zones by name. For the `irrigate` action, only zones with a [linked entity](configuration-zones.md#linked-entity) and a calculated duration > 0 will actually open their valve.
+Choose **All zones** or select specific zones by name. Only zones with a [linked entity](configuration-zones.md#linked-entity) and a calculated duration > 0 will actually open their valve.
 
 ### Enabled
 Toggle a schedule on or off without deleting it. Disabled schedules are not tracked.
@@ -61,10 +57,9 @@ Each existing schedule is shown as a card with a summary of its settings. Use th
 
 ## Tips
 
-- Use a **Calculate** schedule at your normal calculation time (e.g. 23:00) and a separate **Irrigate** schedule timed to start after calculation finishes.
+- Make sure your [automatic calculation time](configuration-general.md#automatic-duration-calculation) runs **before** your irrigate schedule, so each zone has an up-to-date duration when the schedule fires.
 - For seasonal use, set a **start date** and **end date** so schedules only fire during your irrigation season.
-- To adapt irrigation intensity over the year, adjust each zone's **multiplier** under Setup → Zones (the old Seasonal Adjustments tab was removed in favor of this simpler approach).
+- To adapt irrigation intensity over the year, adjust each zone's **multiplier** under Setup → My Zones (the old Seasonal Adjustments tab was removed in favor of this simpler approach).
 
 > Main page: [Configuration](configuration.md)<br/>
-> Previous: [Zone configuration](configuration-zones.md)<br/>
-> Next: [Sensor group configuration](configuration-sensor-groups.md)
+> Previous: [General configuration](configuration-general.md)

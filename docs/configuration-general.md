@@ -7,7 +7,12 @@ title: Configuration: General
 > Main page: [Configuration](configuration.md)<br/>
 > Next: [Zone configuration](configuration-zones.md)
 
-This page provides the following global settings:
+This page covers the global, set-once settings. In the panel they are spread across two Setup tabs grouped by purpose:
+
+- **Weather & Location** — your weather service and location coordinates (see [weather service setup](installation-weatherservice.md)).
+- **When to Water** — the automatic update/calculation times, days between irrigation, [zone sequencing](#zone-sequencing), [skip conditions](#skip-conditions), and [recurring schedules](configuration-schedules.md).
+
+The settings below are documented together by topic.
 
 ### Automatic weather data update
 If enabled, specify how often sensor update should happen (minutes, hours, days). You can also set up an update delay to be used to delay the first update. THis is useful in case your sensors do not provide a value immediately after Home Assistant starts.
@@ -17,8 +22,7 @@ As calculation needs weatherdata make sure to update your weather data at least 
 ### Automatic duration calculation
 If enabled, set the time of calculation (HH:MM). Calculation uses weatherdata that is collected in updates to determine irrigation duration. After automatic calculation has happened used weatherdata is deleted.
 
-### Automatic weather data pruning
-If enabled configure time of pruning weather data. Use this to make sure that there is no left over weatherdata from previous days. Don't remove the weatherdata before you calculate and only use this option if you expect the automatic update to collect weatherdata after you calculated for the day. Ideally, you want to prune as late in the day as possible.
+> **Note:** weather data is now pruned **automatically**. Each zone consumes the weather data it needs during calculation, and old readings are pruned from the shared buffer once every zone that needs them has consumed them (with a hard cap of a few days). There is no longer a "pruning time" to configure, and the old timed *auto-clear* setting has been removed. You can still wipe everything manually via **Setup → My Zones → Bulk Actions → Clear all weather data**.
 
 ### Days between irrigation events
 Configure the minimum number of days that must pass between irrigation events. This setting allows you to control how frequently irrigation can occur, which is useful for:
@@ -76,21 +80,6 @@ If enabled, irrigation is skipped when the current wind speed (from the weather 
 Optionally specify a `binary_sensor` entity. If that sensor is `on` when irrigation would normally fire, the event is skipped. No weather service is required for this check — it works with any binary sensor (e.g. a physical rain detector, a virtual sensor from a weather integration).
 
 Leave this field empty to disable the rain sensor check.
-
-### Continuous updates (experimental)
-Continuous updates is an experimental feature that tries to capture more granular weather data to avoid missing chunks of weather patterns. For a zone to be continuous updated, it needs to:
-* be set to `automatic`
-* use a [sensor group](configuration-sensor-groups.md) that does not rely on a weather service (none of the data has its source set to `weather service`). 
-* not use forecasting, as it relies on weather services. Set `forecast days` for PyETO to `0`.
-
-Any zone that does not meet the above requirements is not included in the continuous updates and instead will be included in the automatic update and calculation at the time configured. 
-Any zone that does meet this requirement will not be included in the automatic update and calculation.
-
-A sensor debounce setting is also provided to provide control over the speed of continuous updates.
-
-Please note that this is experimental right now and will have bugs.
-
-For continous updates, in the future, it will likely use specific set of aggregates (last for all data points except for solar radiation which will use average of riemann integral) and also requires current precipitation to be mapped in the sensor group.
 
 ### Unit System Responsiveness
 Smart Irrigation automatically detects and responds to changes in your Home Assistant unit system setting (metric/imperial). When you change the unit system in Home Assistant:

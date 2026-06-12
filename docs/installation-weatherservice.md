@@ -8,14 +8,20 @@ title: Installation: Configuring weather service
 > Previous: [Downloading the integration](installation-download.md)<br/>
 > Next: [Configuration](configuration.md) or [Changing your settings for weather service](installation-options.md)
 
-The installation wizard allows you to determine if you want to use a weather service and if so, which one. If you decide to use a weather service, it will also ask you for the API key. See below for instructions on how to get an API key for Open Weather Map or Pirate Weather.
+The installation wizard allows you to determine if you want to use a weather service and if so, which one. Three services are supported:
+
+- **Open-Meteo** — free and **requires no API key**. The easiest way to get started.
+- **Open Weather Map** — requires a (free-tier) API key; see below.
+- **Pirate Weather** — requires an API key; see below.
+
+If you pick a service that needs a key, the wizard will ask for it. See below for instructions on how to get an API key for Open Weather Map or Pirate Weather.
 
 Let's walk through the wizard: 
 1. The first page here allows you to disable or enable the use of a weather service. If you disable this option and click `Submit` you will not be able to use forecasting in your [calculation modules](configuration-modules.md). If you enable this and click `Submit`, the next screen will allow you to set up the weather service you want to use. If you use a weather service, make sure your Home Assistant home zone coordinates are set correctly so the data is correct. This is especially true if you set the coordinates manually in the configuration.yaml. Although we recommend using a weather service by providing an free API key, you _can_ skip it. Skipping it, however, disables any ability to forecast. If it is disabled you need to use another source, such as your own weather station, exclusively. If you turn it off, you will not be able to use forecasts. If you intent to use a weather service for at least part of the weather data, including forecasting, leave this option on.
 ![](assets/images/installation-weatherservice-1.png)
 
 
-5. On this page, select the [weather service you want to use (Open Weather Map, Pirate Weather)](installation-weatherservice.md) and enter the API key for the weather service (see below on how to get an API key).
+5. On this page, select the weather service you want to use (Open-Meteo, Open Weather Map, or Pirate Weather). For Open-Meteo there's nothing more to enter; for Open Weather Map and Pirate Weather, enter the API key for the service (see below on how to get an API key).
 ![](assets/images/installation-weatherservice-2.png)
 6. If the API key is correct you will see a success message. If you get an error you need to double check you have the right API key. Especially for Open Weather Map it can take a long time for an API key to become active.
 

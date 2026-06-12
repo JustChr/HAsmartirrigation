@@ -14,7 +14,7 @@ Key capabilities:
 - **Weather sources** — Open-Meteo (free, no API key), Open Weather Map, Pirate Weather, or your own local sensors (or a mix)
 - **Moisture bucket** — tracks cumulative evapotranspiration and precipitation over time
 - **Guided setup wizard** — a first-run wizard walks you through weather, calculation module, sensor group, and your first zone
-- **Everyday dashboard** — the **Zones** tab tells you at a glance whether each zone will water and why, with one-tap Update / Calculate / Irrigate; full configuration lives under **Setup → Zones**
+- **Everyday dashboard** — the **Zones** tab tells you at a glance whether each zone will water and why, with one-tap Update / Calculate / Irrigate; full configuration lives under **Setup → My Zones**
 - **Direct valve control** — link a switch or valve entity to each zone; the integration turns it on, waits the calculated duration, and turns it off — no automations needed
 - **Irrigate Now** — trigger irrigation from the dashboard for all zones or a single zone, bypassing skip conditions
 - **Schedules** — create recurring schedules (daily, weekly, monthly, or interval) entirely from the UI — no automations needed

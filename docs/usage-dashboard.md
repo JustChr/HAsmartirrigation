@@ -6,7 +6,7 @@ title: Live dashboard
 
 > Main page: [Usage](usage.md)
 
-The **Zones** tab is the everyday dashboard. For each zone it answers the daily question — *will it water, when, and if not, why?* — and offers one-tap actions. Full configuration lives under **Setup → Zones**; a gear icon on each card jumps there.
+The **Zones** tab is the everyday dashboard. For each zone it answers the daily question — *will it water, when, and if not, why?* — and offers one-tap actions. Full configuration lives under **Setup → My Zones**; a gear icon on each card jumps there.
 
 ![](assets/images/usage-dashboard-1.png)
 

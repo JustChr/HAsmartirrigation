@@ -26,7 +26,7 @@ No automation is needed. The integration also resets the bucket automatically af
 
 ### Irrigate Now
 
-The **Info tab** has a "Run all zones now" button that immediately irrigates all zones with linked entities, bypassing skip conditions. The **Zones tab** shows a per-zone "Irrigate Now" button on zones that have a linked entity and a calculated duration > 0.
+The **Zones dashboard** has a "Run all zones now" action that immediately irrigates all zones with linked entities, bypassing skip conditions, plus a per-zone **Irrigate Now** button on zones that have a linked entity and a calculated duration > 0.
 
 ---
 

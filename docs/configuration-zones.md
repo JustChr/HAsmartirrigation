@@ -20,13 +20,13 @@ Specify one or more irrigation zones here. The integration calculates irrigation
 Zones appear in two places:
 
 - The top-level **Zones** tab is the everyday **dashboard**. Each zone card shows an at-a-glance verdict (e.g. *"Watering needed: ~6 min"*, *"No watering needed"* or *"Turned off"*), a one-line status (bucket and when it was last checked), and the operational buttons **Update**, **Calculate** and **Irrigate now**. A gear icon on each card opens that zone's settings.
-- **Setup → Zones** is where you **add, configure and delete** zones, and view per-zone reporting (calculation explanation, weather data, watering calendar). The sections below ("Adding a zone", "Configuring a zone") all live here.
+- **Setup → My Zones** is where you **add, configure and delete** zones, and view per-zone reporting (calculation explanation, weather data, watering calendar). The sections below ("Adding a zone", "Configuring a zone") all live here.
 
 ## Multi-zone support
 For irrigation systems that have multiple zones which you want to run in series or independent you need to create multiple zones. The configuration should be done for each zone, including the area the zone covers and the corresponding settings.
 
 ## Adding a zone
-Zones are added and configured under **Setup → Zones**. Click the **+** button and provide:
+Zones are added and configured under **Setup → My Zones**. Click the **+** button and provide:
 
 - **Name**: The name of your zone, e.g. 'garden'
 - **Size**: The size of this zone (m<sup>2</sup> or sq ft)
@@ -40,15 +40,15 @@ After clicking **Add**, the new zone appears in the list (and as an entity in Ho
 These bulk actions are split across the two surfaces:
 
 - **Update all zones** / **Calculate all zones** — on the **Zones** dashboard (top tab): collect weather data for, and recalculate the duration of, every automatic zone.
-- **Reset all buckets** / **Clear all weather data** — under **Setup → Zones → Bulk Actions**: reset every automatic zone's bucket to `0`, or remove all collected weather data for the [sensor groups](configuration-sensor-groups.md) in use. Both ask for confirmation first.
+- **Reset all buckets** / **Clear all weather data** — under **Setup → My Zones → Bulk Actions**: reset every automatic zone's bucket to `0`, or remove all collected weather data for the [sensor groups](configuration-sensor-groups.md) in use. Both ask for confirmation first.
 
 ## Configuring a zone
-Open **Setup → Zones**, expand a zone's **Settings**, and you can change:
+Open **Setup → My Zones**, expand a zone's **Settings**, and you can change:
 
 - **Name**: change the name of a zone
 - **Size**: change the size of a zone
 - **Throughput**: change the throughput of a zone
-- **Drainage rate**: set the drainage rate of a zone. This will only be applied if bucket > 0. Full drainage rate only occurs when the bucket is at its maximum value and before that it will be applied as a fraction of the drainage rate, following hydraulic conductivity method of [Brooks and Corey, Eq. 4-6](https://open.library.okstate.edu/rainorshine/chapter/1-8-models-for-soil-hydraulic-conductivity/). Use this if you have drainage problems. You will need to do some experimentation to see what value works for you. Too low of a value and your drainage problem is not solved, too high of a value and the effects of the evapotranspiration calculation has little to no impact. Keep in mind that the values quoted on the internet (around 50.8 mm or 2 inch per hour) for drainage rates are dependent on your soil type and are for fully saturated soil only. It's recommended to start with 0 mm/h and if you have draingage problems, increase it by approx 5 mm/h each 24 hours until you arrive at a level of irrigation that waters your area and doesn't cause puddles to appear. Since this is so dependent on your soil characteristics you will need to do some experimentation to arrive at the optimal value.
+- **Drainage rate**: set the drainage rate of a zone (mm/h or in/h). This is only applied when the bucket is above 0 (i.e. there is surplus moisture above field capacity). The full drainage rate only takes effect when the bucket is at its maximum value; below that it is applied as a fraction of the rate, following the hydraulic conductivity method of [Brooks and Corey, Eq. 4-6](https://open.library.okstate.edu/rainorshine/chapter/1-8-models-for-soil-hydraulic-conductivity/). New zones default to **20 mm/h** (a reasonable medium/loam soil value); existing zones keep whatever value they were created with. The right value depends heavily on your soil type — values quoted online (around 50.8 mm / 2 inch per hour) assume fully saturated soil and won't apply to most setups. Too low and a drainage problem isn't solved; too high and evapotranspiration has little impact. If you have drainage problems, adjust by ~5 mm/h every 24 hours until your area waters well without puddles forming.
 - **State**:
   - _Automatic_: Automatic updating and calculation of that zone. [module](configuration-modules.md) and [sensor group](configuration-sensor-groups.md) is mandatory.
   - _Manual_: Only manual updating and calculation of that zone. No [module](configuration-modules.md) and [sensor group](configuration-sensor-groups.md) is required.
@@ -92,7 +92,7 @@ On the **Zones** dashboard, each zone card shows an at-a-glance verdict, a one-l
 * **Calculate** — Recalculate the zone's irrigation duration. Weather data for the zone's sensor group is deleted after calculation.
 * **Irrigate Now** — Immediately turn on the zone's [linked entity](#linked-entity) for the calculated duration, then turn it off. Bypasses all skip conditions. Shown disabled with a hint until the zone has a linked entity.
 
-The remaining per-zone tools live under **Setup → Zones**, in each zone's expandable panels:
+The remaining per-zone tools live under **Setup → My Zones**, in each zone's expandable panels:
 
 * **Calculation explanation** — After a calculation, a detailed breakdown of how the bucket was updated and how the lead time and multiplier affected the final duration.
 * **View weather data** — The last 10 weather data records for the zone's sensor group.
