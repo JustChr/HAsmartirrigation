@@ -83,7 +83,8 @@
         "drainage-rate-is": "Le taux de drainage à saturation (réservoir au maximum) est",
         "current-drainage-is": "Le drainage actuel est calculé comme",
         "drainage-integrated": "l'excédent au-dessus de la capacité au champ se draine en continu sur l'intervalle (Brooks–Corey), le débit diminue donc à mesure qu'il s'écoule",
-        "no-drainage": "Le drainage actuel est 0 parce que"
+        "no-drainage": "Le drainage actuel est 0 parce que",
+        "forecast-weighting-applied": "La pondération par prévision a réduit le déficit pour la pluie attendue"
       }
     }
   },
@@ -549,7 +550,8 @@
         "weather_location": "Météo et emplacement",
         "my_zones": "Mes zones",
         "when_to_water": "Quand arroser",
-        "advanced": "Avancé"
+        "advanced": "Avancé",
+        "experimental": "Expérimental"
       },
       "weather_data": {
         "forecast_title": "Prévisions",
@@ -559,6 +561,22 @@
       "advanced": {
         "used_by_zones": "Utilisé par {count, plural, one {# zone} other {# zones}}",
         "not_used": "Non utilisé"
+      }
+    },
+    "experimental": {
+      "title": "Fonctionnalités expérimentales",
+      "warning": "Ces fonctionnalités sont optionnelles et encore en cours d'amélioration. Elles modifient la façon dont le réservoir de chaque zone est rempli ; activez-les une par une et surveillez vos zones — vous pouvez les désactiver à tout moment.",
+      "forecast_weighting": {
+        "title": "Durées pondérées par la prévision",
+        "description": "Au lieu d'ignorer un arrosage complet lorsque de la pluie est prévue, arrosez moins. Les précipitations à venir (sur la fenêtre de prévision définie dans Quand arroser) sont soustraites du déficit utilisé pour calculer la durée d'arrosage, tandis que le déficit réel reste dans le réservoir pour que la vraie pluie comble le reste. Si la pluie prévue n'arrive pas, l'arrosage suivant compense la différence. Nécessite un service météo.",
+        "label": "Réduire les durées quand de la pluie est prévue",
+        "note": "Utilise la fenêtre de prévision des précipitations de Quand arroser. Fonctionne avec la règle d'annulation pour pluie (une annulation l'emporte sur un arrosage réduit)."
+      },
+      "observed_watering": {
+        "title": "Créditer le réservoir d'après l'arrosage observé",
+        "description": "Lorsque la vanne associée d'une zone fonctionne en dehors de Smart Irrigation — un robinet manuel, une automatisation, votre propre programmation — son réservoir est crédité de l'eau appliquée, estimée d'après la durée de fonctionnement et le débit de la zone. Le modèle d'humidité du sol reste ainsi fidèle lorsque vous arrosez autrement. Les arrosages de Smart Irrigation eux-mêmes sont déjà comptabilisés et ne sont jamais comptés deux fois.",
+        "label": "Créditer le réservoir lorsqu'une vanne associée fonctionne en externe",
+        "note": "Nécessite une vanne associée et un débit sur la zone. Le volume est estimé (durée × débit), non mesuré."
       }
     }
   },

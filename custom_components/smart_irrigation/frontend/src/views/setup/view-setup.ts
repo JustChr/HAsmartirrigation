@@ -8,6 +8,7 @@ import "../modules/view-modules.ts";
 import "../mappings/view-mappings.ts";
 import "../schedules/view-schedules.ts";
 import "../weather/view-weather-data.ts";
+import "../experimental/view-experimental.ts";
 
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
@@ -25,6 +26,7 @@ enum ESetupTab {
   Zones = "zones",
   WhenToWater = "when-to-water",
   Advanced = "advanced",
+  Experimental = "experimental",
   Help = "help",
 }
 
@@ -33,6 +35,7 @@ const SETUP_TAB_LABELS: Record<ESetupTab, string> = {
   [ESetupTab.Zones]: "panels.setup.tabs.my_zones",
   [ESetupTab.WhenToWater]: "panels.setup.tabs.when_to_water",
   [ESetupTab.Advanced]: "panels.setup.tabs.advanced",
+  [ESetupTab.Experimental]: "panels.setup.tabs.experimental",
   [ESetupTab.Help]: "panels.help.title",
 };
 
@@ -139,6 +142,11 @@ export class SmartIrrigationViewSetup extends LitElement {
             .narrow="${this.narrow}"
           ></smart-irrigation-view-mappings>
         `;
+      case ESetupTab.Experimental:
+        return html`<smart-irrigation-view-experimental
+          .hass="${this.hass}"
+          .narrow="${this.narrow}"
+        ></smart-irrigation-view-experimental>`;
       case ESetupTab.Help:
         return this._renderHelp();
     }

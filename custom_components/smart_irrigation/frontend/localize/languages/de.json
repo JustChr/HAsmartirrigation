@@ -83,7 +83,8 @@
         "drainage-rate-is": "Drainagerate bei Sättigung (Eimer am Maximum) beträgt",
         "current-drainage-is": "Aktuelle Drainage berechnet als",
         "drainage-integrated": "der Überschuss über der Feldkapazität versickert kontinuierlich über das Zeitfenster (Brooks–Corey), die Rate sinkt also beim Abfließen",
-        "no-drainage": "Aktuelle Drainage ist 0, weil"
+        "no-drainage": "Aktuelle Drainage ist 0, weil",
+        "forecast-weighting-applied": "Die Vorhersagegewichtung hat das Defizit für den erwarteten Regen reduziert"
       }
     }
   },
@@ -547,7 +548,8 @@
         "weather_location": "Wetter & Standort",
         "my_zones": "Meine Zonen",
         "when_to_water": "Wann bewässern",
-        "advanced": "Erweitert"
+        "advanced": "Erweitert",
+        "experimental": "Experimentell"
       },
       "weather_data": {
         "forecast_title": "Vorhersage",
@@ -557,6 +559,22 @@
       "advanced": {
         "used_by_zones": "Wird von {count, plural, one {# Zone} other {# Zonen}} verwendet",
         "not_used": "Nicht verwendet"
+      }
+    },
+    "experimental": {
+      "title": "Experimentelle Funktionen",
+      "warning": "Diese Funktionen sind optional und werden noch verfeinert. Sie verändern, wie der Wasserspeicher jeder Zone gefüllt wird – aktivieren Sie sie einzeln und behalten Sie Ihre Zonen im Auge. Sie können sie jederzeit wieder ausschalten.",
+      "forecast_weighting": {
+        "title": "Vorhersagegewichtete Bewässerungsdauer",
+        "description": "Statt einen ganzen Lauf zu überspringen, wenn Regen vorhergesagt ist, wird weniger bewässert. Der erwartete Niederschlag (über das unter „Wann bewässern“ eingestellte Vorhersagefenster) wird vom Defizit abgezogen, das die Bewässerungsdauer bestimmt, während das tatsächliche Defizit im Wasserspeicher verbleibt, sodass der echte Regen den Rest auffüllt. Bleibt der vorhergesagte Regen aus, gleicht der nächste Lauf die Differenz aus. Erfordert einen Wetterdienst.",
+        "label": "Dauer reduzieren, wenn Regen vorhergesagt ist",
+        "note": "Verwendet das Niederschlags-Vorhersagefenster aus „Wann bewässern“. Funktioniert zusammen mit der Regen-Überspringen-Regel (ein Überspringen hat Vorrang vor einem reduzierten Lauf)."
+      },
+      "observed_watering": {
+        "title": "Wasserspeicher aus beobachteter Bewässerung gutschreiben",
+        "description": "Wenn das verknüpfte Ventil einer Zone außerhalb von Smart Irrigation läuft – ein manueller Hahn, eine Automatisierung, Ihr eigener Zeitplan – wird dem Wasserspeicher die aufgebrachte Wassermenge gutgeschrieben, geschätzt aus Laufzeit und Durchfluss der Zone. So bleibt das Bodenfeuchtemodell korrekt, wenn Sie anderweitig bewässern. Die Läufe von Smart Irrigation selbst werden bereits berücksichtigt und niemals doppelt gezählt.",
+        "label": "Wasserspeicher gutschreiben, wenn ein verknüpftes Ventil extern läuft",
+        "note": "Erfordert ein verknüpftes Ventil und einen Durchfluss in der Zone. Die Menge wird geschätzt (Laufzeit × Durchfluss), nicht gemessen."
       }
     }
   },

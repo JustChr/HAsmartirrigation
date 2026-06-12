@@ -83,7 +83,8 @@
         "drainage-rate-is": "Dreneringshastigheten ved metning (beholder på maks) er",
         "current-drainage-is": "Gjeldende drenering beregnet som",
         "drainage-integrated": "overskuddet over feltkapasiteten dreneres kontinuerlig over vinduet (Brooks–Corey), så raten faller etter hvert som det dreneres",
-        "no-drainage": "Gjeldende drenering er 0 fordi"
+        "no-drainage": "Gjeldende drenering er 0 fordi",
+        "forecast-weighting-applied": "Værvarselvekting reduserte underskuddet for forventet regn"
       }
     }
   },
@@ -549,7 +550,8 @@
         "weather_location": "Vær og posisjon",
         "my_zones": "Mine soner",
         "when_to_water": "Når vanne",
-        "advanced": "Avansert"
+        "advanced": "Avansert",
+        "experimental": "Eksperimentelt"
       },
       "weather_data": {
         "forecast_title": "Værvarsel",
@@ -559,6 +561,22 @@
       "advanced": {
         "used_by_zones": "Brukt av {count, plural, one {# sone} other {# soner}}",
         "not_used": "Ikke i bruk"
+      }
+    },
+    "experimental": {
+      "title": "Eksperimentelle funksjoner",
+      "warning": "Disse funksjonene er valgfrie og fortsatt under utvikling. De endrer hvordan vannbalansen i hver sone fylles, så slå dem på én om gangen og hold øye med sonene dine – du kan slå dem av igjen når som helst.",
+      "forecast_weighting": {
+        "title": "Værvarselvektet varighet",
+        "description": "I stedet for å hoppe over en hel kjøring når det er meldt regn, vannes det mindre. Forventet nedbør (over varselvinduet satt under Når vanne) trekkes fra underskuddet som brukes til å beregne varigheten, mens det reelle underskuddet blir værende i vannbalansen slik at det faktiske regnet fyller resten. Hvis det varslede regnet uteblir, tar neste kjøring igjen differansen. Krever en værtjeneste.",
+        "label": "Reduser varighet når det er meldt regn",
+        "note": "Bruker nedbørsvarselvinduet fra Når vanne. Fungerer sammen med regn-hopp-regelen (et hopp vinner over en redusert kjøring)."
+      },
+      "observed_watering": {
+        "title": "Krediter vannbalansen fra observert vanning",
+        "description": "Når en sones tilknyttede ventil kjører utenfor Smart Irrigation – en manuell kran, en automasjon, din egen plan – krediteres vannbalansen for vannet som ble tilført, estimert ut fra kjøretid og sonens gjennomstrømning. Slik holder jordfuktighetsmodellen seg riktig når du vanner på andre måter. Smart Irrigations egne kjøringer er allerede medregnet og telles aldri dobbelt.",
+        "label": "Krediter vannbalansen når en tilknyttet ventil kjører eksternt",
+        "note": "Krever en tilknyttet ventil og en gjennomstrømning på sonen. Volumet estimeres (kjøretid × gjennomstrømning), ikke målt."
       }
     }
   },

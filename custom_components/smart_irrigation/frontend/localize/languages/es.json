@@ -83,7 +83,8 @@
         "drainage-rate-is": "La tasa de drenaje cuando está saturado (depósito al máximo) es",
         "current-drainage-is": "El drenaje actual se calcula como",
         "drainage-integrated": "el excedente por encima de la capacidad de campo drena de forma continua durante el intervalo (Brooks–Corey), por lo que la tasa disminuye a medida que drena",
-        "no-drainage": "El drenaje actual es 0 porque"
+        "no-drainage": "El drenaje actual es 0 porque",
+        "forecast-weighting-applied": "La ponderación por pronóstico redujo el déficit por la lluvia prevista"
       }
     }
   },
@@ -548,7 +549,8 @@
         "weather_location": "Clima y ubicación",
         "my_zones": "Mis zonas",
         "when_to_water": "Cuándo regar",
-        "advanced": "Avanzado"
+        "advanced": "Avanzado",
+        "experimental": "Experimental"
       },
       "weather_data": {
         "forecast_title": "Pronóstico",
@@ -558,6 +560,22 @@
       "advanced": {
         "used_by_zones": "Usado por {count, plural, one {# zona} other {# zonas}}",
         "not_used": "Sin usar"
+      }
+    },
+    "experimental": {
+      "title": "Funciones experimentales",
+      "warning": "Estas funciones son opcionales y todavía se están perfeccionando. Cambian cómo se llena el balance de agua de cada zona, así que actívalas de una en una y vigila tus zonas; puedes desactivarlas en cualquier momento.",
+      "forecast_weighting": {
+        "title": "Duraciones ponderadas por pronóstico",
+        "description": "En lugar de omitir un riego completo cuando se prevé lluvia, riega menos. La precipitación prevista (en la ventana de previsión configurada en Cuándo regar) se resta del déficit usado para calcular la duración del riego, mientras que el déficit real permanece en el balance para que la lluvia real complete el resto. Si la lluvia prevista no llega, el siguiente riego compensa la diferencia. Requiere un servicio meteorológico.",
+        "label": "Reducir las duraciones cuando se prevé lluvia",
+        "note": "Usa la ventana de previsión de precipitación de Cuándo regar. Funciona junto con la regla de omisión por lluvia (una omisión tiene prioridad sobre un riego reducido)."
+      },
+      "observed_watering": {
+        "title": "Acreditar el balance por riego observado",
+        "description": "Cuando la válvula vinculada de una zona funciona fuera de Smart Irrigation —un grifo manual, una automatización, tu propio horario— se acredita en su balance el agua aplicada, estimada a partir del tiempo de funcionamiento y el caudal de la zona. Así el modelo de humedad del suelo se mantiene fiel cuando riegas por otros medios. Los riegos de la propia Smart Irrigation ya se contabilizan y nunca se cuentan dos veces.",
+        "label": "Acreditar el balance cuando una válvula vinculada funciona externamente",
+        "note": "Requiere una válvula vinculada y un caudal en la zona. El volumen se estima (tiempo de funcionamiento × caudal), no se mide."
       }
     }
   },

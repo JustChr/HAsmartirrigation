@@ -51,6 +51,10 @@ export const CONF_SKIP_IRRIGATION_ON_PRECIPITATION =
   "skip_irrigation_on_precipitation";
 export const CONF_PRECIPITATION_THRESHOLD_MM = "precipitation_threshold_mm";
 
+// Experimental, opt-in features (Setup → Experimental)
+export const CONF_FORECAST_WEIGHTING_ENABLED = "forecast_weighting_enabled";
+export const CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled";
+
 // Days between irrigation configuration
 export const CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation";
 

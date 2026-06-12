@@ -34,9 +34,11 @@ from .const import (
     CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
     CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_DRAINAGE_RATE,
+    CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
     CONF_DEFAULT_MANUAL_COORDINATES_ENABLED,
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
+    CONF_DEFAULT_OBSERVED_WATERING_ENABLED,
     CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS,
     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
     CONF_DEFAULT_RAIN_SENSOR,
@@ -51,8 +53,10 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING,
     CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
+    CONF_FORECAST_WEIGHTING_ENABLED,
     CONF_IMPERIAL,
     CONF_METRIC,
+    CONF_OBSERVED_WATERING_ENABLED,
     CONF_PRECIPITATION_FORECAST_DAYS,
     CONF_PRECIPITATION_THRESHOLD_MM,
     CONF_RAIN_SENSOR,
@@ -109,6 +113,7 @@ from .const import (
     ZONE_DURATION,
     ZONE_FLOW_SENSOR,
     ZONE_ID,
+    ZONE_IRRIGATION_TARGET_BUCKET,
     ZONE_LAST_CALCULATED,
     ZONE_LAST_CONSUMED,
     ZONE_LAST_IRRIGATION,
@@ -170,6 +175,9 @@ class ZoneEntry:
     linked_entity = attr.ib(type=str, default=None)
     bucket_threshold = attr.ib(type=float, default=CONF_DEFAULT_BUCKET_THRESHOLD)
     flow_sensor = attr.ib(type=str, default=None)
+    # Bucket level a complete run should leave the zone at (default 0.0 = full
+    # replenish). Only non-zero while experimental forecast weighting is on.
+    irrigation_target_bucket = attr.ib(type=float, default=0.0)
 
 
 @attr.s(slots=True, frozen=True)
@@ -243,6 +251,13 @@ class Config:
     manual_latitude = attr.ib(type=float, default=None)
     manual_longitude = attr.ib(type=float, default=None)
     manual_elevation = attr.ib(type=float, default=None)
+    # Experimental, opt-in (Setup → Experimental). Off by default.
+    forecast_weighting_enabled = attr.ib(
+        type=bool, default=CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED
+    )
+    observed_watering_enabled = attr.ib(
+        type=bool, default=CONF_DEFAULT_OBSERVED_WATERING_ENABLED
+    )
 
 
 class MigratableStore(Store):
@@ -494,6 +509,14 @@ class SmartIrrigationStorage:
                     CONF_RAIN_SENSOR,
                     CONF_DEFAULT_RAIN_SENSOR,
                 ),
+                forecast_weighting_enabled=data["config"].get(
+                    CONF_FORECAST_WEIGHTING_ENABLED,
+                    CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
+                ),
+                observed_watering_enabled=data["config"].get(
+                    CONF_OBSERVED_WATERING_ENABLED,
+                    CONF_DEFAULT_OBSERVED_WATERING_ENABLED,
+                ),
                 # Recurring schedules are irrigation-only now; calculate/update
                 # are handled by the global daily settings. Drop any legacy
                 # calculate/update schedules on load (they would just duplicate
@@ -550,6 +573,9 @@ class SmartIrrigationStorage:
                             ZONE_BUCKET_THRESHOLD, CONF_DEFAULT_BUCKET_THRESHOLD
                         ),
                         flow_sensor=zone.get(ZONE_FLOW_SENSOR, None),
+                        irrigation_target_bucket=zone.get(
+                            ZONE_IRRIGATION_TARGET_BUCKET, 0.0
+                        ),
                     )
             if "modules" in data:
                 for module in data["modules"]:

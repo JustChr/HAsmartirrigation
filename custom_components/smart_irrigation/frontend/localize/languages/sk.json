@@ -83,7 +83,8 @@
         "drainage-rate-is": "Rýchlosť odtoku pri nasýtení (zásobník na maxime) je",
         "current-drainage-is": "Aktuálna drenáž vypočítaná ako",
         "drainage-integrated": "prebytok nad poľnou kapacitou sa priebežne odvodňuje počas intervalu (Brooks–Corey), takže rýchlosť klesá počas odvodňovania",
-        "no-drainage": "Aktuálna drenáž je 0, pretože"
+        "no-drainage": "Aktuálna drenáž je 0, pretože",
+        "forecast-weighting-applied": "Váženie podľa predpovede znížilo deficit pre očakávaný dážď"
       }
     }
   },
@@ -547,7 +548,8 @@
         "weather_location": "Počasie a poloha",
         "my_zones": "Moje zóny",
         "when_to_water": "Kedy zavlažovať",
-        "advanced": "Pokročilé"
+        "advanced": "Pokročilé",
+        "experimental": "Experimentálne"
       },
       "weather_data": {
         "forecast_title": "Predpoveď",
@@ -557,6 +559,22 @@
       "advanced": {
         "used_by_zones": "Používané v {count, plural, one {# zóne} few {# zónach} other {# zónach}}",
         "not_used": "Nepoužívané"
+      }
+    },
+    "experimental": {
+      "title": "Experimentálne funkcie",
+      "warning": "Tieto funkcie sú voliteľné a stále sa vylepšujú. Menia spôsob, akým sa napĺňa vodná bilancia každej zóny, preto ich zapínajte po jednej a sledujte svoje zóny – kedykoľvek ich môžete znova vypnúť.",
+      "forecast_weighting": {
+        "title": "Trvanie vážené predpoveďou",
+        "description": "Namiesto preskočenia celého zavlažovania, keď je predpovedaný dážď, sa zavlažuje menej. Očakávané zrážky (za okno predpovede nastavené v časti Kedy zavlažovať) sa odpočítajú od deficitu použitého na výpočet trvania, zatiaľ čo skutočný deficit zostáva vo vodnej bilancii, aby skutočný dážď doplnil zvyšok. Ak predpovedaný dážď nepríde, ďalšie zavlažovanie rozdiel dorovná. Vyžaduje meteorologickú službu.",
+        "label": "Skrátiť trvanie, keď je predpovedaný dážď",
+        "note": "Používa okno predpovede zrážok z časti Kedy zavlažovať. Funguje spolu s pravidlom preskočenia pri daždi (preskočenie má prednosť pred skráteným zavlažovaním)."
+      },
+      "observed_watering": {
+        "title": "Pripísať do bilancie pozorované zavlažovanie",
+        "description": "Keď prepojený ventil zóny beží mimo Smart Irrigation – ručný kohútik, automatizácia, váš vlastný plán – do jej bilancie sa pripíše privedená voda, odhadnutá z času behu a prietoku zóny. Model vlhkosti pôdy tak zostáva verný, keď zavlažujete inými spôsobmi. Vlastné zavlažovania Smart Irrigation sú už započítané a nikdy sa nepočítajú dvakrát.",
+        "label": "Pripísať do bilancie, keď prepojený ventil beží externe",
+        "note": "Vyžaduje prepojený ventil a prietok na zóne. Objem sa odhaduje (čas behu × prietok), nemeria sa."
       }
     }
   },

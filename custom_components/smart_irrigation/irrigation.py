@@ -20,12 +20,37 @@ from .helpers import convert_between
 
 _LOGGER = logging.getLogger(__name__)
 
+# How long (seconds) a zone stays flagged as "Smart Irrigation is driving this
+# valve" after the runner opens it, so the experimental observed-watering
+# observer does not also credit the bucket for a run SI already accounts for.
+SI_VALVE_SUPPRESS_WINDOW = 30
+
 
 class IrrigationRunnerMixin:
     """Irrigation execution strategies for SmartIrrigationCoordinator.
 
     Mixed into the coordinator; methods use ``self`` to reach coordinator state.
     """
+
+    def _note_si_valve(self, zone_id) -> None:
+        """Flag that SI itself is opening this zone's valve.
+
+        The observed-watering observer (ObservedWateringMixin) checks this so it
+        only credits the bucket for runs SI did NOT start (manual taps,
+        automations). No-op unless that experimental feature is wired up.
+        """
+        until = getattr(self, "_si_driven_until", None)
+        if until is not None:
+            until[int(zone_id)] = self.hass.loop.time() + SI_VALVE_SUPPRESS_WINDOW
+
+    @staticmethod
+    def _zone_target_bucket(zone: dict) -> float:
+        """Bucket level (display units) a completed run should leave the zone at.
+
+        0.0 normally (full replenish); the rain-covered remainder when the
+        experimental forecast-weighting feature trimmed the last calculation.
+        """
+        return zone.get(const.ZONE_IRRIGATION_TARGET_BUCKET) or 0.0
 
     @callback
     async def _irrigate_linked_entities(self, zone_ids=None):
@@ -85,12 +110,18 @@ class IrrigationRunnerMixin:
         size = zone.get(const.ZONE_SIZE) or 0.0
         bucket = zone.get(const.ZONE_BUCKET) or 0.0
 
+        # Post-run target (display units, normally 0). Forecast weighting can set
+        # a rain-covered remainder; we then deliver only down to that floor.
+        floor_display = self._zone_target_bucket(zone)
+        floor_mm = floor_display
+
         ha_config_is_metric = self.hass.config.units is METRIC_SYSTEM
         if not ha_config_is_metric:
             size = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, size)
             bucket = convert_between(const.UNIT_INCH, const.UNIT_MM, bucket)
+            floor_mm = convert_between(const.UNIT_INCH, const.UNIT_MM, floor_display)
 
-        target_volume = size * abs(bucket)
+        target_volume = size * max(0.0, floor_mm - bucket)
         safety_timeout = zone.get(const.ZONE_MAXIMUM_DURATION) or 14400
 
         _LOGGER.info(
@@ -126,7 +157,7 @@ class IrrigationRunnerMixin:
             if not ha_config_is_metric:
                 actual_mm = convert_between(const.UNIT_MM, const.UNIT_INCH, actual_mm)
             original_bucket = zone.get(const.ZONE_BUCKET) or 0.0
-            new_bucket = min(0.0, original_bucket + actual_mm)
+            new_bucket = min(floor_display, original_bucket + actual_mm)
             await self.store.async_update_zone(
                 zone_id,
                 {
@@ -160,6 +191,7 @@ class IrrigationRunnerMixin:
         zone_id = zone[const.ZONE_ID]
         domain = entity_id.split(".")[0]
 
+        self._note_si_valve(zone_id)
         await self.hass.services.async_call(domain, "turn_on", {"entity_id": entity_id})
 
         accumulated = 0.0
@@ -229,12 +261,14 @@ class IrrigationRunnerMixin:
         flow_elapsed: dict = {}
         flow_size_m2: dict = {}
         flow_bucket: dict = {}
+        flow_floor: dict = {}
         flow_by_id: dict = {}
 
         for z in flow_zones:
             zid = z[const.ZONE_ID]
             raw_size = z.get(const.ZONE_SIZE) or 0.0
             raw_bucket = z.get(const.ZONE_BUCKET) or 0.0
+            raw_floor = self._zone_target_bucket(z)
             s_m2 = (
                 raw_size
                 if ha_metric
@@ -245,11 +279,17 @@ class IrrigationRunnerMixin:
                 if ha_metric
                 else convert_between(const.UNIT_INCH, const.UNIT_MM, raw_bucket)
             )
-            flow_target[zid] = s_m2 * abs(b_mm)
+            floor_mm = (
+                raw_floor
+                if ha_metric
+                else convert_between(const.UNIT_INCH, const.UNIT_MM, raw_floor)
+            )
+            flow_target[zid] = s_m2 * max(0.0, floor_mm - b_mm)
             flow_delivered[zid] = 0.0
             flow_elapsed[zid] = 0.0
             flow_size_m2[zid] = s_m2
             flow_bucket[zid] = raw_bucket
+            flow_floor[zid] = raw_floor
             flow_by_id[zid] = z
             _LOGGER.info(
                 "Rotating irrigation: flow zone %s target %.1f L", zid, flow_target[zid]
@@ -325,7 +365,7 @@ class IrrigationRunnerMixin:
                             )
                         )
                         prev_bucket = flow_bucket[zid]
-                        new_bucket = min(0.0, prev_bucket + slot_native)
+                        new_bucket = min(flow_floor[zid], prev_bucket + slot_native)
                         flow_bucket[zid] = new_bucket
                         await self.store.async_update_zone(
                             zid, {const.ZONE_BUCKET: new_bucket}
@@ -350,6 +390,7 @@ class IrrigationRunnerMixin:
                         slot,
                         rem - slot,
                     )
+                    self._note_si_valve(zid)
                     await self.hass.services.async_call(
                         domain, "turn_on", {"entity_id": entity_id}
                     )
@@ -366,19 +407,25 @@ class IrrigationRunnerMixin:
                 last_finish[zid] = loop.time()
 
     async def _reset_zone_bucket_after_run(self, zone_id) -> None:
-        """Zero a zone's bucket after a completed timed run.
+        """Set a zone's bucket to its post-run target after a completed timed run.
 
         The duration was computed to deliver exactly the accumulated deficit
         (|bucket|), so once the valve has run for the full duration the deficit
-        is replenished and the bucket returns to 0. The flow-meter path does the
-        equivalent based on measured volume; this is the timed-run counterpart.
+        is replenished and the bucket returns to its target — normally 0, or the
+        rain-covered remainder when forecast weighting trimmed this run. The
+        flow-meter path does the equivalent based on measured volume; this is the
+        timed-run counterpart.
         """
+        zone = self.store.get_zone(zone_id) or {}
+        target = self._zone_target_bucket(zone)
         await self.store.async_update_zone(
             zone_id,
-            {const.ZONE_BUCKET: 0.0, const.ZONE_LAST_IRRIGATION: dt_util.now()},
+            {const.ZONE_BUCKET: target, const.ZONE_LAST_IRRIGATION: dt_util.now()},
         )
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
-        _LOGGER.info("Zone %s: bucket reset to 0 after irrigation run", zone_id)
+        _LOGGER.info(
+            "Zone %s: bucket set to %.3f after irrigation run", zone_id, target
+        )
 
     async def _irrigate_zones_sequential(self, zones: list):
         """Irrigate zones one after another, skipping zones with no duration."""
@@ -398,6 +445,7 @@ class IrrigationRunnerMixin:
                     entity_id,
                     duration,
                 )
+                self._note_si_valve(zone[const.ZONE_ID])
                 await self.hass.services.async_call(
                     domain, "turn_on", {"entity_id": entity_id}
                 )
@@ -427,6 +475,7 @@ class IrrigationRunnerMixin:
                     entity_id,
                     duration,
                 )
+                self._note_si_valve(zone[const.ZONE_ID])
                 await self.hass.services.async_call(
                     domain, "turn_on", {"entity_id": entity_id}
                 )

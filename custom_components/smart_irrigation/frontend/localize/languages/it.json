@@ -83,7 +83,8 @@
         "drainage-rate-is": "Il tasso di drenaggio a saturazione (serbatoio al massimo) è",
         "current-drainage-is": "Il drenaggio attuale è calcolato come",
         "drainage-integrated": "l'eccedenza sopra la capacità di campo drena in modo continuo sull'intervallo (Brooks–Corey), quindi la portata diminuisce mentre drena",
-        "no-drainage": "Il drenaggio attuale è 0 perché"
+        "no-drainage": "Il drenaggio attuale è 0 perché",
+        "forecast-weighting-applied": "La ponderazione da previsione ha ridotto il deficit per la pioggia prevista"
       }
     }
   },
@@ -552,7 +553,8 @@
         "weather_location": "Meteo e posizione",
         "my_zones": "Le mie zone",
         "when_to_water": "Quando irrigare",
-        "advanced": "Avanzate"
+        "advanced": "Avanzate",
+        "experimental": "Sperimentale"
       },
       "weather_data": {
         "forecast_title": "Previsioni",
@@ -562,6 +564,22 @@
       "advanced": {
         "used_by_zones": "Usato da {count, plural, one {# zona} other {# zone}}",
         "not_used": "Non utilizzato"
+      }
+    },
+    "experimental": {
+      "title": "Funzioni sperimentali",
+      "warning": "Queste funzioni sono opzionali e ancora in fase di perfezionamento. Modificano il modo in cui viene riempito il bilancio idrico di ogni zona, quindi attivale una alla volta e tieni d'occhio le zone: puoi disattivarle in qualsiasi momento.",
+      "forecast_weighting": {
+        "title": "Durate ponderate dalla previsione",
+        "description": "Invece di saltare un'intera irrigazione quando è prevista pioggia, irriga di meno. Le precipitazioni previste (sulla finestra di previsione impostata in Quando irrigare) vengono sottratte dal deficit usato per calcolare la durata, mentre il deficit reale rimane nel bilancio così che la pioggia vera riempia il resto. Se la pioggia prevista non arriva, l'irrigazione successiva compensa la differenza. Richiede un servizio meteo.",
+        "label": "Riduci le durate quando è prevista pioggia",
+        "note": "Usa la finestra di previsione delle precipitazioni di Quando irrigare. Funziona insieme alla regola di salto per pioggia (un salto ha la precedenza su un'irrigazione ridotta)."
+      },
+      "observed_watering": {
+        "title": "Accredita il bilancio dall'irrigazione osservata",
+        "description": "Quando la valvola collegata di una zona funziona al di fuori di Smart Irrigation — un rubinetto manuale, un'automazione, una tua pianificazione — al suo bilancio viene accreditata l'acqua erogata, stimata dal tempo di funzionamento e dalla portata della zona. Così il modello di umidità del suolo resta fedele quando irrighi in altri modi. Le irrigazioni di Smart Irrigation sono già conteggiate e non vengono mai contate due volte.",
+        "label": "Accredita il bilancio quando una valvola collegata funziona esternamente",
+        "note": "Richiede una valvola collegata e una portata sulla zona. Il volume è stimato (tempo × portata), non misurato."
       }
     }
   },

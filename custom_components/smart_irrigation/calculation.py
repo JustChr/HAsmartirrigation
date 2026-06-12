@@ -423,6 +423,48 @@ class CalculationMixin:
         data[const.ZONE_CURRENT_DRAINAGE] = drainage
         _LOGGER.debug("[calculate-module]: newbucket: %s", newbucket)
 
+        # Experimental forecast weighting: when rain is forecast, water LESS by
+        # folding the look-ahead precipitation into the deficit used for the
+        # *duration* — but keep the true deficit in the bucket so the real rain
+        # fills the rest (folding it into the bucket itself would double-count
+        # the forecasted rain once it is actually collected). ``effective_bucket``
+        # drives the duration; ``newbucket`` (unchanged) stays the persisted
+        # bucket. ``irrigation_target_bucket`` carries the leftover deficit for
+        # the runner so a completed run leaves the zone at that level, not 0.
+        effective_bucket = newbucket
+        if (
+            newbucket < 0
+            and getattr(self, "use_weather_service", False)
+            and self.store.config.forecast_weighting_enabled
+        ):
+            fd = forecastdata
+            if fd is None and self._WeatherServiceClient is not None:
+                fd = await self.hass.async_add_executor_job(
+                    self._WeatherServiceClient.get_forecast_data
+                )
+            if fd:
+                config = await self.store.async_get_config()
+                days = max(
+                    1,
+                    config.get(
+                        const.CONF_PRECIPITATION_FORECAST_DAYS,
+                        const.CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS,
+                    ),
+                )
+                forecast_precip = sum(
+                    day_data.get(const.MAPPING_PRECIPITATION, 0.0)
+                    for day_data in fd[:days]
+                )
+                if forecast_precip > 0:
+                    effective_bucket = min(0.0, newbucket + forecast_precip)
+                    _LOGGER.debug(
+                        "[calculate-module]: forecast weighting %.2f mm rain → "
+                        "effective bucket %.2f (true %.2f)",
+                        forecast_precip,
+                        effective_bucket,
+                        newbucket,
+                    )
+
         explanation = (
             await localize(
                 "module.calculation.explanation.module-returned-evapotranspiration-deficiency",
@@ -509,8 +551,9 @@ class CalculationMixin:
         else:
             explanation += f" [{old_bucket_loc}] + [{delta_loc}] - [{drainage_loc}] = {old_bucket:.2f} + {data[const.ZONE_DELTA]:.2f} - {drainage:.2f} = {newbucket:.2f}.<br/>"
 
-        if newbucket < 0:
-            # calculate duration
+        if effective_bucket < 0:
+            # calculate duration (from the effective deficit — equal to the true
+            # bucket unless forecast weighting trimmed it for expected rain)
 
             tput = zone.get(const.ZONE_THROUGHPUT)
             sz = zone.get(const.ZONE_SIZE)
@@ -519,7 +562,15 @@ class CalculationMixin:
                 tput = convert_between(const.UNIT_GPM, const.UNIT_LPM, tput)
                 sz = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, sz)
             precipitation_rate = (tput * 60) / sz
-            duration = abs(newbucket) / precipitation_rate * 3600
+            duration = abs(effective_bucket) / precipitation_rate * 3600
+            if effective_bucket != newbucket:
+                explanation += (
+                    await localize(
+                        "module.calculation.explanation.forecast-weighting-applied",
+                        self.hass.config.language,
+                    )
+                    + f" ({newbucket:.2f} &rarr; {effective_bucket:.2f}).<br/>"
+                )
             explanation += (
                 await localize(
                     "module.calculation.explanation.bucket-less-than-zero-irrigation-necessary",
@@ -561,7 +612,7 @@ class CalculationMixin:
                     "module.calculation.explanation.precipitation-rate-variable",
                     self.hass.config.language,
                 )
-                + f"] * 3600 = {abs(newbucket):.2f} / {precipitation_rate:.1f} * 3600 = {duration:.0f}.</li>"
+                + f"] * 3600 = {abs(effective_bucket):.2f} / {precipitation_rate:.1f} * 3600 = {duration:.0f}.</li>"
             )
             duration = zone.get(const.ZONE_MULTIPLIER) * duration
             explanation += (
@@ -644,9 +695,18 @@ class CalculationMixin:
             )
 
         data[const.ZONE_BUCKET] = newbucket
+        # Leftover deficit a completed run should stop at: 0.0 normally (run
+        # replenishes the full deficit), or the rain-covered remainder when
+        # forecast weighting trimmed this run. Stored in display units like the
+        # bucket so the runner can apply it directly. No irrigation ⇒ no target.
+        target_bucket = (newbucket - effective_bucket) if duration else 0.0
+        data[const.ZONE_IRRIGATION_TARGET_BUCKET] = target_bucket
         if not ha_config_is_metric:
             data[const.ZONE_BUCKET] = convert_between(
                 const.UNIT_MM, const.UNIT_INCH, data[const.ZONE_BUCKET]
+            )
+            data[const.ZONE_IRRIGATION_TARGET_BUCKET] = convert_between(
+                const.UNIT_MM, const.UNIT_INCH, target_bucket
             )
         data[const.ZONE_DURATION] = duration
         data[const.ZONE_EXPLANATION] = explanation

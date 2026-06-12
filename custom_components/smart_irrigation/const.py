@@ -44,6 +44,19 @@ CONF_DEFAULT_WIND_THRESHOLD = 6.9  # m/s (~25 km/h)
 CONF_RAIN_SENSOR = "rain_sensor"  # entity_id of a binary_sensor; None = disabled
 CONF_DEFAULT_RAIN_SENSOR = None
 
+# Experimental features (opt-in, surfaced on the Setup → Experimental tab).
+# Forecast weighting: water LESS (shorter durations) when rain is forecast,
+# folding the look-ahead precipitation into the deficit used for the duration
+# while leaving the true deficit in the bucket for the real rain to fill. Reuses
+# the precipitation look-ahead window (CONF_PRECIPITATION_FORECAST_DAYS).
+CONF_FORECAST_WEIGHTING_ENABLED = "forecast_weighting_enabled"
+CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED = False
+# Observed watering: credit the bucket whenever a zone's linked valve runs,
+# including manual/automation runs outside Smart Irrigation, estimated from the
+# run time and configured throughput.
+CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled"
+CONF_DEFAULT_OBSERVED_WATERING_ENABLED = False
+
 # Days between irrigation configuration
 CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation"
 CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION = 0  # 0 = no restriction (default behavior)
@@ -285,6 +298,13 @@ ZONE_BUCKET_THRESHOLD = "bucket_threshold"
 CONF_DEFAULT_BUCKET_THRESHOLD = -10.0
 ZONE_FLOW_SENSOR = "flow_sensor"
 FLOW_POLL_INTERVAL = 15  # seconds between flow meter readings
+# Bucket level a *complete* irrigation run should leave the zone at (display
+# units, 0-or-negative). Default 0.0 = a run replenishes the full deficit
+# (bucket → 0). When the experimental forecast-weighting feature reduces a run
+# because rain is coming, this carries the leftover deficit so the forecast rain
+# fills the rest instead of the run pretending the deficit is gone. Recomputed
+# every calculation; only ever non-zero while forecast weighting is enabled.
+ZONE_IRRIGATION_TARGET_BUCKET = "irrigation_target_bucket"
 
 CONF_ZONE_SEQUENCING = "zone_sequencing"
 CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential"

@@ -76,6 +76,8 @@ export class SmartIrrigationConfig {
   skip_on_wind_enabled: boolean;
   wind_threshold: number;
   rain_sensor?: string | null;
+  forecast_weighting_enabled: boolean;
+  observed_watering_enabled: boolean;
 
   constructor() {
     this.calctime = "23:00";
@@ -107,6 +109,8 @@ export class SmartIrrigationConfig {
     this.skip_on_wind_enabled = false;
     this.wind_threshold = 6.9;
     this.rain_sensor = null;
+    this.forecast_weighting_enabled = false;
+    this.observed_watering_enabled = false;
   }
 }
 

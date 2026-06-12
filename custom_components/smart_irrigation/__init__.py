@@ -46,6 +46,7 @@ from .helpers import (
 from .irrigation import IrrigationRunnerMixin
 from .irrigation_unlimited import IrrigationUnlimitedIntegration
 from .live_estimate import LiveEstimateMixin
+from .observed_watering import ObservedWateringMixin
 from .panel import async_register_panel, remove_panel
 from .scheduler import RecurringScheduleManager
 from .services import ServiceHandlersMixin, async_register_services
@@ -298,6 +299,7 @@ class SmartIrrigationCoordinator(
     CalculationMixin,
     SkipConditionsMixin,
     LiveEstimateMixin,
+    ObservedWateringMixin,
 ):
     """Define an object to hold Smart Irrigation device.
 
@@ -386,6 +388,25 @@ class SmartIrrigationCoordinator(
                 self.setup_SmartIrrigation_entities,
             )
         )
+
+        # Experimental observed-watering state (ObservedWateringMixin). Off until
+        # async_setup_observed_watering() subscribes. ``_si_driven_until`` maps a
+        # zone id → loop time the runner's valve-open suppression expires, so the
+        # observer doesn't double-credit Smart Irrigation's own runs.
+        self._observed_unsub = None
+        self._observed_on_since = {}
+        self._observed_entities = frozenset()
+        self._observed_zone_by_entity = {}
+        self._si_driven_until = {}
+        # Re-evaluate the observed-watering subscription whenever config or zones
+        # change (cheap no-op unless the tracked valve set actually changes).
+        self._subscriptions.append(
+            async_dispatcher_connect(
+                hass,
+                const.DOMAIN + "_config_updated",
+                self._schedule_observed_watering_setup,
+            )
+        )
         self._track_auto_calc_time_unsub = None
         self._track_auto_update_time_unsub = None
         self._track_midnight_time_unsub = None
@@ -424,6 +445,13 @@ class SmartIrrigationCoordinator(
             await self.set_up_auto_update_time(the_config)
         if the_config[const.CONF_AUTO_CALC_ENABLED]:
             await self.set_up_auto_calc_time(the_config)
+        # Experimental observed-watering observer (no-op unless enabled).
+        await self.async_setup_observed_watering()
+
+    @callback
+    def _schedule_observed_watering_setup(self, *args) -> None:
+        """Re-evaluate the observed-watering subscription after a config change."""
+        self.hass.async_create_task(self.async_setup_observed_watering())
 
     def _get_config_value(self, key: str, default_value):
         """Get configuration value from Home Assistant config, entry data, or options with fallback to default.
@@ -555,10 +583,13 @@ class SmartIrrigationCoordinator(
                         threshold_value,
                     )
 
-        # handle auto calc changes
-        await self.set_up_auto_calc_time(data)
+        # handle auto calc changes (only when the save actually touches them —
+        # partial saves, e.g. the Experimental tab, omit these keys)
+        if const.CONF_AUTO_CALC_ENABLED in data:
+            await self.set_up_auto_calc_time(data)
         # handle auto update changes, includings updating OWMClient cache settings
-        await self.set_up_auto_update_time(data)
+        if const.CONF_AUTO_UPDATE_ENABLED in data:
+            await self.set_up_auto_update_time(data)
         await self.store.async_update_config(data)
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated")
 
@@ -1104,6 +1135,8 @@ class SmartIrrigationCoordinator(
                 return
             await self.store.async_delete_zone(zone_id)
             await self.async_remove_entity(zone_id)
+            # Drop this zone's valve from the observed-watering watch list.
+            self._schedule_observed_watering_setup()
 
         elif const.ATTR_CALCULATE in data:
             # calculate a specific zone
@@ -1186,6 +1219,8 @@ class SmartIrrigationCoordinator(
             entry = await self.store.async_create_zone(data)
 
             async_dispatcher_send(self.hass, const.DOMAIN + "_register_entity", entry)
+            # Pick up the new zone's linked valve in the observed-watering watch.
+            self._schedule_observed_watering_setup()
 
             await self.store.async_get_config()
 
@@ -1261,6 +1296,9 @@ class SmartIrrigationCoordinator(
         self._track_auto_update_time_unsub = None
         self._track_auto_calc_time_unsub = None
         self._track_midnight_time_unsub = None
+
+        # Cancel the experimental observed-watering valve subscription.
+        self.async_teardown_observed_watering()
 
         # Clear in-memory zones dict only; the entity platform manages entity
         # state on unload. Registry entries are preserved so user customizations

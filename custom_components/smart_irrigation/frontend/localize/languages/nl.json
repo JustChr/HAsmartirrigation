@@ -83,7 +83,8 @@
         "drainage-rate-is": "Drainagesnelheid bij verzadiging (emmer op maximum) is",
         "current-drainage-is": "Huidige drainage berekend als",
         "drainage-integrated": "het overschot boven veldcapaciteit draineert continu over het venster (Brooks–Corey), dus de snelheid neemt af naarmate het afvloeit",
-        "no-drainage": "Huidige drainage is 0 omdat"
+        "no-drainage": "Huidige drainage is 0 omdat",
+        "forecast-weighting-applied": "Voorspellingsweging verlaagde het tekort voor de verwachte regen"
       }
     }
   },
@@ -547,7 +548,8 @@
         "weather_location": "Weer & locatie",
         "my_zones": "Mijn zones",
         "when_to_water": "Wanneer water geven",
-        "advanced": "Geavanceerd"
+        "advanced": "Geavanceerd",
+        "experimental": "Experimenteel"
       },
       "weather_data": {
         "forecast_title": "Verwachting",
@@ -557,6 +559,22 @@
       "advanced": {
         "used_by_zones": "Gebruikt door {count, plural, one {# zone} other {# zones}}",
         "not_used": "Niet gebruikt"
+      }
+    },
+    "experimental": {
+      "title": "Experimentele functies",
+      "warning": "Deze functies zijn optioneel en worden nog verfijnd. Ze veranderen hoe de waterbuffer van elke zone wordt gevuld, dus schakel ze één voor één in en houd je zones in de gaten — je kunt ze altijd weer uitschakelen.",
+      "forecast_weighting": {
+        "title": "Voorspellingsgewogen looptijden",
+        "description": "In plaats van een hele beurt over te slaan wanneer regen wordt verwacht, geef je minder water. De verwachte neerslag (over het vooruitkijkvenster ingesteld bij Wanneer water geven) wordt afgetrokken van het tekort waarmee de looptijd wordt berekend, terwijl het werkelijke tekort in de buffer blijft zodat de echte regen de rest aanvult. Blijft de voorspelde regen uit, dan haalt de volgende beurt het verschil in. Vereist een weerdienst.",
+        "label": "Looptijden verkorten als regen wordt verwacht",
+        "note": "Gebruikt het neerslag-vooruitkijkvenster uit Wanneer water geven. Werkt samen met de regen-overslaanregel (overslaan gaat vóór een verkorte beurt)."
+      },
+      "observed_watering": {
+        "title": "Buffer bijschrijven op basis van waargenomen watergift",
+        "description": "Wanneer de gekoppelde klep van een zone buiten Smart Irrigation draait — een handmatige kraan, een automatisering, je eigen schema — wordt de buffer bijgeschreven met het toegediende water, geschat op basis van de looptijd en de doorvoer van de zone. Zo blijft het bodemvochtmodel kloppen wanneer je op andere manieren water geeft. De eigen beurten van Smart Irrigation worden al meegeteld en nooit dubbel geteld.",
+        "label": "Buffer bijschrijven wanneer een gekoppelde klep extern draait",
+        "note": "Vereist een gekoppelde klep en een doorvoer op de zone. Het volume wordt geschat (looptijd × doorvoer), niet gemeten."
       }
     }
   },

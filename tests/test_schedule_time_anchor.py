@@ -158,6 +158,8 @@ class TestBucketResetAfterRun:
     @pytest.mark.asyncio
     async def test_resets_to_zero(self, coordinator, mock_store):
         mock_store.async_update_zone = AsyncMock()
+        # No forecast-weighting target on the zone → full replenish to 0.
+        mock_store.get_zone = Mock(return_value={})
         await coordinator._reset_zone_bucket_after_run(5)
         # Resets the bucket to 0 and records the irrigation time (dynamic value).
         mock_store.async_update_zone.assert_awaited_once()

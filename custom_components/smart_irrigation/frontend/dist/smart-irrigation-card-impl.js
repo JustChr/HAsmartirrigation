@@ -933,7 +933,8 @@
           "drainage-rate-is": "Drainage rate when saturated (bucket at max) is",
           "current-drainage-is": "Current drainage is calculated as",
           "drainage-integrated": "the surplus above field capacity drains continuously over the window (Brooks–Corey), so the rate falls as it drains",
-          "no-drainage": "Current drainage is 0 because"
+          "no-drainage": "Current drainage is 0 because",
+          "forecast-weighting-applied": "Forecast weighting reduced the deficit for the expected rain"
         }
       }
     },
@@ -1068,7 +1069,8 @@
           weather_location: "Weather & Location",
           my_zones: "My Zones",
           when_to_water: "When to Water",
-          advanced: "Advanced"
+          advanced: "Advanced",
+          experimental: "Experimental"
         },
         weather_data: {
           forecast_title: "Forecast",
@@ -1078,6 +1080,22 @@
         advanced: {
           used_by_zones: "Used by {count, plural, one {# zone} other {# zones}}",
           not_used: "Not used"
+        }
+      },
+      experimental: {
+        title: "Experimental features",
+        warning: "These features are opt-in and still being refined. They change how each zone's bucket is filled, so turn them on one at a time and keep an eye on your zones — you can switch them back off at any time.",
+        forecast_weighting: {
+          title: "Forecast-weighted durations",
+          description: "Instead of skipping a whole run when rain is forecast, water less. The upcoming precipitation (over the look-ahead window set under When to Water) is subtracted from the deficit used to compute the run duration, while the true deficit stays in the bucket so the real rain fills the rest. If the forecast rain misses, the next run makes up the difference. Requires a weather service.",
+          label: "Reduce durations when rain is forecast",
+          note: "Uses the precipitation look-ahead from When to Water. Works alongside the rain-skip guard (a skip still wins over a reduced run)."
+        },
+        observed_watering: {
+          title: "Credit bucket from observed watering",
+          description: "When a zone's linked valve runs outside Smart Irrigation — a manual tap, an automation, your own schedule — its bucket is credited for the water applied, estimated from the run time and the zone's throughput. This keeps the soil-moisture model honest when you water by other means. Smart Irrigation's own runs are already accounted for and are never double-counted.",
+          label: "Credit the bucket when a linked valve runs externally",
+          note: "Requires a linked valve and a throughput on the zone. Volume is estimated (run time × throughput), not metered."
         }
       },
       help: {
