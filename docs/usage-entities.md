@@ -44,6 +44,10 @@ On the hub device:
 | Water all zones | `button.smart_irrigation_irrigate_all` |
 | Recalculate durations | `button.smart_irrigation_calculate_all` |
 | Refresh weather data | `button.smart_irrigation_update_weather` |
+| Pause automatic watering until a moment ([rain delay](usage-dashboard.md#rain-delay)) | `datetime.smart_irrigation_rain_delay` |
+| Delay automatic watering 24 h | `button.smart_irrigation_delay_24h` |
+| Delay automatic watering 48 h | `button.smart_irrigation_delay_48h` |
+| Resume automatic watering (clear the delay) | `button.smart_irrigation_resume_irrigation` |
 
 ## Duration sensor attributes
 

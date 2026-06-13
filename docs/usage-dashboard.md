@@ -46,6 +46,18 @@ The official **bucket** is recalculated once a day, at your [calculation time](c
 
 For automatic zones, each card offers **Update** (fetch the latest weather/sensor data), **Calculate** (recompute the watering duration), and **Irrigate now** (open the linked valve immediately — this **bypasses skip conditions**). A row at the top applies the same actions to every zone at once: **Refresh weather data**, **Recalculate durations** and **Water all zones now**.
 
+### Run for a custom time {#run-zone}
+
+Next to each zone's actions is a small **Run for N min** control: enter a number of minutes and press **Run** to water that zone for exactly that long. This is decoupled from the calculation — it ignores the computed duration, the deficit gate and any active rain delay — so it is handy for hand-watering a new planting or testing a valve. The water it delivers is still **credited back to the bucket**, so the next daily calculation stays honest. The same action is available as the [`run_zone`](usage-services.md) service for automations.
+
+## Rain delay / vacation hold {#rain-delay}
+
+Above the zone cards, a **Pause watering** control lets you stop all *automatic and scheduled* irrigation for a while — for a rainy spell, a holiday, or while you work on the system. Tap **Delay 24 h** or **Delay 48 h** for a quick hold; while a hold is active the banner shows **“Paused until …”** with a **Resume** button to lift it early.
+
+- The hold gates only **automatic** runs (schedules and the daily decision). **Manual** actions — *Irrigate now*, *Water all zones now* and *Run for N min* — still work, so you are never locked out of watering on demand.
+- A paused scheduled run is recorded in the zone's [run history](configuration-my-zones.md) as *Paused (rain delay)*, so it is clear why nothing ran.
+- The same hold is exposed on the hub device as the **Pause until** `datetime` entity plus **Delay 24 h / 48 h** and **Resume** buttons (see [Entities](usage-entities.md#hub-entities)), and as the [`set_rain_delay`](usage-services.md) / `clear_rain_delay` services — so you can automate it (e.g. pause when a "vacation mode" helper turns on).
+
 ## A card for non-admin users
 
 The panel itself is admin-only, but you can put the same everyday view on any dashboard with the shipped **[Lovelace card](usage-lovelace-card.md)** so non-admin household members can see status and water on demand.
