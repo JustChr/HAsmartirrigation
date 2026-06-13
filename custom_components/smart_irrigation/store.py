@@ -127,10 +127,12 @@ from .const import (
     ZONE_MULTIPLIER,
     ZONE_NAME,
     ZONE_NUMBER_OF_DATA_POINTS,
+    ZONE_RUN_LOG,
     ZONE_SIZE,
     ZONE_STATE,
     ZONE_STATE_AUTOMATIC,
     ZONE_THROUGHPUT,
+    ZONE_WATER_USED_TOTAL,
 )
 from .helpers import loadModules
 from .localize import localize
@@ -139,7 +141,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DATA_REGISTRY = f"{DOMAIN}_storage"
 STORAGE_KEY = f"{DOMAIN}.storage"
-STORAGE_VERSION = 7
+STORAGE_VERSION = 8
 SAVE_DELAY = 0
 
 
@@ -178,6 +180,11 @@ class ZoneEntry:
     # Bucket level a complete run should leave the zone at (default 0.0 = full
     # replenish). Only non-zero while experimental forecast weighting is on.
     irrigation_target_bucket = attr.ib(type=float, default=0.0)
+    # Cumulative water delivered (litres), monotonic; backs the total_increasing
+    # usage sensor so it survives restarts (WS-2).
+    water_used_total = attr.ib(type=float, default=0.0)
+    # Bounded rolling run/skip log (newest first); see const.ZONE_RUN_LOG (WS-2).
+    run_log = attr.ib(type=list, factory=list)
 
 
 @attr.s(slots=True, frozen=True)
@@ -576,6 +583,9 @@ class SmartIrrigationStorage:
                         irrigation_target_bucket=zone.get(
                             ZONE_IRRIGATION_TARGET_BUCKET, 0.0
                         ),
+                        # Migration: pre-WS-2 zones start with no usage history.
+                        water_used_total=zone.get(ZONE_WATER_USED_TOTAL, 0.0),
+                        run_log=zone.get(ZONE_RUN_LOG, []) or [],
                     )
             if "modules" in data:
                 for module in data["modules"]:

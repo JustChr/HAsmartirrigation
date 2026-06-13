@@ -493,6 +493,21 @@
         "reset_all_buckets_body": "Questo riporta a 0 il secchio di ogni zona, scartando il bilancio di umidità accumulato. I calcoli di irrigazione ripartiranno dal prossimo aggiornamento.",
         "clear_weather_title": "Cancellare tutti i dati meteo?",
         "clear_weather_body": "Questo elimina tutti i record meteo e dei sensori di tutte le zone. Le zone avranno bisogno di nuovi dati prima di poter ricalcolare."
+      },
+      "history": {
+        "title": "Cronologia irrigazioni",
+        "total_used": "Acqua totale utilizzata",
+        "empty": "Nessuna irrigazione registrata.",
+        "when": "Quando",
+        "result": "Esito",
+        "volume": "Volume",
+        "detail": "Dettaglio",
+        "results": {
+          "completed": "Completata",
+          "partial": "Parziale",
+          "failed": "Fallita",
+          "skipped": "Saltata"
+        }
       }
     },
     "schedules": {

@@ -448,6 +448,21 @@
         "reset_all_buckets_body": "Dit zet de voorraad van elke zone terug op 0 en verwijdert de opgebouwde vochtbalans. De bewateringsberekening begint opnieuw bij de volgende update.",
         "clear_weather_title": "Alle weergegevens wissen?",
         "clear_weather_body": "Dit verwijdert alle verzamelde weer- en sensorgegevens van alle zones. De zones hebben nieuwe gegevens nodig voordat ze opnieuw kunnen berekenen."
+      },
+      "history": {
+        "title": "Bewateringsgeschiedenis",
+        "total_used": "Totaal waterverbruik",
+        "empty": "Nog geen beurten geregistreerd.",
+        "when": "Wanneer",
+        "result": "Resultaat",
+        "volume": "Volume",
+        "detail": "Detail",
+        "results": {
+          "completed": "Voltooid",
+          "partial": "Gedeeltelijk",
+          "failed": "Mislukt",
+          "skipped": "Overgeslagen"
+        }
       }
     },
     "schedules": {

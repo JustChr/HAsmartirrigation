@@ -449,6 +449,21 @@
         "reset_all_buckets_body": "Esto restablece a 0 el cubo de cada zona, descartando el balance de humedad acumulado. Los cálculos de riego empezarán de nuevo en la próxima actualización.",
         "clear_weather_title": "¿Borrar todos los datos meteorológicos?",
         "clear_weather_body": "Esto elimina todos los registros meteorológicos y de sensores de todas las zonas. Las zonas necesitarán datos nuevos antes de poder calcular de nuevo."
+      },
+      "history": {
+        "title": "Historial de riego",
+        "total_used": "Agua total utilizada",
+        "empty": "Aún no hay riegos registrados.",
+        "when": "Cuándo",
+        "result": "Resultado",
+        "volume": "Volumen",
+        "detail": "Detalle",
+        "results": {
+          "completed": "Completado",
+          "partial": "Parcial",
+          "failed": "Fallido",
+          "skipped": "Omitido"
+        }
       }
     },
     "schedules": {

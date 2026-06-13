@@ -98,6 +98,7 @@ async def async_setup_entry(
             SmartIrrigationZoneNextIrrigationSensor(
                 hass, child_id("next_irrigation"), config
             ),
+            SmartIrrigationZoneWaterUsageSensor(hass, child_id("water_used"), config),
         ]
         extra_entities.extend(
             SmartIrrigationZoneDiagnosticSensor(hass, child_id(spec[1]), config, *spec)
@@ -711,6 +712,40 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
     def native_value(self):
         """Return the next scheduled run (None when nothing is scheduled)."""
         return self._next_run
+
+
+class SmartIrrigationZoneWaterUsageSensor(SmartIrrigationZoneChildSensor):
+    """Cumulative water delivered by this zone (WS-2).
+
+    Backed by the persisted ``water_used_total`` store field (litres), so it is
+    monotonic and survives restarts. ``device_class: water`` +
+    ``state_class: total_increasing`` lets HA build long-term statistics and an
+    Energy-style usage dashboard for free, and converts L → gal on imperial.
+    """
+
+    suffix = "water_used"
+    _attr_translation_key = "water_used"
+    _attr_icon = "mdi:water-pump"
+    _attr_device_class = SensorDeviceClass.WATER
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+    def _update_from_zone(self, zone: dict) -> None:
+        self._total = zone.get(const.ZONE_WATER_USED_TOTAL) or 0.0
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """Stored canonically in litres; HA converts for imperial users."""
+        return "L"
+
+    @property
+    def native_value(self) -> float:
+        """Return the cumulative litres delivered."""
+        return round(self._total, 2)
+
+    @property
+    def suggested_display_precision(self) -> int:
+        """One decimal place is plenty for a running total."""
+        return 1
 
 
 # (zone key, entity suffix (data key / unique_id), translation_key, kind)

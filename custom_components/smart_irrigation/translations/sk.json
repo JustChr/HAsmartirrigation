@@ -255,6 +255,9 @@
       },
       "weather_data_points": {
         "name": "Body údajov o počasí"
+      },
+      "water_used": {
+        "name": "Spotrebovaná voda"
       }
     },
     "binary_sensor": {

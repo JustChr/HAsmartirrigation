@@ -24,8 +24,11 @@ import {
   SmartIrrigationZoneState,
   SmartIrrigationModule,
   SmartIrrigationMapping,
+  RunLogEntry,
 } from "../../types";
 import { output_unit, showErrorToast } from "../../helpers";
+import { formatVolume } from "../../common/units";
+import { formatDateTime } from "../../common/datetime";
 import { Path } from "../../common/navigation";
 import { globalStyle } from "../../styles/global-style";
 import { localize } from "../../../localize/localize";
@@ -911,9 +914,100 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
             `
           : ""}
 
+        <!-- Run history + cumulative water usage (WS-2) -->
+        ${this._renderRunHistory(zone)}
+
         <!-- Weather records + the watering/seasonal calendar now live on the
              Weather & Location tab (climate is the same for every zone). -->
       </ha-card>
+    `;
+  }
+
+  /** Cumulative water usage + a bounded "Recent runs" list for one zone. */
+  private _renderRunHistory(zone: SmartIrrigationZone): TemplateResult {
+    if (!this.hass) return html``;
+    const metric = this.config?.units === CONF_METRIC;
+    const log = zone.run_log ?? [];
+    const lang = this.hass.language;
+
+    return html`
+      <ha-expansion-panel
+        .header="${localize("panels.zones.history.title", lang)}"
+      >
+        <div class="card-content">
+          <div class="history-usage">
+            <span class="history-usage-label"
+              >${localize("panels.zones.history.total_used", lang)}</span
+            >
+            <span class="history-usage-value"
+              >${formatVolume(zone.water_used_total ?? 0, metric)}</span
+            >
+          </div>
+          ${log.length === 0
+            ? html`<div class="weather-note">
+                ${localize("panels.zones.history.empty", lang)}
+              </div>`
+            : html`
+                <table class="history-table">
+                  <thead>
+                    <tr>
+                      <th>${localize("panels.zones.history.when", lang)}</th>
+                      <th>${localize("panels.zones.history.result", lang)}</th>
+                      <th class="num">
+                        ${localize("panels.zones.history.volume", lang)}
+                      </th>
+                      <th>${localize("panels.zones.history.detail", lang)}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${log.map((entry) => this._renderRunLogRow(entry, metric))}
+                  </tbody>
+                </table>
+              `}
+        </div>
+      </ha-expansion-panel>
+    `;
+  }
+
+  private _renderRunLogRow(
+    entry: RunLogEntry,
+    metric: boolean,
+  ): TemplateResult {
+    const lang = this.hass!.language;
+    const resultLabel = localize(
+      `panels.zones.history.results.${entry.result}`,
+      lang,
+    );
+    // The detail field carries a skip-reason code, a fault code, or the
+    // calculation explanation (HTML). Reason/fault codes get a friendly
+    // localized label; the explanation is rendered as-is.
+    let detail = "";
+    if (entry.detail) {
+      if (entry.result === "skipped") {
+        detail = entry.detail
+          .split(",")
+          .map((r) => localize(`panels.zones.outlook.checks.${r}`, lang) || r)
+          .join(", ");
+      } else if (entry.result === "failed") {
+        detail =
+          localize(`panels.zones.fault.${entry.detail}`, lang) || entry.detail;
+      } else {
+        detail = entry.detail;
+      }
+    }
+    return html`
+      <tr>
+        <td>${formatDateTime(entry.ts)}</td>
+        <td>
+          <span class="history-chip history-${entry.result}"
+            >${resultLabel || entry.result}</span
+          >
+        </td>
+        <td class="num">
+          ${entry.volume_l > 0 ? formatVolume(entry.volume_l, metric) : "-"}
+        </td>
+        <td class="history-detail">${unsafeHTML(detail)}</td>
+      </tr>
     `;
   }
 
@@ -1188,6 +1282,60 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
 
       .shortfield {
         width: 120px;
+      }
+
+      /* Run history (WS-2) */
+      .history-usage {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 12px;
+      }
+      .history-usage-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+      }
+      .history-table th,
+      .history-table td {
+        text-align: left;
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--divider-color);
+        vertical-align: top;
+      }
+      .history-table th.num,
+      .history-table td.num {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .history-detail {
+        color: var(--secondary-text-color);
+      }
+      .history-chip {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+        color: #fff;
+        background: var(--secondary-text-color);
+      }
+      .history-completed {
+        background: var(--success-color, #2e7d32);
+      }
+      .history-partial {
+        background: var(--warning-color, #f9a825);
+      }
+      .history-failed {
+        background: var(--error-color, #c62828);
+      }
+      .history-skipped {
+        background: var(--info-color, #0277bd);
       }
 
       /* Auto-save status chip */

@@ -596,6 +596,17 @@ class RecurringScheduleManager:
                         "Schedule '%s': irrigation skipped due to conditions",
                         schedule_name,
                     )
+                    evaluation = (
+                        getattr(self.coordinator, "_last_skip_evaluation", None) or {}
+                    )
+                    reasons = [
+                        c["id"]
+                        for c in evaluation.get("checks", [])
+                        if c.get("enabled") and c.get("would_skip")
+                    ]
+                    await self.coordinator._record_skipped_run(
+                        zones, ",".join(reasons) if reasons else None
+                    )
                     return
                 # Fire irrigation event for backward compatibility
                 event_data = {

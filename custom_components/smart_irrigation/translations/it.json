@@ -255,6 +255,9 @@
       },
       "weather_data_points": {
         "name": "Punti dati meteo"
+      },
+      "water_used": {
+        "name": "Acqua utilizzata"
       }
     },
     "binary_sensor": {

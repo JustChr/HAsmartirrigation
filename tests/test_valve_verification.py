@@ -46,6 +46,25 @@ def _st(state):
     return SimpleNamespace(state=state, attributes={})
 
 
+def _bucket_change(mock):
+    """Return the changes dict of the async_update_zone call that set the bucket.
+
+    Since WS-2 the runner also writes a run-log entry via async_update_zone, so a
+    completed run touches the store more than once; the bucket replenishment is
+    the call carrying ZONE_BUCKET.
+    """
+    for call in mock.await_args_list:
+        _, changes = call.args
+        if const.ZONE_BUCKET in changes:
+            return changes
+    return None
+
+
+def _no_bucket_replenished(mock):
+    """True when no async_update_zone call replenished the bucket."""
+    return _bucket_change(mock) is None
+
+
 # --------------------------------------------------------------------------- #
 # _confirm_valve_running
 # --------------------------------------------------------------------------- #
@@ -105,8 +124,9 @@ async def test_sequential_valve_no_response_keeps_bucket_and_faults(monkeypatch)
 
     await coord._irrigate_zones_sequential([_timed_zone()])
 
-    # Bucket was never reset (the failed run must not pretend it watered).
-    coord.store.async_update_zone.assert_not_awaited()
+    # Bucket was never reset (the failed run must not pretend it watered);
+    # only the run-log entry is written.
+    assert _no_bucket_replenished(coord.store.async_update_zone)
     assert coord.get_zone_fault(1)["reason"] == const.FAULT_VALVE_NO_RESPONSE
     # Valve was still commanded off afterwards (don't leave it stuck open).
     assert coord.hass.services.async_call.await_args_list[-1].args[1] == "turn_off"
@@ -119,8 +139,8 @@ async def test_sequential_success_resets_bucket_and_clears_fault(monkeypatch):
 
     await coord._irrigate_zones_sequential([_timed_zone()])
 
-    coord.store.async_update_zone.assert_awaited()
-    _, changes = coord.store.async_update_zone.await_args.args
+    changes = _bucket_change(coord.store.async_update_zone)
+    assert changes is not None
     assert changes[const.ZONE_BUCKET] == pytest.approx(0.0)
     assert const.ZONE_LAST_IRRIGATION in changes
     assert coord.get_zone_fault(1) is None
@@ -160,7 +180,7 @@ async def test_flow_never_started_faults_and_skips_credit(monkeypatch):
 
     await coord._irrigate_zone_with_flow_meter(_flow_zone(), "switch.f")
 
-    coord.store.async_update_zone.assert_not_awaited()
+    assert _no_bucket_replenished(coord.store.async_update_zone)
     assert coord.get_zone_fault(2)["reason"] == const.FAULT_FLOW_NEVER_STARTED
 
 
@@ -171,8 +191,8 @@ async def test_flow_delivered_credits_bucket_and_clears_fault(monkeypatch):
 
     await coord._irrigate_zone_with_flow_meter(_flow_zone(), "switch.f")
 
-    coord.store.async_update_zone.assert_awaited()
-    _, changes = coord.store.async_update_zone.await_args.args
+    changes = _bucket_change(coord.store.async_update_zone)
+    assert changes is not None
     # 30 L over 10 m^2 = 3 mm; bucket -5 + 3 = -2 (capped at the 0.0 floor).
     assert changes[const.ZONE_BUCKET] == pytest.approx(-2.0)
     assert coord.get_zone_fault(2) is None

@@ -579,6 +579,21 @@
         "all_linked_zones": "All linked zones",
         "toast_started": "Irrigation started",
         "toast_failed": "Irrigation failed"
+      },
+      "history": {
+        "title": "Run history",
+        "total_used": "Total water used",
+        "empty": "No runs recorded yet.",
+        "when": "When",
+        "result": "Result",
+        "volume": "Volume",
+        "detail": "Detail",
+        "results": {
+          "completed": "Completed",
+          "partial": "Partial",
+          "failed": "Failed",
+          "skipped": "Skipped"
+        }
       }
     }
   },

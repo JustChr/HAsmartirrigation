@@ -166,6 +166,17 @@ export interface ZoneFault {
   timestamp: string;
 }
 
+/** One entry of a zone's bounded run history (newest first). */
+export interface RunLogEntry {
+  ts: string;
+  trigger: string;
+  planned_s: number | null;
+  actual_s: number | null;
+  volume_l: number;
+  result: "completed" | "partial" | "failed" | "skipped" | string;
+  detail: string | null;
+}
+
 export interface IrrigationOutlook {
   weather_service_enabled: boolean;
   skip_preview: SkipPreview;
@@ -221,6 +232,8 @@ export class SmartIrrigationZone {
   linked_entity?: string;
   bucket_threshold?: number;
   flow_sensor?: string | null;
+  water_used_total?: number;
+  run_log?: RunLogEntry[];
 
   constructor(
     i: number,

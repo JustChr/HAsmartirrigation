@@ -227,6 +227,11 @@ class IrrigationRunnerMixin:
             # flow — treat as a failed run: do NOT credit the bucket, flag a fault
             # so the deficit (and the problem sensor) persist.
             self._set_zone_fault(zone_id, const.FAULT_FLOW_NEVER_STARTED)
+            await self._record_run(
+                zone_id,
+                result=const.RUN_RESULT_FAILED,
+                detail=const.FAULT_FLOW_NEVER_STARTED,
+            )
             return
 
         if size > 0:
@@ -252,6 +257,18 @@ class IrrigationRunnerMixin:
                 "" if not timed_out else "partial, ",
                 actual_mm,
                 "" if not timed_out else " — timeout",
+            )
+            await self._record_run(
+                zone_id,
+                result=(
+                    const.RUN_RESULT_PARTIAL
+                    if timed_out
+                    else const.RUN_RESULT_COMPLETED
+                ),
+                volume_l=accumulated,
+                detail=(
+                    "safety_timeout" if timed_out else zone.get(const.ZONE_EXPLANATION)
+                ),
             )
 
     async def _irrigate_zone_flow_slot(
@@ -481,6 +498,11 @@ class IrrigationRunnerMixin:
                         )
                         timed_remaining[zid] = 0
                         last_finish[zid] = loop.time()
+                        await self._record_run(
+                            zid,
+                            result=const.RUN_RESULT_FAILED,
+                            detail=const.FAULT_VALVE_NO_RESPONSE,
+                        )
                         continue
                     await asyncio.sleep(slot)
                     await self.hass.services.async_call(
@@ -492,6 +514,15 @@ class IrrigationRunnerMixin:
                         # Zone fully irrigated across its slots — replenish bucket.
                         self._clear_zone_fault(zid)
                         await self._reset_zone_bucket_after_run(zid)
+                        planned = float(z[const.ZONE_DURATION])
+                        await self._record_run(
+                            zid,
+                            result=const.RUN_RESULT_COMPLETED,
+                            volume_l=self._timed_volume_l(z, planned),
+                            planned_s=planned,
+                            actual_s=planned,
+                            detail=z.get(const.ZONE_EXPLANATION),
+                        )
 
                 last_finish[zid] = loop.time()
 
@@ -515,6 +546,80 @@ class IrrigationRunnerMixin:
         _LOGGER.info(
             "Zone %s: bucket set to %.3f after irrigation run", zone_id, target
         )
+
+    # --- Run history + cumulative water usage (WS-2) ------------------------
+
+    def _throughput_lpm(self, zone: dict) -> float:
+        """The zone's configured throughput in L/min (volume accounting unit)."""
+        throughput = zone.get(const.ZONE_THROUGHPUT) or 0.0
+        if self.hass.config.units is METRIC_SYSTEM:
+            return throughput
+        return convert_between(const.UNIT_GPM, const.UNIT_LPM, throughput)
+
+    def _timed_volume_l(self, zone: dict, seconds: float) -> float:
+        """Litres a timed run delivers: run minutes × throughput."""
+        if not seconds or seconds <= 0:
+            return 0.0
+        return self._throughput_lpm(zone) * (seconds / 60.0)
+
+    async def _record_run(
+        self,
+        zone_id,
+        *,
+        result: str,
+        volume_l: float = 0.0,
+        planned_s: float | None = None,
+        actual_s: float | None = None,
+        detail: str | None = None,
+        trigger: str = "schedule",
+    ) -> None:
+        """Append a run-log entry and add delivered water to the usage total.
+
+        The run log is a bounded list (newest first, capped at
+        ``RUN_LOG_MAX_ENTRIES``) persisted on the zone; ``water_used_total`` is a
+        monotonic litre counter backing the usage statistics sensor. Both live in
+        the store so they survive restarts.
+        """
+        zone = self.store.get_zone(zone_id) or {}
+        entry = {
+            "ts": dt_util.now().isoformat(),
+            "trigger": trigger,
+            "planned_s": round(planned_s) if planned_s is not None else None,
+            "actual_s": round(actual_s) if actual_s is not None else None,
+            "volume_l": round(volume_l, 2) if volume_l else 0.0,
+            "result": result,
+            "detail": detail,
+        }
+        log = list(zone.get(const.ZONE_RUN_LOG) or [])
+        log.insert(0, entry)
+        del log[const.RUN_LOG_MAX_ENTRIES :]
+        changes = {const.ZONE_RUN_LOG: log}
+        if volume_l and volume_l > 0:
+            changes[const.ZONE_WATER_USED_TOTAL] = (
+                zone.get(const.ZONE_WATER_USED_TOTAL) or 0.0
+            ) + volume_l
+        await self.store.async_update_zone(zone_id, changes)
+        async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
+
+    async def _record_skipped_run(
+        self, zone_ids, detail: str | None, trigger: str = "schedule"
+    ) -> None:
+        """Log a skipped scheduled irrigation for each (enabled) targeted zone."""
+        zones = await self.store.async_get_zones()
+        want_all = zone_ids is None or zone_ids == "all"
+        target = None if want_all else {int(z) for z in zone_ids}
+        for z in zones:
+            if z.get(const.ZONE_STATE) == const.ZONE_STATE_DISABLED:
+                continue
+            zid = int(z.get(const.ZONE_ID))
+            if target is not None and zid not in target:
+                continue
+            await self._record_run(
+                zid,
+                result=const.RUN_RESULT_SKIPPED,
+                detail=detail,
+                trigger=trigger,
+            )
 
     async def _irrigate_zones_sequential(self, zones: list):
         """Irrigate zones one after another, skipping zones with no duration."""
@@ -550,6 +655,11 @@ class IrrigationRunnerMixin:
                     await self.hass.services.async_call(
                         domain, "turn_off", {"entity_id": entity_id}
                     )
+                    await self._record_run(
+                        zone[const.ZONE_ID],
+                        result=const.RUN_RESULT_FAILED,
+                        detail=const.FAULT_VALVE_NO_RESPONSE,
+                    )
                     continue
                 await asyncio.sleep(duration)
                 await self.hass.services.async_call(
@@ -557,6 +667,14 @@ class IrrigationRunnerMixin:
                 )
                 self._clear_zone_fault(zone[const.ZONE_ID])
                 await self._reset_zone_bucket_after_run(zone[const.ZONE_ID])
+                await self._record_run(
+                    zone[const.ZONE_ID],
+                    result=const.RUN_RESULT_COMPLETED,
+                    volume_l=self._timed_volume_l(zone, duration),
+                    planned_s=duration,
+                    actual_s=duration,
+                    detail=zone.get(const.ZONE_EXPLANATION),
+                )
             _LOGGER.info("Sequential irrigation: finished %s", entity_id)
 
     async def _irrigate_zones_parallel(self, zones: list):
@@ -593,6 +711,11 @@ class IrrigationRunnerMixin:
                         await self.hass.services.async_call(
                             dom, "turn_off", {"entity_id": eid}
                         )
+                        await self._record_run(
+                            zid,
+                            result=const.RUN_RESULT_FAILED,
+                            detail=const.FAULT_VALVE_NO_RESPONSE,
+                        )
                         return
                     await asyncio.sleep(dur)
                     await self.hass.services.async_call(
@@ -601,6 +724,15 @@ class IrrigationRunnerMixin:
                     _LOGGER.info("Parallel irrigation: turned off %s", eid)
                     self._clear_zone_fault(zid)
                     await self._reset_zone_bucket_after_run(zid)
+                    run_zone = self.store.get_zone(zid) or {}
+                    await self._record_run(
+                        zid,
+                        result=const.RUN_RESULT_COMPLETED,
+                        volume_l=self._timed_volume_l(run_zone, dur),
+                        planned_s=dur,
+                        actual_s=dur,
+                        detail=run_zone.get(const.ZONE_EXPLANATION),
+                    )
 
                 asyncio.create_task(_turn_off())
 

@@ -280,6 +280,23 @@ VALVE_CONFIRM_POLL = 1
 FAULT_VALVE_NO_RESPONSE = "valve_no_response"
 FAULT_FLOW_NEVER_STARTED = "flow_never_started"
 
+# History / water usage (WS-2 "trust via hindsight").
+# Cumulative water delivered per zone, persisted in litres (the canonical
+# volume); the usage sensor exposes device_class:water + state_class:
+# total_increasing so HA charts it for free and converts to gal on imperial.
+ZONE_WATER_USED_TOTAL = "water_used_total"
+# Bounded rolling per-zone run log. Each entry:
+#   {ts, trigger, planned_s, actual_s, volume_l, result, detail}
+# result is one of RUN_RESULT_*; detail carries the skip-reason / fault code /
+# calculation explanation depending on the result. Capped at RUN_LOG_MAX_ENTRIES
+# (newest first) so the store never grows unbounded.
+ZONE_RUN_LOG = "run_log"
+RUN_LOG_MAX_ENTRIES = 50
+RUN_RESULT_COMPLETED = "completed"
+RUN_RESULT_PARTIAL = "partial"
+RUN_RESULT_FAILED = "failed"
+RUN_RESULT_SKIPPED = "skipped"
+
 CONF_ZONE_SEQUENCING = "zone_sequencing"
 CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential"
 CONF_ZONE_SEQUENCING_PARALLEL = "parallel"

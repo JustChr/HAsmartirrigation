@@ -448,6 +448,21 @@
         "reset_all_buckets_body": "Dies setzt den Vorrat jeder Zone auf 0 zurück und verwirft die angesammelte Feuchtigkeitsbilanz. Die Bewässerungsberechnung beginnt beim nächsten Update neu.",
         "clear_weather_title": "Alle Wetterdaten löschen?",
         "clear_weather_body": "Dies löscht alle gesammelten Wetter- und Sensordaten aller Zonen. Die Zonen benötigen neue Daten, bevor sie wieder berechnen können."
+      },
+      "history": {
+        "title": "Bewässerungsverlauf",
+        "total_used": "Wasserverbrauch gesamt",
+        "empty": "Noch keine Läufe aufgezeichnet.",
+        "when": "Wann",
+        "result": "Ergebnis",
+        "volume": "Menge",
+        "detail": "Detail",
+        "results": {
+          "completed": "Abgeschlossen",
+          "partial": "Teilweise",
+          "failed": "Fehlgeschlagen",
+          "skipped": "Übersprungen"
+        }
       }
     },
     "schedules": {
