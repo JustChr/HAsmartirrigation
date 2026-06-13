@@ -48,12 +48,12 @@ def duration_from_deficit(
 
     A pure mirror of the duration math in :meth:`CalculationMixin.calculate_module`
     (precipitation-rate → raw seconds → multiplier → maximum-duration clamp →
-    lead time) so the irrigation runner can recompute a *fresh* duration from the
-    live intra-day deficit at run time without duplicating — or drifting from —
-    that logic. ``deficit`` / ``throughput`` / ``size`` are in the user's display
+    lead time) so the irrigation runner can recompute a duration from the live
+    intra-day deficit at run time without duplicating — or drifting from — that
+    logic. ``deficit`` / ``throughput`` / ``size`` are in the user's display
     units (mm, L/min, m² when metric; in, gal/min, ft² when imperial). Returns 0
     when no irrigation is needed (``deficit`` >= 0) or the zone lacks a usable
-    throughput / size. ``test_fresh_duration`` pins this against
+    throughput / size. ``test_live_duration`` pins this against
     ``calculate_module`` to guard against drift.
     """
     if deficit is None or deficit >= 0:

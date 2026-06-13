@@ -1,6 +1,6 @@
-"""Tests for the experimental fresh run-time duration feature (WS-3).
+"""Tests for the experimental live run-time duration feature (WS-3).
 
-When ``fresh_duration_enabled`` is on, the scheduled runner recomputes each
+When ``live_duration_enabled`` is on, the scheduled runner recomputes each
 timed zone's duration from the live intra-day deficit (instead of the frozen
 daily ``ZONE_DURATION``) and credits the actually-delivered water back to the
 bucket after the run — so the leftover deficit persists and the next daily calc
@@ -102,16 +102,16 @@ async def test_duration_from_deficit_matches_calculate_module():
 
 
 # --------------------------------------------------------------------------- #
-# _apply_fresh_durations
+# _apply_live_durations
 # --------------------------------------------------------------------------- #
-def _fresh_coordinator(*, enabled=True, estimates=None, metric=True):
+def _live_coordinator(*, enabled=True, estimates=None, metric=True):
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()
     hass.config = Mock()
     hass.config.units = METRIC_SYSTEM if metric else US_CUSTOMARY_SYSTEM
     coord.hass = hass
     coord.store = Mock()
-    coord.store.config = SimpleNamespace(fresh_duration_enabled=enabled)
+    coord.store.config = SimpleNamespace(live_duration_enabled=enabled)
     coord.async_refresh_zone_estimates = AsyncMock(return_value=estimates or {})
     return coord
 
@@ -131,48 +131,48 @@ def _timed_zone(**overrides):
     return zone
 
 
-async def test_apply_fresh_durations_off_is_passthrough():
-    coord = _fresh_coordinator(enabled=False)
+async def test_apply_live_durations_off_is_passthrough():
+    coord = _live_coordinator(enabled=False)
     zones = [_timed_zone()]
-    out = await coord._apply_fresh_durations(zones)
+    out = await coord._apply_live_durations(zones)
     assert out is zones
-    assert coord._fresh_run_zones == set()
+    assert coord._live_run_zones == set()
     coord.async_refresh_zone_estimates.assert_not_awaited()
 
 
-async def test_apply_fresh_durations_overrides_from_live_deficit():
+async def test_apply_live_durations_overrides_from_live_deficit():
     """Live deficit -8 mm -> 480 s, overriding the frozen 300 s; zone marked."""
-    coord = _fresh_coordinator(estimates={"1": {"live_deficit": -8.0}})
-    out = await coord._apply_fresh_durations([_timed_zone()])
+    coord = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
+    out = await coord._apply_live_durations([_timed_zone()])
     assert len(out) == 1
     assert out[0][const.ZONE_DURATION] == 480  # 8 mm / 60 mm/h * 3600
-    assert coord._fresh_run_zones == {1}
+    assert coord._live_run_zones == {1}
 
 
-async def test_apply_fresh_durations_drops_zone_no_longer_needing_water():
+async def test_apply_live_durations_drops_zone_no_longer_needing_water():
     """Intra-day rain filled it (live deficit >= 0) -> dropped from the run."""
-    coord = _fresh_coordinator(estimates={"1": {"live_deficit": 2.0}})
-    out = await coord._apply_fresh_durations([_timed_zone()])
+    coord = _live_coordinator(estimates={"1": {"live_deficit": 2.0}})
+    out = await coord._apply_live_durations([_timed_zone()])
     assert out == []
-    assert coord._fresh_run_zones == set()
+    assert coord._live_run_zones == set()
 
 
-async def test_apply_fresh_durations_keeps_daily_when_no_estimate():
+async def test_apply_live_durations_keeps_daily_when_no_estimate():
     """No live estimate for the zone -> keep the daily duration, not marked."""
-    coord = _fresh_coordinator(estimates={})
+    coord = _live_coordinator(estimates={})
     zone = _timed_zone()
-    out = await coord._apply_fresh_durations([zone])
+    out = await coord._apply_live_durations([zone])
     assert out[0][const.ZONE_DURATION] == 300
-    assert coord._fresh_run_zones == set()
+    assert coord._live_run_zones == set()
 
 
-async def test_apply_fresh_durations_leaves_flow_zones_untouched():
+async def test_apply_live_durations_leaves_flow_zones_untouched():
     """Flow-meter zones already credit measured volume — not recomputed."""
-    coord = _fresh_coordinator(estimates={"1": {"live_deficit": -8.0}})
+    coord = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
     zone = _timed_zone(**{const.ZONE_FLOW_SENSOR: "sensor.flow"})
-    out = await coord._apply_fresh_durations([zone])
+    out = await coord._apply_live_durations([zone])
     assert out[0] is zone  # untouched
-    assert coord._fresh_run_zones == set()
+    assert coord._live_run_zones == set()
 
 
 # --------------------------------------------------------------------------- #
@@ -193,10 +193,10 @@ def _reset_coordinator(monkeypatch, *, metric=True):
     return coord
 
 
-async def test_fresh_run_credits_delivered_not_zeroed(monkeypatch):
-    """A fresh run credits the water actually delivered, not force-to-target."""
+async def test_live_run_credits_delivered_not_zeroed(monkeypatch):
+    """A live run credits the water actually delivered, not force-to-target."""
     coord = _reset_coordinator(monkeypatch)
-    coord._fresh_run_zones = {1}
+    coord._live_run_zones = {1}
     coord.store.get_zone = Mock(
         return_value={
             const.ZONE_BUCKET: -5.0,
@@ -210,13 +210,13 @@ async def test_fresh_run_credits_delivered_not_zeroed(monkeypatch):
 
     _, changes = coord.store.async_update_zone.await_args.args
     assert changes[const.ZONE_BUCKET] == pytest.approx(3.0)  # -5 + 8, NOT 0
-    # The marker is consumed so a later non-fresh run resets normally.
-    assert 1 not in coord._fresh_run_zones
+    # The marker is consumed so a later non-live run resets normally.
+    assert 1 not in coord._live_run_zones
 
 
-async def test_fresh_run_credit_capped_at_maximum_bucket(monkeypatch):
+async def test_live_run_credit_capped_at_maximum_bucket(monkeypatch):
     coord = _reset_coordinator(monkeypatch)
-    coord._fresh_run_zones = {1}
+    coord._live_run_zones = {1}
     coord.store.get_zone = Mock(
         return_value={
             const.ZONE_BUCKET: 0.0,
@@ -230,10 +230,10 @@ async def test_fresh_run_credit_capped_at_maximum_bucket(monkeypatch):
     assert changes[const.ZONE_BUCKET] == pytest.approx(5.0)
 
 
-async def test_non_fresh_run_still_resets_to_target(monkeypatch):
-    """A normal (non-fresh) run is unaffected: bucket goes to its target."""
+async def test_non_live_run_still_resets_to_target(monkeypatch):
+    """A normal (non-live) run is unaffected: bucket goes to its target."""
     coord = _reset_coordinator(monkeypatch)
-    coord._fresh_run_zones = set()
+    coord._live_run_zones = set()
     coord.store.get_zone = Mock(
         return_value={const.ZONE_IRRIGATION_TARGET_BUCKET: -4.0, const.ZONE_BUCKET: -9}
     )
@@ -242,11 +242,11 @@ async def test_non_fresh_run_still_resets_to_target(monkeypatch):
     assert changes[const.ZONE_BUCKET] == pytest.approx(-4.0)
 
 
-async def test_fresh_credit_then_daily_calc_no_double_subtraction(monkeypatch):
+async def test_live_credit_then_daily_calc_no_double_subtraction(monkeypatch):
     """End-to-end: credit reset + next daily calc does NOT double-subtract ET.
 
     Monday's daily calc left bucket -5 mm. Overnight 3 mm ET accrued, so at
-    Tuesday's run the live deficit is -8 mm and the fresh run delivers 8 mm. The
+    Tuesday's run the live deficit is -8 mm and the live run delivers 8 mm. The
     credit reset leaves the bucket at +3 (the 3 mm of overnight water we applied
     beyond the daily deficit). When Tuesday's daily calc subtracts the day's
     full 8 mm ET, the +3 surplus cancels the overnight portion already watered,
@@ -255,7 +255,7 @@ async def test_fresh_credit_then_daily_calc_no_double_subtraction(monkeypatch):
     """
     # --- the credit reset ---
     coord = _reset_coordinator(monkeypatch)
-    coord._fresh_run_zones = {1}
+    coord._live_run_zones = {1}
     coord.store.get_zone = Mock(
         return_value={
             const.ZONE_BUCKET: -5.0,

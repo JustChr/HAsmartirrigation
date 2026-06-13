@@ -152,9 +152,9 @@ class IrrigationRunnerMixin:
             )
             return
 
-        zones_to_irrigate = await self._apply_fresh_durations(zones_to_irrigate)
+        zones_to_irrigate = await self._apply_live_durations(zones_to_irrigate)
         if not zones_to_irrigate:
-            _LOGGER.debug("Fresh duration left no zones needing water")
+            _LOGGER.debug("Live-estimate duration left no zones needing water")
             return
 
         if sequencing == const.CONF_ZONE_SEQUENCING_SEQUENTIAL:
@@ -534,34 +534,35 @@ class IrrigationRunnerMixin:
 
                 last_finish[zid] = loop.time()
 
-    # --- Fresh run-time duration from the live deficit (WS-3, experimental) --
+    # --- Live-estimate run durations from the live deficit (WS-3, experimental)
 
-    async def _apply_fresh_durations(self, zones: list) -> list:
+    async def _apply_live_durations(self, zones: list) -> list:
         """Recompute timed-zone run durations from the live intra-day deficit.
 
         Experimental, opt-in (Setup → Experimental). When the flag is off this
         returns ``zones`` unchanged. When on, it refreshes the live estimates and
         replaces each timed zone's frozen daily ``ZONE_DURATION`` with one
         computed from the drainage-aware ``live_deficit`` (intra-day ET/precip
-        since the last daily calc) — answering "is the duration frozen hours ago
-        still right at water time?". Zones whose fresh deficit is non-negative
-        (intra-day rain already covered them) are dropped from the run.
+        since the last daily calc, the same quantity behind the "Live bucket"
+        sensor) — answering "is the duration frozen hours ago still right at water
+        time?". Zones whose live deficit is non-negative (intra-day rain already
+        covered them) are dropped from the run.
 
         The daily ledger is untouched: only the *duration of this run* changes.
         Flow-meter zones are left alone — they already deliver to a measured
         volume and credit the bucket from it. Recomputed zones are marked in
-        ``_fresh_run_zones`` so :meth:`_reset_zone_bucket_after_run` credits the
+        ``_live_run_zones`` so :meth:`_reset_zone_bucket_after_run` credits the
         actually-delivered water (``bucket += delivered``, capped) instead of
         forcing the bucket to its target; the live deficit can exceed the stored
         daily bucket, so crediting (not zeroing) keeps the next daily calc from
         double-subtracting the intra-day ET.
         """
-        if self.store.config.fresh_duration_enabled is not True:
-            self._fresh_run_zones = set()
+        if self.store.config.live_duration_enabled is not True:
+            self._live_run_zones = set()
             return zones
 
         estimates = await self.async_refresh_zone_estimates()
-        self._fresh_run_zones = set()
+        self._live_run_zones = set()
         metric = self.hass.config.units is METRIC_SYSTEM
         out = []
         for z in zones:
@@ -573,7 +574,7 @@ class IrrigationRunnerMixin:
             if deficit is None:
                 out.append(z)  # no live estimate — keep the daily duration
                 continue
-            fresh = duration_from_deficit(
+            live = duration_from_deficit(
                 deficit,
                 z.get(const.ZONE_THROUGHPUT),
                 z.get(const.ZONE_SIZE),
@@ -582,31 +583,31 @@ class IrrigationRunnerMixin:
                 z.get(const.ZONE_LEAD_TIME),
                 metric,
             )
-            if fresh <= 0:
+            if live <= 0:
                 _LOGGER.info(
-                    "Fresh duration: zone %s no longer needs water "
+                    "Live-estimate duration: zone %s no longer needs water "
                     "(live deficit %.2f) — skipping this run",
                     z.get(const.ZONE_ID),
                     deficit,
                 )
                 continue
             zid = int(z.get(const.ZONE_ID))
-            self._fresh_run_zones.add(zid)
+            self._live_run_zones.add(zid)
             _LOGGER.info(
-                "Fresh duration: zone %s %ss → %ss (live deficit %.2f)",
+                "Live-estimate duration: zone %s %ss → %ss (live deficit %.2f)",
                 zid,
                 z.get(const.ZONE_DURATION),
-                fresh,
+                live,
                 deficit,
             )
-            out.append({**z, const.ZONE_DURATION: fresh})
+            out.append({**z, const.ZONE_DURATION: live})
         return out
 
     def _delivered_depth_native(self, zone: dict, seconds: float) -> float:
         """Depth (display units) a timed run of ``seconds`` applied to ``zone``.
 
         volume = run minutes × throughput; depth = volume / area. Mirrors the
-        observed-watering crediting math so a fresh-duration run credits the
+        observed-watering crediting math so a live-estimate run credits the
         bucket by what it actually delivered.
         """
         size = zone.get(const.ZONE_SIZE) or 0.0
@@ -627,7 +628,7 @@ class IrrigationRunnerMixin:
         normally 0, or the rain-covered remainder when forecast weighting trimmed
         this run. The flow-meter path does the equivalent from measured volume.
 
-        Fresh-duration runs (WS-3, marked in ``_fresh_run_zones``): the duration
+        Live-estimate runs (WS-3, marked in ``_live_run_zones``): the duration
         came from the live intra-day deficit, which can exceed the stored daily
         bucket. Forcing the bucket to its target would discard the credit for the
         extra intra-day water and the next daily calc would re-subtract that ET.
@@ -635,13 +636,13 @@ class IrrigationRunnerMixin:
         capped at maximum_bucket) so the leftover deficit persists honestly.
         """
         zone = self.store.get_zone(zone_id) or {}
-        if int(zone_id) in getattr(self, "_fresh_run_zones", set()):
+        if int(zone_id) in getattr(self, "_live_run_zones", set()):
             delivered = self._delivered_depth_native(zone, ran_seconds)
             new_bucket = (zone.get(const.ZONE_BUCKET) or 0.0) + delivered
             max_bucket = zone.get(const.ZONE_MAXIMUM_BUCKET)
             if max_bucket is not None and new_bucket > max_bucket:
                 new_bucket = float(max_bucket)
-            self._fresh_run_zones.discard(int(zone_id))
+            self._live_run_zones.discard(int(zone_id))
         else:
             new_bucket = self._zone_target_bucket(zone)
         await self.store.async_update_zone(

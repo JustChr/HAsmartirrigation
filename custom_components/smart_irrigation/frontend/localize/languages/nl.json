@@ -597,8 +597,8 @@
         "label": "Buffer bijschrijven wanneer een gekoppelde klep extern draait",
         "note": "Vereist een gekoppelde klep en een doorvoer op de zone. Het volume wordt geschat (looptijd × doorvoer), niet gemeten."
       },
-      "fresh_duration": {
-        "title": "Actuele looptijden op beregeningsmoment",
+      "live_duration": {
+        "title": "Looptijden op basis van de live-schatting",
         "description": "Standaard wordt de beregeningsduur van elke zone vastgelegd bij de dagelijkse berekening (bijvoorbeeld om 23:00), uren voordat de klep daadwerkelijk opent. Met deze optie wordt de duur op het beregeningsmoment opnieuw berekend op basis van het actuele intradag-tekort (de drainagebewuste ET en neerslag sinds de laatste berekening), zodat nachtelijk en vroeg ochtendweer wordt meegenomen. Het dagelijkse grootboek blijft ongewijzigd: na de beurt wordt de emmer gecrediteerd met het werkelijk gegeven water, zodat de volgende dagelijkse berekening nooit dubbel telt. Vereist een weerdienst.",
         "label": "Herbereken de looptijd op het beregeningsmoment",
         "note": "Geldt alleen voor geplande beurten. Een zone die door intradag-regen al gedekt is, wordt voor die beurt overgeslagen."

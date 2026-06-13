@@ -602,8 +602,8 @@
         "label": "Accredita il bilancio quando una valvola collegata funziona esternamente",
         "note": "Richiede una valvola collegata e una portata sulla zona. Il volume è stimato (tempo × portata), non misurato."
       },
-      "fresh_duration": {
-        "title": "Durate aggiornate al momento dell'irrigazione",
+      "live_duration": {
+        "title": "Durate basate sulla stima in tempo reale",
         "description": "Per impostazione predefinita la durata di irrigazione di ogni zona viene fissata durante il calcolo giornaliero (ad esempio alle 23:00), ore prima che la valvola si apra davvero. Con questa opzione la durata viene ricalcolata al momento dell'irrigazione dal deficit intragiornaliero in tempo reale (l'ET con drenaggio e la pioggia dall'ultimo calcolo), tenendo cosi conto del meteo notturno e mattutino. Il registro giornaliero resta invariato: dopo l'irrigazione al secchio viene accreditata l'acqua effettivamente erogata, quindi il calcolo giornaliero successivo non conta mai due volte. Richiede un servizio meteo.",
         "label": "Ricalcola la durata al momento dell'irrigazione",
         "note": "Riguarda solo le irrigazioni programmate. Una zona gia coperta dalla pioggia intragiornaliera viene saltata per quell'irrigazione."

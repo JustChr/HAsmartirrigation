@@ -12,14 +12,14 @@ import { globalStyle } from "../../styles/global-style";
 import {
   CONF_FORECAST_WEIGHTING_ENABLED,
   CONF_OBSERVED_WATERING_ENABLED,
-  CONF_FRESH_DURATION_ENABLED,
+  CONF_LIVE_DURATION_ENABLED,
   DOMAIN,
 } from "../../const";
 
 type ExperimentalFlag =
   | typeof CONF_FORECAST_WEIGHTING_ENABLED
   | typeof CONF_OBSERVED_WATERING_ENABLED
-  | typeof CONF_FRESH_DURATION_ENABLED;
+  | typeof CONF_LIVE_DURATION_ENABLED;
 
 /**
  * Setup → Experimental: opt-in features that change how the bucket is filled.
@@ -105,9 +105,9 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         this.config.observed_watering_enabled,
       )}
       ${this._renderToggleCard(
-        "fresh_duration",
-        CONF_FRESH_DURATION_ENABLED,
-        this.config.fresh_duration_enabled,
+        "live_duration",
+        CONF_LIVE_DURATION_ENABLED,
+        this.config.live_duration_enabled,
       )}
     `;
   }

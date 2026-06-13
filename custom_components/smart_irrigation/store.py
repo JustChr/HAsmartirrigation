@@ -35,7 +35,7 @@ from .const import (
     CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_DRAINAGE_RATE,
     CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
-    CONF_DEFAULT_FRESH_DURATION_ENABLED,
+    CONF_DEFAULT_LIVE_DURATION_ENABLED,
     CONF_DEFAULT_MANUAL_COORDINATES_ENABLED,
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
@@ -55,8 +55,9 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
     CONF_FORECAST_WEIGHTING_ENABLED,
-    CONF_FRESH_DURATION_ENABLED,
     CONF_IMPERIAL,
+    CONF_LEGACY_FRESH_DURATION_ENABLED,
+    CONF_LIVE_DURATION_ENABLED,
     CONF_METRIC,
     CONF_OBSERVED_WATERING_ENABLED,
     CONF_PRECIPITATION_FORECAST_DAYS,
@@ -267,8 +268,8 @@ class Config:
     observed_watering_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_OBSERVED_WATERING_ENABLED
     )
-    fresh_duration_enabled = attr.ib(
-        type=bool, default=CONF_DEFAULT_FRESH_DURATION_ENABLED
+    live_duration_enabled = attr.ib(
+        type=bool, default=CONF_DEFAULT_LIVE_DURATION_ENABLED
     )
 
 
@@ -529,9 +530,13 @@ class SmartIrrigationStorage:
                     CONF_OBSERVED_WATERING_ENABLED,
                     CONF_DEFAULT_OBSERVED_WATERING_ENABLED,
                 ),
-                fresh_duration_enabled=data["config"].get(
-                    CONF_FRESH_DURATION_ENABLED,
-                    CONF_DEFAULT_FRESH_DURATION_ENABLED,
+                live_duration_enabled=data["config"].get(
+                    CONF_LIVE_DURATION_ENABLED,
+                    # Fall back to the v2026.06.28 key name if present.
+                    data["config"].get(
+                        CONF_LEGACY_FRESH_DURATION_ENABLED,
+                        CONF_DEFAULT_LIVE_DURATION_ENABLED,
+                    ),
                 ),
                 # Recurring schedules are irrigation-only now; calculate/update
                 # are handled by the global daily settings. Drop any legacy

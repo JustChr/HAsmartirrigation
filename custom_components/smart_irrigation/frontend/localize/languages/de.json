@@ -597,8 +597,8 @@
         "label": "Wasserspeicher gutschreiben, wenn ein verknüpftes Ventil extern läuft",
         "note": "Erfordert ein verknüpftes Ventil und einen Durchfluss in der Zone. Die Menge wird geschätzt (Laufzeit × Durchfluss), nicht gemessen."
       },
-      "fresh_duration": {
-        "title": "Aktuelle Laufzeiten zur Bewaesserungszeit",
+      "live_duration": {
+        "title": "Laufzeiten aus der Live-Schaetzung",
         "description": "Standardmaessig wird die Bewaesserungsdauer jeder Zone bei der taeglichen Berechnung festgelegt (zum Beispiel um 23:00 Uhr), Stunden bevor das Ventil tatsaechlich oeffnet. Wenn aktiviert, wird die Dauer zum Laufzeitpunkt aus dem aktuellen Tagesdefizit neu berechnet (drainagebewusste ET und Niederschlag seit der letzten Berechnung), sodass naechtliches und morgendliches Wetter beruecksichtigt wird. Das taegliche Hauptbuch bleibt unveraendert: Nach dem Lauf wird dem Eimer das tatsaechlich ausgebrachte Wasser gutgeschrieben, sodass die naechste taegliche Berechnung nichts doppelt zaehlt. Erfordert einen Wetterdienst.",
         "label": "Laufzeit zur Bewaesserungszeit neu berechnen",
         "note": "Betrifft nur geplante Laeufe. Eine Zone, die untertaegiger Regen bereits abgedeckt hat, wird fuer diesen Lauf uebersprungen."
