@@ -363,6 +363,14 @@
           "shrubs": "Kríky",
           "trees": "Stromy",
           "xeriscape": "Sucho znášajúce"
+        },
+        "soil_type": "Typ pôdy",
+        "soil_types": {
+          "custom": "Vlastné (rýchlosť ručne)",
+          "sand": "Piesočnatá (rýchle odvodnenie)",
+          "loam": "Hlinitá (vyvážená)",
+          "silt": "Prachová (pomalé odvodnenie)",
+          "clay": "Ílovitá (veľmi pomalé odvodnenie)"
         }
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
@@ -725,7 +733,18 @@
     "rain_sensor_placeholder": "napr. binary_sensor.dazd",
     "freeze_section_title": "Preskočiť pri mraze",
     "freeze_threshold_label": "Preskočiť, ak je minimálna teplota pod",
-    "freeze_help": "Porovnáva aktuálnu teplotu a predpovedané minimum nadchádzajúcej noci; pri očakávanom mraze preskočí zavlažovanie, aby ochránilo potrubie a rastliny."
+    "freeze_help": "Porovnáva aktuálnu teplotu a predpovedané minimum nadchádzajúcej noci; pri očakávanom mraze preskočí zavlažovanie, aby ochránilo potrubie a rastliny.",
+    "forecast_rain_label": "Keď je predpovedaný dážď",
+    "forecast_rain_options": {
+      "ignore": "Ignorovať",
+      "water_less": "Zavlažovať menej",
+      "skip": "Preskočiť zavlažovanie"
+    },
+    "forecast_rain_help": {
+      "ignore": "Predpovedaný dážď sa ignoruje; behy používajú vypočítané trvanie.",
+      "water_less": "Predpovedaný dážď skráti trvanie behu (deficit zostáva vo vedre, kým ho nedoplní skutočný dážď).",
+      "skip": "Preskočiť beh úplne, keď je v okne predpovede predpovedaný dostatok dažďa."
+    }
   },
   "zone_sequencing": {
     "title": "Poradie zón",
@@ -784,7 +803,8 @@
     "general_temp_threshold": "Zavlažovanie sa preskočí, ak je aktuálna teplota pod touto hodnotou (napr. na zabránenie poškodeniu mrazom).",
     "general_wind_threshold": "Zavlažovanie sa preskočí, ak rýchlosť vetra prekročí túto hodnotu (silný vietor znižuje účinnosť a spôsobuje úlet).",
     "zone_plant_type": "Vyberte typ rastliny pre typický plodinový koeficient, alebo zvoľte Vlastné a zadajte Kc sami.",
-    "zone_kc": "Škáluje referenčnú ET (tráva) na rastliny tejto zóny. 1,0 = referenčná tráva; nižšie pre sucho znášajúce rastliny, vyššie pre náročné plodiny. Škáluje sa iba člen ET — dážď nie."
+    "zone_kc": "Škáluje referenčnú ET (tráva) na rastliny tejto zóny. 1,0 = referenčná tráva; nižšie pre sucho znášajúce rastliny, vyššie pre náročné plodiny. Škáluje sa iba člen ET — dážď nie.",
+    "zone_soil_type": "Vyberte typ pôdy pre typickú rýchlosť odvodnenia, alebo nechajte Vlastné a zadajte ju nižšie ručne."
   },
   "wizard": {
     "title": "Sprievodca nastavením",
@@ -846,7 +866,12 @@
         "tip2": "Pridaj ďalšie zóny na karte Zóny.",
         "tip3": "Doladi všetky nastavenia na karte Nastavenie.",
         "go_zones": "Prejsť na Zóny",
-        "go_setup": "Prejsť na Nastavenie"
+        "go_setup": "Prejsť na Nastavenie",
+        "schedule_name": "Denne",
+        "schedule_title": "Vytvoriť plán zavlažovania",
+        "schedule_desc": "Systém je nakonfigurovaný, ale nebude zavlažovať, kým neexistuje plán. Vytvorte teraz denný plán pre všetky zóny (neskôr ho možno zmeniť alebo odstrániť v Nastavenie → Kedy zavlažovať).",
+        "schedule_create": "Vytvoriť denný plán",
+        "schedule_created": "Denný plán vytvorený."
       }
     },
     "stepper": {

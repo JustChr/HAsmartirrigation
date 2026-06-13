@@ -496,6 +496,16 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
   }
   private _renderWeatherSkipCard(): TemplateResult {
     if (!this.hass || !this.config || !this.data) return html``;
+    const lang = this.hass.language;
+    // One control replaces the two former rain knobs (skip-on-rain here +
+    // forecast-weighted durations on the Experimental tab). Both flags still
+    // exist in the backend; this picks the mode and writes both at once so they
+    // stay coherent. Skip wins over water-less if a legacy config had both on.
+    const rainMode = this.config.skip_irrigation_on_precipitation
+      ? "skip"
+      : this.config.forecast_weighting_enabled
+        ? "water_less"
+        : "ignore";
     return html`
       <ha-card header="${localize("weather_skip.title", this.hass.language)}">
         <div class="card-content description-text">
@@ -504,55 +514,36 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${localize("weather_skip.threshold_label", this.hass.language)}
+              ${localize("weather_skip.forecast_rain_label", lang)}
             </label>
-            <ha-switch
-              .checked="${this.config.skip_irrigation_on_precipitation}"
-              @change="${(e: Event) =>
+            <select
+              class="settings-input"
+              .value="${live(rainMode)}"
+              @change="${(e: Event) => {
+                const m = (e.target as HTMLSelectElement).value;
                 this.handleConfigChange({
-                  skip_irrigation_on_precipitation: (
-                    e.target as HTMLInputElement
-                  ).checked,
-                })}"
-            ></ha-switch>
+                  skip_irrigation_on_precipitation: m === "skip",
+                  forecast_weighting_enabled: m === "water_less",
+                });
+              }}"
+            >
+              ${["ignore", "water_less", "skip"].map(
+                (m) => html`
+                  <option value="${m}" ?selected="${rainMode === m}">
+                    ${localize(`weather_skip.forecast_rain_options.${m}`, lang)}
+                  </option>
+                `,
+              )}
+            </select>
           </div>
-          ${this.config.skip_irrigation_on_precipitation
+          <div class="description-text">
+            ${localize(`weather_skip.forecast_rain_help.${rainMode}`, lang)}
+          </div>
+          ${rainMode !== "ignore"
             ? html`
                 <div class="setting-row">
                   <label>
-                    ${localize(
-                      "weather_skip.threshold_label",
-                      this.hass.language,
-                    )}
-                    (${output_unit(
-                      this.config,
-                      CONF_PRECIPITATION_THRESHOLD_MM,
-                    )})
-                  </label>
-                  <input
-                    type="number"
-                    class="settings-input shortfield"
-                    min="0"
-                    step="0.1"
-                    inputmode="decimal"
-                    .value="${this.config.precipitation_threshold_mm ?? 2}"
-                    @input="${(e: Event) => {
-                      const v = parseFloat(
-                        (e.target as HTMLInputElement).value,
-                      );
-                      if (!isNaN(v))
-                        this.handleConfigChange({
-                          precipitation_threshold_mm: v,
-                        });
-                    }}"
-                  />
-                </div>
-                <div class="setting-row">
-                  <label>
-                    ${localize(
-                      "weather_skip.lookahead_label",
-                      this.hass.language,
-                    )}
+                    ${localize("weather_skip.lookahead_label", lang)}
                   </label>
                   <input
                     type="number"
@@ -575,7 +566,37 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                   />
                 </div>
                 <div class="description-text">
-                  ${localize("weather_skip.lookahead_help", this.hass.language)}
+                  ${localize("weather_skip.lookahead_help", lang)}
+                </div>
+              `
+            : ""}
+          ${rainMode === "skip"
+            ? html`
+                <div class="setting-row">
+                  <label>
+                    ${localize("weather_skip.threshold_label", lang)}
+                    (${output_unit(
+                      this.config,
+                      CONF_PRECIPITATION_THRESHOLD_MM,
+                    )})
+                  </label>
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    min="0"
+                    step="0.1"
+                    inputmode="decimal"
+                    .value="${this.config.precipitation_threshold_mm ?? 2}"
+                    @input="${(e: Event) => {
+                      const v = parseFloat(
+                        (e.target as HTMLInputElement).value,
+                      );
+                      if (!isNaN(v))
+                        this.handleConfigChange({
+                          precipitation_threshold_mm: v,
+                        });
+                    }}"
+                  />
                 </div>
               `
             : ""}

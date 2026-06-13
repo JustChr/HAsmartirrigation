@@ -1,0 +1,104 @@
+blueprint:
+  name: Smart Irrigation Notifications
+  description: >
+    Push a notification to your phone when Smart Irrigation **starts a watering
+    run** or when a **zone fault** is detected (a valve that didn't open or a
+    flow that never started — surfaced by the hub "problem" sensor added in the
+    valve-verification feature).
+
+    Wire it once to the hub's aggregate problem sensor and you get a single
+    notification automation for the whole system. Both notification types can be
+    toggled independently below.
+  domain: automation
+  author: HA Smart Irrigation
+  input:
+    notify_device:
+      name: Device to notify
+      description: >
+        The mobile device that should receive the push notification (requires
+        the Home Assistant companion app on that device).
+      selector:
+        device:
+          integration: mobile_app
+
+    problem_sensor:
+      name: Problem sensor
+      description: >
+        The Smart Irrigation hub "problem" binary sensor
+        (binary_sensor.smart_irrigation_problem). Turns on when any zone has an
+        unresolved fault.
+      default: binary_sensor.smart_irrigation_problem
+      selector:
+        entity:
+          filter:
+            - domain: binary_sensor
+              device_class: problem
+
+    notify_on_run:
+      name: Notify when a run starts
+      description: Send a notification each time a scheduled irrigation run begins.
+      default: true
+      selector:
+        boolean:
+
+    notify_on_fault:
+      name: Notify on faults
+      description: Send a notification when a zone fault is detected.
+      default: true
+      selector:
+        boolean:
+
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: smart_irrigation_start_irrigation_all_zones
+    id: run
+  - trigger: state
+    entity_id: !input problem_sensor
+    from: "off"
+    to: "on"
+    id: fault
+
+variables:
+  notify_on_run: !input notify_on_run
+  notify_on_fault: !input notify_on_fault
+
+conditions:
+  - condition: template
+    value_template: >
+      {{ (trigger.id == 'run' and notify_on_run)
+         or (trigger.id == 'fault' and notify_on_fault) }}
+
+actions:
+  - choose:
+      # A watering run started — report which schedule / zones.
+      - conditions:
+          - condition: trigger
+            id: run
+        sequence:
+          - device_id: !input notify_device
+            domain: mobile_app
+            type: notify
+            title: 💧 Irrigation started
+            message: >
+              {% set name = trigger.event.data.schedule_name | default('') %}
+              {% set zones = trigger.event.data.zones %}
+              Watering started{{ ' (' ~ name ~ ')' if name else '' }}{{
+                ' for zones: ' ~ (zones | join(', ')) if zones is iterable and zones is not string and zones | length > 0 else ''
+              }}.
+      # A zone fault appeared — report which zones, if the sensor exposes them.
+      - conditions:
+          - condition: trigger
+            id: fault
+        sequence:
+          - device_id: !input notify_device
+            domain: mobile_app
+            type: notify
+            title: ⚠️ Irrigation problem
+            message: >
+              {% set zones = state_attr(trigger.entity_id, 'zones') %}
+              Smart Irrigation reported a fault{{
+                ' on: ' ~ (zones | join(', ')) if zones else ''
+              }}. Check the zone for a valve that didn't open or a flow that never started.

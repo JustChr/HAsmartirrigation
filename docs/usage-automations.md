@@ -45,6 +45,12 @@ Experts recommend watering deeply but infrequently. Consider running automations
 
 Check out the [blueprints](https://github.com/JustChr/HAsmartirrigation/tree/master/blueprints) for ready-made automation templates.
 
+## Notifications blueprint
+
+A ready-made **Smart Irrigation Notifications** blueprint sends a push notification to your phone when a watering run **starts** or when a **zone fault** is detected (a valve that didn't open or a flow that never started — surfaced by the hub `binary_sensor.smart_irrigation_problem` sensor). Import it, pick the device to notify and the problem sensor, and you get one notification automation for the whole system; each notification type can be toggled independently.
+
+[yaml](https://github.com/JustChr/HAsmartirrigation/blob/master/blueprints/automation/smart_irrigation_notify.yaml)
+
 Also see [this discussion](https://github.com/jeroenterheerdt/HAsmartirrigation/discussions/361) (upstream) for an example using a timer helper for extra safety.
 
 ### Example 1: one valve, once per week

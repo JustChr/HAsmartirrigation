@@ -12,22 +12,7 @@ The **Setup → Experimental** tab holds opt-in features that change how each zo
 
 Both toggles are global (they apply to every zone) and take effect from the next calculation or watering event onward.
 
-## Forecast-weighted durations
-
-Normally, if you enable [*skip on forecasted precipitation*](configuration-when-to-water.md#skip-on-forecasted-precipitation), a run is either **fully skipped** (enough rain is coming) or **runs in full** (not enough). Forecast weighting adds a middle ground: instead of skipping, it waters **less**.
-
-When enabled, at calculation time the upcoming precipitation — summed over the same [forecast look-ahead window](configuration-when-to-water.md#skip-on-forecasted-precipitation) you set under *When to Water* — is subtracted from the deficit used to compute the **duration**. The zone's actual bucket keeps the **true** deficit, so when the forecast rain falls it tops the bucket up the rest of the way. If the forecast rain misses, the next calculation/run simply makes up the difference.
-
-**Example.** A zone has a 10 mm deficit and 4 mm of rain is forecast within the look-ahead window:
-
-- Without weighting: the run delivers the full 10 mm (or, with *skip on precipitation* enabled and the threshold met, is skipped entirely).
-- With weighting: the run delivers **6 mm** and stops. The bucket is left 4 mm short, which the forecast rain is expected to fill. If the rain doesn't come, the deficit is still there and the next run waters it.
-
-Notes:
-
-- **Requires a weather service** (the forecast comes from it). It has no effect for sensor-only setups.
-- It works **alongside** the rain-skip guard. If *skip on forecasted precipitation* would skip the run outright, the skip still wins — weighting only matters for runs that aren't skipped.
-- Because the bucket keeps the true deficit, this never double-counts the forecasted rain once it's actually collected.
+> **Looking for *forecast-weighted durations*?** That option moved out of this tab. It is now the **Water less** choice in the unified [*When rain is forecast*](configuration-when-to-water.md#when-rain-is-forecast) control under *Setup → When to Water*. The behaviour is unchanged.
 
 ## Credit bucket from observed watering
 

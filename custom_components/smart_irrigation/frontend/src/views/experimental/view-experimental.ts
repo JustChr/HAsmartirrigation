@@ -10,14 +10,15 @@ import { showErrorToast } from "../../helpers";
 import { SmartIrrigationConfig } from "../../types";
 import { globalStyle } from "../../styles/global-style";
 import {
-  CONF_FORECAST_WEIGHTING_ENABLED,
   CONF_OBSERVED_WATERING_ENABLED,
   CONF_LIVE_DURATION_ENABLED,
   DOMAIN,
 } from "../../const";
 
+// Note: forecast-weighted durations moved out of this tab into the unified
+// "When rain is forecast" control on the When-to-Water tab (WS-6). The backend
+// flag (forecast_weighting_enabled) is unchanged; it's just surfaced there now.
 type ExperimentalFlag =
-  | typeof CONF_FORECAST_WEIGHTING_ENABLED
   | typeof CONF_OBSERVED_WATERING_ENABLED
   | typeof CONF_LIVE_DURATION_ENABLED;
 
@@ -94,11 +95,6 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
     }
     return html`
       ${this._renderIntro()}
-      ${this._renderToggleCard(
-        "forecast_weighting",
-        CONF_FORECAST_WEIGHTING_ENABLED,
-        this.config.forecast_weighting_enabled,
-      )}
       ${this._renderToggleCard(
         "observed_watering",
         CONF_OBSERVED_WATERING_ENABLED,

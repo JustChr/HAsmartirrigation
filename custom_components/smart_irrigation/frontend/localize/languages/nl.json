@@ -363,6 +363,14 @@
           "shrubs": "Struiken",
           "trees": "Bomen",
           "xeriscape": "Droogtebestendig"
+        },
+        "soil_type": "Grondsoort",
+        "soil_types": {
+          "custom": "Aangepast (snelheid handmatig)",
+          "sand": "Zandig (snel afwaterend)",
+          "loam": "Leem (gebalanceerd)",
+          "silt": "Silt (traag afwaterend)",
+          "clay": "Klei (zeer traag afwaterend)"
         }
       },
       "no_items": "Er zijn nog geen zones.",
@@ -725,7 +733,18 @@
     "rain_sensor_placeholder": "bijv. binary_sensor.regen",
     "freeze_section_title": "Overslaan bij vorst",
     "freeze_threshold_label": "Overslaan als de minimumtemperatuur lager is dan",
-    "freeze_help": "Vergelijkt de huidige temperatuur en de verwachte minimumtemperatuur van de komende nacht; slaat besproeiing over bij verwachte vorst, om leidingen en planten te beschermen."
+    "freeze_help": "Vergelijkt de huidige temperatuur en de verwachte minimumtemperatuur van de komende nacht; slaat besproeiing over bij verwachte vorst, om leidingen en planten te beschermen.",
+    "forecast_rain_label": "Als er regen wordt voorspeld",
+    "forecast_rain_options": {
+      "ignore": "Negeren",
+      "water_less": "Minder water geven",
+      "skip": "Water geven overslaan"
+    },
+    "forecast_rain_help": {
+      "ignore": "Voorspelde regen wordt genegeerd; beurten gebruiken de berekende duur.",
+      "water_less": "Voorspelde regen verkort de beurtduur (het tekort blijft in de emmer voor de echte regen).",
+      "skip": "Sla de beurt helemaal over als er genoeg regen wordt voorspeld binnen het vooruitkijkvenster."
+    }
   },
   "zone_sequencing": {
     "title": "Zone-volgorde",
@@ -784,7 +803,8 @@
     "general_temp_threshold": "Irrigatie wordt overgeslagen als de huidige temperatuur onder deze waarde ligt (bijv. om vorstschade te voorkomen).",
     "general_wind_threshold": "Irrigatie wordt overgeslagen als de windsnelheid deze waarde overschrijdt (harde wind vermindert de efficiëntie en veroorzaakt drift).",
     "zone_plant_type": "Kies een plantentype voor een typische gewascoëfficiënt, of kies Aangepast om Kc zelf in te voeren.",
-    "zone_kc": "Schaalt de referentie-ET (gras) naar de planten van deze zone. 1,0 = referentiegras; lager voor droogtebestendige beplanting, hoger voor dorstige gewassen. Alleen de ET-term wordt geschaald — regen niet."
+    "zone_kc": "Schaalt de referentie-ET (gras) naar de planten van deze zone. 1,0 = referentiegras; lager voor droogtebestendige beplanting, hoger voor dorstige gewassen. Alleen de ET-term wordt geschaald — regen niet.",
+    "zone_soil_type": "Kies een grondsoort voor een typische afwateringssnelheid, of laat Aangepast om deze hieronder handmatig in te voeren."
   },
   "wizard": {
     "title": "Configuratiewizard",
@@ -846,7 +866,12 @@
         "tip2": "Voeg meer zones toe via het tabblad Zones.",
         "tip3": "Verfijn alle instellingen via het tabblad Instellen.",
         "go_zones": "Naar Zones",
-        "go_setup": "Naar Instellen"
+        "go_setup": "Naar Instellen",
+        "schedule_name": "Dagelijks",
+        "schedule_title": "Een bewateringsschema maken",
+        "schedule_desc": "Uw systeem is geconfigureerd, maar geeft pas water als er een schema bestaat. Maak nu een dagelijks schema voor alle zones (later te wijzigen of verwijderen onder Instellen → Wanneer water geven).",
+        "schedule_create": "Dagelijks schema maken",
+        "schedule_created": "Dagelijks schema gemaakt."
       }
     },
     "stepper": {

@@ -365,6 +365,14 @@
           "shrubs": "Arbustes",
           "trees": "Arbres",
           "xeriscape": "Xéropaysagisme / résistant à la sécheresse"
+        },
+        "soil_type": "Type de sol",
+        "soil_types": {
+          "custom": "Personnalisé (taux manuel)",
+          "sand": "Sableux (drainage rapide)",
+          "loam": "Limon (équilibré)",
+          "silt": "Silt (drainage lent)",
+          "clay": "Argile (drainage très lent)"
         }
       },
       "no_items": "Il n'y a pas encore de zone définie.",
@@ -727,7 +735,18 @@
     "rain_sensor_placeholder": "ex. binary_sensor.pluie",
     "freeze_section_title": "Ignorer en cas de gel",
     "freeze_threshold_label": "Ignorer si la température minimale est inférieure à",
-    "freeze_help": "Compare la température actuelle et le minimum prévu pour la nuit à venir ; ignore l'arrosage en cas de gel attendu, pour protéger les tuyaux et les plantes."
+    "freeze_help": "Compare la température actuelle et le minimum prévu pour la nuit à venir ; ignore l'arrosage en cas de gel attendu, pour protéger les tuyaux et les plantes.",
+    "forecast_rain_label": "Quand de la pluie est prévue",
+    "forecast_rain_options": {
+      "ignore": "L'ignorer",
+      "water_less": "Arroser moins",
+      "skip": "Ne pas arroser"
+    },
+    "forecast_rain_help": {
+      "ignore": "La pluie prévue est ignorée ; les arrosages utilisent la durée calculée.",
+      "water_less": "La pluie prévue réduit la durée d'arrosage (le déficit reste dans le seau pour être comblé par la vraie pluie).",
+      "skip": "Sauter complètement l'arrosage lorsque assez de pluie est prévue dans la fenêtre de prévision."
+    }
   },
   "zone_sequencing": {
     "title": "Séquençage des zones",
@@ -786,7 +805,8 @@
     "general_temp_threshold": "L'arrosage est ignoré si la température actuelle est inférieure à cette valeur (p. ex. pour éviter les dégâts du gel).",
     "general_wind_threshold": "L'arrosage est ignoré si la vitesse du vent dépasse cette valeur (un vent fort réduit l'efficacité et provoque une dérive).",
     "zone_plant_type": "Choisissez un type de plante pour définir un coefficient cultural typique, ou « Personnalisé » pour saisir Kc vous-même.",
-    "zone_kc": "Met à l'échelle l'ET de référence (gazon) selon les plantes de cette zone. 1,0 = gazon de référence ; plus bas pour des plantations résistantes à la sécheresse, plus haut pour des cultures gourmandes. Seul le terme d'ET est mis à l'échelle, pas la pluie."
+    "zone_kc": "Met à l'échelle l'ET de référence (gazon) selon les plantes de cette zone. 1,0 = gazon de référence ; plus bas pour des plantations résistantes à la sécheresse, plus haut pour des cultures gourmandes. Seul le terme d'ET est mis à l'échelle, pas la pluie.",
+    "zone_soil_type": "Choisissez un type de sol pour définir un taux de drainage typique, ou laissez Personnalisé pour le saisir manuellement ci-dessous."
   },
   "wizard": {
     "title": "Assistant de configuration",
@@ -848,7 +868,12 @@
         "tip2": "Ajoutez d'autres zones depuis l'onglet Zones.",
         "tip3": "Affinez tous les paramètres depuis l'onglet Configuration.",
         "go_zones": "Aller aux Zones",
-        "go_setup": "Aller à la Configuration"
+        "go_setup": "Aller à la Configuration",
+        "schedule_name": "Quotidien",
+        "schedule_title": "Créer un programme d'arrosage",
+        "schedule_desc": "Votre système est configuré, mais il n'arrosera pas tant qu'aucun programme n'existe. Créez maintenant un programme quotidien pour toutes les zones (modifiable ou supprimable ensuite dans Configuration → Quand arroser).",
+        "schedule_create": "Créer un programme quotidien",
+        "schedule_created": "Programme quotidien créé."
       }
     },
     "stepper": {

@@ -408,6 +408,14 @@
           "shrubs": "Arbusti",
           "trees": "Alberi",
           "xeriscape": "Xeriscaping / resistente alla siccità"
+        },
+        "soil_type": "Tipo di terreno",
+        "soil_types": {
+          "custom": "Personalizzato (tasso manuale)",
+          "sand": "Sabbioso (drenaggio rapido)",
+          "loam": "Medio impasto (bilanciato)",
+          "silt": "Limoso (drenaggio lento)",
+          "clay": "Argilloso (drenaggio molto lento)"
         }
       },
       "no_items": "Non ci sono ancora zone definite.",
@@ -730,7 +738,18 @@
     "rain_sensor_placeholder": "es. binary_sensor.pioggia",
     "freeze_section_title": "Salta in caso di gelo",
     "freeze_threshold_label": "Salta se la temperatura minima è inferiore a",
-    "freeze_help": "Confronta la temperatura attuale e la minima prevista per la notte successiva; salta l'irrigazione quando è atteso il gelo, per proteggere tubi e piante."
+    "freeze_help": "Confronta la temperatura attuale e la minima prevista per la notte successiva; salta l'irrigazione quando è atteso il gelo, per proteggere tubi e piante.",
+    "forecast_rain_label": "Quando è prevista pioggia",
+    "forecast_rain_options": {
+      "ignore": "Ignorala",
+      "water_less": "Irriga meno",
+      "skip": "Salta l'irrigazione"
+    },
+    "forecast_rain_help": {
+      "ignore": "La pioggia prevista viene ignorata; le irrigazioni usano la durata calcolata.",
+      "water_less": "La pioggia prevista riduce la durata dell'irrigazione (il deficit resta nel secchio per essere riempito dalla pioggia reale).",
+      "skip": "Salta del tutto l'irrigazione quando è prevista pioggia sufficiente nella finestra di previsione."
+    }
   },
   "zone_sequencing": {
     "title": "Sequenza zone",
@@ -789,7 +808,8 @@
     "general_temp_threshold": "L'irrigazione viene saltata se la temperatura attuale è inferiore a questo valore (ad es. per prevenire danni da gelo).",
     "general_wind_threshold": "L'irrigazione viene saltata se la velocità del vento supera questo valore (il vento forte riduce l'efficienza e causa deriva).",
     "zone_plant_type": "Scegli un tipo di pianta per impostare un coefficiente colturale tipico, oppure «Personalizzato» per inserire Kc manualmente.",
-    "zone_kc": "Scala l'ET di riferimento (erba) alle piante di questa zona. 1.0 = erba di riferimento; più basso per piante resistenti alla siccità, più alto per colture esigenti. Viene scalato solo il termine ET, non la pioggia."
+    "zone_kc": "Scala l'ET di riferimento (erba) alle piante di questa zona. 1.0 = erba di riferimento; più basso per piante resistenti alla siccità, più alto per colture esigenti. Viene scalato solo il termine ET, non la pioggia.",
+    "zone_soil_type": "Scegli un tipo di terreno per impostare un drenaggio tipico, o lascia Personalizzato per inserirlo manualmente sotto."
   },
   "wizard": {
     "title": "Configurazione guidata",
@@ -851,7 +871,12 @@
         "tip2": "Aggiungi altre zone dalla scheda Zone.",
         "tip3": "Perfeziona tutte le impostazioni dalla scheda Configurazione.",
         "go_zones": "Vai a Zone",
-        "go_setup": "Vai a Configurazione"
+        "go_setup": "Vai a Configurazione",
+        "schedule_name": "Giornaliero",
+        "schedule_title": "Crea una pianificazione di irrigazione",
+        "schedule_desc": "Il sistema è configurato, ma non irrigherà finché non esiste una pianificazione. Crea ora una pianificazione giornaliera per tutte le zone (modificabile o rimovibile in seguito in Configurazione → Quando irrigare).",
+        "schedule_create": "Crea pianificazione giornaliera",
+        "schedule_created": "Pianificazione giornaliera creata."
       }
     },
     "stepper": {

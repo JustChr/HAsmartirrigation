@@ -41,6 +41,7 @@ import {
   ZONE_KC,
   ZONE_PLANT_TYPE,
   PLANT_TYPE_KC,
+  SOIL_TYPE_DRAINAGE,
   ZONE_DURATION,
   ZONE_LEAD_TIME,
   ZONE_MAPPING,
@@ -502,6 +503,62 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                   });
               }}"
             />
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.soil_type",
+                this.hass.language,
+              )}</span
+            >
+            <span slot="description"
+              >${localize(
+                "field_help.zone_soil_type",
+                this.hass.language,
+              )}</span
+            >
+            <select
+              class="settings-input"
+              .value="${live(
+                Object.keys(SOIL_TYPE_DRAINAGE).find(
+                  (s) => SOIL_TYPE_DRAINAGE[s] === zone.drainage_rate,
+                ) ?? "custom",
+              )}"
+              @change="${(e: Event) => {
+                const st = (e.target as HTMLSelectElement).value;
+                if (st !== "custom" && SOIL_TYPE_DRAINAGE[st] !== undefined)
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_DRAINAGE_RATE]: SOIL_TYPE_DRAINAGE[st],
+                  });
+              }}"
+            >
+              <option
+                value="custom"
+                ?selected="${!Object.values(SOIL_TYPE_DRAINAGE).includes(
+                  zone.drainage_rate ?? -1,
+                )}"
+              >
+                ${localize(
+                  "panels.zones.labels.soil_types.custom",
+                  this.hass.language,
+                )}
+              </option>
+              ${Object.keys(SOIL_TYPE_DRAINAGE).map(
+                (st) => html`
+                  <option
+                    value="${st}"
+                    ?selected="${SOIL_TYPE_DRAINAGE[st] === zone.drainage_rate}"
+                  >
+                    ${localize(
+                      `panels.zones.labels.soil_types.${st}`,
+                      this.hass!.language,
+                    )}
+                  </option>
+                `,
+              )}
+            </select>
           </ha-settings-row>
 
           <ha-settings-row>

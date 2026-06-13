@@ -363,6 +363,14 @@
           "shrubs": "Sträucher",
           "trees": "Bäume",
           "xeriscape": "Trockenbepflanzung"
+        },
+        "soil_type": "Bodenart",
+        "soil_types": {
+          "custom": "Benutzerdefiniert (Rate manuell setzen)",
+          "sand": "Sandig (schnell entwässernd)",
+          "loam": "Lehm (ausgewogen)",
+          "silt": "Schluff (langsam entwässernd)",
+          "clay": "Ton (sehr langsam entwässernd)"
         }
       },
       "no_items": "Es ist noch keine Zone vorhanden.",
@@ -725,7 +733,18 @@
     "rain_sensor_placeholder": "z.B. binary_sensor.regen",
     "freeze_section_title": "Bei Frost überspringen",
     "freeze_threshold_label": "Überspringen, wenn Mindesttemperatur unter",
-    "freeze_help": "Vergleicht die aktuelle Temperatur und die prognostizierte Tiefsttemperatur der kommenden Nacht; überspringt die Bewässerung bei erwartetem Frost, um Leitungen und Pflanzen zu schützen."
+    "freeze_help": "Vergleicht die aktuelle Temperatur und die prognostizierte Tiefsttemperatur der kommenden Nacht; überspringt die Bewässerung bei erwartetem Frost, um Leitungen und Pflanzen zu schützen.",
+    "forecast_rain_label": "Bei Regenvorhersage",
+    "forecast_rain_options": {
+      "ignore": "Ignorieren",
+      "water_less": "Weniger bewässern",
+      "skip": "Bewässerung überspringen"
+    },
+    "forecast_rain_help": {
+      "ignore": "Regenvorhersage wird ignoriert; Läufe verwenden die berechnete Dauer.",
+      "water_less": "Vorhergesagter Regen verkürzt die Laufdauer (das Defizit bleibt im Bucket, bis der echte Regen es auffüllt).",
+      "skip": "Lauf ganz überspringen, wenn im Vorausschau-Fenster genug Regen vorhergesagt wird."
+    }
   },
   "zone_sequencing": {
     "title": "Zonenreihenfolge",
@@ -784,7 +803,8 @@
     "general_temp_threshold": "Die Bewässerung wird übersprungen, wenn die aktuelle Temperatur unter diesem Wert liegt (z. B. zur Vermeidung von Frostschäden).",
     "general_wind_threshold": "Die Bewässerung wird übersprungen, wenn die Windgeschwindigkeit diesen Wert überschreitet (starker Wind verringert die Effizienz und verursacht Abdrift).",
     "zone_plant_type": "Wähle einen Pflanzentyp für einen typischen Pflanzenkoeffizienten oder „Benutzerdefiniert“, um Kc selbst einzugeben.",
-    "zone_kc": "Skaliert die Referenz-Verdunstung (Gras) auf die Pflanzen dieser Zone. 1,0 = Referenzgras; niedriger für trockenheitsresistente Bepflanzung, höher für durstige Kulturen. Nur der ET-Anteil wird skaliert – Regen nicht."
+    "zone_kc": "Skaliert die Referenz-Verdunstung (Gras) auf die Pflanzen dieser Zone. 1,0 = Referenzgras; niedriger für trockenheitsresistente Bepflanzung, höher für durstige Kulturen. Nur der ET-Anteil wird skaliert – Regen nicht.",
+    "zone_soil_type": "Wählen Sie eine Bodenart für eine typische Drainagerate, oder lassen Sie Benutzerdefiniert, um sie unten manuell einzugeben."
   },
   "wizard": {
     "title": "Einrichtungsassistent",
@@ -846,7 +866,12 @@
         "tip2": "Füge über den Tab „Zonen“ weitere Zonen hinzu.",
         "tip3": "Verfeinere alle Einstellungen über den Tab „Einrichtung“.",
         "go_zones": "Zu „Zonen“",
-        "go_setup": "Zur Einrichtung"
+        "go_setup": "Zur Einrichtung",
+        "schedule_name": "Täglich",
+        "schedule_title": "Bewässerungsplan erstellen",
+        "schedule_desc": "Ihr System ist konfiguriert, bewässert aber erst, wenn ein Plan existiert. Erstellen Sie jetzt einen täglichen Plan für alle Zonen (später unter Einrichtung → Wann bewässern änder- oder entfernbar).",
+        "schedule_create": "Täglichen Plan erstellen",
+        "schedule_created": "Täglicher Plan erstellt."
       }
     },
     "stepper": {

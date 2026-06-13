@@ -32,11 +32,18 @@ If enabled, set the time of calculation (HH:MM). Calculation uses the weather da
 
 These settings let you automatically skip irrigation when conditions are unfavourable. All checks are independent — any one of them can veto an irrigation event. The [dashboard's outlook banner](usage-dashboard.md#outlook-banner) shows you in advance whether the next run will likely be skipped, and why.
 
-#### Skip on forecasted precipitation
-If enabled, irrigation is skipped when the **total** forecasted precipitation across the look-ahead window exceeds the configured threshold (default 2 mm). Requires a weather service to be configured.
+#### When rain is forecast
+A single control decides how upcoming forecast rain affects watering. Requires a weather service to be configured.
 
-- **Forecast look-ahead (days)** — how many upcoming forecast days are added together for this check. The forecast starts at *tomorrow* (today is excluded), so `1` (the default) means just the next day, `2` the next two days, and so on.
-- **Upgrade note:** before `v2026.06.13` this window was hard-wired to two days. The default is now **1 day**, so an existing install will skip less aggressively than before. If you preferred the old behaviour, set the look-ahead back to `2`.
+- **Ignore it** — forecast rain is ignored; runs use the calculated duration.
+- **Water less** — the upcoming forecast precipitation (summed over the look-ahead window) is subtracted from the deficit used to compute the **duration**, so the zone waters a little less. The bucket keeps the *true* deficit, so when the rain actually falls it tops the bucket up the rest of the way — the forecast rain is never double-counted once collected. If the rain misses, the next run makes up the difference.
+- **Skip watering** — the run is skipped entirely when the **total** forecast precipitation across the look-ahead window exceeds the **precipitation threshold** (default 2 mm).
+
+For *Water less* and *Skip watering* you also set the **Forecast look-ahead (days)** — how many upcoming forecast days are added together. The forecast starts at *tomorrow* (today is excluded), so `1` (the default) means just the next day, `2` the next two days, and so on.
+
+> **Worked example (Water less).** A zone has a 10 mm deficit and 4 mm of rain is forecast within the look-ahead window. The run delivers **6 mm** and stops; the bucket is left 4 mm short, which the forecast rain is expected to fill. If the rain doesn't come, the deficit is still there and the next run waters it.
+
+**Upgrade notes.** Before `v2026.06.13` the look-ahead window was hard-wired to two days; the default is now **1 day** (set it back to `2` for the old behaviour). The *Water less* option was previously a separate **forecast-weighted durations** toggle on the *Experimental* tab — it now lives here, backed by the same setting, so existing configurations are unchanged.
 
 ![](assets/images/configuration-general-skip-1.png)
 

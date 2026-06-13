@@ -500,6 +500,14 @@
           "shrubs": "Shrubs",
           "trees": "Trees",
           "xeriscape": "Xeriscape / drought-tolerant"
+        },
+        "soil_type": "Soil type",
+        "soil_types": {
+          "custom": "Custom (set rate manually)",
+          "sand": "Sandy (fast draining)",
+          "loam": "Loam (balanced)",
+          "silt": "Silt (slow draining)",
+          "clay": "Clay (very slow draining)"
         }
       },
       "no_items": "There are no zones defined yet.",
@@ -731,7 +739,18 @@
     "rain_sensor_placeholder": "e.g. binary_sensor.rain",
     "freeze_section_title": "Skip on frost",
     "freeze_threshold_label": "Skip if minimum temperature is below",
-    "freeze_help": "Compares the current temperature and the coming night's forecast low; skips watering when frost is expected, to protect pipes and plants."
+    "freeze_help": "Compares the current temperature and the coming night's forecast low; skips watering when frost is expected, to protect pipes and plants.",
+    "forecast_rain_label": "When rain is forecast",
+    "forecast_rain_options": {
+      "ignore": "Ignore it",
+      "water_less": "Water less",
+      "skip": "Skip watering"
+    },
+    "forecast_rain_help": {
+      "ignore": "Forecast rain is ignored; runs use the calculated duration.",
+      "water_less": "Upcoming forecast rain trims the run duration (the deficit stays in the bucket for the real rain to fill).",
+      "skip": "Skip the run entirely when enough rain is forecast within the look-ahead window."
+    }
   },
   "coordinate_config": {
     "title": "Location Coordinates",
@@ -782,7 +801,8 @@
     "general_temp_threshold": "Irrigation is skipped if the current temperature is below this value (e.g. to prevent frost damage).",
     "general_wind_threshold": "Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift).",
     "zone_plant_type": "Pick a plant type to set a typical crop coefficient, or choose Custom to enter Kc yourself.",
-    "zone_kc": "Scales reference (grass) ET to this zone's plants. 1.0 = reference grass; lower for drought-tolerant planting, higher for thirsty crops. Only the ET term is scaled — rain is not."
+    "zone_kc": "Scales reference (grass) ET to this zone's plants. 1.0 = reference grass; lower for drought-tolerant planting, higher for thirsty crops. Only the ET term is scaled — rain is not.",
+    "zone_soil_type": "Pick a soil type to set a typical drainage rate, or leave Custom to enter it by hand below."
   },
   "wizard": {
     "title": "Setup Wizard",
@@ -850,7 +870,12 @@
         "tip2": "Add more zones from the Zones tab.",
         "tip3": "Refine all settings from the Setup tab.",
         "go_zones": "Go to Zones",
-        "go_setup": "Go to Setup"
+        "go_setup": "Go to Setup",
+        "schedule_name": "Daily",
+        "schedule_title": "Create a watering schedule",
+        "schedule_desc": "Your system is configured, but it won't water until a schedule exists. Create a daily schedule for all zones now (you can change or remove it later under Setup → When to Water).",
+        "schedule_create": "Create daily schedule",
+        "schedule_created": "Daily schedule created."
       }
     },
     "confirm_close": {

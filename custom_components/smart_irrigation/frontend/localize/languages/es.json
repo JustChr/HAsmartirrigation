@@ -364,6 +364,14 @@
           "shrubs": "Arbustos",
           "trees": "Árboles",
           "xeriscape": "Xerojardinería / tolerante a sequía"
+        },
+        "soil_type": "Tipo de suelo",
+        "soil_types": {
+          "custom": "Personalizado (tasa manual)",
+          "sand": "Arenoso (drenaje rápido)",
+          "loam": "Franco (equilibrado)",
+          "silt": "Limoso (drenaje lento)",
+          "clay": "Arcilloso (drenaje muy lento)"
         }
       },
       "no_items": "Aún no hay zonas definidas.",
@@ -726,7 +734,18 @@
     "rain_sensor_placeholder": "p.ej. binary_sensor.lluvia",
     "freeze_section_title": "Omitir con heladas",
     "freeze_threshold_label": "Omitir si la temperatura mínima es inferior a",
-    "freeze_help": "Compara la temperatura actual y la mínima prevista para la próxima noche; omite el riego cuando se esperan heladas, para proteger tuberías y plantas."
+    "freeze_help": "Compara la temperatura actual y la mínima prevista para la próxima noche; omite el riego cuando se esperan heladas, para proteger tuberías y plantas.",
+    "forecast_rain_label": "Cuando se prevé lluvia",
+    "forecast_rain_options": {
+      "ignore": "Ignorarla",
+      "water_less": "Regar menos",
+      "skip": "Omitir el riego"
+    },
+    "forecast_rain_help": {
+      "ignore": "La lluvia prevista se ignora; los riegos usan la duración calculada.",
+      "water_less": "La lluvia prevista recorta la duración del riego (el déficit permanece en el cubo para que lo llene la lluvia real).",
+      "skip": "Omitir el riego por completo cuando se prevé suficiente lluvia en la ventana de previsión."
+    }
   },
   "zone_sequencing": {
     "title": "Secuencia de zonas",
@@ -785,7 +804,8 @@
     "general_temp_threshold": "El riego se omite si la temperatura actual es inferior a este valor (p. ej. para evitar daños por heladas).",
     "general_wind_threshold": "El riego se omite si la velocidad del viento supera este valor (el viento fuerte reduce la eficiencia y causa deriva).",
     "zone_plant_type": "Elige un tipo de planta para fijar un coeficiente de cultivo típico, o «Personalizado» para introducir Kc tú mismo.",
-    "zone_kc": "Escala la ET de referencia (césped) a las plantas de esta zona. 1.0 = césped de referencia; menor para plantación tolerante a sequía, mayor para cultivos exigentes. Solo se escala el término de ET, no la lluvia."
+    "zone_kc": "Escala la ET de referencia (césped) a las plantas de esta zona. 1.0 = césped de referencia; menor para plantación tolerante a sequía, mayor para cultivos exigentes. Solo se escala el término de ET, no la lluvia.",
+    "zone_soil_type": "Elija un tipo de suelo para establecer una tasa de drenaje típica, o deje Personalizado para introducirla manualmente abajo."
   },
   "wizard": {
     "title": "Asistente de configuración",
@@ -847,7 +867,12 @@
         "tip2": "Añade más zonas desde la pestaña Zonas.",
         "tip3": "Ajusta todos los parámetros desde la pestaña Configuración.",
         "go_zones": "Ir a Zonas",
-        "go_setup": "Ir a Configuración"
+        "go_setup": "Ir a Configuración",
+        "schedule_name": "Diario",
+        "schedule_title": "Crear un programa de riego",
+        "schedule_desc": "Su sistema está configurado, pero no regará hasta que exista un programa. Cree ahora un programa diario para todas las zonas (podrá cambiarlo o eliminarlo después en Configuración → Cuándo regar).",
+        "schedule_create": "Crear programa diario",
+        "schedule_created": "Programa diario creado."
       }
     },
     "stepper": {

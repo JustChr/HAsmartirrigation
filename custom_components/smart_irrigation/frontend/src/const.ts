@@ -149,6 +149,17 @@ export const PLANT_TYPE_KC: Record<string, number> = {
   xeriscape: 0.3,
 };
 
+// Soil-type presets → drainage rate above field capacity (mm/h). Saves the
+// "adjust 5 mm/h by trial and error" guesswork; the stored value is still the
+// plain ``drainage_rate`` number, so "custom" leaves whatever was hand-set.
+// Coarse, well-drained soils shed surplus fast; clay holds it.
+export const SOIL_TYPE_DRAINAGE: Record<string, number> = {
+  sand: 35,
+  loam: 20,
+  silt: 10,
+  clay: 5,
+};
+
 export const CONF_ZONE_SEQUENCING = "zone_sequencing";
 export const CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential";
 export const CONF_ZONE_SEQUENCING_PARALLEL = "parallel";

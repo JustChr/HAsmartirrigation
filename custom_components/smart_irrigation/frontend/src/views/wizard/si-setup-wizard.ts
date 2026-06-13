@@ -10,6 +10,7 @@ import {
   saveModule,
   saveMapping,
   saveZone,
+  saveSchedule,
   fetchWeatherConfig,
   saveWeatherConfig,
   WeatherConfig,
@@ -90,6 +91,12 @@ export class SiSetupWizard extends LitElement {
   @state() private _zoneSize = "";
   @state() private _zoneThroughput = "";
   @state() private _zoneEntity = "";
+
+  // Done step — offer a default daily schedule (the biggest first-run cliff: a
+  // fully-configured system never waters until a schedule exists).
+  @state() private _scheduleTime = "06:00";
+  @state() private _scheduleCreated = false;
+  @state() private _creatingSchedule = false;
 
   async connectedCallback() {
     super.connectedCallback();
@@ -314,6 +321,34 @@ export class SiSetupWizard extends LitElement {
       lead_time: 0,
       linked_entity: this._zoneEntity || undefined,
     });
+  }
+
+  /**
+   * Create a daily irrigate schedule covering all zones at the chosen time.
+   * Mirrors the shape produced by the Schedules view's emptySchedule() so the
+   * entry is identical to a hand-made one.
+   */
+  private async _createDefaultSchedule() {
+    if (this._scheduleCreated || this._creatingSchedule) return;
+    this._error = "";
+    this._creatingSchedule = true;
+    try {
+      const lang = this.hass?.language ?? "en";
+      await saveSchedule(this.hass, {
+        name: localize("wizard.steps.done.schedule_name", lang) || "Daily",
+        type: "daily",
+        enabled: true,
+        time: this._scheduleTime || "06:00",
+        action: "irrigate",
+        zones: "all",
+      });
+      this._scheduleCreated = true;
+    } catch (e: unknown) {
+      this._error = e instanceof Error ? e.message : String(e);
+    } finally {
+      this._creatingSchedule = false;
+      this.requestUpdate();
+    }
   }
 
   // ---- render ----
@@ -806,6 +841,49 @@ export class SiSetupWizard extends LitElement {
           <li>${localize("wizard.steps.done.tip2", lang)}</li>
           <li>${localize("wizard.steps.done.tip3", lang)}</li>
         </ul>
+
+        <div class="schedule-offer">
+          ${this._scheduleCreated
+            ? html`
+                <div class="schedule-created">
+                  <ha-icon icon="mdi:calendar-check"></ha-icon>
+                  <span
+                    >${localize(
+                      "wizard.steps.done.schedule_created",
+                      lang,
+                    )}</span
+                  >
+                </div>
+              `
+            : html`
+                <p class="schedule-offer-title">
+                  ${localize("wizard.steps.done.schedule_title", lang)}
+                </p>
+                <p class="schedule-offer-desc">
+                  ${localize("wizard.steps.done.schedule_desc", lang)}
+                </p>
+                <div class="schedule-offer-row">
+                  <input
+                    type="time"
+                    class="wizard-input"
+                    .value="${this._scheduleTime}"
+                    @change="${(e: Event) => {
+                      this._scheduleTime = (e.target as HTMLInputElement).value;
+                    }}"
+                  />
+                  <button
+                    class="wizard-btn primary"
+                    @click="${this._createDefaultSchedule}"
+                    ?disabled="${this._creatingSchedule}"
+                  >
+                    ${this._creatingSchedule
+                      ? localize("common.saving-messages.saving", lang)
+                      : localize("wizard.steps.done.schedule_create", lang)}
+                  </button>
+                </div>
+              `}
+        </div>
+
         <div class="done-actions">
           <button
             class="wizard-btn primary"
@@ -1146,6 +1224,54 @@ export class SiSetupWizard extends LitElement {
         justify-content: center;
         flex-wrap: wrap;
         margin-top: 24px;
+      }
+
+      /* Default-schedule offer on the Done step */
+      .schedule-offer {
+        text-align: left;
+        background: var(--secondary-background-color);
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-top: 8px;
+      }
+
+      .schedule-offer-title {
+        margin: 0 0 4px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--primary-text-color);
+      }
+
+      .schedule-offer-desc {
+        margin: 0 0 12px;
+        font-size: 0.83rem;
+        color: var(--secondary-text-color);
+        line-height: 1.45;
+      }
+
+      .schedule-offer-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .schedule-offer-row .wizard-input {
+        width: auto;
+        flex: 0 0 auto;
+      }
+
+      .schedule-created {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #2e7d32;
+        font-weight: 500;
+        font-size: 0.9rem;
+      }
+
+      .schedule-created ha-icon {
+        --mdc-icon-size: 22px;
       }
 
       /* Error */
