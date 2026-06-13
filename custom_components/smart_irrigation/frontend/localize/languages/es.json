@@ -84,7 +84,8 @@
         "current-drainage-is": "El drenaje actual se calcula como",
         "drainage-integrated": "el excedente por encima de la capacidad de campo drena de forma continua durante el intervalo (Brooks–Corey), por lo que la tasa disminuye a medida que drena",
         "no-drainage": "El drenaje actual es 0 porque",
-        "forecast-weighting-applied": "La ponderación por pronóstico redujo el déficit por la lluvia prevista"
+        "forecast-weighting-applied": "La ponderación por pronóstico redujo el déficit por la lluvia prevista",
+        "crop-coefficient-applied": "Escalado por el coeficiente de cultivo"
       }
     }
   },
@@ -352,7 +353,18 @@
         "irrigate_now": "Regar ahora",
         "bucket_threshold": "Déficit mínimo para regar",
         "flow_sensor": "Sensor de caudalímetro (opcional)",
-        "flow_sensor_placeholder": "p. ej. sensor.zone_flow_rate"
+        "flow_sensor_placeholder": "p. ej. sensor.zone_flow_rate",
+        "plant_type": "Tipo de planta",
+        "kc": "Coeficiente de cultivo (Kc)",
+        "plant_types": {
+          "custom": "Personalizado (Kc manual)",
+          "lawn": "Césped",
+          "vegetables": "Huerto",
+          "flowers": "Macizo de flores",
+          "shrubs": "Arbustos",
+          "trees": "Árboles",
+          "xeriscape": "Xerojardinería / tolerante a sequía"
+        }
       },
       "no_items": "Aún no hay zonas definidas.",
       "title": "Zonas",
@@ -422,14 +434,16 @@
           "days_between": "Días entre riegos",
           "temperature": "Temperatura baja",
           "wind": "Viento fuerte",
-          "rain_sensor": "Sensor de lluvia"
+          "rain_sensor": "Sensor de lluvia",
+          "freeze": "Helada"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} días",
           "temperature": "{observed}° (por debajo de {threshold}°)",
           "wind": "{observed} (por encima de {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (por debajo de {threshold}°)"
         }
       },
       "calendar": {
@@ -694,7 +708,10 @@
     "wind_threshold_label": "Omitir si velocidad del viento superior a",
     "rain_sensor_section_title": "Condición del sensor de lluvia",
     "rain_sensor_label": "Entidad del sensor de lluvia (opcional)",
-    "rain_sensor_placeholder": "p.ej. binary_sensor.lluvia"
+    "rain_sensor_placeholder": "p.ej. binary_sensor.lluvia",
+    "freeze_section_title": "Omitir con heladas",
+    "freeze_threshold_label": "Omitir si la temperatura mínima es inferior a",
+    "freeze_help": "Compara la temperatura actual y la mínima prevista para la próxima noche; omite el riego cuando se esperan heladas, para proteger tuberías y plantas."
   },
   "zone_sequencing": {
     "title": "Secuencia de zonas",
@@ -751,7 +768,9 @@
     "general_autoupdateinterval": "Con qué frecuencia se recopilan los datos meteorológicos. Elige un valor que equilibre datos frescos con los límites de la API.",
     "general_precipitation_threshold": "El riego se omite si la precipitación total prevista en la ventana de previsión supera esta cantidad.",
     "general_temp_threshold": "El riego se omite si la temperatura actual es inferior a este valor (p. ej. para evitar daños por heladas).",
-    "general_wind_threshold": "El riego se omite si la velocidad del viento supera este valor (el viento fuerte reduce la eficiencia y causa deriva)."
+    "general_wind_threshold": "El riego se omite si la velocidad del viento supera este valor (el viento fuerte reduce la eficiencia y causa deriva).",
+    "zone_plant_type": "Elige un tipo de planta para fijar un coeficiente de cultivo típico, o «Personalizado» para introducir Kc tú mismo.",
+    "zone_kc": "Escala la ET de referencia (césped) a las plantas de esta zona. 1.0 = césped de referencia; menor para plantación tolerante a sequía, mayor para cultivos exigentes. Solo se escala el término de ET, no la lluvia."
   },
   "wizard": {
     "title": "Asistente de configuración",

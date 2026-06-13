@@ -84,7 +84,8 @@
         "current-drainage-is": "Aktuálna drenáž vypočítaná ako",
         "drainage-integrated": "prebytok nad poľnou kapacitou sa priebežne odvodňuje počas intervalu (Brooks–Corey), takže rýchlosť klesá počas odvodňovania",
         "no-drainage": "Aktuálna drenáž je 0, pretože",
-        "forecast-weighting-applied": "Váženie podľa predpovede znížilo deficit pre očakávaný dážď"
+        "forecast-weighting-applied": "Váženie podľa predpovede znížilo deficit pre očakávaný dážď",
+        "crop-coefficient-applied": "Škálované plodinovým koeficientom"
       }
     }
   },
@@ -351,7 +352,18 @@
         "irrigate_now": "Zavlažiť teraz",
         "bucket_threshold": "Minimálny deficit pre závlahu",
         "flow_sensor": "Senzor prietokomera (voliteľné)",
-        "flow_sensor_placeholder": "napr. sensor.zone_flow_rate"
+        "flow_sensor_placeholder": "napr. sensor.zone_flow_rate",
+        "plant_type": "Typ rastliny",
+        "kc": "Plodinový koeficient (Kc)",
+        "plant_types": {
+          "custom": "Vlastné (Kc ručne)",
+          "lawn": "Trávnik",
+          "vegetables": "Zeleninová záhrada",
+          "flowers": "Kvetinový záhon",
+          "shrubs": "Kríky",
+          "trees": "Stromy",
+          "xeriscape": "Sucho znášajúce"
+        }
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
       "title": "Zóny",
@@ -421,14 +433,16 @@
           "days_between": "Dni medzi zavlažovaniami",
           "temperature": "Nízka teplota",
           "wind": "Silný vietor",
-          "rain_sensor": "Senzor dažďa"
+          "rain_sensor": "Senzor dažďa",
+          "freeze": "Mráz"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} dní",
           "temperature": "{observed}° (pod {threshold}°)",
           "wind": "{observed} (nad {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (pod {threshold}°)"
         }
       },
       "calendar": {
@@ -693,7 +707,10 @@
     "wind_threshold_label": "Preskočiť ak rýchlosť vetra nad",
     "rain_sensor_section_title": "Podmienka dažďového senzora",
     "rain_sensor_label": "Entita dažďového senzora (voliteľné)",
-    "rain_sensor_placeholder": "napr. binary_sensor.dazd"
+    "rain_sensor_placeholder": "napr. binary_sensor.dazd",
+    "freeze_section_title": "Preskočiť pri mraze",
+    "freeze_threshold_label": "Preskočiť, ak je minimálna teplota pod",
+    "freeze_help": "Porovnáva aktuálnu teplotu a predpovedané minimum nadchádzajúcej noci; pri očakávanom mraze preskočí zavlažovanie, aby ochránilo potrubie a rastliny."
   },
   "zone_sequencing": {
     "title": "Poradie zón",
@@ -750,7 +767,9 @@
     "general_autoupdateinterval": "Ako často sa získavajú poveternostné údaje. Zvoľ hodnotu, ktorá vyvažuje čerstvé údaje a limity API.",
     "general_precipitation_threshold": "Zavlažovanie sa preskočí, ak celkové predpovedané zrážky v okne predpovede prekročia toto množstvo.",
     "general_temp_threshold": "Zavlažovanie sa preskočí, ak je aktuálna teplota pod touto hodnotou (napr. na zabránenie poškodeniu mrazom).",
-    "general_wind_threshold": "Zavlažovanie sa preskočí, ak rýchlosť vetra prekročí túto hodnotu (silný vietor znižuje účinnosť a spôsobuje úlet)."
+    "general_wind_threshold": "Zavlažovanie sa preskočí, ak rýchlosť vetra prekročí túto hodnotu (silný vietor znižuje účinnosť a spôsobuje úlet).",
+    "zone_plant_type": "Vyberte typ rastliny pre typický plodinový koeficient, alebo zvoľte Vlastné a zadajte Kc sami.",
+    "zone_kc": "Škáluje referenčnú ET (tráva) na rastliny tejto zóny. 1,0 = referenčná tráva; nižšie pre sucho znášajúce rastliny, vyššie pre náročné plodiny. Škáluje sa iba člen ET — dážď nie."
   },
   "wizard": {
     "title": "Sprievodca nastavením",

@@ -235,6 +235,13 @@ class LiveEstimateMixin:
             # local time since last_calc is naive local (see _parse_local_naive).
             now_local = dt_util.now().replace(tzinfo=None)
             elapsed_hours = max(0.0, (now_local - last_calc).total_seconds() / 3600.0)
+            # Crop coefficient (WS-4): scale the intraday ET0 term by the zone's Kc
+            # so the live deficit stays consistent with the daily calc (which also
+            # applies Kc to the ET term only). Precip is NOT scaled. Default 1.0.
+            kc = zone.get(const.ZONE_KC, const.CONF_DEFAULT_KC)
+            if kc is None:
+                kc = const.CONF_DEFAULT_KC
+            et_mm = et_mm * kc
             live_mm = live_deficit(
                 bucket_mm,
                 et_mm,

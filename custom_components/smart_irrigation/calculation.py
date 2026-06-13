@@ -423,6 +423,14 @@ class CalculationMixin:
                 return None
         # Scale module ET value by interval (hour_multiplier = fractional days)
         _LOGGER.debug("[calculate-module]: retrieved from module: %s", delta)
+        # Crop coefficient (WS-4): scale the ET0 (reference-grass) term ONLY by the
+        # zone's Kc — real plants use a fraction/multiple of reference ET. Precip is
+        # NOT scaled. Default Kc 1.0 ⇒ behaviour identical to reference ET.
+        kc = zone.get(const.ZONE_KC, const.CONF_DEFAULT_KC)
+        if kc is None:
+            kc = const.CONF_DEFAULT_KC
+        et_term = delta
+        delta = delta * kc
         hour_multiplier = weatherdata.get(const.MAPPING_DATA_MULTIPLIER, 1.0)
         _LOGGER.debug("[calculate-module]: hour_multiplier: %s", hour_multiplier)
         delta = delta * hour_multiplier + precip
@@ -518,6 +526,16 @@ class CalculationMixin:
             )
             + f" {data[const.ZONE_DELTA]:.2f}."
         )
+        # Surface the crop-coefficient scaling when a non-default Kc is in effect.
+        if kc != const.CONF_DEFAULT_KC:
+            explanation += (
+                " "
+                + await localize(
+                    "module.calculation.explanation.crop-coefficient-applied",
+                    self.hass.config.language,
+                )
+                + f" (Kc {kc:.2f} &times; {et_term:.2f})."
+            )
         explanation += (
             await localize(
                 "module.calculation.explanation.bucket-was", self.hass.config.language

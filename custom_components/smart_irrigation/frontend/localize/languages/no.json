@@ -84,7 +84,8 @@
         "current-drainage-is": "Gjeldende drenering beregnet som",
         "drainage-integrated": "overskuddet over feltkapasiteten dreneres kontinuerlig over vinduet (Brooks–Corey), så raten faller etter hvert som det dreneres",
         "no-drainage": "Gjeldende drenering er 0 fordi",
-        "forecast-weighting-applied": "Værvarselvekting reduserte underskuddet for forventet regn"
+        "forecast-weighting-applied": "Værvarselvekting reduserte underskuddet for forventet regn",
+        "crop-coefficient-applied": "Skalert med plantekoeffisienten"
       }
     }
   },
@@ -352,7 +353,18 @@
         "irrigate_now": "Vann nå",
         "bucket_threshold": "Minimum underskudd for vanning",
         "flow_sensor": "Strømningsmåler-sensor (valgfritt)",
-        "flow_sensor_placeholder": "f.eks. sensor.zone_flow_rate"
+        "flow_sensor_placeholder": "f.eks. sensor.zone_flow_rate",
+        "plant_type": "Plantetype",
+        "kc": "Plantekoeffisient (Kc)",
+        "plant_types": {
+          "custom": "Egendefinert (Kc manuelt)",
+          "lawn": "Plen",
+          "vegetables": "Kjøkkenhage",
+          "flowers": "Blomsterbed",
+          "shrubs": "Busker",
+          "trees": "Trær",
+          "xeriscape": "Tørketålende"
+        }
       },
       "no_items": "Det er ingen definerte soner ennå.",
       "title": "Soner",
@@ -422,14 +434,16 @@
           "days_between": "Dager mellom vanninger",
           "temperature": "Lav temperatur",
           "wind": "Sterk vind",
-          "rain_sensor": "Regnsensor"
+          "rain_sensor": "Regnsensor",
+          "freeze": "Frost"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} dager",
           "temperature": "{observed}° (under {threshold}°)",
           "wind": "{observed} (over {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (under {threshold}°)"
         }
       },
       "calendar": {
@@ -695,7 +709,10 @@
     "wind_threshold_label": "Hopp over hvis vindhastighet over",
     "rain_sensor_section_title": "Regnsensorbetingelse",
     "rain_sensor_label": "Regnsensor-enhet (valgfritt)",
-    "rain_sensor_placeholder": "f.eks. binary_sensor.regn"
+    "rain_sensor_placeholder": "f.eks. binary_sensor.regn",
+    "freeze_section_title": "Hopp over ved frost",
+    "freeze_threshold_label": "Hopp over hvis minimumstemperaturen er under",
+    "freeze_help": "Sammenligner gjeldende temperatur og varslet minimum for kommende natt; hopper over vanning når frost er ventet, for å beskytte rør og planter."
   },
   "zone_sequencing": {
     "title": "Sonesekvens",
@@ -752,7 +769,9 @@
     "general_autoupdateinterval": "Hvor ofte værdata samles inn. Velg en verdi som balanserer ferske data mot API-grenser.",
     "general_precipitation_threshold": "Vanning hoppes over hvis total varslet nedbør over varslingsvinduet overstiger denne mengden.",
     "general_temp_threshold": "Vanning hoppes over hvis nåværende temperatur er under denne verdien (f.eks. for å forhindre frostskade).",
-    "general_wind_threshold": "Vanning hoppes over hvis vindhastigheten overstiger denne verdien (sterk vind reduserer effektiviteten og forårsaker avdrift)."
+    "general_wind_threshold": "Vanning hoppes over hvis vindhastigheten overstiger denne verdien (sterk vind reduserer effektiviteten og forårsaker avdrift).",
+    "zone_plant_type": "Velg en plantetype for å sette en typisk plantekoeffisient, eller velg Egendefinert for å angi Kc selv.",
+    "zone_kc": "Skalerer referanse-ET (gress) til plantene i denne sonen. 1,0 = referansegress; lavere for tørketålende planter, høyere for tørste vekster. Bare ET-leddet skaleres – ikke regn."
   },
   "wizard": {
     "title": "Oppsettsveiviser",

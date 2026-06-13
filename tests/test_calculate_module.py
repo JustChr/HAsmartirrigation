@@ -164,3 +164,51 @@ async def test_unknown_module_returns_none():
 
     data = await coord.calculate_module(_zone(), _weather(5.0), None)
     assert data is None
+
+
+# --- WS-4: crop coefficient (Kc) scaling of the ET term ----------------------
+
+
+async def test_kc_default_one_is_behaviour_identical():
+    """An absent / 1.0 Kc reproduces the reference-ET delta exactly.
+
+    Passthrough delta = -et = -5; Kc 1.0 leaves it unchanged.
+    """
+    coord = _make_coordinator()
+    data = await coord.calculate_module(_zone(kc=1.0), _weather(5.0), None)
+    assert data[const.ZONE_DELTA] == pytest.approx(-5.0)
+    assert data[const.ZONE_BUCKET] == pytest.approx(-5.0)
+
+
+async def test_kc_scales_only_the_et_term():
+    """Kc multiplies the ET term before the interval scaling.
+
+    delta = (-5 * Kc 0.5) * multiplier 1 = -2.5. Duration follows the smaller
+    deficit: 2.5/60*3600 = 150 s.
+    """
+    coord = _make_coordinator()
+    data = await coord.calculate_module(_zone(kc=0.5), _weather(5.0), None)
+    assert data[const.ZONE_DELTA] == pytest.approx(-2.5)
+    assert data[const.ZONE_BUCKET] == pytest.approx(-2.5)
+    assert data[const.ZONE_DURATION] == 150
+
+
+async def test_kc_above_one_increases_deficit():
+    """A thirsty-crop Kc > 1 deepens the deficit proportionally.
+
+    delta = -4 * 1.25 = -5.0.
+    """
+    coord = _make_coordinator()
+    data = await coord.calculate_module(_zone(kc=1.25), _weather(4.0), None)
+    assert data[const.ZONE_DELTA] == pytest.approx(-5.0)
+
+
+async def test_kc_does_not_scale_precipitation():
+    """Kc scales ET only; precipitation passes through untouched.
+
+    Static modules add precip separately; here Passthrough has no precip, so we
+    assert the math is purely on the ET term: a None Kc falls back to 1.0.
+    """
+    coord = _make_coordinator()
+    data = await coord.calculate_module(_zone(kc=None), _weather(5.0), None)
+    assert data[const.ZONE_DELTA] == pytest.approx(-5.0)

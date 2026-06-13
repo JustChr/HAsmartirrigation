@@ -38,6 +38,9 @@ import {
   UNIT_SECONDS,
   ZONE_BUCKET,
   ZONE_DRAINAGE_RATE,
+  ZONE_KC,
+  ZONE_PLANT_TYPE,
+  PLANT_TYPE_KC,
   ZONE_DURATION,
   ZONE_LEAD_TIME,
   ZONE_MAPPING,
@@ -531,6 +534,83 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                   this.handleEditZone(index, {
                     ...zone,
                     [ZONE_DRAINAGE_RATE]: v,
+                  });
+              }}"
+            />
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.plant_type",
+                this.hass.language,
+              )}</span
+            >
+            <span slot="description"
+              >${localize(
+                "field_help.zone_plant_type",
+                this.hass.language,
+              )}</span
+            >
+            <select
+              class="settings-input"
+              .value="${live(zone.plant_type ?? "custom")}"
+              @change="${(e: Event) => {
+                const pt = (e.target as HTMLSelectElement).value;
+                const next: Partial<SmartIrrigationZone> = {
+                  [ZONE_PLANT_TYPE]: pt,
+                };
+                if (pt !== "custom" && PLANT_TYPE_KC[pt] !== undefined)
+                  next[ZONE_KC] = PLANT_TYPE_KC[pt];
+                this.handleEditZone(index, { ...zone, ...next });
+              }}"
+            >
+              <option
+                value="custom"
+                ?selected="${(zone.plant_type ?? "custom") === "custom"}"
+              >
+                ${localize(
+                  "panels.zones.labels.plant_types.custom",
+                  this.hass.language,
+                )}
+              </option>
+              ${Object.keys(PLANT_TYPE_KC).map(
+                (pt) => html`
+                  <option value="${pt}" ?selected="${zone.plant_type === pt}">
+                    ${localize(
+                      `panels.zones.labels.plant_types.${pt}`,
+                      this.hass!.language,
+                    )}
+                  </option>
+                `,
+              )}
+            </select>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize("panels.zones.labels.kc", this.hass.language)}</span
+            >
+            <span slot="description"
+              >${localize("field_help.zone_kc", this.hass.language)}</span
+            >
+            <input
+              type="number"
+              class="settings-input shortfield"
+              step="0.05"
+              min="0"
+              inputmode="decimal"
+              .value="${parseFloat((zone.kc ?? 1).toFixed(2))}"
+              @input="${(e: Event) => {
+                const v =
+                  Math.round(
+                    (e.target as HTMLInputElement).valueAsNumber * 100,
+                  ) / 100;
+                if (!isNaN(v))
+                  this.handleEditZone(index, {
+                    ...zone,
+                    [ZONE_KC]: v,
+                    [ZONE_PLANT_TYPE]: "custom",
                   });
               }}"
             />

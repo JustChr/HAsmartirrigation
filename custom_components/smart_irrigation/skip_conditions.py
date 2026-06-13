@@ -20,6 +20,7 @@ SKIP_PRECIPITATION = "precipitation"
 SKIP_DAYS_BETWEEN = "days_between"
 SKIP_TEMPERATURE = "temperature"
 SKIP_WIND = "wind"
+SKIP_FREEZE = "freeze"
 SKIP_RAIN_SENSOR = "rain_sensor"
 
 
@@ -68,6 +69,7 @@ class SkipConditionsMixin:
             await self._eval_days_between(config),
             await self._eval_temp(config),
             await self._eval_wind(config),
+            await self._eval_freeze(config),
             await self._eval_rain_sensor(config),
         ]
         would_skip = any(c["enabled"] and c["would_skip"] for c in checks)
@@ -240,6 +242,59 @@ class SkipConditionsMixin:
                 result["would_skip"] = wind > threshold
         except Exception as e:  # noqa: BLE001 — preview must never raise
             _LOGGER.debug("Skip preview: wind eval failed: %s", e)
+        return result
+
+    async def _eval_freeze(self, config) -> dict:
+        """Structured freeze guard (frost expected → skip to protect pipes/plants).
+
+        Frost-specific and distinct from the low-temperature guard: it watches the
+        *minimum* of the current reading and the next forecast day's minimum (the
+        coming night, which the daily forecast covers since clients exclude today),
+        so a clear sub-freezing night is caught even when it is mild right now.
+        """
+        threshold = config.get(
+            const.CONF_FREEZE_THRESHOLD, const.CONF_DEFAULT_FREEZE_THRESHOLD
+        )
+        result = {
+            "id": SKIP_FREEZE,
+            "enabled": bool(
+                config.get(
+                    const.CONF_SKIP_FREEZE_ENABLED,
+                    const.CONF_DEFAULT_SKIP_FREEZE_ENABLED,
+                )
+            ),
+            "would_skip": False,
+            "available": False,
+            "observed": None,
+            "threshold": threshold,
+        }
+        if not result["enabled"] or self._WeatherServiceClient is None:
+            return result
+        candidates = []
+        try:
+            data = await self.hass.async_add_executor_job(
+                self._WeatherServiceClient.get_data
+            )
+            temp = (data or {}).get(const.MAPPING_TEMPERATURE)
+            if temp is not None:
+                candidates.append(temp)
+        except Exception as e:  # noqa: BLE001 — preview must never raise
+            _LOGGER.debug("Skip preview: freeze (current) eval failed: %s", e)
+        try:
+            forecast_data = await self.hass.async_add_executor_job(
+                self._WeatherServiceClient.get_forecast_data
+            )
+            if forecast_data:
+                tmin = forecast_data[0].get(const.MAPPING_MIN_TEMP)
+                if tmin is not None:
+                    candidates.append(tmin)
+        except Exception as e:  # noqa: BLE001 — preview must never raise
+            _LOGGER.debug("Skip preview: freeze (forecast) eval failed: %s", e)
+        if candidates:
+            observed = min(candidates)
+            result["available"] = True
+            result["observed"] = round(observed, 1)
+            result["would_skip"] = observed < threshold
         return result
 
     async def _eval_rain_sensor(self, config) -> dict:

@@ -52,6 +52,14 @@ If enabled, irrigation is skipped when the current wind speed (from the weather 
 - Default threshold: 6.9 m/s (≈ 25 km/h)
 - Requires a weather service to be configured.
 
+#### Skip on frost
+If enabled, irrigation is skipped when frost is expected, to protect pipes and plants from freezing. The guard compares **two** values and skips when the lower of them is below the configured threshold (default **1 °C**):
+
+- the **current** temperature from the weather service, and
+- the **forecast minimum** for the coming night (the next forecast day).
+
+This is distinct from *Skip on low temperature*: that guard looks only at the current reading, whereas the frost guard also looks ahead so a clear, sub-freezing night is caught even when it is still mild at run time. Requires a weather service to be configured. Default **off**.
+
 #### Rain sensor
 Optionally specify a `binary_sensor` entity. If that sensor is `on` when irrigation would normally fire, the event is skipped. No weather service is required for this check — it works with any binary sensor (e.g. a physical rain detector, a virtual sensor from a weather integration).
 

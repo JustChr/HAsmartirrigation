@@ -43,6 +43,15 @@ CONF_DEFAULT_WIND_THRESHOLD = 6.9  # m/s (~25 km/h)
 CONF_RAIN_SENSOR = "rain_sensor"  # entity_id of a binary_sensor; None = disabled
 CONF_DEFAULT_RAIN_SENSOR = None
 
+# Freeze guard (WS-4): skip irrigation when frost is expected, to protect pipes
+# and plants. Distinct from the low-temperature guard above — frost-specific and
+# evaluated against the forecast minimum (the coming night), not just the current
+# reading. Default OFF so existing installs are unaffected.
+CONF_SKIP_FREEZE_ENABLED = "skip_on_freeze_enabled"
+CONF_FREEZE_THRESHOLD = "freeze_threshold"  # °C — skip if min temp is BELOW this
+CONF_DEFAULT_SKIP_FREEZE_ENABLED = False
+CONF_DEFAULT_FREEZE_THRESHOLD = 1.0  # °C — frost forms near 0 °C
+
 # Experimental features (opt-in, surfaced on the Setup → Experimental tab).
 # Forecast weighting: water LESS (shorter durations) when rain is forecast,
 # folding the look-ahead precipitation into the deficit used for the duration
@@ -262,6 +271,25 @@ ZONE_LAST_IRRIGATION = "last_irrigation"
 ZONE_NUMBER_OF_DATA_POINTS = "number_of_data_points"
 ZONE_DRAINAGE_RATE = "drainage_rate"
 ZONE_CURRENT_DRAINAGE = "current_drainage"
+# Crop coefficient (Kc, WS-4): scales the ET0 (reference-grass) term ONLY at
+# calculation time so the deficit reflects the zone's actual plant water use.
+# Precipitation is NOT scaled. Default 1.0 ⇒ behaviour identical to reference ET.
+ZONE_KC = "kc"
+CONF_DEFAULT_KC = 1.0
+# Optional plant-type preset that seeds a sensible Kc (the stored value is still
+# the plain ``kc`` number, so power users can override it = "custom"). Mid-season
+# FAO-56-style coefficients relative to grass reference ET0.
+ZONE_PLANT_TYPE = "plant_type"
+PLANT_TYPE_CUSTOM = "custom"
+CONF_DEFAULT_PLANT_TYPE = PLANT_TYPE_CUSTOM
+PLANT_TYPE_KC = {
+    "lawn": 0.8,
+    "vegetables": 1.0,
+    "flowers": 0.9,
+    "shrubs": 0.5,
+    "trees": 0.7,
+    "xeriscape": 0.3,
+}
 ZONE_LINKED_ENTITY = "linked_entity"
 ZONE_BUCKET_THRESHOLD = "bucket_threshold"
 # mm; new zones require a 10 mm deficit before irrigating (bucket < -10).

@@ -84,7 +84,8 @@
         "current-drainage-is": "Current drainage is calculated as",
         "drainage-integrated": "the surplus above field capacity drains continuously over the window (Brooks–Corey), so the rate falls as it drains",
         "no-drainage": "Current drainage is 0 because",
-        "forecast-weighting-applied": "Forecast weighting reduced the deficit for the expected rain"
+        "forecast-weighting-applied": "Forecast weighting reduced the deficit for the expected rain",
+        "crop-coefficient-applied": "Scaled by the crop coefficient"
       }
     }
   },
@@ -488,7 +489,18 @@
         "flow_sensor": "Flow meter sensor (optional)",
         "flow_sensor_placeholder": "e.g. sensor.zone_flow_rate",
         "irrigate_now": "Irrigate Now",
-        "bucket_threshold": "Minimum deficit to irrigate"
+        "bucket_threshold": "Minimum deficit to irrigate",
+        "plant_type": "Plant type",
+        "kc": "Crop coefficient (Kc)",
+        "plant_types": {
+          "custom": "Custom (set Kc manually)",
+          "lawn": "Lawn / turf",
+          "vegetables": "Vegetable garden",
+          "flowers": "Flower bed",
+          "shrubs": "Shrubs",
+          "trees": "Trees",
+          "xeriscape": "Xeriscape / drought-tolerant"
+        }
       },
       "no_items": "There are no zones defined yet.",
       "title": "Zones",
@@ -551,14 +563,16 @@
           "days_between": "Days between watering",
           "temperature": "Low temperature",
           "wind": "High wind",
-          "rain_sensor": "Rain sensor"
+          "rain_sensor": "Rain sensor",
+          "freeze": "Frost"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} days",
           "temperature": "{observed}° (below {threshold}°)",
           "wind": "{observed} (above {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (below {threshold}°)"
         }
       },
       "calendar": {
@@ -699,7 +713,10 @@
     "wind_threshold_label": "Skip if wind speed is above",
     "rain_sensor_section_title": "Skip on rain sensor",
     "rain_sensor_label": "Rain sensor entity (optional)",
-    "rain_sensor_placeholder": "e.g. binary_sensor.rain"
+    "rain_sensor_placeholder": "e.g. binary_sensor.rain",
+    "freeze_section_title": "Skip on frost",
+    "freeze_threshold_label": "Skip if minimum temperature is below",
+    "freeze_help": "Compares the current temperature and the coming night's forecast low; skips watering when frost is expected, to protect pipes and plants."
   },
   "coordinate_config": {
     "title": "Location Coordinates",
@@ -748,7 +765,9 @@
     "general_autoupdateinterval": "How often weather data is collected. Choose a value that balances fresh data against API rate limits.",
     "general_precipitation_threshold": "Irrigation is skipped if total forecast precipitation across the look-ahead window exceeds this amount.",
     "general_temp_threshold": "Irrigation is skipped if the current temperature is below this value (e.g. to prevent frost damage).",
-    "general_wind_threshold": "Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift)."
+    "general_wind_threshold": "Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift).",
+    "zone_plant_type": "Pick a plant type to set a typical crop coefficient, or choose Custom to enter Kc yourself.",
+    "zone_kc": "Scales reference (grass) ET to this zone's plants. 1.0 = reference grass; lower for drought-tolerant planting, higher for thirsty crops. Only the ET term is scaled — rain is not."
   },
   "wizard": {
     "title": "Setup Wizard",

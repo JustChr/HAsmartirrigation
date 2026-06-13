@@ -84,7 +84,8 @@
         "current-drainage-is": "Huidige drainage berekend als",
         "drainage-integrated": "het overschot boven veldcapaciteit draineert continu over het venster (Brooks–Corey), dus de snelheid neemt af naarmate het afvloeit",
         "no-drainage": "Huidige drainage is 0 omdat",
-        "forecast-weighting-applied": "Voorspellingsweging verlaagde het tekort voor de verwachte regen"
+        "forecast-weighting-applied": "Voorspellingsweging verlaagde het tekort voor de verwachte regen",
+        "crop-coefficient-applied": "Geschaald met de gewascoëfficiënt"
       }
     }
   },
@@ -351,7 +352,18 @@
         "irrigate_now": "Nu bewateren",
         "bucket_threshold": "Minimum tekort voor bewatering",
         "flow_sensor": "Doorstroommeter-sensor (optioneel)",
-        "flow_sensor_placeholder": "bijv. sensor.zone_flow_rate"
+        "flow_sensor_placeholder": "bijv. sensor.zone_flow_rate",
+        "plant_type": "Plantentype",
+        "kc": "Gewascoëfficiënt (Kc)",
+        "plant_types": {
+          "custom": "Aangepast (Kc handmatig)",
+          "lawn": "Gazon",
+          "vegetables": "Moestuin",
+          "flowers": "Bloembed",
+          "shrubs": "Struiken",
+          "trees": "Bomen",
+          "xeriscape": "Droogtebestendig"
+        }
       },
       "no_items": "Er zijn nog geen zones.",
       "title": "Zones",
@@ -421,14 +433,16 @@
           "days_between": "Dagen tussen beurten",
           "temperature": "Lage temperatuur",
           "wind": "Harde wind",
-          "rain_sensor": "Regensensor"
+          "rain_sensor": "Regensensor",
+          "freeze": "Vorst"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} dagen",
           "temperature": "{observed}° (onder {threshold}°)",
           "wind": "{observed} (boven {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (onder {threshold}°)"
         }
       },
       "calendar": {
@@ -693,7 +707,10 @@
     "wind_threshold_label": "Overslaan als windsnelheid boven",
     "rain_sensor_section_title": "Regensensorvoorwaarde",
     "rain_sensor_label": "Regensensor-entiteit (optioneel)",
-    "rain_sensor_placeholder": "bijv. binary_sensor.regen"
+    "rain_sensor_placeholder": "bijv. binary_sensor.regen",
+    "freeze_section_title": "Overslaan bij vorst",
+    "freeze_threshold_label": "Overslaan als de minimumtemperatuur lager is dan",
+    "freeze_help": "Vergelijkt de huidige temperatuur en de verwachte minimumtemperatuur van de komende nacht; slaat besproeiing over bij verwachte vorst, om leidingen en planten te beschermen."
   },
   "zone_sequencing": {
     "title": "Zone-volgorde",
@@ -750,7 +767,9 @@
     "general_autoupdateinterval": "Hoe vaak weergegevens worden verzameld. Kies een waarde die verse gegevens afweegt tegen API-limieten.",
     "general_precipitation_threshold": "Irrigatie wordt overgeslagen als de totale voorspelde neerslag over het vooruitblik-venster deze hoeveelheid overschrijdt.",
     "general_temp_threshold": "Irrigatie wordt overgeslagen als de huidige temperatuur onder deze waarde ligt (bijv. om vorstschade te voorkomen).",
-    "general_wind_threshold": "Irrigatie wordt overgeslagen als de windsnelheid deze waarde overschrijdt (harde wind vermindert de efficiëntie en veroorzaakt drift)."
+    "general_wind_threshold": "Irrigatie wordt overgeslagen als de windsnelheid deze waarde overschrijdt (harde wind vermindert de efficiëntie en veroorzaakt drift).",
+    "zone_plant_type": "Kies een plantentype voor een typische gewascoëfficiënt, of kies Aangepast om Kc zelf in te voeren.",
+    "zone_kc": "Schaalt de referentie-ET (gras) naar de planten van deze zone. 1,0 = referentiegras; lager voor droogtebestendige beplanting, hoger voor dorstige gewassen. Alleen de ET-term wordt geschaald — regen niet."
   },
   "wizard": {
     "title": "Configuratiewizard",

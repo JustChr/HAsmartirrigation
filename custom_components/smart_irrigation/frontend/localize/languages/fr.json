@@ -84,7 +84,8 @@
         "current-drainage-is": "Le drainage actuel est calculé comme",
         "drainage-integrated": "l'excédent au-dessus de la capacité au champ se draine en continu sur l'intervalle (Brooks–Corey), le débit diminue donc à mesure qu'il s'écoule",
         "no-drainage": "Le drainage actuel est 0 parce que",
-        "forecast-weighting-applied": "La pondération par prévision a réduit le déficit pour la pluie attendue"
+        "forecast-weighting-applied": "La pondération par prévision a réduit le déficit pour la pluie attendue",
+        "crop-coefficient-applied": "Mis à l'échelle par le coefficient cultural"
       }
     }
   },
@@ -353,7 +354,18 @@
         "irrigate_now": "Irriguer maintenant",
         "bucket_threshold": "Déficit minimum pour irriguer",
         "flow_sensor": "Capteur de débitmètre (optionnel)",
-        "flow_sensor_placeholder": "p. ex. sensor.zone_flow_rate"
+        "flow_sensor_placeholder": "p. ex. sensor.zone_flow_rate",
+        "plant_type": "Type de plante",
+        "kc": "Coefficient cultural (Kc)",
+        "plant_types": {
+          "custom": "Personnalisé (Kc manuel)",
+          "lawn": "Pelouse / gazon",
+          "vegetables": "Potager",
+          "flowers": "Massif de fleurs",
+          "shrubs": "Arbustes",
+          "trees": "Arbres",
+          "xeriscape": "Xéropaysagisme / résistant à la sécheresse"
+        }
       },
       "no_items": "Il n'y a pas encore de zone définie.",
       "title": "Zones",
@@ -423,14 +435,16 @@
           "days_between": "Jours entre arrosages",
           "temperature": "Température basse",
           "wind": "Vent fort",
-          "rain_sensor": "Capteur de pluie"
+          "rain_sensor": "Capteur de pluie",
+          "freeze": "Gel"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} jours",
           "temperature": "{observed}° (sous {threshold}°)",
           "wind": "{observed} (au-dessus de {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (sous {threshold}°)"
         }
       },
       "calendar": {
@@ -695,7 +709,10 @@
     "wind_threshold_label": "Ignorer si vitesse du vent supérieure à",
     "rain_sensor_section_title": "Condition du capteur de pluie",
     "rain_sensor_label": "Entité capteur de pluie (optionnel)",
-    "rain_sensor_placeholder": "ex. binary_sensor.pluie"
+    "rain_sensor_placeholder": "ex. binary_sensor.pluie",
+    "freeze_section_title": "Ignorer en cas de gel",
+    "freeze_threshold_label": "Ignorer si la température minimale est inférieure à",
+    "freeze_help": "Compare la température actuelle et le minimum prévu pour la nuit à venir ; ignore l'arrosage en cas de gel attendu, pour protéger les tuyaux et les plantes."
   },
   "zone_sequencing": {
     "title": "Séquençage des zones",
@@ -752,7 +769,9 @@
     "general_autoupdateinterval": "Fréquence de collecte des données météo. Choisissez une valeur qui équilibre la fraîcheur des données et les limites de l'API.",
     "general_precipitation_threshold": "L'arrosage est ignoré si le total des précipitations prévues sur la fenêtre de prévision dépasse cette valeur.",
     "general_temp_threshold": "L'arrosage est ignoré si la température actuelle est inférieure à cette valeur (p. ex. pour éviter les dégâts du gel).",
-    "general_wind_threshold": "L'arrosage est ignoré si la vitesse du vent dépasse cette valeur (un vent fort réduit l'efficacité et provoque une dérive)."
+    "general_wind_threshold": "L'arrosage est ignoré si la vitesse du vent dépasse cette valeur (un vent fort réduit l'efficacité et provoque une dérive).",
+    "zone_plant_type": "Choisissez un type de plante pour définir un coefficient cultural typique, ou « Personnalisé » pour saisir Kc vous-même.",
+    "zone_kc": "Met à l'échelle l'ET de référence (gazon) selon les plantes de cette zone. 1,0 = gazon de référence ; plus bas pour des plantations résistantes à la sécheresse, plus haut pour des cultures gourmandes. Seul le terme d'ET est mis à l'échelle, pas la pluie."
   },
   "wizard": {
     "title": "Assistant de configuration",

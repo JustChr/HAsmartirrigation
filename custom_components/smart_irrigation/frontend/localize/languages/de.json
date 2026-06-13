@@ -84,7 +84,8 @@
         "current-drainage-is": "Aktuelle Drainage berechnet als",
         "drainage-integrated": "der Überschuss über der Feldkapazität versickert kontinuierlich über das Zeitfenster (Brooks–Corey), die Rate sinkt also beim Abfließen",
         "no-drainage": "Aktuelle Drainage ist 0, weil",
-        "forecast-weighting-applied": "Die Vorhersagegewichtung hat das Defizit für den erwarteten Regen reduziert"
+        "forecast-weighting-applied": "Die Vorhersagegewichtung hat das Defizit für den erwarteten Regen reduziert",
+        "crop-coefficient-applied": "Mit dem Pflanzenkoeffizienten skaliert"
       }
     }
   },
@@ -351,7 +352,18 @@
         "irrigate_now": "Jetzt bewässern",
         "bucket_threshold": "Mindestdefizit für Bewässerung",
         "flow_sensor": "Durchflussmesser-Sensor (optional)",
-        "flow_sensor_placeholder": "z. B. sensor.zone_flow_rate"
+        "flow_sensor_placeholder": "z. B. sensor.zone_flow_rate",
+        "plant_type": "Pflanzentyp",
+        "kc": "Pflanzenkoeffizient (Kc)",
+        "plant_types": {
+          "custom": "Benutzerdefiniert (Kc manuell)",
+          "lawn": "Rasen",
+          "vegetables": "Gemüsebeet",
+          "flowers": "Blumenbeet",
+          "shrubs": "Sträucher",
+          "trees": "Bäume",
+          "xeriscape": "Trockenbepflanzung"
+        }
       },
       "no_items": "Es ist noch keine Zone vorhanden.",
       "title": "Zonen",
@@ -421,14 +433,16 @@
           "days_between": "Tage zwischen Bewässerungen",
           "temperature": "Niedrige Temperatur",
           "wind": "Starker Wind",
-          "rain_sensor": "Regensensor"
+          "rain_sensor": "Regensensor",
+          "freeze": "Frost"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} Tage",
           "temperature": "{observed}° (unter {threshold}°)",
           "wind": "{observed} (über {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (unter {threshold}°)"
         }
       },
       "calendar": {
@@ -693,7 +707,10 @@
     "wind_threshold_label": "Überspringen wenn Windgeschwindigkeit über",
     "rain_sensor_section_title": "Regenmelder-Bedingung",
     "rain_sensor_label": "Regenmelder-Entität (optional)",
-    "rain_sensor_placeholder": "z.B. binary_sensor.regen"
+    "rain_sensor_placeholder": "z.B. binary_sensor.regen",
+    "freeze_section_title": "Bei Frost überspringen",
+    "freeze_threshold_label": "Überspringen, wenn Mindesttemperatur unter",
+    "freeze_help": "Vergleicht die aktuelle Temperatur und die prognostizierte Tiefsttemperatur der kommenden Nacht; überspringt die Bewässerung bei erwartetem Frost, um Leitungen und Pflanzen zu schützen."
   },
   "zone_sequencing": {
     "title": "Zonenreihenfolge",
@@ -750,7 +767,9 @@
     "general_autoupdateinterval": "Wie oft Wetterdaten gesammelt werden. Wähle einen Wert, der frische Daten gegen API-Ratenbegrenzungen abwägt.",
     "general_precipitation_threshold": "Die Bewässerung wird übersprungen, wenn der vorhergesagte Gesamtniederschlag über das Vorhersagefenster diesen Wert überschreitet.",
     "general_temp_threshold": "Die Bewässerung wird übersprungen, wenn die aktuelle Temperatur unter diesem Wert liegt (z. B. zur Vermeidung von Frostschäden).",
-    "general_wind_threshold": "Die Bewässerung wird übersprungen, wenn die Windgeschwindigkeit diesen Wert überschreitet (starker Wind verringert die Effizienz und verursacht Abdrift)."
+    "general_wind_threshold": "Die Bewässerung wird übersprungen, wenn die Windgeschwindigkeit diesen Wert überschreitet (starker Wind verringert die Effizienz und verursacht Abdrift).",
+    "zone_plant_type": "Wähle einen Pflanzentyp für einen typischen Pflanzenkoeffizienten oder „Benutzerdefiniert“, um Kc selbst einzugeben.",
+    "zone_kc": "Skaliert die Referenz-Verdunstung (Gras) auf die Pflanzen dieser Zone. 1,0 = Referenzgras; niedriger für trockenheitsresistente Bepflanzung, höher für durstige Kulturen. Nur der ET-Anteil wird skaliert – Regen nicht."
   },
   "wizard": {
     "title": "Einrichtungsassistent",

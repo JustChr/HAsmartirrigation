@@ -75,6 +75,8 @@ export class SmartIrrigationConfig {
   temp_threshold: number;
   skip_on_wind_enabled: boolean;
   wind_threshold: number;
+  skip_on_freeze_enabled: boolean;
+  freeze_threshold: number;
   rain_sensor?: string | null;
   forecast_weighting_enabled: boolean;
   observed_watering_enabled: boolean;
@@ -109,6 +111,8 @@ export class SmartIrrigationConfig {
     this.temp_threshold = 5.0;
     this.skip_on_wind_enabled = false;
     this.wind_threshold = 6.9;
+    this.skip_on_freeze_enabled = false;
+    this.freeze_threshold = 1.0;
     this.rain_sensor = null;
     this.forecast_weighting_enabled = false;
     this.observed_watering_enabled = false;
@@ -231,6 +235,8 @@ export class SmartIrrigationZone {
   number_of_data_points?: number;
   drainage_rate?: number;
   current_drainage?: number;
+  kc?: number;
+  plant_type?: string;
   linked_entity?: string;
   bucket_threshold?: number;
   flow_sensor?: string | null;
@@ -263,6 +269,8 @@ export class SmartIrrigationZone {
     this.last_calculated = undefined;
     this.drainage_rate = 20; // default mm/hour at saturation (medium soil)
     this.current_drainage = 0;
+    this.kc = 1.0; // crop coefficient: 1.0 = reference grass ET (no scaling)
+    this.plant_type = "custom";
     this.bucket_threshold = -10; // require a 10 mm deficit before irrigating
   }
 }

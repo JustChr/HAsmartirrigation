@@ -667,6 +667,55 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
             : ""}
 
           <div class="section-divider">
+            ${localize("weather_skip.freeze_section_title", this.hass.language)}
+          </div>
+          <div class="setting-row">
+            <label>
+              ${localize(
+                "weather_skip.freeze_section_title",
+                this.hass.language,
+              )}
+            </label>
+            <ha-switch
+              .checked="${this.config.skip_on_freeze_enabled}"
+              @change="${(e: Event) =>
+                this.handleConfigChange({
+                  skip_on_freeze_enabled: (e.target as HTMLInputElement)
+                    .checked,
+                })}"
+            ></ha-switch>
+          </div>
+          ${this.config.skip_on_freeze_enabled
+            ? html`
+                <div class="setting-row">
+                  <label>
+                    ${localize(
+                      "weather_skip.freeze_threshold_label",
+                      this.hass.language,
+                    )}
+                    (°C)
+                  </label>
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.5"
+                    .value="${this.config.freeze_threshold ?? 1}"
+                    @input="${(e: Event) => {
+                      const v = parseFloat(
+                        (e.target as HTMLInputElement).value,
+                      );
+                      if (!isNaN(v))
+                        this.handleConfigChange({ freeze_threshold: v });
+                    }}"
+                  />
+                </div>
+                <div class="description-text">
+                  ${localize("weather_skip.freeze_help", this.hass.language)}
+                </div>
+              `
+            : ""}
+
+          <div class="section-divider">
             ${localize(
               "weather_skip.rain_sensor_section_title",
               this.hass.language,

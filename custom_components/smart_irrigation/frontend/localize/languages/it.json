@@ -84,7 +84,8 @@
         "current-drainage-is": "Il drenaggio attuale è calcolato come",
         "drainage-integrated": "l'eccedenza sopra la capacità di campo drena in modo continuo sull'intervallo (Brooks–Corey), quindi la portata diminuisce mentre drena",
         "no-drainage": "Il drenaggio attuale è 0 perché",
-        "forecast-weighting-applied": "La ponderazione da previsione ha ridotto il deficit per la pioggia prevista"
+        "forecast-weighting-applied": "La ponderazione da previsione ha ridotto il deficit per la pioggia prevista",
+        "crop-coefficient-applied": "Scalato per il coefficiente colturale"
       }
     }
   },
@@ -396,7 +397,18 @@
         "irrigate_now": "Irriga ora",
         "bucket_threshold": "Deficit minimo per irrigare",
         "flow_sensor": "Sensore del flussometro (opzionale)",
-        "flow_sensor_placeholder": "ad es. sensor.zone_flow_rate"
+        "flow_sensor_placeholder": "ad es. sensor.zone_flow_rate",
+        "plant_type": "Tipo di pianta",
+        "kc": "Coefficiente colturale (Kc)",
+        "plant_types": {
+          "custom": "Personalizzato (Kc manuale)",
+          "lawn": "Prato",
+          "vegetables": "Orto",
+          "flowers": "Aiuola fiorita",
+          "shrubs": "Arbusti",
+          "trees": "Alberi",
+          "xeriscape": "Xeriscaping / resistente alla siccità"
+        }
       },
       "no_items": "Non ci sono ancora zone definite.",
       "title": "Zone",
@@ -466,14 +478,16 @@
           "days_between": "Giorni tra le irrigazioni",
           "temperature": "Temperatura bassa",
           "wind": "Vento forte",
-          "rain_sensor": "Sensore di pioggia"
+          "rain_sensor": "Sensore di pioggia",
+          "freeze": "Gelo"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
           "days_between": "{observed}/{threshold} giorni",
           "temperature": "{observed}° (sotto {threshold}°)",
           "wind": "{observed} (sopra {threshold})",
-          "rain_sensor": "{observed}"
+          "rain_sensor": "{observed}",
+          "freeze": "{observed}° (sotto {threshold}°)"
         }
       },
       "calendar": {
@@ -698,7 +712,10 @@
     "wind_threshold_label": "Salta se velocità del vento superiore a",
     "rain_sensor_section_title": "Condizione sensore pioggia",
     "rain_sensor_label": "Entità sensore pioggia (opzionale)",
-    "rain_sensor_placeholder": "es. binary_sensor.pioggia"
+    "rain_sensor_placeholder": "es. binary_sensor.pioggia",
+    "freeze_section_title": "Salta in caso di gelo",
+    "freeze_threshold_label": "Salta se la temperatura minima è inferiore a",
+    "freeze_help": "Confronta la temperatura attuale e la minima prevista per la notte successiva; salta l'irrigazione quando è atteso il gelo, per proteggere tubi e piante."
   },
   "zone_sequencing": {
     "title": "Sequenza zone",
@@ -755,7 +772,9 @@
     "general_autoupdateinterval": "Con quale frequenza vengono raccolti i dati meteo. Scegli un valore che bilanci dati aggiornati e limiti dell'API.",
     "general_precipitation_threshold": "L'irrigazione viene saltata se le precipitazioni totali previste sulla finestra di previsione superano questa quantità.",
     "general_temp_threshold": "L'irrigazione viene saltata se la temperatura attuale è inferiore a questo valore (ad es. per prevenire danni da gelo).",
-    "general_wind_threshold": "L'irrigazione viene saltata se la velocità del vento supera questo valore (il vento forte riduce l'efficienza e causa deriva)."
+    "general_wind_threshold": "L'irrigazione viene saltata se la velocità del vento supera questo valore (il vento forte riduce l'efficienza e causa deriva).",
+    "zone_plant_type": "Scegli un tipo di pianta per impostare un coefficiente colturale tipico, oppure «Personalizzato» per inserire Kc manualmente.",
+    "zone_kc": "Scala l'ET di riferimento (erba) alle piante di questa zona. 1.0 = erba di riferimento; più basso per piante resistenti alla siccità, più alto per colture esigenti. Viene scalato solo il termine ET, non la pioggia."
   },
   "wizard": {
     "title": "Configurazione guidata",

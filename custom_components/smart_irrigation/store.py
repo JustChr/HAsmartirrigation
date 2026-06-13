@@ -35,15 +35,19 @@ from .const import (
     CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_DRAINAGE_RATE,
     CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
+    CONF_DEFAULT_FREEZE_THRESHOLD,
+    CONF_DEFAULT_KC,
     CONF_DEFAULT_LIVE_DURATION_ENABLED,
     CONF_DEFAULT_MANUAL_COORDINATES_ENABLED,
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
     CONF_DEFAULT_OBSERVED_WATERING_ENABLED,
+    CONF_DEFAULT_PLANT_TYPE,
     CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS,
     CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM,
     CONF_DEFAULT_RAIN_SENSOR,
     CONF_DEFAULT_RECURRING_SCHEDULES,
+    CONF_DEFAULT_SKIP_FREEZE_ENABLED,
     CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION,
     CONF_DEFAULT_SKIP_TEMP_ENABLED,
     CONF_DEFAULT_SKIP_WIND_ENABLED,
@@ -55,6 +59,7 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
     CONF_FORECAST_WEIGHTING_ENABLED,
+    CONF_FREEZE_THRESHOLD,
     CONF_IMPERIAL,
     CONF_LEGACY_FRESH_DURATION_ENABLED,
     CONF_LIVE_DURATION_ENABLED,
@@ -64,6 +69,7 @@ from .const import (
     CONF_PRECIPITATION_THRESHOLD_MM,
     CONF_RAIN_SENSOR,
     CONF_RECURRING_SCHEDULES,
+    CONF_SKIP_FREEZE_ENABLED,
     CONF_SKIP_IRRIGATION_ON_PRECIPITATION,
     CONF_SKIP_TEMP_ENABLED,
     CONF_SKIP_WIND_ENABLED,
@@ -117,6 +123,7 @@ from .const import (
     ZONE_FLOW_SENSOR,
     ZONE_ID,
     ZONE_IRRIGATION_TARGET_BUCKET,
+    ZONE_KC,
     ZONE_LAST_CALCULATED,
     ZONE_LAST_CONSUMED,
     ZONE_LAST_IRRIGATION,
@@ -130,6 +137,7 @@ from .const import (
     ZONE_MULTIPLIER,
     ZONE_NAME,
     ZONE_NUMBER_OF_DATA_POINTS,
+    ZONE_PLANT_TYPE,
     ZONE_RUN_LOG,
     ZONE_SIZE,
     ZONE_STATE,
@@ -177,6 +185,11 @@ class ZoneEntry:
     number_of_data_points = attr.ib(type=int, default=0)
     drainage_rate = attr.ib(type=float, default=CONF_DEFAULT_DRAINAGE_RATE)
     current_drainage = attr.ib(type=float, default=0)
+    # Crop coefficient (WS-4): scales the ET0 term only at calc time; default 1.0
+    # = reference grass ET (behaviour identical). plant_type is the preset that
+    # seeded kc ("custom" once the number is hand-edited).
+    kc = attr.ib(type=float, default=CONF_DEFAULT_KC)
+    plant_type = attr.ib(type=str, default=CONF_DEFAULT_PLANT_TYPE)
     linked_entity = attr.ib(type=str, default=None)
     bucket_threshold = attr.ib(type=float, default=CONF_DEFAULT_BUCKET_THRESHOLD)
     flow_sensor = attr.ib(type=str, default=None)
@@ -254,6 +267,10 @@ class Config:
     temp_threshold = attr.ib(type=float, default=CONF_DEFAULT_TEMP_THRESHOLD)
     skip_on_wind_enabled = attr.ib(type=bool, default=CONF_DEFAULT_SKIP_WIND_ENABLED)
     wind_threshold = attr.ib(type=float, default=CONF_DEFAULT_WIND_THRESHOLD)
+    skip_on_freeze_enabled = attr.ib(
+        type=bool, default=CONF_DEFAULT_SKIP_FREEZE_ENABLED
+    )
+    freeze_threshold = attr.ib(type=float, default=CONF_DEFAULT_FREEZE_THRESHOLD)
     rain_sensor = attr.ib(type=str, default=CONF_DEFAULT_RAIN_SENSOR)
     manual_coordinates_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_MANUAL_COORDINATES_ENABLED
@@ -518,6 +535,14 @@ class SmartIrrigationStorage:
                     CONF_WIND_THRESHOLD,
                     CONF_DEFAULT_WIND_THRESHOLD,
                 ),
+                skip_on_freeze_enabled=data["config"].get(
+                    CONF_SKIP_FREEZE_ENABLED,
+                    CONF_DEFAULT_SKIP_FREEZE_ENABLED,
+                ),
+                freeze_threshold=data["config"].get(
+                    CONF_FREEZE_THRESHOLD,
+                    CONF_DEFAULT_FREEZE_THRESHOLD,
+                ),
                 rain_sensor=data["config"].get(
                     CONF_RAIN_SENSOR,
                     CONF_DEFAULT_RAIN_SENSOR,
@@ -589,6 +614,10 @@ class SmartIrrigationStorage:
                         ),
                         drainage_rate=zone.get(ZONE_DRAINAGE_RATE, None),
                         current_drainage=zone.get(ZONE_CURRENT_DRAINAGE, None),
+                        # Migration: pre-WS-4 zones default to Kc 1.0 (reference
+                        # ET, behaviour unchanged) with no plant-type preset.
+                        kc=zone.get(ZONE_KC, CONF_DEFAULT_KC),
+                        plant_type=zone.get(ZONE_PLANT_TYPE, CONF_DEFAULT_PLANT_TYPE),
                         linked_entity=zone.get(ZONE_LINKED_ENTITY, None),
                         bucket_threshold=zone.get(
                             ZONE_BUCKET_THRESHOLD, CONF_DEFAULT_BUCKET_THRESHOLD

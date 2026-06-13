@@ -132,9 +132,22 @@ export const ZONE_LEAD_TIME = "lead_time";
 export const ZONE_MAXIMUM_DURATION = "maximum_duration";
 export const ZONE_MAXIMUM_BUCKET = "maximum_bucket";
 export const ZONE_DRAINAGE_RATE = "drainage_rate";
+export const ZONE_KC = "kc";
+export const ZONE_PLANT_TYPE = "plant_type";
 export const ZONE_LINKED_ENTITY = "linked_entity";
 export const ZONE_BUCKET_THRESHOLD = "bucket_threshold";
 export const ZONE_FLOW_SENSOR = "flow_sensor";
+
+// Plant-type presets → mid-season Kc (relative to grass reference ET0). The
+// stored value is still the plain ``kc`` number; "custom" lets it be hand-set.
+export const PLANT_TYPE_KC: Record<string, number> = {
+  lawn: 0.8,
+  vegetables: 1.0,
+  flowers: 0.9,
+  shrubs: 0.5,
+  trees: 0.7,
+  xeriscape: 0.3,
+};
 
 export const CONF_ZONE_SEQUENCING = "zone_sequencing";
 export const CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential";
