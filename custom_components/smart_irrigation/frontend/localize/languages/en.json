@@ -246,6 +246,12 @@
         "description": "When a zone's linked valve runs outside Smart Irrigation — a manual tap, an automation, your own schedule — its bucket is credited for the water applied, estimated from the run time and the zone's throughput. This keeps the soil-moisture model honest when you water by other means. Smart Irrigation's own runs are already accounted for and are never double-counted.",
         "label": "Credit the bucket when a linked valve runs externally",
         "note": "Requires a linked valve and a throughput on the zone. Volume is estimated (run time × throughput), not metered."
+      },
+      "fresh_duration": {
+        "title": "Fresh run-time durations",
+        "description": "By default each zone's watering duration is fixed when the daily calculation runs (for example at 23:00), hours before the valve actually opens. With this on, the duration is recomputed at run time from the live intra-day deficit (the drainage-aware ET and rainfall since the last calculation), so overnight and early-morning weather is taken into account. The daily ledger is unchanged: after the run the bucket is credited with the water actually delivered, so the next daily calculation never double-counts. Requires a weather service.",
+        "label": "Recompute the run duration at watering time",
+        "note": "Affects scheduled runs only. A zone that intra-day rain has already covered is skipped for that run."
       }
     },
     "help": {

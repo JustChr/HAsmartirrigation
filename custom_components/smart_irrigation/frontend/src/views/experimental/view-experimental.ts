@@ -12,8 +12,14 @@ import { globalStyle } from "../../styles/global-style";
 import {
   CONF_FORECAST_WEIGHTING_ENABLED,
   CONF_OBSERVED_WATERING_ENABLED,
+  CONF_FRESH_DURATION_ENABLED,
   DOMAIN,
 } from "../../const";
+
+type ExperimentalFlag =
+  | typeof CONF_FORECAST_WEIGHTING_ENABLED
+  | typeof CONF_OBSERVED_WATERING_ENABLED
+  | typeof CONF_FRESH_DURATION_ENABLED;
 
 /**
  * Setup → Experimental: opt-in features that change how the bucket is filled.
@@ -59,9 +65,7 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
   }
 
   private async _toggle(
-    field:
-      | typeof CONF_FORECAST_WEIGHTING_ENABLED
-      | typeof CONF_OBSERVED_WATERING_ENABLED,
+    field: ExperimentalFlag,
     value: boolean,
   ): Promise<void> {
     if (!this.hass || !this.config) return;
@@ -100,6 +104,11 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         CONF_OBSERVED_WATERING_ENABLED,
         this.config.observed_watering_enabled,
       )}
+      ${this._renderToggleCard(
+        "fresh_duration",
+        CONF_FRESH_DURATION_ENABLED,
+        this.config.fresh_duration_enabled,
+      )}
     `;
   }
 
@@ -122,9 +131,7 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
 
   private _renderToggleCard(
     key: string,
-    field:
-      | typeof CONF_FORECAST_WEIGHTING_ENABLED
-      | typeof CONF_OBSERVED_WATERING_ENABLED,
+    field: ExperimentalFlag,
     checked: boolean,
   ): TemplateResult {
     if (!this.hass) return html``;

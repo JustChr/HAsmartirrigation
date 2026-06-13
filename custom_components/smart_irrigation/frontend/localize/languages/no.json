@@ -598,6 +598,12 @@
         "description": "Når en sones tilknyttede ventil kjører utenfor Smart Irrigation – en manuell kran, en automasjon, din egen plan – krediteres vannbalansen for vannet som ble tilført, estimert ut fra kjøretid og sonens gjennomstrømning. Slik holder jordfuktighetsmodellen seg riktig når du vanner på andre måter. Smart Irrigations egne kjøringer er allerede medregnet og telles aldri dobbelt.",
         "label": "Krediter vannbalansen når en tilknyttet ventil kjører eksternt",
         "note": "Krever en tilknyttet ventil og en gjennomstrømning på sonen. Volumet estimeres (kjøretid × gjennomstrømning), ikke målt."
+      },
+      "fresh_duration": {
+        "title": "Oppdaterte varigheter ved vanningstidspunkt",
+        "description": "Som standard fastsettes vanningsvarigheten for hver sone under den daglige beregningen (for eksempel kl. 23:00), timer for ventilen faktisk apner. Nar dette er pa, beregnes varigheten pa nytt ved kjoretidspunktet ut fra det aktuelle underskuddet i lopet av dagen (dreneringsbevisst ET og nedbor siden forrige beregning), slik at vaer om natten og tidlig morgen tas med. Den daglige hovedboken er uendret: etter kjoringen krediteres botten med vannet som faktisk ble levert, slik at neste daglige beregning aldri teller dobbelt. Krever en vaertjeneste.",
+        "label": "Beregn varigheten pa nytt ved vanningstidspunkt",
+        "note": "Pavirker bare planlagte kjoringer. En sone som regn i lopet av dagen allerede har dekket, hoppes over for den kjoringen."
       }
     }
   },

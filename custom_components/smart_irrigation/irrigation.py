@@ -16,6 +16,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .calculation import duration_from_deficit
 from .helpers import convert_between
 
 _LOGGER = logging.getLogger(__name__)
@@ -149,6 +150,11 @@ class IrrigationRunnerMixin:
             _LOGGER.debug(
                 "No zones with linked entities and duration > 0 to irrigate directly"
             )
+            return
+
+        zones_to_irrigate = await self._apply_fresh_durations(zones_to_irrigate)
+        if not zones_to_irrigate:
+            _LOGGER.debug("Fresh duration left no zones needing water")
             return
 
         if sequencing == const.CONF_ZONE_SEQUENCING_SEQUENTIAL:
@@ -513,8 +519,10 @@ class IrrigationRunnerMixin:
                     if timed_remaining[zid] <= 0:
                         # Zone fully irrigated across its slots — replenish bucket.
                         self._clear_zone_fault(zid)
-                        await self._reset_zone_bucket_after_run(zid)
                         planned = float(z[const.ZONE_DURATION])
+                        await self._reset_zone_bucket_after_run(
+                            zid, ran_seconds=planned
+                        )
                         await self._record_run(
                             zid,
                             result=const.RUN_RESULT_COMPLETED,
@@ -526,25 +534,123 @@ class IrrigationRunnerMixin:
 
                 last_finish[zid] = loop.time()
 
-    async def _reset_zone_bucket_after_run(self, zone_id) -> None:
-        """Set a zone's bucket to its post-run target after a completed timed run.
+    # --- Fresh run-time duration from the live deficit (WS-3, experimental) --
 
-        The duration was computed to deliver exactly the accumulated deficit
-        (|bucket|), so once the valve has run for the full duration the deficit
-        is replenished and the bucket returns to its target — normally 0, or the
-        rain-covered remainder when forecast weighting trimmed this run. The
-        flow-meter path does the equivalent based on measured volume; this is the
-        timed-run counterpart.
+    async def _apply_fresh_durations(self, zones: list) -> list:
+        """Recompute timed-zone run durations from the live intra-day deficit.
+
+        Experimental, opt-in (Setup → Experimental). When the flag is off this
+        returns ``zones`` unchanged. When on, it refreshes the live estimates and
+        replaces each timed zone's frozen daily ``ZONE_DURATION`` with one
+        computed from the drainage-aware ``live_deficit`` (intra-day ET/precip
+        since the last daily calc) — answering "is the duration frozen hours ago
+        still right at water time?". Zones whose fresh deficit is non-negative
+        (intra-day rain already covered them) are dropped from the run.
+
+        The daily ledger is untouched: only the *duration of this run* changes.
+        Flow-meter zones are left alone — they already deliver to a measured
+        volume and credit the bucket from it. Recomputed zones are marked in
+        ``_fresh_run_zones`` so :meth:`_reset_zone_bucket_after_run` credits the
+        actually-delivered water (``bucket += delivered``, capped) instead of
+        forcing the bucket to its target; the live deficit can exceed the stored
+        daily bucket, so crediting (not zeroing) keeps the next daily calc from
+        double-subtracting the intra-day ET.
+        """
+        if self.store.config.fresh_duration_enabled is not True:
+            self._fresh_run_zones = set()
+            return zones
+
+        estimates = await self.async_refresh_zone_estimates()
+        self._fresh_run_zones = set()
+        metric = self.hass.config.units is METRIC_SYSTEM
+        out = []
+        for z in zones:
+            if z.get(const.ZONE_FLOW_SENSOR):
+                out.append(z)  # flow path already credits measured volume
+                continue
+            est = estimates.get(str(z.get(const.ZONE_ID)))
+            deficit = est.get("live_deficit") if est else None
+            if deficit is None:
+                out.append(z)  # no live estimate — keep the daily duration
+                continue
+            fresh = duration_from_deficit(
+                deficit,
+                z.get(const.ZONE_THROUGHPUT),
+                z.get(const.ZONE_SIZE),
+                z.get(const.ZONE_MULTIPLIER),
+                z.get(const.ZONE_MAXIMUM_DURATION),
+                z.get(const.ZONE_LEAD_TIME),
+                metric,
+            )
+            if fresh <= 0:
+                _LOGGER.info(
+                    "Fresh duration: zone %s no longer needs water "
+                    "(live deficit %.2f) — skipping this run",
+                    z.get(const.ZONE_ID),
+                    deficit,
+                )
+                continue
+            zid = int(z.get(const.ZONE_ID))
+            self._fresh_run_zones.add(zid)
+            _LOGGER.info(
+                "Fresh duration: zone %s %ss → %ss (live deficit %.2f)",
+                zid,
+                z.get(const.ZONE_DURATION),
+                fresh,
+                deficit,
+            )
+            out.append({**z, const.ZONE_DURATION: fresh})
+        return out
+
+    def _delivered_depth_native(self, zone: dict, seconds: float) -> float:
+        """Depth (display units) a timed run of ``seconds`` applied to ``zone``.
+
+        volume = run minutes × throughput; depth = volume / area. Mirrors the
+        observed-watering crediting math so a fresh-duration run credits the
+        bucket by what it actually delivered.
+        """
+        size = zone.get(const.ZONE_SIZE) or 0.0
+        if size <= 0 or not seconds or seconds <= 0:
+            return 0.0
+        volume_l = self._timed_volume_l(zone, seconds)
+        if self.hass.config.units is METRIC_SYSTEM:
+            return volume_l / size  # litres / m² == mm
+        size_m2 = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, size)
+        applied_mm = volume_l / size_m2
+        return convert_between(const.UNIT_MM, const.UNIT_INCH, applied_mm)
+
+    async def _reset_zone_bucket_after_run(self, zone_id, ran_seconds=None) -> None:
+        """Replenish a zone's bucket after a completed timed run.
+
+        Normal runs: the duration was computed to deliver exactly the accumulated
+        deficit (|bucket|), so the bucket returns to its post-run target —
+        normally 0, or the rain-covered remainder when forecast weighting trimmed
+        this run. The flow-meter path does the equivalent from measured volume.
+
+        Fresh-duration runs (WS-3, marked in ``_fresh_run_zones``): the duration
+        came from the live intra-day deficit, which can exceed the stored daily
+        bucket. Forcing the bucket to its target would discard the credit for the
+        extra intra-day water and the next daily calc would re-subtract that ET.
+        Instead credit the actually-delivered depth (``bucket += delivered``,
+        capped at maximum_bucket) so the leftover deficit persists honestly.
         """
         zone = self.store.get_zone(zone_id) or {}
-        target = self._zone_target_bucket(zone)
+        if int(zone_id) in getattr(self, "_fresh_run_zones", set()):
+            delivered = self._delivered_depth_native(zone, ran_seconds)
+            new_bucket = (zone.get(const.ZONE_BUCKET) or 0.0) + delivered
+            max_bucket = zone.get(const.ZONE_MAXIMUM_BUCKET)
+            if max_bucket is not None and new_bucket > max_bucket:
+                new_bucket = float(max_bucket)
+            self._fresh_run_zones.discard(int(zone_id))
+        else:
+            new_bucket = self._zone_target_bucket(zone)
         await self.store.async_update_zone(
             zone_id,
-            {const.ZONE_BUCKET: target, const.ZONE_LAST_IRRIGATION: dt_util.now()},
+            {const.ZONE_BUCKET: new_bucket, const.ZONE_LAST_IRRIGATION: dt_util.now()},
         )
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
         _LOGGER.info(
-            "Zone %s: bucket set to %.3f after irrigation run", zone_id, target
+            "Zone %s: bucket set to %.3f after irrigation run", zone_id, new_bucket
         )
 
     # --- Run history + cumulative water usage (WS-2) ------------------------
@@ -666,7 +772,9 @@ class IrrigationRunnerMixin:
                     domain, "turn_off", {"entity_id": entity_id}
                 )
                 self._clear_zone_fault(zone[const.ZONE_ID])
-                await self._reset_zone_bucket_after_run(zone[const.ZONE_ID])
+                await self._reset_zone_bucket_after_run(
+                    zone[const.ZONE_ID], ran_seconds=duration
+                )
                 await self._record_run(
                     zone[const.ZONE_ID],
                     result=const.RUN_RESULT_COMPLETED,
@@ -723,7 +831,7 @@ class IrrigationRunnerMixin:
                     )
                     _LOGGER.info("Parallel irrigation: turned off %s", eid)
                     self._clear_zone_fault(zid)
-                    await self._reset_zone_bucket_after_run(zid)
+                    await self._reset_zone_bucket_after_run(zid, ran_seconds=dur)
                     run_zone = self.store.get_zone(zid) or {}
                     await self._record_run(
                         zid,

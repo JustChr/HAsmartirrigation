@@ -596,6 +596,12 @@
         "description": "Keď prepojený ventil zóny beží mimo Smart Irrigation – ručný kohútik, automatizácia, váš vlastný plán – do jej bilancie sa pripíše privedená voda, odhadnutá z času behu a prietoku zóny. Model vlhkosti pôdy tak zostáva verný, keď zavlažujete inými spôsobmi. Vlastné zavlažovania Smart Irrigation sú už započítané a nikdy sa nepočítajú dvakrát.",
         "label": "Pripísať do bilancie, keď prepojený ventil beží externe",
         "note": "Vyžaduje prepojený ventil a prietok na zóne. Objem sa odhaduje (čas behu × prietok), nemeria sa."
+      },
+      "fresh_duration": {
+        "title": "Aktualne dlzky behu v case zavlazovania",
+        "description": "Predvolene sa dlzka zavlazovania kazdej zony stanovi pri dennom vypocte (napriklad o 23:00), hodiny predtym, nez sa ventil skutocne otvori. Po zapnuti sa dlzka prepocita v case behu z aktualneho vnutrodenneho deficitu (ET zohladnujuca drenaz a zrazky od posledneho vypoctu), takze sa zohladni nocne a skore ranne pocasie. Denna kniha zostava nezmenena: po behu sa do vedra pripise skutocne dodana voda, takze nasledujuci denny vypocet nikdy nepocita dvakrat. Vyzaduje meteorologicku sluzbu.",
+        "label": "Prepocitat dlzku behu v case zavlazovania",
+        "note": "Tyka sa iba naplanovanych behov. Zona, ktoru uz pokryl vnutrodenny dazd, sa pre dany beh preskoci."
       }
     }
   },

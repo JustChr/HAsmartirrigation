@@ -42,6 +42,22 @@ Notes:
 - External watering can push the bucket into surplus (capped at the zone's *maximum bucket*), since watering by hand can legitimately overshoot the deficit.
 - Requires a linked valve **and** a throughput on the zone. Zones without both are ignored.
 
+## Fresh run-time durations
+
+By default, each zone's watering **duration** is fixed when the [daily calculation](how-it-works.md) runs — for example at 23:00 — which is correct *for the daily ledger* (the science needs a full day of weather). But the valve usually opens hours later, so the duration can be stale: overnight or early-morning evaporation isn't reflected in it.
+
+When enabled, the duration is **recomputed at watering time** for scheduled runs, using the same live intra-day deficit shown by each zone's *live bucket* (the drainage-aware ET and rainfall accumulated since the last calculation). A zone that dried out overnight waters a little longer; a zone that got intra-day rain waters less — and if the rain already covered it, that zone is skipped for that run.
+
+**The daily bucket ledger is left exactly as-is** — only the duration of the run changes. The subtlety is avoiding a double-count: the live deficit can be deeper than the stored bucket because the intra-day ET hasn't been folded into the ledger yet. So after a fresh run, instead of forcing the bucket back to zero, Smart Irrigation **credits the water it actually delivered** (`run time × throughput ÷ size`, capped at *maximum bucket*). The leftover deficit therefore persists honestly, and when the next daily calculation subtracts the day's full ET it does so from a water-credited bucket — never subtracting the intra-day ET twice.
+
+**Example.** Monday's calculation leaves a zone at −5 mm. Overnight, 3 mm of ET accrues, so by Tuesday's scheduled run the live deficit is −8 mm and the fresh run delivers 8 mm. The bucket is credited to **+3 mm** (not 0). When Tuesday's calculation subtracts the day's full 8 mm ET, the +3 mm surplus cancels the overnight portion already watered, leaving the true −5 mm carryover — exactly right.
+
+Notes:
+
+- **Requires a weather service** (the live estimate comes from it). It has no effect for sensor-only setups.
+- Affects **scheduled** runs only. *Irrigate now* and flow-meter zones are unchanged (flow-meter zones already deliver to a measured volume and credit the bucket from it).
+- It does **not** add new runs: a zone the daily calculation decided not to water is not started by this feature; it only adjusts (or cancels) the runs that were already going to happen.
+
 > Main page: [Configuration](configuration.md)<br/>
 > Previous: [Sensor group configuration](configuration-sensor-groups.md)<br/>
 > Next: [Usage](usage.md)

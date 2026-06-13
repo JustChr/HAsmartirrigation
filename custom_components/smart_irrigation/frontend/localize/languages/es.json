@@ -597,6 +597,12 @@
         "description": "Cuando la válvula vinculada de una zona funciona fuera de Smart Irrigation —un grifo manual, una automatización, tu propio horario— se acredita en su balance el agua aplicada, estimada a partir del tiempo de funcionamiento y el caudal de la zona. Así el modelo de humedad del suelo se mantiene fiel cuando riegas por otros medios. Los riegos de la propia Smart Irrigation ya se contabilizan y nunca se cuentan dos veces.",
         "label": "Acreditar el balance cuando una válvula vinculada funciona externamente",
         "note": "Requiere una válvula vinculada y un caudal en la zona. El volumen se estima (tiempo de funcionamiento × caudal), no se mide."
+      },
+      "fresh_duration": {
+        "title": "Duraciones actualizadas al momento de regar",
+        "description": "De forma predeterminada, la duracion de riego de cada zona se fija en el calculo diario (por ejemplo a las 23:00), horas antes de que la valvula se abra realmente. Con esto activado, la duracion se recalcula en el momento del riego a partir del deficit intradia en vivo (la ET con drenaje y la lluvia desde el ultimo calculo), de modo que se tiene en cuenta el clima nocturno y de primera hora. El registro diario no cambia: tras el riego se acredita al cubo el agua realmente aplicada, por lo que el siguiente calculo diario nunca cuenta dos veces. Requiere un servicio meteorologico.",
+        "label": "Recalcular la duracion en el momento de regar",
+        "note": "Solo afecta a los riegos programados. Una zona que la lluvia intradia ya ha cubierto se omite en ese riego."
       }
     }
   },

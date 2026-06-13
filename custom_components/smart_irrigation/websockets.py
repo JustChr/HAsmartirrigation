@@ -111,6 +111,7 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 ): vol.Coerce(int),
                 vol.Optional(const.CONF_FORECAST_WEIGHTING_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_OBSERVED_WATERING_ENABLED): cv.boolean,
+                vol.Optional(const.CONF_FRESH_DURATION_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_MANUAL_COORDINATES_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_MANUAL_LATITUDE): vol.Or(float, int, None),
                 vol.Optional(const.CONF_MANUAL_LONGITUDE): vol.Or(float, int, None),

@@ -35,6 +35,52 @@ def _as_datetime(value):
     return parse_datetime(value)
 
 
+def duration_from_deficit(
+    deficit,
+    throughput,
+    size,
+    multiplier,
+    maximum_duration,
+    lead_time,
+    metric,
+):
+    """Irrigation run time (seconds) needed to replenish ``deficit``.
+
+    A pure mirror of the duration math in :meth:`CalculationMixin.calculate_module`
+    (precipitation-rate → raw seconds → multiplier → maximum-duration clamp →
+    lead time) so the irrigation runner can recompute a *fresh* duration from the
+    live intra-day deficit at run time without duplicating — or drifting from —
+    that logic. ``deficit`` / ``throughput`` / ``size`` are in the user's display
+    units (mm, L/min, m² when metric; in, gal/min, ft² when imperial). Returns 0
+    when no irrigation is needed (``deficit`` >= 0) or the zone lacks a usable
+    throughput / size. ``test_fresh_duration`` pins this against
+    ``calculate_module`` to guard against drift.
+    """
+    if deficit is None or deficit >= 0:
+        return 0
+    tput = throughput or 0.0
+    sz = size or 0.0
+    deficit_mm = deficit
+    if not metric:
+        tput = convert_between(const.UNIT_GPM, const.UNIT_LPM, tput)
+        sz = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, sz)
+        deficit_mm = convert_between(const.UNIT_INCH, const.UNIT_MM, deficit)
+    if not tput or not sz:
+        return 0
+    precipitation_rate = (tput * 60) / sz
+    duration = abs(deficit_mm) / precipitation_rate * 3600
+    duration = (multiplier if multiplier is not None else 1) * duration
+    if (
+        maximum_duration is not None
+        and maximum_duration >= 0
+        and duration > maximum_duration
+    ):
+        duration = maximum_duration
+    if duration > 0.0:
+        return round((lead_time or 0) + duration)
+    return round(duration)
+
+
 class CalculationMixin:
     """Aggregation + ET/bucket calculation for SmartIrrigationCoordinator.
 

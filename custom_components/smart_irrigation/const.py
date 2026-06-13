@@ -55,6 +55,13 @@ CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED = False
 # run time and configured throughput.
 CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled"
 CONF_DEFAULT_OBSERVED_WATERING_ENABLED = False
+# Fresh duration: at scheduled run time, recompute each zone's run duration from
+# the live intra-day deficit (drainage-aware ET/precip since the last daily calc)
+# instead of the frozen daily duration. The daily ledger is unchanged; the
+# post-run reset credits the actually-delivered water so the next daily calc does
+# not double-subtract the intra-day ET.
+CONF_FRESH_DURATION_ENABLED = "fresh_duration_enabled"
+CONF_DEFAULT_FRESH_DURATION_ENABLED = False
 
 # Days between irrigation configuration
 CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation"
