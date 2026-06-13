@@ -1,5 +1,4 @@
 import { TemplateResult, html } from "lit";
-import { HassEntity } from "home-assistant-js-websocket";
 import { HomeAssistant } from "./types";
 import {
   CONF_IMPERIAL,
@@ -17,7 +16,6 @@ import {
   MAPPING_SOLRAD,
   MAPPING_TEMPERATURE,
   MAPPING_WINDSPEED,
-  PLATFORM,
   UNIT_DEGREES_C,
   UNIT_DEGREES_F,
   UNIT_GPM,
@@ -69,17 +67,6 @@ function fireEvent(
   );
 }
 
-export function getDomain(entity: string | HassEntity) {
-  const entity_id: string =
-    typeof entity == "string" ? entity : entity.entity_id;
-
-  return String(entity_id.split(".").shift());
-}
-
-export function parseBoolean(value?: string | number | boolean | null) {
-  value = value?.toString().toLowerCase();
-  return value === "on" || value === "true" || value === "1";
-}
 export function getPart(value: any, index: number) {
   value = value.toString();
   return value.split(",")[index];
@@ -175,36 +162,8 @@ export function prettyPrint(input: string) {
   return input.charAt(0).toUpperCase() + input.slice(1);
 }
 
-export function computeName(entity: HassEntity) {
-  if (!entity) return "(unrecognized entity)";
-  if (entity.attributes && entity.attributes.friendly_name)
-    return entity.attributes.friendly_name;
-  else return String(entity.entity_id.split(".").pop());
-}
-
-export function getAlarmEntity(hass: HomeAssistant) {
-  return String(hass.panels[PLATFORM].config!.entity_id);
-}
-
 export function isEqual(...arr: any[]) {
   return arr.every((e) => JSON.stringify(e) === JSON.stringify(arr[0]));
-}
-
-export function Unique<TValue>(arr: TValue[]) {
-  const res: TValue[] = [];
-  arr.forEach((item) => {
-    if (
-      !res.find((e) =>
-        typeof item === "object" ? isEqual(e, item) : e === item,
-      )
-    )
-      res.push(item);
-  });
-  return res;
-}
-
-export function Without(array: any[], item: any) {
-  return array.filter((e) => e !== item);
 }
 
 export function pick(
@@ -228,34 +187,6 @@ export function flatten<U>(arr: U[][]): U[] {
   );
 }
 
-interface Omit {
-  <T extends object, K extends [...(keyof T)[]]>(
-    obj: T,
-    ...keys: K
-  ): {
-    [K2 in Exclude<keyof T, K[number]>]: T[K2];
-  };
-}
-
-export const omit: Omit = (obj, ...keys) => {
-  const ret = {} as {
-    [K in keyof typeof obj]: (typeof obj)[K];
-  };
-  let key: keyof typeof obj;
-  for (key in obj) {
-    if (!keys.includes(key)) {
-      ret[key] = obj[key];
-    }
-  }
-  return ret;
-};
-
-export function isDefined<TValue>(
-  value: TValue | null | undefined,
-): value is TValue {
-  return value !== null && value !== undefined;
-}
-
 export function IsEqual(
   obj1: Record<string, any> | any[],
   obj2: Record<string, any> | any[],
@@ -273,20 +204,6 @@ export function IsEqual(
   return true;
 }
 
-export function showConfirmationDialog(
-  ev: Event | HTMLElement,
-  message: string | TemplateResult,
-  target: number,
-) {
-  const elem = ev.hasOwnProperty("tagName")
-    ? (ev as HTMLElement)
-    : ((ev as Event).target as HTMLElement);
-  fireEvent(elem, "show-dialog", {
-    dialogTag: "confirmation-dialog",
-    dialogImport: () => import("./dialogs/confirmation-dialog"),
-    dialogParams: { target: target, message: message },
-  });
-}
 export function showErrorDialog(
   ev: Event | HTMLElement,
   error: string | TemplateResult,
@@ -319,15 +236,6 @@ export function Assign<Type extends {}>(
     else obj = { ...obj, [key]: val };
   });
   return obj;
-}
-
-export function sortAlphabetically(
-  a: string | { name: string },
-  b: string | { name: string },
-) {
-  const stringVal = (s: string | { name: string }) =>
-    typeof s === "object" ? stringVal(s.name) : s.trim().toLowerCase();
-  return stringVal(a) < stringVal(b) ? -1 : 1;
 }
 
 export const navigate = (

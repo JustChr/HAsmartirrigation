@@ -48,21 +48,6 @@ PirateWeather_required_keys = {
     PirateWeather_humidity_key_name,
     PirateWeather_pressure_key_name,
 }
-PirateWeather_required_keys_daily = {
-    PirateWeather_wind_speed_key_name,
-    PirateWeather_dew_point_key_name,
-    PirateWeather_humidity_key_name,
-    PirateWeather_pressure_key_name,
-    PirateWeather_max_temp_key_name,
-    PirateWeather_min_temp_key_name,
-    PirateWeather_precip_key_name,
-    PirateWeather_current_precip_key_name,
-}
-
-PirateWeather_required_key_temp = {
-    PirateWeather_max_temp_key_name,
-    PirateWeather_min_temp_key_name,
-}
 
 # Validators
 PirateWeatherValidators = {

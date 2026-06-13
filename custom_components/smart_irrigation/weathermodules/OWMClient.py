@@ -26,15 +26,6 @@ _LOGGER = logging.getLogger(__name__)
 OWM_CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather?units=metric&lat={}&lon={}&appid={}"
 OWM_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric&lat={}&lon={}&appid={}"
 
-# Validators
-OWM_validators = {
-    "wind_speed": {"max": 135, "min": 0},
-    "dew_point": {"max": 35, "min": -21},
-    "temp": {"max": 56.7, "min": -89.2},
-    "humidity": {"max": 100, "min": 0},
-    "pressure": {"max": 1084.8, "min": 870},
-}
-
 # OWM reports wind at 10 m; ET calculations need 2 m height
 _WIND_HEIGHT_CORRECTION = 4.87 / math.log((67.8 * 10) - 5.42)
 
@@ -249,10 +240,6 @@ class OWMClient:  # pylint: disable=invalid-name
         raise OSError(
             "Cannot interact with OWM API, check API key is valid and has not maxed out the allowed requests. If it is a new key, wait at least a day before reporting an issue."
         )
-
-    def raiseMissingKeyError(self, key):
-        """Raise an OSError when a required key is missing in the OWM API return."""
-        raise OSError(f"Missing required key {key} in OWM API return")
 
     def validationError(self, key, value, minval, maxval):
         """Raise a ValueError if the value for a key is outside the expected range."""

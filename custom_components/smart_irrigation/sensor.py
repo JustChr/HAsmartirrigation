@@ -208,7 +208,6 @@ class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
         # Optimize timestamp formatting to avoid string parsing
         if isinstance(val, str):
             try:
-                # Try direct parsing without calling convert_timestamp
                 from datetime import datetime
 
                 return datetime.fromisoformat(val).strftime(outputformat)

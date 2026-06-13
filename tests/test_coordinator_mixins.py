@@ -45,9 +45,9 @@ def test_calculation_and_skip_methods_present():
         assert hasattr(CalculationMixin, name), name
     for name in (
         "_check_skip_conditions",
-        "_check_precipitation_forecast",
-        "_check_rain_sensor",
-        "get_total_duration_all_enabled_zones",
+        "async_evaluate_skip_conditions",
+        "_eval_precipitation",
+        "_eval_rain_sensor",
         "_reset_days_since_irrigation",
     ):
         assert hasattr(SkipConditionsMixin, name), name

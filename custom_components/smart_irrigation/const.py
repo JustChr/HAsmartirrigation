@@ -19,7 +19,6 @@ START_EVENT_FIRED_TODAY = "starteventfiredtoday"
 
 # Irrigation start trigger configuration
 CONF_IRRIGATION_START_TRIGGERS = "irrigation_start_triggers"
-CONF_DEFAULT_IRRIGATION_START_TRIGGERS = []
 
 # Weather-based skip configuration
 CONF_SKIP_IRRIGATION_ON_PRECIPITATION = "skip_irrigation_on_precipitation"
@@ -108,20 +107,6 @@ SCHEDULE_CONF_TIME_ANCHOR = "time_anchor"
 SCHEDULE_TIME_ANCHOR_START = "start"
 SCHEDULE_TIME_ANCHOR_FINISH = "finish"
 
-# Trigger types
-TRIGGER_TYPE_SUNRISE = "sunrise"
-TRIGGER_TYPE_SUNSET = "sunset"
-TRIGGER_TYPE_SOLAR_AZIMUTH = "solar_azimuth"
-TRIGGER_TYPES = [TRIGGER_TYPE_SUNRISE, TRIGGER_TYPE_SUNSET, TRIGGER_TYPE_SOLAR_AZIMUTH]
-
-# Trigger configuration keys
-TRIGGER_CONF_TYPE = "type"
-TRIGGER_CONF_OFFSET_MINUTES = "offset_minutes"
-TRIGGER_CONF_AZIMUTH_ANGLE = "azimuth_angle"
-TRIGGER_CONF_ENABLED = "enabled"
-TRIGGER_CONF_NAME = "name"
-TRIGGER_CONF_ACCOUNT_FOR_DURATION = "account_for_duration"
-
 CONF_WEATHER_SERVICE = "weather_service"
 CONF_WEATHER_SERVICE_API_KEY = (
     "weather_service_api_key"  # legacy single-key slot (kept for migration)
@@ -137,20 +122,6 @@ CONF_MANUAL_LATITUDE = "manual_latitude"
 CONF_MANUAL_LONGITUDE = "manual_longitude"
 CONF_MANUAL_ELEVATION = "manual_elevation"
 CONF_DEFAULT_MANUAL_COORDINATES_ENABLED = False
-CONF_REFERENCE_ET = "reference_evapotranspiration"
-CONF_REFERENCE_ET_1 = "reference_evapotranspiration_1"
-CONF_REFERENCE_ET_2 = "reference_evapotranspiration_2"
-CONF_REFERENCE_ET_3 = "reference_evapotranspiration_3"
-CONF_REFERENCE_ET_4 = "reference_evapotranspiration_4"
-CONF_REFERENCE_ET_5 = "reference_evapotranspiration_5"
-CONF_REFERENCE_ET_6 = "reference_evapotranspiration_6"
-CONF_REFERENCE_ET_7 = "reference_evapotranspiration_7"
-CONF_REFERENCE_ET_8 = "reference_evapotranspiration_8"
-CONF_REFERENCE_ET_9 = "reference_evapotranspiration_9"
-CONF_REFERENCE_ET_10 = "reference_evapotranspiration_10"
-CONF_REFERENCE_ET_11 = "reference_evapotranspiration_11"
-CONF_REFERENCE_ET_12 = "reference_evapotranspiration_12"
-CONF_DEFAULT_REFERENCE_ET = 0.0
 # Weather Services
 
 CONF_WEATHER_SERVICE_OWM = "Open Weather Map"
@@ -323,7 +294,6 @@ MAPPING_DATA_LAST_ENTRY = "data_last_entry"
 MAPPING_DATA_LAST_CALCULATION = "data_last_calculation"
 MAPPING_DATA_MULTIPLIER = "data_multiplier"
 MAPPING_MAPPINGS = "mappings"
-MAPPING_TIMESTAMP = "timestamp"
 MAPPING_DEWPOINT = "Dewpoint"
 MAPPING_EVAPOTRANSPIRATION = "Evapotranspiration"
 MAPPING_HUMIDITY = "Humidity"
@@ -346,7 +316,6 @@ MAPPING_CONF_SENSOR = "sensorentity"
 MAPPING_CONF_STATIC_VALUE = "static_value"
 MAPPING_CONF_UNIT = "unit"
 MAPPING_CONF_PRESSURE_TYPE = "pressure_type"
-MAPPING_CONF_PRESSURE_ABSOLUTE = "absolute"
 MAPPING_CONF_PRESSURE_RELATIVE = "relative"
 MAPPING_CONF_AGGREGATE = "aggregate"
 MAPPING_CONF_AGGREGATE_AVERAGE = "average"
@@ -360,17 +329,6 @@ MAPPING_CONF_AGGREGATE_RIEMANNSUM = "riemannsum"
 MAPPING_CONF_AGGREGATE_DELTA = "delta"
 MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT = MAPPING_CONF_AGGREGATE_AVERAGE
 MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION = MAPPING_CONF_AGGREGATE_DELTA
-MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_MAX_TEMP = MAPPING_CONF_AGGREGATE_MAXIMUM
-MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_MIN_TEMP = MAPPING_CONF_AGGREGATE_MINIMUM
-MAPPING_CONF_AGGREGATE_OPTIONS = [
-    MAPPING_CONF_AGGREGATE_AVERAGE,
-    MAPPING_CONF_AGGREGATE_FIRST,
-    MAPPING_CONF_AGGREGATE_LAST,
-    MAPPING_CONF_AGGREGATE_MAXIMUM,
-    MAPPING_CONF_AGGREGATE_MEDIAN,
-    MAPPING_CONF_AGGREGATE_MINIMUM,
-    MAPPING_CONF_AGGREGATE_SUM,
-]
 
 # For timestamps
 RETRIEVED_AT = "retrieved"  # when HA fetched the data (datetime.now())
@@ -405,7 +363,6 @@ UNIT_INCHH = "in/h"
 MM_TO_INCH_FACTOR = 0.03937008  # mm * factor = inch
 LITER_TO_GALLON_FACTOR = 0.26417205  # l * factor = gal
 M2_TO_SQ_FT_FACTOR = 10.7639104  # m2 * factor = sq ft
-M_TO_FT_FACTOR = 3.2808399  # m * factor = ft
 MBAR_TO_PSI_FACTOR = 0.01450377  # mbar = hpa * factor = psi
 MBAR_TO_INHG_FACTOR = 0.029529983071445  # mbar = hpa * factor = inhg
 KMH_TO_MILESH_FACTOR = 0.62137119  # kmh * factor = mph

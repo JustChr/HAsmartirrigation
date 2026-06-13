@@ -5,7 +5,6 @@ export const ISSUES_URL = REPO + "/issues";
 
 export const PLATFORM = "smart-irrigation";
 export const DOMAIN = "smart_irrigation";
-export const editConfigService = "edit_config";
 
 // Localization: only en.json is bundled (built-in fallback); the other
 // languages are served as static JSON and fetched on demand. Keep
@@ -35,20 +34,8 @@ export const CONF_AUTO_UPDATE_ENABLED = "autoupdateenabled";
 export const CONF_AUTO_UPDATE_SCHEDULE = "autoupdateschedule";
 export const CONF_AUTO_UPDATE_TIME = "autoupdatefirsttime";
 export const CONF_AUTO_UPDATE_INTERVAL = "autoupdateinterval";
-export const CONF_AUTO_CLEAR_ENABLED = "autoclearenabled";
-export const CONF_CLEAR_TIME = "cleardatatime";
-export const CONF_CONTINUOUS_UPDATES = "continuousupdates";
-export const CONF_SENSOR_DEBOUNCE = "sensor_debounce";
-
-// Manual coordinate configuration
-export const CONF_MANUAL_COORDINATES_ENABLED = "manual_coordinates_enabled";
-export const CONF_MANUAL_LATITUDE = "manual_latitude";
-export const CONF_MANUAL_LONGITUDE = "manual_longitude";
-export const CONF_MANUAL_ELEVATION = "manual_elevation";
 
 // Weather-based skip configuration
-export const CONF_SKIP_IRRIGATION_ON_PRECIPITATION =
-  "skip_irrigation_on_precipitation";
 export const CONF_PRECIPITATION_THRESHOLD_MM = "precipitation_threshold_mm";
 
 // Experimental, opt-in features (Setup → Experimental)
@@ -59,23 +46,9 @@ export const CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled";
 export const CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation";
 
 // Weather service configuration
-export const CONF_USE_WEATHER_SERVICE = "use_weather_service";
-export const CONF_WEATHER_SERVICE = "weather_service";
 export const CONF_WEATHER_SERVICE_OWM = "Open Weather Map";
 export const CONF_WEATHER_SERVICE_PW = "Pirate Weather";
 export const CONF_WEATHER_SERVICE_OPENMETEO = "Open-Meteo";
-
-// Irrigation start trigger configuration
-export const CONF_IRRIGATION_START_TRIGGERS = "irrigation_start_triggers";
-export const TRIGGER_TYPE_SUNRISE = "sunrise";
-export const TRIGGER_TYPE_SUNSET = "sunset";
-export const TRIGGER_TYPE_SOLAR_AZIMUTH = "solar_azimuth";
-export const TRIGGER_CONF_TYPE = "type";
-export const TRIGGER_CONF_OFFSET_MINUTES = "offset_minutes";
-export const TRIGGER_CONF_AZIMUTH_ANGLE = "azimuth_angle";
-export const TRIGGER_CONF_ENABLED = "enabled";
-export const TRIGGER_CONF_NAME = "name";
-export const TRIGGER_CONF_ACCOUNT_FOR_DURATION = "account_for_duration";
 
 export const AUTO_UPDATE_SCHEDULE_MINUTELY = "minutes";
 export const AUTO_UPDATE_SCHEDULE_HOURLY = "hours";
@@ -104,7 +77,6 @@ export const MAPPING_CONF_SOURCE = "source";
 export const MAPPING_CONF_SENSOR = "sensorentity";
 export const MAPPING_CONF_STATIC_VALUE = "static_value";
 export const MAPPING_CONF_UNIT = "unit";
-export const MAPPING_DATA = "data";
 export const MAPPING_CONF_AGGREGATE = "aggregate";
 export const MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT = "average";
 export const MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION = "delta";
@@ -146,26 +118,19 @@ export const UNIT_MJ_DAY_SQFT = "MJ/day/sq ft";
 export const UNIT_MMH = "mm/h";
 export const UNIT_INCHH = "in/h";
 
-export const ZONE_ID = "id";
 export const ZONE_NAME = "name";
 export const ZONE_SIZE = "size";
 export const ZONE_THROUGHPUT = "throughput";
 export const ZONE_STATE = "state";
 export const ZONE_DURATION = "duration";
-export const ZONE_STATE_DISABLED = "disabled";
-export const ZONE_STATE_MANUAL = "manual";
-export const ZONE_STATE_AUTOMATIC = "automatic";
 export const ZONE_MODULE = "module";
 export const ZONE_BUCKET = "bucket";
-export const ZONE_DELTA = "delta";
-export const ZONE_EXPLANATION = "explanation";
 export const ZONE_MULTIPLIER = "multiplier";
 export const ZONE_MAPPING = "mapping";
 export const ZONE_LEAD_TIME = "lead_time";
 export const ZONE_MAXIMUM_DURATION = "maximum_duration";
 export const ZONE_MAXIMUM_BUCKET = "maximum_bucket";
 export const ZONE_DRAINAGE_RATE = "drainage_rate";
-export const ZONE_CURRENT_DRAINAGE = "current_drainage";
 export const ZONE_LINKED_ENTITY = "linked_entity";
 export const ZONE_BUCKET_THRESHOLD = "bucket_threshold";
 export const ZONE_FLOW_SENSOR = "flow_sensor";
@@ -182,6 +147,3 @@ export const CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME =
 export const SCHEDULE_TYPE_SUNRISE = "sunrise";
 export const SCHEDULE_TYPE_SUNSET = "sunset";
 export const SCHEDULE_TYPE_SOLAR_AZIMUTH = "solar_azimuth";
-export const SCHEDULE_CONF_OFFSET_MINUTES = "offset_minutes";
-export const SCHEDULE_CONF_ACCOUNT_FOR_DURATION = "account_for_duration";
-export const SCHEDULE_CONF_AZIMUTH_ANGLE = "azimuth_angle";

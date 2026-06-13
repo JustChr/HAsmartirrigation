@@ -396,8 +396,9 @@ class TestDaysBetweenIrrigation:
         )
 
         # With default settings (0 days between), should not skip
-        should_skip = await coordinator._check_days_between_irrigation()
-        assert should_skip is False
+        config = await coordinator.store.async_get_config()
+        result = await coordinator._eval_days_between(config)
+        assert result["would_skip"] is False
 
     async def test_check_days_between_irrigation_restriction(
         self,
@@ -417,15 +418,17 @@ class TestDaysBetweenIrrigation:
         )
 
         # With 3 days required and only 1 day passed, should skip
-        should_skip = await coordinator._check_days_between_irrigation()
-        assert should_skip is True
+        config = await coordinator.store.async_get_config()
+        result = await coordinator._eval_days_between(config)
+        assert result["would_skip"] is True
 
         # Test when enough days have passed
         mock_store_with_days_config.async_get_config.return_value[
             const.CONF_DAYS_SINCE_LAST_IRRIGATION
         ] = 3
-        should_skip = await coordinator._check_days_between_irrigation()
-        assert should_skip is False
+        config = await coordinator.store.async_get_config()
+        result = await coordinator._eval_days_between(config)
+        assert result["would_skip"] is False
 
     async def test_increment_days_since_irrigation(
         self,

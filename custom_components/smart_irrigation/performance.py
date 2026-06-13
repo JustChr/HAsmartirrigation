@@ -60,39 +60,3 @@ def _log_duration(name: str, duration: float) -> None:
 
 # Keep the old name for backward compatibility
 async_timer = performance_timer
-
-
-class AsyncPerformanceMonitor:
-    """Monitor performance of async operations."""
-
-    def __init__(self, name: str, threshold: float = 0.1) -> None:
-        """Initialize the performance monitor.
-
-        Args:
-            name: Name for logging
-            threshold: Time threshold in seconds for warnings
-
-        """
-        self.name = name
-        self.threshold = threshold
-        self.start_time = None
-
-    async def __aenter__(self):
-        """Start timing."""
-        self.start_time = time.perf_counter()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """End timing and log if necessary."""
-        if self.start_time is not None:
-            duration = time.perf_counter() - self.start_time
-
-            if duration > self.threshold:
-                _LOGGER.warning(
-                    "Operation %s took %.3f seconds (threshold: %.3fs)",
-                    self.name,
-                    duration,
-                    self.threshold,
-                )
-            elif duration > self.threshold / 2:
-                _LOGGER.debug("Operation %s took %.3f seconds", self.name, duration)
