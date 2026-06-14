@@ -1,7 +1,14 @@
 """The Smart Irrigation Integration."""
 
 import logging
-from datetime import datetime, timedelta
+
+# NB: alias the stdlib datetime class. This package ships a ``datetime.py``
+# platform module (the rain-delay DateTimeEntity); importing that platform sets
+# the ``datetime`` attribute on this package — which IS this module's global
+# namespace — clobbering a global literally named ``datetime`` and breaking
+# ``dt_datetime.now()`` at runtime. The alias keeps our global name collision-free.
+from datetime import datetime as dt_datetime
+from datetime import timedelta
 
 from homeassistant.components.sensor import DOMAIN as PLATFORM
 from homeassistant.config_entries import ConfigEntry
@@ -758,7 +765,7 @@ class SmartIrrigationCoordinator(
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
-                weatherdata[const.RETRIEVED_AT] = datetime.now()
+                weatherdata[const.RETRIEVED_AT] = dt_datetime.now()
                 mapping_data = mapping[const.MAPPING_DATA]
                 if isinstance(mapping_data, list):
                     mapping_data.append(weatherdata)
@@ -776,7 +783,7 @@ class SmartIrrigationCoordinator(
                 )
                 changes = {
                     "data": mapping_data,
-                    const.MAPPING_DATA_LAST_UPDATED: datetime.now(),
+                    const.MAPPING_DATA_LAST_UPDATED: dt_datetime.now(),
                 }
                 await self.store.async_update_mapping(mapping_id, changes)
                 # store last updated and number of data points in the zone here.
@@ -870,7 +877,7 @@ class SmartIrrigationCoordinator(
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
-                weatherdata[const.RETRIEVED_AT] = datetime.now()
+                weatherdata[const.RETRIEVED_AT] = dt_datetime.now()
                 mapping_data = mapping[const.MAPPING_DATA]
                 if isinstance(mapping_data, list):
                     mapping_data.append(weatherdata)
@@ -892,7 +899,7 @@ class SmartIrrigationCoordinator(
                 await self.store.async_update_mapping(mapping_id, changes)
                 # store last updated and number of data points in the zone here.
                 changes_to_zone = {
-                    const.ZONE_LAST_UPDATED: datetime.now(),
+                    const.ZONE_LAST_UPDATED: dt_datetime.now(),
                     const.ZONE_NUMBER_OF_DATA_POINTS: len(mapping_data) - 1,
                 }
                 zones_to_loop = await self._get_zones_that_use_this_mapping(mapping_id)
