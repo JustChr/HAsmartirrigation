@@ -107,7 +107,7 @@ export class SiZoneForm extends LitElement {
               <ha-entity-picker
                 .hass="${this.hass}"
                 .value="${this.linkedEntity}"
-                .includeDomains="${["switch", "valve"]}"
+                .includeDomains="${["switch", "valve", "input_boolean"]}"
                 allow-custom-entity
                 @value-changed="${(e: CustomEvent) =>
                   this._emit("entity-changed", e.detail.value || "")}"

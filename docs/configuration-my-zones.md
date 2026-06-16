@@ -58,7 +58,7 @@ Open **Setup → My Zones**. Each zone's settings are shown directly under its n
   - _Disabled_: The zone is disabled. No updating and calculation of that zone. Setting a [module](configuration-modules.md) and [sensor group](configuration-sensor-groups.md) on the zone is optional.
 - **Module**: Choose the [calculation module](configuration-modules.md) that should be used to calculate irrigation for the zone.
 - **Sensor group**: Choose the [sensor group](configuration-sensor-groups.md) that provides the weather data for this zone.
-- **Linked switch/valve entity**: Optionally control a valve directly — see [Linked entity](#linked-entity) below.
+- **Linked switch/valve/helper entity**: Optionally control a valve directly — see [Linked entity](#linked-entity) below.
 - **Flow meter sensor** (optional): A sensor reporting the zone's actual water flow. When set, irrigation can run until the measured volume is reached instead of relying purely on the calculated time.
 - **Bucket**: Either calculated or manually set. The zone needs irrigation when the bucket falls below its **minimum deficit to irrigate** (see below; default −10 mm) — a bucket of 0 or above never needs watering. See [automations](usage-automations.md) for examples on how to use this value.
 - **Maximum bucket**: You can manually set a maximum bucket size which represents the soil's water holding capacity. The maximum recommended bucket size is based on the type of soil:
@@ -79,7 +79,7 @@ This recommendation is based on the soil water holding capacity. See [this discu
 
 ### Linked entity {#linked-entity}
 
-Optionally link a Home Assistant `switch` or `valve` entity to a zone. When irrigation fires, the integration will:
+Optionally link a Home Assistant `switch`, `valve` or `input_boolean` (helper) entity to a zone. When irrigation fires, the integration will:
 
 1. Call `turn_on` on the entity
 2. Wait for the calculated duration (in seconds)
@@ -87,7 +87,7 @@ Optionally link a Home Assistant `switch` or `valve` entity to a zone. When irri
 
 This means **no automation is needed** to control your valve — the integration does it directly. The [zone sequencing](configuration-when-to-water.md#zone-sequencing) setting on the **When to Water** tab controls whether multiple linked zones run in parallel or one after another.
 
-> **Tip:** Start typing `switch.` or `valve.` in the field and all matching entities in your HA instance will appear as autocomplete suggestions.
+> **Tip:** Start typing `switch.`, `valve.` or `input_boolean.` in the field and all matching entities in your HA instance will appear as autocomplete suggestions. Linking an `input_boolean` helper is handy when you drive the actual valve from your own automation but still want Smart Irrigation to start/stop it.
 
 If you prefer to keep using automations, simply leave this field empty and listen for the `smart_irrigation_start_irrigation_all_zones` [event](usage-events.md), which fires whenever an irrigate [schedule](configuration-schedules.md) runs.
 

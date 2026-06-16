@@ -776,7 +776,7 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
             <ha-entity-picker
               .hass="${this.hass}"
               .value="${zone.linked_entity || ""}"
-              .includeDomains="${["switch", "valve"]}"
+              .includeDomains="${["switch", "valve", "input_boolean"]}"
               allow-custom-entity
               @value-changed="${(e: CustomEvent) =>
                 this.handleEditZone(index, {
