@@ -79,7 +79,8 @@ async def async_register_panel(hass: HomeAssistant):
         sidebar_icon=PANEL_ICON,
         require_admin=True,
         config={},
-    )    
+    )
+
 
 async def _async_register_card_resource(hass: HomeAssistant, version: int) -> bool:
     """Register the card as a storage-mode Lovelace resource (deduped/updated).
