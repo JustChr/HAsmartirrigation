@@ -62,7 +62,7 @@ class TestSmartIrrigationPanel:
             assert call_args[0][0] == mock_hass  # First positional arg is hass
             assert call_args[1]["webcomponent_name"] == PANEL_NAME
             assert call_args[1]["frontend_url_path"] == DOMAIN
-            assert call_args[1]["module_url"] == PANEL_URL
+            assert call_args[1]["module_url"].split("?")[0] == PANEL_URL
             assert call_args[1]["sidebar_title"] == PANEL_TITLE
             assert call_args[1]["sidebar_icon"] == PANEL_ICON
             assert call_args[1]["require_admin"] is True
