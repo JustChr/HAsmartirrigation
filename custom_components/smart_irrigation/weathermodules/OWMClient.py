@@ -22,6 +22,17 @@ from ..const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Shared session so repeated calls reuse the TCP connection and don't re-resolve
+# the API hostname on every request.
+_SESSION = requests.Session()
+
+# Floor for how long a fetched result is reused, even when the caller's configured
+# cache window is shorter (e.g. auto-update disabled → 0s). Repeated weather
+# lookups — skip-condition checks, the dashboard outlook, the intra-day estimate —
+# would otherwise each hit the network (and a DNS lookup); this caps them to at
+# most one call per method per minute.
+_MIN_CACHE_SECONDS = 60
+
 # OWM free-tier endpoints (2.5 — no paid subscription required)
 OWM_CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather?units=metric&lat={}&lon={}&appid={}"
 OWM_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric&lat={}&lon={}&appid={}"
@@ -57,11 +68,18 @@ class OWMClient:  # pylint: disable=invalid-name
         self.latitude = latitude
         self.elevation = elevation
         self.cache_seconds = cache_seconds
-        # caching disabled for now
-        self.override_cache = True
-        self._last_time_called = datetime.datetime(1900, 1, 1, 0, 0, 0)
+        self.override_cache = override_cache
         self._cached_data = None
+        self._cached_data_at = None
         self._cached_forecast_data = None
+        self._cached_forecast_at = None
+
+    def _is_fresh(self, fetched_at) -> bool:
+        """Whether a result fetched at ``fetched_at`` may still be served cached."""
+        if fetched_at is None or self.override_cache:
+            return False
+        ttl = max(self.cache_seconds, _MIN_CACHE_SECONDS)
+        return datetime.datetime.now() < fetched_at + datetime.timedelta(seconds=ttl)
 
     def validate_key(self):
         """Test the API key using /data/2.5/weather (works on all OWM plans).
@@ -69,7 +87,7 @@ class OWMClient:  # pylint: disable=invalid-name
         Raises OSError on 401 (invalid key).
         """
         url = OWM_CURRENT_URL.format(self.latitude, self.longitude, self.api_key)
-        req = requests.get(url, timeout=30)
+        req = _SESSION.get(url, timeout=30)
         if req.status_code == 401:
             raise OSError("OWM API key is invalid (HTTP 401)")
         if req.status_code not in (200, 403):
@@ -77,15 +95,10 @@ class OWMClient:  # pylint: disable=invalid-name
 
     def get_data(self):
         """Fetch and return current weather data from /data/2.5/weather."""
-        if (
-            self._cached_data is None
-            or self.override_cache
-            or datetime.datetime.now()
-            >= self._last_time_called + datetime.timedelta(seconds=self.cache_seconds)
-        ):
+        if not self._is_fresh(self._cached_data_at):
             url = OWM_CURRENT_URL.format(self.latitude, self.longitude, self.api_key)
             try:
-                req = requests.get(url, timeout=60)
+                req = _SESSION.get(url, timeout=60)
                 doc = json.loads(req.text)
                 _LOGGER.debug(
                     "OWMClient get_data called API %s and received %s", url, doc
@@ -131,13 +144,13 @@ class OWMClient:  # pylint: disable=invalid-name
                     ),
                 }
                 self._cached_data = parsed_data
-                self._last_time_called = datetime.datetime.now()
+                self._cached_data_at = datetime.datetime.now()
                 return parsed_data
             except Exception as ex:
                 _LOGGER.warning(ex)
                 raise
         else:
-            _LOGGER.info("Returning cached OWM data")
+            _LOGGER.debug("Returning cached OWM data")
             return self._cached_data
 
     def get_forecast_data(self):
@@ -146,15 +159,10 @@ class OWMClient:  # pylint: disable=invalid-name
         The 3-hourly entries are aggregated into calendar days.
         Today's partial data is excluded; up to 4 complete future days are returned.
         """
-        if (
-            self._cached_forecast_data is None
-            or self.override_cache
-            or datetime.datetime.now()
-            >= self._last_time_called + datetime.timedelta(seconds=self.cache_seconds)
-        ):
+        if not self._is_fresh(self._cached_forecast_at):
             url = OWM_FORECAST_URL.format(self.latitude, self.longitude, self.api_key)
             try:
-                req = requests.get(url, timeout=60)
+                req = _SESSION.get(url, timeout=60)
                 doc = json.loads(req.text)
                 _LOGGER.debug(
                     "OWMClient get_forecast_data called API %s and received %s",
@@ -216,14 +224,14 @@ class OWMClient:  # pylint: disable=invalid-name
                     )
 
                 self._cached_forecast_data = parsed_data_total
-                self._last_time_called = datetime.datetime.now()
+                self._cached_forecast_at = datetime.datetime.now()
                 return parsed_data_total
             except (requests.RequestException, json.JSONDecodeError) as ex:
                 _LOGGER.error("Error reading from OWM forecast: %s", ex)
             else:
                 return None
         else:
-            _LOGGER.info("Returning cached OWM forecastdata")
+            _LOGGER.debug("Returning cached OWM forecastdata")
             return self._cached_forecast_data
 
     def relative_to_absolute_pressure(self, pressure, height):

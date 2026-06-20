@@ -17,9 +17,17 @@ from custom_components.smart_irrigation.const import (
     MAPPING_TEMPERATURE,
     MAPPING_WINDSPEED,
 )
+from custom_components.smart_irrigation.weathermodules.OpenMeteoClient import (
+    OpenMeteoClient,
+)
 from custom_components.smart_irrigation.weathermodules.OWMClient import (
     OWMClient,
     _compute_dew_point,
+)
+
+_OWM_PATCH = "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get"
+_OPENMETEO_PATCH = (
+    "custom_components.smart_irrigation.weathermodules.OpenMeteoClient._SESSION.get"
 )
 
 
@@ -72,7 +80,7 @@ class TestOWMClientGetData:
     def test_success(self):
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, self._CURRENT_BODY),
         ):
             data = client.get_data()
@@ -87,7 +95,7 @@ class TestOWMClientGetData:
     def test_dew_point_computed(self):
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, self._CURRENT_BODY),
         ):
             data = client.get_data()
@@ -100,7 +108,7 @@ class TestOWMClientGetData:
         body["rain"] = {}
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, body),
         ):
             data = client.get_data()
@@ -112,7 +120,7 @@ class TestOWMClientGetData:
         client = OWMClient(api_key="bad", latitude=52.0, longitude=5.0, elevation=0)
         with (
             patch(
-                "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+                "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
                 return_value=_make_response(200, body),
             ),
             pytest.raises(OSError),
@@ -162,7 +170,7 @@ class TestOWMClientGetForecastData:
         # utcfromtimestamp() working on the real slot timestamps.
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, self._forecast_body()),
         ):
             data = client.get_forecast_data()
@@ -210,7 +218,7 @@ class TestOWMClientGetForecastData:
         }
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, body),
         ):
             data = client.get_forecast_data()
@@ -224,7 +232,63 @@ class TestOWMClientGetForecastData:
         body = {"cod": "200", "list": []}
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient.requests.get",
+            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, body),
         ):
             assert client.get_forecast_data() is None
+
+
+class TestOWMClientCaching:
+    """Re-fetched results are reused within the cache window (flood guard)."""
+
+    _CURRENT_BODY = {
+        "cod": 200,
+        "main": {"temp": 20.0, "humidity": 60, "pressure": 1013},
+        "wind": {"speed": 5.0},
+        "rain": {"1h": 0.5},
+        "snow": {},
+    }
+
+    def test_second_call_within_window_serves_cache(self):
+        client = OWMClient(api_key="k", latitude=1.0, longitude=2.0, elevation=0)
+        mock_get = MagicMock(return_value=_make_response(200, self._CURRENT_BODY))
+        with patch(_OWM_PATCH, mock_get):
+            first = client.get_data()
+            second = client.get_data()
+        assert first == second
+        assert mock_get.call_count == 1  # second served from cache
+
+    def test_override_cache_always_fetches(self):
+        client = OWMClient(
+            api_key="k", latitude=1.0, longitude=2.0, override_cache=True
+        )
+        mock_get = MagicMock(return_value=_make_response(200, self._CURRENT_BODY))
+        with patch(_OWM_PATCH, mock_get):
+            client.get_data()
+            client.get_data()
+        assert mock_get.call_count == 2
+
+    def test_refetch_after_ttl_expires(self):
+        client = OWMClient(api_key="k", latitude=1.0, longitude=2.0, elevation=0)
+        mock_get = MagicMock(return_value=_make_response(200, self._CURRENT_BODY))
+        with freeze_time("2024-06-01 12:00:00") as frozen, patch(_OWM_PATCH, mock_get):
+            client.get_data()
+            frozen.tick(delta=datetime.timedelta(seconds=61))
+            client.get_data()
+        assert mock_get.call_count == 2
+
+
+class TestOpenMeteoClientCaching:
+    """The single shared document serves every accessor from one fetch."""
+
+    _DOC = {"hourly": {"time": []}, "daily": {"time": []}}
+
+    def test_one_fetch_serves_all_accessors(self):
+        client = OpenMeteoClient(latitude=1.0, longitude=2.0)
+        mock_get = MagicMock(return_value=_make_response(200, self._DOC))
+        with patch(_OPENMETEO_PATCH, mock_get):
+            client.get_data()
+            client.get_forecast_data()
+            client.get_hourly_data()
+        # current + forecast + hourly all come from one cached response
+        assert mock_get.call_count == 1

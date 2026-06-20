@@ -24,6 +24,17 @@ from ..const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Shared session so repeated calls reuse the TCP connection and don't re-resolve
+# the API hostname on every request.
+_SESSION = requests.Session()
+
+# Floor for how long a fetched response is reused, even when the caller's
+# configured cache window is shorter (e.g. auto-update disabled → 0s). Open-Meteo
+# returns current + forecast + hourly in one document, so caching it here collapses
+# the burst of get_data/get_forecast_data/get_hourly_data lookups (skip checks, the
+# dashboard outlook, the intra-day estimate) onto a single network/DNS call.
+_MIN_CACHE_SECONDS = 60
+
 OPENMETEO_URL = (
     "https://api.open-meteo.com/v1/forecast"
     "?latitude={lat}&longitude={lon}"
@@ -66,15 +77,32 @@ class OpenMeteoClient:
         self.longitude = longitude
         self.elevation = elevation or 0
         self.url = OPENMETEO_URL.format(lat=latitude, lon=longitude)
-        self.override_cache = True
-        self._last_time_called = datetime.datetime(1900, 1, 1, 0, 0, 0)
-        self._cached_data = None
-        self._cached_forecast_data = None
+        self.override_cache = override_cache
+        self.cache_seconds = cache_seconds
+        self._cached_doc = None
+        self._cached_doc_at = None
 
     def _fetch(self):
-        req = requests.get(self.url, timeout=60)
+        """Return the (cached) Open-Meteo response document.
+
+        The whole response — current, daily forecast and hourly series — comes
+        from one URL, so a single cached document serves every accessor. Within
+        the cache window repeated callers reuse it instead of each hitting the
+        network (and a DNS lookup).
+        """
+        if self._cached_doc is not None and not self.override_cache:
+            ttl = max(self.cache_seconds, _MIN_CACHE_SECONDS)
+            if datetime.datetime.now() < self._cached_doc_at + datetime.timedelta(
+                seconds=ttl
+            ):
+                _LOGGER.debug("Returning cached Open-Meteo document")
+                return self._cached_doc
+        req = _SESSION.get(self.url, timeout=60)
         req.raise_for_status()
-        return json.loads(req.text)
+        doc = json.loads(req.text)
+        self._cached_doc = doc
+        self._cached_doc_at = datetime.datetime.now()
+        return doc
 
     def _current_hour_index(self, time_list):
         """Return the index of the current UTC hour in the hourly time list."""
@@ -142,8 +170,6 @@ class OpenMeteoClient:
                 parsed[MAPPING_SOLRAD] = radiation * W_TO_MJ_DAY_FACTOR
 
             _LOGGER.debug("Open-Meteo get_data: %s", parsed)
-            self._cached_data = parsed
-            self._last_time_called = datetime.datetime.now()
             return parsed
 
         except (
@@ -207,8 +233,6 @@ class OpenMeteoClient:
                 result.append(day)
 
             _LOGGER.debug("Open-Meteo get_forecast_data: %s", result)
-            self._cached_forecast_data = result
-            self._last_time_called = datetime.datetime.now()
             return result
 
         except (

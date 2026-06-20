@@ -24,6 +24,17 @@ from ..const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Shared session so repeated calls reuse the TCP connection and don't re-resolve
+# the API hostname on every request.
+_SESSION = requests.Session()
+
+# Floor for how long a fetched result is reused, even when the caller's configured
+# cache window is shorter (e.g. auto-update disabled → 0s). Repeated weather
+# lookups — skip-condition checks, the dashboard outlook, the intra-day estimate —
+# would otherwise each hit the network (and a DNS lookup); this caps them to at
+# most one call per method per minute.
+_MIN_CACHE_SECONDS = 60
+
 # Open Weather Map URL
 PirateWeather_URL = "https://api.pirateweather.net/forecast/{}/{},{}?units={}&version={}&exclude=minutely,hourly,alerts"
 
@@ -85,11 +96,17 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
         # defaults to no cache
         self.cache_seconds = cache_seconds
         self.override_cache = override_cache
-        # disabling cache for now
-        self.override_cache = True
-        self._last_time_called = datetime.datetime(1900, 1, 1, 0, 0, 0)
         self._cached_data = None
+        self._cached_data_at = None
         self._cached_forecast_data = None
+        self._cached_forecast_at = None
+
+    def _is_fresh(self, fetched_at) -> bool:
+        """Whether a result fetched at ``fetched_at`` may still be served cached."""
+        if fetched_at is None or self.override_cache:
+            return False
+        ttl = max(self.cache_seconds, _MIN_CACHE_SECONDS)
+        return datetime.datetime.now() < fetched_at + datetime.timedelta(seconds=ttl)
 
     def validate_key(self):
         """Test the API key by making a real request and checking the HTTP status.
@@ -97,7 +114,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
         Raises OSError on 401/403 (invalid/unauthorized key).
         Raises CannotConnect-compatible Exception on other non-200 statuses.
         """
-        req = requests.get(self.url, timeout=30)
+        req = _SESSION.get(self.url, timeout=30)
         if req.status_code == 401:
             raise OSError("Pirate Weather API key is invalid (HTTP 401)")
         if req.status_code == 403:
@@ -109,15 +126,10 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
 
     def get_forecast_data(self):
         """Validate and return forecast data."""
-        if (
-            self._cached_forecast_data is None
-            or self.override_cache
-            or datetime.datetime.now()
-            >= self._last_time_called + datetime.timedelta(seconds=self.cache_seconds)
-        ):
+        if not self._is_fresh(self._cached_forecast_at):
             try:
                 for i in range(RETRY_TIMES):
-                    req = requests.get(self.url, timeout=60)  # 60 seconds timeout
+                    req = _SESSION.get(self.url, timeout=60)  # 60 seconds timeout
                     if req.status_code == 200:
                         break
                     i = i + 1
@@ -176,7 +188,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                         )
                         parsed_data_total.append(parsed_data)
                     self._cached_forecast_data = parsed_data_total
-                    self._last_time_called = datetime.datetime.now()
+                    self._cached_forecast_at = datetime.datetime.now()
                     return parsed_data_total
                 _LOGGER.warning(
                     "Ignoring PirateWeather input: missing required key '%s' in PirateWeather API return",
@@ -191,7 +203,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                 return None
         else:
             # return cached_data
-            _LOGGER.info("Returning cached PirateWeather forecastdata")
+            _LOGGER.debug("Returning cached PirateWeather forecastdata")
             return self._cached_forecast_data
 
     def relative_to_absolute_pressure(self, pressure, height):
@@ -209,15 +221,10 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
 
     def get_data(self):
         """Validate and return data."""
-        if (
-            self._cached_data is None
-            or self.override_cache
-            or datetime.datetime.now()
-            >= self._last_time_called + datetime.timedelta(seconds=self.cache_seconds)
-        ):
+        if not self._is_fresh(self._cached_data_at):
             try:
                 for i in range(RETRY_TIMES):
-                    req = requests.get(self.url, timeout=60)  # 60 seconds timeout
+                    req = _SESSION.get(self.url, timeout=60)  # 60 seconds timeout
                     if req.status_code == 200:
                         break
                     i = i + 1
@@ -311,7 +318,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                     )
 
                     self._cached_data = parsed_data
-                    self._last_time_called = datetime.datetime.now()
+                    self._cached_data_at = datetime.datetime.now()
                     return parsed_data
                 _LOGGER.warning(
                     "Ignoring PirateWeather input: missing required key '%s' and '%s' in PirateWeather API return",
@@ -326,7 +333,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                 return parsed_data
         else:
             # return cached_data
-            _LOGGER.info("Returning cached PirateWeather data")
+            _LOGGER.debug("Returning cached PirateWeather data")
             return self._cached_data
 
     def raiseIOError(self, key):
