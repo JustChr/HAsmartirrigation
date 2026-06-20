@@ -65,11 +65,18 @@ async def async_register_panel(hass: HomeAssistant):
     if not await _async_register_card_resource(hass, version):
         frontend.add_extra_js_url(hass, f"{CARD_URL}?v={version}")
 
+    try:
+        panel_version = int(
+            view_url.stat().st_mtime
+        )  # cache-bust the panel module on update
+    except OSError:
+        panel_version = 0
+
     await panel_custom.async_register_panel(
         hass,
         webcomponent_name=PANEL_NAME,
         frontend_url_path=DOMAIN,
-        module_url=PANEL_URL,
+        module_url=f"{PANEL_URL}?v={panel_version}",
         sidebar_title=PANEL_TITLE,
         sidebar_icon=PANEL_ICON,
         require_admin=True,
