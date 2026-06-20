@@ -66,7 +66,9 @@ async def async_register_panel(hass: HomeAssistant):
         frontend.add_extra_js_url(hass, f"{CARD_URL}?v={version}")
 
     try:
-        panel_version = int(view_url.stat().st_mtime)  # cache-bust the panel module on update
+        panel_version = int(
+            view_url.stat().st_mtime
+        )  # cache-bust the panel module on update
     except OSError:
         panel_version = 0
 
