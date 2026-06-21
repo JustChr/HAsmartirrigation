@@ -136,10 +136,23 @@ async def test_sequential_valve_no_response_keeps_bucket_and_faults(monkeypatch)
 
 async def test_sequential_success_resets_bucket_and_clears_fault(monkeypatch):
     """Valve confirms on -> bucket replenished, fault cleared."""
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+    )
     coord = _runner(monkeypatch, {"switch.v": _st("on")})
     coord._set_zone_fault(1, const.FAULT_VALVE_NO_RESPONSE)  # pre-existing fault
 
-    await coord._irrigate_zones_sequential([_timed_zone()])
+    # A real run shorter than the commit interval (one commit at turn-off):
+    # 30 s @ 20 L/min over 10 m² = 1 mm -> bucket -1 climbs to 0.
+    zone = _timed_zone(
+        **{
+            const.ZONE_DURATION: 30,
+            const.ZONE_BUCKET: -1.0,
+            const.ZONE_SIZE: 10.0,
+            const.ZONE_THROUGHPUT: 20.0,
+        }
+    )
+    await coord._irrigate_zones_sequential([zone])
 
     changes = _bucket_change(coord.store.async_update_zone)
     assert changes is not None

@@ -157,6 +157,28 @@ async def test_live_run_allows_surplus(monkeypatch):
     assert 1 not in coord._live_run_zones
 
 
+async def test_timed_multiplier_lands_on_target(monkeypatch):
+    """The zone multiplier inflates a timed run's duration as part of the need,
+    so it is divided back out when crediting the bucket — a full run lands at the
+    target for any multiplier, while water_used stays the gross litres delivered."""
+    # multiplier 0.5: real duration would be base(300s)*0.5 = 150 s -> 25 L gross
+    # = 2.5 mm physical, /0.5 = 5 mm credited -> -5 + 5 = 0 (target).
+    z = _zone(
+        **{
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_DURATION: 150,
+            const.ZONE_THROUGHPUT: 10.0,
+            const.ZONE_SIZE: 10.0,
+            const.ZONE_MULTIPLIER: 0.5,
+        }
+    )
+    coord = _coord(monkeypatch, [z])
+    coord._live_run_zones = set()
+    await coord._run_valve_metered(dict(z), "switch.v", real_flow=False)
+    assert _bucket(coord) == pytest.approx(0.0)  # divided out -> lands at target
+    assert _used(coord) == pytest.approx(25.0)  # gross litres, NOT divided
+
+
 async def test_valve_no_response_faults_no_credit(monkeypatch):
     """An unconfirmed valve faults and credits nothing (unchanged semantics)."""
     coord = _coord(monkeypatch, [_zone()], confirm=False)
@@ -181,6 +203,26 @@ async def test_real_flow_credits_measured_volume(monkeypatch):
     assert _bucket(coord) == pytest.approx(0.0)
     assert _used(coord) == pytest.approx(50.0)
     assert _log(coord)[0]["result"] == const.RUN_RESULT_COMPLETED
+
+
+async def test_real_flow_ignores_live_marker_for_target(monkeypatch):
+    """A flow zone marked live (e.g. a manual run_zone) tops up to the deficit
+    floor, NOT to maximum_bucket — the live surplus ceiling must not balloon the
+    flow target volume and overfill the zone."""
+    z = _zone(
+        **{
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_FLOW_SENSOR: "sensor.flow",
+            const.ZONE_MAXIMUM_BUCKET: 50.0,
+        }
+    )
+    coord = _coord(monkeypatch, [z], flow_rate=20)
+    coord._live_run_zones = {1}  # manual run_zone marks every zone, incl. flow
+    await coord._run_valve_metered(dict(z), "switch.v", real_flow=True)
+    # target = 10 m² * 5 mm (floor 0) = 50 L, NOT 10 * 55 = 550 L to maximum_bucket
+    assert _bucket(coord) == pytest.approx(0.0)
+    assert _used(coord) == pytest.approx(50.0)
+    assert 1 not in coord._live_run_zones  # stray marker consumed
 
 
 async def test_real_flow_never_started_faults(monkeypatch):

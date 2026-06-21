@@ -270,16 +270,21 @@ class IrrigationRunnerMixin:
         rate = self._flow_rate_to_l_per_min(raw, unit)
         return rate * step_seconds / 60.0
 
-    def _metered_target_volume(self, zone: dict, ceiling: float) -> float:
-        """Litres a real-flow zone must deliver to reach its post-run ``ceiling``."""
+    def _metered_target_volume(self, zone: dict, floor: float) -> float:
+        """Litres a real-flow zone must deliver to reach its post-run ``floor``.
+
+        ``floor`` is the post-run target bucket (display units, normally 0.0, or
+        the forecast-weighting remainder) — never the live-estimate surplus
+        ceiling, so a flow run tops up to the deficit and does not overfill.
+        """
         size = zone.get(const.ZONE_SIZE) or 0.0
         bucket = zone.get(const.ZONE_BUCKET) or 0.0
-        floor = ceiling
+        floor_mm = floor
         if self.hass.config.units is not METRIC_SYSTEM:
             size = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, size)
             bucket = convert_between(const.UNIT_INCH, const.UNIT_MM, bucket)
-            floor = convert_between(const.UNIT_INCH, const.UNIT_MM, ceiling)
-        return size * max(0.0, floor - bucket)
+            floor_mm = convert_between(const.UNIT_INCH, const.UNIT_MM, floor)
+        return size * max(0.0, floor_mm - bucket)
 
     async def _run_valve_metered(
         self, zone: dict, entity_id: str, *, real_flow: bool, trigger: str = "schedule"
@@ -301,10 +306,18 @@ class IrrigationRunnerMixin:
         """
         zone_id = zone[const.ZONE_ID]
         domain = entity_id.split(".")[0]
-        ceiling = self._run_ceiling(zone)
         original_bucket = zone.get(const.ZONE_BUCKET) or 0.0
 
         if real_flow:
+            # Flow zones deliver to the measured target *floor* and credit the
+            # bucket from the metered volume. The live-estimate surplus ceiling
+            # (maximum_bucket) must NOT apply here — it would balloon the target
+            # volume and overfill the zone (e.g. a manual run_zone marks the zone
+            # in _live_run_zones). Consume any stray marker so it can't leak.
+            live = getattr(self, "_live_run_zones", None)
+            if live:
+                live.discard(int(zone_id))
+            ceiling = self._zone_target_bucket(zone)
             target_volume = self._metered_target_volume(zone, ceiling)
             max_seconds = float(zone.get(const.ZONE_MAXIMUM_DURATION) or 14400)
             rate_lpm = 0.0
@@ -315,6 +328,9 @@ class IrrigationRunnerMixin:
                 zone[const.ZONE_FLOW_SENSOR],
             )
         else:
+            # Synthetic (throughput) run: a live-estimate run may credit a surplus
+            # up to maximum_bucket, otherwise it replenishes to the target floor.
+            ceiling = self._run_ceiling(zone)
             target_volume = float("inf")
             max_seconds = float(zone.get(const.ZONE_DURATION) or 0)
             rate_lpm = self._throughput_lpm(zone)
@@ -347,10 +363,15 @@ class IrrigationRunnerMixin:
         elapsed = 0.0
         last_commit = 0.0
 
+        # Flow runs are volume-targeted (no multiplier) → credit gross depth.
+        # Timed runs inflate the duration by the multiplier → divide it back out
+        # so a full run lands at the target for any multiplier.
+        credit_depth = (
+            self._depth_from_volume_native if real_flow else self._credited_depth_native
+        )
+
         def _bucket_for(total_l: float) -> float:
-            return min(
-                ceiling, original_bucket + self._depth_from_volume_native(zone, total_l)
-            )
+            return min(ceiling, original_bucket + credit_depth(zone, total_l))
 
         while elapsed < max_seconds and delivered < target_volume:
             step = min(const.FLOW_POLL_INTERVAL, max_seconds - elapsed)
@@ -672,7 +693,7 @@ class IrrigationRunnerMixin:
                     new_bucket = min(
                         timed_ceiling[zid],
                         timed_orig_bucket[zid]
-                        + self._depth_from_volume_native(z, timed_delivered_l[zid]),
+                        + self._credited_depth_native(z, timed_delivered_l[zid]),
                     )
                     await self._commit_run_progress(
                         zid,
@@ -784,6 +805,22 @@ class IrrigationRunnerMixin:
         applied_mm = volume_l / size_m2
         return convert_between(const.UNIT_MM, const.UNIT_INCH, applied_mm)
 
+    def _credited_depth_native(self, zone: dict, volume_l: float) -> float:
+        """Bucket depth credited for a *timed* run delivering ``volume_l``.
+
+        A timed run's duration is inflated by the zone multiplier (the multiplier
+        is part of the computed need — ``duration = multiplier × base``), so the
+        gross delivered depth is divided by the multiplier before crediting. This
+        lands a full run's bucket exactly at its target for ANY multiplier —
+        faithfully generalising the old unconditional reset-to-target, and
+        crediting partial/crashed runs proportionally. Flow zones are
+        volume-targeted (no multiplier) and credit the gross depth directly via
+        :meth:`_depth_from_volume_native`.
+        """
+        depth = self._depth_from_volume_native(zone, volume_l)
+        mult = zone.get(const.ZONE_MULTIPLIER) or 1.0
+        return depth / mult if mult > 0 else depth
+
     def _run_ceiling(self, zone: dict) -> float:
         """Bucket level (display units) a run may credit *up to*.
 
@@ -816,11 +853,12 @@ class IrrigationRunnerMixin:
         coarse cadence so the ``_config_updated`` weather fan-out stays cheap.
         """
         zone = self.store.get_zone(zone_id) or {}
-        changes = {
-            const.ZONE_BUCKET: new_bucket,
-            const.ZONE_LAST_IRRIGATION: dt_util.now(),
-        }
+        changes = {const.ZONE_BUCKET: new_bucket}
         if volume_delta_l and volume_delta_l > 0:
+            # Only stamp "last irrigation" + the usage counter when water actually
+            # flowed this commit, so a failed / never-started run (which still
+            # commits an unchanged bucket) does not claim it just watered.
+            changes[const.ZONE_LAST_IRRIGATION] = dt_util.now()
             changes[const.ZONE_WATER_USED_TOTAL] = (
                 zone.get(const.ZONE_WATER_USED_TOTAL) or 0.0
             ) + volume_delta_l
