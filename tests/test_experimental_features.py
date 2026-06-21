@@ -295,6 +295,26 @@ def test_observed_si_driven_run_is_suppressed(monkeypatch):
     assert 1 not in coord._observed_on_since
 
 
+def test_observed_long_run_flap_stays_suppressed(monkeypatch):
+    """A mid-run valve flap (re-open long after the fixed 30s grace) is still
+    suppressed, because the window spans the whole run length, not just 30s."""
+    coord = _observer_coordinator(monkeypatch, loop_time=1000.0)
+    # 1h56 run: window = now + 6960 + 30s grace = 7990.
+    coord._note_si_valve(1, 6960)
+    assert coord._si_driven_until[1] == pytest.approx(7990.0)
+
+    # ~10 min in, the valve flaps unavailable → on again (would have re-opened
+    # past the old 30s window). Must NOT be tracked as external watering.
+    coord.hass.loop.time = Mock(return_value=1600.0)
+    coord._observed_state_changed(_event("switch.valve", "on", "unavailable"))
+    assert 1 not in coord._observed_on_since
+
+    # Once the run window + grace has elapsed, a genuine external open is tracked.
+    coord.hass.loop.time = Mock(return_value=8000.0)
+    coord._observed_state_changed(_event("switch.valve", "on", "off"))
+    assert 1 in coord._observed_on_since
+
+
 def test_observed_close_schedules_credit(monkeypatch):
     """Closing a tracked valve schedules a bucket credit."""
     coord = _observer_coordinator(monkeypatch)

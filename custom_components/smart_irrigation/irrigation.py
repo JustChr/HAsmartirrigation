@@ -25,7 +25,11 @@ _LOGGER = logging.getLogger(__name__)
 # How long (seconds) a zone stays flagged as "Smart Irrigation is driving this
 # valve" after the runner opens it, so the experimental observed-watering
 # observer does not also credit the bucket for a run SI already accounts for.
-SI_VALVE_SUPPRESS_WINDOW = 30
+# Grace added on top of the run's own length: covers valve-confirm lag before
+# the first "open" event and the final "close" event. The window must span the
+# WHOLE run (not a fixed 30s) or a mid-run valve flap re-opening after it lapsed
+# would be mistaken for external watering and double-credit the bucket.
+SI_VALVE_SUPPRESS_MARGIN = 30
 
 # Linked-entity states that count as "the valve actually opened" (switch on,
 # valve open/opening). Mirrors binary_sensor._WATERING_STATES.
@@ -38,16 +42,22 @@ class IrrigationRunnerMixin:
     Mixed into the coordinator; methods use ``self`` to reach coordinator state.
     """
 
-    def _note_si_valve(self, zone_id) -> None:
+    def _note_si_valve(self, zone_id, run_seconds: float = 0.0) -> None:
         """Flag that SI itself is opening this zone's valve.
 
         The observed-watering observer (ObservedWateringMixin) checks this so it
         only credits the bucket for runs SI did NOT start (manual taps,
         automations). No-op unless that experimental feature is wired up.
+
+        ``run_seconds`` is how long this run/slot will hold the valve open; the
+        suppression window spans that plus a fixed grace, so a valve that flaps
+        (on → unavailable → on) or reports "open" slowly mid-run stays suppressed
+        for the entire run instead of only the first 30s.
         """
         until = getattr(self, "_si_driven_until", None)
         if until is not None:
-            until[int(zone_id)] = self.hass.loop.time() + SI_VALVE_SUPPRESS_WINDOW
+            window = (run_seconds or 0.0) + SI_VALVE_SUPPRESS_MARGIN
+            until[int(zone_id)] = self.hass.loop.time() + window
 
     @staticmethod
     def _zone_target_bucket(zone: dict) -> float:
@@ -349,7 +359,7 @@ class IrrigationRunnerMixin:
         zone_id = zone[const.ZONE_ID]
         domain = entity_id.split(".")[0]
 
-        self._note_si_valve(zone_id)
+        self._note_si_valve(zone_id, max_seconds)
         await self.hass.services.async_call(domain, "turn_on", {"entity_id": entity_id})
 
         accumulated = 0.0
@@ -548,7 +558,7 @@ class IrrigationRunnerMixin:
                         slot,
                         rem - slot,
                     )
-                    self._note_si_valve(zid)
+                    self._note_si_valve(zid, slot)
                     await self.hass.services.async_call(
                         domain, "turn_on", {"entity_id": entity_id}
                     )
@@ -765,6 +775,23 @@ class IrrigationRunnerMixin:
         await self.store.async_update_zone(zone_id, changes)
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
 
+    async def async_reset_water_usage(self, zone_id) -> None:
+        """Zero a zone's cumulative water-usage total and clear its run log.
+
+        Recovery action (per-zone "reset usage" button) for when the counter
+        gets corrupted; both fields back the usage sensor and the history card.
+        """
+        zid = int(zone_id)
+        if self.store.get_zone(zid) is None:
+            _LOGGER.warning("Reset water usage: zone %s not found", zid)
+            return
+        await self.store.async_update_zone(
+            zid,
+            {const.ZONE_WATER_USED_TOTAL: 0.0, const.ZONE_RUN_LOG: []},
+        )
+        async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zid)
+        _LOGGER.info("Reset water-usage total + run log for zone %s", zid)
+
     async def _record_skipped_run(
         self, zone_ids, detail: str | None, trigger: str = "schedule"
     ) -> None:
@@ -803,7 +830,7 @@ class IrrigationRunnerMixin:
                     entity_id,
                     duration,
                 )
-                self._note_si_valve(zone[const.ZONE_ID])
+                self._note_si_valve(zone[const.ZONE_ID], duration)
                 await self.hass.services.async_call(
                     domain, "turn_on", {"entity_id": entity_id}
                 )
@@ -862,7 +889,7 @@ class IrrigationRunnerMixin:
                     entity_id,
                     duration,
                 )
-                self._note_si_valve(zone[const.ZONE_ID])
+                self._note_si_valve(zone[const.ZONE_ID], duration)
                 trigger = self._run_trigger(zone[const.ZONE_ID])
                 await self.hass.services.async_call(
                     domain, "turn_on", {"entity_id": entity_id}
