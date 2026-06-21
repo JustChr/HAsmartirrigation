@@ -193,23 +193,43 @@ def _reset_coordinator(monkeypatch, *, metric=True):
     return coord
 
 
+def _last_bucket(coord):
+    """The most recent bucket level written by the run (final commit)."""
+    for call in reversed(coord.store.async_update_zone.await_args_list):
+        changes = call.args[1]
+        if const.ZONE_BUCKET in changes:
+            return changes[const.ZONE_BUCKET]
+    raise AssertionError("no bucket write recorded")
+
+
+async def _drive_timed(coord, zone, monkeypatch):
+    """Run a synthetic (throughput) metered run to completion, fast."""
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+    )
+    coord.hass.services = Mock()
+    coord.hass.services.async_call = AsyncMock()
+    coord.hass.states = Mock()
+    coord._confirm_valve_running = AsyncMock(return_value=True)
+    await coord._run_valve_metered(zone, "switch.v", real_flow=False)
+
+
 async def test_live_run_credits_delivered_not_zeroed(monkeypatch):
     """A live run credits the water actually delivered, not force-to-target."""
     coord = _reset_coordinator(monkeypatch)
     coord._live_run_zones = {1}
-    coord.store.get_zone = Mock(
-        return_value={
-            const.ZONE_BUCKET: -5.0,
-            const.ZONE_SIZE: 10.0,
-            const.ZONE_THROUGHPUT: 10.0,
-            const.ZONE_MAXIMUM_BUCKET: 50.0,
-        }
-    )
-    # 480 s at 10 L/min over 10 m² = 80 L / 10 m² = 8 mm delivered.
-    await coord._reset_zone_bucket_after_run(1, ran_seconds=480)
+    zone = {
+        const.ZONE_ID: 1,
+        const.ZONE_BUCKET: -5.0,
+        const.ZONE_SIZE: 10.0,
+        const.ZONE_THROUGHPUT: 10.0,
+        const.ZONE_MAXIMUM_BUCKET: 50.0,
+        const.ZONE_DURATION: 480,  # 480 s @ 10 L/min = 80 L = 8 mm
+    }
+    coord.store.get_zone = Mock(return_value=dict(zone))
+    await _drive_timed(coord, dict(zone), monkeypatch)
 
-    _, changes = coord.store.async_update_zone.await_args.args
-    assert changes[const.ZONE_BUCKET] == pytest.approx(3.0)  # -5 + 8, NOT 0
+    assert _last_bucket(coord) == pytest.approx(3.0)  # -5 + 8, NOT 0
     # The marker is consumed so a later non-live run resets normally.
     assert 1 not in coord._live_run_zones
 
@@ -217,29 +237,35 @@ async def test_live_run_credits_delivered_not_zeroed(monkeypatch):
 async def test_live_run_credit_capped_at_maximum_bucket(monkeypatch):
     coord = _reset_coordinator(monkeypatch)
     coord._live_run_zones = {1}
-    coord.store.get_zone = Mock(
-        return_value={
-            const.ZONE_BUCKET: 0.0,
-            const.ZONE_SIZE: 10.0,
-            const.ZONE_THROUGHPUT: 10.0,
-            const.ZONE_MAXIMUM_BUCKET: 5.0,
-        }
-    )
-    await coord._reset_zone_bucket_after_run(1, ran_seconds=480)  # +8 -> capped 5
-    _, changes = coord.store.async_update_zone.await_args.args
-    assert changes[const.ZONE_BUCKET] == pytest.approx(5.0)
+    zone = {
+        const.ZONE_ID: 1,
+        const.ZONE_BUCKET: 0.0,
+        const.ZONE_SIZE: 10.0,
+        const.ZONE_THROUGHPUT: 10.0,
+        const.ZONE_MAXIMUM_BUCKET: 5.0,
+        const.ZONE_DURATION: 480,  # +8 -> capped at 5
+    }
+    coord.store.get_zone = Mock(return_value=dict(zone))
+    await _drive_timed(coord, dict(zone), monkeypatch)
+    assert _last_bucket(coord) == pytest.approx(5.0)
 
 
 async def test_non_live_run_still_resets_to_target(monkeypatch):
     """A normal (non-live) run is unaffected: bucket goes to its target."""
     coord = _reset_coordinator(monkeypatch)
     coord._live_run_zones = set()
-    coord.store.get_zone = Mock(
-        return_value={const.ZONE_IRRIGATION_TARGET_BUCKET: -4.0, const.ZONE_BUCKET: -9}
-    )
-    await coord._reset_zone_bucket_after_run(1, ran_seconds=480)
-    _, changes = coord.store.async_update_zone.await_args.args
-    assert changes[const.ZONE_BUCKET] == pytest.approx(-4.0)
+    zone = {
+        const.ZONE_ID: 1,
+        const.ZONE_IRRIGATION_TARGET_BUCKET: -4.0,
+        const.ZONE_BUCKET: -9.0,
+        const.ZONE_SIZE: 10.0,
+        const.ZONE_THROUGHPUT: 10.0,
+        const.ZONE_MAXIMUM_BUCKET: 50.0,
+        const.ZONE_DURATION: 480,  # delivers 8 mm, but clamped at the -4 target
+    }
+    coord.store.get_zone = Mock(return_value=dict(zone))
+    await _drive_timed(coord, dict(zone), monkeypatch)
+    assert _last_bucket(coord) == pytest.approx(-4.0)
 
 
 async def test_live_credit_then_daily_calc_no_double_subtraction(monkeypatch):
@@ -256,17 +282,17 @@ async def test_live_credit_then_daily_calc_no_double_subtraction(monkeypatch):
     # --- the credit reset ---
     coord = _reset_coordinator(monkeypatch)
     coord._live_run_zones = {1}
-    coord.store.get_zone = Mock(
-        return_value={
-            const.ZONE_BUCKET: -5.0,
-            const.ZONE_SIZE: 10.0,
-            const.ZONE_THROUGHPUT: 10.0,
-            const.ZONE_MAXIMUM_BUCKET: 50.0,
-        }
-    )
-    await coord._reset_zone_bucket_after_run(1, ran_seconds=480)
-    _, changes = coord.store.async_update_zone.await_args.args
-    credited_bucket = changes[const.ZONE_BUCKET]
+    zone = {
+        const.ZONE_ID: 1,
+        const.ZONE_BUCKET: -5.0,
+        const.ZONE_SIZE: 10.0,
+        const.ZONE_THROUGHPUT: 10.0,
+        const.ZONE_MAXIMUM_BUCKET: 50.0,
+        const.ZONE_DURATION: 480,
+    }
+    coord.store.get_zone = Mock(return_value=dict(zone))
+    await _drive_timed(coord, dict(zone), monkeypatch)
+    credited_bucket = _last_bucket(coord)
     assert credited_bucket == pytest.approx(3.0)
 
     # --- the next daily calc over Tuesday's full 8 mm ET ---

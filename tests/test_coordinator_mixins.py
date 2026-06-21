@@ -57,7 +57,7 @@ def test_irrigation_runner_methods_present():
     expected = [
         "_irrigate_linked_entities",
         "_flow_rate_to_l_per_min",
-        "_irrigate_zone_with_flow_meter",
+        "_run_valve_metered",
         "_irrigate_zone_flow_slot",
         "_irrigate_zones_rotating",
         "_irrigate_zones_sequential",

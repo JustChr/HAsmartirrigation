@@ -243,12 +243,17 @@ class TestFinishTrackerAdvance:
 
 class TestBucketResetAfterRun:
     @pytest.mark.asyncio
-    async def test_resets_to_zero(self, coordinator, mock_store):
+    async def test_commit_progress_writes_bucket_and_time(
+        self, coordinator, mock_store
+    ):
         mock_store.async_update_zone = AsyncMock()
-        # No forecast-weighting target on the zone → full replenish to 0.
         mock_store.get_zone = Mock(return_value={})
-        await coordinator._reset_zone_bucket_after_run(5)
-        # Resets the bucket to 0 and records the irrigation time (dynamic value).
+        # No forecast-weighting target on the zone → run may replenish to 0.
+        assert coordinator._run_ceiling({const.ZONE_ID: 5}) == 0.0
+        await coordinator._commit_run_progress(
+            5, new_bucket=0.0, volume_delta_l=0.0, dispatch=False
+        )
+        # Writes the bucket and records the irrigation time (dynamic value).
         mock_store.async_update_zone.assert_awaited_once()
         zone_id_arg, changes = mock_store.async_update_zone.await_args[0]
         assert zone_id_arg == 5

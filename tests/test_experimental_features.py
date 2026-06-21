@@ -168,31 +168,31 @@ def test_zone_target_bucket_helper():
     )
 
 
-async def test_reset_bucket_uses_target(monkeypatch):
-    """A completed timed run lands on the zone's target, not always 0."""
+def test_run_ceiling_uses_target(monkeypatch):
+    """A completed timed run may credit only up to the zone's target floor."""
     coord = _runner_coordinator(monkeypatch)
-    coord.store.get_zone = Mock(
-        return_value={const.ZONE_IRRIGATION_TARGET_BUCKET: -4.0}
+    coord._live_run_zones = set()
+    ceiling = coord._run_ceiling(
+        {const.ZONE_ID: 1, const.ZONE_IRRIGATION_TARGET_BUCKET: -4.0}
     )
-
-    await coord._reset_zone_bucket_after_run(1)
-
-    coord.store.async_update_zone.assert_awaited_once()
-    zid, changes = coord.store.async_update_zone.await_args.args
-    assert zid == 1
-    assert changes[const.ZONE_BUCKET] == pytest.approx(-4.0)
-    assert const.ZONE_LAST_IRRIGATION in changes
+    assert ceiling == pytest.approx(-4.0)
 
 
-async def test_reset_bucket_defaults_to_zero(monkeypatch):
+def test_run_ceiling_defaults_to_zero(monkeypatch):
     """No target (feature off) preserves the original full-replenish to 0."""
     coord = _runner_coordinator(monkeypatch)
-    coord.store.get_zone = Mock(return_value={})
+    coord._live_run_zones = set()
+    assert coord._run_ceiling({const.ZONE_ID: 1}) == pytest.approx(0.0)
 
-    await coord._reset_zone_bucket_after_run(1)
 
-    _, changes = coord.store.async_update_zone.await_args.args
-    assert changes[const.ZONE_BUCKET] == pytest.approx(0.0)
+def test_run_ceiling_live_zone_allows_surplus(monkeypatch):
+    """A live-estimate run may credit up to maximum_bucket (a surplus)."""
+    coord = _runner_coordinator(monkeypatch)
+    coord._live_run_zones = {1}
+    ceiling = coord._run_ceiling({const.ZONE_ID: 1, const.ZONE_MAXIMUM_BUCKET: 5.0})
+    assert ceiling == pytest.approx(5.0)
+    # marker consumed
+    assert 1 not in coord._live_run_zones
 
 
 # --------------------------------------------------------------------------- #

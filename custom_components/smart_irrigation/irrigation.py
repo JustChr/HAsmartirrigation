@@ -247,102 +247,176 @@ class IrrigationRunnerMixin:
             return value * 3.785411784 / 60.0
         return value  # assume L/min
 
-    async def _irrigate_zone_with_flow_meter(self, zone: dict, entity_id: str) -> None:
-        """Irrigate a zone using a flow sensor: stop when target volume is delivered."""
-        zone_id = zone[const.ZONE_ID]
+    def _read_flow_increment(self, zone: dict, step_seconds: float) -> float:
+        """Litres a real flow sensor reports as delivered over ``step_seconds``.
+
+        Reads the current sensor state, converts its rate to L/min and integrates
+        over the step. Returns 0.0 (and logs) when the sensor is unavailable or
+        non-numeric so a flaky reading just contributes nothing to this tick.
+        """
+        flow_sensor = zone[const.ZONE_FLOW_SENSOR]
+        state = self.hass.states.get(flow_sensor)
+        if state is None or state.state in ("unavailable", "unknown"):
+            _LOGGER.warning("Flow sensor '%s' unavailable", flow_sensor)
+            return 0.0
+        try:
+            raw = float(state.state)
+        except (ValueError, TypeError):
+            _LOGGER.warning(
+                "Flow sensor '%s' non-numeric state '%s'", flow_sensor, state.state
+            )
+            return 0.0
+        unit = state.attributes.get("unit_of_measurement", "L/min")
+        rate = self._flow_rate_to_l_per_min(raw, unit)
+        return rate * step_seconds / 60.0
+
+    def _metered_target_volume(self, zone: dict, ceiling: float) -> float:
+        """Litres a real-flow zone must deliver to reach its post-run ``ceiling``."""
         size = zone.get(const.ZONE_SIZE) or 0.0
         bucket = zone.get(const.ZONE_BUCKET) or 0.0
-
-        # Post-run target (display units, normally 0). Forecast weighting can set
-        # a rain-covered remainder; we then deliver only down to that floor.
-        floor_display = self._zone_target_bucket(zone)
-        floor_mm = floor_display
-
-        ha_config_is_metric = self.hass.config.units is METRIC_SYSTEM
-        if not ha_config_is_metric:
+        floor = ceiling
+        if self.hass.config.units is not METRIC_SYSTEM:
             size = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, size)
             bucket = convert_between(const.UNIT_INCH, const.UNIT_MM, bucket)
-            floor_mm = convert_between(const.UNIT_INCH, const.UNIT_MM, floor_display)
+            floor = convert_between(const.UNIT_INCH, const.UNIT_MM, ceiling)
+        return size * max(0.0, floor - bucket)
 
-        target_volume = size * max(0.0, floor_mm - bucket)
-        safety_timeout = zone.get(const.ZONE_MAXIMUM_DURATION) or 14400
+    async def _run_valve_metered(
+        self, zone: dict, entity_id: str, *, real_flow: bool, trigger: str = "schedule"
+    ) -> None:
+        """Open a zone's valve and account for the water continuously until done.
 
-        _LOGGER.info(
-            "Flow meter irrigation: zone %s target %.1f L (sensor: %s)",
-            zone_id,
-            target_volume,
-            zone[const.ZONE_FLOW_SENSOR],
-        )
+        One primitive for both run kinds: a real-flow zone integrates its sensor
+        each poll; a throughput-only zone synthesizes a constant ``throughput``
+        L/min rate (mimicking a flow meter). Either way the bucket and the
+        ``water_used_total`` counter are credited *while the valve is open*, on a
+        coarse ``RUN_COMMIT_INTERVAL`` cadence, instead of one binary write at the
+        end — so a mid-run restart keeps the partial progress.
 
-        accumulated = await self._irrigate_zone_flow_slot(
-            zone, entity_id, safety_timeout, target_volume
-        )
-        timed_out = accumulated < target_volume
+        Stop condition: a real-flow run stops at its target volume or the
+        ``maximum_duration`` safety timeout; a synthetic run stops at its
+        ``ZONE_DURATION``. The final bucket is identical to the old end-of-run
+        behaviour because the duration always delivers at least the deficit, so
+        crediting the delivered depth clamps at the same target ``ceiling``.
+        """
+        zone_id = zone[const.ZONE_ID]
+        domain = entity_id.split(".")[0]
+        ceiling = self._run_ceiling(zone)
+        original_bucket = zone.get(const.ZONE_BUCKET) or 0.0
 
-        if timed_out:
-            _LOGGER.warning(
-                "Zone %s: safety timeout %ss reached (%.2f / %.1f L delivered)",
+        if real_flow:
+            target_volume = self._metered_target_volume(zone, ceiling)
+            max_seconds = float(zone.get(const.ZONE_MAXIMUM_DURATION) or 14400)
+            rate_lpm = 0.0
+            _LOGGER.info(
+                "Metered (flow) irrigation: zone %s target %.1f L (sensor: %s)",
                 zone_id,
-                safety_timeout,
-                accumulated,
                 target_volume,
+                zone[const.ZONE_FLOW_SENSOR],
             )
         else:
+            target_volume = float("inf")
+            max_seconds = float(zone.get(const.ZONE_DURATION) or 0)
+            rate_lpm = self._throughput_lpm(zone)
             _LOGGER.info(
-                "Zone %s: target %.1f L reached (%.2f L delivered)",
+                "Metered (timed) irrigation: zone %s for %.0fs @ %.2f L/min",
                 zone_id,
-                target_volume,
-                accumulated,
+                max_seconds,
+                rate_lpm,
             )
 
-        if target_volume > 0 and accumulated <= 0:
-            # The valve was told to open but the flow sensor never registered any
-            # flow — treat as a failed run: do NOT credit the bucket, flag a fault
-            # so the deficit (and the problem sensor) persist.
+        self._note_si_valve(zone_id, max_seconds)
+        await self.hass.services.async_call(domain, "turn_on", {"entity_id": entity_id})
+        if await self._confirm_valve_running(zone_id, entity_id) is False:
+            # Valve never opened — abort without crediting the bucket so the
+            # deficit and the fault persist (unchanged fault semantics).
+            self._set_zone_fault(zone_id, const.FAULT_VALVE_NO_RESPONSE)
+            await self.hass.services.async_call(
+                domain, "turn_off", {"entity_id": entity_id}
+            )
+            await self._record_run(
+                zone_id,
+                result=const.RUN_RESULT_FAILED,
+                detail=const.FAULT_VALVE_NO_RESPONSE,
+                trigger=trigger,
+            )
+            return
+
+        delivered = 0.0
+        water_committed = 0.0
+        elapsed = 0.0
+        last_commit = 0.0
+
+        def _bucket_for(total_l: float) -> float:
+            return min(
+                ceiling, original_bucket + self._depth_from_volume_native(zone, total_l)
+            )
+
+        while elapsed < max_seconds and delivered < target_volume:
+            step = min(const.FLOW_POLL_INTERVAL, max_seconds - elapsed)
+            if step <= 0:
+                break
+            await asyncio.sleep(step)
+            elapsed += step
+            if real_flow:
+                delivered += self._read_flow_increment(zone, step)
+            else:
+                delivered += rate_lpm * step / 60.0
+            if elapsed - last_commit >= const.RUN_COMMIT_INTERVAL:
+                await self._commit_run_progress(
+                    zone_id,
+                    new_bucket=_bucket_for(delivered),
+                    volume_delta_l=delivered - water_committed,
+                    dispatch=True,
+                )
+                water_committed = delivered
+                last_commit = elapsed
+
+        await self.hass.services.async_call(
+            domain, "turn_off", {"entity_id": entity_id}
+        )
+
+        if real_flow and target_volume > 0 and delivered <= 0:
+            # Valve opened but the flow sensor never registered any flow — failed
+            # run: do not credit the bucket, flag a fault so the deficit persists.
             self._set_zone_fault(zone_id, const.FAULT_FLOW_NEVER_STARTED)
             await self._record_run(
                 zone_id,
                 result=const.RUN_RESULT_FAILED,
                 detail=const.FAULT_FLOW_NEVER_STARTED,
+                trigger=trigger,
             )
             return
 
-        if size > 0:
-            actual_mm = accumulated / size
-            if not ha_config_is_metric:
-                actual_mm = convert_between(const.UNIT_MM, const.UNIT_INCH, actual_mm)
-            self._clear_zone_fault(zone_id)
-            original_bucket = zone.get(const.ZONE_BUCKET) or 0.0
-            new_bucket = min(floor_display, original_bucket + actual_mm)
-            await self.store.async_update_zone(
-                zone_id,
-                {
-                    const.ZONE_BUCKET: new_bucket,
-                    const.ZONE_LAST_IRRIGATION: dt_util.now(),
-                },
-            )
-            async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
-            _LOGGER.info(
-                "Zone %s: bucket updated %.3f → %.3f (%s%.2f mm delivered%s)",
-                zone_id,
-                original_bucket,
-                new_bucket,
-                "" if not timed_out else "partial, ",
-                actual_mm,
-                "" if not timed_out else " — timeout",
-            )
-            await self._record_run(
-                zone_id,
-                result=(
-                    const.RUN_RESULT_PARTIAL
-                    if timed_out
-                    else const.RUN_RESULT_COMPLETED
-                ),
-                volume_l=accumulated,
-                detail=(
-                    "safety_timeout" if timed_out else zone.get(const.ZONE_EXPLANATION)
-                ),
-            )
+        await self._commit_run_progress(
+            zone_id,
+            new_bucket=_bucket_for(delivered),
+            volume_delta_l=delivered - water_committed,
+            dispatch=True,
+        )
+        self._clear_zone_fault(zone_id)
+        timed_out = real_flow and delivered < target_volume
+        _LOGGER.info(
+            "Metered irrigation: zone %s done — %.2f L in %.0fs%s",
+            zone_id,
+            delivered,
+            elapsed,
+            " (safety timeout)" if timed_out else "",
+        )
+        await self._record_run(
+            zone_id,
+            result=(
+                const.RUN_RESULT_PARTIAL if timed_out else const.RUN_RESULT_COMPLETED
+            ),
+            volume_l=delivered,
+            add_to_total=False,  # already streamed in via _commit_run_progress
+            planned_s=None if real_flow else max_seconds,
+            actual_s=elapsed,
+            detail=(
+                "safety_timeout" if timed_out else zone.get(const.ZONE_EXPLANATION)
+            ),
+            trigger=trigger,
+        )
 
     async def _irrigate_zone_flow_slot(
         self,
@@ -355,7 +429,6 @@ class IrrigationRunnerMixin:
 
         Returns litres delivered during this slot.
         """
-        flow_sensor = zone[const.ZONE_FLOW_SENSOR]
         zone_id = zone[const.ZONE_ID]
         domain = entity_id.split(".")[0]
 
@@ -368,30 +441,10 @@ class IrrigationRunnerMixin:
         while elapsed < max_seconds and accumulated < remaining_volume:
             await asyncio.sleep(const.FLOW_POLL_INTERVAL)
             elapsed += const.FLOW_POLL_INTERVAL
-
-            state = self.hass.states.get(flow_sensor)
-            if state is None or state.state in ("unavailable", "unknown"):
-                _LOGGER.warning(
-                    "Flow sensor '%s' unavailable during rotating slot of zone %s",
-                    flow_sensor,
-                    zone_id,
-                )
-                continue
-            try:
-                raw = float(state.state)
-            except (ValueError, TypeError):
-                _LOGGER.warning(
-                    "Flow sensor '%s' non-numeric state '%s'", flow_sensor, state.state
-                )
-                continue
-
-            unit = state.attributes.get("unit_of_measurement", "L/min")
-            rate = self._flow_rate_to_l_per_min(raw, unit)
-            accumulated += rate * const.FLOW_POLL_INTERVAL / 60.0
+            accumulated += self._read_flow_increment(zone, const.FLOW_POLL_INTERVAL)
             _LOGGER.debug(
-                "Zone %s slot: %.2f L/min → %.2f / %.2f L",
+                "Zone %s slot: %.2f / %.2f L delivered",
                 zone_id,
-                rate,
                 accumulated,
                 remaining_volume,
             )
@@ -422,13 +475,22 @@ class IrrigationRunnerMixin:
             z[const.ZONE_ID]: float(z[const.ZONE_DURATION]) for z in timed_zones
         }
         timed_by_id = {z[const.ZONE_ID]: z for z in timed_zones}
+        # Per-zone accounting state (native display units / litres). The bucket is
+        # an idempotent absolute recompute from the original level + cumulative
+        # delivered depth (so each commit is safe); water usage is credited by the
+        # per-slot delta only. ``_run_ceiling`` consumes the live-estimate marker
+        # once per zone here.
+        timed_orig_bucket = {
+            z[const.ZONE_ID]: (z.get(const.ZONE_BUCKET) or 0.0) for z in timed_zones
+        }
+        timed_ceiling = {z[const.ZONE_ID]: self._run_ceiling(z) for z in timed_zones}
+        timed_delivered_l = {z[const.ZONE_ID]: 0.0 for z in timed_zones}
 
         ha_metric = self.hass.config.units is METRIC_SYSTEM
         flow_target: dict = {}
         flow_delivered: dict = {}
         flow_elapsed: dict = {}
-        flow_size_m2: dict = {}
-        flow_bucket: dict = {}
+        flow_orig_bucket: dict = {}
         flow_floor: dict = {}
         flow_by_id: dict = {}
 
@@ -455,8 +517,7 @@ class IrrigationRunnerMixin:
             flow_target[zid] = s_m2 * max(0.0, floor_mm - b_mm)
             flow_delivered[zid] = 0.0
             flow_elapsed[zid] = 0.0
-            flow_size_m2[zid] = s_m2
-            flow_bucket[zid] = raw_bucket
+            flow_orig_bucket[zid] = raw_bucket
             flow_floor[zid] = raw_floor
             flow_by_id[zid] = z
             _LOGGER.info(
@@ -465,6 +526,7 @@ class IrrigationRunnerMixin:
 
         zone_order = [z[const.ZONE_ID] for z in timed_zones + flow_zones]
         last_finish: dict = {}
+        recorded: set = set()  # zones whose completion has been logged once
         loop = asyncio.get_running_loop()
 
         def _timed_done(zid):
@@ -517,35 +579,55 @@ class IrrigationRunnerMixin:
                     )
                     flow_delivered[zid] += delivered
                     flow_elapsed[zid] += slot
+                    # Credit the bucket (absolute recompute) + this slot's litres.
+                    new_bucket = min(
+                        flow_floor[zid],
+                        flow_orig_bucket[zid]
+                        + self._depth_from_volume_native(z, flow_delivered[zid]),
+                    )
+                    await self._commit_run_progress(
+                        zid,
+                        new_bucket=new_bucket,
+                        volume_delta_l=delivered,
+                        dispatch=True,
+                    )
                     _LOGGER.info(
                         "Rotating irrigation: flow zone %s slot done — %.1f/%.1f L total",
                         zid,
                         flow_delivered[zid],
                         flow_target[zid],
                     )
-                    if flow_size_m2[zid] > 0:
-                        slot_mm = delivered / flow_size_m2[zid]
-                        slot_native = (
-                            slot_mm
-                            if ha_metric
-                            else convert_between(
-                                const.UNIT_MM, const.UNIT_INCH, slot_mm
+                    if _flow_done(zid) and zid not in recorded:
+                        recorded.add(zid)
+                        if flow_target[zid] > 0 and flow_delivered[zid] <= 0:
+                            # Valve cycled but the sensor never registered flow.
+                            self._set_zone_fault(zid, const.FAULT_FLOW_NEVER_STARTED)
+                            await self._record_run(
+                                zid,
+                                result=const.RUN_RESULT_FAILED,
+                                detail=const.FAULT_FLOW_NEVER_STARTED,
+                                trigger=self._run_trigger(zid),
                             )
-                        )
-                        prev_bucket = flow_bucket[zid]
-                        new_bucket = min(flow_floor[zid], prev_bucket + slot_native)
-                        flow_bucket[zid] = new_bucket
-                        await self.store.async_update_zone(
-                            zid, {const.ZONE_BUCKET: new_bucket}
-                        )
-                        _LOGGER.info(
-                            "Rotating irrigation: flow zone %s bucket %.3f → %.3f"
-                            " (%.2f L this slot)",
-                            zid,
-                            prev_bucket,
-                            new_bucket,
-                            delivered,
-                        )
+                        else:
+                            self._clear_zone_fault(zid)
+                            timed_out = flow_delivered[zid] < flow_target[zid]
+                            await self._record_run(
+                                zid,
+                                result=(
+                                    const.RUN_RESULT_PARTIAL
+                                    if timed_out
+                                    else const.RUN_RESULT_COMPLETED
+                                ),
+                                volume_l=flow_delivered[zid],
+                                add_to_total=False,
+                                actual_s=flow_elapsed[zid],
+                                detail=(
+                                    "safety_timeout"
+                                    if timed_out
+                                    else z.get(const.ZONE_EXPLANATION)
+                                ),
+                                trigger=self._run_trigger(zid),
+                            )
                 else:
                     z = timed_by_id[zid]
                     entity_id = z[const.ZONE_LINKED_ENTITY]
@@ -575,6 +657,7 @@ class IrrigationRunnerMixin:
                             zid,
                             result=const.RUN_RESULT_FAILED,
                             detail=const.FAULT_VALVE_NO_RESPONSE,
+                            trigger=self._run_trigger(zid),
                         )
                         continue
                     await asyncio.sleep(slot)
@@ -582,21 +665,35 @@ class IrrigationRunnerMixin:
                         domain, "turn_off", {"entity_id": entity_id}
                     )
                     timed_remaining[zid] -= slot
+                    # Credit this slot's water continuously (absolute bucket
+                    # recompute + per-slot litre delta).
+                    slot_volume = self._timed_volume_l(z, slot)
+                    timed_delivered_l[zid] += slot_volume
+                    new_bucket = min(
+                        timed_ceiling[zid],
+                        timed_orig_bucket[zid]
+                        + self._depth_from_volume_native(z, timed_delivered_l[zid]),
+                    )
+                    await self._commit_run_progress(
+                        zid,
+                        new_bucket=new_bucket,
+                        volume_delta_l=slot_volume,
+                        dispatch=True,
+                    )
                     _LOGGER.info("Rotating irrigation: finished slot for %s", entity_id)
                     if timed_remaining[zid] <= 0:
-                        # Zone fully irrigated across its slots — replenish bucket.
+                        # Zone fully irrigated across its slots — log completion.
                         self._clear_zone_fault(zid)
                         planned = float(z[const.ZONE_DURATION])
-                        await self._reset_zone_bucket_after_run(
-                            zid, ran_seconds=planned
-                        )
                         await self._record_run(
                             zid,
                             result=const.RUN_RESULT_COMPLETED,
-                            volume_l=self._timed_volume_l(z, planned),
+                            volume_l=timed_delivered_l[zid],
+                            add_to_total=False,
                             planned_s=planned,
                             actual_s=planned,
                             detail=z.get(const.ZONE_EXPLANATION),
+                            trigger=self._run_trigger(zid),
                         )
 
                 last_finish[zid] = loop.time()
@@ -618,10 +715,10 @@ class IrrigationRunnerMixin:
         The daily ledger is untouched: only the *duration of this run* changes.
         Flow-meter zones are left alone — they already deliver to a measured
         volume and credit the bucket from it. Recomputed zones are marked in
-        ``_live_run_zones`` so :meth:`_reset_zone_bucket_after_run` credits the
-        actually-delivered water (``bucket += delivered``, capped) instead of
-        forcing the bucket to its target; the live deficit can exceed the stored
-        daily bucket, so crediting (not zeroing) keeps the next daily calc from
+        ``_live_run_zones`` so :meth:`_run_ceiling` lets the run credit up to
+        ``maximum_bucket`` (a surplus) rather than clamping at the daily target;
+        the live deficit can exceed the stored daily bucket, so crediting the
+        actually-delivered water (not zeroing) keeps the next daily calc from
         double-subtracting the intra-day ET.
         """
         if self.store.config.live_duration_enabled is not True:
@@ -670,56 +767,66 @@ class IrrigationRunnerMixin:
             out.append({**z, const.ZONE_DURATION: live})
         return out
 
-    def _delivered_depth_native(self, zone: dict, seconds: float) -> float:
-        """Depth (display units) a timed run of ``seconds`` applied to ``zone``.
+    def _depth_from_volume_native(self, zone: dict, volume_l: float) -> float:
+        """Depth (display units) that ``volume_l`` litres applies to ``zone``.
 
-        volume = run minutes × throughput; depth = volume / area. Mirrors the
-        observed-watering crediting math so a live-estimate run credits the
-        bucket by what it actually delivered.
+        Metric: litres / m² == mm. Imperial: convert area to m², then mm → inch.
+        Shared by every metered run path so the bucket is credited by the volume
+        actually delivered — synthetic ``throughput × time`` or a real flow
+        sensor — exactly as the observed-watering crediting does.
         """
         size = zone.get(const.ZONE_SIZE) or 0.0
-        if size <= 0 or not seconds or seconds <= 0:
+        if size <= 0 or not volume_l or volume_l <= 0:
             return 0.0
-        volume_l = self._timed_volume_l(zone, seconds)
         if self.hass.config.units is METRIC_SYSTEM:
             return volume_l / size  # litres / m² == mm
         size_m2 = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, size)
         applied_mm = volume_l / size_m2
         return convert_between(const.UNIT_MM, const.UNIT_INCH, applied_mm)
 
-    async def _reset_zone_bucket_after_run(self, zone_id, ran_seconds=None) -> None:
-        """Replenish a zone's bucket after a completed timed run.
+    def _run_ceiling(self, zone: dict) -> float:
+        """Bucket level (display units) a run may credit *up to*.
 
-        Normal runs: the duration was computed to deliver exactly the accumulated
-        deficit (|bucket|), so the bucket returns to its post-run target —
-        normally 0, or the rain-covered remainder when forecast weighting trimmed
-        this run. The flow-meter path does the equivalent from measured volume.
+        Normal / real-flow runs replenish only to the post-run target floor
+        (0.0, or the forecast-weighting remainder). Live-estimate runs (WS-3,
+        marked in ``_live_run_zones``) came from the intra-day deficit, which can
+        exceed the stored daily bucket — so they may credit up to ``maximum_bucket``
+        (a surplus), matching the live-estimate crediting that used to live in
+        ``_reset_zone_bucket_after_run``. The marker is consumed here.
+        """
+        zid = int(zone.get(const.ZONE_ID))
+        live = getattr(self, "_live_run_zones", None)
+        if live and zid in live:
+            live.discard(zid)
+            max_bucket = zone.get(const.ZONE_MAXIMUM_BUCKET)
+            return float(max_bucket) if max_bucket is not None else float("inf")
+        return self._zone_target_bucket(zone)
 
-        Live-estimate runs (WS-3, marked in ``_live_run_zones``): the duration
-        came from the live intra-day deficit, which can exceed the stored daily
-        bucket. Forcing the bucket to its target would discard the credit for the
-        extra intra-day water and the next daily calc would re-subtract that ET.
-        Instead credit the actually-delivered depth (``bucket += delivered``,
-        capped at maximum_bucket) so the leftover deficit persists honestly.
+    async def _commit_run_progress(
+        self, zone_id, *, new_bucket: float, volume_delta_l: float, dispatch: bool
+    ) -> None:
+        """Persist mid-run progress: bucket level + incremental water usage.
+
+        ``new_bucket`` is an absolute, idempotent recompute
+        (``min(ceiling, original + cumulative_delivered_depth)``) so re-writing it
+        is always safe. ``volume_delta_l`` is the litres delivered *since the last
+        commit* — only ever the increment, never the cumulative, so the monotonic
+        ``water_used_total`` counter can never double-count (the failure mode
+        behind the v2026.06.36 runaway total). The caller gates ``dispatch`` to a
+        coarse cadence so the ``_config_updated`` weather fan-out stays cheap.
         """
         zone = self.store.get_zone(zone_id) or {}
-        if int(zone_id) in getattr(self, "_live_run_zones", set()):
-            delivered = self._delivered_depth_native(zone, ran_seconds)
-            new_bucket = (zone.get(const.ZONE_BUCKET) or 0.0) + delivered
-            max_bucket = zone.get(const.ZONE_MAXIMUM_BUCKET)
-            if max_bucket is not None and new_bucket > max_bucket:
-                new_bucket = float(max_bucket)
-            self._live_run_zones.discard(int(zone_id))
-        else:
-            new_bucket = self._zone_target_bucket(zone)
-        await self.store.async_update_zone(
-            zone_id,
-            {const.ZONE_BUCKET: new_bucket, const.ZONE_LAST_IRRIGATION: dt_util.now()},
-        )
-        async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
-        _LOGGER.info(
-            "Zone %s: bucket set to %.3f after irrigation run", zone_id, new_bucket
-        )
+        changes = {
+            const.ZONE_BUCKET: new_bucket,
+            const.ZONE_LAST_IRRIGATION: dt_util.now(),
+        }
+        if volume_delta_l and volume_delta_l > 0:
+            changes[const.ZONE_WATER_USED_TOTAL] = (
+                zone.get(const.ZONE_WATER_USED_TOTAL) or 0.0
+            ) + volume_delta_l
+        await self.store.async_update_zone(zone_id, changes)
+        if dispatch:
+            async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
 
     # --- Run history + cumulative water usage (WS-2) ------------------------
 
@@ -746,6 +853,7 @@ class IrrigationRunnerMixin:
         actual_s: float | None = None,
         detail: str | None = None,
         trigger: str = "schedule",
+        add_to_total: bool = True,
     ) -> None:
         """Append a run-log entry and add delivered water to the usage total.
 
@@ -753,6 +861,12 @@ class IrrigationRunnerMixin:
         ``RUN_LOG_MAX_ENTRIES``) persisted on the zone; ``water_used_total`` is a
         monotonic litre counter backing the usage statistics sensor. Both live in
         the store so they survive restarts.
+
+        ``add_to_total`` controls whether ``volume_l`` is added to the cumulative
+        counter. Metered runs credit the counter *incrementally* while the valve
+        is open (:meth:`_commit_run_progress`), so their final completion record
+        passes ``add_to_total=False`` — the log row still shows the total volume
+        for display, but it is not double-counted into ``water_used_total``.
         """
         zone = self.store.get_zone(zone_id) or {}
         entry = {
@@ -768,7 +882,7 @@ class IrrigationRunnerMixin:
         log.insert(0, entry)
         del log[const.RUN_LOG_MAX_ENTRIES :]
         changes = {const.ZONE_RUN_LOG: log}
-        if volume_l and volume_l > 0:
+        if add_to_total and volume_l and volume_l > 0:
             changes[const.ZONE_WATER_USED_TOTAL] = (
                 zone.get(const.ZONE_WATER_USED_TOTAL) or 0.0
             ) + volume_l
@@ -816,125 +930,38 @@ class IrrigationRunnerMixin:
         """Irrigate zones one after another, skipping zones with no duration."""
         for zone in zones:
             entity_id = zone[const.ZONE_LINKED_ENTITY]
-            domain = entity_id.split(".")[0]
-            if zone.get(const.ZONE_FLOW_SENSOR):
-                _LOGGER.info(
-                    "Sequential irrigation: zone %s using flow meter",
-                    zone[const.ZONE_ID],
-                )
-                await self._irrigate_zone_with_flow_meter(zone, entity_id)
-            else:
-                duration = zone[const.ZONE_DURATION]
-                _LOGGER.info(
-                    "Sequential irrigation: turning on %s for %s seconds",
-                    entity_id,
-                    duration,
-                )
-                self._note_si_valve(zone[const.ZONE_ID], duration)
-                await self.hass.services.async_call(
-                    domain, "turn_on", {"entity_id": entity_id}
-                )
-                if (
-                    await self._confirm_valve_running(zone[const.ZONE_ID], entity_id)
-                    is False
-                ):
-                    # Valve never opened — abort this zone without replenishing
-                    # the bucket so the deficit (and the fault) persist.
-                    self._set_zone_fault(
-                        zone[const.ZONE_ID], const.FAULT_VALVE_NO_RESPONSE
-                    )
-                    await self.hass.services.async_call(
-                        domain, "turn_off", {"entity_id": entity_id}
-                    )
-                    await self._record_run(
-                        zone[const.ZONE_ID],
-                        result=const.RUN_RESULT_FAILED,
-                        detail=const.FAULT_VALVE_NO_RESPONSE,
-                    )
-                    continue
-                await asyncio.sleep(duration)
-                await self.hass.services.async_call(
-                    domain, "turn_off", {"entity_id": entity_id}
-                )
-                self._clear_zone_fault(zone[const.ZONE_ID])
-                await self._reset_zone_bucket_after_run(
-                    zone[const.ZONE_ID], ran_seconds=duration
-                )
-                await self._record_run(
-                    zone[const.ZONE_ID],
-                    result=const.RUN_RESULT_COMPLETED,
-                    volume_l=self._timed_volume_l(zone, duration),
-                    planned_s=duration,
-                    actual_s=duration,
-                    detail=zone.get(const.ZONE_EXPLANATION),
-                )
+            real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
+            _LOGGER.info(
+                "Sequential irrigation: zone %s (%s)",
+                zone[const.ZONE_ID],
+                "flow meter" if real_flow else "timed",
+            )
+            await self._run_valve_metered(
+                zone,
+                entity_id,
+                real_flow=real_flow,
+                trigger=self._run_trigger(zone[const.ZONE_ID]),
+            )
             _LOGGER.info("Sequential irrigation: finished %s", entity_id)
 
     async def _irrigate_zones_parallel(self, zones: list):
-        """Start all zone entities simultaneously, each turning off after its own duration."""
+        """Start all zone entities simultaneously, each accounting for its own run."""
         for zone in zones:
             entity_id = zone[const.ZONE_LINKED_ENTITY]
-            domain = entity_id.split(".")[0]
-            if zone.get(const.ZONE_FLOW_SENSOR):
-                _LOGGER.info(
-                    "Parallel irrigation: zone %s using flow meter", zone[const.ZONE_ID]
-                )
-                asyncio.create_task(
-                    self._irrigate_zone_with_flow_meter(zone, entity_id)
-                )
-            else:
-                duration = zone[const.ZONE_DURATION]
-                _LOGGER.info(
-                    "Parallel irrigation: turning on %s for %s seconds",
+            real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
+            _LOGGER.info(
+                "Parallel irrigation: zone %s (%s)",
+                zone[const.ZONE_ID],
+                "flow meter" if real_flow else "timed",
+            )
+            asyncio.create_task(
+                self._run_valve_metered(
+                    zone,
                     entity_id,
-                    duration,
+                    real_flow=real_flow,
+                    trigger=self._run_trigger(zone[const.ZONE_ID]),
                 )
-                self._note_si_valve(zone[const.ZONE_ID], duration)
-                trigger = self._run_trigger(zone[const.ZONE_ID])
-                await self.hass.services.async_call(
-                    domain, "turn_on", {"entity_id": entity_id}
-                )
-
-                async def _turn_off(
-                    eid=entity_id,
-                    dom=domain,
-                    dur=duration,
-                    zid=zone[const.ZONE_ID],
-                    trig=trigger,
-                ):
-                    if await self._confirm_valve_running(zid, eid) is False:
-                        # Valve never opened — abort without replenishing the
-                        # bucket so the deficit and fault persist.
-                        self._set_zone_fault(zid, const.FAULT_VALVE_NO_RESPONSE)
-                        await self.hass.services.async_call(
-                            dom, "turn_off", {"entity_id": eid}
-                        )
-                        await self._record_run(
-                            zid,
-                            result=const.RUN_RESULT_FAILED,
-                            detail=const.FAULT_VALVE_NO_RESPONSE,
-                            trigger=trig,
-                        )
-                        return
-                    await asyncio.sleep(dur)
-                    await self.hass.services.async_call(
-                        dom, "turn_off", {"entity_id": eid}
-                    )
-                    _LOGGER.info("Parallel irrigation: turned off %s", eid)
-                    self._clear_zone_fault(zid)
-                    await self._reset_zone_bucket_after_run(zid, ran_seconds=dur)
-                    run_zone = self.store.get_zone(zid) or {}
-                    await self._record_run(
-                        zid,
-                        result=const.RUN_RESULT_COMPLETED,
-                        volume_l=self._timed_volume_l(run_zone, dur),
-                        planned_s=dur,
-                        actual_s=dur,
-                        detail=run_zone.get(const.ZONE_EXPLANATION),
-                        trigger=trig,
-                    )
-
-                asyncio.create_task(_turn_off())
+            )
 
     async def async_irrigate_now(self, zone_id: str | None = None):
         """Immediately irrigate — bypasses all skip conditions.

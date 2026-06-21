@@ -139,10 +139,18 @@ async def test_reset_credits_manual_run(monkeypatch):
             const.ZONE_SIZE: 10.0,
             const.ZONE_THROUGHPUT: 10.0,  # 10 L/min over 10 m^2
             const.ZONE_MAXIMUM_BUCKET: 100.0,
+            const.ZONE_DURATION: 300,
         }
     )
     coord = _coord(monkeypatch, zones=[zone])
     coord._live_run_zones = {1}
+    coord._confirm_valve_running = AsyncMock(return_value=True)
+    coord.hass.services = Mock()
+    coord.hass.services.async_call = AsyncMock()
+    coord.hass.states = Mock()
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+    )
     # 5 min * 10 L/min = 50 L over 10 m^2 = 5 mm delivered -> -10 + 5 = -5
-    await coord._reset_zone_bucket_after_run(1, ran_seconds=300)
+    await coord._run_valve_metered(dict(zone), "switch.valve", real_flow=False)
     assert coord.store.zones[1][const.ZONE_BUCKET] == -5.0

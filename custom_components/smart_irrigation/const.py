@@ -308,6 +308,12 @@ ZONE_BUCKET_THRESHOLD = "bucket_threshold"
 CONF_DEFAULT_BUCKET_THRESHOLD = -10.0
 ZONE_FLOW_SENSOR = "flow_sensor"
 FLOW_POLL_INTERVAL = 15  # seconds between flow meter readings
+# Seconds between mid-run bucket/water-usage commits. Watering is accounted
+# continuously (water flows over the whole run), but we only persist + dispatch
+# progress on this coarse cadence — not every poll — so the store write and the
+# _config_updated fan-out stay to ≤1/min. Runs shorter than this commit exactly
+# once, at turn-off (no extra writes vs. a single end-of-run commit).
+RUN_COMMIT_INTERVAL = 60
 # Bucket level a *complete* irrigation run should leave the zone at (display
 # units, 0-or-negative). Default 0.0 = a run replenishes the full deficit
 # (bucket → 0). When the experimental forecast-weighting feature reduces a run

@@ -47,13 +47,15 @@ def _st(state):
 
 
 def _bucket_change(mock):
-    """Return the changes dict of the async_update_zone call that set the bucket.
+    """Return the changes dict of the *final* async_update_zone call that set the
+    bucket.
 
-    Since WS-2 the runner also writes a run-log entry via async_update_zone, so a
-    completed run touches the store more than once; the bucket replenishment is
-    the call carrying ZONE_BUCKET.
+    Since WS-2 the runner also writes a run-log entry via async_update_zone, and
+    metered runs now commit the bucket several times as the water accrues, so a
+    completed run touches the store more than once; the post-run bucket level is
+    the *last* call carrying ZONE_BUCKET.
     """
-    for call in mock.await_args_list:
+    for call in reversed(mock.await_args_list):
         _, changes = call.args
         if const.ZONE_BUCKET in changes:
             return changes
@@ -176,9 +178,15 @@ def _flow_zone(**overrides):
 
 async def test_flow_never_started_faults_and_skips_credit(monkeypatch):
     coord = _runner(monkeypatch, {})
-    coord._irrigate_zone_flow_slot = AsyncMock(return_value=0.0)  # no flow at all
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+    )
+    coord._read_flow_increment = Mock(return_value=0.0)  # no flow at all
+    coord._live_run_zones = set()
 
-    await coord._irrigate_zone_with_flow_meter(_flow_zone(), "switch.f")
+    await coord._run_valve_metered(
+        _flow_zone(**{const.ZONE_MAXIMUM_DURATION: 30}), "switch.f", real_flow=True
+    )
 
     assert _no_bucket_replenished(coord.store.async_update_zone)
     assert coord.get_zone_fault(2)["reason"] == const.FAULT_FLOW_NEVER_STARTED
@@ -186,10 +194,17 @@ async def test_flow_never_started_faults_and_skips_credit(monkeypatch):
 
 async def test_flow_delivered_credits_bucket_and_clears_fault(monkeypatch):
     coord = _runner(monkeypatch, {})
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+    )
     coord._set_zone_fault(2, const.FAULT_FLOW_NEVER_STARTED)
-    coord._irrigate_zone_flow_slot = AsyncMock(return_value=30.0)  # 30 L -> 3 mm
+    coord._read_flow_increment = Mock(return_value=3.0)  # 3 L per 15 s poll
+    coord._live_run_zones = set()
 
-    await coord._irrigate_zone_with_flow_meter(_flow_zone(), "switch.f")
+    # 150 s safety timeout = 10 polls * 3 L = 30 L delivered (a partial run).
+    await coord._run_valve_metered(
+        _flow_zone(**{const.ZONE_MAXIMUM_DURATION: 150}), "switch.f", real_flow=True
+    )
 
     changes = _bucket_change(coord.store.async_update_zone)
     assert changes is not None
