@@ -37,6 +37,11 @@ class RecurringScheduleManager:
         self._schedule_trackers = {}
         self._schedules = []
         self._unsub_rearm = None
+        # Per finish-anchored schedule, the target occurrence we last fired for
+        # (ISO string). Lets the self-rescheduling finish tracker advance past an
+        # occurrence it already ran instead of busy-looping its start→finish
+        # window (which re-fired irrigation every ~2s). Keyed by schedule id.
+        self._finish_last_target: dict[str, str] = {}
 
     async def async_load_schedules(self) -> None:
         """Load recurring schedules from configuration."""
@@ -244,18 +249,23 @@ class RecurringScheduleManager:
             return dt_local.day == schedule.get(const.SCHEDULE_CONF_DAY_OF_MONTH, 1)
         return False
 
-    async def _next_target_time(self, schedule: dict[str, Any]):
+    async def _next_target_time(self, schedule: dict[str, Any], reference_utc=None):
         """Next UTC datetime the schedule's configured time occurs.
 
         This is the anchor-agnostic *target* (e.g. sunrise, or 06:00 on a
         matching day) plus any configured offset. Returns None if it can't be
         determined.
+
+        ``reference_utc`` is the moment the "next" occurrence must fall strictly
+        after; it defaults to now. Pass a prior target to get the occurrence
+        *after* it (used by the finish tracker to advance past an occurrence it
+        already fired instead of re-deriving the same one).
         """
         stype = schedule[const.SCHEDULE_CONF_TYPE]
         offset = datetime.timedelta(
             minutes=schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
         )
-        now_utc = dt_util.utcnow()
+        now_utc = reference_utc or dt_util.utcnow()
 
         if stype == const.SCHEDULE_TYPE_SUNRISE:
             return get_astral_event_next(self.hass, "sunrise", now_utc) + offset
@@ -269,7 +279,7 @@ class RecurringScheduleManager:
                 normalize_azimuth_angle(
                     schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
                 ),
-                datetime.datetime.now(),
+                dt_util.as_local(now_utc).replace(tzinfo=None),
             )
             if next_time is None:
                 return None
@@ -279,7 +289,7 @@ class RecurringScheduleManager:
         hour, minute = map(
             int, schedule.get(const.SCHEDULE_CONF_TIME, "06:00").split(":")
         )
-        local_now = dt_util.now()
+        local_now = dt_util.as_local(now_utc)
         candidate = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
         for _ in range(367):
             if candidate > local_now and self._clock_day_matches(schedule, candidate):
@@ -346,6 +356,7 @@ class RecurringScheduleManager:
         """One-shot tracker that fires at (target − duration) so the run ends at
         the configured time. Re-arms itself for the next occurrence."""
         name = schedule.get(const.SCHEDULE_CONF_NAME)
+        sid = schedule[const.SCHEDULE_CONF_ID]
         target = await self._next_target_time(schedule)
         if target is None:
             _LOGGER.warning(
@@ -354,9 +365,29 @@ class RecurringScheduleManager:
             return None
 
         duration = await self._estimate_duration(schedule)
+
+        # If we already fired this occurrence (the run just happened and we're
+        # re-arming), advance to the NEXT occurrence. Without this the tracker
+        # re-derives the same still-future target, recomputes a start that is now
+        # in the past, and busy-loops the "run ASAP" branch every ~2s for the
+        # whole start→finish window — re-firing irrigation thousands of times.
+        if self._finish_last_target.get(sid) == target.isoformat():
+            nxt = await self._next_target_time(schedule, reference_utc=target)
+            if nxt is None:
+                _LOGGER.warning(
+                    "Finish schedule '%s': could not determine next target after %s",
+                    name,
+                    target,
+                )
+                return None
+            target = nxt
+
         fire_time = target - datetime.timedelta(seconds=duration)
         now_utc = dt_util.utcnow()
         if fire_time <= now_utc:
+            # Start moment already passed (e.g. HA restarted mid-window). Catch
+            # up once, ASAP; firing records this target so the re-arm above then
+            # advances to the next occurrence instead of looping.
             _LOGGER.warning(
                 "Finish schedule '%s': start (%s = target %s − %ss) already passed; "
                 "running as soon as possible",
@@ -375,7 +406,9 @@ class RecurringScheduleManager:
             fire_time,
         )
 
-        def finish_callback(now, s=schedule):
+        def finish_callback(now, s=schedule, fired=target):
+            # Remember which occurrence we fired so the re-arm advances past it.
+            self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
             self._execute_schedule(s, now)
             self.hass.loop.call_soon_threadsafe(
                 self.hass.async_create_task, self._reregister_tracker(s)

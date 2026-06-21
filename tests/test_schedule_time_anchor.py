@@ -5,8 +5,10 @@ import datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from freezegun import freeze_time
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation import scheduler as scheduler_module
 from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
 
 WEEKDAYS = [
@@ -152,6 +154,91 @@ class TestSequencingAwareDuration:
         mock_store.async_get_zones = AsyncMock(return_value=_zones())
         assert await coordinator.get_total_irrigation_duration([1]) == 300
         assert await coordinator.get_total_irrigation_duration([1, 2]) == 900
+
+
+class TestFinishTrackerAdvance:
+    """The self-rescheduling finish tracker must advance past an occurrence it
+    already fired, instead of re-deriving the same still-future target and
+    busy-looping the "run ASAP" branch every ~2s for the whole start→finish
+    window (which re-fired irrigation thousands of times and ballooned the
+    water-usage total)."""
+
+    @staticmethod
+    def _finish_sched():
+        return _sched(
+            type=const.SCHEDULE_TYPE_DAILY,
+            time="06:00",
+            time_anchor=const.SCHEDULE_TIME_ANCHOR_FINISH,
+            action="irrigate",
+            zones="all",
+        )
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_rearm_advances_to_next_occurrence(self, coordinator, monkeypatch):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=7200)
+        sid = self._finish_sched()[const.SCHEDULE_CONF_ID]
+        sched = self._finish_sched()
+
+        captured: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+
+        # Re-arming for an occurrence we already fired must jump to the NEXT
+        # occurrence's start (a future time), never the ~now+2s loop value.
+        target1 = await mgr._next_target_time(sched)
+        target2 = await mgr._next_target_time(sched, reference_utc=target1)
+        assert target2 - target1 == datetime.timedelta(days=1)
+
+        mgr._finish_last_target[sid] = target1.isoformat()
+        await mgr._setup_finish_tracker(sched)
+        assert captured[-1] == target2 - datetime.timedelta(seconds=7200)
+        assert captured[-1] > dt_util.utcnow()  # future, not a busy-loop catch-up
+
+        # Re-arming again at the same instant stays stable on that next
+        # occurrence — it does not fall back into the now+2s catch-up loop (the
+        # bug re-fired every ~2s here).
+        await mgr._setup_finish_tracker(sched)
+        assert captured[-1] == target2 - datetime.timedelta(seconds=7200)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_missed_start_catches_up_once(self, coordinator, monkeypatch):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=7200)
+
+        # Finish 30 min from now with a 2h duration → ideal start is ~90 min in
+        # the past, so a fresh arm is the "missed start" case (tz-agnostic).
+        finish = dt_util.now() + datetime.timedelta(minutes=30)
+        sched = self._finish_sched()
+        sched[const.SCHEDULE_CONF_TIME] = f"{finish.hour:02d}:{finish.minute:02d}"
+        sid = sched[const.SCHEDULE_CONF_ID]
+
+        captured: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+
+        # Missed start → catch up ASAP (now + 2s), not skipped.
+        await mgr._setup_finish_tracker(sched)
+        assert captured[-1] == dt_util.utcnow() + datetime.timedelta(seconds=2)
+
+        # After the catch-up fires, the re-arm advances to the next occurrence
+        # instead of scheduling another ASAP catch-up (the busy loop).
+        target = await mgr._next_target_time(sched)
+        mgr._finish_last_target[sid] = target.isoformat()
+        await mgr._setup_finish_tracker(sched)
+        assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
 
 
 class TestBucketResetAfterRun:
