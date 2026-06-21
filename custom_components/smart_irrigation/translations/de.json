@@ -286,6 +286,9 @@
       "irrigate_now": {
         "name": "Jetzt bewässern"
       },
+      "reset_usage": {
+        "name": "Wasserverbrauch zurücksetzen"
+      },
       "irrigate_all": {
         "name": "Alle Zonen bewässern"
       },

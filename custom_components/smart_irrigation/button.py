@@ -14,6 +14,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
@@ -38,12 +39,17 @@ async def async_setup_entry(
         registered = hass.data[const.DOMAIN].setdefault("zone_buttons", {})
         if config["id"] in registered:
             return
-        entity_id = "{}.{}_irrigate_now".format(
-            PLATFORM, const.DOMAIN + "_" + slugify(config["name"])
-        )
-        entity = SmartIrrigationZoneIrrigateNowButton(hass, entity_id, config)
-        registered[config["id"]] = [entity]
-        async_add_devices([entity])
+        base = const.DOMAIN + "_" + slugify(config["name"])
+        entities = [
+            SmartIrrigationZoneIrrigateNowButton(
+                hass, f"{PLATFORM}.{base}_irrigate_now", config
+            ),
+            SmartIrrigationZoneResetUsageButton(
+                hass, f"{PLATFORM}.{base}_reset_usage", config
+            ),
+        ]
+        registered[config["id"]] = entities
+        async_add_devices(entities)
 
     config_entry.async_on_unload(
         async_dispatcher_connect(
@@ -72,13 +78,16 @@ def _coordinator(hass: HomeAssistant):
         return None
 
 
-class SmartIrrigationZoneIrrigateNowButton(ButtonEntity):
-    """Start an immediate irrigation run for one zone."""
+class SmartIrrigationZoneButton(ButtonEntity):
+    """Base for per-zone action buttons (grouped on the zone's device).
+
+    ``suffix`` is the unique_id / entity_id suffix and the entity
+    translation_key (they match for the per-zone buttons).
+    """
 
     _attr_has_entity_name = True
-    _attr_translation_key = "irrigate_now"
     _attr_should_poll = False
-    _attr_icon = "mdi:sprinkler"
+    suffix = ""
 
     def __init__(self, hass: HomeAssistant, entity_id: str, zone: dict) -> None:
         """Initialize from the zone config dict."""
@@ -86,6 +95,7 @@ class SmartIrrigationZoneIrrigateNowButton(ButtonEntity):
         self.entity_id = entity_id
         self._zone_id = zone[const.ZONE_ID]
         self._zone_name = zone[const.ZONE_NAME]
+        self._attr_translation_key = self.suffix
 
         async_dispatcher_connect(
             hass, const.DOMAIN + "_config_updated", self._async_zone_updated
@@ -104,7 +114,7 @@ class SmartIrrigationZoneIrrigateNowButton(ButtonEntity):
     @property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return f"{const.DOMAIN}_{self._zone_id}_irrigate_now"
+        return f"{const.DOMAIN}_{self._zone_id}_{self.suffix}"
 
     @property
     def device_info(self) -> dict:
@@ -119,6 +129,13 @@ class SmartIrrigationZoneIrrigateNowButton(ButtonEntity):
             "zone_name": self._zone_name,
         }
 
+
+class SmartIrrigationZoneIrrigateNowButton(SmartIrrigationZoneButton):
+    """Start an immediate irrigation run for one zone."""
+
+    suffix = "irrigate_now"
+    _attr_icon = "mdi:sprinkler"
+
     async def async_press(self) -> None:
         """Irrigate this zone now (skip conditions bypassed)."""
         coordinator = _coordinator(self._hass)
@@ -126,6 +143,22 @@ class SmartIrrigationZoneIrrigateNowButton(ButtonEntity):
             _LOGGER.warning("Irrigate now: coordinator not available")
             return
         await coordinator.async_irrigate_now(str(self._zone_id))
+
+
+class SmartIrrigationZoneResetUsageButton(SmartIrrigationZoneButton):
+    """Zero this zone's cumulative water-usage total and clear its run log."""
+
+    suffix = "reset_usage"
+    _attr_icon = "mdi:restart"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    async def async_press(self) -> None:
+        """Reset the zone's water-usage counter and run history."""
+        coordinator = _coordinator(self._hass)
+        if coordinator is None:
+            _LOGGER.warning("Reset usage: coordinator not available")
+            return
+        await coordinator.async_reset_water_usage(self._zone_id)
 
 
 class SmartIrrigationHubButton(ButtonEntity):

@@ -250,6 +250,7 @@
     },
     "button": {
       "irrigate_now": { "name": "Irrigate now" },
+      "reset_usage": { "name": "Reset water usage" },
       "irrigate_all": { "name": "Water all zones" },
       "calculate_all": { "name": "Recalculate durations" },
       "update_weather": { "name": "Refresh weather data" },

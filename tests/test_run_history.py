@@ -109,6 +109,33 @@ async def test_run_log_is_newest_first_capped_and_total_monotonic(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# Reset usage (per-zone "reset usage" button)
+# --------------------------------------------------------------------------- #
+async def test_reset_water_usage_clears_total_and_log(monkeypatch):
+    coord = _coord(
+        monkeypatch,
+        [
+            {
+                const.ZONE_ID: 1,
+                const.ZONE_WATER_USED_TOTAL: 10_521_286.1,
+                const.ZONE_RUN_LOG: [{"ts": "t", "result": const.RUN_RESULT_COMPLETED}],
+            }
+        ],
+    )
+    await coord.async_reset_water_usage(1)
+    z = coord.store.zones[1]
+    assert z[const.ZONE_WATER_USED_TOTAL] == 0.0
+    assert z[const.ZONE_RUN_LOG] == []
+
+
+async def test_reset_water_usage_unknown_zone_is_noop(monkeypatch):
+    coord = _coord(monkeypatch, [{const.ZONE_ID: 1}])
+    # Should not raise for a missing zone.
+    await coord.async_reset_water_usage(99)
+    assert 99 not in coord.store.zones
+
+
+# --------------------------------------------------------------------------- #
 # Volume helpers
 # --------------------------------------------------------------------------- #
 def test_timed_volume_metric(monkeypatch):
