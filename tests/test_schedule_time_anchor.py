@@ -243,14 +243,36 @@ class TestFinishTrackerAdvance:
 
 class TestBucketResetAfterRun:
     @pytest.mark.asyncio
-    async def test_resets_to_zero(self, coordinator, mock_store):
+    async def test_commit_progress_writes_bucket_and_time(
+        self, coordinator, mock_store
+    ):
         mock_store.async_update_zone = AsyncMock()
-        # No forecast-weighting target on the zone → full replenish to 0.
         mock_store.get_zone = Mock(return_value={})
-        await coordinator._reset_zone_bucket_after_run(5)
-        # Resets the bucket to 0 and records the irrigation time (dynamic value).
+        # No forecast-weighting target on the zone → run may replenish to 0.
+        assert coordinator._run_ceiling({const.ZONE_ID: 5}) == 0.0
+        # A commit that delivered water writes the bucket, the usage total and
+        # the irrigation time.
+        await coordinator._commit_run_progress(
+            5, new_bucket=0.0, volume_delta_l=5.0, dispatch=False
+        )
         mock_store.async_update_zone.assert_awaited_once()
         zone_id_arg, changes = mock_store.async_update_zone.await_args[0]
         assert zone_id_arg == 5
         assert changes[const.ZONE_BUCKET] == 0.0
         assert const.ZONE_LAST_IRRIGATION in changes
+
+    @pytest.mark.asyncio
+    async def test_commit_progress_no_water_skips_irrigation_time(
+        self, coordinator, mock_store
+    ):
+        """A commit that delivered no water (a failed run) must not stamp the
+        last-irrigation time or the usage counter."""
+        mock_store.async_update_zone = AsyncMock()
+        mock_store.get_zone = Mock(return_value={})
+        await coordinator._commit_run_progress(
+            5, new_bucket=-3.0, volume_delta_l=0.0, dispatch=False
+        )
+        _, changes = mock_store.async_update_zone.await_args[0]
+        assert changes[const.ZONE_BUCKET] == -3.0
+        assert const.ZONE_LAST_IRRIGATION not in changes
+        assert const.ZONE_WATER_USED_TOTAL not in changes

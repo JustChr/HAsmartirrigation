@@ -158,6 +158,9 @@ async def test_sequential_completed_run_records_history(monkeypatch):
     from unittest.mock import AsyncMock
 
     monkeypatch.setattr(const, "VALVE_CONFIRM_TIMEOUT", 0)
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+    )
     coord = _coord(monkeypatch)
     coord.hass.services.async_call = AsyncMock()
     coord.hass.states.get = lambda eid: Mock(state="on", attributes={})
