@@ -10,10 +10,7 @@ from homeassistant.components.sensor.const import SensorDeviceClass, SensorState
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -121,7 +118,9 @@ async def async_setup_entry(
             hass, const.DOMAIN + "_register_entity", async_add_sensor_entity
         )
     )
-    async_dispatcher_send(hass, const.DOMAIN + "_platform_loaded")
+    # The existing-zone replay (`_platform_loaded`) is fired once from
+    # __init__.async_setup_entry AFTER all per-zone platforms have subscribed,
+    # so every platform receives it — not just this one.
 
     # register services if any here
 

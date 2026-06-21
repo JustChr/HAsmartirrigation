@@ -218,6 +218,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         entry, [PLATFORM, "number", "binary_sensor", "button", "datetime"]
     )
     _LOGGER.info("Finished calling async_forward_entry_setups")
+
+    # Replay existing zones to all per-zone platforms now that EVERY platform has
+    # finished async_setup_entry and subscribed to `_register_entity`. Firing this
+    # from a single platform (sensor) raced the others' subscriptions under
+    # concurrent setup, so only sensors got per-zone entities — buttons, numbers
+    # and per-zone binary_sensors were silently missing. One fire here reaches all.
+    async_dispatcher_send(hass, const.DOMAIN + "_platform_loaded")
     # update listener for options flow
     entry.async_on_unload(entry.add_update_listener(options_update_listener))
 

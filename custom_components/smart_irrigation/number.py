@@ -53,7 +53,9 @@ async def async_setup_entry(
             hass, const.DOMAIN + "_register_entity", async_add_number_entity
         )
     )
-    async_dispatcher_send(hass, const.DOMAIN + "_number_platform_loaded")
+    # Existing zones are replayed via `_platform_loaded`, fired once from
+    # __init__.async_setup_entry after all platforms subscribe (this used to send
+    # a `_number_platform_loaded` signal nothing listened to → no number entities).
 
 
 class SmartIrrigationZoneMultiplierEntity(NumberEntity, RestoreEntity):
