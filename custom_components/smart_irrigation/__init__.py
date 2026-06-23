@@ -59,6 +59,7 @@ from .services import ServiceHandlersMixin, async_register_services
 from .skip_conditions import SkipConditionsMixin
 from .store import SmartIrrigationStorage, async_get_registry
 from .watering_calendar import WateringCalendarMixin
+from .weathermodules.MetOfficeClient import MetOfficeClient
 from .weathermodules.OpenMeteoClient import OpenMeteoClient
 from .weathermodules.OWMClient import OWMClient
 from .weathermodules.PirateWeatherClient import PirateWeatherClient
@@ -370,6 +371,16 @@ class SmartIrrigationCoordinator(
                 self._WeatherServiceClient = PirateWeatherClient(
                     api_key=pw_key,
                     api_version="1",
+                    latitude=effective_lat,
+                    longitude=effective_lon,
+                    elevation=effective_elev,
+                )
+            elif self.weather_service == const.CONF_WEATHER_SERVICE_MET:
+                met_key = hass.data[const.DOMAIN].get(
+                    const.CONF_MET_API_KEY
+                ) or hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE_API_KEY)
+                self._WeatherServiceClient = MetOfficeClient(
+                    api_key=met_key,
                     latitude=effective_lat,
                     longitude=effective_lon,
                     elevation=effective_elev,

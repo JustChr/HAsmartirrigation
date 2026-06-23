@@ -14,8 +14,13 @@ from custom_components.smart_irrigation.const import (
     MAPPING_MAX_TEMP,
     MAPPING_MIN_TEMP,
     MAPPING_PRECIPITATION,
+    MAPPING_PRESSURE,
     MAPPING_TEMPERATURE,
     MAPPING_WINDSPEED,
+    OBSERVATION_TIME,
+)
+from custom_components.smart_irrigation.weathermodules.MetOfficeClient import (
+    MetOfficeClient,
 )
 from custom_components.smart_irrigation.weathermodules.OpenMeteoClient import (
     OpenMeteoClient,
@@ -28,6 +33,9 @@ from custom_components.smart_irrigation.weathermodules.OWMClient import (
 _OWM_PATCH = "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get"
 _OPENMETEO_PATCH = (
     "custom_components.smart_irrigation.weathermodules.OpenMeteoClient._SESSION.get"
+)
+_MET_PATCH = (
+    "custom_components.smart_irrigation.weathermodules.MetOfficeClient._SESSION.get"
 )
 
 
@@ -292,3 +300,183 @@ class TestOpenMeteoClientCaching:
             client.get_hourly_data()
         # current + forecast + hourly all come from one cached response
         assert mock_get.call_count == 1
+
+
+def _met_doc(time_series):
+    """Wrap a list of timeSeries steps in a Global Spot GeoJSON document."""
+    return {
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [5.0, 52.0, 0]},
+                "properties": {"timeSeries": time_series},
+            }
+        ]
+    }
+
+
+class TestMetOfficeClientInit:
+    def test_strips_whitespace_from_key(self):
+        client = MetOfficeClient(api_key="  ab cd  ", latitude=1.0, longitude=2.0)
+        assert client.api_key == "abcd"
+
+    def test_handles_none_key(self):
+        # validate flow may construct with an empty/None key
+        client = MetOfficeClient(api_key=None, latitude=1.0, longitude=2.0)
+        assert client.api_key == ""
+
+
+class TestMetOfficeClientGetData:
+    _HOURLY = _met_doc(
+        [
+            {
+                "time": "2024-06-01T11:00Z",
+                "screenTemperature": 14.0,
+                "screenDewPointTemperature": 9.0,
+                "screenRelativeHumidity": 70.0,
+                "windSpeed10m": 4.0,
+                "mslp": 101000,
+                "totalPrecipAmount": 0.0,
+            },
+            {
+                "time": "2024-06-01T12:00Z",
+                "screenTemperature": 18.0,
+                "screenDewPointTemperature": 10.0,
+                "screenRelativeHumidity": 60.0,
+                "windSpeed10m": 5.0,
+                "mslp": 101000,
+                "totalPrecipAmount": 0.4,
+            },
+            {
+                "time": "2024-06-01T13:00Z",
+                "screenTemperature": 20.0,
+                "screenDewPointTemperature": 11.0,
+                "screenRelativeHumidity": 55.0,
+                "windSpeed10m": 6.0,
+                "mslp": 101000,
+                "totalPrecipAmount": 0.0,
+            },
+        ]
+    )
+
+    @freeze_time("2024-06-01 12:30:00")
+    def test_picks_current_hour(self):
+        client = MetOfficeClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
+        with patch(_MET_PATCH, return_value=_make_response(200, self._HOURLY)):
+            data = client.get_data()
+        # most recent step at or before 12:30 is the 12:00 step
+        assert data[MAPPING_TEMPERATURE] == 18.0
+        assert data[MAPPING_DEWPOINT] == 10.0
+        assert data[MAPPING_HUMIDITY] == 60.0
+        assert data[MAPPING_CURRENT_PRECIPITATION] == pytest.approx(0.4)
+        assert data[MAPPING_PRECIPITATION] == pytest.approx(0.4)
+        # 10 m wind corrected down to 2 m
+        assert data[MAPPING_WINDSPEED] < 5.0
+        # mslp 101000 Pa at sea level → 1010 hPa
+        assert data[MAPPING_PRESSURE] == pytest.approx(1010.0, abs=0.1)
+        assert data[OBSERVATION_TIME].tzinfo is not None
+
+    @freeze_time("2024-06-01 12:30:00")
+    def test_missing_required_value_returns_none(self):
+        bad = _met_doc(
+            [
+                {
+                    "time": "2024-06-01T12:00Z",
+                    "screenTemperature": 18.0,
+                    # no dew point, humidity, wind, pressure
+                }
+            ]
+        )
+        client = MetOfficeClient(api_key="k", latitude=52.0, longitude=5.0)
+        with patch(_MET_PATCH, return_value=_make_response(200, bad)):
+            assert client.get_data() is None
+
+    def test_empty_features_returns_none(self):
+        client = MetOfficeClient(api_key="k", latitude=52.0, longitude=5.0)
+        with patch(_MET_PATCH, return_value=_make_response(200, {"features": []})):
+            assert client.get_data() is None
+
+
+class TestMetOfficeClientGetForecastData:
+    _THREE_HOURLY = _met_doc(
+        [
+            # today — must be skipped
+            {
+                "time": "2024-06-01T12:00Z",
+                "maxScreenAirTemp": 19.0,
+                "minScreenAirTemp": 12.0,
+                "windSpeed10m": 5.0,
+                "mslp": 101000,
+                "screenRelativeHumidity": 60.0,
+                "totalPrecipAmount": 0.2,
+            },
+            # tomorrow — two 3-hourly steps, aggregated into one day
+            {
+                "time": "2024-06-02T09:00Z",
+                "maxScreenAirTemp": 21.0,
+                "minScreenAirTemp": 13.0,
+                "windSpeed10m": 4.0,
+                "mslp": 101000,
+                "screenRelativeHumidity": 65.0,
+                "totalPrecipAmount": 1.0,
+            },
+            {
+                "time": "2024-06-02T12:00Z",
+                "maxScreenAirTemp": 24.0,
+                "minScreenAirTemp": 15.0,
+                "windSpeed10m": 6.0,
+                "mslp": 101000,
+                "screenRelativeHumidity": 55.0,
+                "totalPrecipAmount": 0.5,
+            },
+        ]
+    )
+
+    @freeze_time("2024-06-01 12:30:00")
+    def test_aggregates_to_daily_and_skips_today(self):
+        client = MetOfficeClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
+        with patch(_MET_PATCH, return_value=_make_response(200, self._THREE_HOURLY)):
+            fc = client.get_forecast_data()
+        assert len(fc) == 1  # only 2024-06-02
+        day = fc[0]
+        assert day[MAPPING_MAX_TEMP] == 24.0  # max across the day's steps
+        assert day[MAPPING_MIN_TEMP] == 13.0  # min across the day's steps
+        assert day[MAPPING_TEMPERATURE] == pytest.approx((24.0 + 13.0) / 2.0)
+        assert day[MAPPING_PRECIPITATION] == pytest.approx(1.5)  # summed
+        # dew point derived from mean temp + mean humidity (Magnus)
+        assert MAPPING_DEWPOINT in day
+        assert day[MAPPING_DEWPOINT] < day[MAPPING_TEMPERATURE]
+        assert MAPPING_PRESSURE in day
+
+    def test_empty_features_returns_none(self):
+        client = MetOfficeClient(api_key="k", latitude=52.0, longitude=5.0)
+        with patch(_MET_PATCH, return_value=_make_response(200, {"features": []})):
+            assert client.get_forecast_data() is None
+
+
+class TestMetOfficeClientValidateKey:
+    def test_403_raises_oserror(self):
+        client = MetOfficeClient(api_key="bad", latitude=1.0, longitude=2.0)
+        with patch(_MET_PATCH, return_value=_make_response(403, {})), pytest.raises(
+            OSError
+        ):
+            client.validate_key()
+
+    def test_200_passes(self):
+        client = MetOfficeClient(api_key="good", latitude=1.0, longitude=2.0)
+        with patch(_MET_PATCH, return_value=_make_response(200, {})):
+            client.validate_key()  # must not raise
+
+
+class TestMetOfficeClientCaching:
+    @freeze_time("2024-06-01 12:30:00")
+    def test_separate_cache_per_endpoint(self):
+        client = MetOfficeClient(api_key="k", latitude=1.0, longitude=2.0)
+        mock_get = MagicMock(return_value=_make_response(200, _met_doc([])))
+        with patch(_MET_PATCH, mock_get):
+            client.get_data()  # hourly fetch
+            client.get_data()  # served from hourly cache
+            client.get_forecast_data()  # three-hourly fetch
+            client.get_forecast_data()  # served from three-hourly cache
+        # one call per distinct endpoint
+        assert mock_get.call_count == 2

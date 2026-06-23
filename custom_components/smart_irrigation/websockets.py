@@ -644,6 +644,13 @@ async def websocket_get_weather_config(hass: HomeAssistant, connection, msg):
             and hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE_API_KEY)
         )
     )
+    has_met_api_key = bool(
+        hass.data[const.DOMAIN].get(const.CONF_MET_API_KEY)
+        or (
+            weather_service == const.CONF_WEATHER_SERVICE_MET
+            and hass.data[const.DOMAIN].get(const.CONF_WEATHER_SERVICE_API_KEY)
+        )
+    )
     connection.send_result(
         msg["id"],
         {
@@ -651,6 +658,7 @@ async def websocket_get_weather_config(hass: HomeAssistant, connection, msg):
             "weather_service": weather_service,
             "has_owm_api_key": has_owm_api_key,
             "has_pw_api_key": has_pw_api_key,
+            "has_met_api_key": has_met_api_key,
             "available_services": const.CONF_WEATHER_SERVICES,
             "no_api_key_services": const.CONF_WEATHER_SERVICES_NO_API_KEY,
         },
@@ -671,6 +679,10 @@ async def websocket_test_weather_config(hass: HomeAssistant, connection, msg):
             ].get(const.CONF_WEATHER_SERVICE_API_KEY)
         elif weather_service == const.CONF_WEATHER_SERVICE_PW:
             api_key = hass.data[const.DOMAIN].get(const.CONF_PW_API_KEY) or hass.data[
+                const.DOMAIN
+            ].get(const.CONF_WEATHER_SERVICE_API_KEY)
+        elif weather_service == const.CONF_WEATHER_SERVICE_MET:
+            api_key = hass.data[const.DOMAIN].get(const.CONF_MET_API_KEY) or hass.data[
                 const.DOMAIN
             ].get(const.CONF_WEATHER_SERVICE_API_KEY)
 
@@ -701,6 +713,7 @@ async def websocket_save_weather_config(hass: HomeAssistant, connection, msg):
     _service_key_map = {
         const.CONF_WEATHER_SERVICE_OWM: const.CONF_OWM_API_KEY,
         const.CONF_WEATHER_SERVICE_PW: const.CONF_PW_API_KEY,
+        const.CONF_WEATHER_SERVICE_MET: const.CONF_MET_API_KEY,
     }
     service_key_const = (
         _service_key_map.get(weather_service) if weather_service else None

@@ -771,6 +771,7 @@
     "save_button": "Wettereinstellungen speichern",
     "saved": "Wettereinstellungen gespeichert",
     "openmeteo": "Open-Meteo (kostenlos, kein Schlüssel nötig)",
+    "met": "Met Office (UK)",
     "test_button": "Verbindung testen",
     "test_button_testing": "Wird getestet…",
     "test_success": "✓ Verbindung erfolgreich",

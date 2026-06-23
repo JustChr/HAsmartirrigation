@@ -8,6 +8,7 @@ import {
   CONF_WEATHER_SERVICE_OPENMETEO,
   CONF_WEATHER_SERVICE_OWM,
   CONF_WEATHER_SERVICE_PW,
+  CONF_WEATHER_SERVICE_MET,
 } from "../const";
 import "./si-field";
 
@@ -84,6 +85,8 @@ export class SiWeatherSourceConfig extends LitElement {
     if (this.service === CONF_WEATHER_SERVICE_OWM)
       return !!cfg?.has_owm_api_key;
     if (this.service === CONF_WEATHER_SERVICE_PW) return !!cfg?.has_pw_api_key;
+    if (this.service === CONF_WEATHER_SERVICE_MET)
+      return !!cfg?.has_met_api_key;
     return false;
   }
 
@@ -166,6 +169,12 @@ export class SiWeatherSourceConfig extends LitElement {
             ?selected="${this.service === CONF_WEATHER_SERVICE_PW}"
           >
             ${localize("weather_service_config.pw", lang)}
+          </option>
+          <option
+            value="${CONF_WEATHER_SERVICE_MET}"
+            ?selected="${this.service === CONF_WEATHER_SERVICE_MET}"
+          >
+            ${localize("weather_service_config.met", lang)}
           </option>
         </select>
       </si-field>

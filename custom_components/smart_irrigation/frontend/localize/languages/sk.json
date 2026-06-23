@@ -771,6 +771,7 @@
     "save_button": "Uložiť nastavenia počasia",
     "saved": "Nastavenia počasia uložené",
     "openmeteo": "Open-Meteo (zdarma, bez kľúča)",
+    "met": "Met Office (Spojené kráľovstvo)",
     "test_button": "Otestovať pripojenie",
     "test_button_testing": "Testuje sa…",
     "test_success": "✓ Pripojenie úspešné",

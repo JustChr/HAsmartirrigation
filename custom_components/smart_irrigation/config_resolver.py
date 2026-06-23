@@ -79,7 +79,11 @@ def resolve_weather_config(
                     const.CONF_WEATHER_SERVICE
                 )
             # per-service API keys
-            for key_const in (const.CONF_OWM_API_KEY, const.CONF_PW_API_KEY):
+            for key_const in (
+                const.CONF_OWM_API_KEY,
+                const.CONF_PW_API_KEY,
+                const.CONF_MET_API_KEY,
+            ):
                 if key_const in options:
                     stored = options.get(key_const)
                     result[key_const] = stored.strip() if stored else None
@@ -100,6 +104,11 @@ def resolve_weather_config(
                         or existing.get(const.CONF_PW_API_KEY)
                     ):
                         result[const.CONF_PW_API_KEY] = legacy_key
+                    elif svc == const.CONF_WEATHER_SERVICE_MET and not (
+                        result.get(const.CONF_MET_API_KEY)
+                        or existing.get(const.CONF_MET_API_KEY)
+                    ):
+                        result[const.CONF_MET_API_KEY] = legacy_key
             if const.CONF_WEATHER_SERVICE_API_VERSION in options:
                 result[const.CONF_WEATHER_SERVICE_API_VERSION] = options.get(
                     const.CONF_WEATHER_SERVICE_API_VERSION

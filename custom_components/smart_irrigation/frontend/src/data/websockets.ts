@@ -252,6 +252,7 @@ export interface WeatherConfig {
   weather_service: string | null;
   has_owm_api_key: boolean;
   has_pw_api_key: boolean;
+  has_met_api_key: boolean;
   available_services: string[];
   no_api_key_services: string[];
 }

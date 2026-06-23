@@ -773,6 +773,7 @@
     "save_button": "Lagre værinnstillinger",
     "saved": "Værinnstillinger lagret",
     "openmeteo": "Open-Meteo (gratis, ingen nøkkel nødvendig)",
+    "met": "Met Office (Storbritannia)",
     "test_button": "Test tilkobling",
     "test_button_testing": "Tester…",
     "test_success": "✓ Tilkobling vellykket",

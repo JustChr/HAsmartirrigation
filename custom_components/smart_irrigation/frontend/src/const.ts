@@ -50,6 +50,7 @@ export const CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation";
 export const CONF_WEATHER_SERVICE_OWM = "Open Weather Map";
 export const CONF_WEATHER_SERVICE_PW = "Pirate Weather";
 export const CONF_WEATHER_SERVICE_OPENMETEO = "Open-Meteo";
+export const CONF_WEATHER_SERVICE_MET = "Met Office";
 
 export const AUTO_UPDATE_SCHEDULE_MINUTELY = "minutes";
 export const AUTO_UPDATE_SCHEDULE_HOURLY = "hours";
