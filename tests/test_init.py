@@ -326,6 +326,42 @@ class TestSmartIrrigationCoordinator:
             mock_refresh.assert_called_once()
 
 
+class TestCoordinatorUnloadClearsTrackers:
+    """async_unload must reset EVERY per-zone entity tracker (issue #36).
+
+    On a config-entry reload the replay re-adds a platform's per-zone entities
+    only if it doesn't already think they exist. The binary_sensor / button
+    platforms dedup on their own tracker dict, so if those dicts survive the
+    unload the re-add is skipped and the entities are orphaned ("unavailable").
+    Clearing only "zones" (the old behaviour) left them broken after a reload.
+    """
+
+    async def test_async_unload_clears_all_per_zone_trackers(self) -> None:
+        coordinator = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+        coordinator.hass = Mock()
+        trackers = {
+            "zones": {1: object()},
+            "bucket_sensors": {1: object()},
+            "multiplier_numbers": {1: object()},
+            "zone_extra_sensors": {1: [object()]},
+            "zone_binary_sensors": {1: [object()]},
+            "zone_buttons": {1: [object()]},
+        }
+        coordinator.hass.data = {const.DOMAIN: trackers}
+        # No timers / observed-watering / subscriptions wired in this unit.
+        coordinator._pending_track_update_unsub = None
+        coordinator._track_auto_update_time_unsub = None
+        coordinator._track_auto_calc_time_unsub = None
+        coordinator._track_midnight_time_unsub = None
+        coordinator.async_teardown_observed_watering = Mock()
+        coordinator._subscriptions = []
+
+        await coordinator.async_unload()
+
+        for key, tracked in trackers.items():
+            assert tracked == {}, f"{key} was not cleared on unload"
+
+
 class TestSmartIrrigationError:
     """Test SmartIrrigationError exception."""
 

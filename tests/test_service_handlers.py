@@ -9,6 +9,8 @@ unit boundary and are mocked; their own behaviour is covered elsewhere.
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.services import ServiceHandlersMixin
 
@@ -82,6 +84,65 @@ async def test_handle_reset_bucket_unknown_entity_is_noop():
     await ServiceHandlersMixin.handle_reset_bucket(coord, call)
 
     coord.async_update_zone_config.assert_not_awaited()
+
+
+async def test_handle_run_zone_resolves_id_attribute():
+    """run_zone resolves the zone from a sensor's "id" attribute (issue #36)."""
+    coord = _make_coordinator()
+    coord.async_run_zone = AsyncMock()
+    state = MagicMock()
+    state.attributes = {const.ZONE_ID: 7}
+    coord.hass.states.get.return_value = state
+
+    call = MagicMock()
+    call.data = {
+        const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_lawn",
+        const.ATTR_DURATION_MINUTES: 5,
+    }
+
+    await ServiceHandlersMixin.handle_run_zone(coord, call)
+
+    coord.async_run_zone.assert_awaited_once_with(7, 5.0)
+
+
+async def test_handle_run_zone_resolves_zone_id_attribute():
+    """A button / binary_sensor exposes the id as "zone_id" — also accepted."""
+    coord = _make_coordinator()
+    coord.async_run_zone = AsyncMock()
+    state = MagicMock()
+    state.attributes = {"zone_id": 4, "zone_name": "Lawn"}
+    coord.hass.states.get.return_value = state
+
+    call = MagicMock()
+    call.data = {
+        const.SERVICE_ENTITY_ID: "button.smart_irrigation_lawn_irrigate_now",
+        const.ATTR_DURATION_MINUTES: 10,
+    }
+
+    await ServiceHandlersMixin.handle_run_zone(coord, call)
+
+    coord.async_run_zone.assert_awaited_once_with(4, 10.0)
+
+
+async def test_handle_run_zone_non_zone_entity_raises():
+    """An entity with neither id nor zone_id is rejected, not silently run."""
+    from custom_components.smart_irrigation.services import SmartIrrigationError
+
+    coord = _make_coordinator()
+    coord.async_run_zone = AsyncMock()
+    state = MagicMock()
+    state.attributes = {"some_other_attr": 1}
+    coord.hass.states.get.return_value = state
+
+    call = MagicMock()
+    call.data = {
+        const.SERVICE_ENTITY_ID: "sensor.unrelated",
+        const.ATTR_DURATION_MINUTES: 5,
+    }
+
+    with pytest.raises(SmartIrrigationError):
+        await ServiceHandlersMixin.handle_run_zone(coord, call)
+    coord.async_run_zone.assert_not_awaited()
 
 
 async def test_handle_reset_all_buckets_zeroes_everything():

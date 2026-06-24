@@ -258,9 +258,17 @@ class ServiceHandlersMixin:
             state = self.hass.states.get(entity)
             if not state:
                 raise SmartIrrigationError(f"No state found for entity {entity}")
+            # The main zone sensor exposes the zone id as "id"; the per-zone
+            # button / binary_sensor entities expose it as "zone_id". Accept
+            # either so any of a zone's entities can be used as the target.
             zone_id = state.attributes.get(const.ZONE_ID)
             if zone_id is None:
-                raise SmartIrrigationError("No zone_id found in state attributes.")
+                zone_id = state.attributes.get("zone_id")
+            if zone_id is None:
+                raise SmartIrrigationError(
+                    f"Entity {entity} is not a Smart Irrigation zone entity "
+                    "(no zone id in its attributes)."
+                )
             await self.async_run_zone(zone_id, float(duration))
 
     # Enhanced Scheduling Service Handlers
