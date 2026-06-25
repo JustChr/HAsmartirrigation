@@ -258,6 +258,9 @@
       },
       "water_used": {
         "name": "Wasserverbrauch"
+      },
+      "last_water_used": {
+        "name": "Wasserverbrauch letzter Zyklus"
       }
     },
     "binary_sensor": {

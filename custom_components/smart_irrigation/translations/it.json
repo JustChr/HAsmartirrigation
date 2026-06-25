@@ -258,6 +258,9 @@
       },
       "water_used": {
         "name": "Acqua utilizzata"
+      },
+      "last_water_used": {
+        "name": "Acqua ultimo ciclo"
       }
     },
     "binary_sensor": {

@@ -25,6 +25,8 @@ For a zone called *Lawn*, the following entities are created (entity IDs shown f
 | Net daily change applied to the bucket | Lawn Bucket delta | `sensor.smart_irrigation_lawn_et` |
 | Last irrigation (timestamp) | Lawn Last irrigation | `sensor.smart_irrigation_lawn_last_irrigation` |
 | Next scheduled irrigation (timestamp) | Lawn Next irrigation | `sensor.smart_irrigation_lawn_next_irrigation` |
+| Cumulative water delivered (litres/gallons) | Lawn Water used | `sensor.smart_irrigation_lawn_water_used` |
+| Water delivered by the most recent cycle | Lawn Last cycle water used | `sensor.smart_irrigation_lawn_last_water_used` |
 | Irrigation multiplier (adjustable) | Lawn Multiplier | `number.smart_irrigation_lawn_multiplier` |
 | Would the zone water now? | Lawn Irrigation needed | `binary_sensor.smart_irrigation_lawn_irrigation_needed` |
 | Linked valve/switch currently running | Lawn Watering now | `binary_sensor.smart_irrigation_lawn_watering_now` |

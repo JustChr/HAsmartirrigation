@@ -96,6 +96,9 @@ async def async_setup_entry(
                 hass, child_id("next_irrigation"), config
             ),
             SmartIrrigationZoneWaterUsageSensor(hass, child_id("water_used"), config),
+            SmartIrrigationZoneLastWaterUsageSensor(
+                hass, child_id("last_water_used"), config
+            ),
         ]
         extra_entities.extend(
             SmartIrrigationZoneDiagnosticSensor(hass, child_id(spec[1]), config, *spec)
@@ -745,6 +748,63 @@ class SmartIrrigationZoneWaterUsageSensor(SmartIrrigationZoneChildSensor):
     def suggested_display_precision(self) -> int:
         """One decimal place is plenty for a running total."""
         return 1
+
+
+class SmartIrrigationZoneLastWaterUsageSensor(SmartIrrigationZoneChildSensor):
+    """Water delivered by this zone's most recent watering cycle (issue #37).
+
+    Derived from the newest run-log entry that actually delivered water
+    (``volume_l > 0``), so skipped/failed cycles never overwrite it. Unlike the
+    cumulative ``water_used`` total this is a per-cycle ``MEASUREMENT``, handy as
+    a notification trigger ("zone X used Y litres last run"). The run timestamp,
+    duration, trigger and result are exposed as attributes for the message.
+    """
+
+    suffix = "last_water_used"
+    _attr_translation_key = "last_water_used"
+    _attr_icon = "mdi:water-sync"
+    _attr_device_class = SensorDeviceClass.WATER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def _update_from_zone(self, zone: dict) -> None:
+        self._entry = self._latest_watering_entry(zone)
+
+    @staticmethod
+    def _latest_watering_entry(zone: dict) -> dict | None:
+        """Return the newest run-log entry that delivered water (newest first)."""
+        for entry in zone.get(const.ZONE_RUN_LOG) or []:
+            if (entry.get("volume_l") or 0.0) > 0:
+                return entry
+        return None
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """Stored canonically in litres; HA converts for imperial users."""
+        return "L"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the litres delivered by the last watering cycle (None if never)."""
+        if not self._entry:
+            return None
+        return round(self._entry.get("volume_l") or 0.0, 2)
+
+    @property
+    def suggested_display_precision(self) -> int:
+        """One decimal place matches the cumulative usage sensor."""
+        return 1
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Zone identity plus when/how long/why the last cycle ran."""
+        entry = self._entry or {}
+        return {
+            **super().extra_state_attributes,
+            "timestamp": entry.get("ts"),
+            "duration": entry.get("actual_s"),
+            "trigger": entry.get("trigger"),
+            "result": entry.get("result"),
+        }
 
 
 # (zone key, entity suffix (data key / unique_id), translation_key, kind)

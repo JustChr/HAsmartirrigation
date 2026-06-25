@@ -236,7 +236,8 @@
       "last_calculated": { "name": "Last calculated" },
       "last_weather_update": { "name": "Last weather update" },
       "weather_data_points": { "name": "Weather data points" },
-      "water_used": { "name": "Water used" }
+      "water_used": { "name": "Water used" },
+      "last_water_used": { "name": "Last cycle water used" }
     },
     "binary_sensor": {
       "irrigation_needed": { "name": "Irrigation needed" },

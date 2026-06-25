@@ -283,3 +283,71 @@ def _async_returning(value):
         return value
 
     return _f
+
+
+# --------------------------------------------------------------------------- #
+# Last-cycle water-usage sensor (issue #37)
+# --------------------------------------------------------------------------- #
+def _last_water_sensor(entry):
+    """Build the sensor without running __init__ and set its cached entry."""
+    from custom_components.smart_irrigation.sensor import (
+        SmartIrrigationZoneLastWaterUsageSensor,
+    )
+
+    sensor = SmartIrrigationZoneLastWaterUsageSensor.__new__(
+        SmartIrrigationZoneLastWaterUsageSensor
+    )
+    sensor._zone_id = 1
+    sensor._zone_name = "Zone"
+    sensor._entry = entry
+    return sensor
+
+
+def test_last_water_picks_newest_delivering_entry():
+    """The newest run-log entry with volume > 0 wins (log is newest-first)."""
+    from custom_components.smart_irrigation.sensor import (
+        SmartIrrigationZoneLastWaterUsageSensor as S,
+    )
+
+    zone = {
+        const.ZONE_RUN_LOG: [
+            {"ts": "t3", "volume_l": 0.0, "result": const.RUN_RESULT_SKIPPED},
+            {"ts": "t2", "volume_l": 7.5, "result": const.RUN_RESULT_COMPLETED},
+            {"ts": "t1", "volume_l": 3.0, "result": const.RUN_RESULT_COMPLETED},
+        ]
+    }
+    entry = S._latest_watering_entry(zone)
+    assert entry["ts"] == "t2"
+    assert _last_water_sensor(entry).native_value == 7.5
+
+
+def test_last_water_none_when_no_delivery():
+    """Empty log or only zero-volume rows yield None (never watered)."""
+    from custom_components.smart_irrigation.sensor import (
+        SmartIrrigationZoneLastWaterUsageSensor as S,
+    )
+
+    assert S._latest_watering_entry({}) is None
+    only_skips = {
+        const.ZONE_RUN_LOG: [
+            {"ts": "t1", "volume_l": 0.0, "result": const.RUN_RESULT_SKIPPED},
+        ]
+    }
+    assert S._latest_watering_entry(only_skips) is None
+    assert _last_water_sensor(None).native_value is None
+
+
+def test_last_water_exposes_run_attributes():
+    """The run's timestamp/duration/trigger/result are surfaced for notifications."""
+    entry = {
+        "ts": "2026-06-25T06:00:00+02:00",
+        "actual_s": 120,
+        "trigger": "schedule",
+        "result": const.RUN_RESULT_COMPLETED,
+        "volume_l": 4.2,
+    }
+    attrs = _last_water_sensor(entry).extra_state_attributes
+    assert attrs["timestamp"] == "2026-06-25T06:00:00+02:00"
+    assert attrs["duration"] == 120
+    assert attrs["trigger"] == "schedule"
+    assert attrs["result"] == const.RUN_RESULT_COMPLETED

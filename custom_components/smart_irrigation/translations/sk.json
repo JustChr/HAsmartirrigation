@@ -258,6 +258,9 @@
       },
       "water_used": {
         "name": "Spotrebovaná voda"
+      },
+      "last_water_used": {
+        "name": "Spotreba vody za posledný cyklus"
       }
     },
     "binary_sensor": {
