@@ -640,11 +640,11 @@
         "label": "Buffer bijschrijven wanneer een gekoppelde klep extern draait",
         "note": "Vereist een gekoppelde klep en een doorvoer op de zone. Het volume wordt geschat (looptijd × doorvoer), niet gemeten."
       },
-      "live_duration": {
-        "title": "Looptijden op basis van de live-schatting",
-        "description": "Standaard wordt de beregeningsduur van elke zone vastgelegd bij de dagelijkse berekening (bijvoorbeeld om 23:00), uren voordat de klep daadwerkelijk opent. Met deze optie wordt de duur op het beregeningsmoment opnieuw berekend op basis van het actuele intradag-tekort (de drainagebewuste ET en neerslag sinds de laatste berekening), zodat nachtelijk en vroeg ochtendweer wordt meegenomen. Het dagelijkse grootboek blijft ongewijzigd: na de beurt wordt de emmer gecrediteerd met het werkelijk gegeven water, zodat de volgende dagelijkse berekening nooit dubbel telt. Vereist een weerdienst.",
-        "label": "Herbereken de looptijd op het beregeningsmoment",
-        "note": "Geldt alleen voor geplande beurten. Een zone die door intradag-regen al gedekt is, wordt voor die beurt overgeslagen."
+      "live_estimate": {
+        "title": "Bewatering op live-schatting",
+        "description": "Standaard geeft een zone één keer per dag water, op basis van het tekort dat de dagelijkse berekening opleverde (bijvoorbeeld om 23:00). Met deze optie beslist — en bepaalt — elke geplande beurt zichzelf op basis van het live tekort gedurende de dag (de drainagegecorrigeerde ET en regen sinds de laatste berekening). Hierdoor kan een zone vaker dan eens per dag water geven bij echte vraag gedurende de dag (bijvoorbeeld potten met een schema van elke 12 uur die de eenmaal-daagse emmer anders droog zou laten), en wordt een beurt die regen overdag al heeft gedekt verkort of geannuleerd. Het dagelijkse logboek blijft ongewijzigd: na de beurt wordt de emmer gecrediteerd met het werkelijk geleverde water, zodat de volgende dagelijkse berekening nooit dubbel telt. Vereist een weerservice.",
+        "label": "Elke beurt starten en dimensioneren op het live tekort",
+        "note": "Heeft alleen invloed op geplande beurten en kan er een starten die de dagelijkse berekening niet goedkeurde. Houd voor frequent water geven een redelijk minimumtekort aan en een maximale emmer van ten minste een dag ET."
       }
     }
   },

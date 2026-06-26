@@ -640,11 +640,11 @@
         "label": "Wasserspeicher gutschreiben, wenn ein verknüpftes Ventil extern läuft",
         "note": "Erfordert ein verknüpftes Ventil und einen Durchfluss in der Zone. Die Menge wird geschätzt (Laufzeit × Durchfluss), nicht gemessen."
       },
-      "live_duration": {
-        "title": "Laufzeiten aus der Live-Schaetzung",
-        "description": "Standardmaessig wird die Bewaesserungsdauer jeder Zone bei der taeglichen Berechnung festgelegt (zum Beispiel um 23:00 Uhr), Stunden bevor das Ventil tatsaechlich oeffnet. Wenn aktiviert, wird die Dauer zum Laufzeitpunkt aus dem aktuellen Tagesdefizit neu berechnet (drainagebewusste ET und Niederschlag seit der letzten Berechnung), sodass naechtliches und morgendliches Wetter beruecksichtigt wird. Das taegliche Hauptbuch bleibt unveraendert: Nach dem Lauf wird dem Eimer das tatsaechlich ausgebrachte Wasser gutgeschrieben, sodass die naechste taegliche Berechnung nichts doppelt zaehlt. Erfordert einen Wetterdienst.",
-        "label": "Laufzeit zur Bewaesserungszeit neu berechnen",
-        "note": "Betrifft nur geplante Laeufe. Eine Zone, die untertaegiger Regen bereits abgedeckt hat, wird fuer diesen Lauf uebersprungen."
+      "live_estimate": {
+        "title": "Bewässerung nach Live-Schätzung",
+        "description": "Standardmäßig bewässert eine Zone einmal pro Tag, anhand des Defizits aus der täglichen Berechnung (z. B. um 23:00). Mit dieser Option entscheidet — und bemisst — sich jeder geplante Lauf stattdessen anhand des Live-Defizits des Tages (drainagebereinigte ET und Niederschlag seit der letzten Berechnung). So kann eine Zone bei echtem untägigem Bedarf mehr als einmal pro Tag bewässern (z. B. Töpfe mit einem 12-Stunden-Zeitplan, die der einmal tägliche Eimer sonst trocken ließe), und ein Lauf, den Regen im Tagesverlauf bereits abgedeckt hat, wird verkürzt oder abgebrochen. Das tägliche Konto bleibt unverändert: Nach dem Lauf wird dem Eimer das tatsächlich abgegebene Wasser gutgeschrieben, sodass die nächste tägliche Berechnung nie doppelt zählt. Erfordert einen Wetterdienst.",
+        "label": "Jeden Lauf anhand des Live-Defizits auslösen und bemessen",
+        "note": "Betrifft nur geplante Läufe und kann einen Lauf starten, den die tägliche Berechnung nicht freigegeben hat. Für häufiges Gießen ein sinnvolles Mindestdefizit und einen maximalen Eimer von mindestens der ET eines Tages beibehalten."
       }
     }
   },

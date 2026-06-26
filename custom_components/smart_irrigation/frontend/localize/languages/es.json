@@ -641,11 +641,11 @@
         "label": "Acreditar el balance cuando una válvula vinculada funciona externamente",
         "note": "Requiere una válvula vinculada y un caudal en la zona. El volumen se estima (tiempo de funcionamiento × caudal), no se mide."
       },
-      "live_duration": {
-        "title": "Duraciones segun la estimacion en vivo",
-        "description": "De forma predeterminada, la duracion de riego de cada zona se fija en el calculo diario (por ejemplo a las 23:00), horas antes de que la valvula se abra realmente. Con esto activado, la duracion se recalcula en el momento del riego a partir del deficit intradia en vivo (la ET con drenaje y la lluvia desde el ultimo calculo), de modo que se tiene en cuenta el clima nocturno y de primera hora. El registro diario no cambia: tras el riego se acredita al cubo el agua realmente aplicada, por lo que el siguiente calculo diario nunca cuenta dos veces. Requiere un servicio meteorologico.",
-        "label": "Recalcular la duracion en el momento de regar",
-        "note": "Solo afecta a los riegos programados. Una zona que la lluvia intradia ya ha cubierto se omite en ese riego."
+      "live_estimate": {
+        "title": "Riego por estimación en vivo",
+        "description": "De forma predeterminada, una zona riega una vez al día, según el déficit que produjo el cálculo diario (por ejemplo, a las 23:00). Con esta opción, cada ejecución programada decide —y se dimensiona— a partir del déficit intradía en vivo (la ET ajustada por drenaje y la lluvia desde el último cálculo). Esto permite que una zona riegue más de una vez al día según la demanda intradía real (por ejemplo, macetas con un horario cada 12 horas que el depósito una vez al día dejaría secas), y reduce o cancela una ejecución que la lluvia intradía ya ha cubierto. El registro diario no cambia: tras la ejecución se acredita al depósito el agua realmente entregada, de modo que el siguiente cálculo diario nunca cuenta dos veces. Requiere un servicio meteorológico.",
+        "label": "Activar y dimensionar cada ejecución según el déficit en vivo",
+        "note": "Afecta solo a las ejecuciones programadas y puede iniciar una que el cálculo diario no aprobó. Para riegos frecuentes, mantenga un déficit mínimo razonable y un depósito máximo de al menos la ET de un día."
       }
     }
   },

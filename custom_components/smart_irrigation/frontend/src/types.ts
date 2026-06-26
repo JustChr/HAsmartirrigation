@@ -80,7 +80,7 @@ export class SmartIrrigationConfig {
   rain_sensor?: string | null;
   forecast_weighting_enabled: boolean;
   observed_watering_enabled: boolean;
-  live_duration_enabled: boolean;
+  live_estimate_enabled: boolean;
 
   constructor() {
     this.calctime = "23:00";
@@ -116,7 +116,7 @@ export class SmartIrrigationConfig {
     this.rain_sensor = null;
     this.forecast_weighting_enabled = false;
     this.observed_watering_enabled = false;
-    this.live_duration_enabled = false;
+    this.live_estimate_enabled = false;
   }
 }
 

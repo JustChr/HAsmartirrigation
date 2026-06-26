@@ -37,7 +37,7 @@ from .const import (
     CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
     CONF_DEFAULT_FREEZE_THRESHOLD,
     CONF_DEFAULT_KC,
-    CONF_DEFAULT_LIVE_DURATION_ENABLED,
+    CONF_DEFAULT_LIVE_ESTIMATE_ENABLED,
     CONF_DEFAULT_MANUAL_COORDINATES_ENABLED,
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
@@ -63,7 +63,8 @@ from .const import (
     CONF_FREEZE_THRESHOLD,
     CONF_IMPERIAL,
     CONF_LEGACY_FRESH_DURATION_ENABLED,
-    CONF_LIVE_DURATION_ENABLED,
+    CONF_LEGACY_LIVE_DURATION_ENABLED,
+    CONF_LIVE_ESTIMATE_ENABLED,
     CONF_METRIC,
     CONF_OBSERVED_WATERING_ENABLED,
     CONF_PRECIPITATION_FORECAST_DAYS,
@@ -287,8 +288,8 @@ class Config:
     observed_watering_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_OBSERVED_WATERING_ENABLED
     )
-    live_duration_enabled = attr.ib(
-        type=bool, default=CONF_DEFAULT_LIVE_DURATION_ENABLED
+    live_estimate_enabled = attr.ib(
+        type=bool, default=CONF_DEFAULT_LIVE_ESTIMATE_ENABLED
     )
     # Rain delay / vacation hold (WS-5): ISO-8601 datetime string or None.
     rain_delay_until = attr.ib(type=str, default=CONF_DEFAULT_RAIN_DELAY_UNTIL)
@@ -559,12 +560,16 @@ class SmartIrrigationStorage:
                     CONF_OBSERVED_WATERING_ENABLED,
                     CONF_DEFAULT_OBSERVED_WATERING_ENABLED,
                 ),
-                live_duration_enabled=data["config"].get(
-                    CONF_LIVE_DURATION_ENABLED,
-                    # Fall back to the v2026.06.28 key name if present.
+                live_estimate_enabled=data["config"].get(
+                    CONF_LIVE_ESTIMATE_ENABLED,
+                    # Fall back through the earlier key names so an existing
+                    # opt-in survives: live_duration → fresh_duration.
                     data["config"].get(
-                        CONF_LEGACY_FRESH_DURATION_ENABLED,
-                        CONF_DEFAULT_LIVE_DURATION_ENABLED,
+                        CONF_LEGACY_LIVE_DURATION_ENABLED,
+                        data["config"].get(
+                            CONF_LEGACY_FRESH_DURATION_ENABLED,
+                            CONF_DEFAULT_LIVE_ESTIMATE_ENABLED,
+                        ),
                     ),
                 ),
                 rain_delay_until=data["config"].get(

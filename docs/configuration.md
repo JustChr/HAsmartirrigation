@@ -31,7 +31,7 @@ The panel has two top-level areas:
   2. [**My Zones**](configuration-my-zones.md) — add, edit and delete zones, link each to a switch/valve entity, and view each zone's calculation explanation.
   3. [**When to Water**](configuration-when-to-water.md) — the automatic update/calculation times, skip conditions, days between irrigation, zone sequencing, and [recurring schedules](configuration-schedules.md).
   4. **Advanced** — the raw [calculation modules](configuration-modules.md) (PyETO, Static, …) and [sensor groups](configuration-sensor-groups.md). Most setups never need to open these directly — the wizard wires them up for you.
-  5. [**Experimental**](configuration-experimental.md) — opt-in features that change how the bucket is filled (crediting the bucket from observed watering, live-estimate run durations). Off by default.
+  5. [**Experimental**](configuration-experimental.md) — opt-in features that change how the bucket is filled (crediting the bucket from observed watering, live-estimate watering). Off by default.
   6. **Help** — links to this documentation and the community/issue trackers.
 
 Suggested reading order: [Weather & Location](configuration-weather-location.md) → [My Zones](configuration-my-zones.md) → [When to Water](configuration-when-to-water.md) → [Schedules](configuration-schedules.md) → [Modules](configuration-modules.md) and [Sensor groups](configuration-sensor-groups.md) if you need them. The [Experimental](configuration-experimental.md) features are optional extras you can explore once the basics work.

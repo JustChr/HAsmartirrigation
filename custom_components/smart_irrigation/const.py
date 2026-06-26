@@ -64,17 +64,28 @@ CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED = False
 # run time and configured throughput.
 CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled"
 CONF_DEFAULT_OBSERVED_WATERING_ENABLED = False
-# Live-estimate durations: at scheduled run time, recompute each zone's run
-# duration from the live intra-day deficit (drainage-aware ET/precip since the
+# Live-estimate watering: at scheduled run time, both TRIGGER and SIZE each
+# zone's run from the live intra-day deficit (drainage-aware ET/precip since the
 # last daily calc, the same quantity behind the "Live bucket" sensor) instead of
-# the frozen daily duration. The daily ledger is unchanged; the post-run reset
-# credits the actually-delivered water so the next daily calc does not
-# double-subtract the intra-day ET.
-CONF_LIVE_DURATION_ENABLED = "live_duration_enabled"
-CONF_DEFAULT_LIVE_DURATION_ENABLED = False
-# Legacy key (v2026.06.28 shipped this as "fresh_duration_enabled"); read as a
-# fallback on load so an early opt-in is preserved across the rename.
+# the once-daily bucket. This can start a run the daily calc didn't approve (the
+# point — sub-daily watering between daily calcs) and resize/cancel one it did.
+# The daily ledger is unchanged; the post-run reset credits the actually-
+# delivered water so the next daily calc does not double-subtract the intra-day
+# ET. Trigger gate honours each zone's bucket threshold (minimum deficit).
+CONF_LIVE_ESTIMATE_ENABLED = "live_estimate_enabled"
+CONF_DEFAULT_LIVE_ESTIMATE_ENABLED = False
+# Legacy keys read as a fallback on load so an early opt-in survives the
+# renames: v2026.06.28 shipped "fresh_duration_enabled"; it was then
+# "live_duration_enabled" while the feature only *resized* a daily-approved run.
+# It now also *triggers* runs from the live deficit, hence "live_estimate".
+CONF_LEGACY_LIVE_DURATION_ENABLED = "live_duration_enabled"
 CONF_LEGACY_FRESH_DURATION_ENABLED = "fresh_duration_enabled"
+# Drift guard for live-estimate watering: with multiple runs/day the stored
+# bucket must bank a full day's delivered water until the nightly calc subtracts
+# the day's ET once. The post-run credit is clamped at maximum_bucket; if that is
+# smaller than ~a day's ET, banked water is clipped and the daily calc drifts
+# drier. The 24 mm default is safe; warn (don't block) below this floor.
+LIVE_MIN_MAXIMUM_BUCKET_MM = 10.0
 
 # Rain delay / vacation hold (WS-5): a user-initiated, time-boxed pause of all
 # AUTOMATIC/scheduled irrigation until a future datetime. Distinct from skip

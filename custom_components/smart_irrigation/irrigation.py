@@ -314,15 +314,27 @@ class IrrigationRunnerMixin:
         want_all = zone_ids is None or zone_ids == "all"
         target = None if want_all else {int(z) for z in zone_ids}
 
+        # Live-estimate watering (experimental): when on, the per-zone trigger is
+        # the intra-day live deficit (decided in _apply_live_durations), so the
+        # frozen daily duration + stored daily bucket are NOT pre-filters here —
+        # a run the daily calc didn't approve can still start on intra-day demand.
+        # When off, the classic daily gate (duration > 0 AND bucket below
+        # threshold) selects candidates, byte-identical to before.
+        live_gate = getattr(self.store.config, "live_estimate_enabled", False) is True
         zones_to_irrigate = [
             z
             for z in zones
             if z.get(const.ZONE_LINKED_ENTITY)
-            and (z.get(const.ZONE_DURATION) or 0) > 0
             and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
-            and (z.get(const.ZONE_BUCKET) or 0)
-            < (z.get(const.ZONE_BUCKET_THRESHOLD) or 0)
             and (target is None or int(z.get(const.ZONE_ID)) in target)
+            and (
+                live_gate
+                or (
+                    (z.get(const.ZONE_DURATION) or 0) > 0
+                    and (z.get(const.ZONE_BUCKET) or 0)
+                    < (z.get(const.ZONE_BUCKET_THRESHOLD) or 0)
+                )
+            )
         ]
 
         if not zones_to_irrigate:
@@ -933,30 +945,35 @@ class IrrigationRunnerMixin:
         for zid in zone_order:
             self._unregister_active_run(zid)
 
-    # --- Live-estimate run durations from the live deficit (WS-3, experimental)
+    # --- Live-estimate watering: trigger + size from the live deficit
+    #     (experimental, opt-in)
 
     async def _apply_live_durations(self, zones: list) -> list:
-        """Recompute timed-zone run durations from the live intra-day deficit.
+        """Trigger and size each zone's run from the live intra-day deficit.
 
         Experimental, opt-in (Setup → Experimental). When the flag is off this
-        returns ``zones`` unchanged. When on, it refreshes the live estimates and
-        replaces each timed zone's frozen daily ``ZONE_DURATION`` with one
-        computed from the drainage-aware ``live_deficit`` (intra-day ET/precip
-        since the last daily calc, the same quantity behind the "Live bucket"
-        sensor) — answering "is the duration frozen hours ago still right at water
-        time?". Zones whose live deficit is non-negative (intra-day rain already
-        covered them) are dropped from the run.
+        returns ``zones`` unchanged (the caller has already applied the classic
+        daily gate). When on, the caller passes *all* eligible zones — including
+        ones the daily calc said 0 — and this method is the trigger gate: it
+        refreshes the live estimates and, per timed zone, waters only when the
+        drainage-aware ``live_deficit`` (intra-day ET/precip since the last daily
+        calc, the same quantity behind the "Live bucket" sensor) is below the
+        zone's bucket threshold (minimum deficit), with the run sized from that
+        deficit. Zones whose live deficit hasn't crossed the threshold (intra-day
+        rain covered them, or too small to bother) are dropped.
 
-        The daily ledger is untouched: only the *duration of this run* changes.
-        Flow-meter zones are left alone — they already deliver to a measured
-        volume and credit the bucket from it. Recomputed zones are marked in
-        ``_live_run_zones`` so :meth:`_run_ceiling` lets the run credit up to
-        ``maximum_bucket`` (a surplus) rather than clamping at the daily target;
-        the live deficit can exceed the stored daily bucket, so crediting the
-        actually-delivered water (not zeroing) keeps the next daily calc from
-        double-subtracting the intra-day ET.
+        The daily ledger is untouched: only this run's start + duration come from
+        the live estimate. Flow-meter zones keep the daily gate (they deliver to
+        a measured volume, not a recomputed duration). A zone with no live
+        estimate falls back to the daily gate so it neither regresses nor waters
+        blind. Recomputed zones are marked in ``_live_run_zones`` so
+        :meth:`_run_ceiling` lets the run credit up to ``maximum_bucket`` (a
+        surplus) rather than clamping at the daily target; the live deficit can
+        exceed the stored daily bucket, so crediting the actually-delivered water
+        (not zeroing) keeps the next daily calc from double-subtracting the
+        intra-day ET.
         """
-        if self.store.config.live_duration_enabled is not True:
+        if getattr(self.store.config, "live_estimate_enabled", False) is not True:
             self._live_run_zones = set()
             return zones
 
@@ -965,13 +982,31 @@ class IrrigationRunnerMixin:
         metric = self.hass.config.units is METRIC_SYSTEM
         out = []
         for z in zones:
+            threshold = z.get(const.ZONE_BUCKET_THRESHOLD) or 0
+            daily_needs = (z.get(const.ZONE_DURATION) or 0) > 0 and (
+                z.get(const.ZONE_BUCKET) or 0
+            ) < threshold
             if z.get(const.ZONE_FLOW_SENSOR):
-                out.append(z)  # flow path already credits measured volume
+                # Flow zones deliver to a measured volume, not a recomputed
+                # duration — keep the daily deficit gate for them.
+                if daily_needs:
+                    out.append(z)
                 continue
             est = estimates.get(str(z.get(const.ZONE_ID)))
             deficit = est.get("live_deficit") if est else None
             if deficit is None:
-                out.append(z)  # no live estimate — keep the daily duration
+                # No live estimate — fall back to the daily gate.
+                if daily_needs:
+                    out.append(z)
+                continue
+            if deficit >= threshold:
+                _LOGGER.info(
+                    "Live-estimate watering: zone %s live deficit %.2f hasn't "
+                    "crossed the threshold %.2f — not watering this run",
+                    z.get(const.ZONE_ID),
+                    deficit,
+                    threshold,
+                )
                 continue
             live = duration_from_deficit(
                 deficit,
@@ -983,17 +1018,12 @@ class IrrigationRunnerMixin:
                 metric,
             )
             if live <= 0:
-                _LOGGER.info(
-                    "Live-estimate duration: zone %s no longer needs water "
-                    "(live deficit %.2f) — skipping this run",
-                    z.get(const.ZONE_ID),
-                    deficit,
-                )
                 continue
             zid = int(z.get(const.ZONE_ID))
             self._live_run_zones.add(zid)
+            self._warn_if_low_maximum_bucket(z, metric)
             _LOGGER.info(
-                "Live-estimate duration: zone %s %ss → %ss (live deficit %.2f)",
+                "Live-estimate watering: zone %s %ss → %ss (live deficit %.2f)",
                 zid,
                 z.get(const.ZONE_DURATION),
                 live,
@@ -1001,6 +1031,38 @@ class IrrigationRunnerMixin:
             )
             out.append({**z, const.ZONE_DURATION: live})
         return out
+
+    def _warn_if_low_maximum_bucket(self, zone: dict, metric: bool) -> None:
+        """Warn once per zone when live-estimate watering runs against a small
+        ``maximum_bucket`` that can clip banked intra-day water and drift the
+        daily ledger drier (see ``LIVE_MIN_MAXIMUM_BUCKET_MM``)."""
+        max_bucket = zone.get(const.ZONE_MAXIMUM_BUCKET)
+        if max_bucket is None:
+            return
+        max_bucket_mm = (
+            float(max_bucket)
+            if metric
+            else convert_between(const.UNIT_INCH, const.UNIT_MM, float(max_bucket))
+        )
+        if max_bucket_mm >= const.LIVE_MIN_MAXIMUM_BUCKET_MM:
+            return
+        warned = getattr(self, "_live_low_max_warned", None)
+        if warned is None:
+            warned = self._live_low_max_warned = set()
+        zid = int(zone.get(const.ZONE_ID))
+        if zid in warned:
+            return
+        warned.add(zid)
+        _LOGGER.warning(
+            "Live-estimate watering is on but zone %s has a small maximum bucket "
+            "(%.1f mm < %.1f mm). Watering more than once a day can bank more "
+            "water than that ceiling holds, so it gets clipped and the daily "
+            "calculation may drift drier over time. Raise the maximum bucket to "
+            "at least a day's ET to be safe.",
+            zone.get(const.ZONE_ID),
+            max_bucket_mm,
+            const.LIVE_MIN_MAXIMUM_BUCKET_MM,
+        )
 
     def _depth_from_volume_native(self, zone: dict, volume_l: float) -> float:
         """Depth (display units) that ``volume_l`` litres applies to ``zone``.

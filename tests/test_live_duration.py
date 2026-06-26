@@ -1,10 +1,10 @@
-"""Tests for the experimental live run-time duration feature (WS-3).
+"""Tests for the experimental live-estimate watering feature.
 
-When ``live_duration_enabled`` is on, the scheduled runner recomputes each
-timed zone's duration from the live intra-day deficit (instead of the frozen
-daily ``ZONE_DURATION``) and credits the actually-delivered water back to the
-bucket after the run — so the leftover deficit persists and the next daily calc
-does not double-subtract the intra-day ET.
+When ``live_estimate_enabled`` is on, the scheduled runner both *triggers* and
+*sizes* each timed zone's run from the live intra-day deficit (instead of the
+once-daily bucket + frozen ``ZONE_DURATION``) and credits the actually-delivered
+water back to the bucket after the run — so the leftover deficit persists and the
+next daily calc does not double-subtract the intra-day ET.
 
 Coordinators are built with ``__new__`` (like test_experimental_features) so only
 the attributes each method touches are wired up.
@@ -111,7 +111,7 @@ def _live_coordinator(*, enabled=True, estimates=None, metric=True):
     hass.config.units = METRIC_SYSTEM if metric else US_CUSTOMARY_SYSTEM
     coord.hass = hass
     coord.store = Mock()
-    coord.store.config = SimpleNamespace(live_duration_enabled=enabled)
+    coord.store.config = SimpleNamespace(live_estimate_enabled=enabled)
     coord.async_refresh_zone_estimates = AsyncMock(return_value=estimates or {})
     return coord
 
@@ -167,12 +167,60 @@ async def test_apply_live_durations_keeps_daily_when_no_estimate():
 
 
 async def test_apply_live_durations_leaves_flow_zones_untouched():
-    """Flow-meter zones already credit measured volume — not recomputed."""
+    """Flow-meter zones keep the daily gate (bucket -5 < 0) — not recomputed."""
     coord = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
     zone = _timed_zone(**{const.ZONE_FLOW_SENSOR: "sensor.flow"})
     out = await coord._apply_live_durations([zone])
     assert out[0] is zone  # untouched
     assert coord._live_run_zones == set()
+
+
+async def test_live_gate_triggers_when_daily_bucket_satisfied():
+    """The key new behaviour: a zone the daily calc would NOT water (bucket 0,
+    duration 0) still waters when the live intra-day deficit crosses zero."""
+    coord = _live_coordinator(estimates={"1": {"live_deficit": -6.0}})
+    zone = _timed_zone(
+        **{const.ZONE_BUCKET: 0.0, const.ZONE_DURATION: 0}  # daily said "no water"
+    )
+    out = await coord._apply_live_durations([zone])
+    assert len(out) == 1
+    assert out[0][const.ZONE_DURATION] == 360  # 6 mm / 60 mm/h * 3600
+    assert coord._live_run_zones == {1}
+
+
+async def test_live_gate_respects_bucket_threshold():
+    """The trigger honours the zone's minimum deficit: a live deficit above the
+    threshold is not watered; one below it is."""
+    above = _live_coordinator(estimates={"1": {"live_deficit": -3.0}})
+    zone = _timed_zone(**{const.ZONE_BUCKET_THRESHOLD: -5.0})
+    assert await above._apply_live_durations([dict(zone)]) == []
+
+    below = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
+    out = await below._apply_live_durations([dict(zone)])
+    assert len(out) == 1 and below._live_run_zones == {1}
+
+
+async def test_low_maximum_bucket_warns_once(caplog):
+    """A small maximum bucket with live watering on logs a one-time drift warning."""
+    import logging
+
+    coord = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
+    zone = _timed_zone(**{const.ZONE_MAXIMUM_BUCKET: 5.0})  # < 10 mm floor
+    with caplog.at_level(logging.WARNING):
+        await coord._apply_live_durations([dict(zone)])
+        await coord._apply_live_durations([dict(zone)])  # second run, same zone
+    warnings = [r for r in caplog.records if "maximum bucket" in r.getMessage()]
+    assert len(warnings) == 1  # warned once, not every run
+
+
+async def test_high_maximum_bucket_does_not_warn(caplog):
+    import logging
+
+    coord = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
+    zone = _timed_zone(**{const.ZONE_MAXIMUM_BUCKET: 24.0})  # default, safe
+    with caplog.at_level(logging.WARNING):
+        await coord._apply_live_durations([dict(zone)])
+    assert not [r for r in caplog.records if "maximum bucket" in r.getMessage()]
 
 
 # --------------------------------------------------------------------------- #

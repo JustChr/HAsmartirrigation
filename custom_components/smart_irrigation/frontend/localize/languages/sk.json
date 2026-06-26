@@ -640,11 +640,11 @@
         "label": "Pripísať do bilancie, keď prepojený ventil beží externe",
         "note": "Vyžaduje prepojený ventil a prietok na zóne. Objem sa odhaduje (čas behu × prietok), nemeria sa."
       },
-      "live_duration": {
-        "title": "Dlzky behu z aktualneho odhadu",
-        "description": "Predvolene sa dlzka zavlazovania kazdej zony stanovi pri dennom vypocte (napriklad o 23:00), hodiny predtym, nez sa ventil skutocne otvori. Po zapnuti sa dlzka prepocita v case behu z aktualneho vnutrodenneho deficitu (ET zohladnujuca drenaz a zrazky od posledneho vypoctu), takze sa zohladni nocne a skore ranne pocasie. Denna kniha zostava nezmenena: po behu sa do vedra pripise skutocne dodana voda, takze nasledujuci denny vypocet nikdy nepocita dvakrat. Vyzaduje meteorologicku sluzbu.",
-        "label": "Prepocitat dlzku behu v case zavlazovania",
-        "note": "Tyka sa iba naplanovanych behov. Zona, ktoru uz pokryl vnutrodenny dazd, sa pre dany beh preskoci."
+      "live_estimate": {
+        "title": "Zavlažovanie podľa živého odhadu",
+        "description": "Štandardne zóna zavlažuje raz denne, podľa deficitu z denného výpočtu (napríklad o 23:00). Pri zapnutí sa každý naplánovaný beh namiesto toho rozhodne — a nadimenzuje — podľa živého vnútrodenného deficitu (ET upravená o drenáž a zrážky od posledného výpočtu). To umožní zóne zavlažovať viac než raz denne podľa skutočnej dennej potreby (napríklad kvetináče s plánom každých 12 hodín, ktoré by raz denné vedro inak nechalo suché), a skráti alebo zruší beh, ktorý už pokryl dáždʼ počas dňa. Denná evidencia zostáva nezmenená: po behu sa do vedra pripíše skutočne dodaná voda, takže ďalší denný výpočet nikdy nepočíta dvakrát. Vyžaduje poveternostnú službu.",
+        "label": "Spustiť a nadimenzovať každý beh podľa živého deficitu",
+        "note": "Týka sa len naplánovaných behov a môže spustiť taký, ktorý denný výpočet neschválil. Pri častom zavlažovaní ponechajte rozumný minimálny deficit a maximálne vedro aspoň na úroveň dennej ET."
       }
     }
   },

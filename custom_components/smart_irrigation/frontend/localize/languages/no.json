@@ -642,11 +642,11 @@
         "label": "Krediter vannbalansen når en tilknyttet ventil kjører eksternt",
         "note": "Krever en tilknyttet ventil og en gjennomstrømning på sonen. Volumet estimeres (kjøretid × gjennomstrømning), ikke målt."
       },
-      "live_duration": {
-        "title": "Varigheter fra sanntidsestimatet",
-        "description": "Som standard fastsettes vanningsvarigheten for hver sone under den daglige beregningen (for eksempel kl. 23:00), timer for ventilen faktisk apner. Nar dette er pa, beregnes varigheten pa nytt ved kjoretidspunktet ut fra det aktuelle underskuddet i lopet av dagen (dreneringsbevisst ET og nedbor siden forrige beregning), slik at vaer om natten og tidlig morgen tas med. Den daglige hovedboken er uendret: etter kjoringen krediteres botten med vannet som faktisk ble levert, slik at neste daglige beregning aldri teller dobbelt. Krever en vaertjeneste.",
-        "label": "Beregn varigheten pa nytt ved vanningstidspunkt",
-        "note": "Pavirker bare planlagte kjoringer. En sone som regn i lopet av dagen allerede har dekket, hoppes over for den kjoringen."
+      "live_estimate": {
+        "title": "Vanning etter sanntidsestimat",
+        "description": "Som standard vanner en sone én gang om dagen, ut fra underskuddet den daglige beregningen ga (for eksempel kl. 23:00). Med dette på bestemmer — og dimensjonerer — hver planlagte kjøring seg i stedet ut fra sanntids underskudd gjennom dagen (den dreneringskorrigerte ET-en og nedbøren siden forrige beregning). Dette lar en sone vanne mer enn én gang om dagen ved reelt behov i løpet av dagen (for eksempel potter med en hver-12.-time-plan som den én-gang-daglige bøtta ellers ville latt stå tørre), og den forkorter eller avbryter en kjøring som regn i løpet av dagen allerede har dekket. Det daglige regnskapet er uendret: etter kjøringen krediteres bøtta med vannet som faktisk ble levert, så neste daglige beregning teller aldri dobbelt. Krever en værtjeneste.",
+        "label": "Utløs og dimensjoner hver kjøring fra sanntidsunderskuddet",
+        "note": "Påvirker kun planlagte kjøringer og kan starte en som den daglige beregningen ikke godkjente. For hyppig vanning, behold et fornuftig minimumsunderskudd og en maksbøtte på minst en dags ET."
       }
     }
   },

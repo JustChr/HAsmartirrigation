@@ -249,11 +249,11 @@
         "label": "Credit the bucket when a linked valve runs externally",
         "note": "Requires a linked valve and a throughput on the zone. Volume is estimated (run time × throughput), not metered."
       },
-      "live_duration": {
-        "title": "Live-estimate run durations",
-        "description": "By default each zone's watering duration is fixed when the daily calculation runs (for example at 23:00), hours before the valve actually opens. With this on, the duration is recomputed at run time from the live intra-day deficit (the drainage-aware ET and rainfall since the last calculation), so overnight and early-morning weather is taken into account. The daily ledger is unchanged: after the run the bucket is credited with the water actually delivered, so the next daily calculation never double-counts. Requires a weather service.",
-        "label": "Recompute the run duration at watering time",
-        "note": "Affects scheduled runs only. A zone that intra-day rain has already covered is skipped for that run."
+      "live_estimate": {
+        "title": "Live-estimate watering",
+        "description": "By default a zone waters once a day, from the deficit the daily calculation produced (for example at 23:00). With this on, each scheduled run instead decides — and sizes itself — from the live intra-day deficit (the drainage-aware ET and rainfall since the last calculation). This lets a zone water more than once a day on real intra-day demand (for example pots on an every-12-hours schedule that the once-daily bucket would otherwise leave dry), and it shrinks or cancels a run that intra-day rain has already covered. The daily ledger is unchanged: after the run the bucket is credited with the water actually delivered, so the next daily calculation never double-counts. Requires a weather service.",
+        "label": "Trigger and size each run from the live deficit",
+        "note": "Affects scheduled runs only, and can start a run the daily calculation didn't approve. For frequent watering keep a sensible minimum deficit and a maximum bucket of at least a day's ET."
       }
     },
     "help": {

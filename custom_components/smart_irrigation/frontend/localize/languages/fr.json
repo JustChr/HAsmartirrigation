@@ -642,11 +642,11 @@
         "label": "Créditer le réservoir lorsqu'une vanne associée fonctionne en externe",
         "note": "Nécessite une vanne associée et un débit sur la zone. Le volume est estimé (durée × débit), non mesuré."
       },
-      "live_duration": {
-        "title": "Durees basees sur l'estimation en direct",
-        "description": "Par defaut, la duree d'arrosage de chaque zone est figee lors du calcul quotidien (par exemple a 23h00), des heures avant l'ouverture reelle de la vanne. Avec cette option, la duree est recalculee au moment de l'arrosage a partir du deficit intra-journalier en direct (l'ET tenant compte du drainage et la pluie depuis le dernier calcul), afin de prendre en compte la meteo nocturne et matinale. Le journal quotidien reste inchange : apres l'arrosage, le seau est credite de l'eau reellement apportee, de sorte que le calcul quotidien suivant ne compte jamais deux fois. Necessite un service meteo.",
-        "label": "Recalculer la duree au moment de l'arrosage",
-        "note": "N'affecte que les arrosages programmes. Une zone deja couverte par la pluie intra-journaliere est ignoree pour cet arrosage."
+      "live_estimate": {
+        "title": "Arrosage selon l'estimation en direct",
+        "description": "Par défaut, une zone arrose une fois par jour, d'après le déficit produit par le calcul quotidien (par exemple à 23h00). Avec cette option, chaque exécution planifiée décide — et se dimensionne — à partir du déficit infrajournalier en direct (l'ET corrigée du drainage et la pluie depuis le dernier calcul). Cela permet à une zone d'arroser plus d'une fois par jour selon la demande réelle de la journée (par exemple des pots avec une planification toutes les 12 heures que le seau quotidien laisserait sinon à sec), et réduit ou annule une exécution que la pluie de la journée a déjà couverte. Le registre quotidien est inchangé : après l'exécution, le seau est crédité de l'eau réellement délivrée, de sorte que le calcul quotidien suivant ne compte jamais deux fois. Nécessite un service météo.",
+        "label": "Déclencher et dimensionner chaque exécution selon le déficit en direct",
+        "note": "N'affecte que les exécutions planifiées et peut en démarrer une que le calcul quotidien n'a pas approuvée. Pour des arrosages fréquents, conservez un déficit minimal raisonnable et un seau maximal d'au moins l'ET d'une journée."
       }
     }
   },

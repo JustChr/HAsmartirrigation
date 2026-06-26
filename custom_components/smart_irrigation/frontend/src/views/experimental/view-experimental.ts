@@ -11,7 +11,7 @@ import { SmartIrrigationConfig } from "../../types";
 import { globalStyle } from "../../styles/global-style";
 import {
   CONF_OBSERVED_WATERING_ENABLED,
-  CONF_LIVE_DURATION_ENABLED,
+  CONF_LIVE_ESTIMATE_ENABLED,
   DOMAIN,
 } from "../../const";
 
@@ -20,7 +20,7 @@ import {
 // flag (forecast_weighting_enabled) is unchanged; it's just surfaced there now.
 type ExperimentalFlag =
   | typeof CONF_OBSERVED_WATERING_ENABLED
-  | typeof CONF_LIVE_DURATION_ENABLED;
+  | typeof CONF_LIVE_ESTIMATE_ENABLED;
 
 /**
  * Setup → Experimental: opt-in features that change how the bucket is filled.
@@ -101,9 +101,9 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         this.config.observed_watering_enabled,
       )}
       ${this._renderToggleCard(
-        "live_duration",
-        CONF_LIVE_DURATION_ENABLED,
-        this.config.live_duration_enabled,
+        "live_estimate",
+        CONF_LIVE_ESTIMATE_ENABLED,
+        this.config.live_estimate_enabled,
       )}
     `;
   }

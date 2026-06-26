@@ -27,21 +27,27 @@ Notes:
 - External watering can push the bucket into surplus (capped at the zone's *maximum bucket*), since watering by hand can legitimately overshoot the deficit.
 - Requires a linked valve **and** a throughput on the zone. Zones without both are ignored.
 
-## Live-estimate run durations
+## Live-estimate watering
 
-By default, each zone's watering **duration** is fixed when the [daily calculation](how-it-works.md) runs — for example at 23:00 — which is correct *for the daily ledger* (the science needs a full day of weather). But the valve usually opens hours later, so the duration can be stale: overnight or early-morning evaporation isn't reflected in it.
+By default a zone waters **once a day**: the [daily calculation](how-it-works.md) runs — for example at 23:00 — produces a deficit, and the next scheduled run waters it off. That's correct for the daily ledger (the daily ET science needs a full day of weather), but it means a second scheduled run a few hours later finds the bucket already satisfied and does nothing. There is deliberately **no "calculate every N hours"** — daily ET0 can't be chopped into sub-daily pieces.
 
-When enabled, the duration is **recomputed at watering time** for scheduled runs from the same live intra-day deficit shown by each zone's *Live bucket* sensor (the drainage-aware ET and rainfall accumulated since the last calculation). A zone that dried out overnight waters a little longer; a zone that got intra-day rain waters less — and if the rain already covered it, that zone is skipped for that run.
+When enabled, each scheduled run instead **decides _and_ sizes itself from the live intra-day deficit** shown by each zone's *Live bucket* sensor (the drainage-aware ET and rainfall accumulated since the last calculation — computed with a valid *hourly* method). This means:
 
-**The daily bucket ledger is left exactly as-is** — only the duration of the run changes. The subtlety is avoiding a double-count: the live deficit can be deeper than the stored bucket because the intra-day ET hasn't been folded into the ledger yet. So after a live-estimate run, instead of forcing the bucket back to zero, Smart Irrigation **credits the water it actually delivered** (`run time × throughput ÷ size`, capped at *maximum bucket*). The leftover deficit therefore persists honestly, and when the next daily calculation subtracts the day's full ET it does so from a water-credited bucket — never subtracting the intra-day ET twice.
+- a run can **start even when the once-daily bucket says "done"**, if intra-day ET has built a fresh deficit since the last calculation — so a zone on an *every-12-hours* [interval schedule](configuration-schedules.md) genuinely waters twice (morning deficit, then the daytime deficit), and
+- a run **shrinks or cancels** when intra-day rain has already covered the zone.
 
-**Example.** Monday's calculation leaves a zone at −5 mm. Overnight, 3 mm of ET accrues, so by Tuesday's scheduled run the live deficit is −8 mm and the run delivers 8 mm. The bucket is credited to **+3 mm** (not 0). When Tuesday's calculation subtracts the day's full 8 mm ET, the +3 mm surplus cancels the overnight portion already watered, leaving the true −5 mm carryover — exactly right.
+The trigger honours each zone's **bucket threshold** (minimum deficit), so it won't churn out tiny runs — it only fires once the live deficit crosses that threshold.
+
+**The daily bucket ledger is left exactly as-is** — only this run's start and duration come from the live estimate. The subtlety is avoiding a double-count: the live deficit can be deeper than the stored bucket because the intra-day ET hasn't been folded into the ledger yet. So after a live-estimate run, instead of forcing the bucket back to zero, Smart Irrigation **credits the water it actually delivered** (`run time × throughput ÷ size`, capped at *maximum bucket*). The leftover deficit therefore persists honestly, and when the next daily calculation subtracts the day's full ET it does so from a water-credited bucket — never subtracting the intra-day ET twice.
+
+**Example (two runs in a day).** Monday's calculation leaves a zone at −5 mm. By the 07:00 run another 1 mm of ET has accrued (live deficit −6 mm) → it delivers 6 mm and the bucket is credited to **+1 mm**. By the 19:00 run the cumulative daytime ET is 5 mm, so the live deficit is now −4 mm → it delivers 4 mm and the bucket goes to **+5 mm**. At 23:00 the daily calculation subtracts the day's full ET; because the bucket only ever *banked* the water delivered (never had intra-day ET subtracted), the result lands on the true carryover — no double-count.
 
 Notes:
 
 - **Requires a weather service** (the live estimate comes from it). It has no effect for sensor-only setups.
-- Affects **scheduled** runs only. *Irrigate now* and flow-meter zones are unchanged (flow-meter zones already deliver to a measured volume and credit the bucket from it).
-- It does **not** add new runs: a zone the daily calculation decided not to water is not started by this feature; it only adjusts (or cancels) the runs that were already going to happen.
+- Affects **scheduled** runs only. *Irrigate now* and flow-meter zones keep the daily gate (flow-meter zones deliver to a measured volume and credit the bucket from it).
+- **Keep `maximum bucket` ≥ roughly a day's ET** (the 24 mm default is fine). With several runs a day the stored bucket has to *bank* a full day's delivered water until the nightly calculation subtracts the day's ET once; if the maximum bucket is set very low, that banked water is clipped and the daily ledger can drift drier over time. Smart Irrigation logs a warning if you enable this with a small maximum bucket.
+- Your stored **bucket** value will swing **positive** during the day (banked irrigation) before the nightly calculation pulls it back — that's expected; the *Live bucket* sensor shows the true intra-day deficit.
 
 > Main page: [Configuration](configuration.md)<br/>
 > Previous: [Sensor group configuration](configuration-sensor-groups.md)<br/>
