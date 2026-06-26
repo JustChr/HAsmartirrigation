@@ -241,6 +241,177 @@ class TestFinishTrackerAdvance:
         assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
 
 
+class TestIntervalStartTime:
+    """An interval schedule with a start_time anchor is phase-locked to that
+    clock time (carsten12 / discussion #31): fires at start_time and every
+    interval_hours after, exposes a real next_run_utc, and re-arms onto the next
+    occurrence (no double-fire). Without a start_time it free-runs as before."""
+
+    @staticmethod
+    def _sched(**kw):
+        base = {
+            const.SCHEDULE_CONF_ID: "i1",
+            const.SCHEDULE_CONF_NAME: "pots",
+            const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_INTERVAL,
+            const.SCHEDULE_CONF_INTERVAL_HOURS: 12,
+            const.SCHEDULE_CONF_ACTION: "irrigate",
+            const.SCHEDULE_CONF_ZONES: "all",
+        }
+        base.update(kw)
+        return base
+
+    @pytest.fixture(autouse=True)
+    def _utc_tz(self):
+        """Pin HA's default timezone to UTC so local == UTC and the anchored
+        clock assertions below are tz-independent (the test env otherwise
+        defaults to a Pacific zone from the HA coordinates)."""
+        import homeassistant.util.dt as dt_util
+
+        original = dt_util.DEFAULT_TIME_ZONE
+        dt_util.set_default_time_zone(dt_util.UTC)
+        yield
+        dt_util.set_default_time_zone(original)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_anchor_same_day_step(self, coordinator):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        sched = self._sched(start_time="07:00")
+        target = mgr._next_interval_target(sched, dt_util.utcnow())
+        # 07:00 already passed → +12h → 19:00 today (local == UTC in tests).
+        assert dt_util.as_local(target).hour == 19
+        assert dt_util.as_local(target).date() == datetime.date(2026, 6, 10)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 06:00:00")
+    async def test_anchor_before_first(self, coordinator):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        target = mgr._next_interval_target(
+            self._sched(start_time="07:00"), dt_util.utcnow()
+        )
+        assert dt_util.as_local(target).hour == 7
+        assert dt_util.as_local(target).date() == datetime.date(2026, 6, 10)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 20:00:00")
+    async def test_anchor_rolls_across_midnight(self, coordinator):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        # 07:00 and 19:00 both passed → next is 07:00 tomorrow (phase-locked).
+        target = mgr._next_interval_target(
+            self._sched(start_time="07:00"), dt_util.utcnow()
+        )
+        assert dt_util.as_local(target).hour == 7
+        assert dt_util.as_local(target).date() == datetime.date(2026, 6, 11)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_no_start_time_returns_none(self, coordinator):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        assert mgr._next_interval_target(self._sched(), dt_util.utcnow()) is None
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_invalid_inputs_return_none(self, coordinator):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        now = dt_util.utcnow()
+        assert (
+            mgr._next_interval_target(self._sched(start_time="nonsense"), now) is None
+        )
+        assert (
+            mgr._next_interval_target(
+                self._sched(start_time="07:00", interval_hours=0), now
+            )
+            is None
+        )
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_rearm_advances_not_double_fire(self, coordinator):
+        """Re-arming from the just-fired target must jump to the next occurrence,
+        not re-derive the same time (which would immediately re-fire)."""
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        sched = self._sched(start_time="07:00")
+        target1 = await mgr._next_target_time(sched)
+        target2 = await mgr._next_target_time(sched, reference_utc=target1)
+        assert target2 - target1 == datetime.timedelta(hours=12)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_tracker_uses_point_in_time_when_anchored(
+        self, coordinator, monkeypatch
+    ):
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        point_calls: list = []
+        interval_calls: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: point_calls.append(when) or Mock(),
+        )
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_time_interval",
+            lambda hass, cb, delta: interval_calls.append(delta) or Mock(),
+        )
+
+        await mgr._setup_interval_tracker(self._sched(start_time="07:00"))
+        assert len(point_calls) == 1 and not interval_calls
+        assert dt_util.as_local(point_calls[0]).hour == 19
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_tracker_free_runs_without_anchor(self, coordinator, monkeypatch):
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        point_calls: list = []
+        interval_calls: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: point_calls.append(when) or Mock(),
+        )
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_time_interval",
+            lambda hass, cb, delta: interval_calls.append(delta) or Mock(),
+        )
+
+        await mgr._setup_interval_tracker(self._sched())
+        assert interval_calls == [datetime.timedelta(hours=12)] and not point_calls
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_upcoming_runs_anchored_vs_free(self, coordinator):
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr._schedules = [
+            self._sched(id="anchored", start_time="07:00"),
+            self._sched(id="free"),
+        ]
+        runs = {r["schedule_id"]: r for r in await mgr.async_get_upcoming_runs()}
+        assert runs["anchored"]["next_run_utc"] is not None
+        assert runs["anchored"]["interval_hours"] == 12
+        assert runs["free"]["next_run_utc"] is None
+        assert runs["free"]["interval_hours"] == 12
+
+    def test_validate_rejects_bad_start_time(self, coordinator):
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        with pytest.raises(ValueError, match="start time"):
+            mgr._validate_schedule_data(self._sched(start_time="25:99"))
+        # A valid anchor passes.
+        mgr._validate_schedule_data(self._sched(start_time="07:00"))
+
+
 class TestBucketResetAfterRun:
     @pytest.mark.asyncio
     async def test_commit_progress_writes_bucket_and_time(

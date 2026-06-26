@@ -198,6 +198,7 @@
         "interval_hours": "Interval",
         "action": "Action",
         "zones": "Zones",
+        "start_time": "Start time (optional)",
         "start_date": "Start date (optional)",
         "end_date": "End date (optional)",
         "offset_minutes": "Offset from sunrise/sunset",

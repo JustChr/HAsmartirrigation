@@ -551,6 +551,7 @@
         "interval_hours": "Intervall",
         "action": "Handling",
         "zones": "Soner",
+        "start_time": "Starttid (valgfritt)",
         "start_date": "Startdato (valgfritt)",
         "end_date": "Sluttdato (valgfritt)",
         "offset_minutes": "Forskyvning fra soloppgang/-nedgang",

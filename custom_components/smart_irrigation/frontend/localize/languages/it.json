@@ -594,6 +594,7 @@
         "interval_hours": "Intervallo",
         "action": "Azione",
         "zones": "Zone",
+        "start_time": "Ora di inizio (opzionale)",
         "start_date": "Data di inizio (opzionale)",
         "end_date": "Data di fine (opzionale)",
         "offset_minutes": "Offset dall'alba/tramonto",

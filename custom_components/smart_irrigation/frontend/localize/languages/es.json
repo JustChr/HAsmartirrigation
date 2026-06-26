@@ -550,6 +550,7 @@
         "interval_hours": "Intervalo",
         "action": "Acción",
         "zones": "Zonas",
+        "start_time": "Hora de inicio (opcional)",
         "start_date": "Fecha de inicio (opcional)",
         "end_date": "Fecha de fin (opcional)",
         "offset_minutes": "Desplazamiento desde amanecer/atardecer",

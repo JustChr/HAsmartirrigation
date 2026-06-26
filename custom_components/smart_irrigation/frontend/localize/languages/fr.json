@@ -551,6 +551,7 @@
         "interval_hours": "Intervalle",
         "action": "Action",
         "zones": "Zones",
+        "start_time": "Heure de début (optionnel)",
         "start_date": "Date de début (optionnel)",
         "end_date": "Date de fin (optionnel)",
         "offset_minutes": "Décalage par rapport au lever/coucher du soleil",

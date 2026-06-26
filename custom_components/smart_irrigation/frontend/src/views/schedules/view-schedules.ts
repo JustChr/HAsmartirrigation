@@ -55,6 +55,7 @@ interface Schedule {
   days_of_week?: string[];
   day_of_month?: number;
   interval_hours?: number;
+  start_time?: string; // optional HH:MM clock anchor for interval schedules
   offset_minutes?: number;
   account_for_duration?: boolean; // legacy; superseded by time_anchor
   time_anchor?: string; // "start" | "finish"
@@ -384,6 +385,22 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
               >
             </div>
           </div>
+          <div class="field">
+            <label
+              >${localize(
+                "panels.schedules.fields.start_time",
+                this.hass.language,
+              )}</label
+            >
+            <input
+              type="time"
+              .value="${s.start_time || ""}"
+              @change=${(e: Event) =>
+                this._update({
+                  start_time: (e.target as HTMLInputElement).value || undefined,
+                })}
+            />
+          </div>
         `;
       case SCHEDULE_TYPE_SUNRISE:
       case SCHEDULE_TYPE_SUNSET:
@@ -710,6 +727,19 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                               this.hass.language,
                             )}</span
                           >
+                        </div>
+                      `
+                    : ""}
+                  ${s.type === "interval" && s.start_time
+                    ? html`
+                        <div class="info-row">
+                          <span class="info-label"
+                            >${localize(
+                              "panels.schedules.fields.start_time",
+                              this.hass.language,
+                            )}:</span
+                          >
+                          <span>${s.start_time}</span>
                         </div>
                       `
                     : ""}

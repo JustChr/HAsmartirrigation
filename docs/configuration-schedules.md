@@ -43,6 +43,10 @@ The day of the month (1–31) the schedule should fire.
 ### Interval (interval type only)
 The number of hours between runs.
 
+You can optionally set a **Start time** (`HH:MM`). With it, the interval is anchored to that clock time — it fires at the start time and every *N* hours after (e.g. start `07:00`, every `12` hours → 07:00 and 19:00 each day), and the dashboard shows the real next run. Leave it empty to keep the legacy behaviour, where the interval simply runs every *N* hours counting from when Home Assistant last started (no fixed clock phase, and the dashboard can't show a next run).
+
+> **Note:** an *interval-irrigate* schedule waters the deficit the [daily calculation](configuration-when-to-water.md) produced. Because the calculation runs once a day, a second run a few hours later normally finds the bucket already satisfied and does little. To genuinely water more than once a day on intra-day demand, also enable the live-estimate option (see [Experimental](configuration-experimental.md)).
+
 ### Offset (sun-based types only)
 Minutes to shift the run relative to the solar event — negative for before, positive for after (e.g. `-30` = half an hour before sunrise).
 

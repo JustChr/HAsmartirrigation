@@ -285,6 +285,12 @@ class RecurringScheduleManager:
                 return None
             return dt_util.as_utc(next_time) + offset
 
+        if stype == const.SCHEDULE_TYPE_INTERVAL:
+            # Only an interval with an explicit start_time has a fixed clock
+            # target; an un-anchored interval free-runs from HA start and has no
+            # derivable next time (returns None, handled by the caller).
+            return self._next_interval_target(schedule, now_utc)
+
         # Clock types: next local HH:MM that falls on a matching day.
         hour, minute = map(
             int, schedule.get(const.SCHEDULE_CONF_TIME, "06:00").split(":")
@@ -297,14 +303,53 @@ class RecurringScheduleManager:
             candidate += datetime.timedelta(days=1)
         return None
 
+    def _next_interval_target(self, schedule: dict[str, Any], reference_utc):
+        """Next UTC fire time for an interval schedule anchored to ``start_time``.
+
+        Occurrences are the local ``start_time`` clock and every
+        ``interval_hours`` after it, phase-locked to that anchor (the candidate
+        rolls naturally across midnight). Returns None when there is no
+        ``start_time`` (un-anchored interval), an invalid time, or a
+        non-positive interval — in those cases the schedule free-runs via
+        ``async_track_time_interval`` and has no derivable clock target.
+        """
+        start_time_str = schedule.get(const.SCHEDULE_CONF_START_TIME)
+        if not start_time_str:
+            return None
+        try:
+            hour, minute = (int(x) for x in str(start_time_str).split(":"))
+        except (ValueError, TypeError):
+            return None
+        interval_hours = schedule.get(const.SCHEDULE_CONF_INTERVAL_HOURS, 24)
+        if interval_hours is None:
+            interval_hours = 24
+        try:
+            interval_hours = int(interval_hours)
+        except (ValueError, TypeError):
+            return None
+        if interval_hours <= 0:
+            return None
+
+        local_now = dt_util.as_local(reference_utc)
+        candidate = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        step = datetime.timedelta(hours=interval_hours)
+        # Advance from today's anchor until strictly after the reference. Bounded
+        # by a full day's worth of steps plus slack, so it can never spin.
+        for _ in range(int(24 / max(1, interval_hours)) + 48):
+            if candidate > local_now:
+                return dt_util.as_utc(candidate)
+            candidate += step
+        return None
+
     async def async_get_upcoming_runs(self) -> list[dict[str, Any]]:
         """Compute the next fire time for each enabled schedule (for the dashboard).
 
         Reuses the same target/anchor math the trackers use:
           - start anchor → next_run = target
           - finish anchor (irrigate only) → next_run = target − estimated duration
-        Interval schedules have no fixed clock target (phase depends on when HA
-        started), so they report ``next_run_utc=None`` plus ``interval_hours``.
+        Interval schedules with a ``start_time`` report the next anchored clock
+        target; un-anchored intervals have no fixed target (phase depends on when
+        HA started), so they report ``next_run_utc=None`` plus ``interval_hours``.
         Sorted soonest-first; entries that can't be resolved are dropped.
         """
         runs: list[dict[str, Any]] = []
@@ -332,6 +377,12 @@ class RecurringScheduleManager:
                 entry["interval_hours"] = schedule.get(
                     const.SCHEDULE_CONF_INTERVAL_HOURS, 24
                 )
+                # A start_time anchor gives a real clock target; without one the
+                # interval free-runs and stays next_run_utc=None.
+                target = self._next_interval_target(schedule, dt_util.utcnow())
+                if target is not None:
+                    entry["next_run_utc"] = target.isoformat()
+                    entry["target_utc"] = target.isoformat()
                 runs.append(entry)
                 continue
 
@@ -483,7 +534,42 @@ class RecurringScheduleManager:
         )
 
     async def _setup_interval_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Set up an interval-based schedule tracker."""
+        """Set up an interval-based schedule tracker.
+
+        With a ``start_time`` anchor the interval is phase-locked to that clock
+        time: it uses a one-shot, self-rescheduling point-in-time tracker (the
+        same pattern as the azimuth/finish trackers) so each fire re-arms on the
+        next anchored occurrence. Without a start_time it free-runs every
+        ``interval_hours`` from now — the original behaviour, unchanged.
+        """
+        if schedule.get(const.SCHEDULE_CONF_START_TIME):
+            target = await self._next_target_time(schedule)
+            if target is None:
+                _LOGGER.warning(
+                    "Could not calculate next interval time for schedule '%s'",
+                    schedule.get(const.SCHEDULE_CONF_NAME),
+                )
+                return None
+
+            def interval_callback(now, s=schedule):
+                self._execute_schedule(s, now)
+                # Re-register for the next occurrence — thread-safe wrapper
+                # because async_track_point_in_utc_time callbacks may fire
+                # outside the event loop (mirrors the azimuth tracker).
+                self.hass.loop.call_soon_threadsafe(
+                    self.hass.async_create_task,
+                    self._reregister_tracker(s),
+                )
+
+            _LOGGER.info(
+                "Registered interval schedule '%s' (start %s, every %sh) at %s",
+                schedule.get(const.SCHEDULE_CONF_NAME),
+                schedule.get(const.SCHEDULE_CONF_START_TIME),
+                schedule.get(const.SCHEDULE_CONF_INTERVAL_HOURS, 24),
+                target,
+            )
+            return async_track_point_in_utc_time(self.hass, interval_callback, target)
+
         interval_hours = schedule.get(const.SCHEDULE_CONF_INTERVAL_HOURS, 24)
         interval_delta = datetime.timedelta(hours=interval_hours)
 
@@ -701,6 +787,16 @@ class RecurringScheduleManager:
             except ValueError as e:
                 raise ValueError(
                     f"Invalid time format: {time_str}. Expected HH:MM"
+                ) from e
+
+        # Validate the optional interval start_time anchor the same way.
+        start_time_str = schedule_data.get(const.SCHEDULE_CONF_START_TIME)
+        if start_time_str:
+            try:
+                datetime.datetime.strptime(start_time_str, "%H:%M")
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid start time format: {start_time_str}. Expected HH:MM"
                 ) from e
 
     def _generate_schedule_id(self) -> str:

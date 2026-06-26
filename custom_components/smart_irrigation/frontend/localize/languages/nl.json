@@ -549,6 +549,7 @@
         "interval_hours": "Interval",
         "action": "Actie",
         "zones": "Zones",
+        "start_time": "Starttijd (optioneel)",
         "start_date": "Startdatum (optioneel)",
         "end_date": "Einddatum (optioneel)",
         "offset_minutes": "Offset van zonsopgang/-ondergang",

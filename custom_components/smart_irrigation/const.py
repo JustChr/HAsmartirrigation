@@ -123,6 +123,7 @@ SCHEDULE_CONF_TIME = "time"
 SCHEDULE_CONF_DAYS_OF_WEEK = "days_of_week"
 SCHEDULE_CONF_DAY_OF_MONTH = "day_of_month"
 SCHEDULE_CONF_INTERVAL_HOURS = "interval_hours"
+SCHEDULE_CONF_START_TIME = "start_time"  # Optional HH:MM clock anchor for interval
 SCHEDULE_CONF_START_DATE = "start_date"
 SCHEDULE_CONF_END_DATE = "end_date"
 SCHEDULE_CONF_ZONES = "zones"  # List of zone IDs or "all"
