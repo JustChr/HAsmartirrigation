@@ -269,6 +269,25 @@ class PyETO(SmartIrrigationCalculationModule):
                             "[pyETO: calculate_et_for_day] estimated sol_rad from sunhours: %s",
                             sol_rad,
                         )
+                # FAO-56 safety clamp: incoming solar radiation can never exceed
+                # clear-sky radiation (Rs <= Rso). A measured "Solar Radiation"
+                # sensor in the wrong unit (e.g. W/m2 read as MJ/day/m2) would
+                # otherwise blow the net radiation — and ET — up several-fold.
+                # Clamp to clear-sky and warn once so the bad input is visible.
+                if sol_rad is not None and cs_radvar and sol_rad > cs_radvar:
+                    if not getattr(self, "_warned_solrad_clamp", False):
+                        self._warned_solrad_clamp = True
+                        _LOGGER.warning(
+                            "Solar radiation %.1f MJ/day/m2 exceeds the physical "
+                            "clear-sky maximum %.1f MJ/day/m2 and was clamped. "
+                            "Check the Solar Radiation sensor's unit in the sensor "
+                            "group (a W/m2 sensor configured as MJ/day/m2 is the "
+                            "usual cause), or switch the PyETO solar-radiation "
+                            "behaviour to an 'estimate' option.",
+                            sol_rad,
+                            cs_radvar,
+                        )
+                    sol_rad = cs_radvar
                 _LOGGER.debug(
                     "[pyETO: calculate_et_for_day] sol_rad passed to net_in_sol_radvar: %s",
                     sol_rad,

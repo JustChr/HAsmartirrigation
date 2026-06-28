@@ -13,6 +13,7 @@ from datetime import timedelta
 from homeassistant.components.sensor import DOMAIN as PLATFORM
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    ATTR_UNIT_OF_MEASUREMENT,
     CONF_ELEVATION,
     CONF_LATITUDE,
     CONF_LONGITUDE,
@@ -47,6 +48,7 @@ from .helpers import (
     check_time,
     convert_between,
     convert_mapping_to_metric,
+    ha_unit_to_internal_unit,
     loadModules,
     relative_to_absolute_pressure,
 )
@@ -1081,18 +1083,41 @@ class SmartIrrigationCoordinator(
                     const.MAPPING_CONF_SENSOR
                 ):
                     # this mapping maps to a sensor, so retrieve its value from HA
-                    if self.hass.states.get(the_map.get(const.MAPPING_CONF_SENSOR)):
+                    sensor_id = the_map.get(const.MAPPING_CONF_SENSOR)
+                    state = self.hass.states.get(sensor_id)
+                    if state:
                         try:
-                            val = float(
-                                self.hass.states.get(
-                                    the_map.get(const.MAPPING_CONF_SENSOR)
-                                ).state
+                            val = float(state.state)
+                            # Prefer the entity's *own* reported unit over the
+                            # unit hand-picked in the sensor group: HA knows the
+                            # sensor's real unit, and a mismatch there silently
+                            # corrupts the value (e.g. a W/m2 solar sensor
+                            # configured as MJ/day/m2 inflates ET ~12x). Fall
+                            # back to the configured unit when the entity reports
+                            # no unit or one we don't recognise for this field.
+                            configured_unit = the_map.get(const.MAPPING_CONF_UNIT)
+                            detected_unit = ha_unit_to_internal_unit(
+                                state.attributes.get(ATTR_UNIT_OF_MEASUREMENT), key
                             )
+                            unit = detected_unit or configured_unit
+                            if (
+                                detected_unit
+                                and configured_unit
+                                and detected_unit != configured_unit
+                            ):
+                                _LOGGER.info(
+                                    "Sensor %s reports unit '%s' for %s; using it "
+                                    "instead of the configured '%s'.",
+                                    sensor_id,
+                                    detected_unit,
+                                    key,
+                                    configured_unit,
+                                )
                             # make sure to store the val as metric and do necessary conversions along the way
                             val = convert_mapping_to_metric(
                                 val,
                                 key,
-                                the_map.get(const.MAPPING_CONF_UNIT),
+                                unit,
                                 self.hass.config.units is METRIC_SYSTEM,
                             )
                             # add val to sensor values
@@ -1100,7 +1125,7 @@ class SmartIrrigationCoordinator(
                         except (ValueError, TypeError):
                             _LOGGER.debug(
                                 "No / unknown value for sensor %s",
-                                the_map.get(const.MAPPING_CONF_SENSOR),
+                                sensor_id,
                             )
 
         return sensor_values

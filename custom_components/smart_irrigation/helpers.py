@@ -8,7 +8,17 @@ from datetime import datetime
 from pathlib import Path
 
 from homeassistant import exceptions
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
+from homeassistant.const import (
+    PERCENTAGE,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    UnitOfIrradiance,
+    UnitOfPrecipitationDepth,
+    UnitOfPressure,
+    UnitOfSpeed,
+    UnitOfTemperature,
+    UnitOfVolumetricFlux,
+)
 from homeassistant.core import HomeAssistant
 
 from .const import (
@@ -199,6 +209,66 @@ def convert_mapping_to_metric(val, mapping, unit, system_is_metric):
         # assume it's m/h
         return convert_between(from_unit=UNIT_MH, to_unit=UNIT_MS, val=val)
     return None
+
+
+# Home Assistant exposes an entity's unit in its ``unit_of_measurement``
+# attribute. Map those native HA unit strings onto this integration's internal
+# unit constants so a sensor's *actual* unit drives the conversion, instead of a
+# unit hand-picked in the sensor-group config that can silently disagree with
+# the entity (e.g. a W/m2 solar sensor configured as MJ/day/m2 → ET blows up).
+_HA_UNIT_TO_INTERNAL = {
+    UnitOfTemperature.CELSIUS: UnitOfTemperature.CELSIUS,
+    UnitOfTemperature.FAHRENHEIT: UnitOfTemperature.FAHRENHEIT,
+    UnitOfPressure.HPA: UNIT_HPA,
+    UnitOfPressure.MBAR: UNIT_MBAR,
+    UnitOfPressure.PSI: UNIT_PSI,
+    UnitOfPressure.INHG: UNIT_INHG,
+    UnitOfSpeed.METERS_PER_SECOND: UNIT_MS,
+    UnitOfSpeed.KILOMETERS_PER_HOUR: UNIT_KMH,
+    UnitOfSpeed.MILES_PER_HOUR: UNIT_MH,
+    UnitOfPrecipitationDepth.MILLIMETERS: UNIT_MM,
+    UnitOfPrecipitationDepth.INCHES: UNIT_INCH,
+    UnitOfVolumetricFlux.MILLIMETERS_PER_HOUR: UNIT_MMH,
+    UnitOfVolumetricFlux.INCHES_PER_HOUR: UNIT_INCHH,
+    UnitOfIrradiance.WATTS_PER_SQUARE_METER: UNIT_W_M2,
+    PERCENTAGE: UNIT_PERCENT,
+}
+
+# Internal units that are meaningful for each mapping field — guards against a
+# mis-assigned entity (e.g. a °C sensor mapped to Solar Radiation) feeding a
+# nonsensical-but-recognised unit into the conversion.
+_MAPPING_ALLOWED_UNITS = {
+    MAPPING_TEMPERATURE: {UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT},
+    MAPPING_MAX_TEMP: {UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT},
+    MAPPING_MIN_TEMP: {UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT},
+    MAPPING_DEWPOINT: {UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT},
+    MAPPING_PRESSURE: {UNIT_HPA, UNIT_MBAR, UNIT_MILLIBAR, UNIT_PSI, UNIT_INHG},
+    MAPPING_WINDSPEED: {UNIT_MS, UNIT_KMH, UNIT_MH},
+    MAPPING_PRECIPITATION: {UNIT_MM, UNIT_INCH},
+    MAPPING_EVAPOTRANSPIRATION: {UNIT_MM, UNIT_INCH},
+    MAPPING_CURRENT_PRECIPITATION: {UNIT_MMH, UNIT_INCHH},
+    MAPPING_SOLRAD: {UNIT_W_M2, UNIT_W_SQFT, UNIT_MJ_DAY_M2, UNIT_MJ_DAY_SQFT},
+    MAPPING_HUMIDITY: {UNIT_PERCENT},
+}
+
+
+def ha_unit_to_internal_unit(ha_unit, mapping_key):
+    """Resolve a Home Assistant entity unit to this integration's internal unit.
+
+    Returns the internal unit string when ``ha_unit`` is a recognised unit that
+    is also meaningful for ``mapping_key`` (so ``convert_mapping_to_metric`` can
+    convert from it), else None — in which case the caller falls back to the unit
+    configured in the sensor group.
+    """
+    if not ha_unit:
+        return None
+    internal = _HA_UNIT_TO_INTERNAL.get(ha_unit)
+    if internal is None:
+        return None
+    allowed = _MAPPING_ALLOWED_UNITS.get(mapping_key)
+    if allowed is not None and internal not in allowed:
+        return None
+    return internal
 
 
 def convert_between(from_unit, to_unit, val):
