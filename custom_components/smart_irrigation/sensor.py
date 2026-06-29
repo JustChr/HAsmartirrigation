@@ -755,16 +755,19 @@ class SmartIrrigationZoneLastWaterUsageSensor(SmartIrrigationZoneChildSensor):
 
     Derived from the newest run-log entry that actually delivered water
     (``volume_l > 0``), so skipped/failed cycles never overwrite it. Unlike the
-    cumulative ``water_used`` total this is a per-cycle ``MEASUREMENT``, handy as
-    a notification trigger ("zone X used Y litres last run"). The run timestamp,
+    cumulative ``water_used`` total this is a per-cycle snapshot, handy as a
+    notification trigger ("zone X used Y litres last run"). The run timestamp,
     duration, trigger and result are exposed as attributes for the message.
+
+    No ``state_class`` is set: the ``WATER`` device class only permits
+    ``total``/``total_increasing`` (or none), and this per-cycle value neither
+    sums nor monotonically increases, so it must stay stateless (issue #39).
     """
 
     suffix = "last_water_used"
     _attr_translation_key = "last_water_used"
     _attr_icon = "mdi:water-sync"
     _attr_device_class = SensorDeviceClass.WATER
-    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def _update_from_zone(self, zone: dict) -> None:
         self._entry = self._latest_watering_entry(zone)
