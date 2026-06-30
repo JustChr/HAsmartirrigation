@@ -17,7 +17,11 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    data = hass.data[const.DOMAIN]
+    # Work on a shallow copy: the subsequent pop()/redaction must not mutate the
+    # live integration state. Popping "coordinator" off the real hass.data dict
+    # removed the running coordinator and was never written back, killing the
+    # integration until the next restart.
+    data = dict(hass.data[const.DOMAIN])
     coordinator = data.pop("coordinator", None)
     data.pop("zones", None)
     if coordinator is not None:
@@ -25,9 +29,9 @@ async def async_get_config_entry_diagnostics(
         if store is not None:
             data["store"] = {
                 "config": await store.async_get_config(),
-                "mappings": store.get_mappings(),
-                "modules": store.get_modules(),
-                "zones": store.get_zones(),
+                "mappings": await store.async_get_mappings(),
+                "modules": await store.async_get_modules(),
+                "zones": await store.async_get_zones(),
             }
         else:
             _LOGGER.warning("Store is not available")
