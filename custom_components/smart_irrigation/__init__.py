@@ -290,8 +290,14 @@ async def async_unload_entry(hass: HomeAssistant, entry):
         return False
 
     remove_panel(hass)
-    coordinator = hass.data[const.DOMAIN]["coordinator"]
-    await coordinator.async_unload()
+    # Harden against a missing coordinator so a config-entry reload can still
+    # unload cleanly if the coordinator is gone from hass.data. Without this an
+    # unguarded KeyError fails the unload (failed_unload) and only a full Home
+    # Assistant restart can recover. Mirrors the guarded access in
+    # async_remove_entry below.
+    coordinator = hass.data[const.DOMAIN].get("coordinator")
+    if coordinator is not None:
+        await coordinator.async_unload()
     return True
 
 

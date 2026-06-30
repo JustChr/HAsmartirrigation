@@ -150,6 +150,30 @@ class TestSmartIrrigationIntegration:
             assert result is True
             mock_remove_panel.assert_called_once_with(hass)
 
+    async def test_async_unload_entry_without_coordinator(
+        self,
+        hass: HomeAssistant,
+        mock_config_entry: ConfigEntry,
+    ) -> None:
+        """Unload must succeed even when the coordinator is missing.
+
+        Regression guard (Bug 3): after a coordinator loss (e.g. a diagnostics
+        download had removed it from hass.data), async_unload_entry indexed
+        hass.data[DOMAIN]["coordinator"] directly and raised KeyError, so the
+        unload failed (failed_unload). A config-entry reload could then not heal
+        the integration — only a full Home Assistant restart could.
+        """
+        # No "coordinator" key — simulates a prior coordinator loss.
+        hass.data[const.DOMAIN] = {"zones": {}}
+
+        with patch(
+            "custom_components.smart_irrigation.remove_panel"
+        ) as mock_remove_panel:
+            result = await async_unload_entry(hass, mock_config_entry)
+
+            assert result is True
+            mock_remove_panel.assert_called_once_with(hass)
+
     async def test_async_remove_entry(
         self,
         hass: HomeAssistant,
