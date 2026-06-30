@@ -979,6 +979,42 @@ class SmartIrrigationCoordinator(
             return entry
         return None
 
+    def _mapping_source_changed(self, mapping_id: int, changes: dict) -> bool:
+        """Return True if ``changes`` switches the source/sensor of any quantity.
+
+        Only the per-quantity source config (``MAPPING_MAPPINGS``) is inspected:
+        a change to a quantity's ``source`` type or ``sensorentity`` makes the
+        buffered readings incomparable to the new ones. Name-only or other edits
+        leave the buffer intact. A differing (or missing) source/sensor value
+        within a sent quantity counts as changed, erring toward invalidation
+        (safe — the buffer simply refills) rather than risking a mixed-source
+        aggregate.
+        """
+        new_mappings = changes.get(const.MAPPING_MAPPINGS)
+        if not isinstance(new_mappings, dict):
+            return False
+        old = self.store.get_mapping(mapping_id)
+        if not old:
+            return False
+        old_mappings = old.get(const.MAPPING_MAPPINGS) or {}
+        for quantity, new_cfg in new_mappings.items():
+            if not isinstance(new_cfg, dict):
+                continue
+            # A quantity's stored value may be a legacy bare string rather than a
+            # dict (the rest of the integration guards this the same way, e.g.
+            # check_mapping_sources). Treat a non-dict old value as empty, which
+            # makes the comparison report "changed" — the safe, invalidating side.
+            old_cfg = old_mappings.get(quantity)
+            if not isinstance(old_cfg, dict):
+                old_cfg = {}
+            if old_cfg.get(const.MAPPING_CONF_SOURCE) != new_cfg.get(
+                const.MAPPING_CONF_SOURCE
+            ) or old_cfg.get(const.MAPPING_CONF_SENSOR) != new_cfg.get(
+                const.MAPPING_CONF_SENSOR
+            ):
+                return True
+        return False
+
     async def async_update_mapping_config(
         self, mapping_id: int | None = None, data: dict | None = None
     ):
@@ -1007,7 +1043,22 @@ class SmartIrrigationCoordinator(
             await self.store.async_delete_mapping(mapping_id)
         elif mapping_id is not None and self.store.get_mapping(mapping_id):
             # modify a mapping
+            # A source/sensor switch makes the buffered readings incomparable to
+            # the new ones: a delta / Riemann-sum aggregate would read the
+            # discontinuity as a huge jump (switching a rain sensor from a rate
+            # to a cumulative total once produced a ~3202 mm "rainfall"). Clear
+            # this mapping's shared buffer and re-anchor the consuming zones'
+            # watermarks to now — a scoped variant of _async_clear_all_weatherdata.
+            source_changed = self._mapping_source_changed(mapping_id, data)
+            if source_changed:
+                data = {**data, const.MAPPING_DATA: []}
             await self.store.async_update_mapping(mapping_id, data)
+            if source_changed:
+                now = dt_datetime.now()
+                for zone_id in await self._get_zones_that_use_this_mapping(mapping_id):
+                    await self.store.async_update_zone(
+                        zone_id, {const.ZONE_LAST_CONSUMED: now}
+                    )
             async_dispatcher_send(
                 self.hass, const.DOMAIN + "_config_updated", mapping_id
             )
