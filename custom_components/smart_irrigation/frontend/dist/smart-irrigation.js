@@ -3124,7 +3124,7 @@ function me(e,t){return(t,i,a)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     .value="${e.linked_entity||""}"
                     .includeDomains="${["switch","valve","input_boolean"]}"
                     allow-custom-entity
-                    @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[zt]:i.detail.value||void 0}))}"
+                    @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[zt]:i.detail.value||null}))}"
                   ></ha-entity-picker>
                 </ha-settings-row>
               `:""}
