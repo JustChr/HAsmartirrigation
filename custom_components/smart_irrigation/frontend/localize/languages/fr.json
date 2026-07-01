@@ -355,6 +355,25 @@
         "bucket_threshold": "Déficit minimum pour irriguer",
         "flow_sensor": "Capteur de débitmètre (optionnel)",
         "flow_sensor_placeholder": "p. ex. sensor.zone_flow_rate",
+        "watering_mode": "Mode d'arrosage",
+        "watering_mode_description": "Comment HASI actionne cette zone. Classique : HASI ouvre la vanne et la referme lui-même à l'aide d'une minuterie logicielle. Service auto-fermant : HASI envoie la durée d'exécution à une vanne auto-fermante via un script (voir les blueprints de vanne fournis) et laisse le matériel se refermer de lui-même, de sorte qu'un redémarrage de HA en cours d'exécution ne peut pas provoquer une irrigation continue.",
+        "watering_modes": {
+          "classic": "Classique (HASI ouvre et ferme la vanne)",
+          "service": "Service auto-fermant (la vanne se ferme d'elle-même)"
+        },
+        "run_service": "Service de démarrage",
+        "run_service_help": "Service appelé par HASI pour démarrer l'exécution (p. ex. un script.* ou un service switch/valve). Il reçoit le champ de durée ci-dessous ainsi que zone_id et zone_name.",
+        "duration_field": "Champ de durée",
+        "duration_field_placeholder": "p. ex. duration",
+        "duration_field_help": "Nom du paramètre qui transporte la durée d'exécution dans l'appel à votre service de démarrage. Les blueprints de vanne fournis utilisent 'duration' (la valeur par défaut) ; un script personnalisé peut utiliser un autre nom (p. ex. 'dauer').",
+        "duration_unit": "Unité de durée",
+        "duration_units": {
+          "seconds": "Secondes",
+          "minutes": "Minutes"
+        },
+        "duration_unit_help": "Unité que votre matériel attend pour la durée d'exécution. Vérifiez l'appareil : de nombreuses vannes Zigbee/Tuya comptent en MINUTES. La mauvaise unité arrose 60x en trop ou en moins. En mode Minutes, HASI arrondit au nombre entier de minutes supérieur (minimum 1).",
+        "stop_service": "Service d'arrêt (optionnel)",
+        "stop_service_help": "Optionnel. Service appelé par HASI pour fermer la vanne lorsque vous arrêtez la zone prématurément, avant l'expiration de sa propre minuterie. Laissez vide si la vanne ne peut pas être arrêtée manuellement.",
         "plant_type": "Type de plante",
         "kc": "Coefficient cultural (Kc)",
         "plant_types": {
@@ -764,6 +783,16 @@
     "max_consecutive_duration_unit": "minutes",
     "min_absorption_time_label": "Temps d'absorption min. entre les passages",
     "min_absorption_time_unit": "minutes (0 = désactivé)"
+  },
+  "master": {
+    "title": "Pompe / interrupteur maître",
+    "description": "Facultatif. Active un maître partagé — une pompe ou une vanne principale — avant la première zone d'un cycle d'arrosage, puis le désactive éventuellement après la dernière zone. Laissez l'entité vide pour ne jamais actionner de maître (par exemple, une station de pompage à pression régulée qui démarre d'elle-même).",
+    "entity": "Entité maître (interrupteur/vanne)",
+    "kick_enabled": "Kicker : impulsion arrêt puis marche pour forcer le démarrage d'une pompe",
+    "kick_pause": "Pause de l'impulsion (arrêt avant marche)",
+    "settle": "Délai de stabilisation avant la première zone",
+    "off_after": "Désactiver le maître après l'irrigation",
+    "seconds_unit": "secondes"
   },
   "weather_service_config": {
     "title": "Service météo",

@@ -353,6 +353,25 @@
         "bucket_threshold": "Minimálny deficit pre závlahu",
         "flow_sensor": "Senzor prietokomera (voliteľné)",
         "flow_sensor_placeholder": "napr. sensor.zone_flow_rate",
+        "watering_mode": "Režim zavlažovania",
+        "watering_mode_description": "Ako HASI ovláda túto zónu. Klasický: HASI otvorí ventil a sám ho zatvorí softvérovým časovačom. Samozatváracia služba: HASI odošle trvanie behu samozatváraciemu ventilu cez skript (pozri dodané blueprinty ventilov) a nechá hardvér, aby sa zatvoril sám, takže reštart HA počas behu nemôže spôsobiť nepretržité zavlažovanie.",
+        "watering_modes": {
+          "classic": "Klasický (HASI otvára a zatvára ventil)",
+          "service": "Samozatváracia služba (ventil sa zatvorí sám)"
+        },
+        "run_service": "Služba spustenia",
+        "run_service_help": "Služba, ktorú HASI zavolá na spustenie behu (napr. script.* alebo služba prepínača/ventilu). Dostane pole trvania nižšie plus zone_id a zone_name.",
+        "duration_field": "Pole trvania",
+        "duration_field_placeholder": "napr. duration",
+        "duration_field_help": "Názov parametra, ktorý nesie dĺžku behu vo volaní vašej služby spustenia. Dodané blueprinty ventilov používajú 'duration' (predvolené); vlastný skript môže použiť iný názov (napr. 'dauer').",
+        "duration_unit": "Jednotka trvania",
+        "duration_units": {
+          "seconds": "Sekundy",
+          "minutes": "Minúty"
+        },
+        "duration_unit_help": "Jednotka, ktorú váš hardvér očakáva pre dĺžku behu. Skontrolujte zariadenie: mnohé Zigbee/Tuya ventily počítajú v MINÚTACH. Nesprávna jednotka zavlažuje 60x viac alebo menej. V režime Minúty HASI zaokrúhľuje nahor na celé minúty (minimum 1).",
+        "stop_service": "Služba zastavenia (voliteľné)",
+        "stop_service_help": "Voliteľné. Služba, ktorú HASI zavolá na zatvorenie ventilu, keď zónu zastavíte skôr, pred vypršaním jej vlastného časovača. Nechajte prázdne, ak ventil nie je možné zastaviť manuálne.",
         "plant_type": "Typ rastliny",
         "kc": "Plodinový koeficient (Kc)",
         "plant_types": {
@@ -762,6 +781,16 @@
     "max_consecutive_duration_unit": "minúty",
     "min_absorption_time_label": "Min. čas vsiaknutia medzi cyklami",
     "min_absorption_time_unit": "minúty (0 = vypnuté)"
+  },
+  "master": {
+    "title": "Čerpadlo / hlavný spínač",
+    "description": "Voliteľné. Zapne zdieľaný hlavný prvok — čerpadlo alebo hlavný ventil — pred prvou zónou zavlažovacieho cyklu a potom ho voliteľne vypne po poslednej zóne. Ponechajte entitu prázdnu, ak sa hlavný prvok nemá nikdy ovládať (napr. tlakovo riadený vodárenský systém, ktorý sa spúšťa sám).",
+    "entity": "Hlavná entita (spínač/ventil)",
+    "kick_enabled": "Kicker: krátke vypnutie a zapnutie na vynútenie štartu čerpadla",
+    "kick_pause": "Pauza kicku (vypnutie pred zapnutím)",
+    "settle": "Oneskorenie ustálenia pred prvou zónou",
+    "off_after": "Vypnúť hlavný prvok po zavlažovaní",
+    "seconds_unit": "sekundy"
   },
   "weather_service_config": {
     "title": "Poveternostná služba",

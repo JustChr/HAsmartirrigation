@@ -42,6 +42,11 @@ import {
   CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
   CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
   CONF_WEATHER_SERVICE_OPENMETEO,
+  CONF_MASTER_ENTITY,
+  CONF_MASTER_SETTLE_SECONDS,
+  CONF_MASTER_KICK_ENABLED,
+  CONF_MASTER_KICK_PAUSE_SECONDS,
+  CONF_MASTER_OFF_AFTER,
   DOMAIN,
 } from "../../const";
 
@@ -213,7 +218,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
           ${this._renderAutoCalcCard()} ${this._renderWeatherSkipCard()}
           ${this._renderSection("watering")}
           ${this._renderDaysBetweenIrrigationCard()}
-          ${this._renderZoneSequencingCard()}
+          ${this._renderZoneSequencingCard()} ${this._renderMasterSwitchCard()}
         `;
       default:
         return html`
@@ -223,7 +228,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
           ${this._renderSection("location")} ${this._renderCoordinateCard()}
           ${this._renderSection("watering")}
           ${this._renderDaysBetweenIrrigationCard()}
-          ${this._renderZoneSequencingCard()}
+          ${this._renderZoneSequencingCard()} ${this._renderMasterSwitchCard()}
         `;
     }
   }
@@ -1090,6 +1095,115 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
     `;
   }
 
+  private _renderMasterSwitchCard(): TemplateResult {
+    if (!this.hass || !this.config) return html``;
+    const kick = !!this.config.master_kick_enabled;
+    return html`
+      <ha-card header="${localize("master.title", this.hass.language)}">
+        <div class="card-content description-text">
+          ${localize("master.description", this.hass.language)}
+        </div>
+        <div class="card-content">
+          <div class="setting-row">
+            <label>${localize("master.entity", this.hass.language)}</label>
+            <ha-entity-picker
+              .hass="${this.hass}"
+              .value="${this.config.master_entity || ""}"
+              .includeDomains="${["switch", "valve", "input_boolean"]}"
+              allow-custom-entity
+              @value-changed="${(e: CustomEvent) =>
+                this.handleConfigChange({
+                  [CONF_MASTER_ENTITY]: e.detail.value || null,
+                })}"
+            ></ha-entity-picker>
+          </div>
+          ${this.config.master_entity
+            ? html`
+                <div class="setting-row">
+                  <label
+                    >${localize(
+                      "master.kick_enabled",
+                      this.hass.language,
+                    )}</label
+                  >
+                  <ha-switch
+                    .checked="${kick}"
+                    @change="${(e: Event) =>
+                      this.handleConfigChange({
+                        [CONF_MASTER_KICK_ENABLED]: (
+                          e.target as HTMLInputElement
+                        ).checked,
+                      })}"
+                  ></ha-switch>
+                </div>
+                ${kick
+                  ? html`
+                      <div class="setting-row">
+                        <label>
+                          ${localize("master.kick_pause", this.hass.language)}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          class="settings-input"
+                          .value="${live(
+                            this.config.master_kick_pause_seconds ?? 1.0,
+                          )}"
+                          @change="${(e: Event) =>
+                            this.handleConfigChange({
+                              [CONF_MASTER_KICK_PAUSE_SECONDS]:
+                                parseFloat(
+                                  (e.target as HTMLInputElement).value,
+                                ) || 0,
+                            })}"
+                        />
+                        <span class="unit-label">
+                          ${localize("master.seconds_unit", this.hass.language)}
+                        </span>
+                      </div>
+                    `
+                  : ""}
+                <div class="setting-row">
+                  <label
+                    >${localize("master.settle", this.hass.language)}</label
+                  >
+                  <input
+                    type="number"
+                    min="0"
+                    class="settings-input"
+                    .value="${live(this.config.master_settle_seconds ?? 10)}"
+                    @change="${(e: Event) =>
+                      this.handleConfigChange({
+                        [CONF_MASTER_SETTLE_SECONDS]:
+                          parseInt((e.target as HTMLInputElement).value, 10) ||
+                          0,
+                      })}"
+                  />
+                  <span class="unit-label">
+                    ${localize("master.seconds_unit", this.hass.language)}
+                  </span>
+                </div>
+                <div class="setting-row">
+                  <label
+                    >${localize("master.off_after", this.hass.language)}</label
+                  >
+                  <ha-switch
+                    .checked="${!!this.config.master_off_after}"
+                    @change="${(e: Event) =>
+                      this.handleConfigChange({
+                        [CONF_MASTER_OFF_AFTER]: (e.target as HTMLInputElement)
+                          .checked,
+                      })}"
+                  ></ha-switch>
+                </div>
+              `
+            : ""}
+        </div>
+      </ha-card>
+    `;
+  }
+
   private async saveData(
     changes: Partial<SmartIrrigationConfig>,
   ): Promise<void> {
@@ -1142,6 +1256,13 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
   }
 
   private handleConfigChange(changes: Partial<SmartIrrigationConfig>): void {
+    // Optimistically reflect the change locally so conditional UI (e.g. the
+    // master sub-settings that appear once an entity is picked) updates instantly
+    // instead of only after the debounced save + config re-fetch. The next fetch
+    // overwrites this with server truth, so it self-corrects.
+    if (this.config) {
+      this.config = { ...this.config, ...changes } as SmartIrrigationConfig;
+    }
     this.debouncedSave(changes);
   }
 

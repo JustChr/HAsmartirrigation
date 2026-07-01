@@ -231,10 +231,20 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       });
   }
 
-  // Number of zones an "irrigate all" would actually start (linked + duration).
+  /** Whether a zone can be actuated manually: a classic zone needs a linked
+   * switch/valve; a self-closing service zone needs its run_service set. */
+  private _canActuate(zone: SmartIrrigationZone): boolean {
+    return !!(
+      zone.linked_entity ||
+      (zone.watering_mode === "service" && zone.run_service)
+    );
+  }
+
+  // Number of zones an "irrigate all" would actually start (actuatable + duration).
   private get _linkedZoneCount(): number {
-    return this.zones.filter((z) => z.linked_entity && (z.duration ?? 0) > 0)
-      .length;
+    return this.zones.filter(
+      (z) => this._canActuate(z) && (z.duration ?? 0) > 0,
+    ).length;
   }
 
   private async _doIrrigate(): Promise<void> {
@@ -306,7 +316,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   private async _runZoneFor(zone: SmartIrrigationZone): Promise<void> {
-    if (!this.hass || !zone.linked_entity || zone.id === undefined) return;
+    if (!this.hass || !this._canActuate(zone) || zone.id === undefined) return;
     const minutes = this._zoneRunMinutes(zone);
     if (!(minutes > 0)) return;
     try {
@@ -997,7 +1007,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
               `
             : ""}
           ${this.actionsMode !== "none" &&
-          zone.linked_entity &&
+          this._canActuate(zone) &&
           (zone.duration ?? 0) > 0
             ? html`
                 <button
@@ -1017,7 +1027,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                   )}
                 </button>
               `
-            : !zone.linked_entity
+            : !this._canActuate(zone)
               ? html`
                   <button
                     class="action-btn"
@@ -1052,7 +1062,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     if (
       !this.hass ||
       this.actionsMode === "none" ||
-      !zone.linked_entity ||
+      !this._canActuate(zone) ||
       zone.id === undefined
     ) {
       return html``;
@@ -1142,7 +1152,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     }
 
     const hasLinkedZones = this.zones.some(
-      (z) => z.linked_entity && (z.duration ?? 0) > 0,
+      (z) => this._canActuate(z) && (z.duration ?? 0) > 0,
     );
 
     // First-time setup banner: shown when no zones exist yet.

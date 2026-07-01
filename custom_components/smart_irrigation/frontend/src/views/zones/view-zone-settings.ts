@@ -56,6 +56,11 @@ import {
   ZONE_LINKED_ENTITY,
   ZONE_BUCKET_THRESHOLD,
   ZONE_FLOW_SENSOR,
+  ZONE_WATERING_MODE,
+  ZONE_RUN_SERVICE,
+  ZONE_DURATION_FIELD,
+  ZONE_DURATION_UNIT,
+  ZONE_STOP_SERVICE,
 } from "../../const";
 import "../../components/si-field";
 import "../../components/si-zone-form";
@@ -769,22 +774,196 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
           <ha-settings-row>
             <span slot="heading"
               >${localize(
-                "panels.zones.labels.linked_entity",
+                "panels.zones.labels.watering_mode",
                 this.hass.language,
               )}</span
             >
-            <ha-entity-picker
-              .hass="${this.hass}"
-              .value="${zone.linked_entity || ""}"
-              .includeDomains="${["switch", "valve", "input_boolean"]}"
-              allow-custom-entity
-              @value-changed="${(e: CustomEvent) =>
+            <span slot="description"
+              >${localize(
+                "panels.zones.labels.watering_mode_description",
+                this.hass.language,
+              )}</span
+            >
+            <select
+              class="settings-input"
+              .value="${live(zone.watering_mode ?? "classic")}"
+              @change="${(e: Event) =>
                 this.handleEditZone(index, {
                   ...zone,
-                  [ZONE_LINKED_ENTITY]: e.detail.value || undefined,
+                  [ZONE_WATERING_MODE]: (e.target as HTMLSelectElement).value,
                 })}"
-            ></ha-entity-picker>
+            >
+              <option
+                value="classic"
+                ?selected="${(zone.watering_mode ?? "classic") === "classic"}"
+              >
+                ${localize(
+                  "panels.zones.labels.watering_modes.classic",
+                  this.hass.language,
+                )}
+              </option>
+              <option
+                value="service"
+                ?selected="${zone.watering_mode === "service"}"
+              >
+                ${localize(
+                  "panels.zones.labels.watering_modes.service",
+                  this.hass.language,
+                )}
+              </option>
+            </select>
           </ha-settings-row>
+
+          ${zone.watering_mode === "service"
+            ? html`
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.run_service",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "panels.zones.labels.run_service_help",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <ha-entity-picker
+                    .hass="${this.hass}"
+                    .value="${zone.run_service || ""}"
+                    .includeDomains="${["script"]}"
+                    allow-custom-entity
+                    @value-changed="${(e: CustomEvent) =>
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_RUN_SERVICE]: e.detail.value || null,
+                      })}"
+                  ></ha-entity-picker>
+                </ha-settings-row>
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.duration_field",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "panels.zones.labels.duration_field_help",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <input
+                    type="text"
+                    class="settings-input"
+                    placeholder="${localize(
+                      "panels.zones.labels.duration_field_placeholder",
+                      this.hass.language,
+                    )}"
+                    .value="${zone.duration_field || "duration"}"
+                    @input="${(e: Event) =>
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_DURATION_FIELD]:
+                          (e.target as HTMLInputElement).value || undefined,
+                      })}"
+                  />
+                </ha-settings-row>
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.duration_unit",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "panels.zones.labels.duration_unit_help",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <select
+                    class="settings-input"
+                    .value="${live(zone.duration_unit ?? "seconds")}"
+                    @change="${(e: Event) =>
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_DURATION_UNIT]: (e.target as HTMLSelectElement)
+                          .value,
+                      })}"
+                  >
+                    <option
+                      value="seconds"
+                      ?selected="${(zone.duration_unit ?? "seconds") ===
+                      "seconds"}"
+                    >
+                      ${localize(
+                        "panels.zones.labels.duration_units.seconds",
+                        this.hass.language,
+                      )}
+                    </option>
+                    <option
+                      value="minutes"
+                      ?selected="${zone.duration_unit === "minutes"}"
+                    >
+                      ${localize(
+                        "panels.zones.labels.duration_units.minutes",
+                        this.hass.language,
+                      )}
+                    </option>
+                  </select>
+                </ha-settings-row>
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.stop_service",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "panels.zones.labels.stop_service_help",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <ha-entity-picker
+                    .hass="${this.hass}"
+                    .value="${zone.stop_service || ""}"
+                    .includeDomains="${["script"]}"
+                    allow-custom-entity
+                    @value-changed="${(e: CustomEvent) =>
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_STOP_SERVICE]: e.detail.value || null,
+                      })}"
+                  ></ha-entity-picker>
+                </ha-settings-row>
+              `
+            : ""}
+          ${zone.watering_mode !== "service"
+            ? html`
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.linked_entity",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <ha-entity-picker
+                    .hass="${this.hass}"
+                    .value="${zone.linked_entity || ""}"
+                    .includeDomains="${["switch", "valve", "input_boolean"]}"
+                    allow-custom-entity
+                    @value-changed="${(e: CustomEvent) =>
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_LINKED_ENTITY]: e.detail.value || undefined,
+                      })}"
+                  ></ha-entity-picker>
+                </ha-settings-row>
+              `
+            : ""}
 
           <ha-settings-row>
             <span slot="heading"

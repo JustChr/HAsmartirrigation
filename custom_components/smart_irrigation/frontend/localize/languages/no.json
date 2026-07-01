@@ -354,6 +354,25 @@
         "bucket_threshold": "Minimum underskudd for vanning",
         "flow_sensor": "Strømningsmåler-sensor (valgfritt)",
         "flow_sensor_placeholder": "f.eks. sensor.zone_flow_rate",
+        "watering_mode": "Vanningsmodus",
+        "watering_mode_description": "Hvordan HASI styrer denne sonen. Klassisk: HASI åpner ventilen og lukker den selv med en programvaretidtaker. Selvlukkende tjeneste: HASI sender kjørevarigheten til en selvlukkende ventil via et script (se de medfølgende ventil-blueprintene) og lar maskinvaren lukke seg selv, slik at en HA-omstart midt i en kjøring ikke kan forårsake kontinuerlig vanning.",
+        "watering_modes": {
+          "classic": "Klassisk (HASI åpner og lukker ventilen)",
+          "service": "Selvlukkende tjeneste (ventilen lukker seg selv)"
+        },
+        "run_service": "Kjøretjeneste",
+        "run_service_help": "Tjenesten HASI kaller for å starte kjøringen (f.eks. en script.* eller en switch/valve-tjeneste). Den mottar varighetsfeltet nedenfor pluss zone_id og zone_name.",
+        "duration_field": "Varighetsfelt",
+        "duration_field_placeholder": "f.eks. duration",
+        "duration_field_help": "Navnet på parameteren som bærer kjørelengden i kallet til kjøretjenesten din. De medfølgende ventil-blueprintene bruker 'duration' (standardverdien); et egendefinert script kan bruke et annet navn (f.eks. 'dauer').",
+        "duration_unit": "Varighetsenhet",
+        "duration_units": {
+          "seconds": "Sekunder",
+          "minutes": "Minutter"
+        },
+        "duration_unit_help": "Enheten maskinvaren din forventer for kjørelengden. Sjekk enheten: mange Zigbee/Tuya-ventiler teller i MINUTTER. Feil enhet over- eller undervanner med 60x. I minutt-modus runder HASI opp til hele minutter (minimum 1).",
+        "stop_service": "Stopptjeneste (valgfritt)",
+        "stop_service_help": "Valgfritt. Tjenesten HASI kaller for å lukke ventilen når du stopper sonen tidlig, før dens egen tidtaker utløper. La stå tom hvis ventilen ikke kan stoppes manuelt.",
         "plant_type": "Plantetype",
         "kc": "Plantekoeffisient (Kc)",
         "plant_types": {
@@ -764,6 +783,16 @@
     "max_consecutive_duration_unit": "minutter",
     "min_absorption_time_label": "Min. absorpsjonstid mellom økter",
     "min_absorption_time_unit": "minutter (0 = deaktivert)"
+  },
+  "master": {
+    "title": "Pumpe / hovedbryter",
+    "description": "Valgfritt. Slår på en felles hovedenhet – en pumpe eller hovedventil – før den første sonen i en vanningssyklus, og eventuelt av igjen etter den siste sonen. La entiteten stå tom for aldri å styre en hovedenhet (f.eks. et trykkstyrt vannverk som starter av seg selv).",
+    "entity": "Hovedentitet (bryter/ventil)",
+    "kick_enabled": "Kicker: puls av og deretter på for å tvinge frem en pumpestart",
+    "kick_pause": "Kicker-pause (av før på)",
+    "settle": "Stabiliseringsforsinkelse før den første sonen",
+    "off_after": "Slå av hovedenheten etter vanning",
+    "seconds_unit": "sekunder"
   },
   "weather_service_config": {
     "title": "Værtjeneste",

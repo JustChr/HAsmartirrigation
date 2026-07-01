@@ -155,7 +155,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DATA_REGISTRY = f"{DOMAIN}_storage"
 STORAGE_KEY = f"{DOMAIN}.storage"
-STORAGE_VERSION = 8
+STORAGE_VERSION = 10
 SAVE_DELAY = 0
 
 
@@ -204,6 +204,17 @@ class ZoneEntry:
     water_used_total = attr.ib(type=float, default=0.0)
     # Bounded rolling run/skip log (newest first); see const.ZONE_RUN_LOG (WS-2).
     run_log = attr.ib(type=list, factory=list)
+    # Self-closing valve mode (per-zone actuation adapter). "classic" = the
+    # historic open->sleep->close; "service" = fire run_service, valve self-closes.
+    watering_mode = attr.ib(type=str, default="classic")
+    run_service = attr.ib(type=str, default=None)
+    # Defaults to "duration" so the shipped valve blueprints (whose script field
+    # is "duration") work with no extra config.
+    duration_field = attr.ib(type=str, default="duration")
+    duration_unit = attr.ib(type=str, default="seconds")
+    run_data = attr.ib(type=dict, factory=dict)
+    stop_service = attr.ib(type=str, default=None)
+    stop_data = attr.ib(type=dict, factory=dict)
 
 
 @attr.s(slots=True, frozen=True)
@@ -293,6 +304,16 @@ class Config:
     )
     # Rain delay / vacation hold (WS-5): ISO-8601 datetime string or None.
     rain_delay_until = attr.ib(type=str, default=CONF_DEFAULT_RAIN_DELAY_UNTIL)
+    # Persisted in-flight self-closing valve runs (reboot resilience); list of
+    # dicts, see const.CONF_ACTIVE_VALVE_RUNS.
+    active_valve_runs = attr.ib(type=list, factory=list)
+    # Master switch / pump control (instance-level, fully optional). No entity =
+    # HASI never touches the master. off_after=False leaves it powered.
+    master_entity = attr.ib(type=str, default=None)
+    master_settle_seconds = attr.ib(type=int, default=10)
+    master_kick_enabled = attr.ib(type=bool, default=False)
+    master_kick_pause_seconds = attr.ib(type=float, default=1.0)
+    master_off_after = attr.ib(type=bool, default=False)
 
 
 class MigratableStore(Store):
@@ -359,6 +380,23 @@ class MigratableStore(Store):
                         schedule["azimuth_angle"] = t.get("azimuth_angle", 90)
                     existing_schedules.append(schedule)
                 data["config"]["recurring_schedules"] = existing_schedules
+
+        if old_version <= 8:
+            # v9: self-closing valve mode. Default every zone to classic and seed
+            # the empty in-flight-run list. Additive only — no data moves.
+            for zone in data.get("zones", []):
+                zone.setdefault("watering_mode", "classic")
+                zone.setdefault("duration_unit", "seconds")
+            data.setdefault("config", {}).setdefault("active_valve_runs", [])
+
+        if old_version <= 9:
+            # v10: optional master switch / pump control (all off by default).
+            cfg = data.setdefault("config", {})
+            cfg.setdefault("master_entity", None)
+            cfg.setdefault("master_settle_seconds", 10)
+            cfg.setdefault("master_kick_enabled", False)
+            cfg.setdefault("master_kick_pause_seconds", 1.0)
+            cfg.setdefault("master_off_after", False)
 
         # CRITICAL: Always ensure required fields are present and strip unrecognized keys
         # This prevents TypeError when Config(**config_data) is called
@@ -586,6 +624,13 @@ class SmartIrrigationStorage:
                     )
                     if s.get(SCHEDULE_CONF_ACTION) == "irrigate"
                 ],
+                master_entity=data["config"].get("master_entity", None),
+                master_settle_seconds=data["config"].get("master_settle_seconds", 10),
+                master_kick_enabled=data["config"].get("master_kick_enabled", False),
+                master_kick_pause_seconds=data["config"].get(
+                    "master_kick_pause_seconds", 1.0
+                ),
+                master_off_after=data["config"].get("master_off_after", False),
             )
 
             if "zones" in data:
@@ -641,6 +686,15 @@ class SmartIrrigationStorage:
                         # Migration: pre-WS-2 zones start with no usage history.
                         water_used_total=zone.get(ZONE_WATER_USED_TOTAL, 0.0),
                         run_log=zone.get(ZONE_RUN_LOG, []) or [],
+                        # Self-closing valve mode config — must be hydrated here
+                        # or it silently reverts to classic on every reload.
+                        watering_mode=zone.get("watering_mode", "classic"),
+                        run_service=zone.get("run_service", None),
+                        duration_field=zone.get("duration_field", "duration"),
+                        duration_unit=zone.get("duration_unit", "seconds"),
+                        run_data=zone.get("run_data", {}) or {},
+                        stop_service=zone.get("stop_service", None),
+                        stop_data=zone.get("stop_data", {}) or {},
                     )
             if "modules" in data:
                 for module in data["modules"]:
@@ -857,7 +911,10 @@ class SmartIrrigationStorage:
 
     async def async_create_zone(self, data: dict) -> ZoneEntry:
         """Create a new ZoneEntry."""
-        new_zone = ZoneEntry(**data)
+        # Drop unknown keys (an older or forward client may send a field this
+        # version doesn't have) so a stray key can't raise TypeError on construction.
+        valid_fields = set(attr.fields_dict(ZoneEntry).keys())
+        new_zone = ZoneEntry(**{k: v for k, v in data.items() if k in valid_fields})
         if not new_zone.id:
             zones = await self.async_get_zones()
             new_zone = attr.evolve(new_zone, id=self.generate_next_id(zones))

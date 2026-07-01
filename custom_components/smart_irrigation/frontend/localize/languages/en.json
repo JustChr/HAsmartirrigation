@@ -489,6 +489,25 @@
         "linked_entity_placeholder": "e.g. switch.garden_valve",
         "flow_sensor": "Flow meter sensor (optional)",
         "flow_sensor_placeholder": "e.g. sensor.zone_flow_rate",
+        "watering_mode": "Watering mode",
+        "watering_mode_description": "How HASI actuates this zone. Classic: HASI opens the valve and closes it itself with a software timer. Self-closing service: HASI sends the run duration to a self-closing valve via a script (see the shipped valve blueprints) and lets the hardware close itself, so an HA restart mid-run cannot cause continuous irrigation.",
+        "watering_modes": {
+          "classic": "Classic (HASI opens & closes the valve)",
+          "service": "Self-closing service (valve closes itself)"
+        },
+        "run_service": "Run service",
+        "run_service_help": "Service HASI calls to start the run (e.g. a script.* or a switch/valve service). It receives the duration field below plus zone_id and zone_name.",
+        "duration_field": "Duration field",
+        "duration_field_placeholder": "e.g. dauer",
+        "duration_field_help": "Name of the parameter that carries the run length in the call to your run service. The shipped valve blueprints use 'duration' (the default); a custom script may use another name (e.g. 'dauer').",
+        "duration_unit": "Duration unit",
+        "duration_units": {
+          "seconds": "Seconds",
+          "minutes": "Minutes"
+        },
+        "duration_unit_help": "Unit your hardware expects for the run length. Check the device: many Zigbee/Tuya valves count in MINUTES. The wrong unit over- or under-waters by 60x. In Minutes mode HASI rounds up to whole minutes (minimum 1).",
+        "stop_service": "Stop service (optional)",
+        "stop_service_help": "Optional. Service HASI calls to close the valve when you stop the zone early, before its own timer expires. Leave empty if the valve cannot be stopped manually.",
         "irrigate_now": "Irrigate Now",
         "bucket_threshold": "Minimum deficit to irrigate",
         "plant_type": "Plant type",
@@ -785,6 +804,16 @@
     "max_consecutive_duration_unit": "minutes",
     "min_absorption_time_label": "Min. absorption time between slots",
     "min_absorption_time_unit": "minutes (0 = disabled)"
+  },
+  "master": {
+    "title": "Pump / master switch",
+    "description": "Optional. Powers a shared master — a pump or main valve — on before the first zone of a watering cycle, then optionally off after the last zone. Leave the entity empty to never touch a master (e.g. a pressure-controlled waterworks that starts on its own).",
+    "entity": "Master entity (switch/valve)",
+    "kick_enabled": "Kicker: pulse off then on to force a pump start",
+    "kick_pause": "Kick pause (off before on)",
+    "settle": "Settle delay before the first zone",
+    "off_after": "Turn the master off after irrigation",
+    "seconds_unit": "seconds"
   },
   "field_help": {
     "zone_size": "The total irrigated area of this zone. Used with throughput to calculate how much water is applied per run.",
