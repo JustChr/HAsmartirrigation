@@ -374,6 +374,8 @@
         "duration_unit_help": "Unité que votre matériel attend pour la durée d'exécution. Vérifiez l'appareil : de nombreuses vannes Zigbee/Tuya comptent en MINUTES. La mauvaise unité arrose 60x en trop ou en moins. En mode Minutes, HASI arrondit au nombre entier de minutes supérieur (minimum 1).",
         "stop_service": "Service d'arrêt (optionnel)",
         "stop_service_help": "Optionnel. Service appelé par HASI pour fermer la vanne lorsque vous arrêtez la zone prématurément, avant l'expiration de sa propre minuterie. Laissez vide si la vanne ne peut pas être arrêtée manuellement.",
+        "confirm_entity": "Entité de confirmation (optionnel)",
+        "confirm_entity_help": "Optionnel. La véritable entité vanne/interrupteur que le service de démarrage actionne (p. ex. une valve ou un switch) — elle maintient un état activé stable pendant l'arrosage. Si elle est définie, HASI vérifie l'ouverture par rapport à elle (en lecture seule, il ne réactionne jamais l'entité) et signale un problème tout en ignorant le crédit du seau (bucket) si elle ne s'active jamais. Laissez vide pour traiter l'exécution en écriture seule et créditer de façon optimiste (c'est le matériel qui gère la fermeture). En cas de doute, laissez vide : cela n'aide qu'avec une entité qui rapporte son état activé de manière fiable — une vanne qui rapporte tardivement (p. ex. une vanne Zigbee somnolente) pourrait être lue comme 'off' et ignorer à tort le crédit, de sorte que la zone arroserait de nouveau à la prochaine exécution. Ne pointez PAS ceci vers le script de démarrage lui-même — un script de type « fire-and-forget » n'est pas un signal d'état valide.",
         "plant_type": "Type de plante",
         "kc": "Coefficient cultural (Kc)",
         "plant_types": {

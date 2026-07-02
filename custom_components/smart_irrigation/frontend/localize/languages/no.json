@@ -373,6 +373,8 @@
         "duration_unit_help": "Enheten maskinvaren din forventer for kjørelengden. Sjekk enheten: mange Zigbee/Tuya-ventiler teller i MINUTTER. Feil enhet over- eller undervanner med 60x. I minutt-modus runder HASI opp til hele minutter (minimum 1).",
         "stop_service": "Stopptjeneste (valgfritt)",
         "stop_service_help": "Valgfritt. Tjenesten HASI kaller for å lukke ventilen når du stopper sonen tidlig, før dens egen tidtaker utløper. La stå tom hvis ventilen ikke kan stoppes manuelt.",
+        "confirm_entity": "Bekreftelses-entitet (valgfritt)",
+        "confirm_entity_help": "Valgfritt. Den ekte ventil-/bryter-entiteten som kjøretjenesten styrer (f.eks. en valve eller switch) — den holder en stabil på-tilstand mens det vannes. Hvis satt, verifiserer HASI åpningen mot den (kun polling, den aktiverer aldri på nytt) og flagger et problem samt hopper over bøtte-krediteringen hvis den aldri slår seg på. La stå tom for å behandle kjøringen som skrivebare (write-only) og kreditere optimistisk (maskinvaren eier lukkingen). Er du i tvil, la den stå tom: den hjelper bare med en entitet som melder på-tilstanden sin pålitelig — en ventil som melder sent (f.eks. en treg Zigbee-ventil) kan leses som 'off' og feilaktig hoppe over krediteringen, slik at sonen ville vannet igjen ved neste kjøring. Pek IKKE denne mot selve kjørescriptet — et fire-and-forget-script er ikke et gyldig tilstandssignal.",
         "plant_type": "Plantetype",
         "kc": "Plantekoeffisient (Kc)",
         "plant_types": {
