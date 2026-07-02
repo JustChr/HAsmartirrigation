@@ -1,7 +1,7 @@
 import * as en from "./languages/en.json";
 
 import IntlMessageFormat from "intl-messageformat";
-import { AVAILABLE_LANGUAGES, LANG_BASE_URL } from "../src/const";
+import { AVAILABLE_LANGUAGES, LANG_BASE_URL, VERSION } from "../src/const";
 
 // Only English is bundled (built-in fallback). Every other supported language
 // is fetched once from the integration's static path and cached here, so the
@@ -39,7 +39,14 @@ export function ensureTranslations(language: string): Promise<void> {
   const lang = baseLang(language);
   if (isTranslationLoaded(language)) return Promise.resolve();
   if (!loaders[lang]) {
-    loaders[lang] = fetch(`${LANG_BASE_URL}/${lang}.json`)
+    // Cache-bust the runtime language fetch with the build version, mirroring
+    // the panel module (registered as `${PANEL_URL}?v={mtime}` in panel.py, see
+    // PR #30). Without a version query the browser HTTP cache / PWA service
+    // worker can keep serving a stale language JSON across updates, so freshly
+    // added keys fall back to bundled English while older keys stay in the
+    // cached language. The versioned URL is a new resource on every release, so
+    // it is refetched — no manual cache clear.
+    loaders[lang] = fetch(`${LANG_BASE_URL}/${lang}.json?v=${VERSION}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((data) => {
         languages[lang] = data;
