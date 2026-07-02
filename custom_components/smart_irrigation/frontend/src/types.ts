@@ -269,6 +269,7 @@ export class SmartIrrigationZone {
   duration_field?: string;
   duration_unit?: string;
   stop_service?: string;
+  confirm_entity?: string | null;
   water_used_total?: number;
   run_log?: RunLogEntry[];
 

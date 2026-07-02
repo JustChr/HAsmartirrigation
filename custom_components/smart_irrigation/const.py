@@ -538,6 +538,11 @@ ZONE_DURATION_UNIT = "duration_unit"  # DURATION_UNIT_SECONDS | DURATION_UNIT_MI
 ZONE_RUN_DATA = "run_data"  # optional static dict merged into the call
 ZONE_STOP_SERVICE = "stop_service"  # optional "domain.service" for early stop
 ZONE_STOP_DATA = "stop_data"  # optional static dict for the stop call
+# Optional entity that reflects the real valve/switch state the run_service drives
+# (e.g. "valve.beet"). When set, the open is confirmed against it (poll-only, no
+# re-actuation); when unset, the service run is treated as write-only and credited
+# optimistically. The momentary run_service script is NOT a valid liveness signal.
+ZONE_CONFIRM_ENTITY = "confirm_entity"
 
 DURATION_UNIT_SECONDS = "seconds"
 DURATION_UNIT_MINUTES = "minutes"

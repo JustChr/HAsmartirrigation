@@ -264,7 +264,7 @@ class IrrigationRunnerMixin:
         """Return the full ``{zone_id: {reason, timestamp}}`` fault map."""
         return dict(getattr(self, "_zone_faults", None) or {})
 
-    async def _confirm_valve_running(self, zone_id, entity_id):
+    async def _confirm_valve_running(self, zone_id, entity_id, retry: bool = True):
         """Confirm a freshly-opened linked entity actually reports an on-state.
 
         Returns True if confirmed on within the grace window, False if it stayed
@@ -278,6 +278,10 @@ class IrrigationRunnerMixin:
         open once, ``VALVE_CONFIRM_RETRY_AT`` seconds in, if still unconfirmed.
         A False result no longer aborts the run — the valve may well be open, so
         callers proceed and just surface it.
+
+        ``retry=False`` polls without ever re-sending the open. Self-closing mode
+        passes this: HA must not re-actuate a self-closing valve mid-run, or it
+        would reset the hardware countdown to a fresh full duration.
         """
         state = self.hass.states.get(entity_id)
         if state is None or state.state in ("unavailable", "unknown"):
@@ -291,7 +295,7 @@ class IrrigationRunnerMixin:
                 return True
             if waited >= const.VALVE_CONFIRM_TIMEOUT:
                 return False
-            if not retried and waited >= const.VALVE_CONFIRM_RETRY_AT:
+            if retry and not retried and waited >= const.VALVE_CONFIRM_RETRY_AT:
                 retried = True
                 _LOGGER.debug(
                     "Valve '%s' not confirmed after %.0fs — re-sending open",

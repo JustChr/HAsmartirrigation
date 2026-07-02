@@ -28,6 +28,7 @@ def test_zone_entry_has_self_closing_fields():
     assert z.run_data == {}
     assert z.stop_service is None
     assert z.stop_data == {}
+    assert z.confirm_entity is None
 
 
 def test_config_has_active_valve_runs():
@@ -61,6 +62,7 @@ async def test_self_closing_fields_survive_reload(hass):
             "run_service": "script.irrigation_beet",
             "duration_field": "dauer",
             "duration_unit": const.DURATION_UNIT_MINUTES,
+            "confirm_entity": "valve.beet",
         }
     )
     zone_id = created["id"]
@@ -82,3 +84,4 @@ async def test_self_closing_fields_survive_reload(hass):
     assert z["run_service"] == "script.irrigation_beet"
     assert z["duration_field"] == "dauer"
     assert z["duration_unit"] == const.DURATION_UNIT_MINUTES
+    assert z["confirm_entity"] == "valve.beet"

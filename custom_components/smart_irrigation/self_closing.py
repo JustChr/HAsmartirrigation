@@ -142,12 +142,19 @@ class SelfClosingMixin:
 
         await self._sc_dispatch_open(zone)
 
-        # Confirm the open BEFORE crediting, against the run_service entity (a
-        # script.* carries an on/off state). None = write-only target, treated as
-        # ok. A dedicated confirm_entity is a future refinement.
-        confirm_target = zone.get(const.ZONE_RUN_SERVICE)
+        # Confirm the open BEFORE crediting, but ONLY against an optional
+        # confirm_entity — the real valve/switch the run_service drives, which
+        # carries a persistent on-state. The run_service itself is a momentary
+        # fire-and-forget script.* (back to "off" in ms), so confirming against
+        # it misfires: it polls "off" the whole window, spuriously reports a
+        # zone_problem, skips the credit, and (worse) re-runs the blueprint at
+        # the retry, resetting the valve's hardware countdown. So with no
+        # confirm_entity the run is write-only (confirmed = None) and credited
+        # optimistically — the hardware owns the close. The confirm is poll-only
+        # (retry=False): HA must never re-actuate a self-closing valve mid-run.
+        confirm_target = zone.get(const.ZONE_CONFIRM_ENTITY)
         confirmed = (
-            await self._confirm_valve_running(zone_id, confirm_target)
+            await self._confirm_valve_running(zone_id, confirm_target, retry=False)
             if confirm_target
             else None
         )
@@ -157,7 +164,7 @@ class SelfClosingMixin:
                 {
                     "zone_id": zone_id,
                     "zone": zone.get(const.ZONE_NAME),
-                    "entity_id": zone.get(const.ZONE_RUN_SERVICE),
+                    "entity_id": confirm_target,
                     "reason": const.PROBLEM_VALVE_DID_NOT_OPEN,
                 },
             )

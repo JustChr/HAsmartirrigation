@@ -372,6 +372,8 @@
         "duration_unit_help": "Einheit, die deine Hardware für die Laufzeit erwartet. Prüfe das Gerät: viele Zigbee/Tuya-Ventile zählen in MINUTEN. Die falsche Einheit über- oder unterwässert um das 60-fache. Im Minuten-Modus rundet HASI auf ganze Minuten auf (mindestens 1).",
         "stop_service": "Stopp-Service (optional)",
         "stop_service_help": "Optional. Service, den HASI aufruft, um das Ventil zu schließen, wenn du den Lauf vorzeitig stoppst — bevor der eigene Timer abläuft. Leer lassen, wenn das Ventil nicht manuell gestoppt werden kann.",
+        "confirm_entity": "Bestätigungs-Entität (optional)",
+        "confirm_entity_help": "Optional. Die echte Ventil-/Schalter-Entität, die der Start-Service ansteuert (z. B. ein valve oder switch) — sie hält während der Bewässerung einen stabilen An-Zustand. Wenn gesetzt, prüft HASI das Öffnen dagegen (nur Polling, es aktuiert nie neu) und meldet ein Problem plus überspringt die Bucket-Gutschrift, falls sie nie angeht. Leer lassen, um den Lauf als write-only zu behandeln und optimistisch gutzuschreiben (die Hardware besitzt den Close). Im Zweifel leer lassen: Es hilft nur bei einer Entität, die ihren An-Zustand zuverlässig meldet — ein spät meldendes (z. B. träges Zigbee-)Ventil könnte als 'off' gewertet werden und die Gutschrift fälschlich überspringen, sodass die Zone beim nächsten Lauf erneut wässert. Zeige hier NICHT auf das Start-Skript selbst — ein fire-and-forget-Skript ist kein gültiges Zustandssignal.",
         "plant_type": "Pflanzentyp",
         "kc": "Pflanzenkoeffizient (Kc)",
         "plant_types": {

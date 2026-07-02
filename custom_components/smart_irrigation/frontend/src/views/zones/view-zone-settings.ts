@@ -61,6 +61,7 @@ import {
   ZONE_DURATION_FIELD,
   ZONE_DURATION_UNIT,
   ZONE_STOP_SERVICE,
+  ZONE_CONFIRM_ENTITY,
 } from "../../const";
 import "../../components/si-field";
 import "../../components/si-zone-form";
@@ -936,6 +937,37 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                       this.handleEditZone(index, {
                         ...zone,
                         [ZONE_STOP_SERVICE]: e.detail.value || null,
+                      })}"
+                  ></ha-entity-picker>
+                </ha-settings-row>
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.confirm_entity",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "panels.zones.labels.confirm_entity_help",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <ha-entity-picker
+                    .hass="${this.hass}"
+                    .value="${zone.confirm_entity || ""}"
+                    .includeDomains="${[
+                      "valve",
+                      "switch",
+                      "input_boolean",
+                      "number",
+                      "binary_sensor",
+                    ]}"
+                    allow-custom-entity
+                    @value-changed="${(e: CustomEvent) =>
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_CONFIRM_ENTITY]: e.detail.value || null,
                       })}"
                   ></ha-entity-picker>
                 </ha-settings-row>

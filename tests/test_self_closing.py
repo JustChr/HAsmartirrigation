@@ -199,20 +199,119 @@ async def test_stop_without_stop_service_corrects_accounting_only():
     assert cfg[const.CONF_ACTIVE_VALVE_RUNS] == []
 
 
-async def test_run_aborts_and_fires_problem_when_open_unconfirmed():
+async def test_run_aborts_and_fires_problem_when_confirm_entity_stays_off():
+    """A configured confirm_entity that never reports on = the valve did not
+    open -> problem event + no credit. The problem names the confirm_entity."""
     c = _coord()
     c._confirm_valve_running = AsyncMock(return_value=False)  # never opened
     c._timed_volume_l = Mock(return_value=20.0)
     c._credited_depth_native = Mock(return_value=4.0)
-    zone = _zone()
+    zone = _zone(**{const.ZONE_CONFIRM_ENTITY: "valve.beet"})
 
     ok = await c.async_run_self_closing(zone, trigger="schedule")
 
     assert ok is False
     c.store.async_update_zone.assert_not_awaited()  # no credit
     c.store.async_update_config.assert_not_awaited()  # no persisted run
+    fired = {a.args[0]: a.args[1] for a in c.hass.bus.async_fire.call_args_list}
+    key = f"{const.DOMAIN}_{const.EVENT_ZONE_PROBLEM}"
+    assert key in fired
+    assert fired[key]["entity_id"] == "valve.beet"  # the confirm target
+
+
+async def test_service_run_credits_without_confirm_entity():
+    """No confirm_entity: the run is write-only, so credit optimistically and
+    NEVER poll the momentary run_service script (JustChr #43 review regression:
+    a fire-and-forget script returns to 'off' in ms, which must not misfire a
+    zone_problem or skip the bucket credit)."""
+    c = _coord()
+    c._confirm_valve_running = AsyncMock()  # must NOT be called
+    c._timed_volume_l = Mock(return_value=20.0)
+    c._credited_depth_native = Mock(return_value=4.0)
+    zone = _zone(**{const.ZONE_BUCKET: -5.0, const.ZONE_MAXIMUM_BUCKET: 50.0})
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+
+    assert ok is True
+    c._confirm_valve_running.assert_not_awaited()
+    bucket_calls = [
+        ck
+        for ck in c.store.async_update_zone.await_args_list
+        if const.ZONE_BUCKET in ck.args[1]
+    ]
+    assert bucket_calls and bucket_calls[-1].args[1][const.ZONE_BUCKET] == -1.0
     evt = [a.args[0] for a in c.hass.bus.async_fire.call_args_list]
-    assert f"{const.DOMAIN}_{const.EVENT_ZONE_PROBLEM}" in evt
+    assert f"{const.DOMAIN}_{const.EVENT_ZONE_PROBLEM}" not in evt
+
+
+async def test_service_run_confirms_against_confirm_entity_poll_only():
+    """With a confirm_entity, verify liveness against THAT entity — and poll-only
+    (retry=False), so HA never re-actuates a self-closing valve mid-run (which
+    would reset its hardware countdown)."""
+    c = _coord()
+    c._confirm_valve_running = AsyncMock(return_value=True)
+    c._timed_volume_l = Mock(return_value=20.0)
+    c._credited_depth_native = Mock(return_value=4.0)
+    zone = _zone(
+        **{
+            const.ZONE_CONFIRM_ENTITY: "valve.beet",
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_MAXIMUM_BUCKET: 50.0,
+        }
+    )
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+
+    assert ok is True
+    c._confirm_valve_running.assert_awaited_once_with(2, "valve.beet", retry=False)
+    bucket_calls = [
+        ck
+        for ck in c.store.async_update_zone.await_args_list
+        if const.ZONE_BUCKET in ck.args[1]
+    ]
+    assert bucket_calls[-1].args[1][const.ZONE_BUCKET] == -1.0
+
+
+async def test_service_run_credits_when_confirm_entity_unreadable():
+    """An unreadable confirm_entity (None) must not penalise a write-only valve:
+    credit optimistically, no problem event."""
+    c = _coord()
+    c._confirm_valve_running = AsyncMock(return_value=None)
+    c._timed_volume_l = Mock(return_value=20.0)
+    c._credited_depth_native = Mock(return_value=4.0)
+    zone = _zone(
+        **{const.ZONE_CONFIRM_ENTITY: "valve.beet", const.ZONE_BUCKET: -5.0}
+    )
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+
+    assert ok is True
+    bucket_calls = [
+        ck
+        for ck in c.store.async_update_zone.await_args_list
+        if const.ZONE_BUCKET in ck.args[1]
+    ]
+    assert bucket_calls  # credited despite an unreadable confirm entity
+    evt = [a.args[0] for a in c.hass.bus.async_fire.call_args_list]
+    assert f"{const.DOMAIN}_{const.EVENT_ZONE_PROBLEM}" not in evt
+
+
+async def test_confirm_valve_running_poll_only_never_resends(monkeypatch):
+    """`retry=False` polls the state but NEVER re-sends the open — critical for
+    self-closing mode, where re-actuating would reset the hardware countdown.
+    Drives the real _confirm_valve_running against a momentary/off entity."""
+    c = _coord()
+    off = Mock()
+    off.state = "off"
+    c.hass.states.get = Mock(return_value=off)
+    monkeypatch.setattr(const, "VALVE_CONFIRM_TIMEOUT", 0.03)
+    monkeypatch.setattr(const, "VALVE_CONFIRM_RETRY_AT", 0.01)
+    monkeypatch.setattr(const, "VALVE_CONFIRM_POLL", 0.01)
+
+    result = await c._confirm_valve_running(2, "valve.beet", retry=False)
+
+    assert result is False
+    c.hass.services.async_call.assert_not_awaited()  # poll-only: no re-send
 
 
 async def test_resume_finalises_overdue_and_reschedules_partial():

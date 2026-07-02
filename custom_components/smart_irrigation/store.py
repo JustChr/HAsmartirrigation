@@ -215,6 +215,9 @@ class ZoneEntry:
     run_data = attr.ib(type=dict, factory=dict)
     stop_service = attr.ib(type=str, default=None)
     stop_data = attr.ib(type=dict, factory=dict)
+    # Optional entity reflecting the real valve/switch state for liveness confirm
+    # (poll-only); None = write-only service run, credited optimistically.
+    confirm_entity = attr.ib(type=str, default=None)
 
 
 @attr.s(slots=True, frozen=True)
@@ -695,6 +698,7 @@ class SmartIrrigationStorage:
                         run_data=zone.get("run_data", {}) or {},
                         stop_service=zone.get("stop_service", None),
                         stop_data=zone.get("stop_data", {}) or {},
+                        confirm_entity=zone.get("confirm_entity", None),
                     )
             if "modules" in data:
                 for module in data["modules"]:
