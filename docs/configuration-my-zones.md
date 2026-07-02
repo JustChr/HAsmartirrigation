@@ -58,7 +58,8 @@ Open **Setup → My Zones**. Each zone's settings are shown directly under its n
   - _Disabled_: The zone is disabled. No updating and calculation of that zone. Setting a [module](configuration-modules.md) and [sensor group](configuration-sensor-groups.md) on the zone is optional.
 - **Module**: Choose the [calculation module](configuration-modules.md) that should be used to calculate irrigation for the zone.
 - **Sensor group**: Choose the [sensor group](configuration-sensor-groups.md) that provides the weather data for this zone.
-- **Linked switch/valve/helper entity**: Optionally control a valve directly — see [Linked entity](#linked-entity) below.
+- **Watering mode**: How the integration actuates the zone — *Classic* (opens and closes a linked entity itself with a software timer) or *Self-closing service* (sends the run duration to a self-closing valve and lets the hardware close it). See [Watering mode](#watering-mode) below.
+- **Linked switch/valve/helper entity**: Optionally control a valve directly (used by the *Classic* [watering mode](#watering-mode)) — see [Linked entity](#linked-entity) below.
 - **Flow meter sensor** (optional): A sensor reporting the zone's actual water flow. When set, irrigation can run until the measured volume is reached instead of relying purely on the calculated time.
 - **Bucket**: Either calculated or manually set. The zone needs irrigation when the bucket falls below its **minimum deficit to irrigate** (see below; default −10 mm) — a bucket of 0 or above never needs watering. See [automations](usage-automations.md) for examples on how to use this value.
 - **Maximum bucket**: You can manually set a maximum bucket size which represents the soil's water holding capacity. The maximum recommended bucket size is based on the type of soil:
@@ -77,9 +78,34 @@ This recommendation is based on the soil water holding capacity. See [this discu
 - **Minimum deficit to irrigate**: How large the moisture deficit must be before the zone is considered to need watering. It is stored as a 0-or-negative value (mm/inch); the default is `-10`, meaning the bucket must reach −10 mm before irrigation is triggered. Set it to `0` to irrigate as soon as there is any deficit, or to a more negative value to water less often but more deeply.
 - **Duration**: Irrigation duration in seconds. Either calculated or manually set (manual zones only).
 
+### Watering mode {#watering-mode}
+
+Each zone chooses **how** the integration actuates it:
+
+- **Classic** *(default)* — the integration opens the [linked entity](#linked-entity) and closes it itself with a software timer. Simple, but if Home Assistant restarts mid-run the valve stays open until HA comes back.
+- **Self-closing service** — the *close* is owned by the **hardware**, not by Home Assistant. Many valves run their own **countdown**: once they are told a run duration they shut off on their own after it elapses, with no further contact from HA. The integration only **transmits the duration** to such a valve (through a small `run_service` script) — so even if HA restarts or crashes the instant a run starts, the valve still closes itself and continuous irrigation becomes impossible. Instead of a linked entity you pick a **Run service** (a `script.*`, chosen from a dropdown) and set:
+  - **Duration field** — the parameter the duration is passed under (defaults to `duration`, which the shipped blueprints use).
+  - **Duration unit** — seconds or minutes, matching what your hardware expects (many Zigbee/Tuya valves count in **minutes**).
+  - **Stop service** *(optional)* — closes the valve if you stop a run early (while HA is up).
+  - **Confirm entity** *(optional)* — the **real** valve/switch entity the run service drives (e.g. a `valve` or `switch`), *not* the script. It holds a steady on-state while watering, so the integration can verify the open against it — **poll-only, it never re-actuates** — and flag a problem plus skip the moisture credit if the valve never turns on. Leave it empty to treat the run as write-only and credit optimistically (the hardware owns the close). **When in doubt, leave it empty:** it only helps with an entity that reports its on-state *reliably* — a valve that reports late (e.g. a sleepy Zigbee valve) could read as *off* and wrongly skip the credit, so the zone would water again on the next run. Do **not** point it at the run script: a fire-and-forget script returns to *off* immediately and is not a valid state signal.
+
+> **What counts as self-closing hardware?** Anything that runs its own timer once told a duration — for example Zigbee2MQTT valves with a built-in countdown (Tuya `countdown_l1`, SONOFF `cyclic_timed_irrigation`), or a DIY / **ESPHome** controller that closes its own valve after a received runtime. The script is only an **adapter** so the integration can drive all of them the same way — it is *not* what closes the valve. A plain switch with no hardware timer is **not** self-closing; use *Classic* mode for that.
+
+To make self-closing setup painless, three **script blueprints** ship with the integration and are copied into `config/blueprints/script/smart_irrigation/` automatically on setup (existing files are never overwritten):
+
+| Blueprint | For | Duration unit |
+|-----------|-----|---------------|
+| **Tuya TS0601 dual water valve (Z2M)** | Tuya `TS0601_water_switch` — `countdown_l1` + `state_l1` (custom converters may use `valve_l1`) | Minutes |
+| **SONOFF Smart Water Valve SWV (Z2M)** | SONOFF Zigbee Smart Water Valve (SWV) — `cyclic_timed_irrigation` | Seconds |
+| **Self-closing valve (entity based)** | ZHA / non-MQTT valves with a hardware countdown `number` entity | match the entity |
+
+**Setup:** create a script from the blueprint under **Settings → Automations & Scenes → Blueprints** (fill in your valve's MQTT topic or entities), then in the zone set **Watering mode = Self-closing service** and pick that script as the **Run service**. Each blueprint's script opens on `duration > 0` and closes on `duration = 0`, so the same script also works as the **Stop service**.
+
+> Blueprints only cover common cases. Any script that accepts a `duration` field works — the device specifics live in the script, so the same mechanism drives Z2M, ZHA, ESPHome or anything else.
+
 ### Linked entity {#linked-entity}
 
-Optionally link a Home Assistant `switch`, `valve` or `input_boolean` (helper) entity to a zone. When irrigation fires, the integration will:
+Optionally link a Home Assistant `switch`, `valve` or `input_boolean` (helper) entity to a zone (the *Classic* [watering mode](#watering-mode)). When irrigation fires, the integration will:
 
 1. Call `turn_on` on the entity
 2. Wait for the calculated duration (in seconds)
@@ -99,7 +125,7 @@ On the **Zones** dashboard, each zone card shows an at-a-glance verdict, a one-l
 
 * **Update** — Collect weather data from the sensor group for the zone.
 * **Calculate** — Recalculate the zone's irrigation duration. The zone consumes only the weather data it needs (the shared buffer is kept for other zones and pruned automatically).
-* **Irrigate Now** — Immediately turn on the zone's [linked entity](#linked-entity) for the calculated duration, then turn it off. Bypasses all skip conditions. Shown disabled with a hint until the zone has a linked entity.
+* **Irrigate Now** — Immediately water the zone for its calculated duration (via the [linked entity](#linked-entity) in *Classic* mode, or the **Run service** in [self-closing](#watering-mode) mode), then stop. Bypasses all skip conditions. Available once the zone can actuate — a linked entity or a self-closing service — and shown disabled with a hint otherwise.
 
 The remaining per-zone tools live under **Setup → My Zones**:
 

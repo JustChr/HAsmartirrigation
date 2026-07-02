@@ -63,6 +63,46 @@ Compared to the last upstream release (`v2025.10.0`):
 - **Extended sensor attributes** — `multiplier`, `lead_time`, `maximum_duration`, `maximum_bucket` now exposed as entity attributes for use in automations and templates
 - **Code hygiene** — removed ~280 lines of dead commented-out V1 code, duplicate constant definitions, and orphaned test files
 
+## Self-closing valves & blueprints
+
+A zone can delegate the valve **close** to self-closing hardware. In **Setup → My Zones → (zone) → Watering mode**, pick one of:
+
+- **Classic** *(default)* — the integration opens the valve and closes it itself with a software timer. Simple, but if Home Assistant restarts mid-run the valve stays open until HA comes back.
+- **Self-closing service** — the **close is owned by the hardware, not by HA**. The valve runs its own countdown: once it is told a run duration it shuts off on its own after that time, with no further contact from Home Assistant — so even if HA restarts or crashes the instant a run starts, the valve still closes and can't over-water. The zone calls a **script** (picked from a dropdown) that only **transmits the duration** to the valve; the script is an *adapter*, not the thing that closes the valve.
+
+Self-closing hardware means anything with its own timer: Zigbee2MQTT valves with a built-in countdown (Tuya `countdown_l1`, SONOFF `cyclic_timed_irrigation`), or a DIY/**ESPHome** controller that closes its own valve after a received runtime. (A plain switch with no hardware timer is *not* self-closing — use Classic mode.)
+
+To make the script part painless, three **script blueprints** ship with the integration and are copied into `config/blueprints/script/smart_irrigation/` automatically on setup (existing files are never overwritten):
+
+| Blueprint | For | Notes |
+|-----------|-----|-------|
+| **Tuya TS0601 dual water valve (Z2M)** | Tuya `TS0601_water_switch` ("Dual water valve") | publishes `countdown_l1` (minutes) + `state_l1` ON/OFF — **Duration unit = Minutes**. Older/custom converters may use `valve_l1`/`on`/`off`. |
+| **SONOFF Smart Water Valve SWV (Z2M)** | SONOFF Zigbee Smart Water Valve (SWV) | publishes `cyclic_timed_irrigation` — **Duration unit = Seconds** |
+| **Self-closing valve (entity based)** | ZHA / non-MQTT valves | writes a countdown `number` entity then turns the valve on — requires a hardware countdown entity |
+
+**Setup:**
+
+1. **Settings → Automations & Scenes → Blueprints** → find the blueprint → create a script from it, filling in your valve's MQTT topic (or entities).
+2. In the zone, set **Watering mode = Self-closing service**, pick your new script under **Run service**, and set **Duration unit** to match your device (Tuya = Minutes, SONOFF = Seconds).
+3. Optionally set **Stop service** to the same script — it closes the valve when you stop a run early.
+
+Each blueprint's script opens on `duration > 0` and closes on `duration = 0`, so one script serves as both the run and the stop service.
+
+> Blueprints only cover common cases. Any script that accepts a `duration` field works — the device specifics live in the script, so the same mechanism drives Z2M, ZHA, ESPHome, or anything else.
+
+## Pump / master switch (optional)
+
+If a pump or main valve must be powered before any zone can water, configure a **master switch** under **Setup → General → Pump / master switch**:
+
+- **Master entity** — a switch/valve/input_boolean HASI turns on before the first zone of a cycle. Leave empty to never touch a master (e.g. a pressure-controlled waterworks that starts on its own).
+- **Kicker** *(optional)* — some pressure-controlled pumps don't restart promptly when merely powered; the kicker pulses the master **off → pause → on** to force a start. The pause is configurable.
+- **Settle delay** — wait after power-on before the first valve opens (pressure build-up), default 10 s.
+- **Turn off after irrigation** *(optional, default off)* — off = the master stays powered (self-monitoring pump); on = HASI turns it off after the last zone's planned end, and only once no run is still active.
+
+The master applies to every path (scheduled, "Irrigate Now", and manual runs), for both classic and self-closing zones.
+
+> **Crash caveat:** with "turn off after" enabled, an HA outage after the master turns on but before the scheduled off leaves the master on — a non-self-protecting pump could dead-head or run dry. HASI can't prevent this alone; the master device must carry its own protection (dry-run cutoff, max-on timer). This is exactly why "turn off after" is optional — a self-monitoring pump omits it and carries no crash exposure.
+
 ## Installation
 
 This integration is not in the default HACS store. Install it as a **custom repository**:

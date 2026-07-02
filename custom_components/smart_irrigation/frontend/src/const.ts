@@ -138,6 +138,12 @@ export const ZONE_PLANT_TYPE = "plant_type";
 export const ZONE_LINKED_ENTITY = "linked_entity";
 export const ZONE_BUCKET_THRESHOLD = "bucket_threshold";
 export const ZONE_FLOW_SENSOR = "flow_sensor";
+export const ZONE_WATERING_MODE = "watering_mode";
+export const ZONE_RUN_SERVICE = "run_service";
+export const ZONE_DURATION_FIELD = "duration_field";
+export const ZONE_DURATION_UNIT = "duration_unit";
+export const ZONE_STOP_SERVICE = "stop_service";
+export const ZONE_CONFIRM_ENTITY = "confirm_entity";
 
 // Plant-type presets → mid-season Kc (relative to grass reference ET0). The
 // stored value is still the plain ``kc`` number; "custom" lets it be hand-set.
@@ -169,6 +175,13 @@ export const CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION =
   "zone_sequencing_max_consecutive_duration";
 export const CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME =
   "zone_sequencing_min_absorption_time";
+
+// Master switch / pump control (instance-level, all optional)
+export const CONF_MASTER_ENTITY = "master_entity";
+export const CONF_MASTER_SETTLE_SECONDS = "master_settle_seconds";
+export const CONF_MASTER_KICK_ENABLED = "master_kick_enabled";
+export const CONF_MASTER_KICK_PAUSE_SECONDS = "master_kick_pause_seconds";
+export const CONF_MASTER_OFF_AFTER = "master_off_after";
 
 export const SCHEDULE_TYPE_SUNRISE = "sunrise";
 export const SCHEDULE_TYPE_SUNSET = "sunset";

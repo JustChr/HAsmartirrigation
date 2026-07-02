@@ -100,6 +100,19 @@ When multiple zones have a [linked entity](configuration-my-zones.md#linked-enti
 - **Parallel** (default): all linked entities open simultaneously. Each closes after its own calculated duration.
 - **Sequential**: zones run one after another. The integration waits for each zone to finish before starting the next. Zones with 0 seconds calculated duration are skipped automatically.
 
+### Pump / master switch {#master-switch}
+
+If a pump or main valve must be powered before any zone can water, configure an optional **master switch** here. The sub-settings only appear once a master entity is set.
+
+- **Master entity** — a `switch`, `valve` or `input_boolean` the integration turns on before the first zone of a cycle. Leave empty to never touch a master (e.g. a pressure-controlled waterworks that starts on its own).
+- **Kicker** *(optional)* — some pressure-controlled pumps don't restart promptly when merely powered; the kicker pulses the master **off → pause → on** to force a start. The pause is configurable.
+- **Settle delay** — how long to wait after power-on before the first valve opens (pressure build-up), default 10 s.
+- **Turn off after irrigation** *(optional, default off)* — off = the master stays powered (a self-monitoring pump); on = the integration turns it off after the last zone's planned end, and only once no run is still active.
+
+The master applies to every path (scheduled, *Irrigate now*, and manual runs) and to both classic and self-closing zones.
+
+> **Crash caveat:** with *Turn off after irrigation* enabled, a Home Assistant outage after the master turns on but before the scheduled off leaves the master on — a non-self-protecting pump could dead-head or run dry. The integration can't prevent this alone; the master device must carry its own protection (dry-run cutoff, max-on timer). This is exactly why the option is off by default — a self-monitoring pump omits it and carries no crash exposure.
+
 ### Recurring schedules
 
 Below these settings, the same tab hosts the **recurring schedules** — the daily/weekly/monthly/interval/sun-based triggers that actually start irrigation. They are covered on their own page: [Schedules](configuration-schedules.md).

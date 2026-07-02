@@ -1,0 +1,86 @@
+blueprint:
+  name: "Smart Irrigation: Self-closing valve (Tuya TS0601 dual water valve, Zigbee2MQTT)"
+  description: >-
+    Drives a Tuya dual water valve over Zigbee2MQTT -- model "TS0601_water_switch"
+    ("Dual water valve") -- that closes itself via a hardware countdown. Smart
+    Irrigation calls this script (service watering mode) with the run duration;
+    the valve owns the close, so an HA restart mid-run cannot cause continuous
+    irrigation.
+
+    duration > 0 opens (publish countdown_l1, then state_l1 ON); duration = 0
+    closes (publish state_l1 OFF) -- so the same script serves as both the run
+    service and the optional stop service.
+
+    Set the zone's duration unit to Minutes: countdown_l1 counts in MINUTES
+    (0-1440).
+
+    Defaults match the official Zigbee2MQTT converter (state_l1 / ON / OFF).
+    Older or custom external converters may instead use valve_l1 with on / off --
+    change the "Valve on/off JSON key" and open/close values below to match.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT topic
+      description: The valve's Zigbee2MQTT command topic (ends with /set).
+      selector:
+        text:
+    countdown_key:
+      name: Countdown JSON key
+      description: JSON key that carries the run length.
+      default: countdown_l1
+      selector:
+        text:
+    valve_key:
+      name: Valve on/off JSON key
+      description: Official TS0601_water_switch uses state_l1; custom converters may use valve_l1.
+      default: state_l1
+      selector:
+        text:
+    open_value:
+      name: Open value
+      default: "ON"
+      selector:
+        text:
+    close_value:
+      name: Close value
+      default: "OFF"
+      selector:
+        text:
+mode: single
+icon: mdi:sprinkler
+fields:
+  duration:
+    name: Duration
+    description: >-
+      Run length from Smart Irrigation, in the zone's configured unit
+      (Tuya = minutes). 0 closes the valve.
+    default: 0
+    selector:
+      number:
+        min: 0
+        max: 100000
+        mode: box
+sequence:
+  - variables:
+      topic: !input mqtt_topic
+      ckey: !input countdown_key
+      vkey: !input valve_key
+      oval: !input open_value
+      cval: !input close_value
+      dur: "{{ duration | int(0) }}"
+  - choose:
+      - conditions: "{{ dur > 0 }}"
+        sequence:
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: "{{ {ckey: dur} | to_json }}"
+          - action: mqtt.publish
+            data:
+              topic: "{{ topic }}"
+              payload: "{{ {vkey: oval} | to_json }}"
+    default:
+      - action: mqtt.publish
+        data:
+          topic: "{{ topic }}"
+          payload: "{{ {vkey: cval} | to_json }}"

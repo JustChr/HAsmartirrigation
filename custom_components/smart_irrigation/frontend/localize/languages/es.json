@@ -354,6 +354,25 @@
         "bucket_threshold": "Déficit mínimo para regar",
         "flow_sensor": "Sensor de caudalímetro (opcional)",
         "flow_sensor_placeholder": "p. ej. sensor.zone_flow_rate",
+        "watering_mode": "Modo de riego",
+        "watering_mode_description": "Cómo acciona HASI esta zona. Clásico: HASI abre la válvula y la cierra él mismo mediante un temporizador de software. Servicio autocerrable: HASI envía la duración del riego a una válvula autocerrable a través de un script (consulta los blueprints de válvula incluidos) y deja que el hardware se cierre solo, de modo que un reinicio de HA a mitad del riego no pueda provocar un riego continuo.",
+        "watering_modes": {
+          "classic": "Clásico (HASI abre y cierra la válvula)",
+          "service": "Servicio autocerrable (la válvula se cierra sola)"
+        },
+        "run_service": "Servicio de inicio",
+        "run_service_help": "Servicio que HASI llama para iniciar el riego (p. ej. un script.* o un servicio de interruptor/válvula). Recibe el campo de duración de abajo junto con zone_id y zone_name.",
+        "duration_field": "Campo de duración",
+        "duration_field_placeholder": "p. ej. duration",
+        "duration_field_help": "Nombre del parámetro que transporta la duración del riego en la llamada a tu servicio de inicio. Los blueprints de válvula incluidos usan 'duration' (el valor predeterminado); un script personalizado puede usar otro nombre (p. ej. 'dauer').",
+        "duration_unit": "Unidad de duración",
+        "duration_units": {
+          "seconds": "Segundos",
+          "minutes": "Minutos"
+        },
+        "duration_unit_help": "Unidad que tu hardware espera para la duración del riego. Comprueba el dispositivo: muchas válvulas Zigbee/Tuya cuentan en MINUTOS. La unidad incorrecta riega de más o de menos por un factor de 60x. En modo Minutos, HASI redondea hacia arriba a minutos enteros (mínimo 1).",
+        "stop_service": "Servicio de parada (opcional)",
+        "stop_service_help": "Opcional. Servicio que HASI llama para cerrar la válvula cuando detienes la zona antes de tiempo, antes de que expire su propio temporizador. Déjalo vacío si la válvula no se puede detener manualmente.",
         "plant_type": "Tipo de planta",
         "kc": "Coeficiente de cultivo (Kc)",
         "plant_types": {
@@ -763,6 +782,16 @@
     "max_consecutive_duration_unit": "minutos",
     "min_absorption_time_label": "Tiempo mín. de absorción entre turnos",
     "min_absorption_time_unit": "minutos (0 = desactivado)"
+  },
+  "master": {
+    "title": "Bomba / interruptor maestro",
+    "description": "Opcional. Activa un maestro compartido — una bomba o una válvula principal — antes de la primera zona de un ciclo de riego y, opcionalmente, lo desactiva tras la última zona. Deje la entidad vacía para no accionar nunca un maestro (por ejemplo, una red de agua controlada por presión que arranca por sí sola).",
+    "entity": "Entidad maestra (interruptor/válvula)",
+    "kick_enabled": "Kicker: apagar y volver a encender con un pulso para forzar el arranque de la bomba",
+    "kick_pause": "Pausa del pulso (apagado antes de encendido)",
+    "settle": "Retardo de estabilización antes de la primera zona",
+    "off_after": "Apagar el maestro después del riego",
+    "seconds_unit": "segundos"
   },
   "weather_service_config": {
     "title": "Servicio meteorológico",

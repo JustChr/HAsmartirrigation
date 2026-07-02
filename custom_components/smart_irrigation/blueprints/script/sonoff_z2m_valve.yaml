@@ -1,0 +1,46 @@
+blueprint:
+  name: "Smart Irrigation: Self-closing valve (SONOFF Smart Water Valve SWV, Zigbee2MQTT)"
+  description: >-
+    Drives a SONOFF Zigbee Smart Water Valve (SWV) over Zigbee2MQTT that runs for
+    a fixed duration via its "cyclic_timed_irrigation" command and then closes
+    itself. Smart Irrigation calls this script (service watering mode) with the
+    run duration; the valve owns the close, so an HA restart mid-run cannot cause
+    continuous irrigation.
+
+    duration > 0 starts a single timed cycle; duration = 0 sends a zero-length
+    cycle (best-effort early stop). The same script serves as both the run
+    service and the optional stop service.
+
+    Set the zone's duration unit to Seconds: irrigation_duration counts in
+    SECONDS.
+  domain: script
+  input:
+    mqtt_topic:
+      name: MQTT topic
+      description: The valve's Zigbee2MQTT command topic (ends with /set).
+      selector:
+        text:
+mode: single
+icon: mdi:sprinkler
+fields:
+  duration:
+    name: Duration
+    description: >-
+      Run length from Smart Irrigation, in the zone's configured unit
+      (SONOFF = seconds). 0 stops the cycle.
+    default: 0
+    selector:
+      number:
+        min: 0
+        max: 100000
+        mode: box
+sequence:
+  - variables:
+      topic: !input mqtt_topic
+      dur: "{{ duration | int(0) }}"
+  - action: mqtt.publish
+    data:
+      topic: "{{ topic }}"
+      payload: >-
+        {{ {'cyclic_timed_irrigation': {'current_count': 0, 'total_number': 1,
+        'irrigation_duration': dur, 'irrigation_interval': 0}} | to_json }}

@@ -353,6 +353,25 @@
         "bucket_threshold": "Minimum tekort voor bewatering",
         "flow_sensor": "Doorstroommeter-sensor (optioneel)",
         "flow_sensor_placeholder": "bijv. sensor.zone_flow_rate",
+        "watering_mode": "Bewateringsmodus",
+        "watering_mode_description": "Hoe HASI deze zone aanstuurt. Klassiek: HASI opent de klep en sluit deze zelf met een softwaretimer. Zelfsluitende service: HASI stuurt de looptijd naar een zelfsluitende klep via een script (zie de meegeleverde klep-blueprints) en laat de hardware zichzelf sluiten, zodat een HA-herstart midden in een cyclus geen continue irrigatie kan veroorzaken.",
+        "watering_modes": {
+          "classic": "Klassiek (HASI opent & sluit de klep)",
+          "service": "Zelfsluitende service (klep sluit zichzelf)"
+        },
+        "run_service": "Startservice",
+        "run_service_help": "Service die HASI aanroept om de cyclus te starten (bijv. een script.* of een switch/valve-service). Deze ontvangt het onderstaande duurveld plus zone_id en zone_name.",
+        "duration_field": "Duurveld",
+        "duration_field_placeholder": "bijv. duration",
+        "duration_field_help": "Naam van de parameter die de looptijd doorgeeft in de aanroep naar je startservice. De meegeleverde klep-blueprints gebruiken 'duration' (de standaard); een aangepast script kan een andere naam gebruiken (bijv. 'dauer').",
+        "duration_unit": "Duureenheid",
+        "duration_units": {
+          "seconds": "Seconden",
+          "minutes": "Minuten"
+        },
+        "duration_unit_help": "Eenheid die je hardware verwacht voor de looptijd. Controleer het apparaat: veel Zigbee/Tuya-kleppen tellen in MINUTEN. De verkeerde eenheid geeft 60x te veel of te weinig water. In de modus Minuten rondt HASI naar boven af op hele minuten (minimum 1).",
+        "stop_service": "Stopservice (optioneel)",
+        "stop_service_help": "Optioneel. Service die HASI aanroept om de klep te sluiten wanneer je de zone vroegtijdig stopt, voordat de eigen timer verloopt. Laat leeg als de klep niet handmatig kan worden gestopt.",
         "plant_type": "Plantentype",
         "kc": "Gewascoëfficiënt (Kc)",
         "plant_types": {
@@ -762,6 +781,16 @@
     "max_consecutive_duration_unit": "minuten",
     "min_absorption_time_label": "Min. absorptietijd tussen runs",
     "min_absorption_time_unit": "minuten (0 = uitgeschakeld)"
+  },
+  "master": {
+    "title": "Pomp / hoofdschakelaar",
+    "description": "Optioneel. Schakelt een gedeelde master — een pomp of hoofdklep — in voordat de eerste zone van een irrigatiecyclus start, en optioneel weer uit na de laatste zone. Laat de entiteit leeg om nooit een master aan te sturen (bijv. een drukgestuurde waterinstallatie die vanzelf start).",
+    "entity": "Master-entiteit (schakelaar/klep)",
+    "kick_enabled": "Kicker: uit- en weer inschakelen om een pompstart af te dwingen",
+    "kick_pause": "Kickpauze (uit voordat aan)",
+    "settle": "Stabilisatievertraging vóór de eerste zone",
+    "off_after": "Master uitschakelen na de irrigatie",
+    "seconds_unit": "seconden"
   },
   "weather_service_config": {
     "title": "Weerdienst",

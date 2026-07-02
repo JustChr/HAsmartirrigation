@@ -54,9 +54,11 @@ from .helpers import (
 )
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
+from .master import MasterMixin
 from .observed_watering import ObservedWateringMixin
 from .panel import async_register_panel, remove_panel
 from .scheduler import RecurringScheduleManager
+from .self_closing import SelfClosingMixin
 from .services import ServiceHandlersMixin, async_register_services
 from .skip_conditions import SkipConditionsMixin
 from .store import SmartIrrigationStorage, async_get_registry
@@ -74,6 +76,16 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(const.DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config):
     """Track states and offer events for sensors."""
+    # Ship the self-closing valve script blueprints into the user's blueprint
+    # folder (copy-if-missing; never overwrites the user's own copies). Runs off
+    # the event loop; failures are non-fatal.
+    from pathlib import Path
+
+    from .blueprint_install import install_bundled_blueprints
+
+    src = Path(__file__).parent / "blueprints" / "script"
+    dst = Path(hass.config.path("blueprints", "script", const.DOMAIN))
+    await hass.async_add_executor_job(install_bundled_blueprints, src, dst)
     return True
 
 
@@ -157,6 +169,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Set up the auto update/calc/clear timers (awaited, not fire-and-forget).
     await coordinator.async_setup_timers()
+
+    # Reconcile any self-closing runs that were in flight across a restart.
+    await coordinator.async_resume_self_closing_runs()
 
     # Set up unit system change listener
     async def handle_core_config_change(event):
@@ -322,6 +337,8 @@ class SmartIrrigationCoordinator(
     SkipConditionsMixin,
     LiveEstimateMixin,
     ObservedWateringMixin,
+    SelfClosingMixin,
+    MasterMixin,
 ):
     """Define an object to hold Smart Irrigation device.
 

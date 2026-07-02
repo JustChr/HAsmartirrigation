@@ -398,6 +398,25 @@
         "bucket_threshold": "Deficit minimo per irrigare",
         "flow_sensor": "Sensore del flussometro (opzionale)",
         "flow_sensor_placeholder": "ad es. sensor.zone_flow_rate",
+        "watering_mode": "Modalità di irrigazione",
+        "watering_mode_description": "Come HASI aziona questa zona. Classica: HASI apre la valvola e la chiude autonomamente con un timer software. Servizio autochiudente: HASI invia la durata dell'irrigazione a una valvola autochiudente tramite uno script (vedi i blueprint delle valvole inclusi) e lascia che sia l'hardware a chiudersi, così un riavvio di HA durante l'irrigazione non può causare un'irrigazione continua.",
+        "watering_modes": {
+          "classic": "Classica (HASI apre e chiude la valvola)",
+          "service": "Servizio autochiudente (la valvola si chiude da sola)"
+        },
+        "run_service": "Servizio di avvio",
+        "run_service_help": "Servizio che HASI chiama per avviare l'irrigazione (ad es. uno script.* o un servizio switch/valve). Riceve il campo durata sottostante più zone_id e zone_name.",
+        "duration_field": "Campo durata",
+        "duration_field_placeholder": "ad es. duration",
+        "duration_field_help": "Nome del parametro che trasporta la durata dell'irrigazione nella chiamata al servizio di avvio. I blueprint delle valvole inclusi usano 'duration' (il valore predefinito); uno script personalizzato può usare un altro nome (ad es. 'dauer').",
+        "duration_unit": "Unità di durata",
+        "duration_units": {
+          "seconds": "Secondi",
+          "minutes": "Minuti"
+        },
+        "duration_unit_help": "Unità che il tuo hardware si aspetta per la durata dell'irrigazione. Controlla il dispositivo: molte valvole Zigbee/Tuya contano in MINUTI. L'unità sbagliata irriga in eccesso o in difetto di 60x. In modalità Minuti HASI arrotonda per eccesso a minuti interi (minimo 1).",
+        "stop_service": "Servizio di arresto (opzionale)",
+        "stop_service_help": "Opzionale. Servizio che HASI chiama per chiudere la valvola quando arresti la zona in anticipo, prima che scada il suo timer. Lascia vuoto se la valvola non può essere arrestata manualmente.",
         "plant_type": "Tipo di pianta",
         "kc": "Coefficiente colturale (Kc)",
         "plant_types": {
@@ -767,6 +786,16 @@
     "max_consecutive_duration_unit": "minuti",
     "min_absorption_time_label": "Tempo minimo di assorbimento tra slot",
     "min_absorption_time_unit": "minuti (0 = disabilitato)"
+  },
+  "master": {
+    "title": "Pompa / interruttore master",
+    "description": "Opzionale. Attiva un master condiviso — una pompa o una valvola principale — prima della prima zona di un ciclo di irrigazione, quindi facoltativamente lo disattiva dopo l'ultima zona. Lasciare l'entità vuota per non azionare mai un master (ad esempio un impianto idrico a pressione controllata che si avvia da solo).",
+    "entity": "Entità master (interruttore/valvola)",
+    "kick_enabled": "Kicker: impulso off e poi on per forzare l'avvio della pompa",
+    "kick_pause": "Pausa del kicker (off prima di on)",
+    "settle": "Ritardo di stabilizzazione prima della prima zona",
+    "off_after": "Disattiva il master dopo l'irrigazione",
+    "seconds_unit": "secondi"
   },
   "weather_service_config": {
     "title": "Servizio meteo",

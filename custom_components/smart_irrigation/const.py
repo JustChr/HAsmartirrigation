@@ -524,3 +524,54 @@ ATTR_RAIN_DELAY_UNTIL = "until"  # ISO datetime to hold until
 ATTR_RAIN_DELAY_HOURS = "hours"  # convenience: hold for N hours from now
 # Events
 EVENT_RECURRING_SCHEDULE_TRIGGERED = "recurring_schedule_triggered"
+
+# --- Self-closing valve mode (Phase 1) -------------------------------------
+ZONE_WATERING_MODE = "watering_mode"  # per-zone actuation adapter
+WATERING_MODE_CLASSIC = "classic"  # default: open -> sleep -> close
+WATERING_MODE_SERVICE = "service"  # fire a service, valve self-closes
+
+# 'service' adapter per-zone config. Device specifics live in the run_service
+# script (see the shipped valve blueprints), not here.
+ZONE_RUN_SERVICE = "run_service"  # "domain.service" e.g. "script.irrigation_beet"
+ZONE_DURATION_FIELD = "duration_field"  # data key the duration is passed under
+ZONE_DURATION_UNIT = "duration_unit"  # DURATION_UNIT_SECONDS | DURATION_UNIT_MINUTES
+ZONE_RUN_DATA = "run_data"  # optional static dict merged into the call
+ZONE_STOP_SERVICE = "stop_service"  # optional "domain.service" for early stop
+ZONE_STOP_DATA = "stop_data"  # optional static dict for the stop call
+# Optional entity that reflects the real valve/switch state the run_service drives
+# (e.g. "valve.beet"). When set, the open is confirmed against it (poll-only, no
+# re-actuation); when unset, the service run is treated as write-only and credited
+# optimistically. The momentary run_service script is NOT a valid liveness signal.
+ZONE_CONFIRM_ENTITY = "confirm_entity"
+
+DURATION_UNIT_SECONDS = "seconds"
+DURATION_UNIT_MINUTES = "minutes"
+
+# Persisted in-flight self-closing runs (reboot resilience) — on Config
+CONF_ACTIVE_VALVE_RUNS = "active_valve_runs"
+RUN_ZONE_ID = "zone_id"
+RUN_ENTITY_ID = "entity_id"  # the run_service string (for logging/identity)
+RUN_STARTED = "started"  # ISO-8601 UTC
+RUN_PLANNED_SECONDS = "planned_seconds"
+RUN_PLANNED_MM = "planned_mm"
+RUN_MODE = "mode"
+RUN_CREDITED = "credited"
+
+# Per-run events (new in this feature)
+EVENT_IRRIGATE_STARTED = "irrigation_started"
+EVENT_IRRIGATE_FINISHED = "irrigation_finished"
+EVENT_ZONE_PROBLEM = "zone_problem"
+
+# --- Master switch / pump control (instance-level, fully optional) ----------
+CONF_MASTER_ENTITY = "master_entity"  # switch/valve/input_boolean, or None
+CONF_MASTER_SETTLE_SECONDS = "master_settle_seconds"  # wait after on before zone 1
+CONF_MASTER_KICK_ENABLED = "master_kick_enabled"  # pulse off->pause->on first
+CONF_MASTER_KICK_PAUSE_SECONDS = "master_kick_pause_seconds"  # the off<->on gap
+CONF_MASTER_OFF_AFTER = "master_off_after"  # turn off after cycle (else stay on)
+CONF_DEFAULT_MASTER_SETTLE_SECONDS = 10
+CONF_DEFAULT_MASTER_KICK_PAUSE_SECONDS = 1.0
+
+# Run-log tags
+RUN_TRIGGER_SELF_CLOSING = "self_closing"
+RUN_DETAIL_SELF_CLOSING_STOPPED = "self_closing_stopped"
+PROBLEM_VALVE_DID_NOT_OPEN = "valve_did_not_open"
