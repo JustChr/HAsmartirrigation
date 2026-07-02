@@ -372,6 +372,8 @@
         "duration_unit_help": "Jednotka, ktorú váš hardvér očakáva pre dĺžku behu. Skontrolujte zariadenie: mnohé Zigbee/Tuya ventily počítajú v MINÚTACH. Nesprávna jednotka zavlažuje 60x viac alebo menej. V režime Minúty HASI zaokrúhľuje nahor na celé minúty (minimum 1).",
         "stop_service": "Služba zastavenia (voliteľné)",
         "stop_service_help": "Voliteľné. Služba, ktorú HASI zavolá na zatvorenie ventilu, keď zónu zastavíte skôr, pred vypršaním jej vlastného časovača. Nechajte prázdne, ak ventil nie je možné zastaviť manuálne.",
+        "confirm_entity": "Overovacia entita (voliteľné)",
+        "confirm_entity_help": "Voliteľné. Skutočná entita ventilu/prepínača, ktorú ovláda služba spustenia (napr. ventil alebo prepínač) — počas zavlažovania drží stabilný zapnutý stav. Ak je nastavená, HASI proti nej overuje otvorenie (iba dotazovaním, nikdy ju znova neaktivuje) a nahlási problém plus preskočí pripísanie do vedra, ak sa nikdy nezapne. Nechajte prázdne, ak sa má beh považovať len za zápisový a pripisovať optimisticky (zatvorenie má na starosti hardvér). Pri pochybnostiach nechajte prázdne: pomáha to len pri entite, ktorá svoj zapnutý stav hlási spoľahlivo — ventil, ktorý sa hlási oneskorene (napr. utlmený Zigbee ventil), by sa mohol prečítať ako 'off' a pripísanie by sa nesprávne preskočilo, takže zóna by sa pri ďalšom behu zavlažila znova. Neukazujte týmto NA samotný skript spustenia — skript typu spusti-a-zabudni nie je platný signál stavu.",
         "plant_type": "Typ rastliny",
         "kc": "Plodinový koeficient (Kc)",
         "plant_types": {

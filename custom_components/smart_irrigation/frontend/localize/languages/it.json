@@ -417,6 +417,8 @@
         "duration_unit_help": "Unità che il tuo hardware si aspetta per la durata dell'irrigazione. Controlla il dispositivo: molte valvole Zigbee/Tuya contano in MINUTI. L'unità sbagliata irriga in eccesso o in difetto di 60x. In modalità Minuti HASI arrotonda per eccesso a minuti interi (minimo 1).",
         "stop_service": "Servizio di arresto (opzionale)",
         "stop_service_help": "Opzionale. Servizio che HASI chiama per chiudere la valvola quando arresti la zona in anticipo, prima che scada il suo timer. Lascia vuoto se la valvola non può essere arrestata manualmente.",
+        "confirm_entity": "Entità di conferma (opzionale)",
+        "confirm_entity_help": "Opzionale. L'entità reale della valvola/dell'interruttore che il servizio di avvio comanda (ad es. una valve o uno switch) — mantiene uno stato acceso stabile durante l'irrigazione. Se impostata, HASI verifica l'apertura confrontandola con questa entità (solo polling, non riaziona mai) e segnala un problema oltre a saltare l'accredito al secchio se non si accende mai. Lascia vuoto per trattare l'avvio come sola scrittura e accreditare in modo ottimistico (la chiusura spetta all'hardware). Nel dubbio, lascia vuoto: è utile solo con un'entità che segnala il proprio stato acceso in modo affidabile — una valvola che segnala in ritardo (ad es. una valvola Zigbee «assonnata») potrebbe essere letta come 'off' e saltare erroneamente l'accredito, così la zona verrebbe irrigata di nuovo alla prossima esecuzione. NON indicare qui lo script di avvio stesso — uno script fire-and-forget non è un segnale di stato valido.",
         "plant_type": "Tipo di pianta",
         "kc": "Coefficiente colturale (Kc)",
         "plant_types": {

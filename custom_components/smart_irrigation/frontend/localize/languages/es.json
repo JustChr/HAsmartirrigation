@@ -373,6 +373,8 @@
         "duration_unit_help": "Unidad que tu hardware espera para la duración del riego. Comprueba el dispositivo: muchas válvulas Zigbee/Tuya cuentan en MINUTOS. La unidad incorrecta riega de más o de menos por un factor de 60x. En modo Minutos, HASI redondea hacia arriba a minutos enteros (mínimo 1).",
         "stop_service": "Servicio de parada (opcional)",
         "stop_service_help": "Opcional. Servicio que HASI llama para cerrar la válvula cuando detienes la zona antes de tiempo, antes de que expire su propio temporizador. Déjalo vacío si la válvula no se puede detener manualmente.",
+        "confirm_entity": "Entidad de confirmación (opcional)",
+        "confirm_entity_help": "Opcional. La entidad real de válvula/interruptor que acciona el servicio de inicio (p. ej. un valve o un switch): mantiene un estado encendido estable mientras se riega. Si se define, HASI verifica la apertura contra ella (solo consulta, nunca vuelve a accionarla) y señala un problema, además de omitir la acreditación del cubo, si nunca se enciende. Déjala vacía para tratar la ejecución como de solo escritura y acreditar de forma optimista (el cierre corre a cargo del hardware). En caso de duda, déjala vacía: solo ayuda con una entidad que informe su estado encendido de forma fiable; una válvula que informa con retraso (p. ej. una válvula Zigbee dormilona) podría leerse como 'off' y omitir la acreditación por error, de modo que la zona volvería a regar en la próxima ejecución. NO la apuntes al propio script de inicio: un script de tipo «dispara y olvida» no es una señal de estado válida.",
         "plant_type": "Tipo de planta",
         "kc": "Coeficiente de cultivo (Kc)",
         "plant_types": {
