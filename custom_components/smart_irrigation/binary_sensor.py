@@ -168,6 +168,11 @@ class SmartIrrigationZoneWateringNowSensor(SmartIrrigationZoneBinarySensor):
     def __init__(self, hass: HomeAssistant, entity_id: str, zone: dict) -> None:
         """Initialize and prepare the linked-entity subscription."""
         self._unsub_linked = None
+        # Initialise here so a zone with no linked entity (service / self-closing
+        # mode) still has the attribute: _update_from_zone only assigns it inside
+        # its change-guard, which is skipped when the value stays None, and
+        # async_added_to_hass -> _resubscribe reads it on add.
+        self._linked_entity = None
         super().__init__(hass, entity_id, zone)
 
     def _update_from_zone(self, zone: dict) -> None:
