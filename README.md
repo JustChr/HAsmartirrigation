@@ -29,6 +29,7 @@ This integration calculates how long to run your irrigation system to compensate
 - **Irrigate Now** — trigger immediate irrigation from the dashboard (all zones or per zone), bypassing skip conditions
 - **Recurring schedules** — create daily/weekly/monthly/interval irrigation schedules entirely from the UI (**Setup → When to Water**) — no automations needed
 - **Skip conditions** — skip irrigation based on forecasted rain (with a configurable forecast look-ahead window), low temperature, high wind speed, or a rain sensor
+- **Soil-moisture veto** — give a zone a soil-moisture sensor and a threshold; an automatic run skips that zone while it reads wet (a per-zone skip gate, never an ET input)
 - Enforces a configurable minimum number of days between irrigation events
 - Still fires HA events for power users who prefer automation-based control
 
@@ -102,6 +103,12 @@ If a pump or main valve must be powered before any zone can water, configure a *
 The master applies to every path (scheduled, "Irrigate Now", and manual runs), for both classic and self-closing zones.
 
 > **Crash caveat:** with "turn off after" enabled, an HA outage after the master turns on but before the scheduled off leaves the master on — a non-self-protecting pump could dead-head or run dry. HASI can't prevent this alone; the master device must carry its own protection (dry-run cutoff, max-on timer). This is exactly why "turn off after" is optional — a self-monitoring pump omits it and carries no crash exposure.
+
+## Soil-moisture veto (skip when wet)
+
+Give a zone a soil-moisture sensor and a threshold under **Setup → My Zones → (zone)**. On an **automatic** (scheduled) run, if the sensor reads **above** the threshold, HASI **skips that zone** and resets its bucket to 0 (re-anchored to field capacity). Manual *Irrigate Now* always waters, and an unavailable or non-numeric sensor never blocks watering (fail-open).
+
+Soil moisture is used **only as a skip gate — never as an ET input**, so the water-balance model is unchanged. The sensor picker is restricted to `device_class: moisture`. Each skip fires a `smart_irrigation_zone_skipped` event, shows a dashboard chip, and is recorded in the zone's run history. See [My Zones → Soil-moisture veto](docs/configuration-my-zones.md#soil-moisture-veto).
 
 ## Installation
 
