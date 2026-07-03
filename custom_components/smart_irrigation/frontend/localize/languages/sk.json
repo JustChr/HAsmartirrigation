@@ -374,6 +374,10 @@
         "stop_service_help": "Voliteľné. Služba, ktorú HASI zavolá na zatvorenie ventilu, keď zónu zastavíte skôr, pred vypršaním jej vlastného časovača. Nechajte prázdne, ak ventil nie je možné zastaviť manuálne.",
         "confirm_entity": "Overovacia entita (voliteľné)",
         "confirm_entity_help": "Voliteľné. Skutočná entita ventilu/prepínača, ktorú ovláda služba spustenia (napr. ventil alebo prepínač) — počas zavlažovania drží stabilný zapnutý stav. Ak je nastavená, HASI proti nej overuje otvorenie (iba dotazovaním, nikdy ju znova neaktivuje) a nahlási problém plus preskočí pripísanie do vedra, ak sa nikdy nezapne. Nechajte prázdne, ak sa má beh považovať len za zápisový a pripisovať optimisticky (zatvorenie má na starosti hardvér). Pri pochybnostiach nechajte prázdne: pomáha to len pri entite, ktorá svoj zapnutý stav hlási spoľahlivo — ventil, ktorý sa hlási oneskorene (napr. utlmený Zigbee ventil), by sa mohol prečítať ako 'off' a pripísanie by sa nesprávne preskočilo, takže zóna by sa pri ďalšom behu zavlažila znova. Neukazujte týmto NA samotný skript spustenia — skript typu spusti-a-zabudni nie je platný signál stavu.",
+        "soil_moisture_sensor": "Senzor vlhkosti pôdy (voliteľné)",
+        "soil_moisture_sensor_help": "Voliteľné. Senzor, ktorý hlási vlhkosť pôdy tejto zóny v percentách (vyššie = vlhkejšie). S prahom nastaveným nižšie automatické zavlažovanie preskočí túto zónu, keď je nameraná hodnota nad prahom, a vynuluje bucket zóny. Nechajte prázdne na vypnutie. Nedostupná alebo nečíselná hodnota nikdy neblokuje zavlažovanie (fail-open).",
+        "soil_moisture_threshold": "Preskočiť nad vlhkosťou pôdy (%)",
+        "soil_moisture_threshold_help": "Pri automatickom zavlažovaní preskočiť túto zónu (a vynulovať jej bucket), keď senzor vlhkosti pôdy prekročí striktne toto percento. Vyžaduje senzor vlhkosti pôdy nastavený vyššie. Týka sa iba naplánovaných behov; manuálne behy vždy zavlažujú.",
         "plant_type": "Typ rastliny",
         "kc": "Plodinový koeficient (Kc)",
         "plant_types": {
@@ -427,6 +431,10 @@
         "flow_never_started": "Nezistil sa žiadny prietok — voda nebola dodaná, takže zostatok ostal nezmenený.",
         "generic": "Posledné zavlažovanie zlyhalo."
       },
+      "skip": {
+        "title": "Preskočené",
+        "soil_moisture": "Vlhkosť pôdy {observed} % > {threshold} %"
+      },
       "help": {
         "bucket": "Bilancia vlhkosti pôdy (vedro). Záporná hodnota znamená, že pôda je suchá a zóna potrebuje vodu.",
         "calculate": "Vypočíta dĺžku zavlažovania z najnovších údajov. Spustite po Aktualizovať.",
@@ -464,7 +472,8 @@
           "wind": "Silný vietor",
           "rain_sensor": "Senzor dažďa",
           "freeze": "Mráz",
-          "paused": "Pozastavené (oneskorenie pre dážď)"
+          "paused": "Pozastavené (oneskorenie pre dážď)",
+          "soil_moisture": "Vlhkosť pôdy"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

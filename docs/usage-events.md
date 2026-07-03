@@ -18,6 +18,7 @@ The integration fires the following Home Assistant events:
 |`smart_irrigation_irrigation_started`|When a [self-closing](configuration-my-zones.md#watering-mode) zone starts a run (scheduled or manual). Carries the zone(s) with `zone_id`, `zone` (name) and `seconds`.|
 |`smart_irrigation_irrigation_finished`|When a self-closing run completes. Carries the zone(s) with `zone_id`, `zone` and the resulting `bucket`.|
 |`smart_irrigation_zone_problem`|When a self-closing zone's valve did not confirm open (e.g. the run service reported no state). Carries `zone_id`, `zone`, `entity_id` and a `reason`.|
+|`smart_irrigation_zone_skipped`|When a zone is skipped on an automatic run because its [soil-moisture sensor](configuration-my-zones.md#soil-moisture-veto) reads wetter than the zone's threshold. Carries `zone_id`, `zone` (name), `entity_id` (the sensor), `reason` (`soil_moisture`), `observed` and `threshold`. The zone's bucket is reset to 0 at the same time. Listen to this to log/audit skips (e.g. write to InfluxDB).|
 
 > The `irrigation_started` / `irrigation_finished` events let you drive a pump, a light or a notification from your own automation. If you only need a pump powered before watering, the built-in [pump / master switch](configuration-when-to-water.md#master-switch) usually removes the need for a custom automation.
 

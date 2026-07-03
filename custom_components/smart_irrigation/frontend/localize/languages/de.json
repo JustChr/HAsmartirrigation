@@ -374,6 +374,10 @@
         "stop_service_help": "Optional. Service, den HASI aufruft, um das Ventil zu schließen, wenn du den Lauf vorzeitig stoppst — bevor der eigene Timer abläuft. Leer lassen, wenn das Ventil nicht manuell gestoppt werden kann.",
         "confirm_entity": "Bestätigungs-Entität (optional)",
         "confirm_entity_help": "Optional. Die echte Ventil-/Schalter-Entität, die der Start-Service ansteuert (z. B. ein valve oder switch) — sie hält während der Bewässerung einen stabilen An-Zustand. Wenn gesetzt, prüft HASI das Öffnen dagegen (nur Polling, es aktuiert nie neu) und meldet ein Problem plus überspringt die Bucket-Gutschrift, falls sie nie angeht. Leer lassen, um den Lauf als write-only zu behandeln und optimistisch gutzuschreiben (die Hardware besitzt den Close). Im Zweifel leer lassen: Es hilft nur bei einer Entität, die ihren An-Zustand zuverlässig meldet — ein spät meldendes (z. B. träges Zigbee-)Ventil könnte als 'off' gewertet werden und die Gutschrift fälschlich überspringen, sodass die Zone beim nächsten Lauf erneut wässert. Zeige hier NICHT auf das Start-Skript selbst — ein fire-and-forget-Skript ist kein gültiges Zustandssignal.",
+        "soil_moisture_sensor": "Bodenfeuchte-Sensor (optional)",
+        "soil_moisture_sensor_help": "Optional. Ein Sensor, der die Bodenfeuchte dieser Zone in Prozent meldet (höher = feuchter). Mit einer Schwelle unten überspringt ein automatischer Lauf diese Zone, sobald der Messwert über der Schwelle liegt, und setzt den Bucket der Zone zurück. Leer lassen zum Deaktivieren. Ein nicht verfügbarer oder nicht-numerischer Messwert blockiert die Bewässerung nie (Fail-Open).",
+        "soil_moisture_threshold": "Überspringen ab Bodenfeuchte (%)",
+        "soil_moisture_threshold_help": "Bei einem automatischen Lauf diese Zone überspringen (und den Bucket auf 0 zurücksetzen), wenn der Bodenfeuchte-Sensor echt über diesem Prozentwert liegt. Erfordert einen oben gesetzten Bodenfeuchte-Sensor. Betrifft nur geplante Läufe; manuelle Läufe wässern immer.",
         "plant_type": "Pflanzentyp",
         "kc": "Pflanzenkoeffizient (Kc)",
         "plant_types": {
@@ -427,6 +431,10 @@
         "flow_never_started": "Kein Durchfluss erkannt — es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
         "generic": "Der letzte Bewässerungslauf ist fehlgeschlagen."
       },
+      "skip": {
+        "title": "Übersprungen",
+        "soil_moisture": "Bodenfeuchte {observed} % > {threshold} %"
+      },
       "help": {
         "bucket": "Bodenfeuchte-Bilanz (Vorrat). Ein negativer Wert bedeutet, dass der Boden trocken ist und die Zone Wasser braucht.",
         "calculate": "Berechnet aus den neuesten Daten, wie lange bewässert wird. Nach dem Aktualisieren ausführen.",
@@ -464,7 +472,8 @@
           "wind": "Starker Wind",
           "rain_sensor": "Regensensor",
           "freeze": "Frost",
-          "paused": "Pausiert (Regenverzögerung)"
+          "paused": "Pausiert (Regenverzögerung)",
+          "soil_moisture": "Bodenfeuchte"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

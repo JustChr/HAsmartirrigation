@@ -96,6 +96,9 @@ CONF_DEFAULT_RAIN_DELAY_UNTIL = None
 # Run-log / skip detail token recorded when a scheduled run is held back by the
 # rain delay (surfaced in the run history + outlook like the other skip ids).
 SKIP_REASON_PAUSED = "paused"
+# Run-log / skip token recorded when a zone is skipped because its soil-moisture
+# sensor reads wetter than the zone's threshold (per-zone, automatic path only).
+SKIP_REASON_SOIL_MOISTURE = "soil_moisture"
 
 # Days between irrigation configuration
 CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation"
@@ -543,6 +546,12 @@ ZONE_STOP_DATA = "stop_data"  # optional static dict for the stop call
 # re-actuation); when unset, the service run is treated as write-only and credited
 # optimistically. The momentary run_service script is NOT a valid liveness signal.
 ZONE_CONFIRM_ENTITY = "confirm_entity"
+# Optional soil-moisture sensor (per zone) + wet threshold. When both are set,
+# an AUTOMATIC run skips the zone while the sensor reads strictly above the
+# threshold (higher % = wetter), and resets the zone's bucket to 0. Skip-only:
+# soil moisture is never an ET input. Unavailable/non-numeric reading = fail-open.
+ZONE_SOIL_MOISTURE_SENSOR = "soil_moisture_sensor"
+ZONE_SOIL_MOISTURE_THRESHOLD = "soil_moisture_threshold"
 
 DURATION_UNIT_SECONDS = "seconds"
 DURATION_UNIT_MINUTES = "minutes"
@@ -561,6 +570,8 @@ RUN_CREDITED = "credited"
 EVENT_IRRIGATE_STARTED = "irrigation_started"
 EVENT_IRRIGATE_FINISHED = "irrigation_finished"
 EVENT_ZONE_PROBLEM = "zone_problem"
+EVENT_ZONE_SKIPPED = "zone_skipped"  # per-zone soil-moisture veto (carries
+# zone_id, zone, entity_id, reason, observed, threshold)
 
 # --- Master switch / pump control (instance-level, fully optional) ----------
 CONF_MASTER_ENTITY = "master_entity"  # switch/valve/input_boolean, or None

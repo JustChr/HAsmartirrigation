@@ -375,6 +375,10 @@
         "stop_service_help": "Valgfritt. Tjenesten HASI kaller for å lukke ventilen når du stopper sonen tidlig, før dens egen tidtaker utløper. La stå tom hvis ventilen ikke kan stoppes manuelt.",
         "confirm_entity": "Bekreftelses-entitet (valgfritt)",
         "confirm_entity_help": "Valgfritt. Den ekte ventil-/bryter-entiteten som kjøretjenesten styrer (f.eks. en valve eller switch) — den holder en stabil på-tilstand mens det vannes. Hvis satt, verifiserer HASI åpningen mot den (kun polling, den aktiverer aldri på nytt) og flagger et problem samt hopper over bøtte-krediteringen hvis den aldri slår seg på. La stå tom for å behandle kjøringen som skrivebare (write-only) og kreditere optimistisk (maskinvaren eier lukkingen). Er du i tvil, la den stå tom: den hjelper bare med en entitet som melder på-tilstanden sin pålitelig — en ventil som melder sent (f.eks. en treg Zigbee-ventil) kan leses som 'off' og feilaktig hoppe over krediteringen, slik at sonen ville vannet igjen ved neste kjøring. Pek IKKE denne mot selve kjørescriptet — et fire-and-forget-script er ikke et gyldig tilstandssignal.",
+        "soil_moisture_sensor": "Jordfuktighetssensor (valgfritt)",
+        "soil_moisture_sensor_help": "Valgfritt. En sensor som rapporterer jordfuktigheten for denne sonen i prosent (høyere = våtere). Med en terskel satt nedenfor hopper en automatisk vanning over denne sonen når avlesningen er over terskelen, og nullstiller sonens bucket. La stå tom for å deaktivere. En utilgjengelig eller ikke-numerisk avlesning blokkerer aldri vanning (fail-open).",
+        "soil_moisture_threshold": "Hopp over ved jordfuktighet (%)",
+        "soil_moisture_threshold_help": "Ved en automatisk vanning hoppes denne sonen over (og bucket nullstilles) når jordfuktighetssensoren er strengt over denne prosenten. Krever en jordfuktighetssensor satt ovenfor. Påvirker bare planlagte vanninger; manuelle vanninger vanner alltid.",
         "plant_type": "Plantetype",
         "kc": "Plantekoeffisient (Kc)",
         "plant_types": {
@@ -428,6 +432,10 @@
         "flow_never_started": "Ingen gjennomstrømning oppdaget — det ble ikke gitt vann, så vannbalansen er uendret.",
         "generic": "Siste vanningskjøring mislyktes."
       },
+      "skip": {
+        "title": "Hoppet over",
+        "soil_moisture": "Jordfuktighet {observed} % > {threshold} %"
+      },
       "help": {
         "bucket": "Jordfuktighetsbalanse (bøtte). En negativ verdi betyr at jorda er tørr og sonen trenger vann.",
         "calculate": "Beregner hvor lenge det skal vannes ut fra de nyeste dataene. Kjør dette etter Oppdater.",
@@ -465,7 +473,8 @@
           "wind": "Sterk vind",
           "rain_sensor": "Regnsensor",
           "freeze": "Frost",
-          "paused": "På pause (regnforsinkelse)"
+          "paused": "På pause (regnforsinkelse)",
+          "soil_moisture": "Jordfuktighet"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

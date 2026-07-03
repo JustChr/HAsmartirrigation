@@ -29,6 +29,7 @@ import {
   SkipCheck,
   ZoneEstimate,
   ZoneFault,
+  ZoneSkip,
   ActiveRun,
 } from "../../types";
 import {
@@ -846,6 +847,41 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     `;
   }
 
+  private _zoneSkip(zone: SmartIrrigationZone): ZoneSkip | undefined {
+    if (zone.id === undefined) return undefined;
+    return this._outlook?.zone_skips?.[String(zone.id)];
+  }
+
+  /**
+   * Info chip when this zone was skipped on its last automatic run because its
+   * soil-moisture sensor read wetter than the threshold. The bucket was reset
+   * to 0 (re-anchored to field capacity) at the same time.
+   */
+  private _renderZoneSkip(zone: SmartIrrigationZone): TemplateResult {
+    if (!this.hass) return html``;
+    const skip = this._zoneSkip(zone);
+    if (!skip) return html``;
+    const lang = this.hass.language;
+    const detail = localize(
+      "panels.zones.skip.soil_moisture",
+      lang,
+      "{observed}",
+      String(skip.observed),
+      "{threshold}",
+      String(skip.threshold),
+    );
+    const since = skip.timestamp ? formatDateTime(skip.timestamp) : "";
+    return html`
+      <div class="zone-skip" title="${since}">
+        <ha-icon icon="mdi:water-off"></ha-icon>
+        <span>
+          <strong>${localize("panels.zones.skip.title", lang)}</strong>
+          — ${detail}
+        </span>
+      </div>
+    `;
+  }
+
   /**
    * Read-only "live" deficit estimate chip for the status line. Distinct from
    * the official bucket (which drives irrigation) — this just shows the
@@ -941,6 +977,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
         <!-- RUN FAULT (e.g. valve didn't open) -->
         ${this._renderZoneFault(zone)}
+
+        <!-- SOIL-MOISTURE SKIP (wet-veto) -->
+        ${this._renderZoneSkip(zone)}
 
         <!-- AT-A-GLANCE DECISION -->
         ${this._renderZoneDecision(zone)}
@@ -1422,6 +1461,27 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       }
 
       .zone-fault ha-icon {
+        flex-shrink: 0;
+        --mdc-icon-size: 22px;
+      }
+
+      /* Soil-moisture skip — informational, not an error. Same shape as the
+         fault banner but a calm, muted blue tone (a skip is intended). */
+      .zone-skip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 16px 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        line-height: 1.35;
+        background: rgba(var(--rgb-info-color, 3, 169, 244), 0.1);
+        color: var(--info-color, var(--primary-color, #039be5));
+        border-left: 4px solid var(--info-color, var(--primary-color, #039be5));
+      }
+
+      .zone-skip ha-icon {
         flex-shrink: 0;
         --mdc-icon-size: 22px;
       }

@@ -182,6 +182,15 @@ export interface ZoneFault {
   timestamp: string;
 }
 
+/** A zone skipped on its last automatic run because it read wet (soil-veto). */
+export interface ZoneSkip {
+  reason: string;
+  observed: number;
+  threshold: number;
+  entity_id: string;
+  timestamp: string;
+}
+
 /** One entry of a zone's bounded run history (newest first). */
 export interface RunLogEntry {
   ts: string;
@@ -208,6 +217,7 @@ export interface IrrigationOutlook {
   upcoming_runs: UpcomingRun[];
   zone_estimates?: Record<string, ZoneEstimate>;
   zone_faults?: Record<string, ZoneFault>;
+  zone_skips?: Record<string, ZoneSkip>;
   // In-progress runs keyed by zone id (string). Surfaces the Stop control +
   // a live countdown while a zone is watering.
   active_runs?: Record<string, ActiveRun>;
@@ -270,6 +280,8 @@ export class SmartIrrigationZone {
   duration_unit?: string;
   stop_service?: string;
   confirm_entity?: string | null;
+  soil_moisture_sensor?: string | null;
+  soil_moisture_threshold?: number | null;
   water_used_total?: number;
   run_log?: RunLogEntry[];
 

@@ -144,6 +144,8 @@ export const ZONE_DURATION_FIELD = "duration_field";
 export const ZONE_DURATION_UNIT = "duration_unit";
 export const ZONE_STOP_SERVICE = "stop_service";
 export const ZONE_CONFIRM_ENTITY = "confirm_entity";
+export const ZONE_SOIL_MOISTURE_SENSOR = "soil_moisture_sensor";
+export const ZONE_SOIL_MOISTURE_THRESHOLD = "soil_moisture_threshold";
 
 // Plant-type presets → mid-season Kc (relative to grass reference ET0). The
 // stored value is still the plain ``kc`` number; "custom" lets it be hand-set.

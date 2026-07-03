@@ -374,6 +374,10 @@
         "stop_service_help": "Optioneel. Service die HASI aanroept om de klep te sluiten wanneer je de zone vroegtijdig stopt, voordat de eigen timer verloopt. Laat leeg als de klep niet handmatig kan worden gestopt.",
         "confirm_entity": "Bevestigingsentiteit (optioneel)",
         "confirm_entity_help": "Optioneel. De echte klep-/schakelaarentiteit die de startservice aanstuurt (bijv. een valve of switch) — deze houdt tijdens het bewateren een stabiele aan-toestand vast. Indien ingesteld, controleert HASI het openen daaraan af (alleen pollen, het stuurt nooit opnieuw aan) en meldt een probleem plus slaat de emmerbijschrijving over als de entiteit nooit aangaat. Laat leeg om de beurt als write-only te behandelen en optimistisch bij te schrijven (de hardware regelt zelf het sluiten). Laat het bij twijfel leeg: het helpt alleen bij een entiteit die haar aan-toestand betrouwbaar meldt — een klep die te laat meldt (bijv. een trage Zigbee-klep) kan als 'off' worden gelezen en de bijschrijving ten onrechte overslaan, waardoor de zone bij de volgende beurt opnieuw water zou geven. Wijs hiervoor NIET naar het startscript zelf — een fire-and-forget-script is geen geldig toestandssignaal.",
+        "soil_moisture_sensor": "Bodemvochtsensor (optioneel)",
+        "soil_moisture_sensor_help": "Optioneel. Een sensor die het bodemvocht van deze zone in procenten meldt (hoger = natter). Met een drempel hieronder slaat een automatische beurt deze zone over wanneer de meting boven de drempel ligt, en reset de bucket van de zone. Leeg laten om uit te schakelen. Een onbeschikbare of niet-numerieke meting blokkeert het bewateren nooit (fail-open).",
+        "soil_moisture_threshold": "Overslaan boven bodemvocht (%)",
+        "soil_moisture_threshold_help": "Bij een automatische beurt deze zone overslaan (en de bucket op 0 zetten) wanneer de bodemvochtsensor strikt boven dit percentage meet. Vereist een hierboven ingestelde bodemvochtsensor. Geldt alleen voor geplande beurten; handmatige beurten bewateren altijd.",
         "plant_type": "Plantentype",
         "kc": "Gewascoëfficiënt (Kc)",
         "plant_types": {
@@ -427,6 +431,10 @@
         "flow_never_started": "Geen doorstroming gedetecteerd — er is geen water gegeven, dus de balans bleef ongewijzigd.",
         "generic": "De laatste irrigatierun is mislukt."
       },
+      "skip": {
+        "title": "Overgeslagen",
+        "soil_moisture": "Bodemvocht {observed} % > {threshold} %"
+      },
       "help": {
         "bucket": "Bodemvochtbalans (voorraad). Een negatieve waarde betekent dat de bodem droog is en de zone water nodig heeft.",
         "calculate": "Berekent op basis van de nieuwste gegevens hoe lang er bewaterd wordt. Voer dit uit na Bijwerken.",
@@ -464,7 +472,8 @@
           "wind": "Harde wind",
           "rain_sensor": "Regensensor",
           "freeze": "Vorst",
-          "paused": "Gepauzeerd (regenvertraging)"
+          "paused": "Gepauzeerd (regenvertraging)",
+          "soil_moisture": "Bodemvocht"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

@@ -375,6 +375,10 @@
         "stop_service_help": "Opcional. Servicio que HASI llama para cerrar la válvula cuando detienes la zona antes de tiempo, antes de que expire su propio temporizador. Déjalo vacío si la válvula no se puede detener manualmente.",
         "confirm_entity": "Entidad de confirmación (opcional)",
         "confirm_entity_help": "Opcional. La entidad real de válvula/interruptor que acciona el servicio de inicio (p. ej. un valve o un switch): mantiene un estado encendido estable mientras se riega. Si se define, HASI verifica la apertura contra ella (solo consulta, nunca vuelve a accionarla) y señala un problema, además de omitir la acreditación del cubo, si nunca se enciende. Déjala vacía para tratar la ejecución como de solo escritura y acreditar de forma optimista (el cierre corre a cargo del hardware). En caso de duda, déjala vacía: solo ayuda con una entidad que informe su estado encendido de forma fiable; una válvula que informa con retraso (p. ej. una válvula Zigbee dormilona) podría leerse como 'off' y omitir la acreditación por error, de modo que la zona volvería a regar en la próxima ejecución. NO la apuntes al propio script de inicio: un script de tipo «dispara y olvida» no es una señal de estado válida.",
+        "soil_moisture_sensor": "Sensor de humedad del suelo (opcional)",
+        "soil_moisture_sensor_help": "Opcional. Un sensor que informa la humedad del suelo de esta zona en porcentaje (mayor = más húmedo). Con un umbral definido abajo, un riego automático omite esta zona cuando la lectura supera el umbral y reinicia el bucket de la zona. Déjalo vacío para desactivarlo. Una lectura no disponible o no numérica nunca bloquea el riego (fail-open).",
+        "soil_moisture_threshold": "Omitir por encima de humedad del suelo (%)",
+        "soil_moisture_threshold_help": "En un riego automático, omite esta zona (y reinicia su bucket a 0) cuando el sensor de humedad del suelo supera estrictamente este porcentaje. Requiere un sensor de humedad del suelo definido arriba. Solo afecta a los riegos programados; los manuales siempre riegan.",
         "plant_type": "Tipo de planta",
         "kc": "Coeficiente de cultivo (Kc)",
         "plant_types": {
@@ -428,6 +432,10 @@
         "flow_never_started": "No se detectó flujo — no se suministró agua, por lo que el balance no cambió.",
         "generic": "La última ejecución de riego falló."
       },
+      "skip": {
+        "title": "Omitido",
+        "soil_moisture": "Humedad del suelo {observed} % > {threshold} %"
+      },
       "help": {
         "bucket": "Balance de humedad del suelo (cubo). Un valor negativo significa que el suelo está seco y la zona necesita agua.",
         "calculate": "Calcula cuánto tiempo regar a partir de los últimos datos. Ejecútalo después de Actualizar.",
@@ -465,7 +473,8 @@
           "wind": "Viento fuerte",
           "rain_sensor": "Sensor de lluvia",
           "freeze": "Helada",
-          "paused": "En pausa (retraso por lluvia)"
+          "paused": "En pausa (retraso por lluvia)",
+          "soil_moisture": "Humedad del suelo"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

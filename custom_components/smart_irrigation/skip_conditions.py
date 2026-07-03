@@ -101,6 +101,9 @@ class SkipConditionsMixin:
         # Per-zone run faults (WS-1): keyed by zone id (string) so the dashboard
         # can flag a zone whose last run failed (e.g. the valve never opened).
         faults = {str(zid): f for zid, f in self.get_zone_faults().items()}
+        # Per-zone soil-moisture skips (soil-veto): keyed by zone id (string) so
+        # the dashboard can flag *why* a zone did not water on the last run.
+        skips = {str(zid): s for zid, s in self.get_zone_skips().items()}
         return {
             "weather_service_enabled": bool(
                 config.get(
@@ -113,6 +116,7 @@ class SkipConditionsMixin:
             "upcoming_runs": upcoming,
             "zone_estimates": zone_estimates,
             "zone_faults": faults,
+            "zone_skips": skips,
             # In-progress runs keyed by zone id (string): {started_at, ends_at}.
             # ends_at is null for flow-metered (volume-bounded) runs. Lets the
             # dashboard show a Stop control + a live countdown while a zone waters.

@@ -218,6 +218,10 @@ class ZoneEntry:
     # Optional entity reflecting the real valve/switch state for liveness confirm
     # (poll-only); None = write-only service run, credited optimistically.
     confirm_entity = attr.ib(type=str, default=None)
+    # Optional per-zone soil-moisture wet-veto: sensor entity (% moisture, higher
+    # = wetter) + threshold. Both None = feature off. See _apply_soil_moisture_veto.
+    soil_moisture_sensor = attr.ib(type=str, default=None)
+    soil_moisture_threshold = attr.ib(type=float, default=None)
 
 
 @attr.s(slots=True, frozen=True)
@@ -699,6 +703,10 @@ class SmartIrrigationStorage:
                         stop_service=zone.get("stop_service", None),
                         stop_data=zone.get("stop_data", {}) or {},
                         confirm_entity=zone.get("confirm_entity", None),
+                        soil_moisture_sensor=zone.get("soil_moisture_sensor", None),
+                        soil_moisture_threshold=zone.get(
+                            "soil_moisture_threshold", None
+                        ),
                     )
             if "modules" in data:
                 for module in data["modules"]:

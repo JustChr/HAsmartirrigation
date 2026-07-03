@@ -9,6 +9,7 @@ the rotating / sequential / parallel strategies based on config.
 
 import asyncio
 import logging
+import math
 from datetime import timedelta
 
 import homeassistant.util.dt as dt_util
@@ -264,6 +265,127 @@ class IrrigationRunnerMixin:
         """Return the full ``{zone_id: {reason, timestamp}}`` fault map."""
         return dict(getattr(self, "_zone_faults", None) or {})
 
+    # --- Per-zone soil-moisture wet-veto (skip condition) ------------------
+
+    def _set_zone_skip(self, zone_id, entity_id, observed, threshold) -> None:
+        """Record that a zone was skipped this run because it read wet.
+
+        In-memory, mirroring ``_zone_faults``; surfaced in the outlook so the
+        dashboard can show *why* the zone did not water. Dispatches
+        ``_update_frontend`` so the panel refreshes without a dedicated WS call.
+        """
+        skips = getattr(self, "_zone_skips", None)
+        if skips is None:
+            skips = self._zone_skips = {}
+        skips[int(zone_id)] = {
+            "reason": const.SKIP_REASON_SOIL_MOISTURE,
+            "observed": observed,
+            "threshold": threshold,
+            "entity_id": entity_id,
+            "timestamp": dt_util.now().isoformat(),
+        }
+        self._notify_skip_listeners(int(zone_id))
+
+    def _clear_zone_skip(self, zone_id) -> None:
+        """Clear any recorded soil-moisture skip for this zone."""
+        skips = getattr(self, "_zone_skips", None)
+        if skips and int(zone_id) in skips:
+            del skips[int(zone_id)]
+            self._notify_skip_listeners(int(zone_id))
+
+    def _notify_skip_listeners(self, zone_id: int) -> None:
+        """Refresh the dashboard outlook after a skip record changes."""
+        async_dispatcher_send(self.hass, const.DOMAIN + "_update_frontend")
+
+    def get_zone_skips(self) -> dict:
+        """Return the full ``{zone_id: {reason, observed, threshold, ...}}`` map."""
+        return dict(getattr(self, "_zone_skips", None) or {})
+
+    async def _apply_soil_moisture_veto(self, zones: list) -> list:
+        """Skip zones whose soil-moisture sensor reads wetter than the threshold.
+
+        Per-zone, AUTOMATIC-path only (the sole caller, ``_irrigate_linked_entities``,
+        is only reached from the scheduler; manual runs bypass it). For each zone
+        with BOTH a configured ``soil_moisture_sensor`` and a numeric
+        ``soil_moisture_threshold``: read the sensor; when the reading is a finite
+        number strictly greater than the threshold (moister than), the zone is
+        vetoed — bucket reset to 0 (re-anchored to field capacity so the open-loop
+        model doesn't later over-water to chase a phantom deficit), a
+        ``zone_skipped`` event fired, the per-zone skip recorded, and the zone
+        dropped from this run. Missing sensor, missing threshold, or an
+        unavailable/non-numeric reading FAIL OPEN (kept, waters per ET): a dead
+        sensor must never silently stop irrigation.
+        """
+        out = []
+        for z in zones:
+            sensor = z.get(const.ZONE_SOIL_MOISTURE_SENSOR)
+            threshold = z.get(const.ZONE_SOIL_MOISTURE_THRESHOLD)
+            if not sensor or threshold is None:
+                out.append(z)  # feature off for this zone
+                continue
+            state = self.hass.states.get(sensor)
+            observed = None
+            if state is not None and state.state not in (
+                "unavailable",
+                "unknown",
+                None,
+                "",
+            ):
+                try:
+                    observed = float(state.state)
+                except (ValueError, TypeError):
+                    observed = None
+            if observed is None or not math.isfinite(observed):
+                # fail-open: unreadable OR non-finite (inf/nan) — a broken sensor
+                # must never veto forever (that would be the fail-closed trap).
+                out.append(z)
+                continue
+            if observed > float(threshold):
+                await self._veto_zone_soil_moisture(
+                    z, sensor, observed, float(threshold)
+                )
+                continue  # dropped from this run
+            self._clear_zone_skip(z.get(const.ZONE_ID))
+            out.append(z)  # dry enough -> water
+        return out
+
+    async def _veto_zone_soil_moisture(self, zone, sensor, observed, threshold) -> None:
+        """Re-anchor the vetoed zone's bucket, fire the event, record the skip."""
+        zone_id = zone.get(const.ZONE_ID)
+        # Reset the bucket to 0 (deficit -> 0, field-capacity anchor) via the same
+        # path as the reset_bucket service; respects maximum_bucket clamping.
+        await self.async_update_zone_config(
+            zone_id=zone_id,
+            data={const.ATTR_SET_BUCKET: {}, const.ATTR_NEW_BUCKET_VALUE: 0},
+        )
+        self._set_zone_skip(zone_id, sensor, observed, threshold)
+        self.hass.bus.async_fire(
+            f"{const.DOMAIN}_{const.EVENT_ZONE_SKIPPED}",
+            {
+                "zone_id": zone_id,
+                "zone": zone.get(const.ZONE_NAME),
+                "entity_id": sensor,
+                "reason": const.SKIP_REASON_SOIL_MOISTURE,
+                "observed": observed,
+                "threshold": threshold,
+            },
+        )
+        _LOGGER.info(
+            "Zone %s skipped: soil moisture %.1f > threshold %.1f; bucket reset to 0",
+            zone_id,
+            observed,
+            threshold,
+        )
+        # Persist a per-zone "skipped" entry in the run history (Recent runs list),
+        # so the veto is visible and survives restarts — the same run-log mechanism
+        # the rain-delay skip uses. The detail is the reason code, localized by the
+        # frontend history card via panels.zones.outlook.checks.<reason>.
+        await self._record_run(
+            zone_id,
+            result=const.RUN_RESULT_SKIPPED,
+            detail=const.SKIP_REASON_SOIL_MOISTURE,
+        )
+
     async def _confirm_valve_running(self, zone_id, entity_id, retry: bool = True):
         """Confirm a freshly-opened linked entity actually reports an on-state.
 
@@ -358,6 +480,14 @@ class IrrigationRunnerMixin:
                 self._rain_delay_until_dt(),
             )
             await self._record_skipped_run(zone_ids, const.SKIP_REASON_PAUSED)
+            return
+
+        # Per-zone soil-moisture wet-veto: drop zones already wet enough (and
+        # re-anchor their bucket). Automatic path only — manual runs never reach
+        # here. Fail-open on an unreadable sensor.
+        zones_to_irrigate = await self._apply_soil_moisture_veto(zones_to_irrigate)
+        if not zones_to_irrigate:
+            _LOGGER.debug("Soil-moisture veto left no zones needing water")
             return
 
         zones_to_irrigate = await self._apply_live_durations(zones_to_irrigate)

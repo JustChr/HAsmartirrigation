@@ -510,6 +510,10 @@
         "stop_service_help": "Optional. Service HASI calls to close the valve when you stop the zone early, before its own timer expires. Leave empty if the valve cannot be stopped manually.",
         "confirm_entity": "Confirm entity (optional)",
         "confirm_entity_help": "Optional. The real valve/switch entity the run service drives (e.g. a valve or switch) — it holds a steady on-state while watering. If set, HASI verifies the open against it (poll only, it never re-actuates) and flags a problem plus skips the bucket credit if it never turns on. Leave empty to treat the run as write-only and credit optimistically (the hardware owns the close). When in doubt, leave it empty: it only helps with an entity that reports its on-state reliably — a valve that reports late (e.g. a sleepy Zigbee valve) could be read as 'off' and wrongly skip the credit, so the zone would water again next run. Do NOT point this at the run script itself — a fire-and-forget script is not a valid state signal.",
+        "soil_moisture_sensor": "Soil-moisture sensor (optional)",
+        "soil_moisture_sensor_help": "Optional. A sensor reporting this zone's soil moisture in percent (higher = wetter). With a skip threshold set below, an automatic run skips this zone whenever the reading is above the threshold and resets the zone's bucket. Leave empty to disable. An unavailable or non-numeric reading never blocks watering (fail-open).",
+        "soil_moisture_threshold": "Skip above soil moisture (%)",
+        "soil_moisture_threshold_help": "On an automatic run, skip this zone (and reset its bucket to 0) when the soil-moisture sensor reads strictly above this percentage. Needs a soil-moisture sensor set above. Only affects scheduled runs; manual runs always water.",
         "irrigate_now": "Irrigate Now",
         "bucket_threshold": "Minimum deficit to irrigate",
         "plant_type": "Plant type",
@@ -558,6 +562,10 @@
         "flow_never_started": "No flow was detected — no water was delivered, so the bucket was left unchanged.",
         "generic": "The last irrigation run failed."
       },
+      "skip": {
+        "title": "Skipped",
+        "soil_moisture": "Soil moisture {observed} % > {threshold} %"
+      },
       "help": {
         "bucket": "Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",
         "calculate": "Works out how long to water from the latest data. Run this after Update.",
@@ -595,7 +603,8 @@
           "wind": "High wind",
           "rain_sensor": "Rain sensor",
           "freeze": "Frost",
-          "paused": "Paused (rain delay)"
+          "paused": "Paused (rain delay)",
+          "soil_moisture": "Soil moisture"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

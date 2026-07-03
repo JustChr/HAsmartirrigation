@@ -117,6 +117,34 @@ This means **no automation is needed** to control your valve — the integration
 
 If you prefer to keep using automations, simply leave this field empty and listen for the `smart_irrigation_start_irrigation_all_zones` [event](usage-events.md), which fires whenever an irrigate [schedule](configuration-schedules.md) runs.
 
+### Soil-moisture veto
+
+Two optional per-zone fields let a soil-moisture sensor **skip** a zone that is
+already wet enough — without touching the ET calculation.
+
+- **Soil-moisture sensor** — a sensor reporting this zone's soil moisture in
+  percent (higher = wetter). Leave empty to disable the veto for the zone.
+- **Skip above soil moisture (%)** — the wet threshold.
+
+On an **automatic** (scheduled) run, if the sensor reads **strictly above** the
+threshold, HASI skips that zone and **resets its bucket to 0** (re-anchoring the
+water balance to field capacity). Manual *Irrigate Now* runs always water. If the
+sensor is unavailable or non-numeric, the zone waters normally (fail-open) — a
+dead sensor never silently stops irrigation.
+
+Each skip is recorded in the zone's **run history** ("Recent runs", persisted
+across restarts) as a *skipped* entry, and also fires the
+[`smart_irrigation_zone_skipped`](usage-events.md) event for your own logging.
+
+**Why reset the bucket instead of carrying the deficit?** The bucket is a signed
+water balance (negative = deficit). A measured-wet zone is at field capacity, i.e.
+no deficit — so the balance is re-anchored to 0. Carrying an old modeled deficit
+that the measurement contradicts would make the controller over-water to "catch
+up" once the veto lifts. This matches FAO-56 (root-zone depletion is bounded at
+0 at field capacity), the Extension "checkbook" scheduling method (overwrite the
+book with the field measurement), and every model-based commercial controller
+(Rachio, RainMachine, Spruce all re-anchor toward field capacity on a wet signal).
+
 ### Available actions per zone
 
 On the **Zones** dashboard, each zone card shows an at-a-glance verdict, a one-line status (bucket and when it was last checked), and the everyday action buttons:

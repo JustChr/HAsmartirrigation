@@ -62,6 +62,8 @@ import {
   ZONE_DURATION_UNIT,
   ZONE_STOP_SERVICE,
   ZONE_CONFIRM_ENTITY,
+  ZONE_SOIL_MOISTURE_SENSOR,
+  ZONE_SOIL_MOISTURE_THRESHOLD,
 } from "../../const";
 import "../../components/si-field";
 import "../../components/si-zone-form";
@@ -996,6 +998,66 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                 </ha-settings-row>
               `
             : ""}
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.soil_moisture_sensor",
+                this.hass.language,
+              )}</span
+            >
+            <span slot="description"
+              >${localize(
+                "panels.zones.labels.soil_moisture_sensor_help",
+                this.hass.language,
+              )}</span
+            >
+            <ha-entity-picker
+              .hass="${this.hass}"
+              .value="${zone.soil_moisture_sensor || ""}"
+              .includeDomains="${["sensor"]}"
+              .includeDeviceClasses="${["moisture"]}"
+              allow-custom-entity
+              @value-changed="${(e: CustomEvent) =>
+                this.handleEditZone(index, {
+                  ...zone,
+                  [ZONE_SOIL_MOISTURE_SENSOR]: e.detail.value || null,
+                })}"
+            ></ha-entity-picker>
+          </ha-settings-row>
+
+          <ha-settings-row>
+            <span slot="heading"
+              >${localize(
+                "panels.zones.labels.soil_moisture_threshold",
+                this.hass.language,
+              )}</span
+            >
+            <span slot="description"
+              >${localize(
+                "panels.zones.labels.soil_moisture_threshold_help",
+                this.hass.language,
+              )}</span
+            >
+            <input
+              type="number"
+              class="settings-input shortfield"
+              step="1"
+              min="0"
+              max="100"
+              inputmode="decimal"
+              .value="${zone.soil_moisture_threshold ?? ""}"
+              @input="${(e: Event) => {
+                const raw = (e.target as HTMLInputElement).value;
+                const v = raw === "" ? null : Number(raw);
+                this.handleEditZone(index, {
+                  ...zone,
+                  [ZONE_SOIL_MOISTURE_THRESHOLD]:
+                    v === null || isNaN(v) ? null : v,
+                });
+              }}"
+            />
+          </ha-settings-row>
 
           <ha-settings-row>
             <span slot="heading"
