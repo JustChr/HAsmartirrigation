@@ -91,7 +91,12 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   private isLoading = true;
 
   private _initialLoadDone = false;
-  private _scrolledToTarget = false;
+  private _scrolledTo: number | null = null;
+
+  // Zone ids whose settings are expanded. Empty = all collapsed (default) so a
+  // long list stays scannable; a deep link from the dashboard gear expands its
+  // target. See renderZone() / updated().
+  @state() private _expanded = new Set<number>();
 
   @property({ type: Boolean })
   private isSaving = false;
@@ -144,6 +149,17 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
     return z != null && z !== "" ? Number(z) : null;
   }
 
+  private _isExpanded(zone: SmartIrrigationZone): boolean {
+    return zone.id !== undefined && this._expanded.has(zone.id);
+  }
+
+  private _toggleZone(id: number): void {
+    const next = new Set(this._expanded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    this._expanded = next;
+  }
+
   firstUpdated() {
     loadHaForm()
       .then(() => this._scheduleUpdate())
@@ -154,14 +170,24 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   }
 
   updated() {
-    // Scroll to the deep-linked zone once, after it has rendered.
-    if (this._scrolledToTarget || this.isLoading) return;
+    // Deep link from the dashboard gear: expand the targeted zone and scroll to
+    // it, once. Collapsed siblings keep the layout small and stable, so the
+    // scroll lands reliably — the old always-expanded layout grew under the
+    // in-flight smooth scroll (ha-form upgrading) and dumped it back at the top.
     const target = this._targetZoneId;
-    if (target === null) return;
+    if (target === null || this.isLoading) return;
+    if (this._scrolledTo === target) return;
+    if (!this._expanded.has(target)) {
+      // Expand first; scroll on the next update, once the body has rendered.
+      this._expanded = new Set(this._expanded).add(target);
+      return;
+    }
     const el = this.shadowRoot?.querySelector(`#zone-${target}`);
     if (el) {
-      this._scrolledToTarget = true;
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      this._scrolledTo = target;
+      requestAnimationFrame(() =>
+        el.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
     }
   }
 
@@ -438,810 +464,786 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
 
   private renderZone(zone: SmartIrrigationZone, index: number): TemplateResult {
     if (!this.hass) return html``;
+    const expanded = this._isExpanded(zone);
 
     return html`
       <ha-card id="zone-${zone.id ?? "new"}">
-        <div class="card-header">
+        <div
+          class="card-header zone-toggle"
+          role="button"
+          tabindex="0"
+          aria-expanded="${expanded ? "true" : "false"}"
+          @click="${() => zone.id !== undefined && this._toggleZone(zone.id)}"
+          @keydown="${(e: KeyboardEvent) => {
+            if ((e.key === "Enter" || e.key === " ") && zone.id !== undefined) {
+              e.preventDefault();
+              this._toggleZone(zone.id);
+            }
+          }}"
+        >
           <div class="name">${zone.name}</div>
+          <ha-icon
+            class="zone-chevron"
+            icon="${expanded ? "mdi:chevron-up" : "mdi:chevron-down"}"
+          ></ha-icon>
         </div>
-
-        <!-- Settings shown directly (no longer collapsible — the calendar that
+        ${expanded
+          ? html`
+              <!-- Settings shown directly (no longer collapsible — the calendar that
              used to sit alongside it moved to the Weather & Location tab). -->
-        <div class="card-content zone-settings">
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize("panels.zones.labels.name", this.hass.language)}</span
-            >
-            <input
-              type="text"
-              class="settings-input"
-              .value="${zone.name}"
-              @input="${(e: Event) =>
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_NAME]: (e.target as HTMLInputElement).value,
-                })}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize("panels.zones.labels.size", this.hass.language)}
-              (${output_unit(this.config, ZONE_SIZE)})</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.1"
-              min="0"
-              inputmode="decimal"
-              .value="${parseFloat(zone.size.toFixed(2))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 100,
-                  ) / 100;
-                if (!isNaN(v))
-                  this.handleEditZone(index, { ...zone, [ZONE_SIZE]: v });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize("panels.zones.labels.throughput", this.hass.language)}
-              (${output_unit(this.config, ZONE_THROUGHPUT)})</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.1"
-              min="0"
-              inputmode="decimal"
-              .value="${parseFloat(zone.throughput.toFixed(2))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 100,
-                  ) / 100;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_THROUGHPUT]: v,
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.soil_type",
-                this.hass.language,
-              )}</span
-            >
-            <span slot="description"
-              >${localize(
-                "field_help.zone_soil_type",
-                this.hass.language,
-              )}</span
-            >
-            <select
-              class="settings-input"
-              .value="${live(
-                Object.keys(SOIL_TYPE_DRAINAGE).find(
-                  (s) => SOIL_TYPE_DRAINAGE[s] === zone.drainage_rate,
-                ) ?? "custom",
-              )}"
-              @change="${(e: Event) => {
-                const st = (e.target as HTMLSelectElement).value;
-                if (st !== "custom" && SOIL_TYPE_DRAINAGE[st] !== undefined)
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_DRAINAGE_RATE]: SOIL_TYPE_DRAINAGE[st],
-                  });
-              }}"
-            >
-              <option
-                value="custom"
-                ?selected="${!Object.values(SOIL_TYPE_DRAINAGE).includes(
-                  zone.drainage_rate ?? -1,
-                )}"
-              >
-                ${localize(
-                  "panels.zones.labels.soil_types.custom",
-                  this.hass.language,
-                )}
-              </option>
-              ${Object.keys(SOIL_TYPE_DRAINAGE).map(
-                (st) => html`
-                  <option
-                    value="${st}"
-                    ?selected="${SOIL_TYPE_DRAINAGE[st] === zone.drainage_rate}"
-                  >
-                    ${localize(
-                      `panels.zones.labels.soil_types.${st}`,
-                      this.hass!.language,
-                    )}
-                  </option>
-                `,
-              )}
-            </select>
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.drainage_rate",
-                this.hass.language,
-              )}
-              (${output_unit(this.config, ZONE_DRAINAGE_RATE)})</span
-            >
-            <span slot="description"
-              >${localize(
-                "field_help.zone_drainage_rate",
-                this.hass.language,
-              )}</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.1"
-              min="0"
-              inputmode="decimal"
-              .value="${parseFloat((zone.drainage_rate ?? 0).toFixed(2))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 100,
-                  ) / 100;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_DRAINAGE_RATE]: v,
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.plant_type",
-                this.hass.language,
-              )}</span
-            >
-            <span slot="description"
-              >${localize(
-                "field_help.zone_plant_type",
-                this.hass.language,
-              )}</span
-            >
-            <select
-              class="settings-input"
-              .value="${live(zone.plant_type ?? "custom")}"
-              @change="${(e: Event) => {
-                const pt = (e.target as HTMLSelectElement).value;
-                const next: Partial<SmartIrrigationZone> = {
-                  [ZONE_PLANT_TYPE]: pt,
-                };
-                if (pt !== "custom" && PLANT_TYPE_KC[pt] !== undefined)
-                  next[ZONE_KC] = PLANT_TYPE_KC[pt];
-                this.handleEditZone(index, { ...zone, ...next });
-              }}"
-            >
-              <option
-                value="custom"
-                ?selected="${(zone.plant_type ?? "custom") === "custom"}"
-              >
-                ${localize(
-                  "panels.zones.labels.plant_types.custom",
-                  this.hass.language,
-                )}
-              </option>
-              ${Object.keys(PLANT_TYPE_KC).map(
-                (pt) => html`
-                  <option value="${pt}" ?selected="${zone.plant_type === pt}">
-                    ${localize(
-                      `panels.zones.labels.plant_types.${pt}`,
-                      this.hass!.language,
-                    )}
-                  </option>
-                `,
-              )}
-            </select>
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize("panels.zones.labels.kc", this.hass.language)}</span
-            >
-            <span slot="description"
-              >${localize("field_help.zone_kc", this.hass.language)}</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.05"
-              min="0"
-              inputmode="decimal"
-              .value="${parseFloat((zone.kc ?? 1).toFixed(2))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 100,
-                  ) / 100;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_KC]: v,
-                    [ZONE_PLANT_TYPE]: "custom",
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.state",
-                this.hass.language,
-              )}</span
-            >
-            <select
-              class="settings-input"
-              .value="${live(zone.state)}"
-              @change="${(e: Event) =>
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_STATE]: (e.target as HTMLSelectElement)
-                    .value as SmartIrrigationZoneState,
-                  [ZONE_DURATION]: 0,
-                })}"
-            >
-              <option
-                value="${SmartIrrigationZoneState.Automatic}"
-                ?selected="${zone.state === SmartIrrigationZoneState.Automatic}"
-              >
-                ${localize(
-                  "panels.zones.labels.states.automatic",
-                  this.hass.language,
-                )}
-              </option>
-              <option
-                value="${SmartIrrigationZoneState.Manual}"
-                ?selected="${zone.state === SmartIrrigationZoneState.Manual}"
-              >
-                ${localize(
-                  "panels.zones.labels.states.manual",
-                  this.hass.language,
-                )}
-              </option>
-              <option
-                value="${SmartIrrigationZoneState.Disabled}"
-                ?selected="${zone.state === SmartIrrigationZoneState.Disabled}"
-              >
-                ${localize(
-                  "panels.zones.labels.states.disabled",
-                  this.hass.language,
-                )}
-              </option>
-            </select>
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize("common.labels.module", this.hass.language)}</span
-            >
-            <select
-              class="settings-input"
-              .value="${live(
-                zone.module !== undefined ? String(zone.module) : "",
-              )}"
-              @change="${(e: Event) => {
-                const v = (e.target as HTMLSelectElement).value;
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_MODULE]: v ? parseInt(v) : undefined,
-                });
-              }}"
-            >
-              ${this._renderModuleOptions(zone.module)}
-            </select>
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.mapping",
-                this.hass.language,
-              )}</span
-            >
-            <select
-              class="settings-input"
-              .value="${live(
-                zone.mapping !== undefined ? String(zone.mapping) : "",
-              )}"
-              @change="${(e: Event) => {
-                const v = (e.target as HTMLSelectElement).value;
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_MAPPING]: v ? parseInt(v) : undefined,
-                });
-              }}"
-            >
-              ${this._renderMappingOptions(zone.mapping)}
-            </select>
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.watering_mode",
-                this.hass.language,
-              )}</span
-            >
-            <span slot="description"
-              >${localize(
-                "panels.zones.labels.watering_mode_description",
-                this.hass.language,
-              )}</span
-            >
-            <select
-              class="settings-input"
-              .value="${live(zone.watering_mode ?? "classic")}"
-              @change="${(e: Event) =>
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_WATERING_MODE]: (e.target as HTMLSelectElement).value,
-                })}"
-            >
-              <option
-                value="classic"
-                ?selected="${(zone.watering_mode ?? "classic") === "classic"}"
-              >
-                ${localize(
-                  "panels.zones.labels.watering_modes.classic",
-                  this.hass.language,
-                )}
-              </option>
-              <option
-                value="service"
-                ?selected="${zone.watering_mode === "service"}"
-              >
-                ${localize(
-                  "panels.zones.labels.watering_modes.service",
-                  this.hass.language,
-                )}
-              </option>
-            </select>
-          </ha-settings-row>
-
-          ${zone.watering_mode === "service"
-            ? html`
+              <div class="card-content zone-settings">
                 <ha-settings-row>
                   <span slot="heading"
                     >${localize(
-                      "panels.zones.labels.run_service",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span slot="description"
-                    >${localize(
-                      "panels.zones.labels.run_service_help",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <ha-entity-picker
-                    .hass="${this.hass}"
-                    .value="${zone.run_service || ""}"
-                    .includeDomains="${["script"]}"
-                    allow-custom-entity
-                    @value-changed="${(e: CustomEvent) =>
-                      this.handleEditZone(index, {
-                        ...zone,
-                        [ZONE_RUN_SERVICE]: e.detail.value || null,
-                      })}"
-                  ></ha-entity-picker>
-                </ha-settings-row>
-                <ha-settings-row>
-                  <span slot="heading"
-                    >${localize(
-                      "panels.zones.labels.duration_field",
-                      this.hass.language,
-                    )}</span
-                  >
-                  <span slot="description"
-                    >${localize(
-                      "panels.zones.labels.duration_field_help",
+                      "panels.zones.labels.name",
                       this.hass.language,
                     )}</span
                   >
                   <input
                     type="text"
                     class="settings-input"
-                    placeholder="${localize(
-                      "panels.zones.labels.duration_field_placeholder",
-                      this.hass.language,
-                    )}"
-                    .value="${zone.duration_field || "duration"}"
+                    .value="${zone.name}"
                     @input="${(e: Event) =>
                       this.handleEditZone(index, {
                         ...zone,
-                        [ZONE_DURATION_FIELD]:
-                          (e.target as HTMLInputElement).value || undefined,
+                        [ZONE_NAME]: (e.target as HTMLInputElement).value,
                       })}"
                   />
                 </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize("panels.zones.labels.size", this.hass.language)}
+                    (${output_unit(this.config, ZONE_SIZE)})</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.1"
+                    min="0"
+                    inputmode="decimal"
+                    .value="${parseFloat(zone.size.toFixed(2))}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 100,
+                        ) / 100;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, { ...zone, [ZONE_SIZE]: v });
+                    }}"
+                  />
+                </ha-settings-row>
+
                 <ha-settings-row>
                   <span slot="heading"
                     >${localize(
-                      "panels.zones.labels.duration_unit",
+                      "panels.zones.labels.throughput",
+                      this.hass.language,
+                    )}
+                    (${output_unit(this.config, ZONE_THROUGHPUT)})</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.1"
+                    min="0"
+                    inputmode="decimal"
+                    .value="${parseFloat(zone.throughput.toFixed(2))}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 100,
+                        ) / 100;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_THROUGHPUT]: v,
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.soil_type",
                       this.hass.language,
                     )}</span
                   >
                   <span slot="description"
                     >${localize(
-                      "panels.zones.labels.duration_unit_help",
+                      "field_help.zone_soil_type",
                       this.hass.language,
                     )}</span
                   >
                   <select
                     class="settings-input"
-                    .value="${live(zone.duration_unit ?? "seconds")}"
+                    .value="${live(
+                      Object.keys(SOIL_TYPE_DRAINAGE).find(
+                        (s) => SOIL_TYPE_DRAINAGE[s] === zone.drainage_rate,
+                      ) ?? "custom",
+                    )}"
+                    @change="${(e: Event) => {
+                      const st = (e.target as HTMLSelectElement).value;
+                      if (
+                        st !== "custom" &&
+                        SOIL_TYPE_DRAINAGE[st] !== undefined
+                      )
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_DRAINAGE_RATE]: SOIL_TYPE_DRAINAGE[st],
+                        });
+                    }}"
+                  >
+                    <option
+                      value="custom"
+                      ?selected="${!Object.values(SOIL_TYPE_DRAINAGE).includes(
+                        zone.drainage_rate ?? -1,
+                      )}"
+                    >
+                      ${localize(
+                        "panels.zones.labels.soil_types.custom",
+                        this.hass.language,
+                      )}
+                    </option>
+                    ${Object.keys(SOIL_TYPE_DRAINAGE).map(
+                      (st) => html`
+                        <option
+                          value="${st}"
+                          ?selected="${SOIL_TYPE_DRAINAGE[st] ===
+                          zone.drainage_rate}"
+                        >
+                          ${localize(
+                            `panels.zones.labels.soil_types.${st}`,
+                            this.hass!.language,
+                          )}
+                        </option>
+                      `,
+                    )}
+                  </select>
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.drainage_rate",
+                      this.hass.language,
+                    )}
+                    (${output_unit(this.config, ZONE_DRAINAGE_RATE)})</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "field_help.zone_drainage_rate",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.1"
+                    min="0"
+                    inputmode="decimal"
+                    .value="${parseFloat((zone.drainage_rate ?? 0).toFixed(2))}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 100,
+                        ) / 100;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_DRAINAGE_RATE]: v,
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.plant_type",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "field_help.zone_plant_type",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <select
+                    class="settings-input"
+                    .value="${live(zone.plant_type ?? "custom")}"
+                    @change="${(e: Event) => {
+                      const pt = (e.target as HTMLSelectElement).value;
+                      const next: Partial<SmartIrrigationZone> = {
+                        [ZONE_PLANT_TYPE]: pt,
+                      };
+                      if (pt !== "custom" && PLANT_TYPE_KC[pt] !== undefined)
+                        next[ZONE_KC] = PLANT_TYPE_KC[pt];
+                      this.handleEditZone(index, { ...zone, ...next });
+                    }}"
+                  >
+                    <option
+                      value="custom"
+                      ?selected="${(zone.plant_type ?? "custom") === "custom"}"
+                    >
+                      ${localize(
+                        "panels.zones.labels.plant_types.custom",
+                        this.hass.language,
+                      )}
+                    </option>
+                    ${Object.keys(PLANT_TYPE_KC).map(
+                      (pt) => html`
+                        <option
+                          value="${pt}"
+                          ?selected="${zone.plant_type === pt}"
+                        >
+                          ${localize(
+                            `panels.zones.labels.plant_types.${pt}`,
+                            this.hass!.language,
+                          )}
+                        </option>
+                      `,
+                    )}
+                  </select>
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.kc",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize("field_help.zone_kc", this.hass.language)}</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.05"
+                    min="0"
+                    inputmode="decimal"
+                    .value="${parseFloat((zone.kc ?? 1).toFixed(2))}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 100,
+                        ) / 100;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_KC]: v,
+                          [ZONE_PLANT_TYPE]: "custom",
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.state",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <select
+                    class="settings-input"
+                    .value="${live(zone.state)}"
                     @change="${(e: Event) =>
                       this.handleEditZone(index, {
                         ...zone,
-                        [ZONE_DURATION_UNIT]: (e.target as HTMLSelectElement)
-                          .value,
+                        [ZONE_STATE]: (e.target as HTMLSelectElement)
+                          .value as SmartIrrigationZoneState,
+                        [ZONE_DURATION]: 0,
                       })}"
                   >
                     <option
-                      value="seconds"
-                      ?selected="${(zone.duration_unit ?? "seconds") ===
-                      "seconds"}"
+                      value="${SmartIrrigationZoneState.Automatic}"
+                      ?selected="${zone.state ===
+                      SmartIrrigationZoneState.Automatic}"
                     >
                       ${localize(
-                        "panels.zones.labels.duration_units.seconds",
+                        "panels.zones.labels.states.automatic",
                         this.hass.language,
                       )}
                     </option>
                     <option
-                      value="minutes"
-                      ?selected="${zone.duration_unit === "minutes"}"
+                      value="${SmartIrrigationZoneState.Manual}"
+                      ?selected="${zone.state ===
+                      SmartIrrigationZoneState.Manual}"
                     >
                       ${localize(
-                        "panels.zones.labels.duration_units.minutes",
+                        "panels.zones.labels.states.manual",
+                        this.hass.language,
+                      )}
+                    </option>
+                    <option
+                      value="${SmartIrrigationZoneState.Disabled}"
+                      ?selected="${zone.state ===
+                      SmartIrrigationZoneState.Disabled}"
+                    >
+                      ${localize(
+                        "panels.zones.labels.states.disabled",
                         this.hass.language,
                       )}
                     </option>
                   </select>
                 </ha-settings-row>
+
                 <ha-settings-row>
                   <span slot="heading"
                     >${localize(
-                      "panels.zones.labels.stop_service",
+                      "common.labels.module",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <select
+                    class="settings-input"
+                    .value="${live(
+                      zone.module !== undefined ? String(zone.module) : "",
+                    )}"
+                    @change="${(e: Event) => {
+                      const v = (e.target as HTMLSelectElement).value;
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_MODULE]: v ? parseInt(v) : undefined,
+                      });
+                    }}"
+                  >
+                    ${this._renderModuleOptions(zone.module)}
+                  </select>
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.mapping",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <select
+                    class="settings-input"
+                    .value="${live(
+                      zone.mapping !== undefined ? String(zone.mapping) : "",
+                    )}"
+                    @change="${(e: Event) => {
+                      const v = (e.target as HTMLSelectElement).value;
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_MAPPING]: v ? parseInt(v) : undefined,
+                      });
+                    }}"
+                  >
+                    ${this._renderMappingOptions(zone.mapping)}
+                  </select>
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.watering_mode",
                       this.hass.language,
                     )}</span
                   >
                   <span slot="description"
                     >${localize(
-                      "panels.zones.labels.stop_service_help",
+                      "panels.zones.labels.watering_mode_description",
                       this.hass.language,
                     )}</span
                   >
-                  <ha-entity-picker
-                    .hass="${this.hass}"
-                    .value="${zone.stop_service || ""}"
-                    .includeDomains="${["script"]}"
-                    allow-custom-entity
-                    @value-changed="${(e: CustomEvent) =>
+                  <select
+                    class="settings-input"
+                    .value="${live(zone.watering_mode ?? "classic")}"
+                    @change="${(e: Event) =>
                       this.handleEditZone(index, {
                         ...zone,
-                        [ZONE_STOP_SERVICE]: e.detail.value || null,
+                        [ZONE_WATERING_MODE]: (e.target as HTMLSelectElement)
+                          .value,
                       })}"
-                  ></ha-entity-picker>
+                  >
+                    <option
+                      value="classic"
+                      ?selected="${(zone.watering_mode ?? "classic") ===
+                      "classic"}"
+                    >
+                      ${localize(
+                        "panels.zones.labels.watering_modes.classic",
+                        this.hass.language,
+                      )}
+                    </option>
+                    <option
+                      value="service"
+                      ?selected="${zone.watering_mode === "service"}"
+                    >
+                      ${localize(
+                        "panels.zones.labels.watering_modes.service",
+                        this.hass.language,
+                      )}
+                    </option>
+                  </select>
                 </ha-settings-row>
+
+                ${zone.watering_mode === "service"
+                  ? html`
+                      <ha-settings-row>
+                        <span slot="heading"
+                          >${localize(
+                            "panels.zones.labels.run_service",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <span slot="description"
+                          >${localize(
+                            "panels.zones.labels.run_service_help",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <ha-entity-picker
+                          .hass="${this.hass}"
+                          .value="${zone.run_service || ""}"
+                          .includeDomains="${["script"]}"
+                          allow-custom-entity
+                          @value-changed="${(e: CustomEvent) =>
+                            this.handleEditZone(index, {
+                              ...zone,
+                              [ZONE_RUN_SERVICE]: e.detail.value || null,
+                            })}"
+                        ></ha-entity-picker>
+                      </ha-settings-row>
+                      <ha-settings-row>
+                        <span slot="heading"
+                          >${localize(
+                            "panels.zones.labels.duration_field",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <span slot="description"
+                          >${localize(
+                            "panels.zones.labels.duration_field_help",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <input
+                          type="text"
+                          class="settings-input"
+                          placeholder="${localize(
+                            "panels.zones.labels.duration_field_placeholder",
+                            this.hass.language,
+                          )}"
+                          .value="${zone.duration_field || "duration"}"
+                          @input="${(e: Event) =>
+                            this.handleEditZone(index, {
+                              ...zone,
+                              [ZONE_DURATION_FIELD]:
+                                (e.target as HTMLInputElement).value ||
+                                undefined,
+                            })}"
+                        />
+                      </ha-settings-row>
+                      <ha-settings-row>
+                        <span slot="heading"
+                          >${localize(
+                            "panels.zones.labels.duration_unit",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <span slot="description"
+                          >${localize(
+                            "panels.zones.labels.duration_unit_help",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <select
+                          class="settings-input"
+                          .value="${live(zone.duration_unit ?? "seconds")}"
+                          @change="${(e: Event) =>
+                            this.handleEditZone(index, {
+                              ...zone,
+                              [ZONE_DURATION_UNIT]: (
+                                e.target as HTMLSelectElement
+                              ).value,
+                            })}"
+                        >
+                          <option
+                            value="seconds"
+                            ?selected="${(zone.duration_unit ?? "seconds") ===
+                            "seconds"}"
+                          >
+                            ${localize(
+                              "panels.zones.labels.duration_units.seconds",
+                              this.hass.language,
+                            )}
+                          </option>
+                          <option
+                            value="minutes"
+                            ?selected="${zone.duration_unit === "minutes"}"
+                          >
+                            ${localize(
+                              "panels.zones.labels.duration_units.minutes",
+                              this.hass.language,
+                            )}
+                          </option>
+                        </select>
+                      </ha-settings-row>
+                      <ha-settings-row>
+                        <span slot="heading"
+                          >${localize(
+                            "panels.zones.labels.stop_service",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <span slot="description"
+                          >${localize(
+                            "panels.zones.labels.stop_service_help",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <ha-entity-picker
+                          .hass="${this.hass}"
+                          .value="${zone.stop_service || ""}"
+                          .includeDomains="${["script"]}"
+                          allow-custom-entity
+                          @value-changed="${(e: CustomEvent) =>
+                            this.handleEditZone(index, {
+                              ...zone,
+                              [ZONE_STOP_SERVICE]: e.detail.value || null,
+                            })}"
+                        ></ha-entity-picker>
+                      </ha-settings-row>
+                      <ha-settings-row>
+                        <span slot="heading"
+                          >${localize(
+                            "panels.zones.labels.confirm_entity",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <span slot="description"
+                          >${localize(
+                            "panels.zones.labels.confirm_entity_help",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <ha-entity-picker
+                          .hass="${this.hass}"
+                          .value="${zone.confirm_entity || ""}"
+                          .includeDomains="${[
+                            "valve",
+                            "switch",
+                            "input_boolean",
+                            "number",
+                            "binary_sensor",
+                          ]}"
+                          allow-custom-entity
+                          @value-changed="${(e: CustomEvent) =>
+                            this.handleEditZone(index, {
+                              ...zone,
+                              [ZONE_CONFIRM_ENTITY]: e.detail.value || null,
+                            })}"
+                        ></ha-entity-picker>
+                      </ha-settings-row>
+                    `
+                  : ""}
+                ${zone.watering_mode !== "service"
+                  ? html`
+                      <ha-settings-row>
+                        <span slot="heading"
+                          >${localize(
+                            "panels.zones.labels.linked_entity",
+                            this.hass.language,
+                          )}</span
+                        >
+                        <ha-entity-picker
+                          .hass="${this.hass}"
+                          .value="${zone.linked_entity || ""}"
+                          .includeDomains="${[
+                            "switch",
+                            "valve",
+                            "input_boolean",
+                          ]}"
+                          allow-custom-entity
+                          @value-changed="${(e: CustomEvent) =>
+                            this.handleEditZone(index, {
+                              ...zone,
+                              [ZONE_LINKED_ENTITY]: e.detail.value || null,
+                            })}"
+                        ></ha-entity-picker>
+                      </ha-settings-row>
+                    `
+                  : ""}
+
                 <ha-settings-row>
                   <span slot="heading"
                     >${localize(
-                      "panels.zones.labels.confirm_entity",
+                      "panels.zones.labels.soil_moisture_sensor",
                       this.hass.language,
                     )}</span
                   >
                   <span slot="description"
                     >${localize(
-                      "panels.zones.labels.confirm_entity_help",
+                      "panels.zones.labels.soil_moisture_sensor_help",
                       this.hass.language,
                     )}</span
                   >
                   <ha-entity-picker
                     .hass="${this.hass}"
-                    .value="${zone.confirm_entity || ""}"
-                    .includeDomains="${[
-                      "valve",
-                      "switch",
-                      "input_boolean",
-                      "number",
-                      "binary_sensor",
-                    ]}"
+                    .value="${zone.soil_moisture_sensor || ""}"
+                    .includeDomains="${["sensor"]}"
+                    .includeDeviceClasses="${["moisture"]}"
                     allow-custom-entity
                     @value-changed="${(e: CustomEvent) =>
                       this.handleEditZone(index, {
                         ...zone,
-                        [ZONE_CONFIRM_ENTITY]: e.detail.value || null,
+                        [ZONE_SOIL_MOISTURE_SENSOR]: e.detail.value || null,
                       })}"
                   ></ha-entity-picker>
                 </ha-settings-row>
-              `
-            : ""}
-          ${zone.watering_mode !== "service"
-            ? html`
+
                 <ha-settings-row>
                   <span slot="heading"
                     >${localize(
-                      "panels.zones.labels.linked_entity",
+                      "panels.zones.labels.soil_moisture_threshold",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <span slot="description"
+                    >${localize(
+                      "panels.zones.labels.soil_moisture_threshold_help",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="1"
+                    min="0"
+                    max="100"
+                    inputmode="decimal"
+                    .value="${zone.soil_moisture_threshold ?? ""}"
+                    @input="${(e: Event) => {
+                      const raw = (e.target as HTMLInputElement).value;
+                      const v = raw === "" ? null : Number(raw);
+                      this.handleEditZone(index, {
+                        ...zone,
+                        [ZONE_SOIL_MOISTURE_THRESHOLD]:
+                          v === null || isNaN(v) ? null : v,
+                      });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.flow_sensor",
                       this.hass.language,
                     )}</span
                   >
                   <ha-entity-picker
                     .hass="${this.hass}"
-                    .value="${zone.linked_entity || ""}"
-                    .includeDomains="${["switch", "valve", "input_boolean"]}"
+                    .value="${zone.flow_sensor || ""}"
+                    .includeDomains="${["sensor"]}"
                     allow-custom-entity
                     @value-changed="${(e: CustomEvent) =>
                       this.handleEditZone(index, {
                         ...zone,
-                        [ZONE_LINKED_ENTITY]: e.detail.value || null,
+                        [ZONE_FLOW_SENSOR]: e.detail.value || null,
                       })}"
                   ></ha-entity-picker>
                 </ha-settings-row>
-              `
-            : ""}
 
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.soil_moisture_sensor",
-                this.hass.language,
-              )}</span
-            >
-            <span slot="description"
-              >${localize(
-                "panels.zones.labels.soil_moisture_sensor_help",
-                this.hass.language,
-              )}</span
-            >
-            <ha-entity-picker
-              .hass="${this.hass}"
-              .value="${zone.soil_moisture_sensor || ""}"
-              .includeDomains="${["sensor"]}"
-              .includeDeviceClasses="${["moisture"]}"
-              allow-custom-entity
-              @value-changed="${(e: CustomEvent) =>
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_SOIL_MOISTURE_SENSOR]: e.detail.value || null,
-                })}"
-            ></ha-entity-picker>
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.soil_moisture_threshold",
-                this.hass.language,
-              )}</span
-            >
-            <span slot="description"
-              >${localize(
-                "panels.zones.labels.soil_moisture_threshold_help",
-                this.hass.language,
-              )}</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="1"
-              min="0"
-              max="100"
-              inputmode="decimal"
-              .value="${zone.soil_moisture_threshold ?? ""}"
-              @input="${(e: Event) => {
-                const raw = (e.target as HTMLInputElement).value;
-                const v = raw === "" ? null : Number(raw);
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_SOIL_MOISTURE_THRESHOLD]:
-                    v === null || isNaN(v) ? null : v,
-                });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.flow_sensor",
-                this.hass.language,
-              )}</span
-            >
-            <ha-entity-picker
-              .hass="${this.hass}"
-              .value="${zone.flow_sensor || ""}"
-              .includeDomains="${["sensor"]}"
-              allow-custom-entity
-              @value-changed="${(e: CustomEvent) =>
-                this.handleEditZone(index, {
-                  ...zone,
-                  [ZONE_FLOW_SENSOR]: e.detail.value || null,
-                })}"
-            ></ha-entity-picker>
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize("panels.zones.labels.bucket", this.hass.language)}
-              (${output_unit(this.config, ZONE_BUCKET)})</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.1"
-              inputmode="decimal"
-              .value="${parseFloat(Number(zone.bucket).toFixed(2))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 100,
-                  ) / 100;
-                if (!isNaN(v))
-                  this.handleEditZone(index, { ...zone, [ZONE_BUCKET]: v });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.maximum-bucket",
-                this.hass.language,
-              )}
-              (${output_unit(this.config, ZONE_BUCKET)})</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.1"
-              min="0"
-              inputmode="decimal"
-              .value="${parseFloat(Number(zone.maximum_bucket).toFixed(2))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 100,
-                  ) / 100;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_MAXIMUM_BUCKET]: v,
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.multiplier",
-                this.hass.language,
-              )}</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.1"
-              min="0"
-              inputmode="decimal"
-              .value="${parseFloat(zone.multiplier.toFixed(2))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 100,
-                  ) / 100;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_MULTIPLIER]: v,
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize("panels.zones.labels.lead-time", this.hass.language)}
-              (${UNIT_SECONDS})</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="1"
-              min="0"
-              inputmode="numeric"
-              .value="${zone.lead_time ?? 0}"
-              @input="${(e: Event) => {
-                const v = (e.target as HTMLInputElement).valueAsNumber;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_LEAD_TIME]: Math.round(v),
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.maximum-duration",
-                this.hass.language,
-              )}
-              (${UNIT_SECONDS})</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="1"
-              min="0"
-              inputmode="numeric"
-              .value="${zone.maximum_duration ?? ""}"
-              @input="${(e: Event) => {
-                const v = (e.target as HTMLInputElement).valueAsNumber;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_MAXIMUM_DURATION]: Math.round(v),
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          <ha-settings-row>
-            <span slot="heading"
-              >${localize(
-                "panels.zones.labels.bucket_threshold",
-                this.hass.language,
-              )}
-              (${output_unit(this.config, ZONE_BUCKET)})</span
-            >
-            <input
-              type="number"
-              class="settings-input shortfield"
-              step="0.5"
-              max="0"
-              inputmode="decimal"
-              .value="${parseFloat((zone.bucket_threshold ?? 0).toFixed(1))}"
-              @input="${(e: Event) => {
-                const v =
-                  Math.round(
-                    (e.target as HTMLInputElement).valueAsNumber * 10,
-                  ) / 10;
-                if (!isNaN(v))
-                  this.handleEditZone(index, {
-                    ...zone,
-                    [ZONE_BUCKET_THRESHOLD]: Math.min(v, 0),
-                  });
-              }}"
-            />
-          </ha-settings-row>
-
-          ${zone.state === SmartIrrigationZoneState.Manual
-            ? html`
                 <ha-settings-row>
                   <span slot="heading"
                     >${localize(
-                      "panels.zones.labels.duration",
+                      "panels.zones.labels.bucket",
+                      this.hass.language,
+                    )}
+                    (${output_unit(this.config, ZONE_BUCKET)})</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.1"
+                    inputmode="decimal"
+                    .value="${parseFloat(Number(zone.bucket).toFixed(2))}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 100,
+                        ) / 100;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_BUCKET]: v,
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.maximum-bucket",
+                      this.hass.language,
+                    )}
+                    (${output_unit(this.config, ZONE_BUCKET)})</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.1"
+                    min="0"
+                    inputmode="decimal"
+                    .value="${parseFloat(
+                      Number(zone.maximum_bucket).toFixed(2),
+                    )}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 100,
+                        ) / 100;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_MAXIMUM_BUCKET]: v,
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.multiplier",
+                      this.hass.language,
+                    )}</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.1"
+                    min="0"
+                    inputmode="decimal"
+                    .value="${parseFloat(zone.multiplier.toFixed(2))}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 100,
+                        ) / 100;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_MULTIPLIER]: v,
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.lead-time",
                       this.hass.language,
                     )}
                     (${UNIT_SECONDS})</span
@@ -1252,83 +1254,175 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                     step="1"
                     min="0"
                     inputmode="numeric"
-                    .value="${zone.duration ?? 0}"
+                    .value="${zone.lead_time ?? 0}"
                     @input="${(e: Event) => {
                       const v = (e.target as HTMLInputElement).valueAsNumber;
                       if (!isNaN(v))
                         this.handleEditZone(index, {
                           ...zone,
-                          [ZONE_DURATION]: Math.round(v),
+                          [ZONE_LEAD_TIME]: Math.round(v),
                         });
                     }}"
                   />
                 </ha-settings-row>
-              `
-            : ""}
 
-          <!-- Danger row -->
-          <div class="settings-danger-row">
-            <button
-              class="action-btn"
-              @click="${() => {
-                this._pendingConfirm = {
-                  title: localize(
-                    "panels.zones.confirm_action.reset_bucket_title",
-                    this.hass!.language,
-                  ),
-                  body: localize(
-                    "panels.zones.confirm_action.reset_bucket_body",
-                    this.hass!.language,
-                  ),
-                  confirmLabel: localize(
-                    "panels.zones.actions.reset-bucket",
-                    this.hass!.language,
-                  ),
-                  onConfirm: () =>
-                    this.handleEditZone(index, {
-                      ...zone,
-                      [ZONE_BUCKET]: 0.0,
-                    }),
-                };
-              }}"
-              ?disabled="${this.isSaving}"
-            >
-              ${localize(
-                "panels.zones.actions.reset-bucket",
-                this.hass.language,
-              )}
-            </button>
-            <button
-              class="action-btn danger-button"
-              @click="${() =>
-                this.handleRemoveZone(zone.id !== undefined ? zone.id : -1)}"
-              ?disabled="${this.isSaving || zone.id === undefined}"
-            >
-              <ha-icon slot="icon" icon="mdi:delete"></ha-icon>
-              ${localize("common.actions.delete", this.hass.language)}
-            </button>
-          </div>
-        </div>
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.maximum-duration",
+                      this.hass.language,
+                    )}
+                    (${UNIT_SECONDS})</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="1"
+                    min="0"
+                    inputmode="numeric"
+                    .value="${zone.maximum_duration ?? ""}"
+                    @input="${(e: Event) => {
+                      const v = (e.target as HTMLInputElement).valueAsNumber;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_MAXIMUM_DURATION]: Math.round(v),
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
 
-        <!-- EXPLANATION EXPANSION -->
-        ${zone.explanation && zone.explanation.length > 0
-          ? html`
-              <ha-expansion-panel
-                .header="${localize(
-                  "panels.zones.actions.information",
-                  this.hass.language,
-                )}"
-              >
-                <div class="card-content">${unsafeHTML(zone.explanation)}</div>
-              </ha-expansion-panel>
+                <ha-settings-row>
+                  <span slot="heading"
+                    >${localize(
+                      "panels.zones.labels.bucket_threshold",
+                      this.hass.language,
+                    )}
+                    (${output_unit(this.config, ZONE_BUCKET)})</span
+                  >
+                  <input
+                    type="number"
+                    class="settings-input shortfield"
+                    step="0.5"
+                    max="0"
+                    inputmode="decimal"
+                    .value="${parseFloat(
+                      (zone.bucket_threshold ?? 0).toFixed(1),
+                    )}"
+                    @input="${(e: Event) => {
+                      const v =
+                        Math.round(
+                          (e.target as HTMLInputElement).valueAsNumber * 10,
+                        ) / 10;
+                      if (!isNaN(v))
+                        this.handleEditZone(index, {
+                          ...zone,
+                          [ZONE_BUCKET_THRESHOLD]: Math.min(v, 0),
+                        });
+                    }}"
+                  />
+                </ha-settings-row>
+
+                ${zone.state === SmartIrrigationZoneState.Manual
+                  ? html`
+                      <ha-settings-row>
+                        <span slot="heading"
+                          >${localize(
+                            "panels.zones.labels.duration",
+                            this.hass.language,
+                          )}
+                          (${UNIT_SECONDS})</span
+                        >
+                        <input
+                          type="number"
+                          class="settings-input shortfield"
+                          step="1"
+                          min="0"
+                          inputmode="numeric"
+                          .value="${zone.duration ?? 0}"
+                          @input="${(e: Event) => {
+                            const v = (e.target as HTMLInputElement)
+                              .valueAsNumber;
+                            if (!isNaN(v))
+                              this.handleEditZone(index, {
+                                ...zone,
+                                [ZONE_DURATION]: Math.round(v),
+                              });
+                          }}"
+                        />
+                      </ha-settings-row>
+                    `
+                  : ""}
+
+                <!-- Danger row -->
+                <div class="settings-danger-row">
+                  <button
+                    class="action-btn"
+                    @click="${() => {
+                      this._pendingConfirm = {
+                        title: localize(
+                          "panels.zones.confirm_action.reset_bucket_title",
+                          this.hass!.language,
+                        ),
+                        body: localize(
+                          "panels.zones.confirm_action.reset_bucket_body",
+                          this.hass!.language,
+                        ),
+                        confirmLabel: localize(
+                          "panels.zones.actions.reset-bucket",
+                          this.hass!.language,
+                        ),
+                        onConfirm: () =>
+                          this.handleEditZone(index, {
+                            ...zone,
+                            [ZONE_BUCKET]: 0.0,
+                          }),
+                      };
+                    }}"
+                    ?disabled="${this.isSaving}"
+                  >
+                    ${localize(
+                      "panels.zones.actions.reset-bucket",
+                      this.hass.language,
+                    )}
+                  </button>
+                  <button
+                    class="action-btn danger-button"
+                    @click="${() =>
+                      this.handleRemoveZone(
+                        zone.id !== undefined ? zone.id : -1,
+                      )}"
+                    ?disabled="${this.isSaving || zone.id === undefined}"
+                  >
+                    <ha-icon slot="icon" icon="mdi:delete"></ha-icon>
+                    ${localize("common.actions.delete", this.hass.language)}
+                  </button>
+                </div>
+              </div>
+
+              <!-- EXPLANATION EXPANSION -->
+              ${zone.explanation && zone.explanation.length > 0
+                ? html`
+                    <ha-expansion-panel
+                      .header="${localize(
+                        "panels.zones.actions.information",
+                        this.hass.language,
+                      )}"
+                    >
+                      <div class="card-content">
+                        ${unsafeHTML(zone.explanation)}
+                      </div>
+                    </ha-expansion-panel>
+                  `
+                : ""}
+
+              <!-- Run history + cumulative water usage (WS-2) -->
+              ${this._renderRunHistory(zone)}
+
+              <!-- Weather records + the watering/seasonal calendar now live on the
+             Weather & Location tab (climate is the same for every zone). -->
             `
           : ""}
-
-        <!-- Run history + cumulative water usage (WS-2) -->
-        ${this._renderRunHistory(zone)}
-
-        <!-- Weather records + the watering/seasonal calendar now live on the
-             Weather & Location tab (climate is the same for every zone). -->
       </ha-card>
     `;
   }
@@ -1681,6 +1775,21 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   static get styles(): CSSResultGroup {
     return css`
       ${globalStyle}
+
+      .card-header.zone-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .card-header.zone-toggle:hover {
+        background: var(--secondary-background-color);
+      }
+      .card-header .zone-chevron {
+        color: var(--secondary-text-color);
+        flex: 0 0 auto;
+      }
 
       ha-settings-row {
         padding: 0 16px;
