@@ -308,7 +308,11 @@ class RecurringScheduleManager:
                 candidate = dt_util.as_utc(next_time) + offset
                 if candidate > now_utc or guard >= 8:
                     return candidate
-                ref_local = next_time + datetime.timedelta(seconds=1)
+                # find_next_solar_azimuth_time samples in 15-min steps, so a tiny
+                # step re-detects the SAME crossing (the azimuth is still within a
+                # sample of the target a moment later). Step past a full search
+                # interval so the next search lands on the following crossing.
+                ref_local = next_time + datetime.timedelta(minutes=16)
                 guard += 1
 
         if stype == const.SCHEDULE_TYPE_INTERVAL:
