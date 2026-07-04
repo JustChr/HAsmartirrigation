@@ -240,6 +240,52 @@ class TestFinishTrackerAdvance:
         await mgr._setup_finish_tracker(sched)
         assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
 
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_rearm_advances_for_negative_offset_sunrise(
+        self, coordinator, monkeypatch
+    ):
+        """Regression (live 2026-07-04): a SUNRISE/SUNSET finish schedule with a
+        NEGATIVE offset must also advance past the fired occurrence. The offset is
+        applied *after* get_astral_event_next, so re-deriving with
+        reference_utc=target (which sits |offset| *before* the sun event) returned
+        the same event -> the same target, defeating the guard and busy-looping the
+        ~2s "run ASAP" branch for the whole |offset| window."""
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=300)
+        sched = _sched(
+            type=const.SCHEDULE_TYPE_SUNRISE,
+            time_anchor=const.SCHEDULE_TIME_ANCHOR_FINISH,
+            action="irrigate",
+            zones="all",
+            offset_minutes=-30,
+        )
+
+        # The core regression: advancing past the fired occurrence must land on
+        # the NEXT sunrise (~1 day later), never re-derive the same target.
+        target1 = await mgr._next_target_time(sched)
+        target2 = await mgr._next_target_time(sched, reference_utc=target1)
+        assert target2 > target1
+        assert (
+            datetime.timedelta(hours=20)
+            < target2 - target1
+            < datetime.timedelta(hours=28)
+        )
+
+        # And the tracker, re-armed for the just-fired occurrence, must schedule a
+        # future start (not the now+2s catch-up that busy-loops every ~2s).
+        captured: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+        mgr._finish_last_target[sched[const.SCHEDULE_CONF_ID]] = target1.isoformat()
+        await mgr._setup_finish_tracker(sched)
+        assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
+
 
 class TestIntervalStartTime:
     """An interval schedule with a start_time anchor is phase-locked to that

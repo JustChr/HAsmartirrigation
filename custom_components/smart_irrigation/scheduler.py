@@ -267,23 +267,49 @@ class RecurringScheduleManager:
         )
         now_utc = reference_utc or dt_util.utcnow()
 
-        if stype == const.SCHEDULE_TYPE_SUNRISE:
-            return get_astral_event_next(self.hass, "sunrise", now_utc) + offset
-        if stype == const.SCHEDULE_TYPE_SUNSET:
-            return get_astral_event_next(self.hass, "sunset", now_utc) + offset
+        if stype in (const.SCHEDULE_TYPE_SUNRISE, const.SCHEDULE_TYPE_SUNSET):
+            event = "sunrise" if stype == const.SCHEDULE_TYPE_SUNRISE else "sunset"
+            ev = get_astral_event_next(self.hass, event, now_utc)
+            candidate = ev + offset
+            # A NEGATIVE offset shifts the target *before* its sun event, so the
+            # offset-adjusted target can land on/before the reference while the
+            # raw event is still in the future (the |offset|-wide window between
+            # target and the event). Advance to the following event until the
+            # shifted target is strictly after the reference. Without this the
+            # finish tracker — which re-arms with reference_utc=target to skip the
+            # occurrence it just fired — re-derives the SAME target (the next
+            # event after target is that same event, because target < event) and
+            # busy-loops the "run ASAP" (now+2s) branch for the whole offset
+            # window (live 2026-07-04: ~2s skips for ~30 min). Bounded so a
+            # pathological offset can't spin. See test_schedule_time_anchor::
+            # TestFinishTrackerAdvance::test_rearm_advances_for_negative_offset_sunrise.
+            guard = 0
+            while candidate <= now_utc and guard < 8:
+                ev = get_astral_event_next(self.hass, event, ev)
+                candidate = ev + offset
+                guard += 1
+            return candidate
         if stype == const.SCHEDULE_TYPE_SOLAR_AZIMUTH:
             ha_cfg = self.hass.config.as_dict()
-            next_time = find_next_solar_azimuth_time(
-                ha_cfg.get(CONF_LATITUDE, 45.0),
-                ha_cfg.get(CONF_LONGITUDE, 0.0),
-                normalize_azimuth_angle(
-                    schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
-                ),
-                dt_util.as_local(now_utc).replace(tzinfo=None),
+            lat = ha_cfg.get(CONF_LATITUDE, 45.0)
+            lon = ha_cfg.get(CONF_LONGITUDE, 0.0)
+            angle = normalize_azimuth_angle(
+                schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
             )
-            if next_time is None:
-                return None
-            return dt_util.as_utc(next_time) + offset
+            ref_local = dt_util.as_local(now_utc).replace(tzinfo=None)
+            # Same negative-offset advance as sunrise/sunset above: step past the
+            # found occurrence until the offset-shifted target is strictly after
+            # the reference, so the finish tracker doesn't busy-loop.
+            guard = 0
+            while True:
+                next_time = find_next_solar_azimuth_time(lat, lon, angle, ref_local)
+                if next_time is None:
+                    return None
+                candidate = dt_util.as_utc(next_time) + offset
+                if candidate > now_utc or guard >= 8:
+                    return candidate
+                ref_local = next_time + datetime.timedelta(seconds=1)
+                guard += 1
 
         if stype == const.SCHEDULE_TYPE_INTERVAL:
             # Only an interval with an explicit start_time has a fixed clock
