@@ -1043,15 +1043,18 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                     type="number"
                     min="1"
                     class="settings-input"
-                    .value="${live(
-                      this.config.zone_sequencing_max_consecutive_duration ?? 5,
-                    )}"
-                    @change="${(e: Event) =>
-                      this.handleConfigChange({
-                        [CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION]:
-                          parseInt((e.target as HTMLInputElement).value, 10) ||
-                          5,
-                      })}"
+                    .value="${this.config
+                      .zone_sequencing_max_consecutive_duration ?? 5}"
+                    @input="${(e: Event) => {
+                      const v = parseInt(
+                        (e.target as HTMLInputElement).value,
+                        10,
+                      );
+                      if (!isNaN(v))
+                        this.handleConfigChange({
+                          [CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION]: v,
+                        });
+                    }}"
                   />
                   <span class="unit-label">
                     ${localize(
@@ -1071,15 +1074,18 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                     type="number"
                     min="0"
                     class="settings-input"
-                    .value="${live(
-                      this.config.zone_sequencing_min_absorption_time ?? 0,
-                    )}"
-                    @change="${(e: Event) =>
-                      this.handleConfigChange({
-                        [CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME]:
-                          parseInt((e.target as HTMLInputElement).value, 10) ||
-                          0,
-                      })}"
+                    .value="${this.config.zone_sequencing_min_absorption_time ??
+                    0}"
+                    @input="${(e: Event) => {
+                      const v = parseInt(
+                        (e.target as HTMLInputElement).value,
+                        10,
+                      );
+                      if (!isNaN(v))
+                        this.handleConfigChange({
+                          [CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME]: v,
+                        });
+                    }}"
                   />
                   <span class="unit-label">
                     ${localize(
@@ -1147,16 +1153,17 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                           min="0"
                           step="0.1"
                           class="settings-input"
-                          .value="${live(
-                            this.config.master_kick_pause_seconds ?? 1.0,
-                          )}"
-                          @change="${(e: Event) =>
-                            this.handleConfigChange({
-                              [CONF_MASTER_KICK_PAUSE_SECONDS]:
-                                parseFloat(
-                                  (e.target as HTMLInputElement).value,
-                                ) || 0,
-                            })}"
+                          .value="${this.config.master_kick_pause_seconds ??
+                          1.0}"
+                          @input="${(e: Event) => {
+                            const v = parseFloat(
+                              (e.target as HTMLInputElement).value,
+                            );
+                            if (!isNaN(v))
+                              this.handleConfigChange({
+                                [CONF_MASTER_KICK_PAUSE_SECONDS]: v,
+                              });
+                          }}"
                         />
                         <span class="unit-label">
                           ${localize("master.seconds_unit", this.hass.language)}
@@ -1172,13 +1179,17 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                     type="number"
                     min="0"
                     class="settings-input"
-                    .value="${live(this.config.master_settle_seconds ?? 10)}"
-                    @change="${(e: Event) =>
-                      this.handleConfigChange({
-                        [CONF_MASTER_SETTLE_SECONDS]:
-                          parseInt((e.target as HTMLInputElement).value, 10) ||
-                          0,
-                      })}"
+                    .value="${this.config.master_settle_seconds ?? 10}"
+                    @input="${(e: Event) => {
+                      const v = parseInt(
+                        (e.target as HTMLInputElement).value,
+                        10,
+                      );
+                      if (!isNaN(v))
+                        this.handleConfigChange({
+                          [CONF_MASTER_SETTLE_SECONDS]: v,
+                        });
+                    }}"
                   />
                   <span class="unit-label">
                     ${localize("master.seconds_unit", this.hass.language)}
