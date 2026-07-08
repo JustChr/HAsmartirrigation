@@ -33,6 +33,7 @@ from .const import (
     CONF_DEFAULT_CALC_TIME,
     CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
     CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
+    CONF_DEFAULT_DISTRIBUTORS_ENABLED,
     CONF_DEFAULT_DRAINAGE_RATE,
     CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
     CONF_DEFAULT_FREEZE_THRESHOLD,
@@ -59,6 +60,7 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING,
     CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
+    CONF_DISTRIBUTORS_ENABLED,
     CONF_FORECAST_WEIGHTING_ENABLED,
     CONF_FREEZE_THRESHOLD,
     CONF_IMPERIAL,
@@ -155,7 +157,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DATA_REGISTRY = f"{DOMAIN}_storage"
 STORAGE_KEY = f"{DOMAIN}.storage"
-STORAGE_VERSION = 10
+STORAGE_VERSION = 11
 SAVE_DELAY = 0
 
 
@@ -220,6 +222,10 @@ class ZoneEntry:
     # = wetter) + threshold. Both None = feature off. See _apply_soil_moisture_veto.
     soil_moisture_sensor = attr.ib(type=str, default=None)
     soil_moisture_threshold = attr.ib(type=float, default=None)
+    # Gardena distributor membership. None = a normal, independently-valved zone.
+    # A member zone has no own valve/schedule; the distributor owns actuation.
+    distributor_id = attr.ib(type=int, default=None)
+    outlet_number = attr.ib(type=int, default=None)
 
 
 @attr.s(slots=True, frozen=True)
@@ -307,6 +313,9 @@ class Config:
     live_estimate_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_LIVE_ESTIMATE_ENABLED
     )
+    distributors_enabled = attr.ib(
+        type=bool, default=CONF_DEFAULT_DISTRIBUTORS_ENABLED
+    )
     # Rain delay / vacation hold (WS-5): ISO-8601 datetime string or None.
     rain_delay_until = attr.ib(type=str, default=CONF_DEFAULT_RAIN_DELAY_UNTIL)
     # Persisted in-flight self-closing valve runs (reboot resilience); list of
@@ -319,6 +328,52 @@ class Config:
     master_kick_enabled = attr.ib(type=bool, default=False)
     master_kick_pause_seconds = attr.ib(type=float, default=1.0)
     master_off_after = attr.ib(type=bool, default=False)
+
+
+@attr.s(slots=True, frozen=True)
+class DistributorEntry:
+    """Gardena distributor storage Entry (a shared, pressure-driven outlet ring).
+
+    The inlet valve is actuated like a zone (classic / service). ``current_outlet``
+    is counted open-loop and persisted after every advance; ``position_state`` and
+    ``commissioning_confirmed`` gate whether a scheduled cycle may run. ``active_cycle``
+    holds the in-flight-cycle record for restart reconciliation (empty when idle).
+    """
+
+    id = attr.ib(type=int, default=None)
+    name = attr.ib(type=str, default=None)
+    # Inlet-valve actuation, mirroring the zone watering-mode shapes.
+    watering_mode = attr.ib(type=str, default="classic")
+    inlet_entity = attr.ib(type=str, default=None)
+    run_service = attr.ib(type=str, default=None)
+    stop_service = attr.ib(type=str, default=None)
+    duration_field = attr.ib(type=str, default="duration")
+    duration_unit = attr.ib(type=str, default="seconds")
+    # Shared sensors, physically on the distributor inlet.
+    confirm_entity = attr.ib(type=str, default=None)
+    flow_sensor = attr.ib(type=str, default=None)
+    # Timing (seconds); hard floor enforced by the engine (spec 4.5).
+    pause_seconds = attr.ib(type=int, default=300)
+    skip_pulse_seconds = attr.ib(type=int, default=30)
+    # Open-loop position + trust state. Fresh distributors start uncertain (4.2).
+    current_outlet = attr.ib(type=int, default=1)
+    position_state = attr.ib(type=str, default="uncertain")
+    notify_target = attr.ib(type=str, default=None)
+    use_master = attr.ib(type=bool, default=True)
+    # Opt-in: watch the inlet valve for foreign pulses (early-stop + inlet-watch,
+    # E3). Default off so existing distributors keep their current behaviour; the
+    # watcher is wired up in a later task.
+    watch_inlet = attr.ib(type=bool, default=False)
+    # Inlet-watch reaction to a foreign inlet pulse (E4): count/warn/ignore.
+    # Legacy watch_inlet is derived into this in the load path below.
+    watch_mode = attr.ib(type=str, default="ignore")
+    # Commissioning gate: no scheduled watering until confirmed (5.1); the single
+    # "armed" switch, auto-cleared on any transition to uncertain (7).
+    commissioning_confirmed = attr.ib(type=bool, default=False)
+    # Distributor-local recurring schedules (wired in Plan B).
+    schedules = attr.ib(type=list, factory=list)
+    # In-flight cycle record for restart reconciliation (empty = idle).
+    active_cycle = attr.ib(type=dict, factory=dict)
 
 
 class MigratableStore(Store):
@@ -403,6 +458,16 @@ class MigratableStore(Store):
             cfg.setdefault("master_kick_pause_seconds", 1.0)
             cfg.setdefault("master_off_after", False)
 
+        if old_version <= 10:
+            # v11: Gardena distributor support. Additive only — create the empty
+            # distributors collection and the zone membership fields. No config
+            # keys are added (distributors are a top-level collection), so the
+            # config-allowlist strip below leaves them untouched.
+            data.setdefault("distributors", [])
+            for zone in data.get("zones", []):
+                zone.setdefault("distributor_id", None)
+                zone.setdefault("outlet_number", None)
+
         # CRITICAL: Always ensure required fields are present and strip unrecognized keys
         # This prevents TypeError when Config(**config_data) is called
         if "config" in data:
@@ -479,6 +544,7 @@ class SmartIrrigationStorage:
         self.zones: MutableMapping[ZoneEntry] = {}
         self.modules: MutableMapping[ModuleEntry] = {}
         self.mappings: MutableMapping[MappingEntry] = {}
+        self.distributors: MutableMapping[DistributorEntry] = {}
         self._store = MigratableStore(hass, STORAGE_VERSION, STORAGE_KEY)
 
     async def async_load(self) -> None:
@@ -502,6 +568,7 @@ class SmartIrrigationStorage:
         zones: OrderedDict[str, ZoneEntry] = OrderedDict()
         modules: OrderedDict[str, ModuleEntry] = OrderedDict()
         mappings: OrderedDict[str, MappingEntry] = OrderedDict()
+        distributors: OrderedDict[str, DistributorEntry] = OrderedDict()
 
         if data is not None:
             config = Config(
@@ -615,6 +682,10 @@ class SmartIrrigationStorage:
                         ),
                     ),
                 ),
+                distributors_enabled=data["config"].get(
+                    CONF_DISTRIBUTORS_ENABLED,
+                    CONF_DEFAULT_DISTRIBUTORS_ENABLED,
+                ),
                 rain_delay_until=data["config"].get(
                     CONF_RAIN_DELAY_UNTIL, CONF_DEFAULT_RAIN_DELAY_UNTIL
                 ),
@@ -703,6 +774,8 @@ class SmartIrrigationStorage:
                         soil_moisture_threshold=zone.get(
                             "soil_moisture_threshold", None
                         ),
+                        distributor_id=zone.get("distributor_id", None),
+                        outlet_number=zone.get("outlet_number", None),
                     )
             if "modules" in data:
                 for module in data["modules"]:
@@ -748,11 +821,42 @@ class SmartIrrigationStorage:
                             MAPPING_DATA_LAST_CALCULATION, {}
                         ),
                     )
+            if "distributors" in data:
+                for dist in data["distributors"]:
+                    distributors[dist["id"]] = DistributorEntry(
+                        id=dist["id"],
+                        name=dist.get("name"),
+                        watering_mode=dist.get("watering_mode", "classic"),
+                        inlet_entity=dist.get("inlet_entity", None),
+                        run_service=dist.get("run_service", None),
+                        stop_service=dist.get("stop_service", None),
+                        duration_field=dist.get("duration_field", "duration"),
+                        duration_unit=dist.get("duration_unit", "seconds"),
+                        confirm_entity=dist.get("confirm_entity", None),
+                        flow_sensor=dist.get("flow_sensor", None),
+                        pause_seconds=dist.get("pause_seconds", 300),
+                        skip_pulse_seconds=dist.get("skip_pulse_seconds", 30),
+                        current_outlet=dist.get("current_outlet", 1),
+                        position_state=dist.get("position_state", "uncertain"),
+                        notify_target=dist.get("notify_target", None),
+                        use_master=dist.get("use_master", True),
+                        # E3: older records predate watch_inlet -> default off.
+                        watch_inlet=dist.get("watch_inlet", False),
+                        # E4: derive watch_mode from legacy watch_inlet when absent.
+                        watch_mode=dist.get("watch_mode")
+                        or ("count" if dist.get("watch_inlet") else "ignore"),
+                        commissioning_confirmed=dist.get(
+                            "commissioning_confirmed", False
+                        ),
+                        schedules=dist.get("schedules", []) or [],
+                        active_cycle=dist.get("active_cycle", {}) or {},
+                    )
 
         self.config = config
         self.zones = zones
         self.modules = modules
         self.mappings = mappings
+        self.distributors = distributors
 
     async def set_up_factory_defaults(self):
         """Set up factory default zones, modules, and mappings if they do not exist."""
@@ -875,6 +979,9 @@ class SmartIrrigationStorage:
         store_data["mappings"] = [
             attr.asdict(entry) for entry in self.mappings.values()
         ]
+        store_data["distributors"] = [
+            attr.asdict(entry) for entry in self.distributors.values()
+        ]
         return store_data
 
     async def async_delete(self):
@@ -912,6 +1019,11 @@ class SmartIrrigationStorage:
         """Get an existing ZoneEntry by id."""
         res = self.zones.get(int(zone_id))
         return attr.asdict(res) if res else None
+
+    @callback
+    def get_zones(self):
+        """Sync snapshot of all zones (dicts), for entity reads."""
+        return [attr.asdict(z) for z in self.zones.values()]
 
     async def async_get_zones(self):
         """Get all ZoneEntries."""
@@ -979,6 +1091,53 @@ class SmartIrrigationStorage:
             new = self.zones[zone_id] = attr.evolve(old, **filtered_changes)
         else:
             new = old
+        self.async_schedule_save()
+        return attr.asdict(new)
+
+    @callback
+    def get_distributor(self, distributor_id) -> "DistributorEntry":
+        """Get an existing DistributorEntry by id."""
+        if distributor_id is not None:
+            res = self.distributors.get(int(distributor_id))
+            return attr.asdict(res) if res else None
+        return None
+
+    async def async_get_distributors(self):
+        """Get all DistributorEntries."""
+        return [attr.asdict(val) for val in self.distributors.values()]
+
+    async def async_create_distributor(self, data: dict) -> "DistributorEntry":
+        """Create a new DistributorEntry (unknown keys dropped)."""
+        valid_fields = set(attr.fields_dict(DistributorEntry).keys())
+        new_dist = DistributorEntry(
+            **{k: v for k, v in data.items() if k in valid_fields}
+        )
+        if not new_dist.id:
+            distributors = await self.async_get_distributors()
+            new_dist = attr.evolve(new_dist, id=self.generate_next_id(distributors))
+        self.distributors[int(new_dist.id)] = new_dist
+        self.async_schedule_save()
+        return attr.asdict(new_dist)
+
+    async def async_delete_distributor(self, distributor_id) -> bool:
+        """Delete a DistributorEntry."""
+        distributor_id = int(distributor_id)
+        if distributor_id in self.distributors:
+            del self.distributors[distributor_id]
+            self.async_schedule_save()
+            return True
+        return False
+
+    async def async_update_distributor(
+        self, distributor_id, changes: dict
+    ) -> "DistributorEntry":
+        """Update an existing distributor (unknown keys dropped)."""
+        distributor_id = int(distributor_id)
+        old = self.distributors[distributor_id]
+        changes.pop("id", None)
+        valid_fields = set(attr.fields_dict(type(old)).keys())
+        filtered = {k: v for k, v in changes.items() if k in valid_fields}
+        new = self.distributors[distributor_id] = attr.evolve(old, **filtered)
         self.async_schedule_save()
         return attr.asdict(new)
 

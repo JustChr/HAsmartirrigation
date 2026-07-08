@@ -48,3 +48,17 @@ def zone_device_info(hass: HomeAssistant, zone_id, zone_name: str) -> dict:
         "manufacturer": const.MANUFACTURER,
         "via_device": (const.DOMAIN, cid),
     }
+
+
+def distributor_device_info(
+    hass: HomeAssistant, distributor_id, distributor_name: str
+) -> dict:
+    """A per-distributor device, parented to the hub via ``via_device``."""
+    cid = coordinator_id(hass)
+    return {
+        "identifiers": {(const.DOMAIN, f"{cid}_distributor_{distributor_id}")},
+        "name": distributor_name,
+        "model": "Gardena water distributor",
+        "manufacturer": const.MANUFACTURER,
+        "via_device": (const.DOMAIN, cid),
+    }
