@@ -35,6 +35,18 @@ class TestSmartIrrigationStore:
         # unknown keys are filtered out (not raised)
         await reg.async_update_config({"definitely_not_a_config_field": 1})
 
+    async def test_distributors_enabled_config_roundtrip(self, hass) -> None:
+        reg = await async_get_registry(hass)
+        cfg = await reg.async_get_config()
+        # New experimental flag is present and defaults off.
+        assert cfg.get(const.CONF_DISTRIBUTORS_ENABLED) is False
+        # A partial update round-trips without clobbering other settings.
+        updated = await reg.async_update_config(
+            {const.CONF_DISTRIBUTORS_ENABLED: True}
+        )
+        assert updated[const.CONF_DISTRIBUTORS_ENABLED] is True
+        assert const.CONF_USE_WEATHER_SERVICE in updated
+
     async def test_zone_crud(self, hass) -> None:
         reg = await async_get_registry(hass)
         created = await reg.async_create_zone(

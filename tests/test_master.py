@@ -33,8 +33,8 @@ def _mcoord(**master_cfg):
     return c
 
 
-def test_storage_version_is_10():
-    assert STORAGE_VERSION == 10
+def test_storage_version_is_11():
+    assert STORAGE_VERSION == 11
 
 
 def test_config_has_master_defaults():
@@ -193,3 +193,58 @@ async def test_run_zone_self_closing_wraps_with_master():
     c._master_note_run.assert_called_once_with(300.0)
     c.async_master_schedule_off.assert_awaited_once()
     c.async_run_self_closing.assert_awaited_once()
+
+
+async def test_reconcile_master_off_when_off_after_and_idle():
+    # Bug 2 (2026-07-06): off_after enabled, master configured, nothing HASI-driven
+    # still running -> defensively power the orphaned master off after a restart.
+    c = _mcoord(master_off_after=True)
+    c.store.async_get_distributors = AsyncMock(return_value=[])
+    c._sc_active_runs = AsyncMock(return_value=[])
+    c._master_on = True
+    c._master_off_deadline = "stale"
+    await c.async_reconcile_master_after_restart()
+    c.hass.services.async_call.assert_awaited_once_with(
+        "homeassistant", "turn_off", {"entity_id": "switch.pump"}
+    )
+    assert c._master_on is False
+    assert c._master_off_deadline is None
+
+
+async def test_reconcile_master_untouched_when_off_after_disabled():
+    # off_after off -> HASI never auto-shuts the master, so it must not at boot either.
+    c = _mcoord(master_off_after=False)
+    c.store.async_get_distributors = AsyncMock(return_value=[])
+    c._sc_active_runs = AsyncMock(return_value=[])
+    await c.async_reconcile_master_after_restart()
+    c.hass.services.async_call.assert_not_awaited()
+
+
+async def test_reconcile_master_untouched_when_self_closing_active():
+    # A self-closing run is still mid-window on hardware -> it legitimately needs the
+    # master; defer (do not power off).
+    c = _mcoord(master_off_after=True)
+    c.store.async_get_distributors = AsyncMock(return_value=[])
+    c._sc_active_runs = AsyncMock(return_value=[{"zone_id": 7}])
+    await c.async_reconcile_master_after_restart()
+    c.hass.services.async_call.assert_not_awaited()
+
+
+async def test_reconcile_master_untouched_when_distributor_cycle_in_flight():
+    # A distributor still has a persisted active_cycle -> something is (being) resumed;
+    # do not force the master off.
+    c = _mcoord(master_off_after=True)
+    c.store.async_get_distributors = AsyncMock(
+        return_value=[{"id": 0, "active_cycle": {"outlet": 1, "phase": "watering"}}]
+    )
+    c._sc_active_runs = AsyncMock(return_value=[])
+    await c.async_reconcile_master_after_restart()
+    c.hass.services.async_call.assert_not_awaited()
+
+
+async def test_reconcile_noop_when_master_not_configured():
+    c = _mcoord(master_entity=None)
+    c.store.async_get_distributors = AsyncMock(return_value=[])
+    c._sc_active_runs = AsyncMock(return_value=[])
+    await c.async_reconcile_master_after_restart()
+    c.hass.services.async_call.assert_not_awaited()
