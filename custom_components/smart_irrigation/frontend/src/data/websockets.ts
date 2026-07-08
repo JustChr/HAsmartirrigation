@@ -4,9 +4,16 @@ import {
   SmartIrrigationZone,
   SmartIrrigationModule,
   SmartIrrigationMapping,
+  SmartIrrigationDistributor,
   IrrigationOutlook,
 } from "../types";
-import { DOMAIN } from "../const";
+import {
+  DOMAIN,
+  SERVICE_DISTRIBUTOR_SET_OUTLET,
+  SERVICE_DISTRIBUTOR_RESYNC_HOME,
+  SERVICE_DISTRIBUTOR_TEST_RUN,
+  SERVICE_DISTRIBUTOR_RUN_NOW,
+} from "../const";
 
 export const fetchConfig = (
   hass: HomeAssistant,
@@ -250,6 +257,78 @@ export const runZone = (
 /** Stop an in-progress run for a zone immediately (turns the valve off). */
 export const stopZone = (hass: HomeAssistant, zone_id: string): Promise<any> =>
   hass.callWS({ type: DOMAIN + "/stop_zone", zone_id });
+
+// ---------------------------------------------------------------------------
+// Gardena water distributors (Plan F). CRUD mirrors saveZone/deleteZone; the
+// operation calls go through the Plan-D HA services (no zone-style WS command).
+// ---------------------------------------------------------------------------
+
+/** All configured distributors (attr.asdict of DistributorEntry, backend). */
+export const fetchDistributors = (
+  hass: HomeAssistant,
+): Promise<SmartIrrigationDistributor[]> =>
+  hass.callWS({
+    type: DOMAIN + "/distributors",
+  });
+
+/**
+ * Create or update a distributor. An `id` present (including 0) updates;
+ * otherwise the backend creates and returns the new id in `SaveResult`.
+ */
+export const saveDistributor = (
+  hass: HomeAssistant,
+  config: Partial<SmartIrrigationDistributor>,
+): Promise<SaveResult> => {
+  return hass.callApi("POST", DOMAIN + "/distributors", config);
+};
+
+export const deleteDistributor = (
+  hass: HomeAssistant,
+  distributor_id: string | number,
+): Promise<boolean> => {
+  return hass.callApi("POST", DOMAIN + "/distributors", {
+    id: distributor_id,
+    remove: true,
+  });
+};
+
+/**
+ * Commissioning sweep: waters each mapped outlet ~30 s in order so the user can
+ * watch the device advance. Needs a synced position; exempt from the arm gate.
+ */
+export const distributorTestRun = (
+  hass: HomeAssistant,
+  distributor_id: number,
+): Promise<any> =>
+  hass.callService(DOMAIN, SERVICE_DISTRIBUTOR_TEST_RUN, { distributor_id });
+
+/** Re-sync the tracked position to the outlet the user read off the device. */
+export const distributorSetOutlet = (
+  hass: HomeAssistant,
+  distributor_id: number,
+  outlet: number,
+): Promise<any> =>
+  hass.callService(DOMAIN, SERVICE_DISTRIBUTOR_SET_OUTLET, {
+    distributor_id,
+    outlet,
+  });
+
+/** Re-sync the tracked position to outlet 1 (the physical home window). */
+export const distributorResyncHome = (
+  hass: HomeAssistant,
+  distributor_id: number,
+): Promise<any> =>
+  hass.callService(DOMAIN, SERVICE_DISTRIBUTOR_RESYNC_HOME, { distributor_id });
+
+/**
+ * One full manual cycle over all mapped outlets. Needs synced +
+ * commissioning_confirmed; the backend rejects if a cycle is already active.
+ */
+export const distributorRunNow = (
+  hass: HomeAssistant,
+  distributor_id: number,
+): Promise<any> =>
+  hass.callService(DOMAIN, SERVICE_DISTRIBUTOR_RUN_NOW, { distributor_id });
 
 export interface WeatherConfig {
   use_weather_service: boolean;

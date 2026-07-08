@@ -42,6 +42,7 @@ export const CONF_PRECIPITATION_THRESHOLD_MM = "precipitation_threshold_mm";
 export const CONF_FORECAST_WEIGHTING_ENABLED = "forecast_weighting_enabled";
 export const CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled";
 export const CONF_LIVE_ESTIMATE_ENABLED = "live_estimate_enabled";
+export const CONF_DISTRIBUTORS_ENABLED = "distributors_enabled";
 
 // Days between irrigation configuration
 export const CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation";
@@ -188,3 +189,55 @@ export const CONF_MASTER_OFF_AFTER = "master_off_after";
 export const SCHEDULE_TYPE_SUNRISE = "sunrise";
 export const SCHEDULE_TYPE_SUNSET = "sunset";
 export const SCHEDULE_TYPE_SOLAR_AZIMUTH = "solar_azimuth";
+
+// ---------------------------------------------------------------------------
+// Gardena water distributor (Plan F). Field keys mirror the backend
+// DistributorEntry (store.py) / POST schema (websockets.py) exactly.
+// ---------------------------------------------------------------------------
+export const DISTRIBUTOR_NAME = "name";
+export const DISTRIBUTOR_WATERING_MODE = "watering_mode";
+export const DISTRIBUTOR_INLET_ENTITY = "inlet_entity";
+export const DISTRIBUTOR_WATCH_MODE = "watch_mode";
+export const DISTRIBUTOR_RUN_SERVICE = "run_service";
+export const DISTRIBUTOR_STOP_SERVICE = "stop_service";
+export const DISTRIBUTOR_DURATION_FIELD = "duration_field";
+export const DISTRIBUTOR_DURATION_UNIT = "duration_unit";
+export const DISTRIBUTOR_CONFIRM_ENTITY = "confirm_entity";
+export const DISTRIBUTOR_FLOW_SENSOR = "flow_sensor";
+export const DISTRIBUTOR_PAUSE_SECONDS = "pause_seconds";
+export const DISTRIBUTOR_SKIP_PULSE_SECONDS = "skip_pulse_seconds";
+export const DISTRIBUTOR_CURRENT_OUTLET = "current_outlet";
+export const DISTRIBUTOR_POSITION_STATE = "position_state";
+export const DISTRIBUTOR_NOTIFY_TARGET = "notify_target";
+export const DISTRIBUTOR_USE_MASTER = "use_master";
+export const DISTRIBUTOR_COMMISSIONING_CONFIRMED = "commissioning_confirmed";
+
+// Inlet-watch reaction to a foreign inlet pulse (E4). Order = <select> order.
+// Values match the backend DISTRIBUTOR_WATCH_MODE_* constants (const.py).
+export const DISTRIBUTOR_WATCH_MODES = ["count", "warn", "ignore"] as const;
+
+// watering_mode / position_state enum values (match const.py)
+export const WATERING_MODE_CLASSIC = "classic";
+export const WATERING_MODE_SERVICE = "service";
+export const POSITION_STATE_SYNCED = "synced";
+export const POSITION_STATE_UNCERTAIN = "uncertain";
+
+// Timing floors / defaults (backend re-floors; the UI warns below these).
+export const DISTRIBUTOR_MIN_PAUSE_SECONDS = 10;
+export const DISTRIBUTOR_MIN_SKIP_PULSE_SECONDS = 10;
+export const DISTRIBUTOR_DEFAULT_PAUSE_SECONDS = 300;
+export const DISTRIBUTOR_DEFAULT_SKIP_PULSE_SECONDS = 30;
+
+// Outlet-count bounds for the physical device (spec §4.3).
+export const DISTRIBUTOR_MIN_OUTLETS = 2;
+export const DISTRIBUTOR_MAX_OUTLETS = 6;
+
+// Operation services (Plan D) — call via hass.callService(DOMAIN, name, data).
+export const SERVICE_DISTRIBUTOR_SET_OUTLET = "distributor_set_outlet";
+export const SERVICE_DISTRIBUTOR_RESYNC_HOME = "distributor_resync_home";
+export const SERVICE_DISTRIBUTOR_TEST_RUN = "distributor_test_run";
+export const SERVICE_DISTRIBUTOR_RUN_NOW = "distributor_run_now";
+
+// Zone → distributor membership (zone POST schema, websockets.py).
+export const ZONE_DISTRIBUTOR_ID = "distributor_id";
+export const ZONE_OUTLET_NUMBER = "outlet_number";

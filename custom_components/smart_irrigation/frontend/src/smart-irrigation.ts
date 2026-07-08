@@ -1,6 +1,7 @@
 import { LitElement, html, CSSResultGroup, css } from "lit";
 import { property, state, customElement } from "lit/decorators.js";
-import { HomeAssistant } from "./types";
+import { HomeAssistant, SmartIrrigationConfig } from "./types";
+import { fetchConfig } from "./data/websockets";
 import { loadHaForm } from "./load-ha-elements";
 import { navigate } from "./helpers";
 
@@ -29,6 +30,11 @@ export class SmartIrrigationPanel extends LitElement {
   @property({ type: Boolean, reflect: true }) public narrow!: boolean;
 
   @state() private _wizardOpen = false;
+
+  // Backend integration config, fetched once for its `version` field (Task
+  // V-FE/b9). Rendering `this._config?.version` keeps the shown version in lock
+  // step with the running integration rather than the build-time constant.
+  @state() private _config?: SmartIrrigationConfig;
 
   private _updateScheduled = false;
   private _lastNavigationTime = 0;
@@ -79,6 +85,20 @@ export class SmartIrrigationPanel extends LitElement {
         // Still trigger update to show whatever we can
         this._scheduleUpdate();
       });
+
+    // Fetch the backend config once for its `version` field (Task V-FE/b9). The
+    // header falls back to the build-time VERSION until this resolves, so a
+    // failure here just keeps the old behaviour — never blocks the panel.
+    if (this.hass) {
+      fetchConfig(this.hass)
+        .then((config) => {
+          this._config = config;
+          this._scheduleUpdate();
+        })
+        .catch((error) => {
+          console.error("Failed to fetch config for version display:", error);
+        });
+    }
   }
 
   /**
@@ -113,7 +133,7 @@ export class SmartIrrigationPanel extends LitElement {
             .narrow=${this.narrow}
           ></ha-menu-button>
           <div class="main-title">${localize("title", this.hass.language)}</div>
-          <div class="version">${VERSION}</div>
+          <div class="version">${this._config?.version ?? VERSION}</div>
         </div>
 
         ${hasTabGroup && hasTabGroupTab
