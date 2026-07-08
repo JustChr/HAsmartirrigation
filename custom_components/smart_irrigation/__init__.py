@@ -43,6 +43,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 from . import const
 from .calculation import CalculationMixin
 from .config_resolver import resolve_weather_config
+from .distributor import DistributorMixin
 from .helpers import (
     altitudeToPressure,
     check_time,
@@ -52,7 +53,6 @@ from .helpers import (
     loadModules,
     relative_to_absolute_pressure,
 )
-from .distributor import DistributorMixin
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin

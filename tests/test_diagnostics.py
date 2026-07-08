@@ -42,6 +42,7 @@ class TestSmartIrrigationDiagnostics:
         store.async_get_mappings = AsyncMock(return_value={"test_mapping": "value"})
         store.async_get_modules = AsyncMock(return_value={"test_module": "value"})
         store.async_get_zones = AsyncMock(return_value={"test_zone": "value"})
+        store.async_get_distributors = AsyncMock(return_value=[])
         return store
 
     @pytest.fixture
@@ -66,12 +67,14 @@ class TestSmartIrrigationDiagnostics:
                 "async_get_mappings",
                 "async_get_modules",
                 "async_get_zones",
+                "async_get_distributors",
             ]
         )
         store.async_get_config = AsyncMock(return_value={"test_config": "value"})
         store.async_get_mappings = AsyncMock(return_value={"test_mapping": "value"})
         store.async_get_modules = AsyncMock(return_value={"test_module": "value"})
         store.async_get_zones = AsyncMock(return_value={"test_zone": "value"})
+        store.async_get_distributors = AsyncMock(return_value=[])
         return store
 
     async def test_async_get_config_entry_diagnostics_with_coordinator(
@@ -198,8 +201,10 @@ class TestSmartIrrigationDiagnostics:
             "mappings": {"test_mapping": "value"},
             "modules": {"test_module": "value"},
             "zones": {"test_zone": "value"},
+            "distributors": [],
         }
         real_api_store.async_get_config.assert_awaited_once()
         real_api_store.async_get_mappings.assert_awaited_once()
         real_api_store.async_get_modules.assert_awaited_once()
         real_api_store.async_get_zones.assert_awaited_once()
+        real_api_store.async_get_distributors.assert_awaited_once()
