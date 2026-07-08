@@ -212,9 +212,7 @@ class ZoneEntry:
     # is "duration") work with no extra config.
     duration_field = attr.ib(type=str, default="duration")
     duration_unit = attr.ib(type=str, default="seconds")
-    run_data = attr.ib(type=dict, factory=dict)
     stop_service = attr.ib(type=str, default=None)
-    stop_data = attr.ib(type=dict, factory=dict)
     # Optional entity reflecting the real valve/switch state for liveness confirm
     # (poll-only); None = write-only service run, credited optimistically.
     confirm_entity = attr.ib(type=str, default=None)
@@ -699,9 +697,7 @@ class SmartIrrigationStorage:
                         run_service=zone.get("run_service", None),
                         duration_field=zone.get("duration_field", "duration"),
                         duration_unit=zone.get("duration_unit", "seconds"),
-                        run_data=zone.get("run_data", {}) or {},
                         stop_service=zone.get("stop_service", None),
-                        stop_data=zone.get("stop_data", {}) or {},
                         confirm_entity=zone.get("confirm_entity", None),
                         soil_moisture_sensor=zone.get("soil_moisture_sensor", None),
                         soil_moisture_threshold=zone.get(

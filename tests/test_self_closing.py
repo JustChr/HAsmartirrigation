@@ -30,7 +30,6 @@ def _zone(**kw):
         const.ZONE_RUN_SERVICE: "script.irrigation_beet",
         const.ZONE_DURATION_FIELD: "dauer",
         const.ZONE_DURATION_UNIT: const.DURATION_UNIT_MINUTES,
-        const.ZONE_RUN_DATA: {},
     }
     z.update(kw)
     return z
@@ -279,9 +278,7 @@ async def test_service_run_credits_when_confirm_entity_unreadable():
     c._confirm_valve_running = AsyncMock(return_value=None)
     c._timed_volume_l = Mock(return_value=20.0)
     c._credited_depth_native = Mock(return_value=4.0)
-    zone = _zone(
-        **{const.ZONE_CONFIRM_ENTITY: "valve.beet", const.ZONE_BUCKET: -5.0}
-    )
+    zone = _zone(**{const.ZONE_CONFIRM_ENTITY: "valve.beet", const.ZONE_BUCKET: -5.0})
 
     ok = await c.async_run_self_closing(zone, trigger="schedule")
 

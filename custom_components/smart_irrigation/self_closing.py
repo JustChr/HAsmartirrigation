@@ -45,7 +45,7 @@ class SelfClosingMixin:
     async def _sc_service_open(self, zone: dict, duration: int) -> None:
         """'service' adapter: call the run_service with the duration."""
         domain, service = self._sc_split_service(zone.get(const.ZONE_RUN_SERVICE))
-        data = dict(zone.get(const.ZONE_RUN_DATA) or {})
+        data = {}
         # Empty/None duration_field falls back to "duration" — the field name the
         # shipped valve blueprints use — so a blueprint zone works with no extra
         # config. Without this, an unset field would send NO duration at all.
@@ -235,7 +235,7 @@ class SelfClosingMixin:
         stop_svc = zone.get(const.ZONE_STOP_SERVICE)
         if stop_svc:
             domain, service = self._sc_split_service(stop_svc)
-            data = dict(zone.get(const.ZONE_STOP_DATA) or {})
+            data = {}
             data["zone_id"] = zone_id
             await self.hass.services.async_call(domain, service, data)
         else:
