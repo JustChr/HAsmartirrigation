@@ -313,9 +313,7 @@ class Config:
     live_estimate_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_LIVE_ESTIMATE_ENABLED
     )
-    distributors_enabled = attr.ib(
-        type=bool, default=CONF_DEFAULT_DISTRIBUTORS_ENABLED
-    )
+    distributors_enabled = attr.ib(type=bool, default=CONF_DEFAULT_DISTRIBUTORS_ENABLED)
     # Rain delay / vacation hold (WS-5): ISO-8601 datetime string or None.
     rain_delay_until = attr.ib(type=str, default=CONF_DEFAULT_RAIN_DELAY_UNTIL)
     # Persisted in-flight self-closing valve runs (reboot resilience); list of
