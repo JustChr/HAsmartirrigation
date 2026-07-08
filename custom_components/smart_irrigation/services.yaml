@@ -283,3 +283,68 @@ delete_recurring_schedule:
       description: "ID of the schedule to delete"
       selector:
         text:
+
+distributor_set_outlet:
+  name: Distributor — set current outlet
+  description: Re-sync the distributor's outlet position to the value shown in its physical window. Marks the position as synced; you still confirm commissioning separately.
+  fields:
+    distributor_id:
+      required: true
+      example: 0
+      description: "The distributor id."
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+    outlet:
+      required: true
+      example: 1
+      description: "The outlet number currently shown in the device window."
+      selector:
+        number:
+          min: 1
+          max: 6
+          mode: box
+
+distributor_resync_home:
+  name: Distributor — re-sync to outlet 1
+  description: Convenience re-sync of the distributor position to outlet 1 (after physically advancing the device to 1).
+  fields:
+    distributor_id:
+      required: true
+      example: 0
+      description: "The distributor id."
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+
+distributor_test_run:
+  name: Distributor — commissioning test-run
+  description: Sweep every outlet for a fixed short window so you can watch each zone water in order and the device advance. Requires a synced position; no watering is credited.
+  fields:
+    distributor_id:
+      required: true
+      example: 0
+      description: "The distributor id."
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
+
+distributor_run_now:
+  name: Distributor — run one cycle now
+  description: Run one full distributor cycle immediately (manual). Requires the distributor to be synced and commissioning-confirmed; rejected if a cycle is already in progress.
+  fields:
+    distributor_id:
+      required: true
+      example: 0
+      description: "The distributor id."
+      selector:
+        number:
+          min: 0
+          max: 99
+          mode: box
