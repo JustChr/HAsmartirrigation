@@ -261,6 +261,12 @@
       },
       "last_water_used": {
         "name": "Wasserverbrauch letzter Zyklus"
+      },
+      "current_outlet": {
+        "name": "Aktueller Ausgang"
+      },
+      "outlet_zone": {
+        "name": "Zone an Ausgang {outlet}"
       }
     },
     "binary_sensor": {
@@ -278,6 +284,9 @@
       },
       "any_problem": {
         "name": "Eine Zone hat ein Problem"
+      },
+      "commissioned": {
+        "name": "Freigegeben"
       }
     },
     "number": {
@@ -309,6 +318,9 @@
       },
       "resume_irrigation": {
         "name": "Bewässerung fortsetzen"
+      },
+      "test_run": {
+        "name": "Testlauf"
       }
     },
     "datetime": {

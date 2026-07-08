@@ -398,7 +398,14 @@
           "loam": "Limon (équilibré)",
           "silt": "Silt (drainage lent)",
           "clay": "Argile (drainage très lent)"
-        }
+        },
+        "distributor": "Distributeur d'eau",
+        "distributor_help": "Affecter cette zone à une sortie d'un distributeur d'eau mécanique. La vanne d'entrée du distributeur et sa séquence d'avance par impulsions arrosent alors cette zone ; la vanne et la planification propres à la zone sont gérées par le distributeur.",
+        "distributor_none": "Aucun (vanne propre)",
+        "outlet_number": "Numéro de sortie",
+        "distributor_managed_note": "Cette zone est arrosée via un distributeur (sortie ci-dessus). Sa vanne, la commande d'entrée et le capteur de débit sont gérés par le distributeur et masqués ici ; seuls les réglages de calcul et de veto d'humidité du sol restent. Pour redonner à la zone sa propre vanne, sélectionnez ci-dessus « Aucun (vanne propre) ».",
+        "outlet_number_readonly_help": "Quelle sortie du distributeur alimente cette zone. Se règle sur la page du distributeur — ouvrez-la avec le bouton.",
+        "configure_on_distributor": "Régler sur le distributeur"
       },
       "no_items": "Il n'y a pas encore de zone définie.",
       "title": "Zones",
@@ -531,7 +538,8 @@
         "run": "Lancer",
         "minutes": "min",
         "help": "Arroser cette zone pendant une durée personnalisée, sans tenir compte du calcul",
-        "toast_started": "Arrosage lancé"
+        "toast_started": "Arrosage lancé",
+        "busy_hint": "Le distributeur est en marche — vous pourrez relancer une fois qu'il sera revenu en position de repos."
       },
       "stop_zone": {
         "stop": "Arrêter",
@@ -645,7 +653,8 @@
         "my_zones": "Mes zones",
         "when_to_water": "Quand arroser",
         "advanced": "Avancé",
-        "experimental": "Expérimental"
+        "experimental": "Expérimental",
+        "distributors": "Distributeurs"
       },
       "weather_data": {
         "forecast_title": "Prévisions",
@@ -677,6 +686,115 @@
         "description": "Par défaut, une zone arrose une fois par jour, d'après le déficit produit par le calcul quotidien (par exemple à 23h00). Avec cette option, chaque exécution planifiée décide — et se dimensionne — à partir du déficit infrajournalier en direct (l'ET corrigée du drainage et la pluie depuis le dernier calcul). Cela permet à une zone d'arroser plus d'une fois par jour selon la demande réelle de la journée (par exemple des pots avec une planification toutes les 12 heures que le seau quotidien laisserait sinon à sec), et réduit ou annule une exécution que la pluie de la journée a déjà couverte. Le registre quotidien est inchangé : après l'exécution, le seau est crédité de l'eau réellement délivrée, de sorte que le calcul quotidien suivant ne compte jamais deux fois. Nécessite un service météo.",
         "label": "Déclencher et dimensionner chaque exécution selon le déficit en direct",
         "note": "N'affecte que les exécutions planifiées et peut en démarrer une que le calcul quotidien n'a pas approuvée. Pour des arrosages fréquents, conservez un déficit minimal raisonnable et un seau maximal d'au moins l'ET d'une journée."
+      },
+      "distributors": {
+        "title": "Distributeurs d'eau mécaniques",
+        "description": "Pilotez un distributeur à pression mécanique — par exemple un Distributeur d'eau Gardena — qui répartit une alimentation sur plusieurs sorties et avance par impulsions d'ouverture et de fermeture de l'eau. Affectez des zones aux sorties d'un distributeur et Smart Irrigation les arrose en séquence, suit la position et coordonne une vanne maître ou une pompe. Il s'agit d'une nouvelle fonctionnalité qui n'a pas pu être entièrement testée sur matériel ; considérez-la donc comme une bêta.",
+        "label": "Activer les distributeurs d'eau mécaniques",
+        "note": "Surveillez de près les premiers jours d'utilisation et gardez la commande manuelle de l'appareil à portée de main. Vous pouvez la désactiver à tout moment — l'arrosage des zones existantes n'est pas affecté."
+      }
+    },
+    "distributors": {
+      "title": "Distributeurs",
+      "description": "Les distributeurs d'eau mécaniques répartissent une alimentation sur plusieurs sorties, en avançant par impulsions d'ouverture et de fermeture de l'eau.",
+      "no_items": "Aucun distributeur configuré pour le moment.",
+      "add": {
+        "header": "Ajouter un distributeur",
+        "name_placeholder": "Nom du distributeur",
+        "actions": {
+          "add": "Ajouter"
+        }
+      },
+      "status": {
+        "saved": "Enregistré"
+      },
+      "confirm_delete": "Supprimer ce distributeur ? Les zones qui lui sont affectées conservent leurs numéros de sortie mais perdent le lien avec le distributeur.",
+      "labels": {
+        "name": "Nom",
+        "watering_mode_help": "Comment la vanne d'entrée du distributeur est ouverte et fermée.",
+        "inlet_entity": "Vanne/interrupteur d'entrée (optionnel)",
+        "inlet_entity_help": "L'entité interrupteur ou vanne qui ouvre l'alimentation en eau du distributeur. Elle est aussi surveillée pour les impulsions externes ; une fois une vanne sélectionnée, un réglage apparaît ci-dessous pour contrôler la réaction.",
+        "watch_inlet": "Surveiller la vanne d'entrée pour les impulsions manuelles",
+        "watch_inlet_help": "Ne détecte que les commandes de vanne visibles par Home Assistant — les impulsions purement mécaniques sur l'appareil restent invisibles.",
+        "inlet_entity_help_service": "La vanne d'anneau que Home Assistant surveille pour les impulsions externes afin de garder la position de sortie synchronisée (p. ex. lorsque la vanne est ouverte manuellement ou par une automatisation en dehors d'un cycle HASI). Une fois une vanne sélectionnée, un réglage apparaît ci-dessous pour contrôler la réaction. L'actionnement se fait via le script de démarrage/arrêt ; ce champ est uniquement lu et n'est PAS le capteur de débit/confirmation. Laisser vide pour désactiver la surveillance.",
+        "watch_mode": "Lors d'une impulsion d'entrée manuelle",
+        "watch_mode_help": "Comment réagir lorsque la vanne d'entrée est ouverte en dehors d'un cycle Home Assistant (uniquement les impulsions visibles par Home Assistant).",
+        "watch_mode_count": "La compter (avancer la position)",
+        "watch_mode_warn": "Avertir (marquer la position comme incertaine)",
+        "watch_mode_ignore": "Ignorer",
+        "run_service": "Script de démarrage",
+        "run_service_help": "Script appelé pour ouvrir l'entrée. Il reçoit la durée de l'impulsion.",
+        "stop_service": "Script d'arrêt (optionnel)",
+        "stop_service_help": "Script appelé pour fermer l'entrée.",
+        "duration_field": "Champ de durée",
+        "duration_field_help": "Nom du champ dans lequel le script de démarrage attend la durée.",
+        "duration_field_placeholder": "duration",
+        "duration_unit": "Unité de durée",
+        "duration_units": {
+          "seconds": "Secondes",
+          "minutes": "Minutes"
+        },
+        "confirm_entity": "Capteur de confirmation (optionnel)",
+        "confirm_entity_help": "Capteur facultatif sur l'entrée du distributeur confirmant que l'eau circule réellement (par ex. un capteur de débit ou de position de vanne). S'il ne détecte aucun débit à l'ouverture d'une sortie, le cycle s'arrête en toute sécurité et marque le distributeur comme incertain : c'est la détection de débit faible / de défaut.",
+        "flow_sensor": "Capteur de débit (optionnel)",
+        "flow_sensor_help": "Le débitmètre partagé sur l'entrée (p. ex. L/min, m³/h). Lorsqu'il est défini, le volume réellement délivré par sortie est mesuré et comptabilisé au lieu de l'estimation temporelle. Facultatif. Lorsque la vanne peut être arrêtée (une entrée classic ou un service d'arrêt self-closing), la sortie est en outre arrêtée dès que son volume cible est atteint.",
+        "pause_seconds": "Pause d'avance",
+        "skip_pulse_seconds": "Impulsion de saut",
+        "notify_target": "Cible de notification (optionnel)",
+        "notify_target_help": "Canal supplémentaire facultatif. Les arrêts apparaissent toujours dans le panneau de notifications de Home Assistant ; indiquez ici un service notify (par ex. notify.mobile_app_phone) pour les y envoyer aussi.",
+        "notify_target_placeholder": "notify.mobile_app_phone"
+      },
+      "notify": {
+        "halted": "Distributeur '{name}' arrêté ({reason}). Resynchronisation et reconfirmation requises.",
+        "reason": {
+          "valve_did_not_open": "la vanne ne s'est pas ouverte",
+          "restart_mid_advance": "redémarrage pendant l'avance",
+          "foreign_inlet_pulse": "impulsion d'entrée manuelle"
+        }
+      },
+      "commissioning": {
+        "title": "Mise en service",
+        "outlet": "Sortie",
+        "states": {
+          "synced": "Synchronisé",
+          "uncertain": "Incertain"
+        },
+        "test_run": "Test",
+        "test_run_help": "Arrose chaque sortie affectée pendant environ 30 secondes dans l'ordre, pour que vous puissiez observer l'avance de l'appareil et noter la pause nécessaire.",
+        "set_outlet": "Définir la sortie actuelle",
+        "set_outlet_help": "Lisez le numéro de sortie affiché dans la fenêtre de l'appareil et saisissez-le ici pour resynchroniser la position suivie.",
+        "resync_home": "Réinitialiser à la sortie 1",
+        "confirm_resync": { "title": "Réinitialiser à la sortie 1 ?", "body": "Ceci règle la position suivie sur la sortie 1. Ne confirmez que si l'appareil est physiquement sur la sortie 1 — sinon le distributeur arrosera les mauvaises sorties (désynchronisation non détectée)." },
+        "confirm_set_outlet": { "title": "Définir la sortie actuelle ?", "body": "Ceci marque le distributeur comme synchronisé sur la sortie saisie. Ne confirmez que si la fenêtre de l'appareil affiche physiquement cette sortie MAINTENANT — une valeur erronée arrose silencieusement les mauvaises sorties." },
+        "confirmed": "Mise en service confirmée",
+        "confirmed_help": "Arme le distributeur pour les cycles automatiques et manuels. Ne peut être activé que lorsque la position est synchronisée et se désactive automatiquement si la position devient incertaine.",
+        "needs_sync": "Synchronisez la position avant de pouvoir armer ce distributeur.",
+        "run_now": "Lancer maintenant",
+        "run_now_help": "Exécute un cycle manuel complet sur toutes les sorties affectées.",
+        "run_now_active": "Un cycle est déjà en cours.",
+        "confirm_dialog": {
+          "title": "Armer ce distributeur ?",
+          "body": "Confirmez que l'appareil est physiquement sur la sortie 1 et que chaque sortie est affectée à la bonne zone. Les cycles automatiques et manuels commenceront à actionner l'entrée par impulsions.",
+          "confirm": "Confirmer et armer"
+        }
+      },
+      "hints": {
+        "pressure": "Fournissez au distributeur au moins 1 bar de pression d'eau et 20 l/h de débit. Les distributeurs mécaniques ont besoin d'une impulsion ferme pour avancer de façon fiable.",
+        "below_floor_pause": "Pause très courte. L'impulsion d'avance doit être assez longue pour que le distributeur avance réellement ; le backend impose un minimum de 10 secondes.",
+        "below_floor_skip": "Impulsion de saut très courte. Le backend impose un minimum de 10 secondes.",
+        "undetectable": "Le bouton de sélection manuel de l'appareil ne peut pas être relu. Si vous le tournez à la main, utilisez ensuite « Définir la sortie actuelle » pour que la position suivie corresponde.",
+        "outlet_change": "Modifier l'affectation d'une sortie déplace l'appareil hors de sa position connue. Resynchronisez et reconfirmez la mise en service avant le prochain cycle.",
+        "parallel_draw": "Le séquencement parallèle ouvre plusieurs zones à la fois, mais un distributeur n'alimente qu'une sortie à la fois ; ses zones affectées sont donc quand même arrosées en séquence. Planifiez le débit d'alimentation en conséquence.",
+        "master_off_after": "Avec un séquencement séquentiel ou rotatif et « maître coupé après chaque zone », la pompe est commutée par sortie ; attendez-vous à ce qu'elle cycle entre chaque sortie du distributeur.",
+        "experimental": "Fonctionnalité expérimentale — encore en cours d'amélioration et pas entièrement testée sur matériel. Surveillez de près les premiers jours d'utilisation et gardez la commande manuelle de l'appareil à portée de main."
+      },
+      "outlets": {
+        "title": "Sorties / zones",
+        "help": "Définissez le nombre de sorties du distributeur, puis affectez une zone à chacune. Seules les zones sans vanne ni script propres peuvent être affectées — une zone est soit sur un distributeur, soit dotée de sa propre vanne. Le nombre de sorties est égal au nombre de zones affectées, numérotées de façon continue à partir de 1.",
+        "count": "Nombre de sorties",
+        "none": "— aucune",
+        "no_zones": "Aucune zone pour le moment. Créez d'abord des zones (Configuration → Zones), puis affectez-les ici.",
+        "gap_warning": "Les sorties doivent être remplies de façon continue à partir de 1 — affectez une zone à chaque sortie jusqu'à la plus élevée utilisée."
       }
     }
   },
@@ -853,7 +971,9 @@
     "general_wind_threshold": "L'arrosage est ignoré si la vitesse du vent dépasse cette valeur (un vent fort réduit l'efficacité et provoque une dérive).",
     "zone_plant_type": "Choisissez un type de plante pour définir un coefficient cultural typique, ou « Personnalisé » pour saisir Kc vous-même.",
     "zone_kc": "Met à l'échelle l'ET de référence (gazon) selon les plantes de cette zone. 1,0 = gazon de référence ; plus bas pour des plantations résistantes à la sécheresse, plus haut pour des cultures gourmandes. Seul le terme d'ET est mis à l'échelle, pas la pluie.",
-    "zone_soil_type": "Choisissez un type de sol pour définir un taux de drainage typique, ou laissez Personnalisé pour le saisir manuellement ci-dessous."
+    "zone_soil_type": "Choisissez un type de sol pour définir un taux de drainage typique, ou laissez Personnalisé pour le saisir manuellement ci-dessous.",
+    "distributor_pause_seconds": "Temps d'arrêt entre les sorties. C'est l'impulsion qui fait avancer le distributeur vers la sortie suivante ; réglez-la d'après ce que vous avez observé lors du test. Minimum 10 secondes.",
+    "distributor_skip_pulse_seconds": "Courte impulsion marche/arrêt pour passer une sortie sans zone affectée, sans l'arroser. Minimum 10 secondes."
   },
   "wizard": {
     "title": "Assistant de configuration",

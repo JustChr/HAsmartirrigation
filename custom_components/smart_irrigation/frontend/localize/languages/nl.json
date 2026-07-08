@@ -396,7 +396,14 @@
           "loam": "Leem (gebalanceerd)",
           "silt": "Silt (traag afwaterend)",
           "clay": "Klei (zeer traag afwaterend)"
-        }
+        },
+        "distributor": "Waterverdeler",
+        "distributor_help": "Wijs deze zone toe aan een uitgang van een mechanische waterverdeler. De inlaatklep van de verdeler en zijn puls-doorschakeling bewateren dan deze zone, dus de eigen klep en planning van de zone worden door de verdeler beheerd.",
+        "distributor_none": "Geen (eigen klep)",
+        "outlet_number": "Uitgangsnummer",
+        "distributor_managed_note": "Deze zone wordt via een verdeler bewaterd (uitgang hierboven). De klep, de inlaatbesturing en de debietsensor worden door de verdeler beheerd en hier verborgen — alleen de bereken- en bodemvocht-veto-instellingen blijven. Om de zone weer een eigen klep te geven, kies hierboven “Geen (eigen klep)”.",
+        "outlet_number_readonly_help": "Welke uitgang van de verdeler deze zone voedt. Wordt ingesteld op de verdelerpagina — open die met de knop.",
+        "configure_on_distributor": "Op verdeler instellen"
       },
       "no_items": "Er zijn nog geen zones.",
       "title": "Zones",
@@ -529,7 +536,8 @@
         "run": "Starten",
         "minutes": "min",
         "help": "Bewater deze zone voor een aangepaste tijd, los van de berekening",
-        "toast_started": "Beurt gestart"
+        "toast_started": "Beurt gestart",
+        "busy_hint": "Verdeler is bezig — je kunt pas opnieuw starten wanneer hij weer in de ruststand staat."
       },
       "stop_zone": {
         "stop": "Stop",
@@ -643,7 +651,8 @@
         "my_zones": "Mijn zones",
         "when_to_water": "Wanneer water geven",
         "advanced": "Geavanceerd",
-        "experimental": "Experimenteel"
+        "experimental": "Experimenteel",
+        "distributors": "Verdelers"
       },
       "weather_data": {
         "forecast_title": "Verwachting",
@@ -675,6 +684,115 @@
         "description": "Standaard geeft een zone één keer per dag water, op basis van het tekort dat de dagelijkse berekening opleverde (bijvoorbeeld om 23:00). Met deze optie beslist — en bepaalt — elke geplande beurt zichzelf op basis van het live tekort gedurende de dag (de drainagegecorrigeerde ET en regen sinds de laatste berekening). Hierdoor kan een zone vaker dan eens per dag water geven bij echte vraag gedurende de dag (bijvoorbeeld potten met een schema van elke 12 uur die de eenmaal-daagse emmer anders droog zou laten), en wordt een beurt die regen overdag al heeft gedekt verkort of geannuleerd. Het dagelijkse logboek blijft ongewijzigd: na de beurt wordt de emmer gecrediteerd met het werkelijk geleverde water, zodat de volgende dagelijkse berekening nooit dubbel telt. Vereist een weerservice.",
         "label": "Elke beurt starten en dimensioneren op het live tekort",
         "note": "Heeft alleen invloed op geplande beurten en kan er een starten die de dagelijkse berekening niet goedkeurde. Houd voor frequent water geven een redelijk minimumtekort aan en een maximale emmer van ten minste een dag ET."
+      },
+      "distributors": {
+        "title": "Mechanische waterverdelers",
+        "description": "Stuur een mechanische drukverdeler aan — bijvoorbeeld een Gardena Waterverdeler — die één toevoer over meerdere uitgangen verdeelt en doorschakelt op aan/uit-pulsen van het water. Wijs zones toe aan de uitgangen van een verdeler en Smart Irrigation bewatert ze na elkaar, houdt de positie bij en coördineert een masterklep of pomp. Dit is een nieuwe functie die niet volledig op hardware getest kon worden, dus behandel het als bèta.",
+        "label": "Mechanische waterverdelers inschakelen",
+        "note": "Houd de eerste dagen van gebruik goed in de gaten en houd de handmatige bediening van het apparaat bij de hand. Je kunt het altijd weer uitschakelen — bestaande zonebewatering blijft ongewijzigd."
+      }
+    },
+    "distributors": {
+      "title": "Verdelers",
+      "description": "Mechanische waterverdelers splitsen één toevoer in meerdere uitgangen en schakelen door met aan/uit-pulsen van het water.",
+      "no_items": "Nog geen verdelers geconfigureerd.",
+      "add": {
+        "header": "Verdeler toevoegen",
+        "name_placeholder": "Naam van de verdeler",
+        "actions": {
+          "add": "Toevoegen"
+        }
+      },
+      "status": {
+        "saved": "Opgeslagen"
+      },
+      "confirm_delete": "Deze verdeler verwijderen? Toegewezen zones behouden hun uitgangsnummers maar verliezen de koppeling met de verdeler.",
+      "labels": {
+        "name": "Naam",
+        "watering_mode_help": "Hoe de inlaatklep van de verdeler wordt geopend en gesloten.",
+        "inlet_entity": "Inlaatklep/schakelaar (optioneel)",
+        "inlet_entity_help": "De schakelaar- of klep-entiteit die de watertoevoer naar de verdeler opent. Deze wordt tevens bewaakt op vreemde pulsen; zodra een klep is gekozen, verschijnt hieronder een instelling die de reactie bepaalt.",
+        "watch_inlet": "Inlaatklep bewaken op handmatige pulsen",
+        "watch_inlet_help": "Detecteert alleen klepschakelingen die Home Assistant kan zien — puur mechanische pulsen op het apparaat blijven onzichtbaar.",
+        "inlet_entity_help_service": "De ringklep die Home Assistant bewaakt op vreemde pulsen om de uitgangspositie synchroon te houden (bijv. wanneer de klep handmatig of door een automatisering buiten een HASI-run wordt geopend). Zodra een klep is gekozen, verschijnt hieronder een instelling die de reactie bepaalt. Aansturing gebeurt via het start/stop-script; dit veld wordt alleen gelezen en is NIET de stromings-/bevestigingssensor. Laat leeg om de bewaking uit te schakelen.",
+        "watch_mode": "Bij een handmatige inlaatpuls",
+        "watch_mode_help": "Hoe te reageren wanneer de inlaatklep buiten een Home Assistant-run wordt geopend (alleen pulsen die Home Assistant kan zien).",
+        "watch_mode_count": "Meetellen (positie doorschakelen)",
+        "watch_mode_warn": "Waarschuwen (positie als onzeker markeren)",
+        "watch_mode_ignore": "Negeren",
+        "run_service": "Startscript",
+        "run_service_help": "Script dat wordt aangeroepen om de inlaat te openen. Het ontvangt de pulsduur.",
+        "stop_service": "Stopscript (optioneel)",
+        "stop_service_help": "Script dat wordt aangeroepen om de inlaat te sluiten.",
+        "duration_field": "Duurveld",
+        "duration_field_help": "Naam van het veld waarin het startscript de duur verwacht.",
+        "duration_field_placeholder": "duration",
+        "duration_unit": "Duureenheid",
+        "duration_units": {
+          "seconds": "Seconden",
+          "minutes": "Minuten"
+        },
+        "confirm_entity": "Bevestigingssensor (optioneel)",
+        "confirm_entity_help": "Optionele sensor op de verdelerinlaat die bevestigt dat er daadwerkelijk water stroomt (bijv. een debiet- of klepstandsensor). Meet hij geen debiet wanneer een uitgang opent, dan stopt de cyclus veilig en wordt de verdeler als onzeker gemarkeerd — dit is de laag-debiet-/foutdetectie.",
+        "flow_sensor": "Debietsensor (optioneel)",
+        "flow_sensor_help": "De gedeelde debietmeter op de inlaat (bijv. L/min, m³/h). Indien ingesteld, wordt het werkelijk geleverde volume per uitgang gemeten en verrekend in plaats van de tijdschatting. Optioneel. Waar de klep gestopt kan worden (een classic-inlaat of een self-closing stop-service), wordt de uitgang bovendien vroegtijdig gestopt zodra het doelvolume is bereikt.",
+        "pause_seconds": "Doorschakelpauze",
+        "skip_pulse_seconds": "Overslaanpuls",
+        "notify_target": "Meldingsdoel (optioneel)",
+        "notify_target_help": "Optioneel extra kanaal. Storingen verschijnen altijd in het meldingenpaneel van Home Assistant; stel hier een notify-service in (bijv. notify.mobile_app_phone) om ze ook daarheen te sturen.",
+        "notify_target_placeholder": "notify.mobile_app_phone"
+      },
+      "notify": {
+        "halted": "Verdeler '{name}' gestopt ({reason}). Opnieuw synchroniseren en opnieuw bevestigen vereist.",
+        "reason": {
+          "valve_did_not_open": "klep is niet opengegaan",
+          "restart_mid_advance": "herstart tijdens het doorschakelen",
+          "foreign_inlet_pulse": "handmatige inlaatpuls"
+        }
+      },
+      "commissioning": {
+        "title": "Ingebruikname",
+        "outlet": "Uitgang",
+        "states": {
+          "synced": "Gesynchroniseerd",
+          "uncertain": "Onzeker"
+        },
+        "test_run": "Testrun",
+        "test_run_help": "Bewatert elke toegewezen uitgang ongeveer 30 seconden op volgorde, zodat je het apparaat kunt zien doorschakelen en de benodigde pauze kunt noteren.",
+        "set_outlet": "Huidige uitgang instellen",
+        "set_outlet_help": "Lees het uitgangsnummer af in het venster van het apparaat en stel het hier in om de bijgehouden positie opnieuw te synchroniseren.",
+        "resync_home": "Terugzetten naar uitgang 1",
+        "confirm_resync": { "title": "Terugzetten naar uitgang 1?", "body": "Dit zet de gevolgde positie op uitgang 1. Bevestig alleen als het apparaat fysiek op uitgang 1 staat — anders bewatert de verdeler de verkeerde uitgangen (onopgemerkte desynchronisatie)." },
+        "confirm_set_outlet": { "title": "Huidige uitgang instellen?", "body": "Dit markeert de verdeler als gesynchroniseerd op de ingevoerde uitgang. Bevestig alleen als het apparaatvenster NU precies die uitgang toont — een verkeerde waarde bewatert ongemerkt de verkeerde uitgangen." },
+        "confirmed": "Ingebruikname bevestigd",
+        "confirmed_help": "Schakelt de verdeler in voor automatische en handmatige cycli. Kan alleen worden ingesteld als de positie gesynchroniseerd is en gaat automatisch uit zodra de positie onzeker wordt.",
+        "needs_sync": "Synchroniseer de positie voordat je deze verdeler kunt inschakelen.",
+        "run_now": "Nu uitvoeren",
+        "run_now_help": "Voert één volledige handmatige cyclus uit over alle toegewezen uitgangen.",
+        "run_now_active": "Er loopt al een cyclus.",
+        "confirm_dialog": {
+          "title": "Deze verdeler inschakelen?",
+          "body": "Bevestig dat het apparaat fysiek op uitgang 1 staat en dat elke uitgang aan de juiste zone is toegewezen. Automatische en handmatige cycli gaan de inlaat pulsen.",
+          "confirm": "Bevestigen en inschakelen"
+        }
+      },
+      "hints": {
+        "pressure": "Geef de verdeler minstens 1 bar waterdruk en 20 l/h debiet. Mechanische verdelers hebben een stevige puls nodig om betrouwbaar door te schakelen.",
+        "below_floor_pause": "Zeer korte pauze. De doorschakelpuls moet lang genoeg zijn om de verdeler echt te laten doorschakelen; de backend hanteert minimaal 10 seconden.",
+        "below_floor_skip": "Zeer korte overslaanpuls. De backend hanteert minimaal 10 seconden.",
+        "undetectable": "De handmatige keuzeknop van het apparaat kan niet worden uitgelezen. Als je hem met de hand draait, gebruik daarna “Huidige uitgang instellen” zodat de bijgehouden positie klopt.",
+        "outlet_change": "Het wijzigen van een uitgangstoewijzing haalt het apparaat uit zijn bekende positie. Synchroniseer opnieuw en bevestig de ingebruikname opnieuw vóór de volgende cyclus.",
+        "parallel_draw": "Parallelle volgorde opent meerdere zones tegelijk, maar een verdeler voedt één uitgang tegelijk, dus zijn toegewezen zones worden toch na elkaar bewaterd. Plan de wateronttrekking daarop.",
+        "master_off_after": "Bij sequentiële of roterende volgorde en “master uit na elke zone” wordt de pomp per uitgang geschakeld, dus die zal tussen elke uitgang van de verdeler in- en uitschakelen.",
+        "experimental": "Experimentele functie — wordt nog verfijnd en is niet volledig op hardware getest. Houd de eerste dagen van gebruik goed in de gaten en houd de handmatige bediening van het apparaat binnen handbereik."
+      },
+      "outlets": {
+        "title": "Uitgangen / zones",
+        "help": "Stel in hoeveel uitgangen de verdeler heeft en wijs aan elke uitgang een zone toe. Alleen zones zonder eigen klep of script kunnen worden toegewezen — een zone zit op een verdeler of heeft een eigen klep. Het aantal uitgangen is gelijk aan het aantal toegewezen zones, aaneensluitend genummerd vanaf 1.",
+        "count": "Aantal uitgangen",
+        "none": "— geen",
+        "no_zones": "Nog geen zones. Maak eerst zones aan (Instellingen → Zones) en wijs ze hier toe.",
+        "gap_warning": "Uitgangen moeten aaneensluitend vanaf 1 gevuld zijn — wijs aan elke uitgang tot de hoogste gebruikte een zone toe."
       }
     }
   },
@@ -851,7 +969,9 @@
     "general_wind_threshold": "Irrigatie wordt overgeslagen als de windsnelheid deze waarde overschrijdt (harde wind vermindert de efficiëntie en veroorzaakt drift).",
     "zone_plant_type": "Kies een plantentype voor een typische gewascoëfficiënt, of kies Aangepast om Kc zelf in te voeren.",
     "zone_kc": "Schaalt de referentie-ET (gras) naar de planten van deze zone. 1,0 = referentiegras; lager voor droogtebestendige beplanting, hoger voor dorstige gewassen. Alleen de ET-term wordt geschaald — regen niet.",
-    "zone_soil_type": "Kies een grondsoort voor een typische afwateringssnelheid, of laat Aangepast om deze hieronder handmatig in te voeren."
+    "zone_soil_type": "Kies een grondsoort voor een typische afwateringssnelheid, of laat Aangepast om deze hieronder handmatig in te voeren.",
+    "distributor_pause_seconds": "Uit-tijd tussen uitgangen. Dit is de puls die de verdeler naar de volgende uitgang doorschakelt; stel hem in op wat je tijdens de testrun zag. Minimaal 10 seconden.",
+    "distributor_skip_pulse_seconds": "Korte aan/uit-puls om langs een uitgang zonder toegewezen zone te schakelen zonder die te bewateren. Minimaal 10 seconden."
   },
   "wizard": {
     "title": "Configuratiewizard",

@@ -396,7 +396,14 @@
           "loam": "Hlinitá (vyvážená)",
           "silt": "Prachová (pomalé odvodnenie)",
           "clay": "Ílovitá (veľmi pomalé odvodnenie)"
-        }
+        },
+        "distributor": "Rozvádzač vody",
+        "distributor_help": "Priraďte túto zónu k výstupu mechanického rozvádzača vody. Vstupný ventil rozvádzača a jeho impulzové posúvanie potom zavlažujú túto zónu, takže vlastný ventil a plán zóny spravuje rozvádzač.",
+        "distributor_none": "Žiadny (vlastný ventil)",
+        "outlet_number": "Číslo výstupu",
+        "distributor_managed_note": "Táto zóna sa zavlažuje cez rozvádzač (výstup vyššie). Jej ventil, ovládanie vstupu a senzor prietoku spravuje rozvádzač a sú tu skryté — zostávajú len nastavenia výpočtu a veta podľa vlhkosti pôdy. Ak chcete zóne vrátiť vlastný ventil, vyberte vyššie „Žiadny (vlastný ventil)“.",
+        "outlet_number_readonly_help": "Ktorý výstup rozvádzača napája túto zónu. Nastavuje sa na stránke rozvádzača — otvorte ju tlačidlom.",
+        "configure_on_distributor": "Nastaviť na rozvádzači"
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
       "title": "Zóny",
@@ -529,7 +536,8 @@
         "run": "Spustiť",
         "minutes": "min",
         "help": "Zavlažovať túto zónu po vlastný čas, bez ohľadu na výpočet",
-        "toast_started": "Spustené zavlažovanie"
+        "toast_started": "Spustené zavlažovanie",
+        "busy_hint": "Rozvádzač práve pracuje — spustiť môžete znova, až keď sa vráti do základnej polohy."
       },
       "stop_zone": {
         "stop": "Zastaviť",
@@ -643,7 +651,8 @@
         "my_zones": "Moje zóny",
         "when_to_water": "Kedy zavlažovať",
         "advanced": "Pokročilé",
-        "experimental": "Experimentálne"
+        "experimental": "Experimentálne",
+        "distributors": "Rozvádzače"
       },
       "weather_data": {
         "forecast_title": "Predpoveď",
@@ -675,6 +684,115 @@
         "description": "Štandardne zóna zavlažuje raz denne, podľa deficitu z denného výpočtu (napríklad o 23:00). Pri zapnutí sa každý naplánovaný beh namiesto toho rozhodne — a nadimenzuje — podľa živého vnútrodenného deficitu (ET upravená o drenáž a zrážky od posledného výpočtu). To umožní zóne zavlažovať viac než raz denne podľa skutočnej dennej potreby (napríklad kvetináče s plánom každých 12 hodín, ktoré by raz denné vedro inak nechalo suché), a skráti alebo zruší beh, ktorý už pokryl dáždʼ počas dňa. Denná evidencia zostáva nezmenená: po behu sa do vedra pripíše skutočne dodaná voda, takže ďalší denný výpočet nikdy nepočíta dvakrát. Vyžaduje poveternostnú službu.",
         "label": "Spustiť a nadimenzovať každý beh podľa živého deficitu",
         "note": "Týka sa len naplánovaných behov a môže spustiť taký, ktorý denný výpočet neschválil. Pri častom zavlažovaní ponechajte rozumný minimálny deficit a maximálne vedro aspoň na úroveň dennej ET."
+      },
+      "distributors": {
+        "title": "Mechanické rozvádzače vody",
+        "description": "Ovládajte mechanický tlakový rozvádzač — napríklad rozvádzač vody Gardena — ktorý rozdeľuje jeden prívod na niekoľko výstupov a posúva sa impulzmi zapnutia a vypnutia vody. Priraďte zóny k výstupom rozvádzača a Smart Irrigation ich zavlažuje postupne, sleduje polohu a koordinuje hlavný ventil alebo čerpadlo. Ide o novú funkciu, ktorú nebolo možné úplne otestovať na hardvéri, preto ju berte ako beta verziu.",
+        "label": "Povoliť mechanické rozvádzače vody",
+        "note": "Prvé dni používania pozorne sledujte a majte po ruke manuálne ovládanie zariadenia. Kedykoľvek ho môžete znova vypnúť — existujúce zavlažovanie zón zostáva nedotknuté."
+      }
+    },
+    "distributors": {
+      "title": "Rozvádzače",
+      "description": "Mechanické rozvádzače vody rozdeľujú jeden prívod na niekoľko výstupov a posúvajú sa impulzmi zapnutia a vypnutia vody.",
+      "no_items": "Zatiaľ nie sú nakonfigurované žiadne rozvádzače.",
+      "add": {
+        "header": "Pridať rozvádzač",
+        "name_placeholder": "Názov rozvádzača",
+        "actions": {
+          "add": "Pridať"
+        }
+      },
+      "status": {
+        "saved": "Uložené"
+      },
+      "confirm_delete": "Odstrániť tento rozvádzač? Priradené zóny si ponechajú čísla výstupov, ale stratia prepojenie s rozvádzačom.",
+      "labels": {
+        "name": "Názov",
+        "watering_mode_help": "Ako sa otvára a zatvára vstupný ventil rozvádzača.",
+        "inlet_entity": "Vstupný ventil/spínač (voliteľné)",
+        "inlet_entity_help": "Entita spínača alebo ventilu, ktorá otvára prívod vody do rozvádzača. Zároveň sa sleduje kvôli cudzím impulzom; po výbere ventilu sa nižšie zobrazí nastavenie, ktoré riadi reakciu.",
+        "watch_inlet": "Sledovať vstupný ventil na manuálne impulzy",
+        "watch_inlet_help": "Zistí len prepnutia ventilu, ktoré Home Assistant vidí — čisto mechanické impulzy na zariadení zostávajú neviditeľné.",
+        "inlet_entity_help_service": "Kruhový ventil, ktorý Home Assistant sleduje kvôli cudzím impulzom, aby udržal pozíciu výstupu synchronizovanú (napr. keď sa ventil otvorí manuálne alebo automatizáciou mimo behu HASI). Po výbere ventilu sa nižšie zobrazí nastavenie, ktoré riadi reakciu. Ovládanie prebieha cez skript spustenia/zastavenia; toto pole sa iba číta a NIE je snímačom prietoku/potvrdenia. Nechajte prázdne na vypnutie sledovania.",
+        "watch_mode": "Pri manuálnom vstupnom impulze",
+        "watch_mode_help": "Ako reagovať, keď sa vstupný ventil otvorí mimo behu Home Assistant (len impulzy, ktoré Home Assistant vidí).",
+        "watch_mode_count": "Počítať ho (posunúť pozíciu)",
+        "watch_mode_warn": "Varovať (označiť pozíciu ako neistú)",
+        "watch_mode_ignore": "Ignorovať",
+        "run_service": "Skript spustenia",
+        "run_service_help": "Skript volaný na otvorenie vstupu. Dostáva trvanie impulzu.",
+        "stop_service": "Skript zastavenia (voliteľné)",
+        "stop_service_help": "Skript volaný na zatvorenie vstupu.",
+        "duration_field": "Pole trvania",
+        "duration_field_help": "Názov poľa, v ktorom skript spustenia očakáva trvanie.",
+        "duration_field_placeholder": "duration",
+        "duration_unit": "Jednotka trvania",
+        "duration_units": {
+          "seconds": "Sekundy",
+          "minutes": "Minúty"
+        },
+        "confirm_entity": "Potvrdzovací senzor (voliteľné)",
+        "confirm_entity_help": "Voliteľný senzor na vstupe rozvádzača, ktorý potvrdzuje, že voda skutočne tečie (napr. senzor prietoku alebo polohy ventilu). Ak pri otvorení výstupu nezistí prietok, cyklus sa bezpečne zastaví a označí rozvádzač ako neistý – to je detekcia nízkeho prietoku/porúch.",
+        "flow_sensor": "Senzor prietoku (voliteľné)",
+        "flow_sensor_help": "Zdieľaný prietokomer na vstupe (napr. L/min, m³/h). Ak je nastavený, skutočne dodaný objem na každý výstup sa meria a započítava namiesto časového odhadu. Voliteľné. Ak sa ventil dá zastaviť (vstup classic alebo zastavovacia služba self-closing), výstup sa navyše zastaví predčasne po dosiahnutí cieľového objemu.",
+        "pause_seconds": "Pauza posunu",
+        "skip_pulse_seconds": "Preskakovací impulz",
+        "notify_target": "Cieľ upozornenia (voliteľné)",
+        "notify_target_help": "Voliteľný ďalší kanál. Zastavenia sa vždy zobrazia v paneli upozornení Home Assistant; sem zadajte službu notify (napr. notify.mobile_app_phone), aby sa posielali aj tam.",
+        "notify_target_placeholder": "notify.mobile_app_phone"
+      },
+      "notify": {
+        "halted": "Rozvádzač '{name}' zastavený ({reason}). Vyžaduje sa opätovná synchronizácia a opätovné potvrdenie.",
+        "reason": {
+          "valve_did_not_open": "ventil sa neotvoril",
+          "restart_mid_advance": "reštart počas posunu",
+          "foreign_inlet_pulse": "manuálny impulz na vstupe"
+        }
+      },
+      "commissioning": {
+        "title": "Uvedenie do prevádzky",
+        "outlet": "Výstup",
+        "states": {
+          "synced": "Synchronizované",
+          "uncertain": "Neisté"
+        },
+        "test_run": "Testovací beh",
+        "test_run_help": "Zavlažuje každý priradený výstup po poradí približne 30 sekúnd, aby ste videli posun zariadenia a zaznamenali potrebnú pauzu.",
+        "set_outlet": "Nastaviť aktuálny výstup",
+        "set_outlet_help": "Prečítajte číslo výstupu zobrazené v okienku zariadenia a zadajte ho sem na opätovnú synchronizáciu sledovanej polohy.",
+        "resync_home": "Obnoviť na výstup 1",
+        "confirm_resync": { "title": "Obnoviť na výstup 1?", "body": "Toto nastaví sledovanú pozíciu na výstup 1. Potvrďte len ak je zariadenie fyzicky na výstupe 1 — inak rozvádzač zavlaží nesprávne výstupy (nezistená desynchronizácia)." },
+        "confirm_set_outlet": { "title": "Nastaviť aktuálny výstup?", "body": "Toto označí rozvádzač ako synchronizovaný na zadanom výstupe. Potvrďte len ak okno zariadenia PRÁVE TERAZ fyzicky zobrazuje tento výstup — nesprávna hodnota potichu zavlaží nesprávne výstupy." },
+        "confirmed": "Uvedenie do prevádzky potvrdené",
+        "confirmed_help": "Aktivuje rozvádzač pre automatické a manuálne cykly. Dá sa nastaviť len pri synchronizovanej polohe a automaticky sa vypne, keď sa poloha stane neistou.",
+        "needs_sync": "Pred aktiváciou tohto rozvádzača nastavte polohu na synchronizovanú.",
+        "run_now": "Spustiť teraz",
+        "run_now_help": "Spustí jeden úplný manuálny cyklus cez všetky priradené výstupy.",
+        "run_now_active": "Cyklus už prebieha.",
+        "confirm_dialog": {
+          "title": "Aktivovať tento rozvádzač?",
+          "body": "Potvrďte, že zariadenie je fyzicky na výstupe 1 a každý výstup je priradený správnej zóne. Automatické a manuálne cykly začnú impulzovať vstup.",
+          "confirm": "Potvrdiť a aktivovať"
+        }
+      },
+      "hints": {
+        "pressure": "Zabezpečte rozvádzaču aspoň 1 bar tlaku vody a prietok 20 l/h. Mechanické rozvádzače potrebujú na spoľahlivý posun pevný impulz.",
+        "below_floor_pause": "Veľmi krátka pauza. Impulz posunu musí byť dostatočne dlhý, aby sa rozvádzač skutočne posunul; backend vynucuje minimálne 10 sekúnd.",
+        "below_floor_skip": "Veľmi krátky preskakovací impulz. Backend vynucuje minimálne 10 sekúnd.",
+        "undetectable": "Manuálny volič zariadenia sa nedá spätne načítať. Ak ním otočíte ručne, potom použite „Nastaviť aktuálny výstup“, aby sledovaná poloha súhlasila.",
+        "outlet_change": "Zmena priradenia výstupu posunie zariadenie z jeho známej polohy. Pred ďalším cyklom znova synchronizujte a znova potvrďte uvedenie do prevádzky.",
+        "parallel_draw": "Paralelné poradie otvára viac zón naraz, ale rozvádzač napája vždy len jeden výstup, takže jeho priradené zóny sa aj tak zavlažujú postupne. Podľa toho naplánujte odber vody.",
+        "master_off_after": "Pri sekvenčnom alebo rotujúcom poradí a „hlavný vypnutý po každej zóne“ sa čerpadlo prepína pre každý výstup, takže očakávajte, že bude cyklovať medzi každým výstupom rozvádzača.",
+        "experimental": "Experimentálna funkcia — stále sa vylepšuje a nie je úplne otestovaná na hardvéri. Prvé dni používania pozorne sledujte a majte manuálne ovládanie zariadenia v dosahu."
+      },
+      "outlets": {
+        "title": "Výstupy / zóny",
+        "help": "Nastavte, koľko výstupov má rozvádzač, a priraďte každému zónu. Priradiť možno len zóny bez vlastného ventilu alebo skriptu — zóna je buď na rozvádzači, alebo má vlastný ventil. Počet výstupov sa rovná počtu priradených zón, číslovaných súvisle od 1.",
+        "count": "Počet výstupov",
+        "none": "— žiadna",
+        "no_zones": "Zatiaľ žiadne zóny. Najprv vytvorte zóny (Nastavenia → Zóny) a potom ich sem priraďte.",
+        "gap_warning": "Výstupy musia byť obsadené súvisle od 1 — priraďte zónu každému výstupu až po najvyšší použitý."
       }
     }
   },
@@ -851,7 +969,9 @@
     "general_wind_threshold": "Zavlažovanie sa preskočí, ak rýchlosť vetra prekročí túto hodnotu (silný vietor znižuje účinnosť a spôsobuje úlet).",
     "zone_plant_type": "Vyberte typ rastliny pre typický plodinový koeficient, alebo zvoľte Vlastné a zadajte Kc sami.",
     "zone_kc": "Škáluje referenčnú ET (tráva) na rastliny tejto zóny. 1,0 = referenčná tráva; nižšie pre sucho znášajúce rastliny, vyššie pre náročné plodiny. Škáluje sa iba člen ET — dážď nie.",
-    "zone_soil_type": "Vyberte typ pôdy pre typickú rýchlosť odvodnenia, alebo nechajte Vlastné a zadajte ju nižšie ručne."
+    "zone_soil_type": "Vyberte typ pôdy pre typickú rýchlosť odvodnenia, alebo nechajte Vlastné a zadajte ju nižšie ručne.",
+    "distributor_pause_seconds": "Čas vypnutia medzi výstupmi. Toto je impulz, ktorý posúva rozvádzač na ďalší výstup; nastavte ho podľa toho, čo ste videli pri testovacom behu. Minimálne 10 sekúnd.",
+    "distributor_skip_pulse_seconds": "Krátky impulz zap./vyp. na preskočenie výstupu bez priradenej zóny bez jeho zavlažovania. Minimálne 10 sekúnd."
   },
   "wizard": {
     "title": "Sprievodca nastavením",

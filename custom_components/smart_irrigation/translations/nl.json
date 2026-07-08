@@ -261,6 +261,12 @@
       },
       "last_water_used": {
         "name": "Waterverbruik laatste cyclus"
+      },
+      "current_outlet": {
+        "name": "Huidige uitgang"
+      },
+      "outlet_zone": {
+        "name": "Zone op uitgang {outlet}"
       }
     },
     "binary_sensor": {
@@ -278,6 +284,9 @@
       },
       "any_problem": {
         "name": "Een zone heeft een probleem"
+      },
+      "commissioned": {
+        "name": "In bedrijf gesteld"
       }
     },
     "number": {
@@ -306,6 +315,9 @@
       },
       "resume_irrigation": {
         "name": "Bewatering hervatten"
+      },
+      "test_run": {
+        "name": "Testrun"
       }
     },
     "datetime": {
