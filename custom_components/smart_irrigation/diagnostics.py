@@ -32,6 +32,7 @@ async def async_get_config_entry_diagnostics(
                 "mappings": await store.async_get_mappings(),
                 "modules": await store.async_get_modules(),
                 "zones": await store.async_get_zones(),
+                "distributors": await store.async_get_distributors(),
             }
         else:
             _LOGGER.warning("Store is not available")

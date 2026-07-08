@@ -52,6 +52,7 @@ from .helpers import (
     loadModules,
     relative_to_absolute_pressure,
 )
+from .distributor import DistributorMixin
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin
@@ -172,6 +173,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Reconcile any self-closing runs that were in flight across a restart.
     await coordinator.async_resume_self_closing_runs()
+
+    # Reconcile any in-flight distributor cycles across a restart (before any
+    # schedule can dispatch a new one).
+    await coordinator.async_resume_distributor_cycles()
+
+    # Bug 2 (2026-07-06): defensively kill an orphaned master left on across a restart
+    # (its off-timer is in-memory only and gone after the reboot). One-shot, gated on
+    # master_off_after; defers to any still-running self-closing run. Runs AFTER both
+    # resume steps so crashed cycles are already reconciled. See master.py.
+    await coordinator.async_reconcile_master_after_restart()
 
     # Set up unit system change listener
     async def handle_core_config_change(event):
@@ -339,6 +350,7 @@ class SmartIrrigationCoordinator(
     ObservedWateringMixin,
     SelfClosingMixin,
     MasterMixin,
+    DistributorMixin,
 ):
     """Define an object to hold Smart Irrigation device.
 
@@ -588,6 +600,14 @@ class SmartIrrigationCoordinator(
         for zone in zones:
             # self.async_create_zone(zone)
             async_dispatcher_send(self.hass, const.DOMAIN + "_register_entity", zone)
+
+        for distributor in await self.store.async_get_distributors():
+            async_dispatcher_send(
+                self.hass, const.DOMAIN + "_distributor_register_entity", distributor
+            )
+            # E4: (re)arm the opt-in inlet-watch listener once per distributor on
+            # setup, mirroring the entity replay above.
+            self._dist_refresh_inlet_watch(distributor)
 
     async def async_handle_unit_system_change(self):
         """Handle changes to the Home Assistant unit system."""
@@ -1330,8 +1350,17 @@ class SmartIrrigationCoordinator(
             await self.handle_clear_weatherdata(None)
         elif zone_id is not None and self.store.get_zone(zone_id):
             # modify a zone
+            old_zone = self.store.get_zone(zone_id)
             entry = await self.store.async_update_zone(zone_id, data)
             async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
+            for did in {
+                old_zone.get(const.ZONE_DISTRIBUTOR_ID),
+                entry.get(const.ZONE_DISTRIBUTOR_ID),
+            }:
+                if did is not None:
+                    async_dispatcher_send(
+                        self.hass, const.DOMAIN + "_distributor_updated", int(did)
+                    )
             # make sure to update the HA entity here by listening to this in sensor.py.
             # this should be called by changes from the UI (by user) or by a calculation module (updating a duration), which should be done in python
         else:
@@ -1419,6 +1448,13 @@ class SmartIrrigationCoordinator(
 
         # Cancel the experimental observed-watering valve subscription.
         self.async_teardown_observed_watering()
+
+        # E4: cancel all opt-in distributor inlet-watch listeners so a reloaded
+        # coordinator doesn't leave stale state-change subscriptions behind.
+        for unsub in getattr(self, "_dist_inlet_watchers", {}).values():
+            unsub()
+        if hasattr(self, "_dist_inlet_watchers"):
+            self._dist_inlet_watchers.clear()
 
         # Clear the in-memory per-zone entity trackers; the entity platform
         # manages entity state on unload. Registry entries are preserved so user

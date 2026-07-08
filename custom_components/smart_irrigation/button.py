@@ -13,12 +13,14 @@ from homeassistant.components.button import DOMAIN as PLATFORM
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
 from . import const
+from .distributor_entity import DistributorEntityBase
 from .entity import hub_device_info, zone_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,6 +56,52 @@ async def async_setup_entry(
     config_entry.async_on_unload(
         async_dispatcher_connect(
             hass, const.DOMAIN + "_register_entity", async_add_button_entity
+        )
+    )
+
+    @callback
+    def async_add_distributor_button(distributor: dict) -> None:
+        """Add the per-distributor test-run button for each registered distributor."""
+        if const.DOMAIN not in hass.data:
+            return
+        registered = hass.data[const.DOMAIN].setdefault("distributor_buttons", {})
+        did = distributor["id"]
+        if did in registered:
+            return
+        base = "{}.{}_distributor_{}".format(
+            PLATFORM, const.DOMAIN, slugify(distributor.get("name") or f"d{did}")
+        )
+        ent = SmartIrrigationDistributorTestRunButton(
+            hass, f"{base}_test_run", distributor
+        )
+        registered[did] = [ent]
+        async_add_devices([ent])
+
+    @callback
+    def async_remove_distributor_button(distributor_id) -> None:
+        """Drop the test-run button(s) of a removed distributor from the registry."""
+        registered = hass.data.get(const.DOMAIN, {}).get("distributor_buttons", {})
+        entities = registered.pop(distributor_id, None)
+        if not entities:
+            return
+        registry = er.async_get(hass)
+        for ent in entities:
+            eid = registry.async_get_entity_id(PLATFORM, const.DOMAIN, ent.unique_id)
+            if eid:
+                registry.async_remove(eid)
+
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            const.DOMAIN + "_distributor_register_entity",
+            async_add_distributor_button,
+        )
+    )
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            const.DOMAIN + "_distributor_removed",
+            async_remove_distributor_button,
         )
     )
 
@@ -142,7 +190,9 @@ class SmartIrrigationZoneIrrigateNowButton(SmartIrrigationZoneButton):
         if coordinator is None:
             _LOGGER.warning("Irrigate now: coordinator not available")
             return
-        await coordinator.async_irrigate_now(str(self._zone_id))
+        # b13 (2026-07-06): fire-and-forget — a distributor member routes through a
+        # full ring cycle (minutes); awaiting it froze the button press that long.
+        self._hass.async_create_task(coordinator.async_irrigate_now(str(self._zone_id)))
 
 
 class SmartIrrigationZoneResetUsageButton(SmartIrrigationZoneButton):
@@ -159,6 +209,32 @@ class SmartIrrigationZoneResetUsageButton(SmartIrrigationZoneButton):
             _LOGGER.warning("Reset usage: coordinator not available")
             return
         await coordinator.async_reset_water_usage(self._zone_id)
+
+
+class SmartIrrigationDistributorTestRunButton(DistributorEntityBase, ButtonEntity):
+    """Run the commissioning test-run — only while NOT yet commissioned."""
+
+    suffix = "test_run"
+    _attr_translation_key = "test_run"
+    _attr_icon = "mdi:play-circle"
+
+    def _refresh(self, distributor: dict) -> None:
+        # The test-run is a commissioning aid: once armed (commissioned), it is
+        # neither needed nor allowed — greyed out and a no-op.
+        self._attr_available = not bool(distributor.get("commissioning_confirmed"))
+
+    async def async_press(self) -> None:
+        coordinator = self._hass.data[const.DOMAIN]["coordinator"]
+        distributor = coordinator.store.get_distributor(self._distributor_id)
+        if distributor is None or distributor.get("commissioning_confirmed"):
+            return
+        # b13 (live test 2026-07-06): fire-and-forget. A test-run sweeps EVERY
+        # outlet (fixed window + pause each), so awaiting it blocked the button
+        # press for minutes. Schedule it — progress shows live via the distributor
+        # entities + the _update_frontend refresh.
+        self._hass.async_create_task(
+            coordinator.async_run_distributor_test(distributor)
+        )
 
 
 class SmartIrrigationHubButton(ButtonEntity):
@@ -199,7 +275,9 @@ class SmartIrrigationIrrigateAllButton(SmartIrrigationHubButton):
         """Irrigate all eligible zones now."""
         coordinator = _coordinator(self._hass)
         if coordinator is not None:
-            await coordinator.async_irrigate_now()
+            # b13 (2026-07-06): fire-and-forget — if any target is a distributor
+            # member, awaiting the ring cycle(s) would block the press for minutes.
+            self._hass.async_create_task(coordinator.async_irrigate_now())
 
 
 class SmartIrrigationCalculateAllButton(SmartIrrigationHubButton):

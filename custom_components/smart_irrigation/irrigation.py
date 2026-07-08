@@ -452,7 +452,15 @@ class IrrigationRunnerMixin:
         zones_to_irrigate = [
             z
             for z in zones
-            if (z.get(const.ZONE_LINKED_ENTITY) or self._sc_is_self_closing(z))
+            # Iter Task 2 (Plan D): a distributor member zone (distributor_id
+            # set, including 0 — hence `is None`, not `not z.get(...)`, since
+            # `not 0` is truthy and would wrongly re-include distributor 0's
+            # members) is watered exclusively by its distributor's own cycle
+            # (shared inlet valve). Excluding it here prevents the normal
+            # linked-entity path from double-driving a member zone in
+            # parallel with the distributor engine.
+            if z.get(const.ZONE_DISTRIBUTOR_ID) is None
+            and (z.get(const.ZONE_LINKED_ENTITY) or self._sc_is_self_closing(z))
             and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
             and (target is None or int(z.get(const.ZONE_ID)) in target)
             and (
@@ -1441,41 +1449,45 @@ class IrrigationRunnerMixin:
         if zone_id is not None:
             zones = [z for z in zones if str(z.get(const.ZONE_ID)) == str(zone_id)]
 
+        # Distributor members are excluded from the direct linked-entity drive: a
+        # member waters via its distributor's shared inlet, not its own valve, so a
+        # stray linked_entity must not run it directly (review #9). Their
+        # distributor(s) are dispatched separately below.
         zones_to_irrigate = [
             z
             for z in zones
             if (z.get(const.ZONE_LINKED_ENTITY) or self._sc_is_self_closing(z))
             and (z.get(const.ZONE_DURATION) or 0) > 0
             and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+            and z.get(const.ZONE_DISTRIBUTOR_ID) is None
         ]
 
-        if not zones_to_irrigate:
-            _LOGGER.info("irrigate_now: no zones with linked entity and duration > 0")
-            return
-
-        # Master (pump): power on before the first zone; record each run's end.
-        await self.async_master_begin_cycle()
-        for z in zones_to_irrigate:
-            self._master_note_run(float(z.get(const.ZONE_DURATION) or 0))
-        await self.async_master_schedule_off()
-
-        # Self-closing zones fire their own service (the valve self-closes); they
-        # bypass the linked-entity sequencing.
-        for z in [z for z in zones_to_irrigate if self._sc_is_self_closing(z)]:
-            await self.async_run_self_closing(z, trigger="manual")
-        zones_to_irrigate = [
-            z for z in zones_to_irrigate if not self._sc_is_self_closing(z)
-        ]
-        if not zones_to_irrigate:
-            return
-
-        sequencing = self.store.config.zone_sequencing
-        if sequencing == const.CONF_ZONE_SEQUENCING_SEQUENTIAL:
-            asyncio.create_task(self._irrigate_zones_sequential(zones_to_irrigate))
-        elif sequencing == const.CONF_ZONE_SEQUENCING_ROTATING:
-            asyncio.create_task(self._irrigate_zones_rotating(zones_to_irrigate))
+        target = "all" if zone_id is None else [zone_id]
+        if zones_to_irrigate:
+            # Master (pump): power on before the first zone; record each run's end.
+            await self.async_master_begin_cycle()
+            for z in zones_to_irrigate:
+                self._master_note_run(float(z.get(const.ZONE_DURATION) or 0))
+            await self.async_master_schedule_off()
+            for z in [z for z in zones_to_irrigate if self._sc_is_self_closing(z)]:
+                await self.async_run_self_closing(z, trigger="manual")
+            remaining = [
+                z for z in zones_to_irrigate if not self._sc_is_self_closing(z)
+            ]
+            if remaining:
+                sequencing = self.store.config.zone_sequencing
+                if sequencing == const.CONF_ZONE_SEQUENCING_SEQUENTIAL:
+                    asyncio.create_task(self._irrigate_zones_sequential(remaining))
+                elif sequencing == const.CONF_ZONE_SEQUENCING_ROTATING:
+                    asyncio.create_task(self._irrigate_zones_rotating(remaining))
+                else:
+                    await self._irrigate_zones_parallel(remaining)
         else:
-            await self._irrigate_zones_parallel(zones_to_irrigate)
+            _LOGGER.info("irrigate_now: no zones with linked entity and duration > 0")
+        # Distributor member zones are excluded from the linked-entity path, so
+        # dispatch their distributor(s) too (manual dispatch respects rain delay,
+        # consistent with the distributor_run_now service).
+        await self._dispatch_distributor_cycles(target)
 
     async def async_run_zone(self, zone_id, duration_minutes: float) -> None:
         """Run one zone for an explicit duration, decoupled from the calc (WS-5).
@@ -1505,6 +1517,27 @@ class IrrigationRunnerMixin:
             run_zone = dict(zone)
             run_zone[const.ZONE_DURATION] = seconds
             await self.async_run_self_closing(run_zone, trigger="manual")
+            return
+        if zone.get(const.ZONE_DISTRIBUTOR_ID) is not None:
+            # M-BE: a member zone waters via its distributor's shared inlet, not its
+            # own valve, so route the manual run through the ring — but now honour the
+            # requested custom duration (passed as duration_override to the single-
+            # outlet cycle) instead of the member's stored daily duration. Single-
+            # flight guard: if the distributor already has a cycle in progress,
+            # reject the manual run rather than interleaving a second sweep on the
+            # shared inlet (mutual exclusion on the physical valve).
+            # siehe test_distributor_dispatch.py::test_dispatch_passes_duration_override
+            dist = self.store.get_distributor(zone.get(const.ZONE_DISTRIBUTOR_ID))
+            if dist and dist.get("active_cycle"):
+                _LOGGER.info(
+                    "run_zone: distributor %s busy, ignoring member run for zone %s",
+                    dist.get("id"),
+                    zone_id,
+                )
+                return
+            await self._dispatch_distributor_cycles(
+                [zone_id], duration_override=float(seconds)
+            )
             return
         if not zone.get(const.ZONE_LINKED_ENTITY):
             _LOGGER.warning("run_zone: zone %s has no linked entity", zone_id)
