@@ -88,16 +88,25 @@ class MasterMixin:
         if float(settle or 0) > 0:
             await self._master_sleep(settle)
 
-    def _master_note_run(self, seconds: float) -> None:
-        """Record the latest expected cycle end (now + seconds)."""
+    def _master_note_run(self, seconds: float):
+        """Record the latest expected cycle end (now + seconds).
+
+        Returns the deadline THIS note computes (``now + seconds``) — the caller's own
+        contribution — regardless of whether it raised the shared
+        ``_master_off_deadline`` (which only ever grows via ``max``). The distributor
+        uses the return to track its sweep's own-notes ceiling, so the terminal can tell
+        its own inflation apart from a foreign consumer's later note (Bug 1 hardening,
+        2026-07-06). Returns ``None`` when no master is configured. Existing callers that
+        ignore the return are unaffected."""
         if not self._master_configured():
-            return
+            return None
         deadline = self._master_now() + datetime.timedelta(
             seconds=max(0.0, float(seconds or 0))
         )
         cur = getattr(self, "_master_off_deadline", None)
         if cur is None or deadline > cur:
             self._master_off_deadline = deadline
+        return deadline
 
     async def async_master_schedule_off(self) -> None:
         """Schedule the cycle end: clear the on-flag (so the next cycle re-arms /
@@ -133,3 +142,41 @@ class MasterMixin:
             self._master_off_deadline = None
 
         self._master_off_cancel = async_call_later(self.hass, delay, _fire)
+
+    async def async_reconcile_master_after_restart(self) -> None:
+        """One-shot boot normalization: kill an orphaned master left on across a
+        restart. NOT a runtime watchdog.
+
+        Iter (2026-07-06, Bug 2 — orphaned master): the master-off deadline + timer
+        live only in memory and are lost on ANY restart (clean or crash); HA
+        restore_state may also bring the master entity back to `on`. A narrow "mirror
+        the inlet-close in async_resume_distributor_cycles" fix would MISS the observed
+        clean-restart case — the `finally` in async_run_distributor_cycle self-clears
+        `active_cycle`, so reconciliation is a no-op there. So key the shut-off on the
+        master state + config, not on a surviving cycle record.
+
+        Fires iff ALL hold: a master is configured AND `master_off_after` is enabled
+        (the user opted into auto-off — else HASI never auto-shuts the master, so it
+        must not at boot either) AND nothing HASI-driven is still running: no
+        distributor `active_cycle` and no in-window self-closing run (those legitimately
+        need the master — defer to them). NB the `active_cycle` gate is belt-and-
+        suspenders: async_resume_distributor_cycles just before ALWAYS clears the
+        record (crashed or clean), so in practice the effective gates are
+        `master_off_after` + no self-closing run. Covers BOTH restart flavours because
+        it does not depend on a surviving `active_cycle`.
+        Called from __init__ AFTER async_resume_self_closing_runs and
+        async_resume_distributor_cycles.
+        siehe test_master.py::test_reconcile_master_off_when_off_after_and_idle
+        """
+        if not self._master_configured():
+            return
+        if not getattr(self._master_cfg(), const.CONF_MASTER_OFF_AFTER, False):
+            return
+        for dist in await self.store.async_get_distributors():
+            if dist.get("active_cycle"):
+                return
+        if await self._sc_active_runs():
+            return
+        await self._master_turn(False)
+        self._master_on = False
+        self._master_off_deadline = None

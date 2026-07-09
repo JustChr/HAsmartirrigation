@@ -30,6 +30,7 @@ This integration calculates how long to run your irrigation system to compensate
 - **Recurring schedules** — create daily/weekly/monthly/interval irrigation schedules entirely from the UI (**Setup → When to Water**) — no automations needed
 - **Skip conditions** — skip irrigation based on forecasted rain (with a configurable forecast look-ahead window), low temperature, high wind speed, or a rain sensor
 - **Soil-moisture veto** — give a zone a soil-moisture sensor and a threshold; an automatic run skips that zone while it reads wet (a per-zone skip gate, never an ET input)
+- **Mechanical water distributors** *(experimental, opt-in)* — drive a Gardena-style pressure distributor that splits one supply across several outlets; assign zones to its outlets and Smart Irrigation waters them in sequence and tracks the position. Enable under **Setup → Experimental**.
 - Enforces a configurable minimum number of days between irrigation events
 - Still fires HA events for power users who prefer automation-based control
 
@@ -109,6 +110,12 @@ The master applies to every path (scheduled, "Irrigate Now", and manual runs), f
 Give a zone a soil-moisture sensor and a threshold under **Setup → My Zones → (zone)**. On an **automatic** (scheduled) run, if the sensor reads **above** the threshold, HASI **skips that zone** and resets its bucket to 0 (re-anchored to field capacity). Manual *Irrigate Now* always waters, and an unavailable or non-numeric sensor never blocks watering (fail-open).
 
 Soil moisture is used **only as a skip gate — never as an ET input**, so the water-balance model is unchanged. The sensor picker is restricted to `device_class: moisture`. Each skip fires a `smart_irrigation_zone_skipped` event, shows a dashboard chip, and is recorded in the zone's run history. See [My Zones → Soil-moisture veto](docs/configuration-my-zones.md#soil-moisture-veto).
+
+## Mechanical water distributors (experimental)
+
+A mechanical pressure-driven **indexing distributor** (e.g. a Gardena Water Distributor) splits one supply into several outlets, advancing to the next each time the water is pulsed off and on. Enable it under **Setup → Experimental → Mechanical water distributors** (off by default), then assign zones to its outlets under **Setup → Distributors**. Smart Irrigation waters the mapped outlets in sequence, tracks the blind position, and coordinates a master valve/pump. See the [Distributors](https://JustChr.github.io/HAsmartirrigation/configuration-distributors.html) docs.
+
+This is a new, experimental feature that could not be fully hardware-tested — treat it as a beta and watch the first days of use closely.
 
 ## Installation
 

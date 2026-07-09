@@ -10,6 +10,7 @@ from homeassistant.components.sensor.const import SensorDeviceClass, SensorState
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -18,6 +19,12 @@ from homeassistant.util import slugify
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .distributor_entity import (
+    DistributorEntityBase,
+    outlet_reconcile_diff,
+    used_outlets,
+    zone_on_outlet,
+)
 from .entity import zone_device_info
 from .performance import async_timer
 
@@ -116,9 +123,103 @@ async def async_setup_entry(
                 ] = extra_entities
                 async_add_devices([sensor_entity, bucket_entity, *extra_entities])
 
+    @callback
+    def async_add_distributor_sensors(distributor: dict) -> None:
+        if const.DOMAIN not in hass.data:
+            return
+        tracker = hass.data[const.DOMAIN].setdefault("distributor_sensors", {})
+        did = distributor["id"]
+        slot = tracker.setdefault(did, {"current": None, "outlets": {}})
+        base = "{}.{}_distributor_{}".format(
+            PLATFORM, const.DOMAIN, slugify(distributor.get("name") or f"d{did}")
+        )
+        new = []
+        if slot["current"] is None:
+            cur = SmartIrrigationDistributorCurrentOutletSensor(
+                hass, f"{base}_current_outlet", distributor
+            )
+            slot["current"] = cur
+            new.append(cur)
+        _reconcile_outlet_sensors(distributor, slot, base, new)
+        if new:
+            async_add_devices(new)
+
+    @callback
+    def _reconcile_outlet_sensors(distributor, slot, base, new_out):
+        did = distributor["id"]
+        used = used_outlets(hass, did)
+        to_add, to_remove = outlet_reconcile_diff(used, set(slot["outlets"]))
+        for n in sorted(to_add):
+            ent = SmartIrrigationDistributorOutletZoneSensor(
+                hass, f"{base}_outlet_{n}_zone", distributor, n
+            )
+            slot["outlets"][n] = ent
+            new_out.append(ent)
+        for n in to_remove:
+            ent = slot["outlets"].pop(n)
+            _remove_distributor_entity(ent)
+
+    @callback
+    def _remove_distributor_entity(ent) -> None:
+        registry = er.async_get(hass)
+        eid = registry.async_get_entity_id(PLATFORM, const.DOMAIN, ent.unique_id)
+        if eid:
+            registry.async_remove(eid)
+
+    @callback
+    def async_reconcile_distributor_sensors(distributor_id) -> None:
+        tracker = hass.data.get(const.DOMAIN, {}).get("distributor_sensors", {})
+        slot = tracker.get(distributor_id)
+        if slot is None:
+            return
+        store = hass.data[const.DOMAIN]["coordinator"].store
+        distributor = store.get_distributor(distributor_id)
+        if distributor is None:
+            return
+        base = "{}.{}_distributor_{}".format(
+            PLATFORM,
+            const.DOMAIN,
+            slugify(distributor.get("name") or f"d{distributor_id}"),
+        )
+        new = []
+        _reconcile_outlet_sensors(distributor, slot, base, new)
+        if new:
+            async_add_devices(new)
+
+    @callback
+    def async_remove_distributor_sensors(distributor_id) -> None:
+        tracker = hass.data.get(const.DOMAIN, {}).get("distributor_sensors", {})
+        slot = tracker.pop(distributor_id, None)
+        if slot is None:
+            return
+        for ent in [slot["current"], *slot["outlets"].values()]:
+            if ent is not None:
+                _remove_distributor_entity(ent)
+
     config_entry.async_on_unload(
         async_dispatcher_connect(
             hass, const.DOMAIN + "_register_entity", async_add_sensor_entity
+        )
+    )
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            const.DOMAIN + "_distributor_register_entity",
+            async_add_distributor_sensors,
+        )
+    )
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            const.DOMAIN + "_distributor_updated",
+            async_reconcile_distributor_sensors,
+        )
+    )
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            const.DOMAIN + "_distributor_removed",
+            async_remove_distributor_sensors,
         )
     )
     # The existing-zone replay (`_platform_loaded`) is fired once from
@@ -873,3 +974,62 @@ class SmartIrrigationZoneDiagnosticSensor(SmartIrrigationZoneChildSensor):
     def native_value(self):
         """Return the diagnostic value."""
         return self._value
+
+
+class SmartIrrigationDistributorCurrentOutletSensor(
+    DistributorEntityBase, SensorEntity
+):
+    """The distributor's current ring position (1..n)."""
+
+    suffix = "current_outlet"
+    _attr_translation_key = "current_outlet"
+    _attr_icon = "mdi:valve"
+
+    def _refresh(self, distributor: dict) -> None:
+        self._current = distributor.get("current_outlet")
+        self._position_state = distributor.get("position_state")
+        cycle = distributor.get("active_cycle") or {}
+        self._phase = cycle.get("phase", "idle")
+
+    @property
+    def native_value(self):
+        return self._current
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        zone = zone_on_outlet(self._hass, self._distributor_id, self._current)
+        return {
+            "position_state": self._position_state,
+            "phase": self._phase,
+            "zone_id": zone.get(const.ZONE_ID) if zone else None,
+            "zone_name": zone.get(const.ZONE_NAME) if zone else None,
+        }
+
+
+class SmartIrrigationDistributorOutletZoneSensor(DistributorEntityBase, SensorEntity):
+    """The zone connected to one outlet (state = zone name)."""
+
+    _attr_translation_key = "outlet_zone"
+    _attr_icon = "mdi:pipe-valve"
+
+    def __init__(self, hass, entity_id, distributor: dict, outlet_number: int) -> None:
+        self._outlet_number = int(outlet_number)
+        self.suffix = f"outlet_{self._outlet_number}_zone"
+        self._attr_translation_placeholders = {"outlet": str(self._outlet_number)}
+        super().__init__(hass, entity_id, distributor)
+
+    def _refresh(self, distributor: dict) -> None:
+        self._zone = zone_on_outlet(
+            self._hass, self._distributor_id, self._outlet_number
+        )
+
+    @property
+    def native_value(self):
+        return self._zone.get(const.ZONE_NAME) if self._zone else None
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "zone_id": self._zone.get(const.ZONE_ID) if self._zone else None,
+            "outlet_number": self._outlet_number,
+        }

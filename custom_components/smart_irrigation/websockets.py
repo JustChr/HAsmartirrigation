@@ -114,6 +114,7 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_FORECAST_WEIGHTING_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_OBSERVED_WATERING_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_LIVE_ESTIMATE_ENABLED): cv.boolean,
+                vol.Optional(const.CONF_DISTRIBUTORS_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_RAIN_DELAY_UNTIL): vol.Or(str, None),
                 vol.Optional(const.CONF_MANUAL_COORDINATES_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_MANUAL_LATITUDE): vol.Or(float, int, None),
@@ -265,6 +266,13 @@ class SmartIrrigationZoneView(HomeAssistantView):
                 vol.Optional(const.ZONE_LINKED_ENTITY): vol.Or(str, None),
                 vol.Optional(const.ZONE_BUCKET_THRESHOLD): vol.Or(float, int, None),
                 vol.Optional(const.ZONE_FLOW_SENSOR): vol.Or(str, None),
+                # Task 3 (Plan E): zone-to-distributor membership fields, so the
+                # panel's zone form can map a zone to a distributor+outlet.
+                # Coerced explicitly (not just passed through via ALLOW_EXTRA)
+                # to document the contract; see
+                # test_zone_view_accepts_membership_fields.
+                vol.Optional(const.ZONE_DISTRIBUTOR_ID): vol.Any(vol.Coerce(int), None),
+                vol.Optional(const.ZONE_OUTLET_NUMBER): vol.Any(vol.Coerce(int), None),
             },
             extra=vol.ALLOW_EXTRA,
         )
@@ -279,6 +287,56 @@ class SmartIrrigationZoneView(HomeAssistantView):
             await coordinator.async_update_zone_config(zone, data)
         except SmartIrrigationError as err:
             _LOGGER.warning("[zone POST] Rejected: %s", err)
+            return self.json({"success": False, "message": str(err)}, status_code=400)
+        async_dispatcher_send(hass, const.DOMAIN + "_update_frontend")
+        return self.json({"success": True})
+
+
+class SmartIrrigationDistributorView(HomeAssistantView):
+    """HTTP API for Gardena distributor configuration (create/update/delete)."""
+
+    url = "/api/" + const.DOMAIN + "/distributors"
+    name = "api:" + const.DOMAIN + ":distributors"
+
+    @RequestDataValidator(
+        vol.Schema(
+            {
+                vol.Optional("id"): vol.Coerce(int),
+                vol.Optional("name"): cv.string,
+                vol.Optional("watering_mode"): cv.string,
+                vol.Optional("inlet_entity"): vol.Any(cv.string, None),
+                vol.Optional("run_service"): vol.Any(cv.string, None),
+                vol.Optional("stop_service"): vol.Any(cv.string, None),
+                vol.Optional("duration_field"): cv.string,
+                vol.Optional("duration_unit"): cv.string,
+                vol.Optional("confirm_entity"): vol.Any(cv.string, None),
+                vol.Optional("flow_sensor"): vol.Any(cv.string, None),
+                vol.Optional("pause_seconds"): vol.Coerce(int),
+                vol.Optional("skip_pulse_seconds"): vol.Coerce(int),
+                vol.Optional("current_outlet"): vol.Coerce(int),
+                vol.Optional("position_state"): cv.string,
+                vol.Optional("notify_target"): vol.Any(cv.string, None),
+                vol.Optional("use_master"): cv.boolean,
+                # S-1: watch_inlet previously survived only via ALLOW_EXTRA, i.e.
+                # unvalidated. Validate it as cv.boolean like the other flags.
+                vol.Optional("watch_inlet"): cv.boolean,
+                # E4: tri-state inlet-watch reaction. Lenient cv.string like the other
+                # enum-ish fields (watering_mode/position_state); the backend
+                # _dist_watch_mode helper defensively derives an unknown value.
+                vol.Optional("watch_mode"): cv.string,
+                vol.Optional("commissioning_confirmed"): cv.boolean,
+                vol.Optional(const.ATTR_REMOVE): cv.boolean,
+            },
+            extra=vol.ALLOW_EXTRA,
+        )
+    )
+    async def post(self, request, data):
+        """Create/update/delete a distributor from the panel."""
+        hass = request.app["hass"]
+        coordinator = hass.data[const.DOMAIN]["coordinator"]
+        try:
+            await coordinator.async_upsert_distributor(dict(data))
+        except SmartIrrigationError as err:
             return self.json({"success": False, "message": str(err)}, status_code=400)
         async_dispatcher_send(hass, const.DOMAIN + "_update_frontend")
         return self.json({"success": True})
@@ -318,6 +376,15 @@ async def websocket_get_config(hass: HomeAssistant, connection, msg):
                 threshold_mm,
             )
 
+    # Task V-BE (b9 plan): expose the installed backend version so the panel can
+    # display it at runtime. Reading it from the config payload means the shown
+    # version always matches the running integration and can never drift from the
+    # version baked into the built frontend bundle. Copy first so we never mutate
+    # the persisted store dict (the imperial branch above may already have copied,
+    # but the metric branch has not — an unconditional dict() covers both).
+    config = dict(config)
+    config["version"] = const.VERSION
+
     connection.send_result(msg["id"], config)
 
 
@@ -327,6 +394,14 @@ async def websocket_get_zones(hass: HomeAssistant, connection, msg):
     coordinator = hass.data[const.DOMAIN]["coordinator"]
     zones = await coordinator.store.async_get_zones()
     connection.send_result(msg["id"], zones)
+
+
+@async_response
+async def websocket_get_distributors(hass: HomeAssistant, connection, msg):
+    """Publish distributor data to the panel."""
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    distributors = await coordinator.store.async_get_distributors()
+    connection.send_result(msg["id"], distributors)
 
 
 @async_response
@@ -573,7 +648,12 @@ async def websocket_irrigate_now(hass: HomeAssistant, connection, msg):
     coordinator = hass.data[const.DOMAIN]["coordinator"]
     zone_id = msg.get("zone_id")
     try:
-        await coordinator.async_irrigate_now(zone_id=zone_id)
+        # b13 (live test 2026-07-06): fire-and-forget. A distributor member's run
+        # drives a full ring cycle (open inlet, sleep the window, close, advance,
+        # ...) that can take minutes; awaiting it here froze the panel until the
+        # run finished. Schedule it and ack immediately — progress shows live via
+        # the _update_frontend refresh, failures via the distributor notification.
+        hass.async_create_task(coordinator.async_irrigate_now(zone_id=zone_id))
         connection.send_result(msg["id"], {"success": True})
     except Exception as e:
         _LOGGER.error("Error triggering irrigate now: %s", e)
@@ -585,7 +665,13 @@ async def websocket_run_zone(hass: HomeAssistant, connection, msg):
     """Run a single zone for a custom duration (minutes), bypassing the calc."""
     coordinator = hass.data[const.DOMAIN]["coordinator"]
     try:
-        await coordinator.async_run_zone(msg["zone_id"], float(msg["duration"]))
+        # b13 (live test 2026-07-06): fire-and-forget — see websocket_irrigate_now.
+        # A member "irrigate now (X min)" runs a full distributor cycle inline; the
+        # old ``await`` blocked the START ack for the whole watering window. float()
+        # is evaluated here so a malformed duration still fails synchronously (bad
+        # input is reported; only the RUN is deferred), and nothing is scheduled.
+        run = coordinator.async_run_zone(msg["zone_id"], float(msg["duration"]))
+        hass.async_create_task(run)
         connection.send_result(msg["id"], {"success": True})
     except Exception as e:
         _LOGGER.error("Error running zone: %s", e)
@@ -889,6 +975,7 @@ async def async_register_websockets(hass: HomeAssistant):
     """Register Smart Irrigation HTTP views and websocket commands."""
     hass.http.register_view(SmartIrrigationConfigView)
     hass.http.register_view(SmartIrrigationZoneView)
+    hass.http.register_view(SmartIrrigationDistributorView)
     hass.http.register_view(SmartIrrigationModuleView)
     hass.http.register_view(SmartIrrigationAllModuleView)
     hass.http.register_view(SmartIrrigationMappingView)
@@ -910,6 +997,14 @@ async def async_register_websockets(hass: HomeAssistant):
         websocket_get_zones,
         websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
             {vol.Required("type"): const.DOMAIN + "/zones"}
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/distributors",
+        websocket_get_distributors,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {vol.Required("type"): const.DOMAIN + "/distributors"}
         ),
     )
     async_register_command(

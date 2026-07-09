@@ -396,7 +396,14 @@
           "loam": "Lehm (ausgewogen)",
           "silt": "Schluff (langsam entwässernd)",
           "clay": "Ton (sehr langsam entwässernd)"
-        }
+        },
+        "distributor": "Wasserverteiler",
+        "distributor_help": "Diese Zone einem Abgang eines mechanischen Wasserverteilers zuordnen. Das Einlassventil des Verteilers und seine Impuls-Weiterschaltung bewässern dann diese Zone – das eigene Ventil und der Zeitplan der Zone unten werden vom Verteiler verwaltet.",
+        "distributor_none": "Keiner (eigenes Ventil)",
+        "outlet_number": "Abgangsnummer",
+        "distributor_managed_note": "Diese Zone wird über einen Verteiler bewässert (Abgang oben). Ihr Ventil, die Ansteuerung und der Durchflusssensor werden vom Verteiler verwaltet und hier ausgeblendet — nur die Berechnungs- und Bodenfeuchte-Veto-Einstellungen bleiben. Um der Zone wieder ein eigenes Ventil zu geben, oben „Keiner (eigenes Ventil)“ wählen.",
+        "outlet_number_readonly_help": "Welcher Abgang des Verteilers diese Zone versorgt. Wird auf der Verteilerseite eingestellt — mit dem Button dorthin wechseln.",
+        "configure_on_distributor": "Am Verteiler einstellen"
       },
       "no_items": "Es ist noch keine Zone vorhanden.",
       "title": "Zonen",
@@ -529,7 +536,8 @@
         "run": "Starten",
         "minutes": "Min.",
         "help": "Diese Zone für eine bestimmte Zeit bewässern, unabhängig von der Berechnung",
-        "toast_started": "Lauf gestartet"
+        "toast_started": "Lauf gestartet",
+        "busy_hint": "Verteiler arbeitet gerade — Start erst möglich, wenn er wieder in Grundstellung ist."
       },
       "stop_zone": {
         "stop": "Stopp",
@@ -643,7 +651,8 @@
         "my_zones": "Meine Zonen",
         "when_to_water": "Wann bewässern",
         "advanced": "Erweitert",
-        "experimental": "Experimentell"
+        "experimental": "Experimentell",
+        "distributors": "Verteiler"
       },
       "weather_data": {
         "forecast_title": "Vorhersage",
@@ -675,6 +684,115 @@
         "description": "Standardmäßig bewässert eine Zone einmal pro Tag, anhand des Defizits aus der täglichen Berechnung (z. B. um 23:00). Mit dieser Option entscheidet — und bemisst — sich jeder geplante Lauf stattdessen anhand des Live-Defizits des Tages (drainagebereinigte ET und Niederschlag seit der letzten Berechnung). So kann eine Zone bei echtem untägigem Bedarf mehr als einmal pro Tag bewässern (z. B. Töpfe mit einem 12-Stunden-Zeitplan, die der einmal tägliche Eimer sonst trocken ließe), und ein Lauf, den Regen im Tagesverlauf bereits abgedeckt hat, wird verkürzt oder abgebrochen. Das tägliche Konto bleibt unverändert: Nach dem Lauf wird dem Eimer das tatsächlich abgegebene Wasser gutgeschrieben, sodass die nächste tägliche Berechnung nie doppelt zählt. Erfordert einen Wetterdienst.",
         "label": "Jeden Lauf anhand des Live-Defizits auslösen und bemessen",
         "note": "Betrifft nur geplante Läufe und kann einen Lauf starten, den die tägliche Berechnung nicht freigegeben hat. Für häufiges Gießen ein sinnvolles Mindestdefizit und einen maximalen Eimer von mindestens der ET eines Tages beibehalten."
+      },
+      "distributors": {
+        "title": "Mechanische Wasserverteiler",
+        "description": "Steuert einen mechanischen Druck-Verteiler — z. B. einen Gardena Wasserverteiler — der eine Zuleitung auf mehrere Abgänge aufteilt und durch An-/Aus-Impulse des Wassers weiterschaltet. Ordne Zonen den Abgängen eines Verteilers zu; Smart Irrigation bewässert sie der Reihe nach, verfolgt die Position und koordiniert ein Master-Ventil bzw. eine Pumpe. Das ist eine neue Funktion, die nicht vollständig an Hardware getestet werden konnte — behandle sie als Beta.",
+        "label": "Mechanische Wasserverteiler aktivieren",
+        "note": "Beobachte die ersten Tage der Nutzung genau und halte die manuelle Übersteuerung des Geräts bereit. Du kannst sie jederzeit wieder ausschalten — die bestehende Zonen-Bewässerung bleibt unberührt."
+      }
+    },
+    "distributors": {
+      "title": "Verteiler",
+      "description": "Mechanische Wasserverteiler teilen eine Zuleitung auf mehrere Abgänge auf und schalten durch An-/Aus-Impulse des Wassers weiter.",
+      "no_items": "Noch keine Verteiler konfiguriert.",
+      "add": {
+        "header": "Verteiler hinzufügen",
+        "name_placeholder": "Verteilername",
+        "actions": {
+          "add": "Hinzufügen"
+        }
+      },
+      "status": {
+        "saved": "Gespeichert"
+      },
+      "confirm_delete": "Diesen Verteiler löschen? Zugeordnete Zonen behalten ihre Abgangsnummern, verlieren aber die Verteiler-Verknüpfung.",
+      "labels": {
+        "name": "Name",
+        "watering_mode_help": "Wie das Einlassventil des Verteilers geöffnet und geschlossen wird.",
+        "inlet_entity": "Einlassventil/Schalter (optional)",
+        "inlet_entity_help": "Die Schalter- oder Ventil-Entität, die die Wasserzufuhr in den Verteiler öffnet. Sie wird zugleich auf Fremd-Pulse beobachtet; sobald ein Ventil gewählt ist, erscheint darunter eine Einstellung, die die Reaktion darauf steuert.",
+        "watch_inlet": "Einlass-Ventil auf Hand-Pulse überwachen",
+        "watch_inlet_help": "Erkennt nur Ventil-Schaltungen, die Home Assistant sieht — rein mechanische Pulse am Gerät bleiben unsichtbar.",
+        "inlet_entity_help_service": "Das Ring-Ventil, das Home Assistant auf Fremd-Pulse beobachtet, um die Ausgangs-Position synchron zu halten (z. B. wenn das Ventil manuell oder per Automation außerhalb eines HASI-Laufs geöffnet wird). Sobald ein Ventil gewählt ist, erscheint darunter eine Einstellung, die die Reaktion darauf steuert. Geschaltet wird über den Run/Stop-Service; dieses Feld wird nur gelesen und ist NICHT der Fluss-/Bestätigungssensor. Leer lassen, um die Beobachtung zu deaktivieren.",
+        "watch_mode": "Bei manuellem Einlass-Puls",
+        "watch_mode_help": "Reaktion, wenn das Einlass-Ventil außerhalb eines Home-Assistant-Laufs geöffnet wird (nur für Home Assistant sichtbare Pulse).",
+        "watch_mode_count": "Mitzählen (Position weiterschalten)",
+        "watch_mode_warn": "Warnen (Position auf unsicher setzen)",
+        "watch_mode_ignore": "Ignorieren",
+        "run_service": "Start-Skript",
+        "run_service_help": "Skript, das den Einlass öffnet. Es erhält die Impulsdauer.",
+        "stop_service": "Stopp-Skript (optional)",
+        "stop_service_help": "Skript, das den Einlass schließt.",
+        "duration_field": "Dauer-Feld",
+        "duration_field_help": "Name des Felds, in dem das Start-Skript die Dauer erwartet.",
+        "duration_field_placeholder": "duration",
+        "duration_unit": "Dauer-Einheit",
+        "duration_units": {
+          "seconds": "Sekunden",
+          "minutes": "Minuten"
+        },
+        "confirm_entity": "Bestätigungssensor (optional)",
+        "confirm_entity_help": "Optionaler Sensor am Verteiler-Einlass, der bestätigt, dass tatsächlich Wasser fließt (z. B. ein Durchfluss- oder Ventilstellungssensor). Meldet er beim Öffnen eines Ausgangs keinen Fluss, hält der Zyklus sicher an und setzt den Verteiler auf „unsicher“ — dies ist die Niedrigdurchfluss-/Fehlererkennung.",
+        "flow_sensor": "Durchflusssensor (optional)",
+        "flow_sensor_help": "Der geteilte Einlass-Durchflussmesser (z. B. L/min, m³/h). Wenn gesetzt, wird die tatsächlich abgegebene Menge pro Ausgang gemessen und verbucht (statt der Zeitschätzung). Optional. Wo das Ventil gestoppt werden kann (classic-Einlass oder Self-Closing-Stop-Service), wird der Ausgang zudem bei erreichter Zielmenge vorzeitig gestoppt.",
+        "pause_seconds": "Weiterschalt-Pause",
+        "skip_pulse_seconds": "Überspring-Impuls",
+        "notify_target": "Benachrichtigungsziel (optional)",
+        "notify_target_help": "Optionaler zusätzlicher Kanal. Störungen erscheinen immer im Benachrichtigungs-Panel von Home Assistant; hier zusätzlich einen Notify-Dienst angeben (z. B. notify.mobile_app_phone), um sie auch dorthin zu senden.",
+        "notify_target_placeholder": "notify.mobile_app_phone"
+      },
+      "notify": {
+        "halted": "Verteiler '{name}' angehalten ({reason}). Neu synchronisieren und erneut bestätigen erforderlich.",
+        "reason": {
+          "valve_did_not_open": "Ventil hat nicht geöffnet",
+          "restart_mid_advance": "Neustart während der Weiterschaltung",
+          "foreign_inlet_pulse": "manueller Einlass-Puls"
+        }
+      },
+      "commissioning": {
+        "title": "Inbetriebnahme",
+        "outlet": "Abgang",
+        "states": {
+          "synced": "Synchron",
+          "uncertain": "Unsicher"
+        },
+        "test_run": "Testlauf",
+        "test_run_help": "Bewässert jeden zugeordneten Abgang der Reihe nach etwa 30 Sekunden, damit du das Weiterschalten des Geräts beobachten und die nötige Pause ablesen kannst.",
+        "set_outlet": "Aktuellen Abgang setzen",
+        "set_outlet_help": "Die im Gerätefenster angezeigte Abgangsnummer ablesen und hier eintragen, um die verfolgte Position neu zu synchronisieren.",
+        "resync_home": "Auf Abgang 1 zurücksetzen",
+        "confirm_resync": { "title": "Auf Abgang 1 zurücksetzen?", "body": "Dies setzt die verfolgte Position auf Abgang 1. Nur bestätigen, wenn das Gerät physisch auf Abgang 1 steht — sonst wässert der Verteiler die falschen Ausgänge (unbemerkter Desync)." },
+        "confirm_set_outlet": { "title": "Aktuellen Abgang setzen?", "body": "Das markiert den Verteiler als synchron auf dem eingegebenen Abgang. Bestätige nur, wenn das Gerätefenster JETZT genau diesen Abgang zeigt — ein falscher Wert wässert still die falschen Ausgänge." },
+        "confirmed": "Inbetriebnahme bestätigt",
+        "confirmed_help": "Schaltet den Verteiler für automatische und manuelle Zyklen scharf. Kann nur bei synchroner Position gesetzt werden und schaltet sich automatisch ab, sobald die Position unsicher wird.",
+        "needs_sync": "Setze die Position auf synchron, bevor du diesen Verteiler scharfschalten kannst.",
+        "run_now": "Jetzt starten",
+        "run_now_help": "Führt einen vollständigen manuellen Zyklus über alle zugeordneten Abgänge aus.",
+        "run_now_active": "Es läuft bereits ein Zyklus.",
+        "confirm_dialog": {
+          "title": "Diesen Verteiler scharfschalten?",
+          "body": "Bestätige, dass das Gerät physisch auf Abgang 1 steht und jeder Abgang der richtigen Zone zugeordnet ist. Automatische und manuelle Zyklen beginnen dann, den Einlass zu takten.",
+          "confirm": "Bestätigen & scharfschalten"
+        }
+      },
+      "hints": {
+        "pressure": "Gib dem Verteiler mindestens 1 bar Wasserdruck und 20 l/h Durchfluss. Mechanische Verteiler brauchen einen kräftigen Impuls, um zuverlässig weiterzuschalten.",
+        "below_floor_pause": "Sehr kurze Pause. Der Weiterschalt-Impuls muss lang genug sein, damit der Verteiler tatsächlich weiterschaltet; das Backend erzwingt mindestens 10 Sekunden.",
+        "below_floor_skip": "Sehr kurzer Überspring-Impuls. Das Backend erzwingt mindestens 10 Sekunden.",
+        "undetectable": "Der manuelle Wahltaster des Geräts lässt sich nicht auslesen. Wenn du ihn von Hand drehst, danach „Aktuellen Abgang setzen“ verwenden, damit die verfolgte Position übereinstimmt.",
+        "outlet_change": "Das Ändern einer Abgangszuordnung bringt das Gerät aus seiner bekannten Position. Vor dem nächsten Zyklus neu synchronisieren und die Inbetriebnahme erneut bestätigen.",
+        "parallel_draw": "Bei paralleler Abfolge werden mehrere Zonen gleichzeitig geöffnet, ein Verteiler versorgt aber immer nur einen Abgang – seine zugeordneten Zonen werden daher trotzdem nacheinander bewässert. Plane die Wasserentnahme entsprechend.",
+        "master_off_after": "Bei sequenzieller oder rotierender Abfolge und „Hauptschalter nach jeder Zone aus“ wird die Pumpe pro Abgang geschaltet – rechne damit, dass sie zwischen jedem Abgang des Verteilers taktet.",
+        "experimental": "Experimentelle Funktion — noch in Verfeinerung und nicht vollständig an Hardware getestet. Beobachte die ersten Tage der Nutzung genau und halte die manuelle Übersteuerung des Geräts griffbereit."
+      },
+      "outlets": {
+        "title": "Auslässe / Zonen",
+        "help": "Lege fest, wie viele Auslässe der Verteiler hat, und weise jedem eine Zone zu. Nur Zonen ohne eigenes Ventil oder Skript sind wählbar — eine Zone ist entweder am Verteiler oder hat ein eigenes Ventil. Die Anzahl der Auslässe entspricht der Anzahl der zugewiesenen Zonen, lückenlos ab 1 nummeriert.",
+        "count": "Anzahl der Auslässe",
+        "none": "— keine",
+        "no_zones": "Noch keine Zonen. Lege zuerst Zonen an (Setup → Zonen) und weise sie dann hier zu.",
+        "gap_warning": "Auslässe müssen lückenlos ab 1 belegt sein — weise jedem Auslass bis zum höchsten genutzten eine Zone zu."
       }
     }
   },
@@ -851,7 +969,9 @@
     "general_wind_threshold": "Die Bewässerung wird übersprungen, wenn die Windgeschwindigkeit diesen Wert überschreitet (starker Wind verringert die Effizienz und verursacht Abdrift).",
     "zone_plant_type": "Wähle einen Pflanzentyp für einen typischen Pflanzenkoeffizienten oder „Benutzerdefiniert“, um Kc selbst einzugeben.",
     "zone_kc": "Skaliert die Referenz-Verdunstung (Gras) auf die Pflanzen dieser Zone. 1,0 = Referenzgras; niedriger für trockenheitsresistente Bepflanzung, höher für durstige Kulturen. Nur der ET-Anteil wird skaliert – Regen nicht.",
-    "zone_soil_type": "Wählen Sie eine Bodenart für eine typische Drainagerate, oder lassen Sie Benutzerdefiniert, um sie unten manuell einzugeben."
+    "zone_soil_type": "Wählen Sie eine Bodenart für eine typische Drainagerate, oder lassen Sie Benutzerdefiniert, um sie unten manuell einzugeben.",
+    "distributor_pause_seconds": "Aus-Zeit zwischen den Abgängen. Das ist der Impuls, der den Verteiler zum nächsten Abgang weiterschaltet; stelle ihn nach dem ein, was du im Testlauf gesehen hast. Mindestens 10 Sekunden.",
+    "distributor_skip_pulse_seconds": "Kurzer An/Aus-Impuls, um an einem Abgang ohne zugeordnete Zone vorbeizuschalten, ohne ihn zu bewässern. Mindestens 10 Sekunden."
   },
   "wizard": {
     "title": "Einrichtungsassistent",

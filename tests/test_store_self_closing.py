@@ -14,8 +14,8 @@ from custom_components.smart_irrigation.store import (
 )
 
 
-def test_storage_version_is_10():
-    assert STORAGE_VERSION == 10
+def test_storage_version_is_11():
+    assert STORAGE_VERSION == 11
 
 
 def test_zone_entry_has_self_closing_fields():

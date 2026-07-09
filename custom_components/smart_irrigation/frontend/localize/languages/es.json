@@ -397,7 +397,14 @@
           "loam": "Franco (equilibrado)",
           "silt": "Limoso (drenaje lento)",
           "clay": "Arcilloso (drenaje muy lento)"
-        }
+        },
+        "distributor": "Distribuidor de agua",
+        "distributor_help": "Asigna esta zona a una salida de un distribuidor de agua mecánico. La válvula de entrada del distribuidor y su secuencia de avance por impulsos riegan esta zona, por lo que la válvula y la programación propias de la zona se gestionan desde el distribuidor.",
+        "distributor_none": "Ninguno (válvula propia)",
+        "outlet_number": "Número de salida",
+        "distributor_managed_note": "Esta zona se riega a través de un distribuidor (salida arriba). Su válvula, el control de entrada y el sensor de caudal los gestiona el distribuidor y se ocultan aquí; solo permanecen los ajustes de cálculo y de veto por humedad del suelo. Para devolver a la zona su propia válvula, selecciona arriba «Ninguno (válvula propia)».",
+        "outlet_number_readonly_help": "Qué salida del distribuidor alimenta esta zona. Se configura en la página del distribuidor: ábrela con el botón.",
+        "configure_on_distributor": "Configurar en el distribuidor"
       },
       "no_items": "Aún no hay zonas definidas.",
       "title": "Zonas",
@@ -530,7 +537,8 @@
         "run": "Iniciar",
         "minutes": "min",
         "help": "Riega esta zona durante un tiempo personalizado, sin tener en cuenta el cálculo",
-        "toast_started": "Riego iniciado"
+        "toast_started": "Riego iniciado",
+        "busy_hint": "El distribuidor está funcionando — podrás iniciar de nuevo cuando vuelva a su posición de reposo."
       },
       "stop_zone": {
         "stop": "Detener",
@@ -644,7 +652,8 @@
         "my_zones": "Mis zonas",
         "when_to_water": "Cuándo regar",
         "advanced": "Avanzado",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "distributors": "Distribuidores"
       },
       "weather_data": {
         "forecast_title": "Pronóstico",
@@ -676,6 +685,115 @@
         "description": "De forma predeterminada, una zona riega una vez al día, según el déficit que produjo el cálculo diario (por ejemplo, a las 23:00). Con esta opción, cada ejecución programada decide —y se dimensiona— a partir del déficit intradía en vivo (la ET ajustada por drenaje y la lluvia desde el último cálculo). Esto permite que una zona riegue más de una vez al día según la demanda intradía real (por ejemplo, macetas con un horario cada 12 horas que el depósito una vez al día dejaría secas), y reduce o cancela una ejecución que la lluvia intradía ya ha cubierto. El registro diario no cambia: tras la ejecución se acredita al depósito el agua realmente entregada, de modo que el siguiente cálculo diario nunca cuenta dos veces. Requiere un servicio meteorológico.",
         "label": "Activar y dimensionar cada ejecución según el déficit en vivo",
         "note": "Afecta solo a las ejecuciones programadas y puede iniciar una que el cálculo diario no aprobó. Para riegos frecuentes, mantenga un déficit mínimo razonable y un depósito máximo de al menos la ET de un día."
+      },
+      "distributors": {
+        "title": "Distribuidores de agua mecánicos",
+        "description": "Controla un distribuidor de presión mecánico —por ejemplo un Distribuidor de agua Gardena— que reparte un suministro en varias salidas y avanza con impulsos de encendido y apagado del agua. Asigna zonas a las salidas de un distribuidor y Smart Irrigation las riega en secuencia, sigue la posición y coordina una válvula maestra o una bomba. Es una función nueva que no pudo probarse por completo en hardware, así que trátala como una beta.",
+        "label": "Activar distribuidores de agua mecánicos",
+        "note": "Vigila de cerca los primeros días de uso y ten a mano el control manual del dispositivo. Puedes desactivarlo en cualquier momento: el riego de zonas existente no se ve afectado."
+      }
+    },
+    "distributors": {
+      "title": "Distribuidores",
+      "description": "Los distribuidores de agua mecánicos dividen un suministro en varias salidas, avanzando mediante impulsos de encendido y apagado del agua.",
+      "no_items": "Aún no hay distribuidores configurados.",
+      "add": {
+        "header": "Añadir distribuidor",
+        "name_placeholder": "Nombre del distribuidor",
+        "actions": {
+          "add": "Añadir"
+        }
+      },
+      "status": {
+        "saved": "Guardado"
+      },
+      "confirm_delete": "¿Eliminar este distribuidor? Las zonas asignadas conservan sus números de salida, pero pierden el enlace con el distribuidor.",
+      "labels": {
+        "name": "Nombre",
+        "watering_mode_help": "Cómo se abre y se cierra la válvula de entrada del distribuidor.",
+        "inlet_entity": "Válvula/interruptor de entrada (opcional)",
+        "inlet_entity_help": "La entidad de interruptor o válvula que abre el suministro de agua al distribuidor. También se vigila en busca de pulsos externos; una vez seleccionada una válvula, aparece debajo un ajuste para controlar la reacción.",
+        "watch_inlet": "Vigilar la válvula de entrada por pulsos manuales",
+        "watch_inlet_help": "Solo detecta conmutaciones de válvula que Home Assistant puede ver — los pulsos puramente mecánicos en el dispositivo permanecen invisibles.",
+        "inlet_entity_help_service": "La válvula de anillo que Home Assistant vigila en busca de pulsos externos para mantener sincronizada la posición de salida (p. ej. cuando la válvula se abre manualmente o mediante una automatización fuera de una ejecución de HASI). Una vez seleccionada una válvula, aparece debajo un ajuste para controlar la reacción. El accionamiento se realiza mediante el script de inicio/parada; este campo solo se lee y NO es el sensor de flujo/confirmación. Déjelo vacío para desactivar la vigilancia.",
+        "watch_mode": "Ante un pulso de entrada manual",
+        "watch_mode_help": "Cómo reaccionar cuando la válvula de entrada se abre fuera de un ciclo de Home Assistant (solo pulsos que Home Assistant puede ver).",
+        "watch_mode_count": "Contarlo (avanzar la posición)",
+        "watch_mode_warn": "Avisar (marcar la posición como incierta)",
+        "watch_mode_ignore": "Ignorar",
+        "run_service": "Script de inicio",
+        "run_service_help": "Script que se llama para abrir la entrada. Recibe la duración del impulso.",
+        "stop_service": "Script de parada (opcional)",
+        "stop_service_help": "Script que se llama para cerrar la entrada.",
+        "duration_field": "Campo de duración",
+        "duration_field_help": "Nombre del campo en el que el script de inicio espera la duración.",
+        "duration_field_placeholder": "duration",
+        "duration_unit": "Unidad de duración",
+        "duration_units": {
+          "seconds": "Segundos",
+          "minutes": "Minutos"
+        },
+        "confirm_entity": "Sensor de confirmación (opcional)",
+        "confirm_entity_help": "Sensor opcional en la entrada del distribuidor que confirma que el agua realmente fluye (p. ej., un sensor de caudal o de posición de válvula). Si no detecta caudal al abrirse una salida, el ciclo se detiene de forma segura y marca el distribuidor como incierto: esta es la detección de caudal bajo / de fallos.",
+        "flow_sensor": "Sensor de caudal (opcional)",
+        "flow_sensor_help": "El caudalímetro compartido en la entrada (p. ej. L/min, m³/h). Si se configura, se mide y contabiliza el volumen realmente suministrado por salida en lugar de la estimación por tiempo. Opcional. Cuando la válvula se puede detener (una entrada classic o un servicio de parada self-closing), la salida también se detiene anticipadamente al alcanzar su volumen objetivo.",
+        "pause_seconds": "Pausa de avance",
+        "skip_pulse_seconds": "Impulso de salto",
+        "notify_target": "Destino de notificación (opcional)",
+        "notify_target_help": "Canal adicional opcional. Las paradas siempre aparecen en el panel de notificaciones de Home Assistant; indica aquí un servicio notify (p. ej. notify.mobile_app_phone) para enviarlas también allí.",
+        "notify_target_placeholder": "notify.mobile_app_phone"
+      },
+      "notify": {
+        "halted": "Distribuidor '{name}' detenido ({reason}). Se requiere volver a sincronizar y volver a confirmar.",
+        "reason": {
+          "valve_did_not_open": "la válvula no se abrió",
+          "restart_mid_advance": "reinicio durante el avance",
+          "foreign_inlet_pulse": "pulso de entrada manual"
+        }
+      },
+      "commissioning": {
+        "title": "Puesta en marcha",
+        "outlet": "Salida",
+        "states": {
+          "synced": "Sincronizado",
+          "uncertain": "Incierto"
+        },
+        "test_run": "Prueba",
+        "test_run_help": "Riega cada salida asignada unos 30 segundos en orden, para que puedas ver avanzar el dispositivo y anotar la pausa necesaria.",
+        "set_outlet": "Fijar salida actual",
+        "set_outlet_help": "Lee el número de salida que aparece en la ventana del dispositivo y ponlo aquí para volver a sincronizar la posición registrada.",
+        "resync_home": "Restablecer a la salida 1",
+        "confirm_resync": { "title": "¿Restablecer a la salida 1?", "body": "Esto ajusta la posición seguida a la salida 1. Confirma solo si el dispositivo está físicamente en la salida 1 — de lo contrario el distribuidor regará las salidas equivocadas (desincronización no detectada)." },
+        "confirm_set_outlet": { "title": "¿Establecer la salida actual?", "body": "Esto marca el distribuidor como sincronizado en la salida introducida. Confirma solo si la ventana del dispositivo muestra físicamente esa salida AHORA — un valor erróneo riega en silencio las salidas equivocadas." },
+        "confirmed": "Puesta en marcha confirmada",
+        "confirmed_help": "Arma el distribuidor para ciclos automáticos y manuales. Solo puede activarse cuando la posición está sincronizada y se desactiva automáticamente si la posición pasa a ser incierta.",
+        "needs_sync": "Sincroniza la posición antes de poder armar este distribuidor.",
+        "run_now": "Ejecutar ahora",
+        "run_now_help": "Ejecuta un ciclo manual completo por todas las salidas asignadas.",
+        "run_now_active": "Ya hay un ciclo en curso.",
+        "confirm_dialog": {
+          "title": "¿Armar este distribuidor?",
+          "body": "Confirma que el dispositivo está físicamente en la salida 1 y que cada salida está asignada a la zona correcta. Los ciclos automáticos y manuales empezarán a pulsar la entrada.",
+          "confirm": "Confirmar y armar"
+        }
+      },
+      "hints": {
+        "pressure": "Proporciona al distribuidor al menos 1 bar de presión de agua y 20 l/h de caudal. Los distribuidores mecánicos necesitan un impulso firme para avanzar con fiabilidad.",
+        "below_floor_pause": "Pausa muy corta. El impulso de avance debe ser lo bastante largo para que el distribuidor avance realmente; el backend impone un mínimo de 10 segundos.",
+        "below_floor_skip": "Impulso de salto muy corto. El backend impone un mínimo de 10 segundos.",
+        "undetectable": "El botón selector manual del dispositivo no se puede leer. Si lo giras a mano, usa después «Fijar salida actual» para que la posición registrada coincida.",
+        "outlet_change": "Cambiar la asignación de una salida saca al dispositivo de su posición conocida. Vuelve a sincronizar y a confirmar la puesta en marcha antes del siguiente ciclo.",
+        "parallel_draw": "La secuencia en paralelo abre varias zonas a la vez, pero un distribuidor alimenta una salida cada vez, así que sus zonas asignadas se riegan igualmente en secuencia. Planifica el consumo de suministro en consecuencia.",
+        "master_off_after": "Con secuencia secuencial o rotativa y «maestro apagado tras cada zona», la bomba se conmuta por salida, así que se encenderá y apagará entre cada salida del distribuidor.",
+        "experimental": "Función experimental: todavía se está perfeccionando y no se ha probado por completo en hardware. Vigila de cerca los primeros días de uso y ten a mano el control manual del dispositivo."
+      },
+      "outlets": {
+        "title": "Salidas / zonas",
+        "help": "Indica cuántas salidas tiene el distribuidor y asigna una zona a cada una. Solo se pueden asignar zonas sin válvula o script propios: una zona está en un distribuidor o tiene su propia válvula. El número de salidas es igual al número de zonas asignadas, numeradas de forma contigua desde 1.",
+        "count": "Número de salidas",
+        "none": "— ninguna",
+        "no_zones": "Aún no hay zonas. Crea zonas primero (Configuración → Zonas) y asígnalas aquí.",
+        "gap_warning": "Las salidas deben ocuparse de forma contigua desde 1: asigna una zona a cada salida hasta la más alta usada."
       }
     }
   },
@@ -852,7 +970,9 @@
     "general_wind_threshold": "El riego se omite si la velocidad del viento supera este valor (el viento fuerte reduce la eficiencia y causa deriva).",
     "zone_plant_type": "Elige un tipo de planta para fijar un coeficiente de cultivo típico, o «Personalizado» para introducir Kc tú mismo.",
     "zone_kc": "Escala la ET de referencia (césped) a las plantas de esta zona. 1.0 = césped de referencia; menor para plantación tolerante a sequía, mayor para cultivos exigentes. Solo se escala el término de ET, no la lluvia.",
-    "zone_soil_type": "Elija un tipo de suelo para establecer una tasa de drenaje típica, o deje Personalizado para introducirla manualmente abajo."
+    "zone_soil_type": "Elija un tipo de suelo para establecer una tasa de drenaje típica, o deje Personalizado para introducirla manualmente abajo.",
+    "distributor_pause_seconds": "Tiempo de apagado entre salidas. Es el impulso que hace avanzar el distribuidor a la siguiente salida; ajústalo según lo que viste en la prueba. Mínimo 10 segundos.",
+    "distributor_skip_pulse_seconds": "Impulso corto de encendido/apagado para pasar por una salida sin zona asignada, sin regarla. Mínimo 10 segundos."
   },
   "wizard": {
     "title": "Asistente de configuración",

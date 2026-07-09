@@ -397,7 +397,14 @@
           "loam": "Morenejord (balansert)",
           "silt": "Silt (treg drenering)",
           "clay": "Leire (svært treg drenering)"
-        }
+        },
+        "distributor": "Vannfordeler",
+        "distributor_help": "Tilordne denne sonen til et uttak på en mekanisk vannfordeler. Fordelerens innløpsventil og dens pulsbaserte fremrykking vanner da denne sonen, så sonens egen ventil og tidsplan styres av fordeleren.",
+        "distributor_none": "Ingen (egen ventil)",
+        "outlet_number": "Uttaksnummer",
+        "distributor_managed_note": "Denne sonen vannes via en fordeler (uttak over). Ventilen, innløpsstyringen og strømningssensoren styres av fordeleren og skjules her — bare beregnings- og jordfuktighet-veto-innstillingene blir igjen. For å gi sonen sin egen ventil igjen, velg «Ingen (egen ventil)» over.",
+        "outlet_number_readonly_help": "Hvilket uttak på fordeleren som mater denne sonen. Angis på fordelersiden — åpne den med knappen.",
+        "configure_on_distributor": "Angi på fordeleren"
       },
       "no_items": "Det er ingen definerte soner ennå.",
       "title": "Soner",
@@ -530,7 +537,8 @@
         "run": "Start",
         "minutes": "min",
         "help": "Vann denne sonen i en egendefinert tid, uavhengig av beregningen",
-        "toast_started": "Vanning startet"
+        "toast_started": "Vanning startet",
+        "busy_hint": "Fordeleren kjører — du kan starte igjen når den er tilbake i hvilestilling."
       },
       "stop_zone": {
         "stop": "Stopp",
@@ -645,7 +653,8 @@
         "my_zones": "Mine soner",
         "when_to_water": "Når vanne",
         "advanced": "Avansert",
-        "experimental": "Eksperimentelt"
+        "experimental": "Eksperimentelt",
+        "distributors": "Fordelere"
       },
       "weather_data": {
         "forecast_title": "Værvarsel",
@@ -677,6 +686,115 @@
         "description": "Som standard vanner en sone én gang om dagen, ut fra underskuddet den daglige beregningen ga (for eksempel kl. 23:00). Med dette på bestemmer — og dimensjonerer — hver planlagte kjøring seg i stedet ut fra sanntids underskudd gjennom dagen (den dreneringskorrigerte ET-en og nedbøren siden forrige beregning). Dette lar en sone vanne mer enn én gang om dagen ved reelt behov i løpet av dagen (for eksempel potter med en hver-12.-time-plan som den én-gang-daglige bøtta ellers ville latt stå tørre), og den forkorter eller avbryter en kjøring som regn i løpet av dagen allerede har dekket. Det daglige regnskapet er uendret: etter kjøringen krediteres bøtta med vannet som faktisk ble levert, så neste daglige beregning teller aldri dobbelt. Krever en værtjeneste.",
         "label": "Utløs og dimensjoner hver kjøring fra sanntidsunderskuddet",
         "note": "Påvirker kun planlagte kjøringer og kan starte en som den daglige beregningen ikke godkjente. For hyppig vanning, behold et fornuftig minimumsunderskudd og en maksbøtte på minst en dags ET."
+      },
+      "distributors": {
+        "title": "Mekaniske vannfordelere",
+        "description": "Styr en mekanisk trykkfordeler — for eksempel en Gardena vannfordeler — som deler én tilførsel i flere uttak og rykker fram ved å pulse vannet av og på. Tilordne soner til uttakene på en fordeler, så vanner Smart Irrigation dem etter tur, sporer posisjonen og koordinerer en masterventil eller pumpe. Dette er en ny funksjon som ikke kunne testes fullt ut på maskinvare, så behandle den som en beta.",
+        "label": "Aktiver mekaniske vannfordelere",
+        "note": "Følg nøye med de første dagene med bruk og ha enhetens manuelle overstyring for hånden. Du kan slå den av igjen når som helst — eksisterende sonevanning påvirkes ikke."
+      }
+    },
+    "distributors": {
+      "title": "Fordelere",
+      "description": "Mekaniske vannfordelere deler én tilførsel i flere uttak og rykker fram ved å pulse vannet av og på.",
+      "no_items": "Ingen fordelere konfigurert ennå.",
+      "add": {
+        "header": "Legg til fordeler",
+        "name_placeholder": "Fordelernavn",
+        "actions": {
+          "add": "Legg til"
+        }
+      },
+      "status": {
+        "saved": "Lagret"
+      },
+      "confirm_delete": "Slette denne fordeleren? Tilordnede soner beholder uttaksnumrene sine, men mister koblingen til fordeleren.",
+      "labels": {
+        "name": "Navn",
+        "watering_mode_help": "Hvordan fordelerens innløpsventil åpnes og lukkes.",
+        "inlet_entity": "Innløpsventil/bryter (valgfritt)",
+        "inlet_entity_help": "Bryter- eller ventil-entiteten som åpner vanntilførselen til fordeleren. Den overvåkes også for fremmede pulser; når en ventil er valgt, vises en innstilling nedenfor som styrer reaksjonen.",
+        "watch_inlet": "Overvåk innløpsventilen for manuelle pulser",
+        "watch_inlet_help": "Oppdager bare ventilbrytere Home Assistant kan se — rent mekaniske pulser på enheten forblir usynlige.",
+        "inlet_entity_help_service": "Ringventilen Home Assistant overvåker for fremmede pulser for å holde utgangsposisjonen synkronisert (f.eks. når ventilen åpnes manuelt eller av en automasjon utenfor en HASI-kjøring). Når en ventil er valgt, vises en innstilling nedenfor som styrer reaksjonen. Aktivering skjer via start/stopp-skriptet; dette feltet blir bare lest og er IKKE flyt-/bekreftelsessensoren. La stå tomt for å deaktivere overvåkingen.",
+        "watch_mode": "Ved en manuell innløpspuls",
+        "watch_mode_help": "Hvordan reagere når innløpsventilen åpnes utenfor en Home Assistant-kjøring (kun pulser Home Assistant kan se).",
+        "watch_mode_count": "Tell den med (flytt posisjonen fram)",
+        "watch_mode_warn": "Varsle (merk posisjonen som usikker)",
+        "watch_mode_ignore": "Ignorer",
+        "run_service": "Start-skript",
+        "run_service_help": "Skript som kalles for å åpne innløpet. Det mottar pulsvarigheten.",
+        "stop_service": "Stopp-skript (valgfritt)",
+        "stop_service_help": "Skript som kalles for å lukke innløpet.",
+        "duration_field": "Varighetsfelt",
+        "duration_field_help": "Navnet på feltet der start-skriptet forventer varigheten.",
+        "duration_field_placeholder": "duration",
+        "duration_unit": "Varighetsenhet",
+        "duration_units": {
+          "seconds": "Sekunder",
+          "minutes": "Minutter"
+        },
+        "confirm_entity": "Bekreftelsessensor (valgfritt)",
+        "confirm_entity_help": "Valgfri sensor på fordelerinnløpet som bekrefter at vann faktisk strømmer (f.eks. en strømnings- eller ventilposisjonssensor). Hvis den ikke melder strømning når en utgang åpnes, stopper syklusen trygt og markerer fordeleren som usikker – dette er lav-strømnings-/feildeteksjonen.",
+        "flow_sensor": "Strømningssensor (valgfritt)",
+        "flow_sensor_help": "Den delte strømningsmåleren på innløpet (f.eks. L/min, m³/h). Når den er satt, måles og bokføres det faktisk leverte volumet per utgang i stedet for tidsestimatet. Valgfritt. Der ventilen kan stoppes (et classic-innløp eller en self-closing stopptjeneste), stoppes utgangen dessuten tidlig når målvolumet er nådd.",
+        "pause_seconds": "Fremrykkingspause",
+        "skip_pulse_seconds": "Hopp-puls",
+        "notify_target": "Varslingsmål (valgfritt)",
+        "notify_target_help": "Valgfri ekstra kanal. Stopp vises alltid i varslingspanelet i Home Assistant; angi en notify-tjeneste her (f.eks. notify.mobile_app_phone) for å sende dem dit også.",
+        "notify_target_placeholder": "notify.mobile_app_phone"
+      },
+      "notify": {
+        "halted": "Fordeler '{name}' stoppet ({reason}). Ny synkronisering og ny bekreftelse kreves.",
+        "reason": {
+          "valve_did_not_open": "ventilen åpnet ikke",
+          "restart_mid_advance": "omstart under fremrykking",
+          "foreign_inlet_pulse": "manuell innløpspuls"
+        }
+      },
+      "commissioning": {
+        "title": "Idriftsettelse",
+        "outlet": "Uttak",
+        "states": {
+          "synced": "Synkronisert",
+          "uncertain": "Usikker"
+        },
+        "test_run": "Testkjøring",
+        "test_run_help": "Vanner hvert tilordnet uttak i cirka 30 sekunder etter tur, så du kan se enheten rykke fram og notere pausen den trenger.",
+        "set_outlet": "Angi gjeldende uttak",
+        "set_outlet_help": "Les av uttaksnummeret som vises i enhetsvinduet, og angi det her for å synkronisere den sporede posisjonen på nytt.",
+        "resync_home": "Tilbakestill til uttak 1",
+        "confirm_resync": { "title": "Tilbakestille til uttak 1?", "body": "Dette setter den sporede posisjonen til uttak 1. Bekreft bare hvis enheten fysisk står på uttak 1 — ellers vanner fordeleren feil uttak (uoppdaget desynkronisering)." },
+        "confirm_set_outlet": { "title": "Sette gjeldende uttak?", "body": "Dette markerer fordeleren som synkronisert på uttaket du oppga. Bekreft bare hvis enhetens vindu fysisk viser akkurat det uttaket NÅ — en feil verdi vanner stille feil uttak." },
+        "confirmed": "Idriftsettelse bekreftet",
+        "confirmed_help": "Aktiverer fordeleren for automatiske og manuelle sykluser. Kan bare settes når posisjonen er synkronisert, og slås automatisk av hvis posisjonen blir usikker.",
+        "needs_sync": "Sett posisjonen til synkronisert før du kan aktivere denne fordeleren.",
+        "run_now": "Kjør nå",
+        "run_now_help": "Kjører én full manuell syklus over alle tilordnede uttak.",
+        "run_now_active": "En syklus kjører allerede.",
+        "confirm_dialog": {
+          "title": "Aktivere denne fordeleren?",
+          "body": "Bekreft at enheten fysisk står på uttak 1 og at hvert uttak er tilordnet riktig sone. Automatiske og manuelle sykluser vil begynne å pulse innløpet.",
+          "confirm": "Bekreft og aktiver"
+        }
+      },
+      "hints": {
+        "pressure": "Gi fordeleren minst 1 bar vanntrykk og 20 l/t strømning. Mekaniske fordelere trenger en kraftig puls for å rykke fram pålitelig.",
+        "below_floor_pause": "Svært kort pause. Fremrykkingspulsen må være lang nok til at fordeleren faktisk rykker fram; backend håndhever minst 10 sekunder.",
+        "below_floor_skip": "Svært kort hopp-puls. Backend håndhever minst 10 sekunder.",
+        "undetectable": "Enhetens manuelle velgerknapp kan ikke leses av. Hvis du vrir den for hånd, bruk «Angi gjeldende uttak» etterpå slik at den sporede posisjonen stemmer.",
+        "outlet_change": "Å endre en uttakstilordning flytter enheten bort fra kjent posisjon. Synkroniser og bekreft idriftsettelsen på nytt før neste syklus.",
+        "parallel_draw": "Parallell sekvensering åpner flere soner samtidig, men en fordeler mater ett uttak om gangen, så dens tilordnede soner vannes likevel etter tur. Planlegg vannuttaket deretter.",
+        "master_off_after": "Med sekvensiell eller roterende sekvensering og «master av etter hver sone» byttes pumpen per uttak, så forvent at den slår seg av og på mellom hvert uttak på fordeleren.",
+        "experimental": "Eksperimentell funksjon — fortsatt under utvikling og ikke fullt ut testet på maskinvare. Følg nøye med de første dagene med bruk og ha enhetens manuelle overstyring innen rekkevidde."
+      },
+      "outlets": {
+        "title": "Uttak / soner",
+        "help": "Angi hvor mange uttak fordeleren har, og tilordne en sone til hvert. Bare soner uten egen ventil eller skript kan tilordnes — en sone er enten på en fordeler eller har sin egen ventil. Antall uttak er lik antall tilordnede soner, nummerert sammenhengende fra 1.",
+        "count": "Antall uttak",
+        "none": "— ingen",
+        "no_zones": "Ingen soner ennå. Opprett soner først (Oppsett → Soner), og tilordne dem her.",
+        "gap_warning": "Uttak må fylles sammenhengende fra 1 — tilordne en sone til hvert uttak opp til det høyeste som brukes."
       }
     }
   },
@@ -853,7 +971,9 @@
     "general_wind_threshold": "Vanning hoppes over hvis vindhastigheten overstiger denne verdien (sterk vind reduserer effektiviteten og forårsaker avdrift).",
     "zone_plant_type": "Velg en plantetype for å sette en typisk plantekoeffisient, eller velg Egendefinert for å angi Kc selv.",
     "zone_kc": "Skalerer referanse-ET (gress) til plantene i denne sonen. 1,0 = referansegress; lavere for tørketålende planter, høyere for tørste vekster. Bare ET-leddet skaleres – ikke regn.",
-    "zone_soil_type": "Velg en jordtype for å sette en typisk dreneringsrate, eller la stå på Egendefinert for å skrive den inn manuelt under."
+    "zone_soil_type": "Velg en jordtype for å sette en typisk dreneringsrate, eller la stå på Egendefinert for å skrive den inn manuelt under.",
+    "distributor_pause_seconds": "Av-tid mellom uttak. Dette er pulsen som rykker fordeleren fram til neste uttak; still den inn etter det du så under testkjøringen. Minst 10 sekunder.",
+    "distributor_skip_pulse_seconds": "Kort på/av-puls for å hoppe forbi et uttak uten tilordnet sone, uten å vanne det. Minst 10 sekunder."
   },
   "wizard": {
     "title": "Oppsettsveiviser",

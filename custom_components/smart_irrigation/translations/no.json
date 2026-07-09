@@ -261,6 +261,12 @@
       },
       "last_water_used": {
         "name": "Vannforbruk siste syklus"
+      },
+      "current_outlet": {
+        "name": "Gjeldende utgang"
+      },
+      "outlet_zone": {
+        "name": "Sone på utgang {outlet}"
       }
     },
     "binary_sensor": {
@@ -278,6 +284,9 @@
       },
       "any_problem": {
         "name": "En sone har et problem"
+      },
+      "commissioned": {
+        "name": "Satt i drift"
       }
     },
     "number": {
@@ -306,6 +315,9 @@
       },
       "resume_irrigation": {
         "name": "Gjenoppta vanning"
+      },
+      "test_run": {
+        "name": "Testkjøring"
       }
     },
     "datetime": {

@@ -376,21 +376,33 @@ class SkipConditionsMixin:
     async def get_total_irrigation_duration(self, zone_ids=None) -> int:
         """Estimate the wall-clock irrigation time (seconds) for the given zones.
 
-        Sequencing-aware, used to anchor "finish at time" schedules:
-          - parallel:              max(duration) — all valves run at once
-          - sequential / rotating: sum(duration) — one after another
-            (rotating's absorption gaps are intentionally not modelled; it is
-            anchored as the sequential sum by design)
+        Two-track model, used to anchor "finish at time" schedules. Normal
+        (non-member) zones and distributor sweeps run on separate tracks:
+
+          * normal track — the linked-entity zones, reduced per zone_sequencing
+            (parallel: max(duration); sequential/rotating: sum(duration)).
+          * distributor track — one distributor_cycle_estimate per in-scope
+            distributor (windows + n pauses + settle + buffer). Distributor
+            cycles are dispatched strictly SEQUENTIALLY regardless of
+            zone_sequencing, so their estimates always SUM (H2, review #12).
+            Only distributors the executor would actually sweep are counted,
+            via the shared _dist_eligible_for_run predicate (H2, review #11) —
+            so the estimate no longer over-counts an unsynced / unconfirmed /
+            mid-cycle distributor, or one whose members are not due.
+
+        Normal zones run as background tasks concurrently with the awaited
+        distributor dispatch, so the wall-clock is the LONGER of the two tracks
+        (max). With no distributors this collapses to the original normal-track
+        reduction, preserving backward-compatible anchor times.
 
         ``zone_ids`` is an iterable of zone ids to include, or None/"all" for
-        every enabled (automatic/manual) zone. Only zones with a positive
-        duration count.
+        every enabled (automatic/manual) zone. Only positive durations count.
         """
         zones = await self.store.async_get_zones()
         want_all = zone_ids is None or zone_ids == "all"
         target = None if want_all else {int(z) for z in zone_ids}
 
-        durations = []
+        normal = []
         for zone in zones:
             if zone.get(const.ZONE_STATE) not in (
                 const.ZONE_STATE_AUTOMATIC,
@@ -399,16 +411,49 @@ class SkipConditionsMixin:
                 continue
             if target is not None and int(zone.get(const.ZONE_ID)) not in target:
                 continue
+            if zone.get(const.ZONE_DISTRIBUTOR_ID) is not None:
+                continue
             duration = zone.get(const.ZONE_DURATION, 0) or 0
             if duration > 0:
-                durations.append(duration)
+                normal.append(duration)
 
-        if not durations:
-            return 0
+        dist_track = 0
+        for dist in await self.store.async_get_distributors():
+            members = await self._dist_members(dist.get("id"))
+            in_scope = [
+                m
+                for m in members
+                if target is None or int(m.get(const.ZONE_ID)) in target
+            ]
+            if not in_scope:
+                continue
+            if not self._dist_eligible_for_run(dist, members):
+                continue
+            # Review I-1: pass the FULL member ring + the target (only_zone_ids), NOT
+            # the target-compacted `in_scope`. The real cycle sweeps the whole
+            # physical ring, skip-pulsing every non-targeted outlet up to the last
+            # targeted one; compacting to `in_scope` dropped those leading skips +
+            # pauses and under-counted a subset-targeted sweep, so a finish-anchored
+            # schedule started too late. `in_scope` still gates WHETHER to count this
+            # distributor (any targeted member present). distributor cycles are
+            # dispatched strictly sequentially regardless of zone_sequencing, so
+            # their estimates always sum.
+            only = (
+                None
+                if target is None
+                else [int(m.get(const.ZONE_ID)) for m in in_scope]
+            )
+            dist_track += int(
+                self.distributor_cycle_estimate(dist, members, only_zone_ids=only)
+            )
 
         if self.store.config.zone_sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL:
-            return int(max(durations))
-        return int(sum(durations))
+            normal_track = max(normal) if normal else 0
+        else:
+            normal_track = sum(normal)
+        # normal zones run as background tasks concurrently with the awaited
+        # distributor dispatch, so wall-clock is the longer of the two tracks.
+        return int(max(normal_track, dist_track))
 
     async def _increment_days_since_irrigation(self):
         """Increment the counter for days since last irrigation."""

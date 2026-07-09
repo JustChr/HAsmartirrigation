@@ -222,7 +222,8 @@
         "my_zones": "My Zones",
         "when_to_water": "When to Water",
         "advanced": "Advanced",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "distributors": "Distributors"
       },
       "weather_data": {
         "forecast_title": "Forecast",
@@ -254,6 +255,12 @@
         "description": "By default a zone waters once a day, from the deficit the daily calculation produced (for example at 23:00). With this on, each scheduled run instead decides — and sizes itself — from the live intra-day deficit (the drainage-aware ET and rainfall since the last calculation). This lets a zone water more than once a day on real intra-day demand (for example pots on an every-12-hours schedule that the once-daily bucket would otherwise leave dry), and it shrinks or cancels a run that intra-day rain has already covered. The daily ledger is unchanged: after the run the bucket is credited with the water actually delivered, so the next daily calculation never double-counts. Requires a weather service.",
         "label": "Trigger and size each run from the live deficit",
         "note": "Affects scheduled runs only, and can start a run the daily calculation didn't approve. For frequent watering keep a sensible minimum deficit and a maximum bucket of at least a day's ET."
+      },
+      "distributors": {
+        "title": "Mechanical water distributors",
+        "description": "Drive a mechanical pressure-distributor — for example a Gardena Water Distributor — that splits one supply into several outlets and advances on water on/off pulses. Assign zones to a distributor's outlets and Smart Irrigation waters them in sequence, tracks the position, and coordinates a master valve or pump. This is a new feature that could not be fully hardware-tested, so treat it as a beta.",
+        "label": "Enable mechanical water distributors",
+        "note": "Watch the first days of use closely and keep the device's manual override handy. You can switch it back off at any time — existing zone watering is unaffected."
       }
     },
     "help": {
@@ -534,7 +541,14 @@
           "loam": "Loam (balanced)",
           "silt": "Silt (slow draining)",
           "clay": "Clay (very slow draining)"
-        }
+        },
+        "distributor": "Water distributor",
+        "distributor_help": "Assign this zone to an outlet of a mechanical water distributor. The distributor's inlet valve and its pulse-advance sequence then water this zone, so the zone's own valve and schedule below are managed by the distributor.",
+        "distributor_none": "None (own valve)",
+        "outlet_number": "Outlet number",
+        "distributor_managed_note": "This zone is watered through a distributor (outlet above). Its valve, inlet control and flow sensor are managed by the distributor and hidden here — only the calculation and soil-moisture veto settings remain. To give the zone its own valve again, set the distributor above to “None (own valve)”.",
+        "outlet_number_readonly_help": "Which outlet of the distributor feeds this zone. Set on the distributor page — open it with the button.",
+        "configure_on_distributor": "Configure on distributor"
       },
       "no_items": "There are no zones defined yet.",
       "title": "Zones",
@@ -667,12 +681,116 @@
         "run": "Run",
         "minutes": "min",
         "help": "Water this zone for a custom time, ignoring the calculation",
-        "toast_started": "Started run"
+        "toast_started": "Started run",
+        "busy_hint": "Distributor is running — you can start again once it is back in its home position."
       },
       "stop_zone": {
         "stop": "Stop",
         "watering": "Watering…",
         "toast_stopped": "Stopped run"
+      }
+    },
+    "distributors": {
+      "title": "Distributors",
+      "description": "Mechanical water distributors split one supply into several outlets, advanced by pulsing the water on and off.",
+      "no_items": "No distributors configured yet.",
+      "add": {
+        "header": "Add distributor",
+        "name_placeholder": "Distributor name",
+        "actions": {
+          "add": "Add"
+        }
+      },
+      "status": {
+        "saved": "Saved"
+      },
+      "confirm_delete": "Delete this distributor? Zones assigned to it keep their outlet numbers but lose their distributor link.",
+      "labels": {
+        "name": "Name",
+        "watering_mode_help": "How the distributor's inlet valve is opened and closed.",
+        "inlet_entity": "Inlet valve / switch (optional)",
+        "inlet_entity_help": "The switch or valve entity that opens the water supply into the distributor. It is also watched for foreign pulses; once a valve is selected, a setting appears below to control the reaction.",
+        "watch_inlet": "Watch inlet valve for manual pulses",
+        "watch_inlet_help": "Only detects valve switches Home Assistant can see — purely mechanical pulses at the device stay invisible.",
+        "inlet_entity_help_service": "The ring valve Home Assistant watches for foreign pulses to keep the outlet position in sync (e.g. when the valve is opened manually or by an automation outside a HASI run). Once a valve is selected, a setting appears below to control the reaction. Actuation is via the run/stop service; this field is only read, and is NOT the flow/confirm sensor. Leave empty to disable inlet watching.",
+        "watch_mode": "On a manual inlet pulse",
+        "watch_mode_help": "How to react when the inlet valve is opened outside a Home Assistant run (only pulses Home Assistant can see).",
+        "watch_mode_count": "Count it (advance the position)",
+        "watch_mode_warn": "Warn (mark position uncertain)",
+        "watch_mode_ignore": "Ignore",
+        "run_service": "Run script",
+        "run_service_help": "Script called to open the inlet. It receives the pulse duration.",
+        "stop_service": "Stop script (optional)",
+        "stop_service_help": "Script called to close the inlet.",
+        "duration_field": "Duration field",
+        "duration_field_help": "Name of the field the run script expects the duration in.",
+        "duration_field_placeholder": "duration",
+        "duration_unit": "Duration unit",
+        "duration_units": {
+          "seconds": "Seconds",
+          "minutes": "Minutes"
+        },
+        "confirm_entity": "Confirmation sensor (optional)",
+        "confirm_entity_help": "Optional sensor on the distributor inlet confirming water actually flows (e.g. a flow or valve-position sensor). If it reports no flow when an outlet opens, the cycle halts safely and marks the distributor uncertain — this is the low-flow / fault detection.",
+        "flow_sensor": "Flow sensor (optional)",
+        "flow_sensor_help": "The shared inlet flow-rate meter (e.g. L/min, m³/h). When set, the actual delivered volume per outlet is measured and credited instead of the time estimate. Optional. Where the valve can be stopped (a classic inlet, or a self-closing stop-service), the outlet also stops early once its target volume is reached.",
+        "pause_seconds": "Advance pause",
+        "skip_pulse_seconds": "Skip pulse",
+        "notify_target": "Notification target (optional)",
+        "notify_target_help": "Optional additional channel. Halts always appear in the Home Assistant notifications panel; set a notify service here (e.g. notify.mobile_app_phone) to also push them there.",
+        "notify_target_placeholder": "notify.mobile_app_phone"
+      },
+      "notify": {
+        "halted": "Distributor '{name}' halted ({reason}). Re-sync and re-confirm required.",
+        "reason": {
+          "valve_did_not_open": "valve did not open",
+          "restart_mid_advance": "restarted mid-advance",
+          "foreign_inlet_pulse": "manual inlet pulse"
+        }
+      },
+      "commissioning": {
+        "title": "Commissioning",
+        "outlet": "Outlet",
+        "states": {
+          "synced": "Synced",
+          "uncertain": "Uncertain"
+        },
+        "test_run": "Test run",
+        "test_run_help": "Waters each mapped outlet for about 30 seconds in order, so you can watch the device advance and note the pause it needs.",
+        "set_outlet": "Set current outlet",
+        "set_outlet_help": "Read the outlet number shown in the device window and set it here to re-sync the tracked position.",
+        "resync_home": "Reset to outlet 1",
+        "confirm_resync": { "title": "Reset to outlet 1?", "body": "This sets the tracked position to outlet 1. Only confirm if the device is physically at outlet 1 — otherwise the distributor will water the wrong outlets (an undetected desync)." },
+        "confirm_set_outlet": { "title": "Set current outlet?", "body": "This marks the distributor as synced at the outlet you entered. Only confirm if the device's window physically shows that outlet right now — a wrong value silently waters the wrong outlets." },
+        "confirmed": "Commissioning confirmed",
+        "confirmed_help": "Arms the distributor for automatic and manual cycles. Can only be set while the position is synced, and drops to off automatically if the position ever becomes uncertain.",
+        "needs_sync": "Set the position to synced before you can arm this distributor.",
+        "run_now": "Run now",
+        "run_now_help": "Runs one full manual cycle over all mapped outlets.",
+        "run_now_active": "A cycle is already running.",
+        "confirm_dialog": {
+          "title": "Arm this distributor?",
+          "body": "Confirm the device is physically at outlet 1 and every outlet is mapped to the right zone. Automatic and manual cycles will start pulsing the inlet.",
+          "confirm": "Confirm & arm"
+        }
+      },
+      "hints": {
+        "pressure": "Give the distributor at least 1 bar of water pressure and 20 l/h of flow. Mechanical distributors need a firm pulse to advance reliably.",
+        "below_floor_pause": "Very short pause. The advance pulse must be long enough for the distributor to actually step; the backend enforces a minimum of 10 seconds.",
+        "below_floor_skip": "Very short skip pulse. The backend enforces a minimum of 10 seconds.",
+        "undetectable": "The device's manual selector button cannot be read back. If you turn it by hand, use “Set current outlet” afterwards so the tracked position matches.",
+        "outlet_change": "Changing an outlet mapping moves the device off its known position. Re-sync and re-confirm commissioning before the next cycle.",
+        "parallel_draw": "Parallel sequencing opens several zones at once, but a distributor feeds one outlet at a time, so its mapped zones still water in sequence. Plan the supply draw accordingly.",
+        "master_off_after": "With sequential or rotating sequencing and “master off after each zone”, the pump is switched per outlet, so expect it to cycle between every outlet of the distributor.",
+        "experimental": "Experimental feature — still being refined and not fully hardware-tested. Watch the first days of use closely and keep the device's manual override within reach."
+      },
+      "outlets": {
+        "title": "Outlets / zones",
+        "help": "Set how many outlets the distributor has, then assign a zone to each. Only zones without their own valve or script can be assigned — a zone is either on a distributor or has its own valve. The number of outlets equals the number of assigned zones, numbered contiguously from 1.",
+        "count": "Number of outlets",
+        "none": "— none",
+        "no_zones": "No zones yet. Create zones first (Setup → Zones), then assign them here.",
+        "gap_warning": "Outlets must be filled contiguously from 1 — assign a zone to every outlet up to the highest used one."
       }
     }
   },
@@ -849,7 +967,9 @@
     "general_wind_threshold": "Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift).",
     "zone_plant_type": "Pick a plant type to set a typical crop coefficient, or choose Custom to enter Kc yourself.",
     "zone_kc": "Scales reference (grass) ET to this zone's plants. 1.0 = reference grass; lower for drought-tolerant planting, higher for thirsty crops. Only the ET term is scaled — rain is not.",
-    "zone_soil_type": "Pick a soil type to set a typical drainage rate, or leave Custom to enter it by hand below."
+    "zone_soil_type": "Pick a soil type to set a typical drainage rate, or leave Custom to enter it by hand below.",
+    "distributor_pause_seconds": "Off-time between outlets. This is the pulse that advances the distributor to the next outlet; set it from what you saw during the test run. Minimum 10 seconds.",
+    "distributor_skip_pulse_seconds": "Short on/off pulse used to step past an outlet that has no zone mapped, without watering it. Minimum 10 seconds."
   },
   "wizard": {
     "title": "Setup Wizard",

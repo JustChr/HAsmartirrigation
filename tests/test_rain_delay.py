@@ -42,6 +42,11 @@ class _FakeStore:
     async def async_get_zones(self):
         return [dict(z) for z in self.zones.values()]
 
+    async def async_get_distributors(self):
+        # H3: async_irrigate_now now also dispatches distributor cycles, which
+        # reads this collection. No distributors in the rain-delay fixtures.
+        return []
+
     async def async_update_config(self, changes):
         self.updated_config.append(changes)
         for k, v in changes.items():

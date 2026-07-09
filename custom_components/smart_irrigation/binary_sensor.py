@@ -18,12 +18,14 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import slugify
 
 from . import const
+from .distributor_entity import DistributorEntityBase
 from .entity import hub_device_info, zone_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,9 +71,61 @@ async def async_setup_entry(
         registered[config["id"]] = entities
         async_add_devices(entities)
 
+    @callback
+    def async_add_distributor_binary_sensors(distributor: dict) -> None:
+        if const.DOMAIN not in hass.data:
+            return
+        registered = hass.data[const.DOMAIN].setdefault(
+            "distributor_binary_sensors", {}
+        )
+        did = distributor["id"]
+        if did in registered:
+            return
+        base = "{}.{}_distributor_{}".format(
+            PLATFORM, const.DOMAIN, slugify(distributor.get("name") or f"d{did}")
+        )
+        entities = [
+            SmartIrrigationDistributorCommissionedSensor(
+                hass, f"{base}_commissioned", distributor
+            ),
+            SmartIrrigationDistributorWateringNowSensor(
+                hass, f"{base}_watering_now", distributor
+            ),
+        ]
+        registered[did] = entities
+        async_add_devices(entities)
+
+    @callback
+    def async_remove_distributor_binary_sensors(distributor_id) -> None:
+        registered = hass.data.get(const.DOMAIN, {}).get(
+            "distributor_binary_sensors", {}
+        )
+        entities = registered.pop(distributor_id, None)
+        if not entities:
+            return
+        registry = er.async_get(hass)
+        for ent in entities:
+            eid = registry.async_get_entity_id(PLATFORM, const.DOMAIN, ent.unique_id)
+            if eid:
+                registry.async_remove(eid)
+
     config_entry.async_on_unload(
         async_dispatcher_connect(
             hass, const.DOMAIN + "_register_entity", async_add_binary_sensor_entities
+        )
+    )
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            const.DOMAIN + "_distributor_register_entity",
+            async_add_distributor_binary_sensors,
+        )
+    )
+    config_entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            const.DOMAIN + "_distributor_removed",
+            async_remove_distributor_binary_sensors,
         )
     )
 
@@ -406,3 +460,41 @@ class SmartIrrigationGlobalProblemSensor(BinarySensorEntity):
         """Push the initial state."""
         await super().async_added_to_hass()
         self.async_schedule_update_ha_state()
+
+
+class SmartIrrigationDistributorCommissionedSensor(
+    DistributorEntityBase, BinarySensorEntity
+):
+    """On when the distributor's commissioning is confirmed (armed)."""
+
+    suffix = "commissioned"
+    _attr_translation_key = "commissioned"
+    _attr_icon = "mdi:check-decagram"
+
+    def _refresh(self, distributor: dict) -> None:
+        self._on = bool(distributor.get("commissioning_confirmed"))
+
+    @property
+    def is_on(self) -> bool:
+        return self._on
+
+
+class SmartIrrigationDistributorWateringNowSensor(
+    DistributorEntityBase, BinarySensorEntity
+):
+    """On while a distributor cycle is in progress (watering or pausing)."""
+
+    suffix = "watering_now"
+    _attr_translation_key = "watering_now"
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+
+    def _refresh(self, distributor: dict) -> None:
+        self._cycle = distributor.get("active_cycle") or {}
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self._cycle)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"phase": self._cycle.get("phase"), "outlet": self._cycle.get("outlet")}

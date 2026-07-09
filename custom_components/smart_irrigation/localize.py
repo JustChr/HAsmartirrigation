@@ -35,7 +35,7 @@ async def localize(string: str, language: str) -> str:
         # if the language is not english and the language is supported
         if language != "en" and language in SUPPORTED_LANGUAGES:
             lang_file = main_path / LANGUAGE_FILES_DIR / f"{language}.json"
-            async with aiofiles.open(lang_file) as f:
+            async with aiofiles.open(lang_file, encoding="utf-8") as f:
                 contents = await f.read()
 
             data = json.loads(contents)
@@ -43,7 +43,7 @@ async def localize(string: str, language: str) -> str:
         # fallback to english in case string wasn't found
         if language == "en" or not isinstance(translated_string, str):
             en_file = main_path / LANGUAGE_FILES_DIR / "en.json"
-            async with aiofiles.open(en_file) as f:
+            async with aiofiles.open(en_file, encoding="utf-8") as f:
                 contents = await f.read()
 
             data = json.loads(contents)

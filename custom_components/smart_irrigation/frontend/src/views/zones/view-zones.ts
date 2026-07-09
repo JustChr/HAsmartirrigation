@@ -17,6 +17,7 @@ import {
   clearRainDelay,
   runZone,
   stopZone,
+  fetchDistributors,
 } from "../../data/websockets";
 import { SubscribeMixin } from "../../subscribe-mixin";
 
@@ -24,6 +25,7 @@ import {
   SmartIrrigationConfig,
   SmartIrrigationZone,
   SmartIrrigationZoneState,
+  SmartIrrigationDistributor,
   IrrigationOutlook,
   UpcomingRun,
   SkipCheck,
@@ -81,6 +83,11 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   private zones: SmartIrrigationZone[] = [];
 
   @state() private _outlook?: IrrigationOutlook;
+
+  // Distributors, fetched so a member zone's custom-run control can be gated on
+  // its distributor's live `active_cycle` (Plan F busy-hint). Empty until the
+  // first fetch resolves; a member with no matching distributor stays enabled.
+  @state() private _distributors: SmartIrrigationDistributor[] = [];
 
   @property({ type: Boolean })
   private isLoading = true;
@@ -174,7 +181,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     try {
       if (isInitial) this.isLoading = true;
 
-      const [config, zones, outlook] = await Promise.all([
+      const [config, zones, outlook, distributors] = await Promise.all([
         fetchConfig(this.hass),
         fetchZones(this.hass),
         fetchIrrigationOutlook(this.hass).catch((e) => {
@@ -182,11 +189,19 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
           console.error("Failed to fetch irrigation outlook:", e);
           return undefined;
         }),
+        fetchDistributors(this.hass).catch((e) => {
+          // Distributors only gate the member busy-hint — never block the
+          // dashboard on them; treat a failure as "none known" (control stays
+          // enabled, the backend still rejects a run while a cycle is active).
+          console.error("Failed to fetch distributors:", e);
+          return [] as SmartIrrigationDistributor[];
+        }),
       ]);
 
       this.config = config;
       this.zones = zones;
       this._outlook = outlook;
+      this._distributors = distributors;
       this._initialLoadDone = true;
       this._syncCountdownTicker();
     } catch (error) {
@@ -233,11 +248,15 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   /** Whether a zone can be actuated manually: a classic zone needs a linked
-   * switch/valve; a self-closing service zone needs its run_service set. */
+   * switch/valve; a self-closing service zone needs its run_service set; a
+   * distributor member has neither of its own — it is watered through the
+   * distributor outlet, so membership (`distributor_id`) makes it actuatable
+   * and the backend routes the run to the distributor (Plan F). */
   private _canActuate(zone: SmartIrrigationZone): boolean {
     return !!(
       zone.linked_entity ||
-      (zone.watering_mode === "service" && zone.run_service)
+      (zone.watering_mode === "service" && zone.run_service) ||
+      zone.distributor_id != null
     );
   }
 
@@ -316,8 +335,33 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     return this._runMinutes[key] ?? 10;
   }
 
+  /**
+   * The distributor a member zone belongs to (by `distributor_id`), or
+   * undefined for a standalone zone or when the distributor list hasn't loaded.
+   */
+  private _zoneDistributor(
+    zone: SmartIrrigationZone,
+  ): SmartIrrigationDistributor | undefined {
+    if (zone.distributor_id == null) return undefined;
+    return this._distributors.find((d) => d.id === zone.distributor_id);
+  }
+
+  /**
+   * True when this zone is a distributor member whose distributor is mid-cycle.
+   * The backend rejects a member run while `active_cycle` is non-empty; we
+   * mirror that here to disable the control and show a wait-for-home hint,
+   * preferring the distributor object over any entity state for consistency.
+   */
+  private _distributorBusy(zone: SmartIrrigationZone): boolean {
+    const dist = this._zoneDistributor(zone);
+    return !!dist && Object.keys(dist.active_cycle ?? {}).length > 0;
+  }
+
   private async _runZoneFor(zone: SmartIrrigationZone): Promise<void> {
     if (!this.hass || !this._canActuate(zone) || zone.id === undefined) return;
+    // Don't even fire while the member's distributor is running — the backend
+    // rejects it, but skipping the round-trip keeps the toast honest.
+    if (this._distributorBusy(zone)) return;
     const minutes = this._zoneRunMinutes(zone);
     if (!(minutes > 0)) return;
     try {
@@ -1047,7 +1091,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
             : ""}
           ${this.actionsMode !== "none" &&
           this._canActuate(zone) &&
-          (zone.duration ?? 0) > 0
+          this._zoneHasDeficit(zone)
             ? html`
                 <button
                   class="action-btn"
@@ -1057,7 +1101,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
                       this._confirmIrrigate = zone.id.toString();
                     }
                   }}"
-                  ?disabled="${this.isSaving}"
+                  ?disabled="${this.isSaving || this._distributorBusy(zone)}"
                 >
                   <ha-icon icon="mdi:water"></ha-icon>
                   ${localize(
@@ -1134,33 +1178,46 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       `;
     }
 
+    // A distributor member is watered through its distributor. While that
+    // distributor is mid-cycle the backend rejects a second run, so disable the
+    // control and explain the wait rather than let the user fire a doomed run.
+    const busy = this._distributorBusy(zone);
+
     return html`
-      <div
-        class="run-zone-control"
-        title="${localize("panels.zones.run_zone.help", lang)}"
-      >
-        <input
-          class="run-zone-input"
-          type="number"
-          min="1"
-          max="600"
-          .value="${String(this._zoneRunMinutes(zone))}"
-          @input="${(e: Event) => {
-            const v = Number((e.target as HTMLInputElement).value);
-            this._runMinutes = { ...this._runMinutes, [key]: v };
-          }}"
-        />
-        <span class="run-zone-unit"
-          >${localize("panels.zones.run_zone.minutes", lang)}</span
+      <div class="run-zone-control-wrap">
+        <div
+          class="run-zone-control"
+          title="${localize("panels.zones.run_zone.help", lang)}"
         >
-        <button
-          class="action-btn"
-          @click="${() => this._runZoneFor(zone)}"
-          ?disabled="${this.isSaving}"
-        >
-          <ha-icon icon="mdi:timer-play-outline"></ha-icon>
-          ${localize("panels.zones.run_zone.run", lang)}
-        </button>
+          <input
+            class="run-zone-input"
+            type="number"
+            min="1"
+            max="600"
+            .value="${String(this._zoneRunMinutes(zone))}"
+            ?disabled="${busy}"
+            @input="${(e: Event) => {
+              const v = Number((e.target as HTMLInputElement).value);
+              this._runMinutes = { ...this._runMinutes, [key]: v };
+            }}"
+          />
+          <span class="run-zone-unit"
+            >${localize("panels.zones.run_zone.minutes", lang)}</span
+          >
+          <button
+            class="action-btn"
+            @click="${() => this._runZoneFor(zone)}"
+            ?disabled="${this.isSaving || busy}"
+          >
+            <ha-icon icon="mdi:timer-play-outline"></ha-icon>
+            ${localize("panels.zones.run_zone.run", lang)}
+          </button>
+        </div>
+        ${busy
+          ? html`<span class="run-zone-busy-hint">
+              ${localize("panels.zones.run_zone.busy_hint", lang)}
+            </span>`
+          : ""}
       </div>
     `;
   }
@@ -1636,11 +1693,34 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       }
 
       /* Custom-duration run control (WS-5) */
+      .run-zone-control-wrap {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        margin-left: auto;
+      }
+
       .run-zone-control {
         display: inline-flex;
         align-items: center;
         gap: 6px;
+      }
+
+      /* The in-progress countdown branch isn't inside the wrap, so it keeps the
+         right-alignment the wrap otherwise provides. */
+      .run-zone-control.running {
         margin-left: auto;
+      }
+
+      /* Member busy-hint: the distributor is mid-cycle, so the run is blocked. */
+      .run-zone-busy-hint {
+        font-size: 0.8125rem;
+        font-style: italic;
+        color: var(--secondary-text-color);
+        text-align: right;
+        max-width: 320px;
+        line-height: 1.3;
       }
 
       .run-zone-input {

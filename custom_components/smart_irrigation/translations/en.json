@@ -226,41 +226,107 @@
   },
   "entity": {
     "sensor": {
-      "duration": { "name": "Duration" },
-      "bucket": { "name": "Bucket" },
-      "live_bucket": { "name": "Live bucket" },
-      "bucket_delta": { "name": "Bucket delta" },
-      "drainage": { "name": "Drainage" },
-      "last_irrigation": { "name": "Last irrigation" },
-      "next_irrigation": { "name": "Next irrigation" },
-      "last_calculated": { "name": "Last calculated" },
-      "last_weather_update": { "name": "Last weather update" },
-      "weather_data_points": { "name": "Weather data points" },
-      "water_used": { "name": "Water used" },
-      "last_water_used": { "name": "Last cycle water used" }
+      "duration": {
+        "name": "Duration"
+      },
+      "bucket": {
+        "name": "Bucket"
+      },
+      "live_bucket": {
+        "name": "Live bucket"
+      },
+      "bucket_delta": {
+        "name": "Bucket delta"
+      },
+      "drainage": {
+        "name": "Drainage"
+      },
+      "last_irrigation": {
+        "name": "Last irrigation"
+      },
+      "next_irrigation": {
+        "name": "Next irrigation"
+      },
+      "last_calculated": {
+        "name": "Last calculated"
+      },
+      "last_weather_update": {
+        "name": "Last weather update"
+      },
+      "weather_data_points": {
+        "name": "Weather data points"
+      },
+      "water_used": {
+        "name": "Water used"
+      },
+      "last_water_used": {
+        "name": "Last cycle water used"
+      },
+      "current_outlet": {
+        "name": "Current outlet"
+      },
+      "outlet_zone": {
+        "name": "Zone on outlet {outlet}"
+      }
     },
     "binary_sensor": {
-      "irrigation_needed": { "name": "Irrigation needed" },
-      "watering_now": { "name": "Watering now" },
-      "any_irrigation_needed": { "name": "Any zone needs water" },
-      "problem": { "name": "Problem" },
-      "any_problem": { "name": "Any zone has a problem" }
+      "irrigation_needed": {
+        "name": "Irrigation needed"
+      },
+      "watering_now": {
+        "name": "Watering now"
+      },
+      "any_irrigation_needed": {
+        "name": "Any zone needs water"
+      },
+      "problem": {
+        "name": "Problem"
+      },
+      "any_problem": {
+        "name": "Any zone has a problem"
+      },
+      "commissioned": {
+        "name": "Commissioned"
+      }
     },
     "number": {
-      "multiplier": { "name": "Multiplier" }
+      "multiplier": {
+        "name": "Multiplier"
+      }
     },
     "button": {
-      "irrigate_now": { "name": "Irrigate now" },
-      "reset_usage": { "name": "Reset water usage" },
-      "irrigate_all": { "name": "Water all zones" },
-      "calculate_all": { "name": "Recalculate durations" },
-      "update_weather": { "name": "Refresh weather data" },
-      "delay_24h": { "name": "Delay watering 24 h" },
-      "delay_48h": { "name": "Delay watering 48 h" },
-      "resume_irrigation": { "name": "Resume watering" }
+      "irrigate_now": {
+        "name": "Irrigate now"
+      },
+      "reset_usage": {
+        "name": "Reset water usage"
+      },
+      "irrigate_all": {
+        "name": "Water all zones"
+      },
+      "calculate_all": {
+        "name": "Recalculate durations"
+      },
+      "update_weather": {
+        "name": "Refresh weather data"
+      },
+      "delay_24h": {
+        "name": "Delay watering 24 h"
+      },
+      "delay_48h": {
+        "name": "Delay watering 48 h"
+      },
+      "resume_irrigation": {
+        "name": "Resume watering"
+      },
+      "test_run": {
+        "name": "Test run"
+      }
     },
     "datetime": {
-      "rain_delay": { "name": "Pause until" }
+      "rain_delay": {
+        "name": "Pause until"
+      }
     }
   }
 }

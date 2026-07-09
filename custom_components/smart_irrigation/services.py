@@ -443,3 +443,25 @@ def async_register_services(hass: HomeAssistant):
         const.SERVICE_DELETE_RECURRING_SCHEDULE,
         coordinator.handle_delete_recurring_schedule,
     )
+
+    # Distributor services (Gardena water distributor, Plan D)
+    hass.services.async_register(
+        const.DOMAIN,
+        const.SERVICE_DISTRIBUTOR_SET_OUTLET,
+        coordinator.handle_distributor_set_outlet,
+    )
+    hass.services.async_register(
+        const.DOMAIN,
+        const.SERVICE_DISTRIBUTOR_RESYNC_HOME,
+        coordinator.handle_distributor_resync_home,
+    )
+    hass.services.async_register(
+        const.DOMAIN,
+        const.SERVICE_DISTRIBUTOR_TEST_RUN,
+        coordinator.handle_distributor_test_run,
+    )
+    hass.services.async_register(
+        const.DOMAIN,
+        const.SERVICE_DISTRIBUTOR_RUN_NOW,
+        coordinator.handle_distributor_run_now,
+    )

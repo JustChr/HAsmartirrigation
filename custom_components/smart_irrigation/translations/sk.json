@@ -261,6 +261,12 @@
       },
       "last_water_used": {
         "name": "Spotreba vody za posledný cyklus"
+      },
+      "current_outlet": {
+        "name": "Aktuálny vývod"
+      },
+      "outlet_zone": {
+        "name": "Zóna na vývode {outlet}"
       }
     },
     "binary_sensor": {
@@ -278,6 +284,9 @@
       },
       "any_problem": {
         "name": "Niektorá zóna má problém"
+      },
+      "commissioned": {
+        "name": "Uvedený do prevádzky"
       }
     },
     "number": {
@@ -306,6 +315,9 @@
       },
       "resume_irrigation": {
         "name": "Pokračovať v zavlažovaní"
+      },
+      "test_run": {
+        "name": "Testovací chod"
       }
     },
     "datetime": {

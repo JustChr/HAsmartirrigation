@@ -6,11 +6,11 @@ title: "Configuration: Experimental"
 
 > Main page: [Configuration](configuration.md)<br/>
 > Previous: [Sensor group configuration](configuration-sensor-groups.md)<br/>
-> Next: [Usage](usage.md)
+> Next: [Distributors](configuration-distributors.md)
 
-The **Setup → Experimental** tab holds opt-in features that change how each zone's [bucket](how-it-works.md) is filled. They are **off by default** and still being refined, so turn them on one at a time and keep an eye on your zones — you can switch them back off at any time without losing data.
+The **Setup → Experimental** tab holds opt-in features that are **off by default** and still being refined — turn them on one at a time and keep an eye on things; you can switch them back off at any time without losing data. Two change how each zone's [bucket](how-it-works.md) is filled; a third gates the experimental [mechanical water distributor](configuration-distributors.md) support.
 
-Both toggles are global (they apply to every zone) and take effect from the next calculation or watering event onward.
+The two bucket toggles are global (they apply to every zone) and take effect from the next calculation or watering event onward.
 
 > **Looking for *forecast-weighted durations*?** That option moved out of this tab. It is now the **Water less** choice in the unified [*When rain is forecast*](configuration-when-to-water.md#when-rain-is-forecast) control under *Setup → When to Water*. The behaviour is unchanged.
 
@@ -49,6 +49,10 @@ Notes:
 - **Keep `maximum bucket` ≥ roughly a day's ET** (the 24 mm default is fine). With several runs a day the stored bucket has to *bank* a full day's delivered water until the nightly calculation subtracts the day's ET once; if the maximum bucket is set very low, that banked water is clipped and the daily ledger can drift drier over time. Smart Irrigation logs a warning if you enable this with a small maximum bucket.
 - Your stored **bucket** value will swing **positive** during the day (banked irrigation) before the nightly calculation pulls it back — that's expected; the *Live bucket* sensor shows the true intra-day deficit.
 
+## Mechanical water distributors
+
+Enables Smart Irrigation's support for a **mechanical pressure-distributor** (for example a Gardena Water Distributor) that splits one supply into several outlets. Turning it on reveals the **Distributors** setup tab and a per-zone **Water distributor** field; leaving it off keeps the feature entirely hidden. Unlike the bucket features above this does not change any calculation — it is a new, **experimental** capability that could not be fully hardware-tested, so treat it as a beta and watch the first days of use closely. Full details are on the **[Distributors](configuration-distributors.md)** page.
+
 > Main page: [Configuration](configuration.md)<br/>
 > Previous: [Sensor group configuration](configuration-sensor-groups.md)<br/>
-> Next: [Usage](usage.md)
+> Next: [Distributors](configuration-distributors.md)

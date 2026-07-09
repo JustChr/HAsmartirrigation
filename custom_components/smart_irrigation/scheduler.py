@@ -780,6 +780,11 @@ class RecurringScheduleManager:
                 # Directly control linked entities (restricted to the schedule's
                 # target zones), then reset counter
                 await self.coordinator._irrigate_linked_entities(zones)
+                # Plan G: also run distributor cycles for due member zones. Members
+                # are excluded from _irrigate_linked_entities (irrigation.py:462), so
+                # this is their sole automatic driver, and it runs even when no
+                # non-member zone is due (that path early-returns at irrigation.py:476).
+                await self.coordinator._dispatch_distributor_cycles(zones)
                 await self.coordinator._reset_days_since_irrigation()
 
             _LOGGER.info(

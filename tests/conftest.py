@@ -103,6 +103,9 @@ def mock_store():
     store = Mock()
     store.async_get_config = AsyncMock(return_value={})
     store.async_get_all_zones = AsyncMock(return_value=[])
+    # Default: no distributors. get_total_irrigation_duration (Plan G) awaits
+    # this, so a bare Mock would raise "object Mock can't be used in 'await'".
+    store.async_get_distributors = AsyncMock(return_value=[])
     store.async_get_zone = AsyncMock(return_value=None)
     store.async_save_zone = AsyncMock()
     store.async_delete_zone = AsyncMock()

@@ -29,6 +29,12 @@ export interface HomeAssistant {
     headers?: Record<string, string>,
   ) => Promise<T>;
   callWS: <T>(msg: MessageBase | Record<string, any>) => Promise<T>;
+  callService: (
+    domain: string,
+    service: string,
+    serviceData?: Record<string, any>,
+    target?: Record<string, any>,
+  ) => Promise<any>;
 }
 
 /*export interface AlarmEntity extends HassEntity {
@@ -81,11 +87,16 @@ export class SmartIrrigationConfig {
   forecast_weighting_enabled: boolean;
   observed_watering_enabled: boolean;
   live_estimate_enabled: boolean;
+  distributors_enabled: boolean;
   master_entity?: string | null;
   master_settle_seconds: number;
   master_kick_enabled: boolean;
   master_kick_pause_seconds: number;
   master_off_after: boolean;
+  // Backend-reported integration version (Task V-BE/b9). The `/config` WS
+  // command injects `const.VERSION`; the panel prefers it over the build-time
+  // constant so the shown version always matches the running integration.
+  version?: string;
 
   constructor() {
     this.calctime = "23:00";
@@ -122,6 +133,7 @@ export class SmartIrrigationConfig {
     this.forecast_weighting_enabled = false;
     this.observed_watering_enabled = false;
     this.live_estimate_enabled = false;
+    this.distributors_enabled = false;
     this.master_entity = null;
     this.master_settle_seconds = 10;
     this.master_kick_enabled = false;
@@ -284,6 +296,11 @@ export class SmartIrrigationZone {
   soil_moisture_threshold?: number | null;
   water_used_total?: number;
   run_log?: RunLogEntry[];
+  // Gardena distributor membership (Plan F). When distributor_id is set the
+  // zone is watered through that distributor's outlet, and its own valve +
+  // schedule are managed by the distributor cycle.
+  distributor_id?: number | null;
+  outlet_number?: number | null;
 
   constructor(
     i: number,
@@ -347,4 +364,60 @@ export class SmartIrrigationMapping {
     this.mappings = m;
     this.data = undefined;
   }
+}
+
+/**
+ * A Gardena-style mechanical water distributor: one inlet valve feeding 2..6
+ * outlets that are advanced by pulsing the water on/off. The backend
+ * (`DistributorEntry`, store.py) owns the state machine; the panel reads this
+ * shape back from the `smart_irrigation/distributors` WS command and POSTs a
+ * partial back to `/api/smart_irrigation/distributors` to persist edits.
+ *
+ * `position_state`, `current_outlet`, `commissioning_confirmed` and
+ * `active_cycle` are backend-driven runtime state the panel only reflects (the
+ * commissioning switch is the one exception — the user arms it).
+ */
+export interface SmartIrrigationDistributor {
+  id?: number;
+  name: string;
+  /** "classic" (inlet_entity switch/valve) | "service" (run/stop scripts). */
+  watering_mode: string;
+  inlet_entity?: string | null;
+  /**
+   * Legacy opt-in: watch the inlet entity for manual (HA-observable) actuation.
+   * Superseded by `watch_mode`; kept typed for reading older persisted records
+   * (the backend derives `watch_mode` from it: True -> count, else -> ignore).
+   */
+  watch_inlet?: boolean;
+  /**
+   * Tri-state reaction to a foreign inlet pulse HA can observe (E4):
+   * "count" advances the tracked position, "warn" marks the distributor
+   * uncertain (de-arm + notify), "ignore" registers no listener. Rendered in
+   * both watering modes; in service mode the inlet is watch-only. Defaults to
+   * "ignore".
+   */
+  watch_mode?: "count" | "warn" | "ignore";
+  run_service?: string | null;
+  stop_service?: string | null;
+  duration_field: string;
+  /** "seconds" | "minutes" — unit passed to the run service. */
+  duration_unit: string;
+  confirm_entity?: string | null;
+  flow_sensor?: string | null;
+  /** Off-pulse between outlets (>= 10 s floor; default 300 s). */
+  pause_seconds: number;
+  /** Short pulse used to skip an unused outlet (>= 10 s floor; default 30 s). */
+  skip_pulse_seconds: number;
+  /** 1-based outlet the device is believed to be pointing at. */
+  current_outlet: number;
+  /** "synced" | "uncertain" — arming requires "synced". */
+  position_state: string;
+  notify_target?: string | null;
+  /** Route the inlet through the instance master switch / pump. */
+  use_master: boolean;
+  /** The arm gate: only true when synced; drops to false on any uncertain. */
+  commissioning_confirmed: boolean;
+  schedules: any[];
+  /** Non-empty while a cycle is running (blocks a second run). */
+  active_cycle: Record<string, any>;
 }

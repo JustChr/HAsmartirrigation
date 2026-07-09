@@ -74,6 +74,12 @@ CONF_DEFAULT_OBSERVED_WATERING_ENABLED = False
 # ET. Trigger gate honours each zone's bucket threshold (minimum deficit).
 CONF_LIVE_ESTIMATE_ENABLED = "live_estimate_enabled"
 CONF_DEFAULT_LIVE_ESTIMATE_ENABLED = False
+# Mechanical water distributors (Gardena-style indexing distributor): opt-in,
+# experimental. Off by default. UI-visibility gate only — the distributor engine
+# is already inert unless distributors are configured, so this flag never stops an
+# existing cycle; it just hides the Distributors tab + the zone-side selector.
+CONF_DISTRIBUTORS_ENABLED = "distributors_enabled"
+CONF_DEFAULT_DISTRIBUTORS_ENABLED = False
 # Legacy keys read as a fallback on load so an early opt-in survives the
 # renames: v2026.06.28 shipped "fresh_duration_enabled"; it was then
 # "live_duration_enabled" while the feature only *resized* a daily-approved run.
@@ -519,6 +525,13 @@ SERVICE_SET_RAIN_DELAY = "set_rain_delay"
 SERVICE_CLEAR_RAIN_DELAY = "clear_rain_delay"
 SERVICE_RUN_ZONE = "run_zone"
 SERVICE_STOP_ZONE = "stop_zone"
+# Gardena distributor services
+SERVICE_DISTRIBUTOR_SET_OUTLET = "distributor_set_outlet"
+SERVICE_DISTRIBUTOR_RESYNC_HOME = "distributor_resync_home"
+SERVICE_DISTRIBUTOR_TEST_RUN = "distributor_test_run"
+SERVICE_DISTRIBUTOR_RUN_NOW = "distributor_run_now"
+ATTR_DISTRIBUTOR_ID = "distributor_id"
+ATTR_OUTLET = "outlet"
 # Run-log detail marker for a run a user stopped early.
 RUN_DETAIL_STOPPED = "stopped"
 # run_zone / set_rain_delay call params
@@ -584,3 +597,54 @@ CONF_DEFAULT_MASTER_KICK_PAUSE_SECONDS = 1.0
 RUN_TRIGGER_SELF_CLOSING = "self_closing"
 RUN_DETAIL_SELF_CLOSING_STOPPED = "self_closing_stopped"
 PROBLEM_VALVE_DID_NOT_OPEN = "valve_did_not_open"
+
+# --- Gardena Wasserverteiler automatic (distributor) -------------------------
+# Position-state of the open-loop outlet counter. A distributor only waters via
+# a schedule when synced AND commissioning-confirmed (see store/engine).
+POSITION_STATE_SYNCED = "synced"
+POSITION_STATE_UNCERTAIN = "uncertain"
+
+# Zone membership (a zone behind a distributor has no own valve/schedule).
+ZONE_DISTRIBUTOR_ID = "distributor_id"
+ZONE_OUTLET_NUMBER = "outlet_number"
+
+# Hard floor for the pressure-bleed pause and the skip-pulse (spec 4.5): below
+# this the device may silently fail to advance (undetectable open-loop desync).
+DISTRIBUTOR_MIN_PAUSE_SECONDS = 10
+DISTRIBUTOR_MIN_SKIP_PULSE_SECONDS = 10
+DISTRIBUTOR_DEFAULT_PAUSE_SECONDS = 300
+DISTRIBUTOR_DEFAULT_SKIP_PULSE_SECONDS = 30
+# Fixed watering window per outlet during a commissioning test-run (spec 10).
+DISTRIBUTOR_TEST_RUN_SECONDS = 30
+
+# Fired when a distributor halts on doubtful sync (carries distributor_id + reason).
+EVENT_DISTRIBUTOR_HALTED = "distributor_halted"
+# Wall-clock safety margin added to a finish-anchored cycle estimate (spec §5.5).
+DISTRIBUTOR_CYCLE_SAFETY_BUFFER_SECONDS = 30
+DISTRIBUTOR_PHASE_WATERING = "watering"
+DISTRIBUTOR_PHASE_PAUSING = "pausing"
+# b14: transient busy marker set the instant a cycle claims the distributor —
+# before the slower master-start — so the panel gates the other members fast.
+# Overwritten by the first outlet's real WATERING persist; never actuates.
+DISTRIBUTOR_PHASE_STARTING = "starting"
+DISTRIBUTOR_REASON_RESTART_MID_ADVANCE = "restart_mid_advance"
+# Run-log trigger tag for distributor-delivered watering.
+RUN_TRIGGER_DISTRIBUTOR = "distributor"
+
+# Distributor inlet-watch reaction to a foreign inlet pulse (E4).
+DISTRIBUTOR_WATCH_MODE_COUNT = "count"  # advance the tracked position
+DISTRIBUTOR_WATCH_MODE_WARN = "warn"  # mark uncertain (de-arm + notify)
+DISTRIBUTOR_WATCH_MODE_IGNORE = "ignore"  # do not observe
+DISTRIBUTOR_REASON_FOREIGN_PULSE = "foreign_inlet_pulse"
+
+# Distributor flow-metering poll interval (seconds) for volume measurement (Part A).
+DISTRIBUTOR_FLOW_POLL_SECONDS = 5
+# Feature flag (Part A ships RATE-ONLY, matching JustChr's existing zone flow code):
+# cumulative (total) counters are NOT armed for distributor measurement yet. When a
+# distributor's flow_sensor is a cumulative counter, measurement degrades to
+# time-based crediting. The cumulative branch in _dist_measure_window is retained and
+# unit-tested (with this flag on) so a later JOINT zone+member cumulative rollout only
+# has to flip this to True. Do NOT arm without also arming the zone path: cumulative
+# should be enabled for zones and distributor member zones together, otherwise the two
+# crediting paths (measured vs time-based) could double-count against a shared bucket.
+DISTRIBUTOR_CUMULATIVE_METERING_ENABLED = False
