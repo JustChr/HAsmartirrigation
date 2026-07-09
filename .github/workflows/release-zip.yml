@@ -1,17 +1,18 @@
 name: Attach release zip
 
 # Builds custom_components/smart_irrigation into a single smart_irrigation.zip and
-# attaches it to the GitHub release. Combined with "zip_release"/"filename" in
+# attaches it to a GitHub release. Combined with "zip_release"/"filename" in
 # hacs.json, this lets HACS download one zip instead of fetching every file, which
 # is faster, more reliable (fewer GitHub API calls), and surfaces a download count.
 #
-# Note: do not enable zip_release in hacs.json until the latest stable release
-# actually carries this asset, otherwise HACS installs would look for a zip that
-# does not exist.
+# Manual-only fallback: the primary path is scripts/release.ps1, which builds the
+# zip from the tag (git archive) and attaches it AT release creation, so the asset
+# is present the moment the release is published without depending on a hosted
+# runner. This workflow stays as a manual re-attach tool for older tags or if a
+# release was ever created outside release.ps1. Run it with:
+#   gh workflow run release-zip.yml --ref master -f tag=<vYYYY.MM.NN>
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:

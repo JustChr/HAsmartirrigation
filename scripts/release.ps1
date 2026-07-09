@@ -138,10 +138,21 @@ Invoke-Checked { git tag $Version }
 Invoke-Checked { git push origin master }
 Invoke-Checked { git push origin $Version }
 
+# --- build the HACS install zip and attach it AT release creation ---------
+# Deterministic + atomic: the smart_irrigation.zip asset exists the moment the
+# release is published, instead of relying on the post-publish release-zip
+# workflow (which fails when no hosted runner is free). `git archive` of the tag
+# is exactly the tracked integration tree HACS would otherwise fetch as source
+# (no __pycache__/.pyc/node_modules), with the integration files at the zip root.
+$ZipPath = Join-Path ([System.IO.Path]::GetTempPath()) "smart_irrigation.zip"
+Invoke-Checked { git archive --format=zip -o $ZipPath "${Version}:custom_components/smart_irrigation" }
+if ((Get-Item $ZipPath).Length -lt 1024) { throw "Built smart_irrigation.zip looks too small - aborting before release." }
+Write-Host "Built smart_irrigation.zip from the $Version tree ($([int]((Get-Item $ZipPath).Length/1024)) KB)"
+
 if ($Notes) {
-  Invoke-Checked { gh release create $Version --title $Version --notes $Notes }
+  Invoke-Checked { gh release create $Version $ZipPath --title $Version --notes $Notes }
 } else {
-  Invoke-Checked { gh release create $Version --title $Version --generate-notes }
+  Invoke-Checked { gh release create $Version $ZipPath --title $Version --generate-notes }
 }
 
 Write-Host "Released $Version" -ForegroundColor Green
