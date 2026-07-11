@@ -1771,6 +1771,42 @@ class IrrigationRunnerMixin:
                 trigger=trigger,
             )
 
+    async def _record_no_demand_skips(self, zone_ids) -> None:
+        """Record a per-zone "no demand" skip in the run history, if opted in.
+
+        Opt-in via ``config.log_no_demand`` (default off, so existing installs
+        are byte-identical). Suppressed while a rain delay is active — that path
+        already logs ``paused`` for the targeted zones and would otherwise
+        double-log. De-duplicated to at most one ``no_demand`` entry per zone per
+        calendar day, so multiple schedules in a day do not spam the run log.
+
+        ``add_to_total=False`` — a skip delivers no water.
+        siehe test_no_demand_logging.py::test_helper_records_when_enabled et al.
+        """
+        if not getattr(self.store.config, "log_no_demand", False):
+            return
+        if self._rain_delay_active():
+            return
+        today = dt_util.now().date().isoformat()
+        for zid in zone_ids:
+            zone = self.store.get_zone(int(zid)) or {}
+            log = zone.get(const.ZONE_RUN_LOG) or []
+            if log:
+                last = log[0]
+                if (
+                    last.get("result") == const.RUN_RESULT_SKIPPED
+                    and last.get("detail") == const.SKIP_REASON_NO_DEMAND
+                    and str(last.get("ts") or "")[:10] == today
+                ):
+                    continue
+            await self._record_run(
+                int(zid),
+                result=const.RUN_RESULT_SKIPPED,
+                detail=const.SKIP_REASON_NO_DEMAND,
+                trigger="schedule",
+                add_to_total=False,
+            )
+
     async def _irrigate_zones_sequential(self, zones: list, *, master_token=None):
         """Irrigate zones one after another, skipping zones with no duration.
 
