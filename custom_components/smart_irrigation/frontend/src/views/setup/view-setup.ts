@@ -210,7 +210,7 @@ export class SmartIrrigationViewSetup extends SubscribeMixin(LitElement) {
             "panels.help.cards.how-to-get-help.first-read-the",
             this.hass.language,
           )}
-          <a href="${DOCS_URL}"
+          <a href="${DOCS_URL}" target="_blank" rel="noopener noreferrer"
             >${localize(
               "panels.help.cards.how-to-get-help.wiki",
               this.hass.language,
@@ -222,6 +222,8 @@ export class SmartIrrigationViewSetup extends SubscribeMixin(LitElement) {
           )}
           <a
             href="https://community.home-assistant.io/t/smart-irrigation-save-water-by-precisely-watering-your-lawn-garden"
+            target="_blank"
+            rel="noopener noreferrer"
             >${localize(
               "panels.help.cards.how-to-get-help.community-forum",
               this.hass.language,
@@ -231,7 +233,7 @@ export class SmartIrrigationViewSetup extends SubscribeMixin(LitElement) {
             "panels.help.cards.how-to-get-help.or-open-a",
             this.hass.language,
           )}
-          <a href="${ISSUES_URL}"
+          <a href="${ISSUES_URL}" target="_blank" rel="noopener noreferrer"
             >${localize(
               "panels.help.cards.how-to-get-help.github-issue",
               this.hass.language,
