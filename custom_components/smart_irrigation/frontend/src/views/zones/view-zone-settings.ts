@@ -64,6 +64,7 @@ import {
   ZONE_DURATION_UNIT,
   ZONE_STOP_SERVICE,
   ZONE_CONFIRM_ENTITY,
+  ZONE_OBSERVED_ENTITY,
   ZONE_SOIL_MOISTURE_SENSOR,
   ZONE_SOIL_MOISTURE_THRESHOLD,
   ZONE_DISTRIBUTOR_ID,
@@ -1199,6 +1200,40 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                                   })}"
                               ></ha-entity-picker>
                             </ha-settings-row>
+                            ${this.config?.observed_watering_enabled
+                              ? html`
+                                  <ha-settings-row>
+                                    <span slot="heading"
+                                      >${localize(
+                                        "panels.zones.labels.observed_entity",
+                                        this.hass.language,
+                                      )}</span
+                                    >
+                                    <span slot="description"
+                                      >${localize(
+                                        "panels.zones.labels.observed_entity_help",
+                                        this.hass.language,
+                                      )}</span
+                                    >
+                                    <ha-entity-picker
+                                      .hass="${this.hass}"
+                                      .value="${zone.observed_entity || ""}"
+                                      .includeDomains="${[
+                                        "valve",
+                                        "switch",
+                                        "input_boolean",
+                                      ]}"
+                                      allow-custom-entity
+                                      @value-changed="${(e: CustomEvent) =>
+                                        this.handleEditZone(index, {
+                                          ...zone,
+                                          [ZONE_OBSERVED_ENTITY]:
+                                            e.detail.value || null,
+                                        })}"
+                                    ></ha-entity-picker>
+                                  </ha-settings-row>
+                                `
+                              : ""}
                           `
                         : ""}
                       ${zone.watering_mode !== "service"

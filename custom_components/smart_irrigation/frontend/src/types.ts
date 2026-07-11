@@ -292,6 +292,9 @@ export class SmartIrrigationZone {
   duration_unit?: string;
   stop_service?: string;
   confirm_entity?: string | null;
+  // Observed-watering (opt-in): physical valve/switch watched for EXTERNAL runs
+  // of this service/self-closing zone. See ZONE_OBSERVED_ENTITY / store.py.
+  observed_entity?: string | null;
   soil_moisture_sensor?: string | null;
   soil_moisture_threshold?: number | null;
   water_used_total?: number;
