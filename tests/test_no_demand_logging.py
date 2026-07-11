@@ -168,3 +168,26 @@ def test_dist_no_demand_members_excludes_disabled(monkeypatch):
     members = [_member(1, 0), disabled]  # 1 = no-demand automatic, 2 = disabled
     ids = coord._dist_no_demand_members(members, None)
     assert ids == [1]  # disabled member 2 is not a demand evaluation
+
+
+async def test_rain_delay_logs_paused_not_no_demand(monkeypatch):
+    """Mutual-exclusion invariant (integration): under a rain delay the
+    scheduled path records ``paused`` for its targeted zones and must NOT also
+    record ``no_demand`` — a zone gets one reason per run, never both.
+    """
+    future = (dt_util.now() + dt_util.dt.timedelta(hours=2)).isoformat()
+    not_due = _linked_zone()  # id 1, duration 0 -> no demand
+    due = _linked_zone(
+        **{
+            const.ZONE_ID: 2,
+            const.ZONE_DURATION: 300,
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_BUCKET_THRESHOLD: 0.0,
+        }
+    )
+    coord = _coord(monkeypatch, [not_due, due], config=_cfg(rain_delay_until=future))
+    await coord._irrigate_linked_entities()
+    for zid in (1, 2):
+        details = [e["detail"] for e in coord.store.zones[zid][const.ZONE_RUN_LOG]]
+        assert const.SKIP_REASON_NO_DEMAND not in details
+        assert const.SKIP_REASON_PAUSED in details
