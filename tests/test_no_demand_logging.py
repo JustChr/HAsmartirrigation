@@ -131,3 +131,40 @@ async def test_no_demand_zone_not_logged_when_disabled(monkeypatch):
     coord = _coord(monkeypatch, [_linked_zone()], config=_cfg(log_no_demand=False))
     await coord._irrigate_linked_entities()
     assert coord.store.zones[1][const.ZONE_RUN_LOG] == []
+
+
+def _member(zid, duration):
+    # bucket 0 < threshold 10 so a duration-300 automatic member passes
+    # _dist_needs_water's deficit gate (needs demand = True); a duration-0
+    # member fails on duration alone (no demand = True).
+    return {
+        const.ZONE_ID: zid,
+        const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+        const.ZONE_DURATION: duration,
+        const.ZONE_BUCKET: 0.0,
+        const.ZONE_BUCKET_THRESHOLD: 10.0,
+        const.ZONE_RUN_LOG: [],
+    }
+
+
+def test_dist_no_demand_members_selects_non_due(monkeypatch):
+    coord = _coord(monkeypatch)
+    members = [_member(1, 300), _member(2, 0), _member(3, 0)]  # 1 due, 2 & 3 not
+    ids = coord._dist_no_demand_members(members, None)
+    assert sorted(ids) == [2, 3]
+
+
+def test_dist_no_demand_members_respects_allow(monkeypatch):
+    coord = _coord(monkeypatch)
+    members = [_member(1, 300), _member(2, 0), _member(3, 0)]
+    ids = coord._dist_no_demand_members(members, {2})
+    assert ids == [2]  # 3 is non-due but not in this cycle's target
+
+
+def test_dist_no_demand_members_excludes_disabled(monkeypatch):
+    coord = _coord(monkeypatch)
+    disabled = _member(2, 0)
+    disabled[const.ZONE_STATE] = const.ZONE_STATE_DISABLED
+    members = [_member(1, 0), disabled]  # 1 = no-demand automatic, 2 = disabled
+    ids = coord._dist_no_demand_members(members, None)
+    assert ids == [1]  # disabled member 2 is not a demand evaluation

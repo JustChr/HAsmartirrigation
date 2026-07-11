@@ -657,6 +657,25 @@ class DistributorMixin:
             < (zone.get(const.ZONE_BUCKET_THRESHOLD) or 0)
         )
 
+    def _dist_no_demand_members(self, members, allow):
+        """Member ids this cycle evaluates but will not water for lack of demand.
+
+        ``allow`` is the cycle's target subset (``None`` = the whole ring). A
+        member with no demand (``_dist_needs_water`` False) never enters the
+        soil-veto path, so this is the no_demand set — mirror of the normal-zone
+        targeted-eligible-minus-due set in _irrigate_linked_entities. Disabled
+        members are excluded (like the normal path's ``targeted_eligible``): a
+        disabled outlet's non-watering is because it is OFF, not "no demand".
+        siehe test_no_demand_logging.py::test_dist_no_demand_members_selects_non_due
+        """
+        return [
+            int(m.get(const.ZONE_ID))
+            for m in members
+            if (allow is None or int(m.get(const.ZONE_ID)) in allow)
+            and m.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+            and not self._dist_needs_water(m)
+        ]
+
     async def _dist_store_update(self, distributor_id, changes: dict):
         """Persist a distributor change AND notify its HA entities + the panel.
 
@@ -1116,6 +1135,14 @@ class DistributorMixin:
             # return False cleanly before the master is armed.
             # siehe test_distributor_dispatch.py::test_soil_veto_scoped_to_target_subset
             allow = None if only_zone_ids is None else {int(z) for z in only_zone_ids}
+            # Iter ND-4: opt-in transparency — log the members this cycle
+            # evaluates but will NOT water for lack of demand, before the
+            # empty-`to_water` return below (so a fully-satisfied ring still
+            # leaves a trace). Scheduled branch only (test-run / manual force are
+            # not demand evaluations); rain delay already returned above.
+            await self._record_no_demand_skips(
+                self._dist_no_demand_members(members, allow)
+            )
             candidates = [
                 m
                 for m in members

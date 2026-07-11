@@ -160,6 +160,11 @@ def _loop_host(members, **cfg_over):
     # is covered in test_distributor_dispatch.py's sweep tests.
     c._metered_target_volume = Mock(return_value=0.0)
     c._zone_target_bucket = Mock(return_value=0.0)
+    # ND-4 (no-demand logging): like the two stubs above, _record_no_demand_skips
+    # lives on the full coordinator (IrrigationRunnerMixin), not this minimal
+    # host. The scheduled sweep calls it for opt-in transparency; stub it so the
+    # loop-orchestration tests here stay behaviour-agnostic to that feature.
+    c._record_no_demand_skips = AsyncMock()
     return c
 
 
