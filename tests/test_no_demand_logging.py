@@ -103,3 +103,31 @@ async def test_helper_dedups_same_day(monkeypatch):
     coord = _coord(monkeypatch, [_zone(run_log=[today_entry])])
     await coord._record_no_demand_skips([1])
     assert len(coord.store.zones[1][const.ZONE_RUN_LOG]) == 1  # unchanged
+
+
+def _linked_zone(**over):
+    z = {
+        const.ZONE_ID: 1,
+        const.ZONE_NAME: "Lawn",
+        const.ZONE_LINKED_ENTITY: "switch.valve",
+        const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+        const.ZONE_DURATION: 0,          # no demand
+        const.ZONE_BUCKET: 0.0,
+        const.ZONE_BUCKET_THRESHOLD: 0.0,  # 0 < 0 is False -> not due
+        const.ZONE_RUN_LOG: [],
+    }
+    z.update(over)
+    return z
+
+
+async def test_no_demand_zone_logged_via_scheduler(monkeypatch):
+    coord = _coord(monkeypatch, [_linked_zone()])
+    await coord._irrigate_linked_entities()
+    log = coord.store.zones[1][const.ZONE_RUN_LOG]
+    assert [e["detail"] for e in log] == [const.SKIP_REASON_NO_DEMAND]
+
+
+async def test_no_demand_zone_not_logged_when_disabled(monkeypatch):
+    coord = _coord(monkeypatch, [_linked_zone()], config=_cfg(log_no_demand=False))
+    await coord._irrigate_linked_entities()
+    assert coord.store.zones[1][const.ZONE_RUN_LOG] == []

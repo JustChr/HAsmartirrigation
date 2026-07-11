@@ -463,29 +463,53 @@ class IrrigationRunnerMixin:
         # When off, the classic daily gate (duration > 0 AND bucket below
         # threshold) selects candidates, byte-identical to before.
         live_gate = getattr(self.store.config, "live_estimate_enabled", False) is True
-        zones_to_irrigate = [
+        # Iter ND-3 (Plan Task 3): targeted + automatic-eligible zones this
+        # scheduled run is responsible for, BEFORE the demand gate. Splitting the
+        # old single comprehension in two lets the no-demand transparency log
+        # (below) name exactly the zones that were evaluated but had no deficit.
+        # Same predicate as before, minus the demand clause.
+        #
+        # Iter Task 2 (Plan D): a distributor member zone (distributor_id
+        # set, including 0 — hence `is None`, not `not z.get(...)`, since
+        # `not 0` is truthy and would wrongly re-include distributor 0's
+        # members) is watered exclusively by its distributor's own cycle
+        # (shared inlet valve). Excluding it here prevents the normal
+        # linked-entity path from double-driving a member zone in
+        # parallel with the distributor engine.
+        targeted_eligible = [
             z
             for z in zones
-            # Iter Task 2 (Plan D): a distributor member zone (distributor_id
-            # set, including 0 — hence `is None`, not `not z.get(...)`, since
-            # `not 0` is truthy and would wrongly re-include distributor 0's
-            # members) is watered exclusively by its distributor's own cycle
-            # (shared inlet valve). Excluding it here prevents the normal
-            # linked-entity path from double-driving a member zone in
-            # parallel with the distributor engine.
             if z.get(const.ZONE_DISTRIBUTOR_ID) is None
             and (z.get(const.ZONE_LINKED_ENTITY) or self._sc_is_self_closing(z))
             and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
             and (target is None or int(z.get(const.ZONE_ID)) in target)
-            and (
-                live_gate
-                or (
-                    (z.get(const.ZONE_DURATION) or 0) > 0
-                    and (z.get(const.ZONE_BUCKET) or 0)
-                    < (z.get(const.ZONE_BUCKET_THRESHOLD) or 0)
-                )
+        ]
+        zones_to_irrigate = [
+            z
+            for z in targeted_eligible
+            if live_gate
+            or (
+                (z.get(const.ZONE_DURATION) or 0) > 0
+                and (z.get(const.ZONE_BUCKET) or 0)
+                < (z.get(const.ZONE_BUCKET_THRESHOLD) or 0)
             )
         ]
+
+        # Iter ND-3: opt-in transparency (classic gate). Every targeted-eligible
+        # zone that is NOT due had no demand. Log it here — BEFORE the "nothing
+        # due" return below — so the satisfied-bucket case leaves a trace. The
+        # helper is gated on config + rain-delay + same-day dedup, so paused runs
+        # never double-log. Under live_gate the demand decision is deferred to
+        # _apply_live_durations, so that set is logged there instead (see below).
+        if not live_gate:
+            _watered_ids = {int(z.get(const.ZONE_ID)) for z in zones_to_irrigate}
+            await self._record_no_demand_skips(
+                [
+                    int(z.get(const.ZONE_ID))
+                    for z in targeted_eligible
+                    if int(z.get(const.ZONE_ID)) not in _watered_ids
+                ]
+            )
 
         if not zones_to_irrigate:
             _LOGGER.debug(
@@ -513,6 +537,22 @@ class IrrigationRunnerMixin:
             return False
 
         zones_to_irrigate = await self._apply_live_durations(zones_to_irrigate)
+
+        # Iter ND-3: opt-in transparency (live-estimate gate). The zones the live
+        # estimate dropped for no live deficit. Exclude soil-vetoed zones — they
+        # already logged soil_moisture at _apply_soil_moisture_veto above.
+        if live_gate:
+            _vetoed_ids = set(self.get_zone_skips().keys())
+            _watered_ids = {int(z.get(const.ZONE_ID)) for z in zones_to_irrigate}
+            await self._record_no_demand_skips(
+                [
+                    int(z.get(const.ZONE_ID))
+                    for z in targeted_eligible
+                    if int(z.get(const.ZONE_ID)) not in _watered_ids
+                    and int(z.get(const.ZONE_ID)) not in _vetoed_ids
+                ]
+            )
+
         if not zones_to_irrigate:
             _LOGGER.debug("Live-estimate duration left no zones needing water")
             return False
