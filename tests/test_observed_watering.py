@@ -1,8 +1,12 @@
 """Observed watering extended to service/self-closing zones (Phase 1)."""
 
-import attr
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation import const
+import attr
+import pytest
+
+from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation.store import ZoneEntry
 
 
@@ -10,14 +14,6 @@ def test_zone_observed_entity_defaults_none():
     field = attr.fields_dict(ZoneEntry)["observed_entity"]
     assert field.default is None
     assert const.ZONE_OBSERVED_ENTITY == "observed_entity"
-
-
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
-
-import pytest
-
-from custom_components.smart_irrigation import SmartIrrigationCoordinator
 
 
 @pytest.fixture(autouse=True)
@@ -53,14 +49,22 @@ async def test_setup_maps_observed_entity_for_service_zone():
 
 
 async def test_setup_prefers_linked_entity_over_observed():
-    coord = _obs_coord([{const.ZONE_ID: 1, const.ZONE_LINKED_ENTITY: "switch.lawn",
-                         const.ZONE_OBSERVED_ENTITY: "switch.other"}])
+    coord = _obs_coord(
+        [
+            {
+                const.ZONE_ID: 1,
+                const.ZONE_LINKED_ENTITY: "switch.lawn",
+                const.ZONE_OBSERVED_ENTITY: "switch.other",
+            }
+        ]
+    )
     await coord.async_setup_observed_watering()
     assert coord._observed_zone_by_entity == {"switch.lawn": 1}
 
 
 async def test_setup_maps_nothing_when_feature_off():
-    coord = _obs_coord([{const.ZONE_ID: 1, const.ZONE_OBSERVED_ENTITY: "switch.beet"}],
-                       enabled=False)
+    coord = _obs_coord(
+        [{const.ZONE_ID: 1, const.ZONE_OBSERVED_ENTITY: "switch.beet"}], enabled=False
+    )
     await coord.async_setup_observed_watering()
     assert coord._observed_zone_by_entity == {}

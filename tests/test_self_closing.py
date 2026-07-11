@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, Mock
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation.irrigation import SI_VALVE_SUPPRESS_MARGIN
 
 
 def _coord():
@@ -394,4 +395,5 @@ async def test_self_closing_run_marks_si_driven():
     c._credited_depth_native = Mock(return_value=4.0)
     await c.async_run_self_closing(_zone(), trigger="schedule")
     assert 2 in c._si_driven_until  # zone id 2 marked so the observer skips it
-    assert c._si_driven_until[2] > 1000.0
+    # window = loop.time + planned_seconds + margin, covering the whole run
+    assert c._si_driven_until[2] == 1000.0 + 600.0 + SI_VALVE_SUPPRESS_MARGIN
