@@ -108,6 +108,12 @@ CONF_DEFAULT_SENSOR_DEBOUNCE = 5000
 CONF_STORED_UNIT_SYSTEM = "stored_unit_system"
 UNIT_SYSTEM_METRIC = "metric"
 UNIT_SYSTEM_US_CUSTOMARY = "us_customary"
+# Opt-in run-history transparency (2026-07-11): when on, a scheduled run that
+# does NOT water a zone/member purely because it has no water demand (bucket
+# satisfied / duration 0) leaves one "skipped: no_demand" run-log entry instead
+# of vanishing silently. Default off so existing installs stay byte-identical.
+CONF_LOG_NO_DEMAND = "log_no_demand"
+CONF_DEFAULT_LOG_NO_DEMAND = False
 # Legacy keys read as a fallback on load so an early opt-in survives the
 # renames: v2026.06.28 shipped "fresh_duration_enabled"; it was then
 # "live_duration_enabled" while the feature only *resized* a daily-approved run.
@@ -133,6 +139,9 @@ SKIP_REASON_PAUSED = "paused"
 # Run-log / skip token recorded when a zone is skipped because its soil-moisture
 # sensor reads wetter than the zone's threshold (per-zone, automatic path only).
 SKIP_REASON_SOIL_MOISTURE = "soil_moisture"
+# No-demand skip (opt-in, CONF_LOG_NO_DEMAND): the zone/member simply had no
+# deficit this run. Localized in the run-log via panels.zones.outlook.checks.
+SKIP_REASON_NO_DEMAND = "no_demand"
 
 # Days between irrigation configuration
 CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation"

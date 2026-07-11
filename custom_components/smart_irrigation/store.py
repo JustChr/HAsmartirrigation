@@ -42,6 +42,7 @@ from .const import (
     CONF_DEFAULT_FREEZE_THRESHOLD,
     CONF_DEFAULT_KC,
     CONF_DEFAULT_LIVE_ESTIMATE_ENABLED,
+    CONF_DEFAULT_LOG_NO_DEMAND,
     CONF_DEFAULT_MANUAL_COORDINATES_ENABLED,
     CONF_DEFAULT_MAXIMUM_BUCKET,
     CONF_DEFAULT_MAXIMUM_DURATION,
@@ -71,6 +72,7 @@ from .const import (
     CONF_LEGACY_FRESH_DURATION_ENABLED,
     CONF_LEGACY_LIVE_DURATION_ENABLED,
     CONF_LIVE_ESTIMATE_ENABLED,
+    CONF_LOG_NO_DEMAND,
     CONF_METRIC,
     CONF_OBSERVED_WATERING_ENABLED,
     CONF_PRECIPITATION_FORECAST_DAYS,
@@ -392,6 +394,7 @@ class Config:
     # v13 migration and rewritten whenever the coordinator reconciles a flip;
     # None only on a store that predates the key. See unit_system.py, issue #67.
     stored_unit_system = attr.ib(type=str, default=None)
+    log_no_demand = attr.ib(type=bool, default=CONF_DEFAULT_LOG_NO_DEMAND)
     # Rain delay / vacation hold (WS-5): ISO-8601 datetime string or None.
     rain_delay_until = attr.ib(type=str, default=CONF_DEFAULT_RAIN_DELAY_UNTIL)
     # Persisted in-flight self-closing valve runs (reboot resilience); list of
@@ -868,6 +871,10 @@ class SmartIrrigationStorage:
                 sensor_debounce=_as_int(
                     data["config"].get(CONF_SENSOR_DEBOUNCE),
                     CONF_DEFAULT_SENSOR_DEBOUNCE,
+                ),
+                log_no_demand=data["config"].get(
+                    CONF_LOG_NO_DEMAND,
+                    CONF_DEFAULT_LOG_NO_DEMAND,
                 ),
                 rain_delay_until=data["config"].get(
                     CONF_RAIN_DELAY_UNTIL, CONF_DEFAULT_RAIN_DELAY_UNTIL

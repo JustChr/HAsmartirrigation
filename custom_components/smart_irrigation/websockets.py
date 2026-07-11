@@ -117,6 +117,7 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_DISTRIBUTORS_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_CONTINUOUS_UPDATES): cv.boolean,
                 vol.Optional(const.CONF_SENSOR_DEBOUNCE): vol.Coerce(int),
+                vol.Optional(const.CONF_LOG_NO_DEMAND): cv.boolean,
                 vol.Optional(const.CONF_RAIN_DELAY_UNTIL): vol.Or(str, None),
                 vol.Optional(const.CONF_MANUAL_COORDINATES_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_MANUAL_LATITUDE): vol.Or(float, int, None),
