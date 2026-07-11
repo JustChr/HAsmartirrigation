@@ -50,7 +50,11 @@ class ObservedWateringMixin:
         entity_map: dict[str, int] = {}
         if enabled:
             for zone in await self.store.async_get_zones():
-                entity = zone.get(const.ZONE_LINKED_ENTITY)
+                # linked_entity for classic zones; else the opt-in observed_entity
+                # for service/self-closing zones (no linked valve of their own).
+                entity = zone.get(const.ZONE_LINKED_ENTITY) or zone.get(
+                    const.ZONE_OBSERVED_ENTITY
+                )
                 if entity:
                     entity_map[entity] = int(zone.get(const.ZONE_ID))
 

@@ -140,6 +140,11 @@ class SelfClosingMixin:
         if planned_seconds <= 0:
             return False
 
+        # Observed-watering (opt-in) may watch this zone's observed_entity, which
+        # our own run_service opens. Mark the run window as SI-driven so the
+        # observer does not double-credit it (the run already credits the bucket).
+        self._note_si_valve(int(zone.get(const.ZONE_ID)), planned_seconds)
+
         await self._sc_dispatch_open(zone)
 
         # Confirm the open BEFORE crediting, but ONLY against an optional
