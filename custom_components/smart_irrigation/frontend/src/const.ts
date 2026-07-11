@@ -48,6 +48,7 @@ export const CONF_DISTRIBUTORS_ENABLED = "distributors_enabled";
 // storage key, hence the lower-case run-together spelling.
 export const CONF_CONTINUOUS_UPDATES = "continuousupdates";
 export const CONF_SENSOR_DEBOUNCE = "sensor_debounce";
+export const CONF_LOG_NO_DEMAND = "log_no_demand";
 
 // Days between irrigation configuration
 export const CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation";

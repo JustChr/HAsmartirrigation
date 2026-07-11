@@ -88,6 +88,7 @@ export class SmartIrrigationConfig {
   observed_watering_enabled: boolean;
   live_estimate_enabled: boolean;
   distributors_enabled: boolean;
+  log_no_demand: boolean;
   master_entity?: string | null;
   master_settle_seconds: number;
   master_kick_enabled: boolean;
@@ -136,6 +137,7 @@ export class SmartIrrigationConfig {
     this.observed_watering_enabled = false;
     this.live_estimate_enabled = false;
     this.distributors_enabled = false;
+    this.log_no_demand = false;
     this.master_entity = null;
     this.master_settle_seconds = 10;
     this.master_kick_enabled = false;

@@ -224,8 +224,8 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       case "when-to-water":
         return html`
           ${this._renderSection("automation")} ${this._renderAutoUpdateCard()}
-          ${this._renderAutoCalcCard()} ${this._renderWeatherSkipCard()}
-          ${this._renderSection("watering")}
+          ${this._renderAutoCalcCard()} ${this._renderRunHistoryLoggingCard()}
+          ${this._renderWeatherSkipCard()} ${this._renderSection("watering")}
           ${this._renderDaysBetweenIrrigationCard()}
           ${this._renderZoneSequencingCard()} ${this._renderMasterSwitchCard()}
         `;
@@ -234,6 +234,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
           ${this._renderSection("weather")} ${this._renderWeatherServiceCard()}
           ${this._renderWeatherSkipCard()} ${this._renderSection("automation")}
           ${this._renderAutoUpdateCard()} ${this._renderAutoCalcCard()}
+          ${this._renderRunHistoryLoggingCard()}
           ${this._renderSection("location")} ${this._renderCoordinateCard()}
           ${this._renderSection("watering")}
           ${this._renderDaysBetweenIrrigationCard()}
@@ -508,6 +509,42 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       </ha-card>
     `;
   }
+  private _renderRunHistoryLoggingCard(): TemplateResult {
+    if (!this.hass || !this.config) return html``;
+    return html`
+      <ha-card
+        header="${localize(
+          "panels.general.cards.run-history-logging.header",
+          this.hass.language,
+        )}"
+      >
+        <div class="card-content description-text">
+          ${localize(
+            "panels.general.cards.run-history-logging.description",
+            this.hass.language,
+          )}
+        </div>
+        <div class="card-content">
+          <div class="setting-row">
+            <label>
+              ${localize(
+                "panels.general.cards.run-history-logging.labels.log-no-demand",
+                this.hass.language,
+              )}
+            </label>
+            <ha-switch
+              .checked="${this.config.log_no_demand}"
+              @change="${(e: Event) =>
+                this.handleConfigChange({
+                  log_no_demand: (e.target as HTMLInputElement).checked,
+                })}"
+            ></ha-switch>
+          </div>
+        </div>
+      </ha-card>
+    `;
+  }
+
   private _renderWeatherSkipCard(): TemplateResult {
     if (!this.hass || !this.config || !this.data) return html``;
     const lang = this.hass.language;

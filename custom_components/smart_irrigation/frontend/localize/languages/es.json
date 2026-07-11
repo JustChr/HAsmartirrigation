@@ -118,6 +118,13 @@
           },
           "description": "El cálculo toma los datos meteorológicos recopilados hasta ese momento y actualiza el depósito de cada zona automática. Después, la duración se ajusta según el nuevo valor del depósito y se eliminan los datos meteorológicos recopilados."
         },
+        "run-history-logging": {
+          "header": "Registro del historial de riego",
+          "description": "Cuando está activo, un riego programado que omite una zona porque actualmente no tiene necesidad de riego se registra en el historial de esa zona. Desactivado de forma predeterminada; el historial existente no se ve afectado.",
+          "labels": {
+            "log-no-demand": "Registrar las omisiones «sin necesidad de riego» en el historial de riego"
+          }
+        },
         "automatic-update": {
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Advertencia: la hora de actualización de los datos meteorológicos es igual o posterior a la hora de cálculo"
@@ -494,7 +501,8 @@
           "rain_sensor": "Sensor de lluvia",
           "freeze": "Helada",
           "paused": "En pausa (retraso por lluvia)",
-          "soil_moisture": "Humedad del suelo"
+          "soil_moisture": "Humedad del suelo",
+          "no_demand": "Sin necesidad de riego"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

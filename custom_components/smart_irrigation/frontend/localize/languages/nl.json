@@ -118,6 +118,13 @@
             "calc-time": "Berekenen om"
           }
         },
+        "run-history-logging": {
+          "header": "Logboek bewateringsgeschiedenis",
+          "description": "Wanneer ingeschakeld, wordt een geplande beurt die een zone overslaat omdat deze momenteel geen waterbehoefte heeft, vastgelegd in de geschiedenis van die zone. Standaard uitgeschakeld; bestaande geschiedenis blijft ongewijzigd.",
+          "labels": {
+            "log-no-demand": "Registreer overslaan wegens \"geen waterbehoefte\" in de bewateringsgeschiedenis"
+          }
+        },
         "automatic-update": {
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Let op: het automatisch bijwerken van weersinformatie vind plaats op of na de automatische berekening van irrigatietijd"
@@ -493,7 +500,8 @@
           "rain_sensor": "Regensensor",
           "freeze": "Vorst",
           "paused": "Gepauzeerd (regenvertraging)",
-          "soil_moisture": "Bodemvocht"
+          "soil_moisture": "Bodemvocht",
+          "no_demand": "Geen waterbehoefte"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

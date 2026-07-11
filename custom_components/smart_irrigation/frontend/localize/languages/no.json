@@ -118,6 +118,13 @@
           },
           "description": "Beregningen bruker værdataene som er samlet inn frem til da, og oppdaterer bøtten for hver automatiske sone. Deretter justeres varigheten basert på den nye bøtteverdien, og de innsamlede værdataene fjernes."
         },
+        "run-history-logging": {
+          "header": "Logging av vanningshistorikk",
+          "description": "Når dette er på, blir en planlagt kjøring som hopper over en sone fordi den for øyeblikket ikke har noe vannbehov, registrert i sonens historikk. Av som standard; eksisterende historikk påvirkes ikke.",
+          "labels": {
+            "log-no-demand": "Loggfør «ingen vannbehov»-overhopp i vanningshistorikken"
+          }
+        },
         "automatic-update": {
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Advarsel: Oppdateringstidspunkt for værdata på eller etter beregningstidspunktet"
@@ -494,7 +501,8 @@
           "rain_sensor": "Regnsensor",
           "freeze": "Frost",
           "paused": "På pause (regnforsinkelse)",
-          "soil_moisture": "Jordfuktighet"
+          "soil_moisture": "Jordfuktighet",
+          "no_demand": "Ingen vannbehov"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

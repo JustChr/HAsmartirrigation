@@ -118,6 +118,13 @@
             "calc-time": "Calcola alle"
           }
         },
+        "run-history-logging": {
+          "header": "Registrazione della cronologia irrigazioni",
+          "description": "Quando è attivo, un'esecuzione programmata che salta una zona perché al momento non ha alcun fabbisogno idrico viene registrata nella cronologia di quella zona. Disattivato per impostazione predefinita; la cronologia esistente non viene modificata.",
+          "labels": {
+            "log-no-demand": "Registra le omissioni «nessun fabbisogno idrico» nella cronologia irrigazioni"
+          }
+        },
         "automatic-update": {
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Attenzione: ora di aggiornamento dei dati meteorologici in corrispondenza o dopo l'ora di calcolo"
@@ -538,7 +545,8 @@
           "rain_sensor": "Sensore di pioggia",
           "freeze": "Gelo",
           "paused": "In pausa (ritardo per pioggia)",
-          "soil_moisture": "Umidità del suolo"
+          "soil_moisture": "Umidità del suolo",
+          "no_demand": "Nessun fabbisogno idrico"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

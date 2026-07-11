@@ -117,6 +117,13 @@
             "calc-time": "Calculate at"
           }
         },
+        "run-history-logging": {
+          "header": "Run history logging",
+          "description": "When on, a scheduled run that skips a zone because it currently has no water demand is recorded in that zone's history. Off by default; existing history is unaffected.",
+          "labels": {
+            "log-no-demand": "Log \"no demand\" skips in the run history"
+          }
+        },
         "automatic-update": {
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Warning: weather data update time on or after calculation time"
@@ -638,7 +645,8 @@
           "rain_sensor": "Rain sensor",
           "freeze": "Frost",
           "paused": "Paused (rain delay)",
-          "soil_moisture": "Soil moisture"
+          "soil_moisture": "Soil moisture",
+          "no_demand": "No water demand"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

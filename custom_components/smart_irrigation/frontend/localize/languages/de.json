@@ -118,6 +118,13 @@
             "calc-time": "Berechnen um"
           }
         },
+        "run-history-logging": {
+          "header": "Verlaufs-Protokollierung",
+          "description": "Wenn aktiv, wird ein geplanter Lauf, der eine Zone mangels Bedarf überspringt, im Verlauf der Zone protokolliert. Standardmäßig aus; bestehender Verlauf bleibt unberührt.",
+          "labels": {
+            "log-no-demand": "„Kein Bedarf\"-Übersprünge im Verlauf protokollieren"
+          }
+        },
         "automatic-update": {
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Hinweis: Die automatische Aktualisierung der Wetterdaten erfolgt bei oder nach der automatischen Berechnung der Bewässerungsdauer"
@@ -493,7 +500,8 @@
           "rain_sensor": "Regensensor",
           "freeze": "Frost",
           "paused": "Pausiert (Regenverzögerung)",
-          "soil_moisture": "Bodenfeuchte"
+          "soil_moisture": "Bodenfeuchte",
+          "no_demand": "Kein Bedarf"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",

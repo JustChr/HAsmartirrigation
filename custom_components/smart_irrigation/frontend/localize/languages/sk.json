@@ -118,6 +118,13 @@
             "calc-time": "Vypočítať o"
           }
         },
+        "run-history-logging": {
+          "header": "Protokolovanie histórie zavlažovania",
+          "description": "Keď je zapnuté, plánované spustenie, ktoré preskočí zónu, pretože momentálne nemá žiadnu potrebu zálievky, sa zaznamená do histórie tejto zóny. Predvolene vypnuté; existujúca história zostáva nezmenená.",
+          "labels": {
+            "log-no-demand": "Zaznamenávať preskočenia „žiadna potreba zálievky“ do histórie zavlažovania"
+          }
+        },
         "automatic-update": {
           "errors": {
             "warning-update-time-on-or-after-calc-time": "Upozornenie: Čas aktualizácie údajov o počasí v čase výpočtu alebo po ňom"
@@ -493,7 +500,8 @@
           "rain_sensor": "Senzor dažďa",
           "freeze": "Mráz",
           "paused": "Pozastavené (oneskorenie pre dážď)",
-          "soil_moisture": "Vlhkosť pôdy"
+          "soil_moisture": "Vlhkosť pôdy",
+          "no_demand": "Žiadna potreba zálievky"
         },
         "check_detail": {
           "precipitation": "{observed} mm (≥ {threshold} mm)",
