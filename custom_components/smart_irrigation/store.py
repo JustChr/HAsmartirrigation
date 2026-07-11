@@ -142,6 +142,7 @@ from .const import (
     ZONE_MULTIPLIER,
     ZONE_NAME,
     ZONE_NUMBER_OF_DATA_POINTS,
+    ZONE_OBSERVED_ENTITY,
     ZONE_PLANT_TYPE,
     ZONE_RUN_LOG,
     ZONE_SIZE,
@@ -218,6 +219,9 @@ class ZoneEntry:
     # Optional entity reflecting the real valve/switch state for liveness confirm
     # (poll-only); None = write-only service run, credited optimistically.
     confirm_entity = attr.ib(type=str, default=None)
+    # Observed-watering (opt-in): physical valve/switch watched for EXTERNAL runs
+    # of a service/self-closing zone (no linked_entity). See ZONE_OBSERVED_ENTITY.
+    observed_entity = attr.ib(type=str, default=None)
     # Optional per-zone soil-moisture wet-veto: sensor entity (% moisture, higher
     # = wetter) + threshold. Both None = feature off. See _apply_soil_moisture_veto.
     soil_moisture_sensor = attr.ib(type=str, default=None)
@@ -768,6 +772,7 @@ class SmartIrrigationStorage:
                         duration_unit=zone.get("duration_unit", "seconds"),
                         stop_service=zone.get("stop_service", None),
                         confirm_entity=zone.get("confirm_entity", None),
+                        observed_entity=zone.get(ZONE_OBSERVED_ENTITY, None),
                         soil_moisture_sensor=zone.get("soil_moisture_sensor", None),
                         soil_moisture_threshold=zone.get(
                             "soil_moisture_threshold", None

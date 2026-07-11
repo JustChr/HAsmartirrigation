@@ -560,6 +560,10 @@ ZONE_STOP_SERVICE = "stop_service"  # optional "domain.service" for early stop
 # re-actuation); when unset, the service run is treated as write-only and credited
 # optimistically. The momentary run_service script is NOT a valid liveness signal.
 ZONE_CONFIRM_ENTITY = "confirm_entity"
+# Observed-watering (opt-in): the physical valve/switch to watch for EXTERNAL
+# runs of a service/self-closing zone (which has no linked_entity). Distinct from
+# confirm_entity (run confirmation). Only consulted when observed_watering_enabled.
+ZONE_OBSERVED_ENTITY = "observed_entity"
 # Optional soil-moisture sensor (per zone) + wet threshold. When both are set,
 # an AUTOMATIC run skips the zone while the sensor reads strictly above the
 # threshold (higher % = wetter), and resets the zone's bucket to 0. Skip-only:
