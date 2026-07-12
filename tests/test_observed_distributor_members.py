@@ -58,3 +58,62 @@ async def test_credit_zone_observed_result_trigger():
     assert kwargs["result"] == const.RUN_RESULT_OBSERVED
     assert kwargs["trigger"] == const.RUN_TRIGGER_OBSERVED
     assert kwargs["add_to_total"] is True
+
+
+def _member(zid, outlet, state=const.ZONE_STATE_AUTOMATIC):
+    return {
+        const.ZONE_ID: zid,
+        "distributor_id": 0,
+        "outlet_number": outlet,
+        const.ZONE_STATE: state,
+    }
+
+
+def _dist(**kw):
+    d = {
+        "id": 0,
+        "watch_mode": const.DISTRIBUTOR_WATCH_MODE_COUNT,
+        "inlet_entity": "switch.inlet",
+        "skip_pulse_seconds": 30,
+        "current_outlet": 2,
+        "active_cycle": {},
+    }
+    d.update(kw)
+    return d
+
+
+def _pulse_host(dist, members, observed=True, open_time=100.0):
+    c = _host(observed=observed)
+    c.store.get_distributor = Mock(return_value=dist)
+    c.store.async_get_zones = AsyncMock(return_value=members)
+    c.hass.loop.time = Mock(return_value=open_time)
+    return c
+
+
+async def test_open_edge_stashes_preadvance_outlet_and_advances():
+    dist = _dist(current_outlet=2)
+    members = [_member(1, 1), _member(2, 2), _member(3, 3)]
+    c = _pulse_host(dist, members, open_time=100.0)
+    await c._dist_on_inlet_pulse(0)
+    # Stash captured the PRE-advance ring index + open time.
+    assert c._dist_observed_open_map()[0] == {"t": 100.0, "outlet": 2}
+    # And the position still advanced exactly as before (2 -> 3 of 3 members).
+    c.store.async_update_distributor.assert_awaited_once_with(0, {"current_outlet": 3})
+
+
+async def test_open_edge_no_stash_when_observed_off():
+    dist = _dist(current_outlet=2)
+    members = [_member(1, 1), _member(2, 2), _member(3, 3)]
+    c = _pulse_host(dist, members, observed=False)
+    await c._dist_on_inlet_pulse(0)
+    assert 0 not in c._dist_observed_open_map()
+    c.store.async_update_distributor.assert_awaited_once()  # still advances
+
+
+async def test_open_edge_no_stash_in_warn_mode():
+    dist = _dist(watch_mode=const.DISTRIBUTOR_WATCH_MODE_WARN)
+    members = [_member(1, 1), _member(2, 2)]
+    c = _pulse_host(dist, members)
+    c._dist_mark_uncertain = AsyncMock()
+    await c._dist_on_inlet_pulse(0)
+    assert 0 not in c._dist_observed_open_map()

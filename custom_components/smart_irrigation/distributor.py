@@ -612,6 +612,16 @@ class DistributorMixin:
 
     # --- inlet watch (E4): foreign-pulse resync ---------------------------
 
+    def _dist_observed_open_map(self) -> dict:
+        """Per-distributor record of an in-progress FOREIGN inlet open, for observed
+        member crediting (Phase 2). Lazily created so no coordinator __init__ change
+        is needed. Maps distributor_id -> {"t": open_time, "outlet": ring index
+        (1-based) BEFORE the open-edge advance = the outlet flowing during the open}."""
+        m = getattr(self, "_dist_observed_open", None)
+        if m is None:
+            m = self._dist_observed_open = {}
+        return m
+
     async def _dist_on_inlet_pulse(self, distributor_id) -> None:
         """A foreign inlet off->on pulse touched the physical ring. Only acted on
         when no HASI cycle is active (HASI pulses the inlet only within a cycle,
@@ -642,6 +652,16 @@ class DistributorMixin:
         if n == 0:
             return
         cur = int(dist.get("current_outlet") or 1)
+        # Phase 2 (observed watering): remember which outlet is flowing NOW (the
+        # pre-advance ring index) and when this foreign open started, so the close
+        # edge can credit this member if the open lasts long enough to be real
+        # watering rather than a short advance pulse. Gated on the opt-in so count
+        # users who don't use observed watering never grow the map.
+        if getattr(self.store.config, "observed_watering_enabled", False):
+            self._dist_observed_open_map()[distributor_id] = {
+                "t": self.hass.loop.time(),
+                "outlet": cur,
+            }
         await self._dist_store_update(distributor_id, {"current_outlet": (cur % n) + 1})
 
     def _dist_inlet_state_handler(self, distributor_id):
