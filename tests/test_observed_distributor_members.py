@@ -119,7 +119,9 @@ async def test_open_edge_no_stash_in_warn_mode():
     assert 0 not in c._dist_observed_open_map()
 
 
-def _close_host(dist, members, observed=True, close_time=None, stash_outlet=2, stash_t=100.0):
+def _close_host(
+    dist, members, observed=True, close_time=None, stash_outlet=2, stash_t=100.0
+):
     c = _host(observed=observed)
     c.store.get_distributor = Mock(return_value=dist)
     c.store.async_get_zones = AsyncMock(return_value=members)
@@ -165,7 +167,9 @@ async def test_close_race_guard_active_cycle():
 async def test_close_noop_when_observed_disabled():
     dist = _dist()
     members = [_member(1, 1), _member(2, 2)]
-    c = _close_host(dist, members, observed=False, close_time=100.0 + 300, stash_outlet=1)
+    c = _close_host(
+        dist, members, observed=False, close_time=100.0 + 300, stash_outlet=1
+    )
     await c._dist_on_inlet_close(0)
     c._dist_credit_zone.assert_not_awaited()
 
