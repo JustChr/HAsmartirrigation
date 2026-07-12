@@ -566,7 +566,8 @@
           "completed": "Completata",
           "partial": "Parziale",
           "failed": "Fallita",
-          "skipped": "Saltata"
+          "skipped": "Saltata",
+          "observed": "Osservato"
         }
       },
       "rain_delay": {

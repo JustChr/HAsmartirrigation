@@ -521,7 +521,8 @@
           "completed": "Abgeschlossen",
           "partial": "Teilweise",
           "failed": "Fehlgeschlagen",
-          "skipped": "Übersprungen"
+          "skipped": "Übersprungen",
+          "observed": "Beobachtet"
         }
       },
       "rain_delay": {

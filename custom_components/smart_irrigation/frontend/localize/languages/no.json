@@ -522,7 +522,8 @@
           "completed": "Fullført",
           "partial": "Delvis",
           "failed": "Mislyktes",
-          "skipped": "Hoppet over"
+          "skipped": "Hoppet over",
+          "observed": "Observert"
         }
       },
       "rain_delay": {

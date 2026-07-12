@@ -521,7 +521,8 @@
           "completed": "Dokončené",
           "partial": "Čiastočné",
           "failed": "Zlyhalo",
-          "skipped": "Preskočené"
+          "skipped": "Preskočené",
+          "observed": "Pozorované"
         }
       },
       "rain_delay": {

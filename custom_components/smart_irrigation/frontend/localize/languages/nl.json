@@ -521,7 +521,8 @@
           "completed": "Voltooid",
           "partial": "Gedeeltelijk",
           "failed": "Mislukt",
-          "skipped": "Overgeslagen"
+          "skipped": "Overgeslagen",
+          "observed": "Waargenomen"
         }
       },
       "rain_delay": {
