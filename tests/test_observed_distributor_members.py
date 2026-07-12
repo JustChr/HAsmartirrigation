@@ -188,3 +188,43 @@ async def test_close_skips_disabled_member():
     c = _close_host(dist, members, close_time=100.0 + 300, stash_outlet=2)
     await c._dist_on_inlet_close(0)
     c._dist_credit_zone.assert_not_awaited()
+
+
+def _evt(old, new):
+    return SimpleNamespace(
+        data={
+            "old_state": SimpleNamespace(state=old),
+            "new_state": SimpleNamespace(state=new),
+        }
+    )
+
+
+def _handler_host():
+    c = _host()
+    c.hass.async_create_task = Mock()
+    return c
+
+
+def test_handler_open_edge_calls_pulse():
+    c = _handler_host()
+    c._dist_on_inlet_pulse = Mock(return_value="pulse_coro")
+    c._dist_on_inlet_close = Mock(return_value="close_coro")
+    handler = c._dist_inlet_state_handler(0)
+    handler(_evt("off", "on"))
+    c.hass.async_create_task.assert_called_once_with("pulse_coro")
+
+
+def test_handler_close_edge_calls_close():
+    c = _handler_host()
+    c._dist_on_inlet_pulse = Mock(return_value="pulse_coro")
+    c._dist_on_inlet_close = Mock(return_value="close_coro")
+    handler = c._dist_inlet_state_handler(0)
+    handler(_evt("on", "off"))
+    c.hass.async_create_task.assert_called_once_with("close_coro")
+
+
+def test_handler_ignores_unrelated_transition():
+    c = _handler_host()
+    handler = c._dist_inlet_state_handler(0)
+    handler(_evt("on", "on"))
+    c.hass.async_create_task.assert_not_called()

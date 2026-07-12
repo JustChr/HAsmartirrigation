@@ -706,8 +706,8 @@ class DistributorMixin:
         )
 
     def _dist_inlet_state_handler(self, distributor_id):
-        """Build a state-change handler that decodes an off->on edge and defers to
-        _dist_on_inlet_pulse."""
+        """Build a state-change handler that decodes the inlet off->on and on->off
+        edges and defers to _dist_on_inlet_pulse / _dist_on_inlet_close."""
         off_states = {"off", "closed"}
         on_states = {"on", "open", "opening"}
 
@@ -719,6 +719,8 @@ class DistributorMixin:
                 return
             if old.state in off_states and new.state in on_states:
                 self.hass.async_create_task(self._dist_on_inlet_pulse(distributor_id))
+            elif old.state in on_states and new.state in off_states:
+                self.hass.async_create_task(self._dist_on_inlet_close(distributor_id))
 
         return _handler
 
