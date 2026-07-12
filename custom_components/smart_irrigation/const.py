@@ -637,6 +637,9 @@ DISTRIBUTOR_PHASE_STARTING = "starting"
 DISTRIBUTOR_REASON_RESTART_MID_ADVANCE = "restart_mid_advance"
 # Run-log trigger tag for distributor-delivered watering.
 RUN_TRIGGER_DISTRIBUTOR = "distributor"
+# Run-log trigger tag for observed (externally run) watering (opt-in): the valve
+# ran outside Smart Irrigation and its estimated volume was credited.
+RUN_TRIGGER_OBSERVED = "observed"
 
 # Distributor inlet-watch reaction to a foreign inlet pulse (E4).
 DISTRIBUTOR_WATCH_MODE_COUNT = "count"  # advance the tracked position

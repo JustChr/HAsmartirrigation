@@ -178,7 +178,7 @@ class ObservedWateringMixin:
             result=const.RUN_RESULT_OBSERVED,
             volume_l=volume_l,
             actual_s=round(seconds),
-            trigger="observed",
+            trigger=const.RUN_TRIGGER_OBSERVED,
             add_to_total=True,
         )
         await self.store.async_update_zone(
