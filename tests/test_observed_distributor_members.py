@@ -228,3 +228,45 @@ def test_handler_ignores_unrelated_transition():
     handler = c._dist_inlet_state_handler(0)
     handler(_evt("on", "on"))
     c.hass.async_create_task.assert_not_called()
+
+
+async def test_close_credits_at_exact_threshold():
+    # duration == 2*skip (60 s) must credit: the guard is `< threshold`, not `<=`.
+    dist = _dist(skip_pulse_seconds=30)
+    members = [_member(1, 1), _member(2, 2)]
+    c = _close_host(dist, members, close_time=100.0 + 60, stash_outlet=1)
+    await c._dist_on_inlet_close(0)
+    c._dist_credit_zone.assert_awaited_once()
+
+
+async def test_close_wraps_outlet_index_when_out_of_range():
+    # A stashed outlet larger than the current member count wraps via `% n`
+    # (member removed between open and close) instead of raising IndexError.
+    dist = _dist(skip_pulse_seconds=30)
+    members = [_member(1, 1), _member(2, 2), _member(3, 3)]
+    c = _close_host(dist, members, close_time=100.0 + 300, stash_outlet=5)
+    await c._dist_on_inlet_close(0)
+    zone_arg, _ = c._dist_credit_zone.await_args.args
+    assert zone_arg[const.ZONE_ID] == 2  # (5-1) % 3 == 1 -> members[1] -> zone id 2
+
+
+async def test_close_min_skip_pulse_clamp_bites():
+    # skip_pulse_seconds below the MIN (10) clamps up, so threshold = 2*10 = 20 s.
+    # A 15 s open is below the clamped threshold -> NOT credited (proves the max()
+    # is not dead: without the clamp threshold would be 2*5 = 10 and 15 would credit).
+    dist = _dist(skip_pulse_seconds=5)
+    members = [_member(1, 1), _member(2, 2)]
+    c = _close_host(dist, members, close_time=100.0 + 15, stash_outlet=1)
+    await c._dist_on_inlet_close(0)
+    c._dist_credit_zone.assert_not_awaited()
+
+
+async def test_close_discards_stash_without_timestamp():
+    # Defensive (M2): a stash missing "t" must fail safe (discard) rather than
+    # treat a missing timestamp as 0 and book a huge spurious duration.
+    dist = _dist(skip_pulse_seconds=30)
+    members = [_member(1, 1), _member(2, 2)]
+    c = _close_host(dist, members, close_time=100.0 + 300, stash_outlet=None)
+    c._dist_observed_open_map()[0] = {"outlet": 1}  # no "t"
+    await c._dist_on_inlet_close(0)
+    c._dist_credit_zone.assert_not_awaited()

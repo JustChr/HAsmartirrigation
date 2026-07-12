@@ -683,7 +683,10 @@ class DistributorMixin:
             return
         if not getattr(self.store.config, "observed_watering_enabled", False):
             return
-        duration = self.hass.loop.time() - float(open_rec.get("t") or 0)
+        t = open_rec.get("t")
+        if t is None:
+            return  # defensive: a stash without a timestamp fails safe, never a huge run
+        duration = self.hass.loop.time() - float(t)
         skip_pulse = max(
             int(dist.get("skip_pulse_seconds") or 30),
             const.DISTRIBUTOR_MIN_SKIP_PULSE_SECONDS,
