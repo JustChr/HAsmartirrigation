@@ -327,6 +327,18 @@ async def test_normal_cycle_clears_active_cycle_marker():
     c._dist_clear_cycle.assert_awaited_once_with(0)
 
 
+async def test_cycle_claim_drops_stale_observed_open_stash():
+    # Final-review Issue 1 (2026-07-12): claiming a distributor for an SI cycle must
+    # deterministically drop any lingering FOREIGN observed-watering open stash, so a
+    # later inlet close edge cannot credit a member off pre-cycle state. Structural
+    # guarantee, independent of whether the close-edge race guard wins loop scheduling.
+    c = _loop_host([_mem(1, 1), _mem(2, 2)])
+    c._dist_run_sweep = AsyncMock(return_value=True)
+    c._dist_observed_open_map()[0] = {"t": 100.0, "outlet": 1}  # stale foreign stash
+    await c.async_run_distributor_cycle(_dist_cfg())
+    assert 0 not in c._dist_observed_open_map()
+
+
 async def test_errored_cycle_clears_active_cycle_marker():
     # Unchanged: an in-process (non-cancel) error still clears the marker -- HA keeps
     # running, so there is no restart to reconcile.

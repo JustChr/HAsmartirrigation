@@ -710,7 +710,12 @@ class DistributorMixin:
 
     def _dist_inlet_state_handler(self, distributor_id):
         """Build a state-change handler that decodes the inlet off->on and on->off
-        edges and defers to _dist_on_inlet_pulse / _dist_on_inlet_close."""
+        edges and defers to _dist_on_inlet_pulse / _dist_on_inlet_close.
+
+        Deliberately stricter than the Phase-1 zone observer: `unavailable`/`unknown`
+        belong to neither set, so an inlet that drops to `unavailable` mid-open fires
+        no close and simply does not credit that run (safe under-credit; the stash is
+        overwritten on the next real open, never leaked)."""
         off_states = {"off", "closed"}
         on_states = {"on", "open", "opening"}
 
@@ -876,6 +881,15 @@ class DistributorMixin:
         if dist_id in inflight:
             return False
         inflight.add(dist_id)
+        # Final-review Issue 1 (2026-07-12): the instant SI claims this distributor,
+        # drop any lingering FOREIGN observed-watering open stash. The close-edge race
+        # guard (_dist_on_inlet_close) already discards a stash seen while active_cycle
+        # is set, but that relies on a close edge being processed before the cycle
+        # clears the marker. Popping here at the atomic claim makes the SI-exclusion
+        # structural (timing-independent): a member can never be observed-credited off
+        # pre-cycle state after SI has taken the inlet. siehe
+        # test_distributor_cycle.py::test_cycle_claim_drops_stale_observed_open_stash
+        self._dist_observed_open_map().pop(dist_id, None)
         # (2026-07-08, live-test finding) Preserve active_cycle across a graceful
         # interruption. HA shutdown / integration reload cancels this awaited task,
         # raising CancelledError; the old finally ALWAYS cleared active_cycle, so on the

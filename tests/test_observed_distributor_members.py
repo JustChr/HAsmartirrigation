@@ -162,6 +162,7 @@ async def test_close_race_guard_active_cycle():
     c = _close_host(dist, members, close_time=100.0 + 300, stash_outlet=1)
     await c._dist_on_inlet_close(0)
     c._dist_credit_zone.assert_not_awaited()
+    assert 0 not in c._dist_observed_open_map()  # popped-and-discarded, never leaked
 
 
 async def test_close_noop_when_observed_disabled():
