@@ -719,6 +719,9 @@ class DistributorMixin:
         seconds: float,
         measured_l: float | None = None,
         planned_seconds: float | None = None,
+        *,
+        result: str = const.RUN_RESULT_COMPLETED,
+        trigger: str = const.RUN_TRIGGER_DISTRIBUTOR,
     ) -> None:
         """Credit a watered member zone's bucket and log the run.
 
@@ -750,11 +753,11 @@ class DistributorMixin:
         await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
         await self._record_run(
             zone_id,
-            result=const.RUN_RESULT_COMPLETED,
+            result=result,
             volume_l=volume_l,
             planned_s=planned_seconds if planned_seconds is not None else seconds,
             actual_s=seconds,
-            trigger=const.RUN_TRIGGER_DISTRIBUTOR,
+            trigger=trigger,
             add_to_total=True,
         )
 

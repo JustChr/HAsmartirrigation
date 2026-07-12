@@ -28,3 +28,33 @@ def _host(observed=True):
 
 def test_run_trigger_observed_const():
     assert const.RUN_TRIGGER_OBSERVED == "observed"
+
+
+def _credit_host():
+    c = _host()
+    c.store.async_update_zone = AsyncMock()
+    c._record_run = AsyncMock()
+    c._timed_volume_l = Mock(return_value=12.0)
+    c._credited_depth_native = Mock(return_value=3.0)
+    return c
+
+
+async def test_credit_zone_defaults_completed_distributor():
+    c = _credit_host()
+    zone = {const.ZONE_ID: 5, const.ZONE_BUCKET: 0.0}
+    await c._dist_credit_zone(zone, 300)
+    kwargs = c._record_run.await_args.kwargs
+    assert kwargs["result"] == const.RUN_RESULT_COMPLETED
+    assert kwargs["trigger"] == const.RUN_TRIGGER_DISTRIBUTOR
+
+
+async def test_credit_zone_observed_result_trigger():
+    c = _credit_host()
+    zone = {const.ZONE_ID: 5, const.ZONE_BUCKET: 0.0}
+    await c._dist_credit_zone(
+        zone, 300, result=const.RUN_RESULT_OBSERVED, trigger=const.RUN_TRIGGER_OBSERVED
+    )
+    kwargs = c._record_run.await_args.kwargs
+    assert kwargs["result"] == const.RUN_RESULT_OBSERVED
+    assert kwargs["trigger"] == const.RUN_TRIGGER_OBSERVED
+    assert kwargs["add_to_total"] is True
