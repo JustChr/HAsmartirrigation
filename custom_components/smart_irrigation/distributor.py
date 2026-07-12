@@ -664,6 +664,47 @@ class DistributorMixin:
             }
         await self._dist_store_update(distributor_id, {"current_outlet": (cur % n) + 1})
 
+    async def _dist_on_inlet_close(self, distributor_id) -> None:
+        """A foreign inlet on->off edge closed. If observed watering is enabled and
+        the open lasted long enough to be real watering (>= 2 * skip_pulse_seconds),
+        credit the member zone that was flowing during the open (the pre-advance ring
+        index stashed on the open edge) and write an `observed` run-log entry. Short
+        opens are advance pulses -> not credited (the ring already advanced on open).
+
+        Only foreign, count-mode opens ever leave a stash (see _dist_on_inlet_pulse),
+        so warn/ignore modes and SI's own cycles no-op here. A race guard additionally
+        drops the credit if an SI cycle claimed the inlet between open and close."""
+        open_rec = self._dist_observed_open_map().pop(distributor_id, None)
+        if open_rec is None:
+            return
+        dist = self.store.get_distributor(distributor_id)
+        if dist is None or dist.get("active_cycle"):
+            # An SI cycle claimed the inlet between open and close -> not foreign.
+            return
+        if not getattr(self.store.config, "observed_watering_enabled", False):
+            return
+        duration = self.hass.loop.time() - float(open_rec.get("t") or 0)
+        skip_pulse = max(
+            int(dist.get("skip_pulse_seconds") or 30),
+            const.DISTRIBUTOR_MIN_SKIP_PULSE_SECONDS,
+        )
+        if duration < 2 * skip_pulse:
+            return  # short advance pulse, not watering
+        members = await self._dist_members(distributor_id)
+        n = len(members)
+        if n == 0:
+            return
+        outlet = int(open_rec.get("outlet") or 1)
+        member = members[(outlet - 1) % n]
+        if member.get(const.ZONE_STATE) == const.ZONE_STATE_DISABLED:
+            return
+        await self._dist_credit_zone(
+            member,
+            duration,
+            result=const.RUN_RESULT_OBSERVED,
+            trigger=const.RUN_TRIGGER_OBSERVED,
+        )
+
     def _dist_inlet_state_handler(self, distributor_id):
         """Build a state-change handler that decodes an off->on edge and defers to
         _dist_on_inlet_pulse."""
