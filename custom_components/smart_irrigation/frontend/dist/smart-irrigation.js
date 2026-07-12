@@ -6023,16 +6023,18 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       >
         <div class="card-content">
           ${ua("panels.help.cards.how-to-get-help.first-read-the",this.hass.language)}
-          <a href="${"https://justchr.github.io/HAsmartirrigation/"}"
+          <a href="${"https://justchr.github.io/HAsmartirrigation/"}" target="_blank" rel="noopener noreferrer"
             >${ua("panels.help.cards.how-to-get-help.wiki",this.hass.language)}</a
           >.
           ${ua("panels.help.cards.how-to-get-help.if-you-still-need-help",this.hass.language)}
           <a
             href="https://community.home-assistant.io/t/smart-irrigation-save-water-by-precisely-watering-your-lawn-garden"
+            target="_blank"
+            rel="noopener noreferrer"
             >${ua("panels.help.cards.how-to-get-help.community-forum",this.hass.language)}</a
           >
           ${ua("panels.help.cards.how-to-get-help.or-open-a",this.hass.language)}
-          <a href="${"https://github.com/JustChr/HAsmartirrigation/issues"}"
+          <a href="${"https://github.com/JustChr/HAsmartirrigation/issues"}" target="_blank" rel="noopener noreferrer"
             >${ua("panels.help.cards.how-to-get-help.github-issue",this.hass.language)}</a
           >
           (${ua("panels.help.cards.how-to-get-help.english-only",this.hass.language)}).
