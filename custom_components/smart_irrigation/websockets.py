@@ -283,6 +283,20 @@ class SmartIrrigationZoneView(HomeAssistantView):
         hass = request.app["hass"]
         coordinator = hass.data[const.DOMAIN]["coordinator"]
         zone = int(data[const.ZONE_ID]) if const.ZONE_ID in data else None
+        # The panel's zone settings form saves a zone by POSTing the WHOLE zone object.
+        # That object carries server-owned run-accounting fields (water_used_total, the
+        # run log, last_irrigation) from the browser's snapshot. If the settings page was
+        # left open across an irrigation run, the snapshot is stale, and saving any setting
+        # would overwrite the live values — reverting that run's usage total and deleting
+        # its history entry. Drop these fields from a client save so the runner remains
+        # their sole writer (it writes them via the store directly, not through this view).
+        # See test_zone_view_ignores_server_owned_fields.
+        for _server_owned in (
+            const.ZONE_WATER_USED_TOTAL,
+            const.ZONE_RUN_LOG,
+            const.ZONE_LAST_IRRIGATION,
+        ):
+            data.pop(_server_owned, None)
         try:
             await coordinator.async_update_zone_config(zone, data)
         except SmartIrrigationError as err:

@@ -308,3 +308,45 @@ async def test_zone_view_accepts_membership_fields():
     forwarded = called.args[1] if len(called.args) > 1 else called.kwargs.get("data")
     assert forwarded["distributor_id"] == 0
     assert forwarded["outlet_number"] == 3
+
+
+async def test_zone_view_ignores_server_owned_fields():
+    """A client zone save must never overwrite server-owned run accounting.
+
+    The panel saves a zone by POSTing the WHOLE zone object; a browser snapshot left
+    open across a run carries a stale water_used_total + run log that would otherwise
+    revert that run's usage total and delete its history entry. The view strips those
+    fields (plus last_irrigation), so the coordinator only ever gets the editable ones.
+    """
+    from unittest.mock import patch
+
+    from custom_components.smart_irrigation.websockets import SmartIrrigationZoneView
+
+    coordinator = AsyncMock()
+    hass = SimpleNamespace(data={const.DOMAIN: {"coordinator": coordinator}})
+    request = MagicMock()
+    request.app = {"hass": hass}
+    # a settings save carrying a legitimate edit (name) PLUS stale server-owned fields
+    data = {
+        const.ZONE_ID: 2,
+        const.ZONE_NAME: "renamed",
+        const.ZONE_WATER_USED_TOTAL: 5.0,
+        const.ZONE_RUN_LOG: [],
+        const.ZONE_LAST_IRRIGATION: "2020-01-01T00:00:00",
+    }
+    request.json = AsyncMock(return_value=data)
+
+    view = SmartIrrigationZoneView()
+    view.json = MagicMock(return_value="OK")
+
+    with patch("custom_components.smart_irrigation.websockets.async_dispatcher_send"):
+        await view.post(request)
+
+    coordinator.async_update_zone_config.assert_awaited_once()
+    called = coordinator.async_update_zone_config.await_args
+    forwarded = called.args[1] if len(called.args) > 1 else called.kwargs.get("data")
+    # the legitimate edit is forwarded; the server-owned accounting is stripped
+    assert forwarded[const.ZONE_NAME] == "renamed"
+    assert const.ZONE_WATER_USED_TOTAL not in forwarded
+    assert const.ZONE_RUN_LOG not in forwarded
+    assert const.ZONE_LAST_IRRIGATION not in forwarded
