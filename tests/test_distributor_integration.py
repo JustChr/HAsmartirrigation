@@ -315,8 +315,11 @@ async def test_zone_view_ignores_server_owned_fields():
 
     The panel saves a zone by POSTing the WHOLE zone object; a browser snapshot left
     open across a run carries a stale water_used_total + run log that would otherwise
-    revert that run's usage total and delete its history entry. The view strips those
-    fields (plus last_irrigation), so the coordinator only ever gets the editable ones.
+    revert that run's usage total and delete its history entry. The same hazard applies
+    to the flow engine's server-owned learning/calibration state (flow_last_end,
+    flow_reset_streak, flow_calibration_samples/_advised). The view strips all of those
+    (plus last_irrigation), so the coordinator only ever gets the editable ones — while a
+    genuinely user-editable field like flow_counter_type is forwarded untouched.
     """
     from unittest.mock import patch
 
@@ -326,13 +329,19 @@ async def test_zone_view_ignores_server_owned_fields():
     hass = SimpleNamespace(data={const.DOMAIN: {"coordinator": coordinator}})
     request = MagicMock()
     request.app = {"hass": hass}
-    # a settings save carrying a legitimate edit (name) PLUS stale server-owned fields
+    # a settings save carrying legitimate edits (name + counter_type) PLUS stale
+    # server-owned run-accounting and flow learning/calibration state
     data = {
         const.ZONE_ID: 2,
         const.ZONE_NAME: "renamed",
+        const.ZONE_FLOW_COUNTER_TYPE: "per_run",
         const.ZONE_WATER_USED_TOTAL: 5.0,
         const.ZONE_RUN_LOG: [],
         const.ZONE_LAST_IRRIGATION: "2020-01-01T00:00:00",
+        const.ZONE_FLOW_LAST_END: 123.4,
+        const.ZONE_FLOW_RESET_STREAK: 2,
+        const.ZONE_FLOW_CAL_SAMPLES: [3.5, 3.6, 3.4],
+        const.ZONE_FLOW_CAL_ADVISED: True,
     }
     request.json = AsyncMock(return_value=data)
 
@@ -345,8 +354,14 @@ async def test_zone_view_ignores_server_owned_fields():
     coordinator.async_update_zone_config.assert_awaited_once()
     called = coordinator.async_update_zone_config.await_args
     forwarded = called.args[1] if len(called.args) > 1 else called.kwargs.get("data")
-    # the legitimate edit is forwarded; the server-owned accounting is stripped
+    # the legitimate edits are forwarded; the server-owned accounting is stripped
     assert forwarded[const.ZONE_NAME] == "renamed"
+    assert forwarded[const.ZONE_FLOW_COUNTER_TYPE] == "per_run"
     assert const.ZONE_WATER_USED_TOTAL not in forwarded
     assert const.ZONE_RUN_LOG not in forwarded
     assert const.ZONE_LAST_IRRIGATION not in forwarded
+    # the flow engine's server-owned learning + calibration state is stripped too
+    assert const.ZONE_FLOW_LAST_END not in forwarded
+    assert const.ZONE_FLOW_RESET_STREAK not in forwarded
+    assert const.ZONE_FLOW_CAL_SAMPLES not in forwarded
+    assert const.ZONE_FLOW_CAL_ADVISED not in forwarded

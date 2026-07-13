@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation: Durchflussrate prüfen",
+    "message_over": "Zone '{zone}' bewässert dauerhaft zu viel: der gemessene Durchfluss liegt ~{percent}% über der konfigurierten Rate über {runs} Läufe. Das Ventil kann nicht früher stoppen — stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
+    "message_under": "Zone '{zone}' bewässert dauerhaft zu wenig: der gemessene Durchfluss liegt ~{percent}% unter der konfigurierten Rate über {runs} Läufe. Das Ventil kann nicht früher stoppen — stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
+    "open_settings": "Zonen-Einstellungen öffnen"
+  },
   "common": {
     "actions": {
       "delete": "Lösche",
@@ -353,6 +359,11 @@
         "bucket_threshold": "Mindestdefizit für Bewässerung",
         "flow_sensor": "Durchflussmesser-Sensor (optional)",
         "flow_sensor_placeholder": "z. B. sensor.zone_flow_rate",
+        "flow_counter_type": "Zählertyp",
+        "flow_counter_type_help": "Wie dieser kumulative Durchflusssensor gelesen wird. Auto lernt über mehrere Läufe, ob der Sensor bei jedem Lauf zurücksetzt. Pro Lauf: der Sensor springt zu Beginn jedes Laufs auf ~0 und zeigt die Menge dieses Laufs (z. B. Sonoff-/Zigbee-Ventile). Gesamtzähler: ein Zähler, der über alle Läufe nur hochzählt (Delta pro Lauf).",
+        "flow_counter_type_auto": "Auto (lernen)",
+        "flow_counter_type_per_run": "Pro Lauf (setzt je Lauf zurück)",
+        "flow_counter_type_lifetime": "Gesamtzähler (Delta)",
         "watering_mode": "Bewässerungsmodus",
         "watering_mode_description": "Wie HASI diese Zone ansteuert. Klassisch: HASI öffnet das Ventil und schließt es selbst per Software-Timer. Selbstschließend per Service: HASI übergibt die Laufzeit über ein Skript an ein selbstschließendes Ventil (siehe die mitgelieferten Ventil-Blueprints) und überlässt dem Ventil das Schließen — ein HA-Neustart mitten im Lauf kann so keine Dauerbewässerung auslösen.",
         "watering_modes": {
@@ -738,7 +749,7 @@
         "confirm_entity": "Bestätigungssensor (optional)",
         "confirm_entity_help": "Optionaler Sensor am Verteiler-Einlass, der bestätigt, dass tatsächlich Wasser fließt (z. B. ein Durchfluss- oder Ventilstellungssensor). Meldet er beim Öffnen eines Ausgangs keinen Fluss, hält der Zyklus sicher an und setzt den Verteiler auf „unsicher“ — dies ist die Niedrigdurchfluss-/Fehlererkennung.",
         "flow_sensor": "Durchflusssensor (optional)",
-        "flow_sensor_help": "Der geteilte Einlass-Durchflussmesser (z. B. L/min, m³/h). Wenn gesetzt, wird die tatsächlich abgegebene Menge pro Ausgang gemessen und verbucht (statt der Zeitschätzung). Optional. Wo das Ventil gestoppt werden kann (classic-Einlass oder Self-Closing-Stop-Service), wird der Ausgang zudem bei erreichter Zielmenge vorzeitig gestoppt.",
+        "flow_sensor_help": "Der geteilte Einlass-Durchflussmesser (z. B. L/min, m³/h). Wenn gesetzt, wird die tatsächlich abgegebene Menge pro Ausgang gemessen und verbucht (statt der Zeitschätzung). Optional. Wo das Ventil gestoppt werden kann (classic-Einlass oder Self-Closing-Stop-Service), wird der Ausgang zudem bei erreichter Zielmenge vorzeitig gestoppt. Unterstützt werden sowohl ein Momentan-Durchflussmesser (z. B. L/min) als auch ein kumulativer Zählerstand (z. B. m³ oder state_class: total_increasing); der Typ wird automatisch aus der Einheit erkannt.",
         "pause_seconds": "Weiterschalt-Pause",
         "skip_pulse_seconds": "Überspring-Impuls",
         "notify_target": "Benachrichtigungsziel (optional)",

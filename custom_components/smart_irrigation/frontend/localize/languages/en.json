@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation: check flow rate",
+    "message_over": "Zone '{zone}' is consistently over-watering: the measured flow is ~{percent}% above the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",
+    "message_under": "Zone '{zone}' is consistently under-watering: the measured flow is ~{percent}% below the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",
+    "open_settings": "Open zone settings"
+  },
   "common": {
     "loading": "Loading",
     "saving": "Saving",
@@ -496,6 +502,11 @@
         "linked_entity_placeholder": "e.g. switch.garden_valve",
         "flow_sensor": "Flow meter sensor (optional)",
         "flow_sensor_placeholder": "e.g. sensor.zone_flow_rate",
+        "flow_counter_type": "Counter type",
+        "flow_counter_type_help": "How this cumulative flow sensor is read. Auto learns across runs whether the sensor resets each run. Per run: the sensor resets to ~0 each run and shows that run's total (e.g. Sonoff/Zigbee valves). Lifetime: a meter that only ever counts up across all runs (delta per run).",
+        "flow_counter_type_auto": "Auto (learn)",
+        "flow_counter_type_per_run": "Per run (resets each run)",
+        "flow_counter_type_lifetime": "Lifetime total (delta)",
         "watering_mode": "Watering mode",
         "watering_mode_description": "How HASI actuates this zone. Classic: HASI opens the valve and closes it itself with a software timer. Self-closing service: HASI sends the run duration to a self-closing valve via a script (see the shipped valve blueprints) and lets the hardware close itself, so an HA restart mid-run cannot cause continuous irrigation.",
         "watering_modes": {
@@ -736,7 +747,7 @@
         "confirm_entity": "Confirmation sensor (optional)",
         "confirm_entity_help": "Optional sensor on the distributor inlet confirming water actually flows (e.g. a flow or valve-position sensor). If it reports no flow when an outlet opens, the cycle halts safely and marks the distributor uncertain — this is the low-flow / fault detection.",
         "flow_sensor": "Flow sensor (optional)",
-        "flow_sensor_help": "The shared inlet flow-rate meter (e.g. L/min, m³/h). When set, the actual delivered volume per outlet is measured and credited instead of the time estimate. Optional. Where the valve can be stopped (a classic inlet, or a self-closing stop-service), the outlet also stops early once its target volume is reached.",
+        "flow_sensor_help": "The shared inlet flow-rate meter (e.g. L/min, m³/h). When set, the actual delivered volume per outlet is measured and credited instead of the time estimate. Optional. Where the valve can be stopped (a classic inlet, or a self-closing stop-service), the outlet also stops early once its target volume is reached. Both an instantaneous rate meter (e.g. L/min) and a cumulative totalizer counter (e.g. m³, or state_class: total_increasing) are supported and detected automatically from the unit.",
         "pause_seconds": "Advance pause",
         "skip_pulse_seconds": "Skip pulse",
         "notify_target": "Notification target (optional)",

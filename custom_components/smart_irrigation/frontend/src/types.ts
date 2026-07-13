@@ -286,6 +286,8 @@ export class SmartIrrigationZone {
   linked_entity?: string;
   bucket_threshold?: number;
   flow_sensor?: string | null;
+  /** Totalizer flow-sensor counter type: auto (learn) | per_run | lifetime. */
+  flow_counter_type?: string;
   watering_mode?: string;
   run_service?: string;
   duration_field?: string;

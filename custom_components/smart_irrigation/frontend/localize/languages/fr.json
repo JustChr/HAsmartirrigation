@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation : vérifier le débit",
+    "message_over": "La zone '{zone}' arrose systématiquement trop : le débit mesuré est ~{percent}% au-dessus du débit configuré sur {runs} cycles. Sa vanne ne peut pas s'arrêter plus tôt — réglez le débit sur environ {rate} {unit} (actuellement {current}).",
+    "message_under": "La zone '{zone}' arrose systématiquement trop peu : le débit mesuré est ~{percent}% en dessous du débit configuré sur {runs} cycles. Sa vanne ne peut pas s'arrêter plus tôt — réglez le débit sur environ {rate} {unit} (actuellement {current}).",
+    "open_settings": "Ouvrir les paramètres de la zone"
+  },
   "common": {
     "actions": {
       "delete": "Suppression",
@@ -355,6 +361,11 @@
         "bucket_threshold": "Déficit minimum pour irriguer",
         "flow_sensor": "Capteur de débitmètre (optionnel)",
         "flow_sensor_placeholder": "p. ex. sensor.zone_flow_rate",
+        "flow_counter_type": "Type de compteur",
+        "flow_counter_type_help": "Comment ce capteur de débit cumulé est lu. Auto apprend au fil des exécutions si le capteur se réinitialise à chaque exécution. Par exécution : le capteur revient à ~0 au début de chaque exécution et affiche le total de cette exécution (p. ex. vannes Sonoff/Zigbee). Total cumulé : un compteur qui ne fait que monter sur l'ensemble des exécutions (delta par exécution).",
+        "flow_counter_type_auto": "Auto (apprentissage)",
+        "flow_counter_type_per_run": "Par exécution (réinitialise à chaque exécution)",
+        "flow_counter_type_lifetime": "Total cumulé (delta)",
         "watering_mode": "Mode d'arrosage",
         "watering_mode_description": "Comment HASI actionne cette zone. Classique : HASI ouvre la vanne et la referme lui-même à l'aide d'une minuterie logicielle. Service auto-fermant : HASI envoie la durée d'exécution à une vanne auto-fermante via un script (voir les blueprints de vanne fournis) et laisse le matériel se refermer de lui-même, de sorte qu'un redémarrage de HA en cours d'exécution ne peut pas provoquer une irrigation continue.",
         "watering_modes": {
@@ -740,7 +751,7 @@
         "confirm_entity": "Capteur de confirmation (optionnel)",
         "confirm_entity_help": "Capteur facultatif sur l'entrée du distributeur confirmant que l'eau circule réellement (par ex. un capteur de débit ou de position de vanne). S'il ne détecte aucun débit à l'ouverture d'une sortie, le cycle s'arrête en toute sécurité et marque le distributeur comme incertain : c'est la détection de débit faible / de défaut.",
         "flow_sensor": "Capteur de débit (optionnel)",
-        "flow_sensor_help": "Le débitmètre partagé sur l'entrée (p. ex. L/min, m³/h). Lorsqu'il est défini, le volume réellement délivré par sortie est mesuré et comptabilisé au lieu de l'estimation temporelle. Facultatif. Lorsque la vanne peut être arrêtée (une entrée classic ou un service d'arrêt self-closing), la sortie est en outre arrêtée dès que son volume cible est atteint.",
+        "flow_sensor_help": "Le débitmètre partagé sur l'entrée (p. ex. L/min, m³/h). Lorsqu'il est défini, le volume réellement délivré par sortie est mesuré et comptabilisé au lieu de l'estimation temporelle. Facultatif. Lorsque la vanne peut être arrêtée (une entrée classic ou un service d'arrêt self-closing), la sortie est en outre arrêtée dès que son volume cible est atteint. Un débitmètre instantané (p. ex. L/min) et un compteur totalisateur cumulé (p. ex. m³ ou state_class: total_increasing) sont tous deux pris en charge ; le type est détecté automatiquement à partir de l'unité.",
         "pause_seconds": "Pause d'avance",
         "skip_pulse_seconds": "Impulsion de saut",
         "notify_target": "Cible de notification (optionnel)",

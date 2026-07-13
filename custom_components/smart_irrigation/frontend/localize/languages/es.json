@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation: comprueba el caudal",
+    "message_over": "La zona '{zone}' riega sistemáticamente en exceso: el caudal medido está ~{percent}% por encima del valor configurado durante {runs} ciclos. Su válvula no puede detenerse antes — ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
+    "message_under": "La zona '{zone}' riega sistemáticamente por defecto: el caudal medido está ~{percent}% por debajo del valor configurado durante {runs} ciclos. Su válvula no puede detenerse antes — ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
+    "open_settings": "Abrir la configuración de la zona"
+  },
   "common": {
     "actions": {
       "delete": "Eliminar",
@@ -354,6 +360,11 @@
         "bucket_threshold": "Déficit mínimo para regar",
         "flow_sensor": "Sensor de caudalímetro (opcional)",
         "flow_sensor_placeholder": "p. ej. sensor.zone_flow_rate",
+        "flow_counter_type": "Tipo de contador",
+        "flow_counter_type_help": "Cómo se lee este sensor de caudal acumulado. Auto aprende a lo largo de varios riegos si el sensor se reinicia en cada riego. Por riego: el sensor vuelve a ~0 al comienzo de cada riego y muestra el total de ese riego (p. ej. válvulas Sonoff/Zigbee). Total acumulado: un contador que solo sube a lo largo de todos los riegos (delta por riego).",
+        "flow_counter_type_auto": "Auto (aprender)",
+        "flow_counter_type_per_run": "Por riego (se reinicia en cada riego)",
+        "flow_counter_type_lifetime": "Total acumulado (delta)",
         "watering_mode": "Modo de riego",
         "watering_mode_description": "Cómo acciona HASI esta zona. Clásico: HASI abre la válvula y la cierra él mismo mediante un temporizador de software. Servicio autocerrable: HASI envía la duración del riego a una válvula autocerrable a través de un script (consulta los blueprints de válvula incluidos) y deja que el hardware se cierre solo, de modo que un reinicio de HA a mitad del riego no pueda provocar un riego continuo.",
         "watering_modes": {
@@ -739,7 +750,7 @@
         "confirm_entity": "Sensor de confirmación (opcional)",
         "confirm_entity_help": "Sensor opcional en la entrada del distribuidor que confirma que el agua realmente fluye (p. ej., un sensor de caudal o de posición de válvula). Si no detecta caudal al abrirse una salida, el ciclo se detiene de forma segura y marca el distribuidor como incierto: esta es la detección de caudal bajo / de fallos.",
         "flow_sensor": "Sensor de caudal (opcional)",
-        "flow_sensor_help": "El caudalímetro compartido en la entrada (p. ej. L/min, m³/h). Si se configura, se mide y contabiliza el volumen realmente suministrado por salida en lugar de la estimación por tiempo. Opcional. Cuando la válvula se puede detener (una entrada classic o un servicio de parada self-closing), la salida también se detiene anticipadamente al alcanzar su volumen objetivo.",
+        "flow_sensor_help": "El caudalímetro compartido en la entrada (p. ej. L/min, m³/h). Si se configura, se mide y contabiliza el volumen realmente suministrado por salida en lugar de la estimación por tiempo. Opcional. Cuando la válvula se puede detener (una entrada classic o un servicio de parada self-closing), la salida también se detiene anticipadamente al alcanzar su volumen objetivo. Se admiten tanto un caudalímetro instantáneo (p. ej. L/min) como un contador totalizador acumulado (p. ej. m³ o state_class: total_increasing); el tipo se detecta automáticamente a partir de la unidad.",
         "pause_seconds": "Pausa de avance",
         "skip_pulse_seconds": "Impulso de salto",
         "notify_target": "Destino de notificación (opcional)",

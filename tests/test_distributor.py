@@ -458,24 +458,25 @@ def _state(val, unit):
     return s
 
 
-def test_flow_unit_is_rate():
+def test_flow_is_totalizer():
     c = _host()
-    assert c._dist_flow_unit_is_rate("L/min") is True
-    assert c._dist_flow_unit_is_rate("m³/h") is True
-    assert c._dist_flow_unit_is_rate("L") is False
-    assert c._dist_flow_unit_is_rate("m³") is False
+    # A rate unit (contains '/') is NOT a totalizer; a bare unit is.
+    assert c._flow_is_totalizer("L/min", None) is False
+    assert c._flow_is_totalizer("m³/h", None) is False
+    assert c._flow_is_totalizer("L", None) is True
+    assert c._flow_is_totalizer("m³", None) is True
 
 
 def test_flow_litres_from_total_units():
     c = _host()
-    assert c._dist_flow_litres_from_total(2.0, "L") == 2.0
-    assert c._dist_flow_litres_from_total(2.0, "m³") == 2000.0
-    assert round(c._dist_flow_litres_from_total(1.0, "gal"), 4) == 3.7854
-    assert c._dist_flow_litres_from_total(5.0, "weird") == 5.0
+    assert c._flow_litres_from_total(2.0, "L") == 2.0
+    assert c._flow_litres_from_total(2.0, "m³") == 2000.0
+    assert round(c._flow_litres_from_total(1.0, "gal"), 4) == 3.7854
+    assert c._flow_litres_from_total(5.0, "weird") == 5.0
 
 
-async def test_measure_window_cumulative_counter(monkeypatch):
-    monkeypatch.setattr(const, "DISTRIBUTOR_CUMULATIVE_METERING_ENABLED", True)
+async def test_measure_window_cumulative_counter():
+    # A totalizer flow sensor (bare unit, no '/') is metered by default — no flag.
     c, d = _flow_host()
     vals = iter([100.0, 102.0, 104.0, 106.0])
     c.hass.states.get = Mock(side_effect=lambda s: _state(next(vals), "L"))
@@ -515,22 +516,51 @@ async def test_measure_window_unavailable_falls_back_none():
     c._dist_sleep.assert_awaited_once_with(30)
 
 
-async def test_measure_window_counter_reset_is_unreliable(monkeypatch):
-    monkeypatch.setattr(const, "DISTRIBUTOR_CUMULATIVE_METERING_ENABLED", True)
+async def test_measure_window_counter_drop_keeps_baseline():
+    # FM-6: the window now meters via the shared FlowMeter. The distributor defaults
+    # auto -> lifetime (over-credit-safe keep-baseline), so a mid-window counter drop
+    # (100 -> 102 -> 5 -> 7) credits ONLY the 100->102 rise (2 L) and never over-credits
+    # the dip — measured 2.0, not None. This intentionally supersedes the OLD
+    # "counter reset -> unreliable/None" expectation (a lifetime totalizer keeps its
+    # baseline instead of flagging the whole run unreliable). See also the per_run test
+    # below, where an explicit per_run override reseeds at the open reset.
     c, d = _flow_host()
     vals = iter([100.0, 102.0, 5.0, 7.0])
     c.hass.states.get = Mock(side_effect=lambda s: _state(next(vals), "L"))
     measured, _, _ = await c._dist_measure_window(d, 15)
-    assert measured is None
+    assert measured == 2.0
 
 
-async def test_measure_window_cumulative_disabled_falls_back_none():
+async def test_dist_measure_window_per_run_counter():
+    # FM-6: an inlet counter that resets toward 0 at valve-open then holds the run's
+    # accumulated volume. With an explicit per_run override the FlowMeter reseeds once at
+    # the open reset (50 -> 0) then credits the climb (0 -> 4 -> 8), yielding 8 L —
+    # MEASURED, not None as the old reset-as-unreliable path gave.
     c, d = _flow_host()
-    c.hass.states.get = Mock(return_value=_state(100.0, "L"))
+    d[const.ZONE_FLOW_COUNTER_TYPE] = "per_run"
+    seq = [50.0, 0.0, 4.0, 8.0, 8.0]
+
+    def _drive(_sensor):
+        v = (
+            seq.pop(0) if len(seq) > 1 else seq[0]
+        )  # hold the last value after the climb
+        return _state(v, "L")
+
+    c.hass.states.get = Mock(side_effect=_drive)
+    measured, actual, stopped = await c._dist_measure_window(d, 60.0)
+    assert measured == 8.0
+    assert stopped is False
+
+
+async def test_measure_window_no_unit_falls_back_to_rate():
+    # No unit and no total_increasing state_class -> metered as a RATE (the historical
+    # zone default), so the window is measured rather than degraded to None.
+    c, d = _flow_host()
+    c.hass.states.get = Mock(return_value=_state(12.0, ""))
     measured, actual, stopped = await c._dist_measure_window(d, 30)
-    assert measured is None
+    assert measured is not None
     assert actual == 30
-    c._dist_sleep.assert_awaited_once_with(30)
+    assert stopped is False
 
 
 async def test_measure_window_early_stops_at_target():

@@ -2,6 +2,8 @@
 
 from unittest.mock import AsyncMock, Mock
 
+from homeassistant.util.unit_system import METRIC_SYSTEM
+
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation.irrigation import SI_VALVE_SUPPRESS_MARGIN
 
@@ -34,6 +36,14 @@ def _zone(**kw):
     }
     z.update(kw)
     return z
+
+
+def _flow_state(value, unit="L"):
+    """A fake HA state for a flow sensor (value + unit_of_measurement)."""
+    st = Mock()
+    st.state = str(value)
+    st.attributes = {"unit_of_measurement": unit}
+    return st
 
 
 def test_convert_duration_minutes_rounds_up_sub_minute():
@@ -397,3 +407,316 @@ async def test_self_closing_run_marks_si_driven():
     assert 2 in c._si_driven_until  # zone id 2 marked so the observer skips it
     # window = loop.time + planned_seconds + margin, covering the whole run
     assert c._si_driven_until[2] == 1000.0 + 600.0 + SI_VALVE_SUPPRESS_MARGIN
+
+
+async def test_self_closing_credits_measured_flow(monkeypatch):
+    """A self-closing zone with a flow_sensor records the MEASURED volume from the
+    non-blocking sampler at finish — not the time-based estimate — and persists the
+    totalizer end (flow_last_end) for cross-run learning."""
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    # Isolate the interval timer: the test drives sampling via the _sc_sample_flow seam.
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    # time-based estimate = 8 L (throughput 4 L/min x 120 s); measured will be 12 L
+    c._timed_volume_l = Mock(return_value=8.0)
+    c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)
+
+    zone = _zone(
+        **{
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_MAXIMUM_BUCKET: 50.0,
+            const.ZONE_DURATION: 120.0,  # seconds
+            const.ZONE_DURATION_UNIT: const.DURATION_UNIT_SECONDS,
+            const.ZONE_THROUGHPUT: 4.0,
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_PER_RUN,
+        }
+    )
+    # Stateful store: async_update_zone merges into the dict get_zone returns, so the
+    # flow_last_end persistence is observable through get_zone.
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+
+    async def _update_zone(zid, changes):
+        store_zone.update(changes)
+
+    c.store.async_update_zone = AsyncMock(side_effect=_update_zone)
+    # Stateful config: hold the in-flight run so _sc_finish_run finds it.
+    active = []
+
+    async def _get_config():
+        return {const.CONF_ACTIVE_VALVE_RUNS: list(active)}
+
+    async def _update_config(changes):
+        if const.CONF_ACTIVE_VALVE_RUNS in changes:
+            active[:] = changes[const.CONF_ACTIVE_VALVE_RUNS]
+
+    c.store.async_get_config = AsyncMock(side_effect=_get_config)
+    c.store.async_update_config = AsyncMock(side_effect=_update_config)
+
+    # Sensor reads 0 at valve-open (the meter is seeded here).
+    current = {"st": _flow_state(0)}
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+    assert ok is True
+
+    # Per-run totalizer climb 0 -> 6 -> 12 -> 12 (L), driven deterministically.
+    for at, val in ((30.0, 6), (60.0, 12), (90.0, 12)):
+        current["st"] = _flow_state(val)
+        c._sc_sample_flow(2, at)
+
+    await c._sc_finish_run(2)
+
+    # Recorded volume is the MEASURED 12 L, not the 8 L time-based estimate.
+    kwargs = c._record_run.await_args.kwargs
+    assert kwargs["volume_l"] == 12.0
+    assert kwargs["add_to_total"] is True
+    # Totalizer end persisted for cross-run learning.
+    assert c.store.get_zone(2)[const.ZONE_FLOW_LAST_END] == 12.0
+
+
+async def test_self_closing_without_flow_sensor_uses_timed_volume(monkeypatch):
+    """Regression guard: a self-closing zone with NO flow_sensor never registers
+    interval sampling and records the time-based volume unchanged (the None path)."""
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    track = Mock(return_value=Mock())
+    monkeypatch.setattr(scmod, "async_track_time_interval", track)
+
+    c = _coord()
+    c._timed_volume_l = Mock(return_value=8.0)
+    c._credited_depth_native = Mock(return_value=4.0)
+
+    zone = _zone(
+        **{
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_DURATION: 120.0,
+            const.ZONE_DURATION_UNIT: const.DURATION_UNIT_SECONDS,
+        }
+    )  # no flow_sensor
+    active = []
+
+    async def _get_config():
+        return {const.CONF_ACTIVE_VALVE_RUNS: list(active)}
+
+    async def _update_config(changes):
+        if const.CONF_ACTIVE_VALVE_RUNS in changes:
+            active[:] = changes[const.CONF_ACTIVE_VALVE_RUNS]
+
+    c.store.async_get_config = AsyncMock(side_effect=_get_config)
+    c.store.async_update_config = AsyncMock(side_effect=_update_config)
+    c.store.get_zone = Mock(return_value=zone)
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+    assert ok is True
+    # No flow_sensor -> the interval sampler is never registered.
+    track.assert_not_called()
+
+    await c._sc_finish_run(2)
+
+    # Time-based volume recorded unchanged; no totalizer end persisted.
+    assert c._record_run.await_args.kwargs["volume_l"] == 8.0
+    flow_end_calls = [
+        ck
+        for ck in c.store.async_update_zone.await_args_list
+        if const.ZONE_FLOW_LAST_END in ck.args[1]
+    ]
+    assert not flow_end_calls
+
+
+async def test_self_closing_sampling_interval_cancelled_on_finish(monkeypatch):
+    """M-2: the 15 s interval sampler is cancelled exactly once at finish and its
+    meter entry is popped from _sc_meters() — no timer leaks past the run."""
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    cancel = Mock()
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=cancel))
+
+    c = _coord()
+    c._timed_volume_l = Mock(return_value=8.0)
+    c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)
+
+    zone = _zone(
+        **{
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_MAXIMUM_BUCKET: 50.0,
+            const.ZONE_DURATION: 120.0,
+            const.ZONE_DURATION_UNIT: const.DURATION_UNIT_SECONDS,
+            const.ZONE_THROUGHPUT: 4.0,
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_PER_RUN,
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+
+    async def _update_zone(zid, changes):
+        store_zone.update(changes)
+
+    c.store.async_update_zone = AsyncMock(side_effect=_update_zone)
+    active = []
+
+    async def _get_config():
+        return {const.CONF_ACTIVE_VALVE_RUNS: list(active)}
+
+    async def _update_config(changes):
+        if const.CONF_ACTIVE_VALVE_RUNS in changes:
+            active[:] = changes[const.CONF_ACTIVE_VALVE_RUNS]
+
+    c.store.async_get_config = AsyncMock(side_effect=_get_config)
+    c.store.async_update_config = AsyncMock(side_effect=_update_config)
+    c.hass.states.get = Mock(return_value=_flow_state(0))
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+    assert ok is True
+    assert 2 in c._sc_meters()  # sampler registered during the run
+
+    await c._sc_finish_run(2)
+
+    cancel.assert_called_once()  # interval cancelled exactly once
+    assert 2 not in c._sc_meters()  # entry popped -> no leak
+
+
+async def test_self_closing_overlap_cancels_prior_interval(monkeypatch):
+    """I-1 regression: a second sampler for the same zone (e.g. a manual run fired
+    during a scheduled one) cancels-and-pops the first interval — the prior 15 s timer
+    is never orphaned, and exactly one meter entry remains."""
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    cancel1, cancel2 = Mock(), Mock()
+    monkeypatch.setattr(
+        scmod, "async_track_time_interval", Mock(side_effect=[cancel1, cancel2])
+    )
+
+    c = _coord()
+    c.hass.states.get = Mock(return_value=_flow_state(0))
+    zone = _zone(**{const.ZONE_FLOW_SENSOR: "sensor.beet_flow"})
+
+    await c._sc_start_flow_sampling(zone)
+    assert c._sc_meters()[2][1] is cancel1  # first interval registered
+    cancel1.assert_not_called()
+
+    await c._sc_start_flow_sampling(zone)
+
+    cancel1.assert_called_once()  # prior interval cancelled, not orphaned
+    cancel2.assert_not_called()
+    assert list(c._sc_meters()) == [2]  # exactly one entry remains
+    assert c._sc_meters()[2][1] is cancel2  # and it is the new sampler
+
+
+async def test_self_closing_measured_bucket_reconciles_from_pre_bucket(monkeypatch):
+    """I-2 regression: when the optimistic TIME-based open credit CLAMPS at the ceiling
+    but the MEASURED volume is smaller, the finish reconciles the bucket ABSOLUTELY from
+    the stashed pre-run level — it must NOT over-empty via a delta correction.
+
+    pre_bucket 0, maximum_bucket 20; time-based credit = 30 mm -> open clamps to 20;
+    measured = 10 L -> bucket must land at min(20, 0 + 10) = 10, NOT the delta result
+    20 + (10 - 30) = 0.
+    """
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    c._timed_volume_l = Mock(return_value=30.0)  # time-based open credit -> depth 30
+    c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)  # identity
+
+    zone = _zone(
+        **{
+            const.ZONE_BUCKET: 0.0,
+            const.ZONE_MAXIMUM_BUCKET: 20.0,
+            const.ZONE_DURATION: 120.0,
+            const.ZONE_DURATION_UNIT: const.DURATION_UNIT_SECONDS,
+            const.ZONE_THROUGHPUT: 4.0,
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_PER_RUN,
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+
+    async def _update_zone(zid, changes):
+        store_zone.update(changes)
+
+    c.store.async_update_zone = AsyncMock(side_effect=_update_zone)
+    active = []
+
+    async def _get_config():
+        return {const.CONF_ACTIVE_VALVE_RUNS: list(active)}
+
+    async def _update_config(changes):
+        if const.CONF_ACTIVE_VALVE_RUNS in changes:
+            active[:] = changes[const.CONF_ACTIVE_VALVE_RUNS]
+
+    c.store.async_get_config = AsyncMock(side_effect=_get_config)
+    c.store.async_update_config = AsyncMock(side_effect=_update_config)
+
+    current = {"st": _flow_state(0)}
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+    assert ok is True
+    # Open credit clamped optimistically at the ceiling (0 + 30 -> 20).
+    assert store_zone[const.ZONE_BUCKET] == 20.0
+    # The persisted run stashed the pre-run bucket for the absolute reconcile.
+    assert active[0][const.RUN_PRE_BUCKET] == 0.0
+
+    # Per-run totalizer climbs 0 -> 5 -> 10 L (measured 10 L < the 30 mm timed credit).
+    for at, val in ((60.0, 5), (120.0, 10)):
+        current["st"] = _flow_state(val)
+        c._sc_sample_flow(2, at)
+
+    await c._sc_finish_run(2)
+
+    # Bucket reconciled ABSOLUTELY from pre_bucket: min(20, 0 + 10) = 10 — NOT the
+    # over-corrected delta result (20 + (10 - 30) = 0).
+    expected = min(20.0, 0.0 + 10.0)
+    assert store_zone[const.ZONE_BUCKET] == expected == 10.0
+    bucket_calls = [
+        ck
+        for ck in c.store.async_update_zone.await_args_list
+        if const.ZONE_BUCKET in ck.args[1]
+    ]
+    assert bucket_calls[-1].args[1][const.ZONE_BUCKET] == 10.0
+    assert bucket_calls[-1].args[1][const.ZONE_BUCKET] > 0.0  # not over-emptied
+    # Recorded usage is the measured 10 L.
+    assert c._record_run.await_args.kwargs["volume_l"] == 10.0
+
+
+async def test_self_closing_advisory_after_repeated_off_rate():
+    """A self-closing (can't-stop) service zone whose MEASURED flow rate is
+    consistently >15% off its configured throughput raises exactly ONE flow-
+    calibration advisory once >= FLOW_CAL_MIN_SAMPLES runs are collected — via the
+    shared base helper _flow_calibration_check (FM-7), the same advisory a can't-stop
+    distributor member gets."""
+    c = _coord()
+    c.hass.config.units = METRIC_SYSTEM  # metric -> recommendation reads in L/min
+    zone = _zone(
+        **{
+            const.ZONE_THROUGHPUT: 4.0,  # configured 4 L/min
+            const.ZONE_FLOW_CAL_SAMPLES: [],
+            const.ZONE_FLOW_CAL_ADVISED: False,
+        }
+    )
+    # Measured 6 L in 60 s -> observed 6 L/min == +50% over the configured 4 L/min.
+    for _ in range(const.FLOW_CAL_MIN_SAMPLES):
+        await c._flow_calibration_check(zone, measured_l=6.0, seconds=60.0)
+        # The Mock store does not mutate the dict; carry the persisted state forward so
+        # the samples accumulate across runs (mirrors the distributor advisory test).
+        changes = c.store.async_update_zone.await_args.args[1]
+        zone[const.ZONE_FLOW_CAL_SAMPLES] = changes[const.ZONE_FLOW_CAL_SAMPLES]
+        if const.ZONE_FLOW_CAL_ADVISED in changes:
+            zone[const.ZONE_FLOW_CAL_ADVISED] = changes[const.ZONE_FLOW_CAL_ADVISED]
+
+    create_calls = [
+        ck
+        for ck in c.hass.services.async_call.await_args_list
+        if ck.args[:2] == ("persistent_notification", "create")
+    ]
+    assert len(create_calls) == 1  # exactly ONE advisory across the threshold
+    msg = create_calls[0].args[2]["message"]
+    assert "flow" in msg and "throughput" in msg  # advisory names the flow/throughput
+    assert "over" in msg  # +50% -> over-watering direction

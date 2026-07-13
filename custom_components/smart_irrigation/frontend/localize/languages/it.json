@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation: controlla la portata",
+    "message_over": "La zona '{zone}' irriga costantemente troppo: la portata misurata è ~{percent}% sopra il valore configurato su {runs} cicli. La sua valvola non può fermarsi prima — imposta la portata a circa {rate} {unit} (attualmente {current}).",
+    "message_under": "La zona '{zone}' irriga costantemente troppo poco: la portata misurata è ~{percent}% sotto il valore configurato su {runs} cicli. La sua valvola non può fermarsi prima — imposta la portata a circa {rate} {unit} (attualmente {current}).",
+    "open_settings": "Apri le impostazioni della zona"
+  },
   "common": {
     "actions": {
       "delete": "Cancella",
@@ -398,6 +404,11 @@
         "bucket_threshold": "Deficit minimo per irrigare",
         "flow_sensor": "Sensore del flussometro (opzionale)",
         "flow_sensor_placeholder": "ad es. sensor.zone_flow_rate",
+        "flow_counter_type": "Tipo di contatore",
+        "flow_counter_type_help": "Come viene letto questo sensore di flusso cumulativo. Auto apprende nel corso di più esecuzioni se il sensore si azzera a ogni esecuzione. Per esecuzione: il sensore torna a ~0 all'inizio di ogni esecuzione e mostra il totale di quell'esecuzione (es. valvole Sonoff/Zigbee). Totale cumulativo: un contatore che sale soltanto nel corso di tutte le esecuzioni (delta per esecuzione).",
+        "flow_counter_type_auto": "Auto (apprendi)",
+        "flow_counter_type_per_run": "Per esecuzione (si azzera a ogni esecuzione)",
+        "flow_counter_type_lifetime": "Totale cumulativo (delta)",
         "watering_mode": "Modalità di irrigazione",
         "watering_mode_description": "Come HASI aziona questa zona. Classica: HASI apre la valvola e la chiude autonomamente con un timer software. Servizio autochiudente: HASI invia la durata dell'irrigazione a una valvola autochiudente tramite uno script (vedi i blueprint delle valvole inclusi) e lascia che sia l'hardware a chiudersi, così un riavvio di HA durante l'irrigazione non può causare un'irrigazione continua.",
         "watering_modes": {
@@ -743,7 +754,7 @@
         "confirm_entity": "Sensore di conferma (opzionale)",
         "confirm_entity_help": "Sensore facoltativo sull'ingresso del distributore che conferma che l'acqua scorre davvero (ad es. un sensore di flusso o di posizione valvola). Se non rileva flusso all'apertura di un'uscita, il ciclo si arresta in sicurezza e segna il distributore come incerto: è il rilevamento di flusso basso / guasti.",
         "flow_sensor": "Sensore di flusso (opzionale)",
-        "flow_sensor_help": "Il misuratore di portata condiviso sull'ingresso (es. L/min, m³/h). Se impostato, il volume effettivamente erogato per uscita viene misurato e contabilizzato invece della stima basata sul tempo. Facoltativo. Quando la valvola può essere fermata (un ingresso classic o un servizio di arresto self-closing), l'uscita viene inoltre fermata in anticipo al raggiungimento del volume target.",
+        "flow_sensor_help": "Il misuratore di portata condiviso sull'ingresso (es. L/min, m³/h). Se impostato, il volume effettivamente erogato per uscita viene misurato e contabilizzato invece della stima basata sul tempo. Facoltativo. Quando la valvola può essere fermata (un ingresso classic o un servizio di arresto self-closing), l'uscita viene inoltre fermata in anticipo al raggiungimento del volume target. Sono supportati sia un misuratore di portata istantaneo (es. L/min) sia un contatore totalizzatore cumulativo (es. m³ o state_class: total_increasing); il tipo viene rilevato automaticamente dall'unità.",
         "pause_seconds": "Pausa di avanzamento",
         "skip_pulse_seconds": "Impulso di salto",
         "notify_target": "Destinazione notifica (opzionale)",

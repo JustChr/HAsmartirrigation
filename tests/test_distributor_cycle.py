@@ -482,7 +482,7 @@ async def test_cycle_stops_after_last_due_outlet():
     c._dist_needs_water = Mock(side_effect=lambda z: (z.get("duration") or 0) > 0)
     credited = []
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, w, measured_l=None, planned_seconds=None: credited.append(
+        side_effect=lambda z, w, measured_l=None, planned_seconds=None, result=None: credited.append(
             z["outlet_number"]
         )
     )
@@ -551,7 +551,7 @@ async def test_cycle_leading_skip_to_reach_later_due():
     c._dist_needs_water = Mock(side_effect=lambda z: (z.get("duration") or 0) > 0)
     credited = []
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, w, measured_l=None, planned_seconds=None: credited.append(
+        side_effect=lambda z, w, measured_l=None, planned_seconds=None, result=None: credited.append(
             z["outlet_number"]
         )
     )

@@ -23,6 +23,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
 
 from . import const
+from .flow_metering import FlowMeter, flow_learn_resolve
 from .localize import localize
 
 _LOGGER = logging.getLogger(__name__)
@@ -473,26 +474,10 @@ class DistributorMixin:
     # _dist_credit_zone. No early stop — the full window always elapses (early
     # stop by target volume is Part B). ------------------------------------
 
-    @staticmethod
-    def _dist_flow_unit_is_rate(unit: str) -> bool:
-        """A flow unit is a RATE (per-time) iff it contains '/'; else a cumulative
-        total counter."""
-        return "/" in (unit or "")
-
-    @staticmethod
-    def _dist_flow_litres_from_total(value: float, unit: str) -> float:
-        """Convert a cumulative flow-counter reading to litres. Mirrors
-        _flow_rate_to_l_per_min's unit strings/factors (totals, not rates)."""
-        u = (unit or "").lower().strip()
-        if u in ("m³", "m3", "cubic meter", "cubic meters"):
-            return float(value) * 1000.0
-        if u in ("gal", "gallon", "gallons"):
-            return float(value) * 3.785411784
-        return float(value)  # L / l / liter(s) / unknown -> assume litres
-
     def _dist_read_flow(self, sensor: str):
-        """Read a flow sensor -> (value, unit) or None when unavailable/non-numeric
-        (fail-safe: the caller then degrades to time-based crediting)."""
+        """Read a flow sensor -> (value, unit, state_class) or None when
+        unavailable/non-numeric (fail-safe: the caller then degrades to time-based
+        crediting)."""
         state = self.hass.states.get(sensor)
         if state is None or getattr(state, "state", None) in (
             "unavailable",
@@ -508,17 +493,20 @@ class DistributorMixin:
         unit = (
             state.attributes.get("unit_of_measurement", "") if state.attributes else ""
         )
-        return value, unit
+        state_class = state.attributes.get("state_class") if state.attributes else None
+        return value, unit, state_class
 
     async def _dist_measure_window(
         self, distributor: dict, window: float, *, cap=None, target=None
     ):
         """Sleep the outlet's window (or up to ``cap`` when early-stopping) and, if the
-        distributor has a rate flow_sensor, meter the delivered litres. Returns a tuple
+        distributor has a flow_sensor, meter the delivered litres. The sensor is metered
+        by the shared ``FlowMeter`` engine (rate / per-run counter / lifetime totalizer
+        per its unit/state_class); no feature flag. Returns a tuple
         ``(delivered, actual_seconds, stopped_early)``:
 
         - ``delivered`` — measured litres, or None to fall back to time-based crediting
-          (no sensor / unreliable / a cumulative counter while metering is dormant).
+          (no sensor / dead meter / unreliable reading).
         - ``actual_seconds`` — time actually elapsed (== ``window`` on any non-metering
           path; < ``cap`` when a ``target`` is hit; == ``cap`` at the safety cap).
         - ``stopped_early`` — True iff ``target`` was reached before ``cap`` elapsed.
@@ -526,7 +514,7 @@ class DistributorMixin:
         ``cap`` (defaults to ``window``) is the metering time bound: the classic-extend
         path passes the member's safety maximum_duration so a slow flow can still reach
         the target past the nominal window. Every NON-metering path sleeps only
-        ``window`` (never ``cap``), so a dead / cumulative meter never extends the run.
+        ``window`` (never ``cap``), so a dead meter never extends the run.
         Part A behaviour is preserved when ``target`` is None (full ``cap`` elapses).
         """
         window = float(window or 0)
@@ -539,43 +527,39 @@ class DistributorMixin:
         if reading is None:
             await self._dist_sleep(window)  # dead meter -> full window, time-based
             return None, window, False
-        _, unit = reading
-        is_rate = self._dist_flow_unit_is_rate(unit)
-        # b23 ships RATE-ONLY: a cumulative counter is dormant behind the flag and gets
-        # no metering (hence no early stop) — sleep the window, credit time-based.
-        if not is_rate and not const.DISTRIBUTOR_CUMULATIVE_METERING_ENABLED:
-            await self._dist_sleep(window)
-            return None, window, False
-        last = None if is_rate else self._dist_flow_litres_from_total(reading[0], unit)
-        delivered = 0.0
-        reliable = True
+        # Iter FM-6 (unified flow engine): the shared inlet meter now feeds a FlowMeter
+        # (rate / per-run counter / lifetime totalizer). Preserves cap/target early-stop
+        # and the None fallback; fixes the per-run-counter blind spot. Counter type is
+        # resolved read-only from the distributor override / streak (auto -> lifetime-safe;
+        # the inlet reset cadence is a live-verification item, so the distributor does not
+        # self-learn per_run here). See test_distributor flow-window coverage.
+        resolved = flow_learn_resolve(
+            distributor.get(const.ZONE_FLOW_COUNTER_TYPE, "auto"),
+            int(distributor.get(const.ZONE_FLOW_RESET_STREAK) or 0),
+        )
+        meter = FlowMeter(
+            resolved,
+            near_zero_frac=const.FLOW_NEAR_ZERO_FRAC,
+            near_zero_floor=const.FLOW_NEAR_ZERO_FLOOR,
+        )
+        meter.sample(reading[0], reading[1], reading[2], 0.0)  # valve-open seed
         elapsed = 0.0
         while elapsed < cap:
-            if target is not None and delivered >= target:
+            if target is not None and (meter.delivered() or 0.0) >= target:
                 break  # early stop: reached the target volume
             step = min(float(const.DISTRIBUTOR_FLOW_POLL_SECONDS), cap - elapsed)
             await self._dist_sleep(step)
             elapsed += step
             r = self._dist_read_flow(sensor)
-            if r is None:
-                reliable = False
-                continue
-            val, u = r
-            if is_rate:
-                delivered += self._flow_rate_to_l_per_min(val, u) * step / 60.0
-            else:
-                cur = self._dist_flow_litres_from_total(val, u)
-                if cur < last:  # counter reset / rollover -> unreliable
-                    reliable = False
-                else:
-                    delivered += cur - last
-                last = cur
-        stopped_early = target is not None and delivered >= target and elapsed < cap
-        # Part B fail-safe: a valve that stayed open but registered NO flow (a live but
-        # dry meter — stuck valve, air-lock, pressure loss) delivered 0 L. Crediting 0
-        # would leave the member in permanent deficit; instead treat it as unreliable so
-        # the caller falls back to time-based crediting (spec: delivered <= 0 -> None).
-        reliable = reliable and delivered > 0
+            if r is not None:
+                meter.sample(r[0], r[1], r[2], elapsed)
+        delivered = meter.delivered()
+        stopped_early = (
+            target is not None and (delivered or 0.0) >= target and elapsed < cap
+        )
+        # Part B fail-safe: a live-but-dry meter delivered 0 L -> unreliable so the caller
+        # falls back to time-based crediting (spec: delivered <= 0 -> None).
+        reliable = delivered is not None and delivered > 0
         return (delivered if reliable else None), elapsed, stopped_early
 
     async def _dist_members(self, distributor_id) -> list:
@@ -831,6 +815,12 @@ class DistributorMixin:
             trigger=trigger,
             add_to_total=True,
         )
+
+    async def _dist_flow_calibration_check(
+        self, zone: dict, measured_l: float, seconds: float
+    ) -> None:
+        """Distributor member advisory -> shared _flow_calibration_check (FM-7)."""
+        await self._flow_calibration_check(zone, measured_l, seconds)
 
     # --- cycle loop --------------------------------------------------------
 
@@ -1180,13 +1170,45 @@ class DistributorMixin:
                     )
                     return False
 
-            measured, actual_seconds, _ = await self._dist_measure_window(
+            measured, actual_seconds, stopped_early = await self._dist_measure_window(
                 distributor, window, cap=cap, target=target
             )
             if water:
-                await self._dist_credit_zone(
-                    zone, actual_seconds, measured_l=measured, planned_seconds=window
+                # Review-M-1: a metered run that ended BELOW a set target volume is a
+                # partial (under-)delivery, not a completion. Key on the measured volume
+                # directly (not `stopped_early`), so a target reached on the very last
+                # poll — where `elapsed == cap` exits the loop before the early-stop
+                # break — still logs COMPLETED. A time-based fallback (measured is None)
+                # can't tell, so it stays COMPLETED.
+                run_result = (
+                    const.RUN_RESULT_PARTIAL
+                    if (
+                        measured is not None
+                        and target is not None
+                        and measured < target
+                    )
+                    else const.RUN_RESULT_COMPLETED
                 )
+                await self._dist_credit_zone(
+                    zone,
+                    actual_seconds,
+                    measured_l=measured,
+                    planned_seconds=window,
+                    result=run_result,
+                )
+                # Calibration advisory: only a can't-stop member with a reliable measured
+                # volume can drift silently (a can-stop member early-stops at target; a
+                # time-based fallback can't be trusted here). The advisory keys on the
+                # OBSERVED FLOW RATE (measured_l / minutes) vs the configured throughput,
+                # which is immune to the zone multiplier and the duration clamp — so no
+                # `tv > 0` gate is needed. EXCLUDE manual custom-duration runs
+                # (duration_override): a user-set window is not a scheduled sample of the
+                # valve's real rate. can_stop is bound in the earlier `if water:` block
+                # (same `water`), so it is always in scope on this path.
+                if not can_stop and measured is not None and not duration_override:
+                    await self._dist_flow_calibration_check(
+                        zone, measured_l=measured, seconds=actual_seconds
+                    )
             await self._dist_close_inlet(distributor)
 
             # E1 (early-stop): the inter-outlet pause + master re-arm run only

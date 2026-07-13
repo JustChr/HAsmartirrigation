@@ -41,9 +41,7 @@ class TestSmartIrrigationStore:
         # New experimental flag is present and defaults off.
         assert cfg.get(const.CONF_DISTRIBUTORS_ENABLED) is False
         # A partial update round-trips without clobbering other settings.
-        updated = await reg.async_update_config(
-            {const.CONF_DISTRIBUTORS_ENABLED: True}
-        )
+        updated = await reg.async_update_config({const.CONF_DISTRIBUTORS_ENABLED: True})
         assert updated[const.CONF_DISTRIBUTORS_ENABLED] is True
         assert const.CONF_USE_WEATHER_SERVICE in updated
 
@@ -63,6 +61,36 @@ class TestSmartIrrigationStore:
 
         await reg.async_delete_zone(zone_id)
         assert reg.get_zone(zone_id) is None
+
+    async def test_zone_flow_counter_fields_roundtrip(self, hass) -> None:
+        """flow_counter_type override + cross-run learning fields (FM-2).
+
+        A freshly created zone defaults to auto / 0 / None; explicit values for
+        the override and the internal learning state round-trip unchanged
+        through create + update (attr.asdict).
+        """
+        reg = await async_get_registry(hass)
+
+        # Defaults on a brand-new zone.
+        created = await reg.async_create_zone({"name": "Beet"})
+        zone_id = created["id"]
+        assert created[const.ZONE_FLOW_COUNTER_TYPE] == "auto"
+        assert created[const.ZONE_FLOW_RESET_STREAK] == 0
+        assert created[const.ZONE_FLOW_LAST_END] is None
+
+        # Explicit override + learning state round-trip through update + get_zone.
+        await reg.async_update_zone(
+            zone_id,
+            {
+                const.ZONE_FLOW_COUNTER_TYPE: "per_run",
+                const.ZONE_FLOW_RESET_STREAK: 2,
+                const.ZONE_FLOW_LAST_END: 12.0,
+            },
+        )
+        stored = reg.get_zone(zone_id)
+        assert stored[const.ZONE_FLOW_COUNTER_TYPE] == "per_run"
+        assert stored[const.ZONE_FLOW_RESET_STREAK] == 2
+        assert stored[const.ZONE_FLOW_LAST_END] == 12.0
 
     async def test_module_crud(self, hass) -> None:
         reg = await async_get_registry(hass)

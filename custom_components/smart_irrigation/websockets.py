@@ -266,6 +266,9 @@ class SmartIrrigationZoneView(HomeAssistantView):
                 vol.Optional(const.ZONE_LINKED_ENTITY): vol.Or(str, None),
                 vol.Optional(const.ZONE_BUCKET_THRESHOLD): vol.Or(float, int, None),
                 vol.Optional(const.ZONE_FLOW_SENSOR): vol.Or(str, None),
+                # FM: user override for totalizer read mode (auto/per_run/lifetime).
+                # Only this one is CRUD-editable; the learning fields are internal.
+                vol.Optional(const.ZONE_FLOW_COUNTER_TYPE): vol.Or(str, None),
                 # Task 3 (Plan E): zone-to-distributor membership fields, so the
                 # panel's zone form can map a zone to a distributor+outlet.
                 # Coerced explicitly (not just passed through via ALLOW_EXTRA)
@@ -285,16 +288,25 @@ class SmartIrrigationZoneView(HomeAssistantView):
         zone = int(data[const.ZONE_ID]) if const.ZONE_ID in data else None
         # The panel's zone settings form saves a zone by POSTing the WHOLE zone object.
         # That object carries server-owned run-accounting fields (water_used_total, the
-        # run log, last_irrigation) from the browser's snapshot. If the settings page was
-        # left open across an irrigation run, the snapshot is stale, and saving any setting
-        # would overwrite the live values — reverting that run's usage total and deleting
-        # its history entry. Drop these fields from a client save so the runner remains
-        # their sole writer (it writes them via the store directly, not through this view).
+        # run log, last_irrigation) plus the flow engine's server-owned learning and
+        # calibration state (flow_last_end / flow_reset_streak drive cross-run counter
+        # learning; flow_calibration_samples / _advised back the calibration advisory)
+        # from the browser's snapshot. If the settings page was left open across an
+        # irrigation run, the snapshot is stale, and saving any setting would overwrite
+        # the live values — reverting that run's usage total, deleting its history entry,
+        # or resetting the flow learning/calibration state. Drop these fields from a client
+        # save so the runner remains their sole writer (it writes them via the store
+        # directly, not through this view). flow_counter_type is intentionally NOT here —
+        # it is a user-editable config field set from this very form.
         # See test_zone_view_ignores_server_owned_fields.
         for _server_owned in (
             const.ZONE_WATER_USED_TOTAL,
             const.ZONE_RUN_LOG,
             const.ZONE_LAST_IRRIGATION,
+            const.ZONE_FLOW_LAST_END,
+            const.ZONE_FLOW_RESET_STREAK,
+            const.ZONE_FLOW_CAL_SAMPLES,
+            const.ZONE_FLOW_CAL_ADVISED,
         ):
             data.pop(_server_owned, None)
         try:

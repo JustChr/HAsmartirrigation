@@ -139,6 +139,7 @@ export const ZONE_PLANT_TYPE = "plant_type";
 export const ZONE_LINKED_ENTITY = "linked_entity";
 export const ZONE_BUCKET_THRESHOLD = "bucket_threshold";
 export const ZONE_FLOW_SENSOR = "flow_sensor";
+export const ZONE_FLOW_COUNTER_TYPE = "flow_counter_type";
 export const ZONE_WATERING_MODE = "watering_mode";
 export const ZONE_RUN_SERVICE = "run_service";
 export const ZONE_DURATION_FIELD = "duration_field";

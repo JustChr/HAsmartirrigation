@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation: skontrolujte prietok",
+    "message_over": "Zóna '{zone}' trvalo zavlažuje priveľa: nameraný prietok je ~{percent}% nad nastavenou hodnotou počas {runs} cyklov. Jej ventil sa nedokáže zastaviť skôr — nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
+    "message_under": "Zóna '{zone}' trvalo zavlažuje primálo: nameraný prietok je ~{percent}% pod nastavenou hodnotou počas {runs} cyklov. Jej ventil sa nedokáže zastaviť skôr — nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
+    "open_settings": "Otvoriť nastavenia zóny"
+  },
   "common": {
     "actions": {
       "delete": "Zmazať",
@@ -353,6 +359,11 @@
         "bucket_threshold": "Minimálny deficit pre závlahu",
         "flow_sensor": "Senzor prietokomera (voliteľné)",
         "flow_sensor_placeholder": "napr. sensor.zone_flow_rate",
+        "flow_counter_type": "Typ počítadla",
+        "flow_counter_type_help": "Ako sa číta tento kumulatívny prietokový snímač. Auto sa počas viacerých behov naučí, či sa snímač pri každom behu vynuluje. Za beh: snímač sa na začiatku každého behu vráti na ~0 a zobrazuje celkové množstvo daného behu (napr. ventily Sonoff/Zigbee). Celkové počítadlo: počítadlo, ktoré počas všetkých behov iba narastá (delta za beh).",
+        "flow_counter_type_auto": "Auto (učenie)",
+        "flow_counter_type_per_run": "Za beh (vynuluje sa pri každom behu)",
+        "flow_counter_type_lifetime": "Celkové počítadlo (delta)",
         "watering_mode": "Režim zavlažovania",
         "watering_mode_description": "Ako HASI ovláda túto zónu. Klasický: HASI otvorí ventil a sám ho zatvorí softvérovým časovačom. Samozatváracia služba: HASI odošle trvanie behu samozatváraciemu ventilu cez skript (pozri dodané blueprinty ventilov) a nechá hardvér, aby sa zatvoril sám, takže reštart HA počas behu nemôže spôsobiť nepretržité zavlažovanie.",
         "watering_modes": {
@@ -738,7 +749,7 @@
         "confirm_entity": "Potvrdzovací senzor (voliteľné)",
         "confirm_entity_help": "Voliteľný senzor na vstupe rozvádzača, ktorý potvrdzuje, že voda skutočne tečie (napr. senzor prietoku alebo polohy ventilu). Ak pri otvorení výstupu nezistí prietok, cyklus sa bezpečne zastaví a označí rozvádzač ako neistý – to je detekcia nízkeho prietoku/porúch.",
         "flow_sensor": "Senzor prietoku (voliteľné)",
-        "flow_sensor_help": "Zdieľaný prietokomer na vstupe (napr. L/min, m³/h). Ak je nastavený, skutočne dodaný objem na každý výstup sa meria a započítava namiesto časového odhadu. Voliteľné. Ak sa ventil dá zastaviť (vstup classic alebo zastavovacia služba self-closing), výstup sa navyše zastaví predčasne po dosiahnutí cieľového objemu.",
+        "flow_sensor_help": "Zdieľaný prietokomer na vstupe (napr. L/min, m³/h). Ak je nastavený, skutočne dodaný objem na každý výstup sa meria a započítava namiesto časového odhadu. Voliteľné. Ak sa ventil dá zastaviť (vstup classic alebo zastavovacia služba self-closing), výstup sa navyše zastaví predčasne po dosiahnutí cieľového objemu. Podporovaný je jednak okamžitý prietokomer (napr. L/min), jednak kumulatívny počítadlový snímač (napr. m³ alebo state_class: total_increasing); typ sa zistí automaticky podľa jednotky.",
         "pause_seconds": "Pauza posunu",
         "skip_pulse_seconds": "Preskakovací impulz",
         "notify_target": "Cieľ upozornenia (voliteľné)",

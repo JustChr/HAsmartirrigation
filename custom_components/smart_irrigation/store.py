@@ -125,6 +125,11 @@ from .const import (
     ZONE_DELTA,
     ZONE_DRAINAGE_RATE,
     ZONE_DURATION,
+    ZONE_FLOW_CAL_ADVISED,
+    ZONE_FLOW_CAL_SAMPLES,
+    ZONE_FLOW_COUNTER_TYPE,
+    ZONE_FLOW_LAST_END,
+    ZONE_FLOW_RESET_STREAK,
     ZONE_FLOW_SENSOR,
     ZONE_ID,
     ZONE_IRRIGATION_TARGET_BUCKET,
@@ -222,6 +227,18 @@ class ZoneEntry:
     # Observed-watering (opt-in): physical valve/switch watched for EXTERNAL runs
     # of a service/self-closing zone (no linked_entity). See ZONE_OBSERVED_ENTITY.
     observed_entity = attr.ib(type=str, default=None)
+    # Unified flow engine (opt override): how a totalizer flow_sensor is read
+    # ('auto' | 'per_run' | 'lifetime'). Default 'auto'. Additive (no schema bump).
+    flow_counter_type = attr.ib(type=str, default="auto")
+    # Cross-run flow-counter learning (auto mode): the previous run's end value (litres)
+    # and the consecutive-open-reset streak. Additive. See flow_metering.flow_learn_*.
+    flow_last_end = attr.ib(type=float, default=None)
+    flow_reset_streak = attr.ib(type=int, default=0)
+    # Per-member flow-calibration advisory (distributor can't-stop members): rolling
+    # measured-vs-target volume samples + a one-shot "advised" marker so the
+    # persistent notification is raised once, not every run. See ZONE_FLOW_CAL_*.
+    flow_calibration_samples = attr.ib(type=list, factory=list)
+    flow_calibration_advised = attr.ib(type=bool, default=False)
     # Optional per-zone soil-moisture wet-veto: sensor entity (% moisture, higher
     # = wetter) + threshold. Both None = feature off. See _apply_soil_moisture_veto.
     soil_moisture_sensor = attr.ib(type=str, default=None)
@@ -773,6 +790,17 @@ class SmartIrrigationStorage:
                         stop_service=zone.get("stop_service", None),
                         confirm_entity=zone.get("confirm_entity", None),
                         observed_entity=zone.get(ZONE_OBSERVED_ENTITY, None),
+                        # Migration: pre-FM zones have no counter override / learning
+                        # state; default to auto and a clean streak (additive).
+                        flow_counter_type=zone.get(ZONE_FLOW_COUNTER_TYPE, "auto")
+                        or "auto",
+                        flow_last_end=zone.get(ZONE_FLOW_LAST_END, None),
+                        flow_reset_streak=zone.get(ZONE_FLOW_RESET_STREAK, 0) or 0,
+                        # Migration: pre-calibration zones start with no samples and
+                        # no advisory raised (additive, .get default like above).
+                        flow_calibration_samples=zone.get(ZONE_FLOW_CAL_SAMPLES, [])
+                        or [],
+                        flow_calibration_advised=zone.get(ZONE_FLOW_CAL_ADVISED, False),
                         soil_moisture_sensor=zone.get("soil_moisture_sensor", None),
                         soil_moisture_threshold=zone.get(
                             "soil_moisture_threshold", None

@@ -1198,7 +1198,7 @@ async def test_manual_run_waters_non_due_member():
     c.store.async_get_zones = AsyncMock(return_value=members)
     credited = []
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, w, measured_l=None, planned_seconds=None: credited.append(
+        side_effect=lambda z, w, measured_l=None, planned_seconds=None, result=None: credited.append(
             z["id"]
         )
     )
@@ -1265,7 +1265,7 @@ async def test_sweep_credits_measured_flow_volume():
     c._dist_measure_window = AsyncMock(return_value=(9.0, 60, False))
     credited = {}
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, s, measured_l=None, planned_seconds=None: credited.update(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
             v=measured_l
         )
     )
@@ -1309,7 +1309,7 @@ async def test_sweep_classic_passes_target_and_extend_cap():
     c._dist_measure_window = _fake_measure
     credited = {}
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, s, measured_l=None, planned_seconds=None: credited.update(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
             seconds=s, measured=measured_l, planned=planned_seconds
         )
     )
@@ -1429,3 +1429,132 @@ async def test_sweep_no_flow_sensor_no_target():
     )
     assert seen["target"] is None  # no meter -> no early stop
     assert seen["cap"] == 60  # cap == window
+
+
+async def test_sweep_logs_partial_when_cap_hit_without_target():
+    """Review-M-1: a metered classic member that runs its full safety cap WITHOUT
+    reaching its volume target (stopped_early is False) is a partial under-delivery,
+    so the recorded run must be RUN_RESULT_PARTIAL — not the default COMPLETED."""
+    c = _host()
+    c._dist_uses_master = Mock(return_value=False)
+    _cycle_mocks(c)
+    c._dist_needs_water = Mock(return_value=True)
+    c._zone_target_bucket = Mock(return_value=0.0)
+    c._metered_target_volume = Mock(return_value=12.0)  # positive target
+    # measured 5 L (< 12 L target), ran the full 900 s cap, did NOT stop early
+    c._dist_measure_window = AsyncMock(return_value=(5.0, 900, False))
+    credited = {}
+    c._dist_credit_zone = AsyncMock(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+            result=result
+        )
+    )
+    c.store.async_get_zones = AsyncMock(
+        return_value=[
+            {
+                "id": 7,
+                "distributor_id": 0,
+                "outlet_number": 1,
+                "duration": 60,
+                "maximum_duration": 900,
+                "bucket": -3,
+                "bucket_threshold": 0,
+                "state": "automatic",
+            }
+        ]
+    )
+    await c.async_run_distributor_cycle(
+        _dist(
+            id=0,
+            current_outlet=1,
+            watering_mode=const.WATERING_MODE_CLASSIC,
+            flow_sensor="sensor.inlet_flow",
+        )
+    )
+    assert credited["result"] == const.RUN_RESULT_PARTIAL
+
+
+async def test_sweep_logs_completed_when_target_reached_at_cap():
+    """Review-M-1 boundary (final-review #2): a target met on the LAST poll — where
+    `elapsed == cap` exits the loop before the early-stop break, so stopped_early is
+    False — must still log COMPLETED. The result keys on the measured volume
+    (measured >= target), not on stopped_early."""
+    c = _host()
+    c._dist_uses_master = Mock(return_value=False)
+    _cycle_mocks(c)
+    c._dist_needs_water = Mock(return_value=True)
+    c._zone_target_bucket = Mock(return_value=0.0)
+    c._metered_target_volume = Mock(return_value=12.0)  # positive target
+    # measured == target but the cap elapsed (stopped_early False): NOT a partial.
+    c._dist_measure_window = AsyncMock(return_value=(12.0, 900, False))
+    credited = {}
+    c._dist_credit_zone = AsyncMock(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+            result=result
+        )
+    )
+    c.store.async_get_zones = AsyncMock(
+        return_value=[
+            {
+                "id": 7,
+                "distributor_id": 0,
+                "outlet_number": 1,
+                "duration": 60,
+                "maximum_duration": 900,
+                "bucket": -3,
+                "bucket_threshold": 0,
+                "state": "automatic",
+            }
+        ]
+    )
+    await c.async_run_distributor_cycle(
+        _dist(
+            id=0,
+            current_outlet=1,
+            watering_mode=const.WATERING_MODE_CLASSIC,
+            flow_sensor="sensor.inlet_flow",
+        )
+    )
+    assert credited["result"] == const.RUN_RESULT_COMPLETED
+
+
+async def test_sweep_logs_completed_when_target_reached():
+    """Review-M-1 counterpart: the same metered classic member that DOES reach its
+    target (stopped_early is True) stays RUN_RESULT_COMPLETED."""
+    c = _host()
+    c._dist_uses_master = Mock(return_value=False)
+    _cycle_mocks(c)
+    c._dist_needs_water = Mock(return_value=True)
+    c._zone_target_bucket = Mock(return_value=0.0)
+    c._metered_target_volume = Mock(return_value=12.0)  # positive target
+    # measured == target, stopped early before the cap
+    c._dist_measure_window = AsyncMock(return_value=(12.0, 120, True))
+    credited = {}
+    c._dist_credit_zone = AsyncMock(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+            result=result
+        )
+    )
+    c.store.async_get_zones = AsyncMock(
+        return_value=[
+            {
+                "id": 7,
+                "distributor_id": 0,
+                "outlet_number": 1,
+                "duration": 60,
+                "maximum_duration": 900,
+                "bucket": -3,
+                "bucket_threshold": 0,
+                "state": "automatic",
+            }
+        ]
+    )
+    await c.async_run_distributor_cycle(
+        _dist(
+            id=0,
+            current_outlet=1,
+            watering_mode=const.WATERING_MODE_CLASSIC,
+            flow_sensor="sensor.inlet_flow",
+        )
+    )
+    assert credited["result"] == const.RUN_RESULT_COMPLETED

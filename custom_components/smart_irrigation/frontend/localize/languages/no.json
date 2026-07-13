@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation: sjekk gjennomstrømningen",
+    "message_over": "Sonen '{zone}' vanner konsekvent for mye: den målte gjennomstrømningen er ~{percent}% over den konfigurerte raten over {runs} kjøringer. Ventilen kan ikke stoppe tidligere — sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
+    "message_under": "Sonen '{zone}' vanner konsekvent for lite: den målte gjennomstrømningen er ~{percent}% under den konfigurerte raten over {runs} kjøringer. Ventilen kan ikke stoppe tidligere — sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
+    "open_settings": "Åpne soneinnstillinger"
+  },
   "common": {
     "actions": {
       "delete": "Slett",
@@ -354,6 +360,11 @@
         "bucket_threshold": "Minimum underskudd for vanning",
         "flow_sensor": "Strømningsmåler-sensor (valgfritt)",
         "flow_sensor_placeholder": "f.eks. sensor.zone_flow_rate",
+        "flow_counter_type": "Tellertype",
+        "flow_counter_type_help": "Hvordan denne kumulative strømningssensoren leses. Auto lærer over flere kjøringer om sensoren nullstilles ved hver kjøring. Per kjøring: sensoren går tilbake til ~0 ved starten av hver kjøring og viser totalen for den kjøringen (f.eks. Sonoff-/Zigbee-ventiler). Total tellerstand: en teller som bare teller oppover gjennom alle kjøringer (delta per kjøring).",
+        "flow_counter_type_auto": "Auto (lær)",
+        "flow_counter_type_per_run": "Per kjøring (nullstilles hver kjøring)",
+        "flow_counter_type_lifetime": "Total tellerstand (delta)",
         "watering_mode": "Vanningsmodus",
         "watering_mode_description": "Hvordan HASI styrer denne sonen. Klassisk: HASI åpner ventilen og lukker den selv med en programvaretidtaker. Selvlukkende tjeneste: HASI sender kjørevarigheten til en selvlukkende ventil via et script (se de medfølgende ventil-blueprintene) og lar maskinvaren lukke seg selv, slik at en HA-omstart midt i en kjøring ikke kan forårsake kontinuerlig vanning.",
         "watering_modes": {
@@ -740,7 +751,7 @@
         "confirm_entity": "Bekreftelsessensor (valgfritt)",
         "confirm_entity_help": "Valgfri sensor på fordelerinnløpet som bekrefter at vann faktisk strømmer (f.eks. en strømnings- eller ventilposisjonssensor). Hvis den ikke melder strømning når en utgang åpnes, stopper syklusen trygt og markerer fordeleren som usikker – dette er lav-strømnings-/feildeteksjonen.",
         "flow_sensor": "Strømningssensor (valgfritt)",
-        "flow_sensor_help": "Den delte strømningsmåleren på innløpet (f.eks. L/min, m³/h). Når den er satt, måles og bokføres det faktisk leverte volumet per utgang i stedet for tidsestimatet. Valgfritt. Der ventilen kan stoppes (et classic-innløp eller en self-closing stopptjeneste), stoppes utgangen dessuten tidlig når målvolumet er nådd.",
+        "flow_sensor_help": "Den delte strømningsmåleren på innløpet (f.eks. L/min, m³/h). Når den er satt, måles og bokføres det faktisk leverte volumet per utgang i stedet for tidsestimatet. Valgfritt. Der ventilen kan stoppes (et classic-innløp eller en self-closing stopptjeneste), stoppes utgangen dessuten tidlig når målvolumet er nådd. Både en momentan strømningsmåler (f.eks. L/min) og en kumulativ tellerstand (f.eks. m³ eller state_class: total_increasing) støttes; typen registreres automatisk ut fra enheten.",
         "pause_seconds": "Fremrykkingspause",
         "skip_pulse_seconds": "Hopp-puls",
         "notify_target": "Varslingsmål (valgfritt)",

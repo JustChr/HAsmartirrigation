@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import logging
 import math
+from datetime import timedelta
 
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from . import const
@@ -84,6 +85,70 @@ class SelfClosingMixin:
         ]
         await self._sc_persist_runs(runs)
 
+    def _sc_meters(self) -> dict:
+        """Lazy {zone_id: (FlowMeter, cancel_cb)} of in-flight self-closing flow meters."""
+        meters = getattr(self, "_sc_flow_meters", None)
+        if meters is None:
+            meters = self._sc_flow_meters = {}
+        return meters
+
+    async def _sc_start_flow_sampling(self, zone: dict) -> None:
+        """Start NON-blocking interval sampling of a self-closing zone's flow_sensor.
+
+        No-op when the zone has no flow_sensor. Feeds a per-zone FlowMeter (counter type
+        resolved from the per-zone override / learned streak) that _sc_finish_run /
+        async_stop_self_closing finalize into the measured volume. The run itself stays
+        fire-and-forget (the hardware owns the close); a mid-run HA restart loses the
+        in-memory meter and the caller falls back to the time-based volume (safe).
+        See test_self_closing.
+        """
+        sensor = zone.get(const.ZONE_FLOW_SENSOR)
+        if not sensor:
+            return
+        zone_id = zone.get(const.ZONE_ID)
+        # Never orphan a prior in-flight interval for this zone (e.g. a manual run fired
+        # during a scheduled run): cancel-and-pop before installing the new sampler.
+        # _sc_finish_flow tolerates a missing entry (returns (None, {})).
+        self._sc_finish_flow(zone_id)
+        sample = self._read_flow_sample(sensor)
+        meter, start_changes = self._flow_build_meter(zone, sample)  # seeds at open
+        if start_changes:
+            await self.store.async_update_zone(zone_id, start_changes)
+        started = dt_util.utcnow()
+
+        async def _tick(now):
+            self._sc_sample_flow(zone_id, (now - started).total_seconds())
+
+        cancel = async_track_time_interval(
+            self.hass, _tick, timedelta(seconds=const.FLOW_POLL_INTERVAL)
+        )
+        self._sc_meters()[zone_id] = (meter, cancel)
+
+    def _sc_sample_flow(self, zone_id, at: float) -> None:
+        """Feed the zone's in-flight meter one reading at monotonic ``at`` (also the test
+        seam so a test can drive sampling deterministically)."""
+        entry = self._sc_meters().get(zone_id)
+        if not entry:
+            return
+        meter, _cancel = entry
+        zone = self.store.get_zone(zone_id) or {}
+        sample = self._read_flow_sample(zone.get(const.ZONE_FLOW_SENSOR))
+        if sample is not None:
+            meter.sample(*sample, at=at)
+
+    def _sc_finish_flow(self, zone_id):
+        """Cancel a zone's sampling and return (measured_l | None, end_changes). measured
+        is None when there is no sensor, the meter was lost to a restart, or no positive
+        flow was seen (caller then keeps its time-based volume)."""
+        entry = self._sc_meters().pop(zone_id, None)
+        if not entry:
+            return None, {}
+        meter, cancel = entry
+        cancel()
+        d = meter.delivered()
+        measured = d if (d is not None and d > 0) else None
+        return measured, self._flow_end_changes(meter)
+
     async def _sc_finish_run(self, zone_id) -> None:
         """Finalise a completed run: record actual usage, clear, fire finished.
 
@@ -99,7 +164,28 @@ class SelfClosingMixin:
         # Count usage once, at completion, for the actual delivered volume (the
         # run ran for its full planned duration).
         planned_s = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
-        volume_l = self._timed_volume_l(zone, planned_s)
+        # Iter FM-5: prefer the measured volume from the non-blocking sampler over the
+        # open-time time-based estimate. Cancel the sampler + persist the totalizer end
+        # for cross-run learning. measured is None when the zone has no flow_sensor, the
+        # meter was lost to a restart, or no positive flow was seen -> time-based volume.
+        measured, end_changes = self._sc_finish_flow(zone_id)
+        if end_changes:
+            await self.store.async_update_zone(zone_id, end_changes)
+        if measured is not None:
+            # Reconcile the bucket ABSOLUTELY from the pre-run level: the optimistic open
+            # credit was time-based (and may have clamped at the ceiling), so a delta
+            # correction would over-/under-shoot. Recompute measured credit from B0 and
+            # clamp once — correct in every quadrant. See test_self_closing.
+            pre_bucket = float(run.get(const.RUN_PRE_BUCKET) or 0)
+            nb = pre_bucket + self._credited_depth_native(zone, measured)
+            ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
+            if ceiling is not None and nb > float(ceiling):
+                nb = float(ceiling)
+            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: nb})
+            zone = self.store.get_zone(zone_id) or zone
+            volume_l = measured
+        else:
+            volume_l = self._timed_volume_l(zone, planned_s)
         await self._record_run(
             zone_id,
             result=const.RUN_RESULT_COMPLETED,
@@ -122,6 +208,9 @@ class SelfClosingMixin:
                 "problems": [],
             },
         )
+        # A self-closing zone can't stop early, so it gets the same calibration advisory
+        # (shared base helper) as a can't-stop distributor member (FM-7).
+        await self._flow_calibration_check(zone, measured, planned_s)
 
     def _sc_schedule_cleanup(self, zone_id, delay_seconds: float) -> None:
         """Schedule the cosmetic finish after the run's planned duration."""
@@ -147,74 +236,96 @@ class SelfClosingMixin:
 
         await self._sc_dispatch_open(zone)
 
-        # Confirm the open BEFORE crediting, but ONLY against an optional
-        # confirm_entity — the real valve/switch the run_service drives, which
-        # carries a persistent on-state. The run_service itself is a momentary
-        # fire-and-forget script.* (back to "off" in ms), so confirming against
-        # it misfires: it polls "off" the whole window, spuriously reports a
-        # zone_problem, skips the credit, and (worse) re-runs the blueprint at
-        # the retry, resetting the valve's hardware countdown. So with no
-        # confirm_entity the run is write-only (confirmed = None) and credited
-        # optimistically — the hardware owns the close. The confirm is poll-only
-        # (retry=False): HA must never re-actuate a self-closing valve mid-run.
-        confirm_target = zone.get(const.ZONE_CONFIRM_ENTITY)
-        confirmed = (
-            await self._confirm_valve_running(zone_id, confirm_target, retry=False)
-            if confirm_target
-            else None
-        )
-        if confirmed is False:
-            self._sc_fire(
-                const.EVENT_ZONE_PROBLEM,
-                {
-                    "zone_id": zone_id,
-                    "zone": zone.get(const.ZONE_NAME),
-                    "entity_id": confirm_target,
-                    "reason": const.PROBLEM_VALVE_DID_NOT_OPEN,
-                },
+        # Iter FM-5 (unified flow engine): measure delivered volume across the fixed
+        # self-closing window via NON-blocking interval sampling — the run stays
+        # fire-and-forget (the hardware owns the close); finalized in _sc_finish_run /
+        # async_stop_self_closing. See test_self_closing.
+        await self._sc_start_flow_sampling(zone)
+        # M-1: sampling is now live (an interval is registered). Wrap the remaining
+        # fire-and-forget setup so an unexpected exception can't leak the interval —
+        # finalize the meter and re-raise. The confirm-fail branch below finalizes on
+        # its own normal-return path; this only guards against surprise exceptions.
+        try:
+            # Confirm the open BEFORE crediting, but ONLY against an optional
+            # confirm_entity — the real valve/switch the run_service drives, which
+            # carries a persistent on-state. The run_service itself is a momentary
+            # fire-and-forget script.* (back to "off" in ms), so confirming against
+            # it misfires: it polls "off" the whole window, spuriously reports a
+            # zone_problem, skips the credit, and (worse) re-runs the blueprint at
+            # the retry, resetting the valve's hardware countdown. So with no
+            # confirm_entity the run is write-only (confirmed = None) and credited
+            # optimistically — the hardware owns the close. The confirm is poll-only
+            # (retry=False): HA must never re-actuate a self-closing valve mid-run.
+            confirm_target = zone.get(const.ZONE_CONFIRM_ENTITY)
+            confirmed = (
+                await self._confirm_valve_running(zone_id, confirm_target, retry=False)
+                if confirm_target
+                else None
             )
-            return False
-
-        # Optimistic bucket credit (the valve owns the close -> assume completion).
-        volume_l = self._timed_volume_l(zone, planned_seconds)
-        depth = self._credited_depth_native(zone, volume_l)
-        ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
-        new_bucket = float(zone.get(const.ZONE_BUCKET) or 0) + depth
-        if ceiling and new_bucket > ceiling:
-            new_bucket = float(ceiling)
-        await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
-        # NB: water_used_total is NOT counted here — it is recorded once at the
-        # run's actual end (_sc_finish_run / async_stop_self_closing) for the
-        # delivered volume, so an early stop can't over-report usage. The bucket,
-        # however, IS credited optimistically above (the crash-safe model state).
-
-        # Persist the in-flight run for restart reconciliation.
-        await self._sc_add_run(
-            {
-                const.RUN_ZONE_ID: zone_id,
-                const.RUN_ENTITY_ID: zone.get(const.ZONE_RUN_SERVICE),
-                const.RUN_STARTED: dt_util.utcnow().isoformat(),
-                const.RUN_PLANNED_SECONDS: planned_seconds,
-                const.RUN_PLANNED_MM: depth,
-                const.RUN_MODE: zone.get(const.ZONE_WATERING_MODE),
-                const.RUN_CREDITED: True,
-            }
-        )
-
-        self._sc_fire(
-            const.EVENT_IRRIGATE_STARTED,
-            {
-                "zones": [
+            if confirmed is False:
+                # The valve never opened -> abort the run. Cancel the just-started
+                # sampling (discard the measurement) so the aborted run leaks no
+                # interval/meter.
+                self._sc_finish_flow(zone_id)
+                self._sc_fire(
+                    const.EVENT_ZONE_PROBLEM,
                     {
                         "zone_id": zone_id,
                         "zone": zone.get(const.ZONE_NAME),
-                        "seconds": int(planned_seconds),
-                    }
-                ],
-            },
-        )
-        self._sc_schedule_cleanup(zone_id, planned_seconds)
-        return True
+                        "entity_id": confirm_target,
+                        "reason": const.PROBLEM_VALVE_DID_NOT_OPEN,
+                    },
+                )
+                return False
+
+            # Optimistic bucket credit (the valve owns the close -> assume completion).
+            volume_l = self._timed_volume_l(zone, planned_seconds)
+            depth = self._credited_depth_native(zone, volume_l)
+            ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
+            # Stash the pre-run bucket so the finish can reconcile the measured credit
+            # ABSOLUTELY from B0 (this optimistic credit may clamp at the ceiling; a
+            # delta correction at finish would then over-/under-shoot). See _sc_finish_run.
+            pre_bucket = float(zone.get(const.ZONE_BUCKET) or 0)
+            new_bucket = pre_bucket + depth
+            if ceiling and new_bucket > ceiling:
+                new_bucket = float(ceiling)
+            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
+            # NB: water_used_total is NOT counted here — it is recorded once at the
+            # run's actual end (_sc_finish_run / async_stop_self_closing) for the
+            # delivered volume, so an early stop can't over-report usage. The bucket,
+            # however, IS credited optimistically above (the crash-safe model state).
+
+            # Persist the in-flight run for restart reconciliation.
+            await self._sc_add_run(
+                {
+                    const.RUN_ZONE_ID: zone_id,
+                    const.RUN_ENTITY_ID: zone.get(const.ZONE_RUN_SERVICE),
+                    const.RUN_STARTED: dt_util.utcnow().isoformat(),
+                    const.RUN_PLANNED_SECONDS: planned_seconds,
+                    const.RUN_PLANNED_MM: depth,
+                    const.RUN_PRE_BUCKET: pre_bucket,
+                    const.RUN_MODE: zone.get(const.ZONE_WATERING_MODE),
+                    const.RUN_CREDITED: True,
+                }
+            )
+
+            self._sc_fire(
+                const.EVENT_IRRIGATE_STARTED,
+                {
+                    "zones": [
+                        {
+                            "zone_id": zone_id,
+                            "zone": zone.get(const.ZONE_NAME),
+                            "seconds": int(planned_seconds),
+                        }
+                    ],
+                },
+            )
+            self._sc_schedule_cleanup(zone_id, planned_seconds)
+            return True
+        except Exception:
+            self._sc_finish_flow(zone_id)  # don't leak the interval on a setup failure
+            raise
 
     def _sc_elapsed(self, started_iso: str) -> float:
         """Wall-clock seconds since the run started (includes downtime)."""
@@ -261,8 +372,17 @@ class SelfClosingMixin:
             await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
 
         await self._sc_remove_run(zone_id)
-        # Count usage once, for what was actually delivered.
-        delivered_l = self._timed_volume_l(zone, elapsed)
+        # Count usage once, for what was actually delivered. Iter FM-5: the sampler ran
+        # until now — prefer its measured litres over the time-based estimate, and persist
+        # the totalizer end for cross-run learning. The bucket correction above (undelivered
+        # mm) is unchanged: measured only refines the recorded usage, matching partial
+        # semantics. measured is None (no sensor / dead meter / no flow) -> time-based.
+        measured, end_changes = self._sc_finish_flow(zone_id)
+        if end_changes:
+            await self.store.async_update_zone(zone_id, end_changes)
+        delivered_l = (
+            measured if measured is not None else self._timed_volume_l(zone, elapsed)
+        )
         await self._record_run(
             zone_id,
             result=const.RUN_RESULT_PARTIAL,

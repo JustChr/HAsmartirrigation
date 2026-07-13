@@ -224,11 +224,12 @@ def _flow_zone(**overrides):
 
 
 async def test_flow_never_started_faults_and_skips_credit(monkeypatch):
-    coord = _runner(monkeypatch, {})
+    # Since FM-3 the metered run reads the flow sensor through the FlowMeter (the old
+    # per-step increment seam is retired); a rate sensor stuck at 0 L/min delivers nothing.
+    coord = _runner(monkeypatch, {"sensor.flow": _st("0")})
     monkeypatch.setattr(
         "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
     )
-    coord._read_flow_increment = Mock(return_value=0.0)  # no flow at all
     coord._live_run_zones = set()
 
     await coord._run_valve_metered(
@@ -240,15 +241,15 @@ async def test_flow_never_started_faults_and_skips_credit(monkeypatch):
 
 
 async def test_flow_delivered_credits_bucket_and_clears_fault(monkeypatch):
-    coord = _runner(monkeypatch, {})
+    # Since FM-3 flow is fed through the FlowMeter from the sensor state: a rate sensor
+    # at 12 L/min over the 150 s safety window integrates to 30 L (a partial run).
+    coord = _runner(monkeypatch, {"sensor.flow": _st("12")})
     monkeypatch.setattr(
         "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
     )
     coord._set_zone_fault(2, const.FAULT_FLOW_NEVER_STARTED)
-    coord._read_flow_increment = Mock(return_value=3.0)  # 3 L per 15 s poll
     coord._live_run_zones = set()
 
-    # 150 s safety timeout = 10 polls * 3 L = 30 L delivered (a partial run).
     await coord._run_valve_metered(
         _flow_zone(**{const.ZONE_MAXIMUM_DURATION: 150}), "switch.f", real_flow=True
     )

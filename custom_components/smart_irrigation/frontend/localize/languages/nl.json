@@ -1,4 +1,10 @@
 {
+  "flow_calibration": {
+    "title": "Smart Irrigation: controleer de doorstroomsnelheid",
+    "message_over": "Zone '{zone}' geeft structureel te veel water: de gemeten doorstroming ligt ~{percent}% boven het ingestelde debiet over {runs} beurten. De klep kan niet eerder stoppen — stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
+    "message_under": "Zone '{zone}' geeft structureel te weinig water: de gemeten doorstroming ligt ~{percent}% onder het ingestelde debiet over {runs} beurten. De klep kan niet eerder stoppen — stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
+    "open_settings": "Zone-instellingen openen"
+  },
   "common": {
     "actions": {
       "delete": "Verwijderen",
@@ -353,6 +359,11 @@
         "bucket_threshold": "Minimum tekort voor bewatering",
         "flow_sensor": "Doorstroommeter-sensor (optioneel)",
         "flow_sensor_placeholder": "bijv. sensor.zone_flow_rate",
+        "flow_counter_type": "Type teller",
+        "flow_counter_type_help": "Hoe deze cumulatieve debietsensor wordt gelezen. Auto leert over meerdere beurten of de sensor bij elke beurt terugvalt. Per beurt: de sensor valt aan het begin van elke beurt terug naar ~0 en toont het totaal van die beurt (bijv. Sonoff-/Zigbee-kleppen). Totaalteller: een teller die over alle beurten alleen maar oploopt (delta per beurt).",
+        "flow_counter_type_auto": "Auto (leren)",
+        "flow_counter_type_per_run": "Per beurt (reset elke beurt)",
+        "flow_counter_type_lifetime": "Totaalteller (delta)",
         "watering_mode": "Bewateringsmodus",
         "watering_mode_description": "Hoe HASI deze zone aanstuurt. Klassiek: HASI opent de klep en sluit deze zelf met een softwaretimer. Zelfsluitende service: HASI stuurt de looptijd naar een zelfsluitende klep via een script (zie de meegeleverde klep-blueprints) en laat de hardware zichzelf sluiten, zodat een HA-herstart midden in een cyclus geen continue irrigatie kan veroorzaken.",
         "watering_modes": {
@@ -738,7 +749,7 @@
         "confirm_entity": "Bevestigingssensor (optioneel)",
         "confirm_entity_help": "Optionele sensor op de verdelerinlaat die bevestigt dat er daadwerkelijk water stroomt (bijv. een debiet- of klepstandsensor). Meet hij geen debiet wanneer een uitgang opent, dan stopt de cyclus veilig en wordt de verdeler als onzeker gemarkeerd — dit is de laag-debiet-/foutdetectie.",
         "flow_sensor": "Debietsensor (optioneel)",
-        "flow_sensor_help": "De gedeelde debietmeter op de inlaat (bijv. L/min, m³/h). Indien ingesteld, wordt het werkelijk geleverde volume per uitgang gemeten en verrekend in plaats van de tijdschatting. Optioneel. Waar de klep gestopt kan worden (een classic-inlaat of een self-closing stop-service), wordt de uitgang bovendien vroegtijdig gestopt zodra het doelvolume is bereikt.",
+        "flow_sensor_help": "De gedeelde debietmeter op de inlaat (bijv. L/min, m³/h). Indien ingesteld, wordt het werkelijk geleverde volume per uitgang gemeten en verrekend in plaats van de tijdschatting. Optioneel. Waar de klep gestopt kan worden (een classic-inlaat of een self-closing stop-service), wordt de uitgang bovendien vroegtijdig gestopt zodra het doelvolume is bereikt. Zowel een momentane debietmeter (bijv. L/min) als een cumulatieve totalisator-teller (bijv. m³ of state_class: total_increasing) worden ondersteund; het type wordt automatisch aan de eenheid herkend.",
         "pause_seconds": "Doorschakelpauze",
         "skip_pulse_seconds": "Overslaanpuls",
         "notify_target": "Meldingsdoel (optioneel)",

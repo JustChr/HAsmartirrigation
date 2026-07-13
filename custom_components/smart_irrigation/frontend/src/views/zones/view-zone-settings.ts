@@ -58,6 +58,7 @@ import {
   ZONE_LINKED_ENTITY,
   ZONE_BUCKET_THRESHOLD,
   ZONE_FLOW_SENSOR,
+  ZONE_FLOW_COUNTER_TYPE,
   ZONE_WATERING_MODE,
   ZONE_RUN_SERVICE,
   ZONE_DURATION_FIELD,
@@ -166,6 +167,24 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     this._expanded = next;
+  }
+
+  // FM-8: the flow_counter_type override only makes sense for a cumulative
+  // (totalizer) flow sensor. A rate sensor (e.g. L/min) is always integrated,
+  // so there is no per-run vs lifetime ambiguity and the select is hidden.
+  // A totalizer is any sensor whose state_class is total_increasing, OR whose
+  // unit is a volume unit that is NOT a rate (no "/" and not a known flow-rate
+  // unit like gpm/lpm/gph/lph).
+  private _flowSensorIsTotalizer(zone: any): boolean {
+    const entity = zone.flow_sensor;
+    if (!entity) return false;
+    if (!this.hass) return false;
+    const st = this.hass.states[entity];
+    if (!st) return false;
+    const unit = (st.attributes?.unit_of_measurement || "").trim();
+    if (st.attributes?.state_class === "total_increasing") return true;
+    if (!unit || unit.includes("/")) return false;
+    return !["gpm", "lpm", "gph", "lph"].includes(unit.toLowerCase());
   }
 
   firstUpdated() {
@@ -1347,6 +1366,53 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                             })}"
                         ></ha-entity-picker>
                       </ha-settings-row>
+
+                      ${this._flowSensorIsTotalizer(zone)
+                        ? html`
+                            <ha-settings-row>
+                              <span slot="heading"
+                                >${localize(
+                                  "panels.zones.labels.flow_counter_type",
+                                  this.hass.language,
+                                )}</span
+                              >
+                              <span slot="description"
+                                >${localize(
+                                  "panels.zones.labels.flow_counter_type_help",
+                                  this.hass.language,
+                                )}</span
+                              >
+                              <select
+                                class="settings-input"
+                                .value="${live(
+                                  zone.flow_counter_type || "auto",
+                                )}"
+                                @change="${(e: Event) =>
+                                  this.handleEditZone(index, {
+                                    ...zone,
+                                    [ZONE_FLOW_COUNTER_TYPE]:
+                                      (e.target as HTMLSelectElement).value ||
+                                      "auto",
+                                  })}"
+                              >
+                                ${["auto", "per_run", "lifetime"].map(
+                                  (opt) => html`
+                                    <option
+                                      value="${opt}"
+                                      ?selected="${(zone.flow_counter_type ||
+                                        "auto") === opt}"
+                                    >
+                                      ${localize(
+                                        `panels.zones.labels.flow_counter_type_${opt}`,
+                                        this.hass!.language,
+                                      )}
+                                    </option>
+                                  `,
+                                )}
+                              </select>
+                            </ha-settings-row>
+                          `
+                        : ""}
                     `
                   : ""}
 
