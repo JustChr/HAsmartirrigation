@@ -165,6 +165,18 @@ class ObservedWateringMixin:
         if max_bucket is not None and new_bucket > max_bucket:
             new_bucket = float(max_bucket)
 
+        # Persistent, visible record of the external run (survives later bucket
+        # changes, unlike the bucket credit). add_to_total credits the estimated
+        # litres into the zone's usage total. Placed before the bucket update so
+        # the bucket write stays the method's final async_update_zone call.
+        await self._record_run(
+            zone_id,
+            result=const.RUN_RESULT_OBSERVED,
+            volume_l=volume_l,
+            actual_s=round(seconds),
+            trigger="observed",
+            add_to_total=True,
+        )
         await self.store.async_update_zone(
             zone_id,
             {

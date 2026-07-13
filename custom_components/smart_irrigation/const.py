@@ -379,6 +379,9 @@ RUN_RESULT_COMPLETED = "completed"
 RUN_RESULT_PARTIAL = "partial"
 RUN_RESULT_FAILED = "failed"
 RUN_RESULT_SKIPPED = "skipped"
+# External run credited by observed watering (opt-in): the zone's valve ran
+# outside Smart Irrigation and its estimated volume was credited to the bucket.
+RUN_RESULT_OBSERVED = "observed"
 
 CONF_ZONE_SEQUENCING = "zone_sequencing"
 CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential"

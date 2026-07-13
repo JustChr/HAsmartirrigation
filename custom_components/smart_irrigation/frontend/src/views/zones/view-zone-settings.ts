@@ -2043,6 +2043,9 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
       .history-skipped {
         background: var(--info-color, #0277bd);
       }
+      .history-observed {
+        background: #00897b;
+      }
 
       /* Auto-save status chip */
       .save-status {

@@ -218,6 +218,12 @@ def _observer_coordinator(monkeypatch, *, loop_time=1000.0):
         "custom_components.smart_irrigation.observed_watering.async_dispatcher_send",
         Mock(),
     )
+    # _credit_observed_watering now also calls _record_run (irrigation.py), which
+    # dispatches from that module — stub it too so the Mock hass isn't iterated.
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.irrigation.async_dispatcher_send",
+        Mock(),
+    )
     return coord
 
 
@@ -322,3 +328,32 @@ def test_observed_close_schedules_credit(monkeypatch):
     coord._observed_state_changed(_event("switch.valve", "off", "on"))
     assert coord.hass.async_create_task.called
     assert 1 not in coord._observed_on_since
+
+
+async def test_observed_credit_writes_run_log_and_total(monkeypatch):
+    """An observed credit also appends a persistent `observed` run-log entry
+    and adds the estimated volume to the usage total."""
+    coord = _observer_coordinator(monkeypatch)
+    coord.store.get_zone = Mock(
+        return_value={
+            const.ZONE_ID: 1,
+            const.ZONE_SIZE: 10.0,
+            const.ZONE_THROUGHPUT: 10.0,
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_MAXIMUM_BUCKET: 50.0,
+        }
+    )
+
+    await coord._credit_observed_watering(1, 60)  # 1 min @ 10 L/min = 10 L
+
+    log_calls = [
+        c
+        for c in coord.store.async_update_zone.await_args_list
+        if const.ZONE_RUN_LOG in c.args[1]
+    ]
+    assert log_calls, "observed credit should append a run-log entry"
+    changes = log_calls[-1].args[1]
+    entry = changes[const.ZONE_RUN_LOG][0]
+    assert entry["result"] == const.RUN_RESULT_OBSERVED
+    assert entry["volume_l"] == pytest.approx(10.0)
+    assert changes[const.ZONE_WATER_USED_TOTAL] == pytest.approx(10.0)

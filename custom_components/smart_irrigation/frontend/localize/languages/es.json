@@ -522,7 +522,8 @@
           "completed": "Completado",
           "partial": "Parcial",
           "failed": "Fallido",
-          "skipped": "Omitido"
+          "skipped": "Omitido",
+          "observed": "Observado"
         }
       },
       "rain_delay": {
