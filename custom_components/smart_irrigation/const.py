@@ -333,8 +333,8 @@ CONF_DEFAULT_BUCKET_THRESHOLD = -10.0
 ZONE_FLOW_SENSOR = "flow_sensor"
 FLOW_POLL_INTERVAL = 15  # seconds between flow meter readings
 # Unified flow-measurement engine (flow_metering.FlowMeter). Per-zone override for how a
-# totalizer flow sensor is read; 'auto' learns per_run vs lifetime across runs. See
-# docs/superpowers/specs/2026-07-13-unified-flow-measurement-engine-design.md (REVISION 1).
+# totalizer flow sensor is read; 'auto' learns per_run vs lifetime across runs. See the
+# flow_metering module docstring and flow_learn_next_streak / flow_learn_resolve.
 ZONE_FLOW_COUNTER_TYPE = "flow_counter_type"
 FLOW_COUNTER_AUTO = "auto"
 FLOW_COUNTER_PER_RUN = "per_run"

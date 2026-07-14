@@ -682,8 +682,8 @@ class IrrigationRunnerMixin:
                         else convert_between(const.UNIT_LPM, const.UNIT_GPM, mean_obs)
                     )
                     unit = "L/min" if metric else "gal/min"
-                    # FCI-1 (spec 2026-07-13-flow-calibration-advisory-i18n-link):
-                    # the advisory was hardcoded English (wrong on non-English HA
+                    # Localized calibration advisory: the advisory used to be
+                    # hardcoded English (wrong on non-English HA
                     # systems) and gave no path to the zone. Build title + message
                     # from the backend localize() helper (flow_calibration.* keys in
                     # all 8 language files) and append a Markdown deep-link to the

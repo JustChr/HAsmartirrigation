@@ -1075,7 +1075,6 @@ class DistributorMixin:
             # `cap` so the pump covers the (possibly extended) run; the terminal
             # _dist_master_end collapses it to the real close. `cap == window` for every
             # non-extend path, so the master note is byte-for-byte b23 there.
-            # siehe docs/superpowers/specs/2026-07-07-distributor-flow-volume-part-b-design.md
             target = None
             cap = window
             if water:
