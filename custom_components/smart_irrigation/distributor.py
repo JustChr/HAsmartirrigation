@@ -541,6 +541,9 @@ class DistributorMixin:
             resolved,
             near_zero_frac=const.FLOW_NEAR_ZERO_FRAC,
             near_zero_floor=const.FLOW_NEAR_ZERO_FLOOR,
+            # 4 distributor polls: a wider gap = dropped 'unavailable' samples the old
+            # rate-only path treated as unreliable; don't integrate a rate across it.
+            max_gap_s=const.DISTRIBUTOR_FLOW_POLL_SECONDS * 4,
         )
         meter.sample(reading[0], reading[1], reading[2], 0.0)  # valve-open seed
         elapsed = 0.0

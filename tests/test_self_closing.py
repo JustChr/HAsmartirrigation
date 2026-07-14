@@ -594,6 +594,7 @@ async def test_self_closing_overlap_cancels_prior_interval(monkeypatch):
     c = _coord()
     c.hass.states.get = Mock(return_value=_flow_state(0))
     zone = _zone(**{const.ZONE_FLOW_SENSOR: "sensor.beet_flow"})
+    c.store.get_zone = Mock(return_value=zone)
 
     await c._sc_start_flow_sampling(zone)
     assert c._sc_meters()[2][1] is cancel1  # first interval registered
@@ -684,6 +685,99 @@ async def test_self_closing_measured_bucket_reconciles_from_pre_bucket(monkeypat
     assert bucket_calls[-1].args[1][const.ZONE_BUCKET] > 0.0  # not over-emptied
     # Recorded usage is the measured 10 L.
     assert c._record_run.await_args.kwargs["volume_l"] == 10.0
+
+
+async def test_self_closing_early_stop_bucket_reconciles_from_pre_bucket(monkeypatch):
+    """FM #2 regression: an EARLY stop reconciles the bucket ABSOLUTELY from the stashed
+    pre-run level, exactly like the full-completion path. When the optimistic time-based
+    open credit CLAMPED at the ceiling, the old delta subtraction (bucket - undelivered_mm)
+    over-emptied; reconciling pre_bucket + delivered is correct in every quadrant.
+
+    pre_bucket 0, maximum_bucket 20, open credit depth 30 -> clamps to 20. Stop at 50%:
+    absolute = min(20, 0 + 30*0.5) = 15, NOT the delta result 20 - (30*0.5) = 5.
+    """
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    c._timed_volume_l = Mock(return_value=30.0)  # open credit depth 30 (identity depth)
+    c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)
+
+    zone = _zone(
+        **{
+            const.ZONE_BUCKET: 0.0,
+            const.ZONE_MAXIMUM_BUCKET: 20.0,
+            const.ZONE_DURATION: 120.0,
+            const.ZONE_DURATION_UNIT: const.DURATION_UNIT_SECONDS,
+            const.ZONE_THROUGHPUT: 4.0,
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_STOP_SERVICE: "switch.turn_off",
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+
+    async def _update_zone(zid, changes):
+        store_zone.update(changes)
+
+    c.store.async_update_zone = AsyncMock(side_effect=_update_zone)
+    active = []
+
+    async def _get_config():
+        return {const.CONF_ACTIVE_VALVE_RUNS: list(active)}
+
+    async def _update_config(changes):
+        if const.CONF_ACTIVE_VALVE_RUNS in changes:
+            active[:] = changes[const.CONF_ACTIVE_VALVE_RUNS]
+
+    c.store.async_get_config = AsyncMock(side_effect=_get_config)
+    c.store.async_update_config = AsyncMock(side_effect=_update_config)
+    c.hass.states.get = Mock(return_value=_flow_state(0))  # no measurable flow
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+    assert ok is True
+    assert store_zone[const.ZONE_BUCKET] == 20.0  # open credit clamped at the ceiling
+    assert active[0][const.RUN_PRE_BUCKET] == 0.0
+
+    c._sc_elapsed = Mock(return_value=60.0)  # stop at 50% of the 120 s window
+    await c.async_stop_self_closing(2)
+
+    # Absolute reconcile from pre_bucket: min(20, 0 + 30*0.5) = 15, NOT the delta 20-15=5.
+    assert store_zone[const.ZONE_BUCKET] == 15.0
+
+
+async def test_self_closing_final_read_captures_last_climb(monkeypatch):
+    """FM #3 regression: _sc_finish_flow takes ONE final reading at close, so a totalizer's
+    last (up to a poll interval) of climb after the last periodic sample is not dropped.
+    """
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    zone = _zone(
+        **{
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_LIFETIME,
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+    current = {"st": _flow_state(0)}
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    await c._sc_start_flow_sampling(zone)
+    # Periodic samples reach 10 L...
+    for at, val in ((15.0, 5), (30.0, 10)):
+        current["st"] = _flow_state(val)
+        c._sc_sample_flow(2, at)
+    # ...then the counter climbs to 18 L in the final (sub-poll) stretch before close.
+    current["st"] = _flow_state(18)
+
+    measured, _end = c._sc_finish_flow(2)
+    # The final read captured the last 8 L — measured is 18, not the last periodic 10.
+    assert measured == 18.0
 
 
 async def test_self_closing_advisory_after_repeated_off_rate():

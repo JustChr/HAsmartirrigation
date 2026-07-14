@@ -287,3 +287,61 @@ def test_learn_resolve_unknown_or_empty_override_is_auto():
     # An unknown/typo/empty override falls back to the safe learned (auto) path.
     assert flow_learn_resolve("perrun", 0) == "lifetime"
     assert flow_learn_resolve("", 2) == "per_run"
+
+
+# --- within-run reset signal (hold-until-reset counters) ---
+def test_learn_next_streak_within_run_reset_advances():
+    # A mid-run reset the meter observed advances the streak even when the OPEN read
+    # looked monotonic (a hold-until-reset counter still held its prior total at open).
+    assert flow_learn_next_streak(62.0, 62.0, 1, within_run_reset=True) == 2
+    assert flow_learn_next_streak(None, None, 0, within_run_reset=True) == 1
+
+
+def test_learn_next_streak_none_start_is_safe():
+    # A None open reading (rate/no read) with no within-run reset -> unchanged/zeroed,
+    # never a crash.
+    assert flow_learn_next_streak(62.0, None, 3) == 0  # usable prior, no open reset
+    assert flow_learn_next_streak(None, None, 3) == 3  # no usable prior -> unchanged
+
+
+def test_saw_reset_true_on_per_run_open_reset():
+    m = FlowMeter("per_run")
+    _feed(m, [(62.0, "L", None, 0.0), (0.0, "L", None, 15.0), (5.0, "L", None, 30.0)])
+    assert m.saw_reset() is True
+
+
+def test_saw_reset_true_on_lifetime_glitch():
+    # A lifetime totalizer that glitches to near-zero credits nothing (keep-baseline) but
+    # the drop IS observed as cross-run reset evidence.
+    m = FlowMeter("lifetime")
+    assert _feed(m, [(100.0, "L", None, 0.0), (0.0, "L", None, 15.0)]) == 0.0
+    assert m.saw_reset() is True
+
+
+def test_saw_reset_false_when_monotonic_or_rate():
+    m = FlowMeter("lifetime")
+    _feed(m, [(100.0, "L", None, 0.0), (110.0, "L", None, 15.0)])
+    assert m.saw_reset() is False
+    r = FlowMeter()
+    _feed(r, [(6.0, "L/min", None, 0.0), (6.0, "L/min", None, 60.0)])
+    assert r.saw_reset() is False
+
+
+def test_rate_gap_bridging_capped_does_not_over_credit():
+    # A rate sensor that went unavailable for a long stretch (a wide sample gap) must NOT
+    # credit the recovered rate across the whole gap. With max_gap_s=45, the 600 s jump
+    # contributes nothing; the two in-window steps credit normally.
+    m = FlowMeter(max_gap_s=45.0)
+    series = [
+        (6.0, "L/min", None, 0.0),
+        (6.0, "L/min", None, 30.0),  # 30 s gap <= 45 -> credit 3.0 L
+        (6.0, "L/min", None, 630.0),  # 600 s gap > 45 -> credited nothing
+        (6.0, "L/min", None, 645.0),  # 15 s gap <= 45 -> credit 1.5 L
+    ]
+    assert _feed(m, series) == 4.5
+
+
+def test_rate_gap_uncapped_by_default_bridges():
+    # Default (no cap) preserves the original bridge-across-gap behaviour.
+    m = FlowMeter()
+    assert _feed(m, [(6.0, "L/min", None, 0.0), (6.0, "L/min", None, 600.0)]) == 60.0

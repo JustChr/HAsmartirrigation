@@ -474,12 +474,13 @@ async def test_metered_zone_auto_streak_advances_and_resolves_per_run(monkeypatc
 
     This pins the streak-learning WIRING that the per_run neighbour above bypasses (it
     overrides ``flow_counter_type`` and so never resolves a streak). Here the type is the
-    default ``'auto'`` and the learning state is pre-seeded so THIS run is the one that
-    crosses the threshold: ``flow_last_end=50`` / ``flow_reset_streak=1``. The valve-open
-    read (0, well below the 0.5*50=25 reset bar) is a reset, so ``_flow_build_meter`` calls
-    ``flow_learn_next_streak(50, 0, 1) -> 2`` and ``_run_valve_metered`` persists the new
-    streak at run start. streak 2 hits the threshold, ``flow_learn_resolve('auto', 2)``
-    resolves to per_run, and the meter credits the measured 0 -> 50 climb (target 50 L).
+    default ``'auto'`` and the learning state is pre-seeded so THIS run's reset advances
+    the streak to the threshold: ``flow_last_end=50`` / ``flow_reset_streak=1``. The
+    valve-open read (0, well below the 0.5*50=25 reset bar) is a reset, so at run END
+    ``_flow_learn_end_changes`` calls ``flow_learn_next_streak(50, 0, 1) -> 2`` and
+    ``_run_valve_metered`` persists the new streak (learning is resolved from the meter's
+    actual reset observation at close, not advanced at start). The meter — seeded at the
+    post-reset 0 — credits the measured 0 -> 50 climb (target 50 L) regardless.
     """
     z = _zone(
         **{
@@ -504,6 +505,39 @@ async def test_metered_zone_auto_streak_advances_and_resolves_per_run(monkeypatc
     # (50 L, reached at the 50 L target) — NOT a fault / 0.
     assert _used(coord) == pytest.approx(50.0)
     assert _log(coord)[0]["result"] == const.RUN_RESULT_COMPLETED
+
+
+async def test_metered_zone_auto_hold_until_reset_credits_timed_not_fault(monkeypatch):
+    """A hold-until-reset per-run counter on 'auto' (still learning) must NOT false-fault.
+
+    Such a counter HOLDS its prior total at valve-open (the open read is high, not a
+    reset) and zeroes only mid-run. The over-credit-safe 'lifetime' mode keeps the high
+    baseline and measures 0, so the run credits a TIME-BASED estimate — NOT
+    FLOW_NEVER_STARTED — and advances the reset streak from the meter's OBSERVED mid-run
+    reset (``saw_reset``), so 'auto' converges to per_run over the next runs. Regression
+    for the ultrareview #1 finding (false dry-fault + streak never converging).
+    """
+    z = _zone(
+        **{
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_FLOW_SENSOR: "sensor.flow",
+            const.ZONE_FLOW_COUNTER_TYPE: "auto",
+            const.ZONE_FLOW_LAST_END: 500.0,  # prior run ended high (held totalizer value)
+            const.ZONE_FLOW_RESET_STREAK: 0,
+        }
+    )
+    coord = _coord(monkeypatch, [z])
+    coord._live_run_zones = set()
+    # open seed 500 (held prior total), then resets to 0 mid-run and holds: a lifetime
+    # meter keeps the 500 baseline and measures 0 -> crediting falls back to time-based.
+    _totalizer_sensor(coord, [500.0, 0.0])
+    await coord._run_valve_metered(dict(z), "switch.v", real_flow=True)
+    # NOT a failed/dry run — water was credited time-based (300 s @ 10 L/min = 50 L -> 0).
+    assert _log(coord)[0]["result"] != const.RUN_RESULT_FAILED
+    assert _used(coord) == pytest.approx(50.0)
+    assert _bucket(coord) == pytest.approx(0.0)
+    # The mid-run reset advanced the cross-run streak (0 -> 1) so 'auto' converges.
+    assert coord.store.get_zone(1)[const.ZONE_FLOW_RESET_STREAK] == 1
 
 
 async def test_rotating_flow_slot_measures_totalizer(monkeypatch):

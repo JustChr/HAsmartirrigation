@@ -65,16 +65,32 @@ def flow_litres_from_total(value: float, unit: str) -> float:
     return float(value)  # L / l / liter(s) / unknown -> assume litres
 
 
-def flow_learn_next_streak(prev_end, start_litres: float, streak: int) -> int:
-    """Update the consecutive-open-reset streak from one run's open observation.
+def flow_learn_next_streak(
+    prev_end, start_litres, streak: int, within_run_reset: bool = False
+) -> int:
+    """Update the consecutive-reset streak from one run's reset evidence.
 
-    No usable prior (``prev_end`` None or <= FLOW_LEARN_MIN_PREV_END) -> unchanged; a reset
-    (``start_litres < FLOW_LEARN_RESET_FACTOR x prev_end``) -> ``streak + 1``; a monotonic
-    open (start >= that) -> 0. A per-run counter resets to ~0 each run (start << prev_end);
-    a lifetime totalizer is monotonic (start >= prev_end)."""
+    Two independent reset signals (a per-run counter shows exactly one, depending on
+    WHEN it zeroes relative to the valve-open read):
+
+    * **reset-at-open** — the open read is already near zero (``start_litres <
+      FLOW_LEARN_RESET_FACTOR x prev_end``): the counter zeroed BEFORE we sampled it;
+    * **reset-within-run** (``within_run_reset``) — the FlowMeter observed a near-zero
+      drop DURING the run (``FlowMeter.saw_reset()``): the counter still held its prior
+      total at valve-open and zeroed shortly after. The open-vs-prev_end comparison
+      can't see this (open ~= prev_end looks monotonic), so it is fed in separately —
+      without it, a hold-until-reset per-run counter never accrues a streak and 'auto'
+      never converges (it would repeat a false FLOW_NEVER_STARTED every run).
+
+    Either signal -> ``streak + 1``. Otherwise: no usable prior (``prev_end`` None or
+    <= FLOW_LEARN_MIN_PREV_END) -> unchanged; a monotonic open (start >= the bar) -> 0
+    (a lifetime totalizer is monotonic and never drops near zero, so its streak stays 0).
+    """
+    if within_run_reset:
+        return streak + 1
     if prev_end is None or prev_end <= FLOW_LEARN_MIN_PREV_END:
         return streak
-    if start_litres < FLOW_LEARN_RESET_FACTOR * prev_end:
+    if start_litres is not None and start_litres < FLOW_LEARN_RESET_FACTOR * prev_end:
         return streak + 1
     return 0
 
@@ -98,18 +114,25 @@ class FlowMeter:
         *,
         near_zero_frac: float = 0.1,
         near_zero_floor: float = 1.0,
+        max_gap_s: float | None = None,
     ) -> None:
         # per_run reseeds once at the open reset; anything else (lifetime/auto/unknown)
         # never reseeds (keep-baseline, over-credit-safe).
         self._per_run = (counter_type or "").lower() == "per_run"
         self._near_zero_frac = float(near_zero_frac)
         self._near_zero_floor = float(near_zero_floor)
+        # Rate sensors: the longest inter-sample gap we still integrate across. A larger
+        # gap means samples were dropped (sensor 'unavailable'); bridging it with the
+        # recovered rate would credit water that may never have flowed, so we skip it
+        # (safe under-credit). None = unbounded (unit-test default).
+        self._max_gap_s = None if max_gap_s is None else float(max_gap_s)
         self._is_totalizer: bool | None = None
         self._last_at: float | None = None  # rate: previous sample time
         self._last: float | None = None  # totalizer: previous litres baseline
         self._delivered = 0.0
         self._have_reading = False
         self._reset_done = False  # per_run: the one-time open reset already consumed
+        self._saw_reset = False  # a totalizer near-zero drop was observed this run
 
     def sample(self, value, unit: str, state_class: str | None, at: float) -> None:
         """Feed one poll reading. ``value`` may be None/non-numeric/NaN (ignored). ``at``
@@ -132,9 +155,11 @@ class FlowMeter:
 
     def _sample_rate(self, raw: float, unit: str, at: float) -> None:
         if self._last_at is not None and at > self._last_at:
-            self._delivered += (
-                flow_rate_to_l_per_min(raw, unit) * (at - self._last_at) / 60.0
-            )
+            dt = at - self._last_at
+            if self._max_gap_s is None or dt <= self._max_gap_s:
+                self._delivered += flow_rate_to_l_per_min(raw, unit) * dt / 60.0
+            # else: gap too large (dropped/unavailable samples) — do not credit the
+            # recovered rate across it (would over-credit); just advance the clock.
         if self._last_at is None or at > self._last_at:
             self._last_at = at
 
@@ -154,14 +179,14 @@ class FlowMeter:
         # is a glitch, not a reset — so per_run cannot over-credit a genuine per-run
         # counter even when the meter is seeded at the post-reset value (0). See
         # test_per_run_post_reset_seed_midrun_glitch_no_over_credit.
-        if (
-            self._per_run
-            and not self._reset_done
-            and self._delivered == 0.0
-            and litres <= self._near_zero()
-        ):
-            self._last = litres  # reseed to the reset floor (credit nothing)
-            self._reset_done = True
+        if litres <= self._near_zero():
+            # A near-zero drop = a reset (per-run) or a lifetime glitch — indistinguishable
+            # within one run, so it is only cross-run EVIDENCE (saw_reset), fed to the
+            # streak learner; a lifetime totalizer is monotonic and never trips this.
+            self._saw_reset = True
+            if self._per_run and not self._reset_done and self._delivered == 0.0:
+                self._last = litres  # reseed to the reset floor (credit nothing)
+                self._reset_done = True
         # else glitch (or lifetime): keep _last, add nothing (never over-credit a dip)
 
     def _near_zero(self) -> float:
@@ -178,3 +203,10 @@ class FlowMeter:
         """The last totalizer litres seen (the run's end value, for cross-run learning),
         or None for a rate sensor / no totalizer reading."""
         return self._last if self._is_totalizer else None
+
+    def saw_reset(self) -> bool:
+        """True iff a totalizer near-zero drop was observed this run — cross-run evidence
+        of a per-run counter (a hold-until-reset counter shows it only mid-run, not at the
+        valve-open seed). Always False for a rate sensor / a monotonic lifetime totalizer.
+        """
+        return self._saw_reset

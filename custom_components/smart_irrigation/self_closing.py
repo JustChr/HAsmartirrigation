@@ -86,7 +86,9 @@ class SelfClosingMixin:
         await self._sc_persist_runs(runs)
 
     def _sc_meters(self) -> dict:
-        """Lazy {zone_id: (FlowMeter, cancel_cb)} of in-flight self-closing flow meters."""
+        """Lazy {zone_id: (FlowMeter, cancel_cb, open_start_l, started)} of in-flight
+        self-closing flow meters (open_start_l + started drive run-end learning/finalize).
+        """
         meters = getattr(self, "_sc_flow_meters", None)
         if meters is None:
             meters = self._sc_flow_meters = {}
@@ -111,9 +113,7 @@ class SelfClosingMixin:
         # _sc_finish_flow tolerates a missing entry (returns (None, {})).
         self._sc_finish_flow(zone_id)
         sample = self._read_flow_sample(sensor)
-        meter, start_changes = self._flow_build_meter(zone, sample)  # seeds at open
-        if start_changes:
-            await self.store.async_update_zone(zone_id, start_changes)
+        meter, open_start_l = self._flow_build_meter(zone, sample)  # seeds at open
         started = dt_util.utcnow()
 
         async def _tick(now):
@@ -122,7 +122,7 @@ class SelfClosingMixin:
         cancel = async_track_time_interval(
             self.hass, _tick, timedelta(seconds=const.FLOW_POLL_INTERVAL)
         )
-        self._sc_meters()[zone_id] = (meter, cancel)
+        self._sc_meters()[zone_id] = (meter, cancel, open_start_l, started)
 
     def _sc_sample_flow(self, zone_id, at: float) -> None:
         """Feed the zone's in-flight meter one reading at monotonic ``at`` (also the test
@@ -130,7 +130,7 @@ class SelfClosingMixin:
         entry = self._sc_meters().get(zone_id)
         if not entry:
             return
-        meter, _cancel = entry
+        meter = entry[0]
         zone = self.store.get_zone(zone_id) or {}
         sample = self._read_flow_sample(zone.get(const.ZONE_FLOW_SENSOR))
         if sample is not None:
@@ -139,15 +139,33 @@ class SelfClosingMixin:
     def _sc_finish_flow(self, zone_id):
         """Cancel a zone's sampling and return (measured_l | None, end_changes). measured
         is None when there is no sensor, the meter was lost to a restart, or no positive
-        flow was seen (caller then keeps its time-based volume)."""
+        flow was seen (caller then keeps its time-based volume). Takes ONE final reading
+        at close so a totalizer's last (up to a poll interval) of climb isn't dropped.
+        """
         entry = self._sc_meters().pop(zone_id, None)
         if not entry:
             return None, {}
-        meter, cancel = entry
+        meter, cancel, open_start_l, started = entry
         cancel()
+        zone = self.store.get_zone(zone_id) or {}
+        sensor = zone.get(const.ZONE_FLOW_SENSOR)
+        final = self._read_flow_sample(sensor)
+        if final is not None:
+            meter.sample(*final, at=(dt_util.utcnow() - started).total_seconds())
         d = meter.delivered()
+        if d is None and sensor:
+            # The per-tick reads are DEBUG (they poll every 15 s), so a persistently
+            # dead/misconfigured sensor would otherwise degrade to time-based SILENTLY.
+            # Surface it ONCE per run at finalize (the fire-and-forget run has no dry
+            # fault to raise). See Fix FM-6.
+            _LOGGER.warning(
+                "Self-closing zone %s flow sensor '%s' produced no readings this run; "
+                "recording the time-based volume estimate instead",
+                zone_id,
+                sensor,
+            )
         measured = d if (d is not None and d > 0) else None
-        return measured, self._flow_end_changes(meter)
+        return measured, self._flow_learn_end_changes(zone, meter, open_start_l)
 
     async def _sc_finish_run(self, zone_id) -> None:
         """Finalise a completed run: record actual usage, clear, fire finished.
@@ -361,22 +379,38 @@ class SelfClosingMixin:
                 zone_id,
             )
 
-        # Correct the bucket: remove the undelivered portion of the credit.
+        # Correct the bucket for the undelivered portion of the optimistic open credit.
         planned = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
         planned_mm = float(run.get(const.RUN_PLANNED_MM) or 0)
         elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
         delivered_frac = min(elapsed / planned, 1.0) if planned > 0 else 1.0
-        undelivered_mm = planned_mm * (1.0 - delivered_frac)
-        if undelivered_mm:
-            new_bucket = float(zone.get(const.ZONE_BUCKET) or 0) - undelivered_mm
-            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
+        # Reconcile ABSOLUTELY from the pre-run level (RUN_PRE_BUCKET) when we have it: the
+        # optimistic open credit may have CLAMPED at the ceiling, so subtracting the
+        # undelivered mm from the (clamped) current bucket would over-/under-shoot — the
+        # same clamp-then-delta trap _sc_finish_run reconciles from B0 to avoid. Identical
+        # to the delta when the open credit did not clamp. Legacy delta fallback for a run
+        # persisted before RUN_PRE_BUCKET existed (upgrade mid-run). See test_self_closing.
+        pre_bucket = run.get(const.RUN_PRE_BUCKET)
+        if pre_bucket is not None:
+            nb = float(pre_bucket) + planned_mm * delivered_frac
+            ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
+            if ceiling is not None and nb > float(ceiling):
+                nb = float(ceiling)
+            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: nb})
+        else:
+            undelivered_mm = planned_mm * (1.0 - delivered_frac)
+            if undelivered_mm:
+                new_bucket = float(zone.get(const.ZONE_BUCKET) or 0) - undelivered_mm
+                await self.store.async_update_zone(
+                    zone_id, {const.ZONE_BUCKET: new_bucket}
+                )
 
         await self._sc_remove_run(zone_id)
         # Count usage once, for what was actually delivered. Iter FM-5: the sampler ran
         # until now — prefer its measured litres over the time-based estimate, and persist
-        # the totalizer end for cross-run learning. The bucket correction above (undelivered
-        # mm) is unchanged: measured only refines the recorded usage, matching partial
-        # semantics. measured is None (no sensor / dead meter / no flow) -> time-based.
+        # the totalizer end for cross-run learning. The bucket correction above stays
+        # time-based (partial semantics); measured only refines the recorded usage.
+        # measured is None (no sensor / dead meter / no flow) -> time-based.
         measured, end_changes = self._sc_finish_flow(zone_id)
         if end_changes:
             await self.store.async_update_zone(zone_id, end_changes)

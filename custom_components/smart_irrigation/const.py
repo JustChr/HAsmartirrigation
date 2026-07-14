@@ -332,6 +332,10 @@ ZONE_BUCKET_THRESHOLD = "bucket_threshold"
 CONF_DEFAULT_BUCKET_THRESHOLD = -10.0
 ZONE_FLOW_SENSOR = "flow_sensor"
 FLOW_POLL_INTERVAL = 15  # seconds between flow meter readings
+# Rate sensors: the widest inter-sample gap a FlowMeter still integrates across (4 polls).
+# A wider gap means the sensor went 'unavailable' and samples were dropped; integrating
+# the recovered rate over it would over-credit. See FlowMeter(max_gap_s=...).
+FLOW_MAX_GAP_SECONDS = FLOW_POLL_INTERVAL * 4
 # Unified flow-measurement engine (flow_metering.FlowMeter). Per-zone override for how a
 # totalizer flow sensor is read; 'auto' learns per_run vs lifetime across runs. See the
 # flow_metering module docstring and flow_learn_next_streak / flow_learn_resolve.

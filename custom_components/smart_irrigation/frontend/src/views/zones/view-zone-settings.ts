@@ -175,6 +175,9 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   // A totalizer is any sensor whose state_class is total_increasing, OR whose
   // unit is a volume unit that is NOT a rate (no "/" and not a known flow-rate
   // unit like gpm/lpm/gph/lph).
+  // MUST mirror the backend classifier `flow_is_totalizer` in flow_metering.py
+  // (that is the source of truth the engine actually meters by) — including the
+  // rate-unit list below; keep the two in sync when either changes.
   private _flowSensorIsTotalizer(zone: any): boolean {
     const entity = zone.flow_sensor;
     if (!entity) return false;

@@ -6,6 +6,10 @@ from unittest.mock import AsyncMock, Mock
 
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.distributor import DistributorMixin
+from custom_components.smart_irrigation.flow_metering import (
+    flow_is_totalizer,
+    flow_litres_from_total,
+)
 from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
 from custom_components.smart_irrigation.master import MasterMixin
 from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
@@ -434,7 +438,9 @@ async def test_mark_uncertain_notification_real_localize_de_and_en():
         c = _host()
         c.hass.config.language = lang
         captured = {}
-        c._dist_notify = AsyncMock(side_effect=lambda d, m: captured.update(msg=m))
+        c._dist_notify = AsyncMock(
+            side_effect=lambda d, m, cap=captured: cap.update(msg=m)
+        )
         await c._dist_mark_uncertain(
             _dist(name="Garten"), reason=const.PROBLEM_VALVE_DID_NOT_OPEN
         )
@@ -459,20 +465,18 @@ def _state(val, unit):
 
 
 def test_flow_is_totalizer():
-    c = _host()
     # A rate unit (contains '/') is NOT a totalizer; a bare unit is.
-    assert c._flow_is_totalizer("L/min", None) is False
-    assert c._flow_is_totalizer("m³/h", None) is False
-    assert c._flow_is_totalizer("L", None) is True
-    assert c._flow_is_totalizer("m³", None) is True
+    assert flow_is_totalizer("L/min", None) is False
+    assert flow_is_totalizer("m³/h", None) is False
+    assert flow_is_totalizer("L", None) is True
+    assert flow_is_totalizer("m³", None) is True
 
 
 def test_flow_litres_from_total_units():
-    c = _host()
-    assert c._flow_litres_from_total(2.0, "L") == 2.0
-    assert c._flow_litres_from_total(2.0, "m³") == 2000.0
-    assert round(c._flow_litres_from_total(1.0, "gal"), 4) == 3.7854
-    assert c._flow_litres_from_total(5.0, "weird") == 5.0
+    assert flow_litres_from_total(2.0, "L") == 2.0
+    assert flow_litres_from_total(2.0, "m³") == 2000.0
+    assert round(flow_litres_from_total(1.0, "gal"), 4) == 3.7854
+    assert flow_litres_from_total(5.0, "weird") == 5.0
 
 
 async def test_measure_window_cumulative_counter():

@@ -56,7 +56,7 @@ def test_calculation_and_skip_methods_present():
 def test_irrigation_runner_methods_present():
     expected = [
         "_irrigate_linked_entities",
-        "_flow_rate_to_l_per_min",
+        "_read_flow_sample",
         "_run_valve_metered",
         "_irrigate_zone_flow_slot",
         "_irrigate_zones_rotating",
