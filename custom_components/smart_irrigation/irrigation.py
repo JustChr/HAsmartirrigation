@@ -1831,14 +1831,27 @@ class IrrigationRunnerMixin:
         for zid in zone_ids:
             zone = self.store.get_zone(int(zid)) or {}
             log = zone.get(const.ZONE_RUN_LOG) or []
-            if log:
-                last = log[0]
+            # Review finding H: dedup by SCANNING the log for any today-dated
+            # no_demand entry, not just log[0]. An intervening same-day run (e.g. a
+            # manual completed run between two schedules) displaces the earlier
+            # no_demand marker out of the newest slot, so the old log[0]-only check
+            # missed it and wrote a second no_demand entry the same calendar day.
+            # Entries are newest-first, so stop at the first older-than-today ts.
+            # siehe test_no_demand_logging.py::test_helper_dedups_same_day_with_intervening_run
+            already_logged = False
+            for entry in log:
+                ts = str(entry.get("ts") or "")[:10]
+                if ts and ts < today:
+                    break
                 if (
-                    last.get("result") == const.RUN_RESULT_SKIPPED
-                    and last.get("detail") == const.SKIP_REASON_NO_DEMAND
-                    and str(last.get("ts") or "")[:10] == today
+                    ts == today
+                    and entry.get("result") == const.RUN_RESULT_SKIPPED
+                    and entry.get("detail") == const.SKIP_REASON_NO_DEMAND
                 ):
-                    continue
+                    already_logged = True
+                    break
+            if already_logged:
+                continue
             await self._record_run(
                 int(zid),
                 result=const.RUN_RESULT_SKIPPED,

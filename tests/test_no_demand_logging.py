@@ -33,7 +33,9 @@ class _FakeStore:
         return dict(z) if z is not None else None
 
     async def async_update_zone(self, zone_id, changes):
-        self.zones.setdefault(int(zone_id), {const.ZONE_ID: int(zone_id)}).update(changes)
+        self.zones.setdefault(int(zone_id), {const.ZONE_ID: int(zone_id)}).update(
+            changes
+        )
         return dict(self.zones[int(zone_id)])
 
     async def async_get_zones(self):
@@ -105,13 +107,37 @@ async def test_helper_dedups_same_day(monkeypatch):
     assert len(coord.store.zones[1][const.ZONE_RUN_LOG]) == 1  # unchanged
 
 
+async def test_helper_dedups_same_day_with_intervening_run(monkeypatch):
+    # Review finding H: an intervening same-day run (e.g. a manual completed run
+    # between two schedules) displaces the earlier no_demand marker out of the
+    # newest slot; the dedup must still find it by SCANNING, not only log[0].
+    now = dt_util.now().isoformat()
+    completed = {
+        "ts": now,
+        "result": const.RUN_RESULT_COMPLETED,
+        "detail": None,
+        "volume_l": 12.0,
+    }
+    no_demand = {
+        "ts": now,
+        "result": const.RUN_RESULT_SKIPPED,
+        "detail": const.SKIP_REASON_NO_DEMAND,
+        "volume_l": 0.0,
+    }
+    # newest-first: the intervening completed run at [0], the earlier same-day
+    # no_demand at [1]. The old log[0]-only check missed it and double-logged.
+    coord = _coord(monkeypatch, [_zone(run_log=[completed, no_demand])])
+    await coord._record_no_demand_skips([1])
+    assert len(coord.store.zones[1][const.ZONE_RUN_LOG]) == 2  # no second no_demand
+
+
 def _linked_zone(**over):
     z = {
         const.ZONE_ID: 1,
         const.ZONE_NAME: "Lawn",
         const.ZONE_LINKED_ENTITY: "switch.valve",
         const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
-        const.ZONE_DURATION: 0,          # no demand
+        const.ZONE_DURATION: 0,  # no demand
         const.ZONE_BUCKET: 0.0,
         const.ZONE_BUCKET_THRESHOLD: 0.0,  # 0 < 0 is False -> not due
         const.ZONE_RUN_LOG: [],
