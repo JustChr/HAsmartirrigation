@@ -1101,8 +1101,11 @@ class SmartIrrigationStorage:
                 changes[ZONE_BUCKET] = changes[ATTR_NEW_BUCKET_VALUE]
                 changes.pop(ATTR_NEW_BUCKET_VALUE)
             # apply maximum bucket value
+            # review finding J: guard changes[ZONE_BUCKET] presence like the
+            # sibling block below (partial POST may omit bucket -> KeyError/500)
             if (
-                ZONE_MAXIMUM_BUCKET in changes
+                ZONE_BUCKET in changes
+                and ZONE_MAXIMUM_BUCKET in changes
                 and changes[ZONE_MAXIMUM_BUCKET] is not None
                 and changes[ZONE_BUCKET] is not None
                 and changes[ZONE_BUCKET] > changes[ZONE_MAXIMUM_BUCKET]

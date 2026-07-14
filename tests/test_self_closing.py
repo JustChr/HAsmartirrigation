@@ -608,6 +608,96 @@ async def test_self_closing_overlap_cancels_prior_interval(monkeypatch):
     assert c._sc_meters()[2][1] is cancel2  # and it is the new sampler
 
 
+async def test_self_closing_overlap_cancels_prior_cleanup_timer(monkeypatch):
+    """review finding D (sister of the I-1 interval overlap fix): a second run for the
+    same zone (e.g. a manual run fired during a scheduled one) cancels-and-replaces the
+    first run's cleanup timer — the prior cosmetic-finish timer is never orphaned, so it
+    can't fire _sc_finish_run against the NEW run and finalize it early (false COMPLETED,
+    actual_s=planned_s, dropped flow tail). Mirrors the interval-overlap guard above."""
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    cancel1, cancel2 = Mock(), Mock()
+    monkeypatch.setattr(scmod, "async_call_later", Mock(side_effect=[cancel1, cancel2]))
+
+    c = _coord()
+    del c._sc_schedule_cleanup  # restore the real method (the fixture stubs it out)
+
+    c._sc_schedule_cleanup(2, 600.0)
+    assert c._sc_cleanup_timers()[2] is cancel1  # first cleanup timer registered
+    cancel1.assert_not_called()
+
+    c._sc_schedule_cleanup(2, 600.0)
+
+    cancel1.assert_called_once()  # prior cleanup timer cancelled, not orphaned
+    cancel2.assert_not_called()
+    assert list(c._sc_cleanup_timers()) == [2]  # exactly one entry remains
+    assert c._sc_cleanup_timers()[2] is cancel2  # and it is the new timer
+
+
+async def test_self_closing_cleanup_timer_popped_on_finish(monkeypatch):
+    """review finding D: a run's cleanup timer is popped from _sc_cleanup_timers() when
+    the run finalizes (_sc_finish_run), so a stale handle can't linger past the run."""
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    cancel = Mock()
+    monkeypatch.setattr(scmod, "async_call_later", Mock(return_value=cancel))
+
+    c = _coord()
+    del c._sc_schedule_cleanup  # restore the real method
+    c.store.async_get_config = AsyncMock(
+        return_value={
+            const.CONF_ACTIVE_VALVE_RUNS: [
+                {const.RUN_ZONE_ID: 2, const.RUN_PLANNED_SECONDS: 600.0}
+            ]
+        }
+    )
+    c.store.get_zone = Mock(return_value=_zone(**{const.ZONE_BUCKET: -1.0}))
+    c._timed_volume_l = Mock(return_value=20.0)
+
+    c._sc_schedule_cleanup(2, 600.0)
+    assert 2 in c._sc_cleanup_timers()
+
+    await c._sc_finish_run(2)
+
+    assert 2 not in c._sc_cleanup_timers()  # popped -> no stale handle lingers
+
+
+async def test_self_closing_cleanup_timer_cancelled_on_stop(monkeypatch):
+    """review finding D: an early stop cancels-and-pops the run's pending cleanup timer,
+    so the original run's timer can't fire _sc_finish_run after the stop removed it."""
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    cancel = Mock()
+    monkeypatch.setattr(scmod, "async_call_later", Mock(return_value=cancel))
+
+    c = _coord()
+    del c._sc_schedule_cleanup  # restore the real method
+    run = {
+        const.RUN_ZONE_ID: 2,
+        const.RUN_STARTED: "2026-06-30T08:00:00+00:00",
+        const.RUN_PLANNED_SECONDS: 600.0,
+        const.RUN_PLANNED_MM: 4.0,
+        const.RUN_CREDITED: True,
+    }
+    c.store.async_get_config = AsyncMock(
+        return_value={const.CONF_ACTIVE_VALVE_RUNS: [run]}
+    )
+    zone = _zone(
+        **{const.ZONE_BUCKET: -1.0, const.ZONE_STOP_SERVICE: "script.beet_off"}
+    )
+    c.store.get_zone = Mock(return_value=zone)
+    c._sc_elapsed = Mock(return_value=300.0)
+    c._timed_volume_l = Mock(return_value=10.0)
+
+    c._sc_schedule_cleanup(2, 600.0)
+    assert 2 in c._sc_cleanup_timers()
+
+    await c.async_stop_self_closing(2)
+
+    cancel.assert_called_once()  # pending cleanup timer cancelled on early stop
+    assert 2 not in c._sc_cleanup_timers()  # and popped
+
+
 async def test_self_closing_measured_bucket_reconciles_from_pre_bucket(monkeypatch):
     """I-2 regression: when the optimistic TIME-based open credit CLAMPS at the ceiling
     but the MEASURED volume is smaller, the finish reconciles the bucket ABSOLUTELY from
@@ -745,6 +835,78 @@ async def test_self_closing_early_stop_bucket_reconciles_from_pre_bucket(monkeyp
 
     # Absolute reconcile from pre_bucket: min(20, 0 + 30*0.5) = 15, NOT the delta 20-15=5.
     assert store_zone[const.ZONE_BUCKET] == 15.0
+
+
+async def test_self_closing_early_stop_credits_measured_over_timed(monkeypatch):
+    """review finding F: an EARLY stop with a valid flow MEASUREMENT reconciles the bucket
+    from pre_bucket + credited_depth(measured) — matching the completion twin _sc_finish_run
+    — NOT the time-based planned_mm * delivered_frac partial. Under a miscalibrated
+    throughput the time-based partial over-/under-credits the bucket; the measured value is
+    ground truth. The no-measurement sibling test above keeps the time-based fallback.
+
+    pre_bucket 0, open credit depth 30 (time-based); stop at 50% -> the time-based partial
+    would be 30*0.5 = 15. Measured = 10 L -> bucket must land at 0 + 10 = 10, NOT 15.
+    """
+    import custom_components.smart_irrigation.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    c._timed_volume_l = Mock(return_value=30.0)  # open credit depth 30 (identity depth)
+    c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)
+
+    zone = _zone(
+        **{
+            const.ZONE_BUCKET: 0.0,
+            const.ZONE_MAXIMUM_BUCKET: 50.0,  # high -> no clamp masks the reconcile
+            const.ZONE_DURATION: 120.0,
+            const.ZONE_DURATION_UNIT: const.DURATION_UNIT_SECONDS,
+            const.ZONE_THROUGHPUT: 4.0,
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_PER_RUN,
+            const.ZONE_STOP_SERVICE: "switch.turn_off",
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+
+    async def _update_zone(zid, changes):
+        store_zone.update(changes)
+
+    c.store.async_update_zone = AsyncMock(side_effect=_update_zone)
+    active = []
+
+    async def _get_config():
+        return {const.CONF_ACTIVE_VALVE_RUNS: list(active)}
+
+    async def _update_config(changes):
+        if const.CONF_ACTIVE_VALVE_RUNS in changes:
+            active[:] = changes[const.CONF_ACTIVE_VALVE_RUNS]
+
+    c.store.async_get_config = AsyncMock(side_effect=_get_config)
+    c.store.async_update_config = AsyncMock(side_effect=_update_config)
+
+    current = {"st": _flow_state(0)}
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+    assert ok is True
+    assert (
+        store_zone[const.ZONE_BUCKET] == 30.0
+    )  # optimistic open credit (below ceiling)
+
+    # Per-run totalizer climbs 0 -> 5 -> 10 L (measured 10 L != the 15 time-based partial).
+    for at, val in ((30.0, 5), (60.0, 10)):
+        current["st"] = _flow_state(val)
+        c._sc_sample_flow(2, at)
+
+    c._sc_elapsed = Mock(return_value=60.0)  # stop at 50% of the 120 s window
+    await c.async_stop_self_closing(2)
+
+    # Measured reconcile from pre_bucket: 0 + 10 = 10, NOT the time-based partial 30*0.5=15.
+    assert store_zone[const.ZONE_BUCKET] == 10.0
+    # Recorded usage is the measured 10 L.
+    assert c._record_run.await_args.kwargs["volume_l"] == 10.0
 
 
 async def test_self_closing_final_read_captures_last_climb(monkeypatch):

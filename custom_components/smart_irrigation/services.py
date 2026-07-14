@@ -144,7 +144,9 @@ class ServiceHandlersMixin:
                     raise SmartIrrigationError(
                         "Bucket size is above maximmum bucket allowed value."
                     )
-                if v == const.ATTR_NEW_STATE_VALUE and data[v] in const.ZONE_STATE:
+                # Review finding I: was substring-testing const.ZONE_STATE
+                # ("state") instead of the ZONE_STATES list.
+                if v == const.ATTR_NEW_STATE_VALUE and data[v] not in const.ZONE_STATES:
                     raise SmartIrrigationError(
                         f"Invalid value ({data[v]}) for zone state."
                     )

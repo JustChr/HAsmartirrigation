@@ -329,15 +329,34 @@ class DistributorMixin:
 
     async def _dispatch_distributor_cycles(
         self, zone_ids=None, duration_override=None
-    ) -> None:
+    ) -> bool:
         """Plan G: run each qualifying distributor's cycle on a scheduled irrigate.
         Member zones were excluded from the normal linked-entity path
         (irrigation.py: distributor_id is None), so this is their sole automatic
         driver, and it runs even when no non-member zone is due. Pre-guards avoid
         arming the master for a distributor that would immediately no-op; the cycle's
         own guards (synced / commissioning_confirmed / no members / rain-delay /
-        no due members) remain authoritative."""
-        if self._rain_delay_active():
+        no due members) remain authoritative.
+
+        Returns ``True`` iff at least one distributor cycle actually swept (water
+        delivered), ``False`` otherwise (rain delay, or every cycle no-op'd). The
+        scheduled caller gates ``_reset_days_since_irrigation`` on this so a run
+        that delivered no water doesn't reset the days-between guard (review
+        finding A)."""
+        # Fix E (review finding): a manual member "irrigate now (X min)" run carries
+        # a duration_override; a scheduled/bulk run never does. Compute `manual`
+        # BEFORE the rain-delay guard so the guard is gated on `not manual` — a
+        # forced manual run must water THROUGH an active rain delay, matching
+        # async_run_zone's docstring ("Bypasses ... the rain-delay hold") and the
+        # NORMAL manual-zone path, and matching the force_water branch in
+        # _dist_run_sweep which already skips its own rain guard for a forced run
+        # (comment there: "a forced manual run bypasses rain delay too, matching
+        # run_zone"). The old ordering (guard first) recorded the manual run as a
+        # PAUSED skip and dropped it, and left that force_water rain-bypass code
+        # unreachable. Scheduled/bulk runs (no override) stay rain-respecting.
+        # siehe test_distributor_dispatch.py::test_dispatch_manual_run_bypasses_rain_delay
+        manual = duration_override is not None
+        if not manual and self._rain_delay_active():
             # H4 (review #3): on a rain-delayed mixed-target schedule the
             # linked-entity path already records a skipped run for the non-member
             # zones. Record here only for the in-scope distributor member zones we
@@ -354,16 +373,14 @@ class DistributorMixin:
                         member_ids.append(zid)
             if member_ids:
                 await self._record_skipped_run(member_ids, const.SKIP_REASON_PAUSED)
-            return
+            return False
         want_all = zone_ids is None or zone_ids == "all"
         target = None if want_all else {int(z) for z in zone_ids}
-        # b10 (live 2026-07-05): a duration_override is only ever set by a manual
-        # "irrigate now (X min)" member run (b9). Scheduled dispatch never carries
-        # one. A manual run must water the targeted outlet regardless of due-ness,
-        # so drop the demand gate here (require_due=False) and tell the cycle to
-        # force-water the target (force_water=True). See _dist_eligible_for_run and
-        # async_run_distributor_cycle.
-        manual = duration_override is not None
+        # b10 (live 2026-07-05): a manual run must water the targeted outlet
+        # regardless of due-ness, so drop the demand gate here (require_due=False)
+        # and tell the cycle to force-water the target (force_water=True). See
+        # _dist_eligible_for_run and async_run_distributor_cycle.
+        watered = False
         for dist in await self.store.async_get_distributors():
             members = await self._dist_members(dist.get("id"))
             if target is not None and not any(
@@ -378,13 +395,18 @@ class DistributorMixin:
             # manual run skips only the demand gate (require_due=False).
             if not self._dist_eligible_for_run(dist, members, require_due=not manual):
                 continue
-            await self.async_run_distributor_cycle(
+            # async_run_distributor_cycle returns True iff a sweep actually ran
+            # (water delivered); a still-guarded no-op returns False. Track it so
+            # the caller can gate the days-since reset (review finding A).
+            if await self.async_run_distributor_cycle(
                 dist,
                 concurrent=self._distributor_concurrent(),
                 only_zone_ids=None if target is None else list(target),
                 duration_override=duration_override,
                 force_water=manual,
-            )
+            ):
+                watered = True
+        return watered
 
     # --- finish-anchor duration estimate ----------------------------------
 
@@ -1299,9 +1321,10 @@ class DistributorMixin:
     async def async_resume_distributor_cycles(self) -> None:
         """Reconcile in-flight distributor cycles after a restart (spec §7).
 
-        crashed mid-watering (before the advance) -> the position is still known
-        (current_outlet == the watered outlet): defensively close the inlet and
-        clear the in-flight record, staying synced.
+        crashed mid-watering -> defensively close the inlet and book ONE ring
+        advance so the stored position tracks the physical ring (review finding C,
+        below): the distributor stays SYNCED and keeps running across a routine
+        mid-watering reload, no user re-sync needed.
         crashed mid-pausing (the advance may or may not have completed on the
         blind device) -> mark uncertain (de-arm) and require a re-sync.
         """
@@ -1310,6 +1333,31 @@ class DistributorMixin:
             if not cycle:
                 continue
             await self._dist_close_inlet(dist)
+            # Fix C (review finding): a Gardena ring indexes on EVERY valve OFF /
+            # pressure-drop edge (b12: it "can NEVER rest on the outlet it just
+            # watered"). The defensive inlet close above IS such an edge, so it
+            # physically steps the ring from `cur` to `cur+1` — but the persisted
+            # `current_outlet` was left at `cur` during a WATERING phase (the sweep
+            # only advances at the inter-outlet pause / terminal), a permanent silent
+            # 1-outlet desync that would make every later cycle water the WRONG
+            # outlets. Book that one advance here so stored == physical. Derive
+            # current_outlet from the active_cycle's watered outlet (== stored
+            # current_outlet during watering) and outlet_count from the member ring,
+            # as the sweep does. Design note: we ADVANCE rather than mark-uncertain
+            # so a routine mid-watering reload keeps the distributor running; the only
+            # theoretical double-advance window is the sub-instant persist->open gap.
+            # The PAUSING branch below already de-arms; WATERING was the leak.
+            # siehe test_distributor_cycle.py::test_resume_mid_watering_stays_synced_closes_inlet
+            if cycle.get("phase") == const.DISTRIBUTOR_PHASE_WATERING:
+                members = await self._dist_members(dist.get("id"))
+                outlet_count = len(members)
+                if outlet_count:
+                    current_outlet = int(
+                        cycle.get("outlet") or dist.get("current_outlet") or 1
+                    )
+                    await self._dist_advance(
+                        dist.get("id"), current_outlet, outlet_count
+                    )
             await self._dist_clear_cycle(dist.get("id"))
             if cycle.get("phase") == const.DISTRIBUTOR_PHASE_PAUSING:
                 await self._dist_mark_uncertain(

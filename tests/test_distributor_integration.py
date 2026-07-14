@@ -317,9 +317,11 @@ async def test_zone_view_ignores_server_owned_fields():
     open across a run carries a stale water_used_total + run log that would otherwise
     revert that run's usage total and delete its history entry. The same hazard applies
     to the flow engine's server-owned learning/calibration state (flow_last_end,
-    flow_reset_streak, flow_calibration_samples/_advised). The view strips all of those
-    (plus last_irrigation), so the coordinator only ever gets the editable ones — while a
-    genuinely user-editable field like flow_counter_type is forwarded untouched.
+    flow_reset_streak, flow_calibration_samples/_advised) and to the runner-owned
+    timestamps (last_consumed_at consumption watermark, last_calculated, last_updated).
+    The view strips all of those (plus last_irrigation), so the coordinator only ever
+    gets the editable ones — while a genuinely user-editable field like
+    flow_counter_type is forwarded untouched.
     """
     from unittest.mock import patch
 
@@ -342,6 +344,9 @@ async def test_zone_view_ignores_server_owned_fields():
         const.ZONE_FLOW_RESET_STREAK: 2,
         const.ZONE_FLOW_CAL_SAMPLES: [3.5, 3.6, 3.4],
         const.ZONE_FLOW_CAL_ADVISED: True,
+        const.ZONE_LAST_CONSUMED: "2020-01-01T00:00:00",
+        const.ZONE_LAST_CALCULATED: "2020-01-01T00:00:00",
+        const.ZONE_LAST_UPDATED: "2020-01-01T00:00:00",
     }
     request.json = AsyncMock(return_value=data)
 
@@ -365,3 +370,9 @@ async def test_zone_view_ignores_server_owned_fields():
     assert const.ZONE_FLOW_RESET_STREAK not in forwarded
     assert const.ZONE_FLOW_CAL_SAMPLES not in forwarded
     assert const.ZONE_FLOW_CAL_ADVISED not in forwarded
+    # the runner-owned timestamps are stripped too — the consumption watermark
+    # (last_consumed_at) is the critical one: reverting it makes the next calc
+    # re-aggregate an already-consumed weather window and double-count the bucket
+    assert const.ZONE_LAST_CONSUMED not in forwarded
+    assert const.ZONE_LAST_CALCULATED not in forwarded
+    assert const.ZONE_LAST_UPDATED not in forwarded

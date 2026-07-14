@@ -1,7 +1,6 @@
 """Gardena distributor cycle loop + recovery (DistributorMixin orchestration)."""
 
 import asyncio
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -409,11 +408,20 @@ async def test_resync_home_sets_outlet_one():
     )
 
 
-def _recon_host(distributors):
+def _recon_host(distributors, members=None):
     c = _CycleHost()
+    c.hass = Mock()
+    c.hass.data = {}  # I2: real _dist_advance->_dist_store_update fires the dispatcher
     c.store = Mock()
     c.store.async_get_distributors = AsyncMock(return_value=distributors)
     c.store.async_update_distributor = AsyncMock()
+    # review finding C: the WATERING-phase resume now books a ring advance, which
+    # reads the member count via _dist_members. Default to a 5-outlet ring.
+    c._dist_members = AsyncMock(
+        return_value=(
+            members if members is not None else [_mem(i + 1, i + 1) for i in range(5)]
+        )
+    )
     c._dist_close_inlet = AsyncMock()
     c._dist_clear_cycle = AsyncMock()
     c._dist_mark_uncertain = AsyncMock()
@@ -428,12 +436,28 @@ async def test_resume_no_active_cycle_is_noop():
 
 
 async def test_resume_mid_watering_stays_synced_closes_inlet():
+    # review finding C: a 5-outlet ring, mid-watering at outlet 2. The defensive
+    # inlet close physically steps the Gardena ring to outlet 3 (it indexes on the
+    # valve OFF edge, b12), so the resume must book ONE advance -> stored
+    # current_outlet == 3, matching the physical ring; NOT marked uncertain.
     d = _dist_cfg(**{"active_cycle": {"outlet": 2, "phase": "watering"}})
-    c = _recon_host([d])
+    c = _recon_host([d], members=[_mem(i + 1, i + 1) for i in range(5)])
     await c.async_resume_distributor_cycles()
     c._dist_close_inlet.assert_awaited_once()  # defensive close
+    c.store.async_update_distributor.assert_any_await(0, {"current_outlet": 3})
     c._dist_clear_cycle.assert_awaited_once_with(0)
-    c._dist_mark_uncertain.assert_not_awaited()  # position still known
+    c._dist_mark_uncertain.assert_not_awaited()  # position known (advanced, synced)
+
+
+async def test_resume_mid_watering_advance_wraps_at_last_outlet():
+    # review finding C: mid-watering at the LAST outlet of a 5-outlet ring -> the
+    # OFF-edge advance wraps back home (5 -> 1), never resting on the watered outlet.
+    d = _dist_cfg(**{"active_cycle": {"outlet": 5, "phase": "watering"}})
+    c = _recon_host([d], members=[_mem(i + 1, i + 1) for i in range(5)])
+    await c.async_resume_distributor_cycles()
+    c._dist_close_inlet.assert_awaited_once()
+    c.store.async_update_distributor.assert_any_await(0, {"current_outlet": 1})
+    c._dist_mark_uncertain.assert_not_awaited()
 
 
 async def test_resume_mid_pausing_marks_uncertain():

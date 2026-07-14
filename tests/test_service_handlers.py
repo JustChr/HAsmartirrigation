@@ -224,3 +224,58 @@ async def test_handle_set_all_buckets_without_value_is_noop():
     await ServiceHandlersMixin.handle_set_all_buckets(coord, call)
 
     coord._async_set_all_buckets.assert_not_awaited()
+
+
+def _make_set_zone_coordinator():
+    """Coordinator mock for handle_set_zone: resolves one zone, mocks the store."""
+    coord = _make_coordinator()
+    state = MagicMock()
+    state.attributes = {const.ZONE_ID: 1}
+    coord.hass.states.get.return_value = state
+    coord.store.get_zone.return_value = {const.ZONE_STATE: const.ZONE_STATE_MANUAL}
+    coord.store.async_update_zone = AsyncMock()
+    return coord
+
+
+async def test_handle_set_zone_accepts_valid_state(monkeypatch):
+    """A valid zone state (automatic) is persisted, not rejected (review finding I)."""
+    coord = _make_set_zone_coordinator()
+    monkeypatch.setattr(
+        "custom_components.smart_irrigation.services.async_dispatcher_send",
+        MagicMock(),
+    )
+
+    call = MagicMock()
+    call.data = {
+        const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_lawn",
+        const.ATTR_NEW_STATE_VALUE: const.ZONE_STATE_AUTOMATIC,
+    }
+
+    await ServiceHandlersMixin.handle_set_zone(coord, call)
+
+    coord.store.async_update_zone.assert_awaited_once()
+    args = coord.store.async_update_zone.await_args.args
+    assert args[0] == 1
+    assert args[1][const.ZONE_STATE] == const.ZONE_STATE_AUTOMATIC
+
+
+async def test_handle_set_zone_rejects_invalid_state():
+    """An out-of-range zone state (foobar) is rejected (review finding I).
+
+    On the old ``data[v] in const.ZONE_STATE`` substring test this silently
+    persisted (``"foobar" in "state"`` is False, so no raise). The fix tests
+    membership against the ``const.ZONE_STATES`` list instead.
+    """
+    from custom_components.smart_irrigation.services import SmartIrrigationError
+
+    coord = _make_set_zone_coordinator()
+
+    call = MagicMock()
+    call.data = {
+        const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_lawn",
+        const.ATTR_NEW_STATE_VALUE: "foobar",
+    }
+
+    with pytest.raises(SmartIrrigationError):
+        await ServiceHandlersMixin.handle_set_zone(coord, call)
+    coord.store.async_update_zone.assert_not_awaited()

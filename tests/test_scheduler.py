@@ -12,12 +12,20 @@ signatures; a regression to the broken call shape raises ``TypeError`` inside
 ``_perform_schedule_action`` (which re-raises) and fails the test.
 """
 
-from unittest.mock import MagicMock, create_autospec
+from datetime import timedelta
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, create_autospec
 
+import homeassistant.util.dt as dt_util
 import pytest
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+
+# Reuse the __new__-built coordinator fixture from the rain-delay suite to
+# exercise the real _irrigate_linked_entities bool contract without re-wiring a
+# full coordinator here (review finding A).
+from tests.test_rain_delay import _coord, _eligible_zone
 
 
 def _make_manager():
@@ -75,9 +83,54 @@ async def test_irrigate_skips_when_conditions_met():
 async def test_irrigate_runs_and_resets_counter_when_not_skipped():
     manager, coordinator = _make_manager()
     coordinator._check_skip_conditions.return_value = False
+    # review finding A: the reset is now gated on water actually being delivered,
+    # so the linked-entity dispatch must report True for the reset to fire.
+    coordinator._irrigate_linked_entities = AsyncMock(return_value=True)
     await manager._perform_schedule_action("irrigate", "all", "sched")
     coordinator._irrigate_linked_entities.assert_awaited_once()
     coordinator._reset_days_since_irrigation.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_irrigate_does_not_reset_counter_when_no_water_delivered():
+    """review finding A: a scheduled 'irrigate' whose dispatch helpers deliver no
+    water (rain-delay / all-vetoed / nothing due) must NOT reset the days-since
+    counter — otherwise the days_between_irrigation guard skips the next due run
+    and strands the garden dry."""
+    manager, coordinator = _make_manager()
+    coordinator._check_skip_conditions = AsyncMock(return_value=False)
+    coordinator._irrigate_linked_entities = AsyncMock(return_value=False)
+    coordinator._dispatch_distributor_cycles = AsyncMock(return_value=False)
+    await manager._perform_schedule_action("irrigate", "all", "sched")
+    coordinator._irrigate_linked_entities.assert_awaited_once()
+    coordinator._dispatch_distributor_cycles.assert_awaited_once()
+    coordinator._reset_days_since_irrigation.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_irrigate_linked_entities_returns_false_on_rain_delay(monkeypatch):
+    """The bool contract: while a rain delay is active the scheduled path
+    delivers no water and reports False so the caller can skip the reset."""
+    future = (dt_util.now() + timedelta(hours=6)).isoformat()
+    coord = _coord(
+        monkeypatch,
+        zones=[_eligible_zone()],
+        config=SimpleNamespace(
+            rain_delay_until=future,
+            zone_sequencing=const.CONF_ZONE_SEQUENCING_PARALLEL,
+        ),
+    )
+    assert await coord._irrigate_linked_entities() is False
+
+
+@pytest.mark.asyncio
+async def test_irrigate_linked_entities_returns_true_on_normal_dispatch(monkeypatch):
+    """A normal dispatch of an eligible zone reports True (water delivered)."""
+    coord = _coord(monkeypatch, zones=[_eligible_zone()])
+    coord._apply_live_durations = AsyncMock(side_effect=lambda zs: zs)
+    coord._irrigate_zones_parallel = AsyncMock()
+    assert await coord._irrigate_linked_entities() is True
+    coord._irrigate_zones_parallel.assert_awaited_once()
 
 
 @pytest.mark.asyncio

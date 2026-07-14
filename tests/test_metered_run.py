@@ -20,6 +20,7 @@ import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation.irrigation import SI_VALVE_SUPPRESS_MARGIN
 
 
 class _FakeStore:
@@ -243,6 +244,41 @@ async def test_real_flow_never_started_faults(monkeypatch):
     assert _bucket(coord) == pytest.approx(-5.0)
     assert _used(coord) == 0.0
     assert _log(coord)[0]["result"] == const.RUN_RESULT_FAILED
+
+
+# --------------------------------------------------------------------------- #
+# Observed-watering suppression window (review finding G)
+# --------------------------------------------------------------------------- #
+async def test_real_flow_tightens_si_window_on_close(monkeypatch):
+    """review finding G: a volume-bounded (real_flow) run opens with the ~maximum_duration
+    safety window as its SI-driven suppression (the finish is unknown at open), but the
+    valve actually closes after a few minutes. On close it re-notes a TIGHT window
+    (now + margin) so the observed-watering observer isn't suppressed for the multi-hour
+    safety tail — a genuine external watering after the run is still credited."""
+    z = _zone(**{const.ZONE_BUCKET: -5.0, const.ZONE_FLOW_SENSOR: "sensor.flow"})
+    coord = _coord(monkeypatch, [z], flow_rate=20)
+    coord._live_run_zones = set()
+    coord._si_driven_until = {}
+    coord.hass.loop.time = Mock(return_value=1000.0)
+    await coord._run_valve_metered(dict(z), "switch.v", real_flow=True)
+    # Suppression tightened to now + margin (1000 + 30), NOT the ~14400 safety tail.
+    assert coord._si_driven_until[1] == pytest.approx(1000.0 + SI_VALVE_SUPPRESS_MARGIN)
+
+
+async def test_timed_run_keeps_exact_length_si_window(monkeypatch):
+    """review finding G (guard): a TIME-bounded run's open window already equals its real
+    run length (max_seconds == ZONE_DURATION), so it is NOT re-noted on close — the tight
+    re-note is gated strictly on real_flow. Window stays duration + margin."""
+    z = _zone(**{const.ZONE_BUCKET: -5.0, const.ZONE_DURATION: 300})
+    coord = _coord(monkeypatch, [z])
+    coord._live_run_zones = set()
+    coord._si_driven_until = {}
+    coord.hass.loop.time = Mock(return_value=1000.0)
+    await coord._run_valve_metered(dict(z), "switch.v", real_flow=False)
+    # Timed run: window is the run's real length (300 s) + margin, left untouched at close.
+    assert coord._si_driven_until[1] == pytest.approx(
+        1000.0 + 300 + SI_VALVE_SUPPRESS_MARGIN
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -558,6 +594,24 @@ async def test_rotating_flow_slot_measures_totalizer(monkeypatch):
         dict(z), "switch.valve", max_seconds=300.0, remaining_volume=30.0
     )
     assert delivered == pytest.approx(30.0)
+
+
+async def test_flow_slot_tightens_si_window_on_close(monkeypatch):
+    """review finding G (REGEL-8 sister path to _run_valve_metered): a rotating flow
+    slot notes the full slot cap at open but usually closes early at its volume target;
+    it must re-note a TIGHT window (now + margin) at close so a genuine external run of
+    this zone's observed_entity in the tail is still credited."""
+    z = _zone(**{const.ZONE_BUCKET: -5.0, const.ZONE_FLOW_SENSOR: "sensor.flow"})
+    coord = _coord(monkeypatch, [z])
+    coord._live_run_zones = set()
+    coord._si_driven_until = {}
+    coord.hass.loop.time = Mock(return_value=1000.0)
+    _totalizer_sensor(coord, [0.0, 10.0, 30.0])
+    await coord._irrigate_zone_flow_slot(
+        dict(z), "switch.valve", max_seconds=300.0, remaining_volume=30.0
+    )
+    # Open noted the 300 s cap; close re-notes 0 -> now + margin only (not 300 + margin).
+    assert coord._si_driven_until[1] == pytest.approx(1000.0 + SI_VALVE_SUPPRESS_MARGIN)
 
 
 async def test_rotating_totalizer_measures_slot_delta(monkeypatch):

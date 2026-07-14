@@ -779,13 +779,23 @@ class RecurringScheduleManager:
                 )
                 # Directly control linked entities (restricted to the schedule's
                 # target zones), then reset counter
-                await self.coordinator._irrigate_linked_entities(zones)
+                watered = await self.coordinator._irrigate_linked_entities(zones)
                 # Plan G: also run distributor cycles for due member zones. Members
                 # are excluded from _irrigate_linked_entities (irrigation.py:462), so
                 # this is their sole automatic driver, and it runs even when no
                 # non-member zone is due (that path early-returns at irrigation.py:476).
-                await self.coordinator._dispatch_distributor_cycles(zones)
-                await self.coordinator._reset_days_since_irrigation()
+                watered_members = await self.coordinator._dispatch_distributor_cycles(
+                    zones
+                )
+                # review finding A — days-since reset stranded zones dry on
+                # rain-delay / all-vetoed / no-demand runs: both dispatch helpers
+                # deliver NO water on those paths (rain delay, every zone soil-
+                # vetoed, or nothing due), yet the reset used to fire
+                # unconditionally, fooling the days_between_irrigation guard into
+                # skipping the next due run. Only reset when water was actually
+                # delivered.
+                if watered or watered_members:
+                    await self.coordinator._reset_days_since_irrigation()
 
             _LOGGER.info(
                 "Successfully executed schedule action: %s for zones: %s", action, zones

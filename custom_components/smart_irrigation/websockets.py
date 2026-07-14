@@ -291,13 +291,19 @@ class SmartIrrigationZoneView(HomeAssistantView):
         # run log, last_irrigation) plus the flow engine's server-owned learning and
         # calibration state (flow_last_end / flow_reset_streak drive cross-run counter
         # learning; flow_calibration_samples / _advised back the calibration advisory)
+        # plus the runner-owned timestamps (last_consumed_at is the per-zone weather
+        # consumption watermark; last_calculated / last_updated are display timestamps)
         # from the browser's snapshot. If the settings page was left open across an
         # irrigation run, the snapshot is stale, and saving any setting would overwrite
         # the live values — reverting that run's usage total, deleting its history entry,
-        # or resetting the flow learning/calibration state. Drop these fields from a client
-        # save so the runner remains their sole writer (it writes them via the store
-        # directly, not through this view). flow_counter_type is intentionally NOT here —
-        # it is a user-editable config field set from this very form.
+        # resetting the flow learning/calibration state, or rewinding last_consumed_at.
+        # The watermark is the most dangerous: calculation.py advances it to `now` after
+        # folding a weather window into the bucket, so a stale save rewinds it and the
+        # next calc re-aggregates an already-consumed window → the bucket delta is
+        # double-counted → over-irrigation. Drop these fields from a client save so the
+        # runner remains their sole writer (it writes them via the store directly, not
+        # through this view). flow_counter_type is intentionally NOT here — it is a
+        # user-editable config field set from this very form.
         # See test_zone_view_ignores_server_owned_fields.
         for _server_owned in (
             const.ZONE_WATER_USED_TOTAL,
@@ -307,6 +313,9 @@ class SmartIrrigationZoneView(HomeAssistantView):
             const.ZONE_FLOW_RESET_STREAK,
             const.ZONE_FLOW_CAL_SAMPLES,
             const.ZONE_FLOW_CAL_ADVISED,
+            const.ZONE_LAST_CONSUMED,
+            const.ZONE_LAST_CALCULATED,
+            const.ZONE_LAST_UPDATED,
         ):
             data.pop(_server_owned, None)
         try:

@@ -92,6 +92,27 @@ class TestSmartIrrigationStore:
         assert stored[const.ZONE_FLOW_RESET_STREAK] == 2
         assert stored[const.ZONE_FLOW_LAST_END] == 12.0
 
+    async def test_update_zone_maximum_bucket_without_bucket_no_keyerror(
+        self, hass
+    ) -> None:
+        """Partial update with maximum_bucket but no bucket must not KeyError.
+
+        Review finding J: the max-bucket clamp indexed changes[ZONE_BUCKET]
+        without a presence guard. A partial zone POST like
+        {"id": 0, "maximum_bucket": 30} (bucket absent) reached this branch and
+        raised KeyError -> HTTP 500. The clamp must be skipped when bucket is
+        not part of the update, and maximum_bucket must still be applied.
+        """
+        reg = await async_get_registry(hass)
+        created = await reg.async_create_zone({"name": "Beet"})
+        zone_id = created["id"]
+
+        # bucket is intentionally NOT in the changes dict.
+        await reg.async_update_zone(zone_id, {const.ZONE_MAXIMUM_BUCKET: 30})
+
+        stored = reg.get_zone(zone_id)
+        assert stored[const.ZONE_MAXIMUM_BUCKET] == 30
+
     async def test_module_crud(self, hass) -> None:
         reg = await async_get_registry(hass)
         created = await reg.async_create_module(

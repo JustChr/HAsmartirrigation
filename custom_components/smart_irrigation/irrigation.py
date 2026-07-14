@@ -439,11 +439,17 @@ class IrrigationRunnerMixin:
             waited += const.VALVE_CONFIRM_POLL
 
     @callback
-    async def _irrigate_linked_entities(self, zone_ids=None):
+    async def _irrigate_linked_entities(self, zone_ids=None) -> bool:
         """Directly control linked valve/switch entities for zones needing irrigation.
 
         ``zone_ids`` optionally restricts to a schedule's target zones (an
         iterable of ids, or None/"all" for every eligible zone).
+
+        Returns ``True`` iff at least one real run was dispatched (self-closing
+        service and/or the sequencing task), ``False`` on every no-water path
+        (no candidates, rain delay, all soil-vetoed, live-estimate left nothing).
+        The scheduled caller gates ``_reset_days_since_irrigation`` on this so a
+        dry run doesn't fool the days-between guard (review finding A).
         """
         zones = await self.store.async_get_zones()
         sequencing = self.store.config.zone_sequencing
@@ -485,7 +491,7 @@ class IrrigationRunnerMixin:
             _LOGGER.debug(
                 "No zones with linked entities and duration > 0 to irrigate directly"
             )
-            return
+            return False
 
         # Rain delay / vacation hold (WS-5): a user-set, time-boxed pause of all
         # AUTOMATIC irrigation. Explicit manual runs (async_irrigate_now /
@@ -496,7 +502,7 @@ class IrrigationRunnerMixin:
                 self._rain_delay_until_dt(),
             )
             await self._record_skipped_run(zone_ids, const.SKIP_REASON_PAUSED)
-            return
+            return False
 
         # Per-zone soil-moisture wet-veto: drop zones already wet enough (and
         # re-anchor their bucket). Automatic path only — manual runs never reach
@@ -504,12 +510,12 @@ class IrrigationRunnerMixin:
         zones_to_irrigate = await self._apply_soil_moisture_veto(zones_to_irrigate)
         if not zones_to_irrigate:
             _LOGGER.debug("Soil-moisture veto left no zones needing water")
-            return
+            return False
 
         zones_to_irrigate = await self._apply_live_durations(zones_to_irrigate)
         if not zones_to_irrigate:
             _LOGGER.debug("Live-estimate duration left no zones needing water")
-            return
+            return False
 
         # Master (pump): power on before the first zone; record each run's end so
         # master_off (if enabled) can fire after the last zone completes.
@@ -526,7 +532,8 @@ class IrrigationRunnerMixin:
             z for z in zones_to_irrigate if not self._sc_is_self_closing(z)
         ]
         if not zones_to_irrigate:
-            return
+            # Self-closing zones were dispatched above => water WAS delivered.
+            return True
 
         if sequencing == const.CONF_ZONE_SEQUENCING_SEQUENTIAL:
             asyncio.create_task(self._irrigate_zones_sequential(zones_to_irrigate))
@@ -534,6 +541,9 @@ class IrrigationRunnerMixin:
             asyncio.create_task(self._irrigate_zones_rotating(zones_to_irrigate))
         else:
             await self._irrigate_zones_parallel(zones_to_irrigate)
+        # Past the veto+live gates with a non-empty set: at least one real run
+        # (self-closing and/or the sequencing task) was dispatched.
+        return True
 
     def _read_flow_sample(self, flow_sensor: str):
         """Current (value, unit, state_class) of a flow sensor, or None when it is
@@ -878,6 +888,17 @@ class IrrigationRunnerMixin:
             await self.hass.services.async_call(
                 domain, "turn_off", {"entity_id": entity_id}
             )
+            if real_flow:
+                # review finding G: a volume-bounded (real_flow) run opened with the
+                # ~maximum_duration safety window as its SI-driven suppression (the finish
+                # is unknown at open, so _note_si_valve above used max_seconds ~= 14400).
+                # It actually closes after a few minutes; without re-noting, the
+                # observed-watering observer stays suppressed for the multi-hour tail and a
+                # genuine external watering after the run is silently NOT credited. The valve
+                # is now closed -> tighten the window to now + margin (~30 s) so suppression
+                # ends with the run. A timed run's max_seconds already equals its real length
+                # (so its open window is correct) — hence gate strictly on real_flow.
+                self._note_si_valve(zone_id, 0)
 
             if real_flow and meter is not None:
                 end_changes = self._flow_learn_end_changes(zone, meter, open_start_l)
@@ -1002,6 +1023,14 @@ class IrrigationRunnerMixin:
         await self.hass.services.async_call(
             domain, "turn_off", {"entity_id": entity_id}
         )
+        # Review finding G (REGEL-8 sister path to _run_valve_metered): the open
+        # noted the full slot cap (line 978), but a volume-bounded slot usually
+        # closes early — shrink the observed-watering suppression window to
+        # now+margin at slot close so a genuine external run of this zone's
+        # observed_entity in the tail is not silently un-credited. A rotating slot
+        # is always a flow slot, so this is unconditional.
+        # siehe test_metered_run.py::test_flow_slot_tightens_si_window_on_close
+        self._note_si_valve(zone_id, 0)
         if meter.delivered() is None:
             # A configured flow sensor that produced NO readings this slot degraded
             # silently to time-based crediting (per-tick reads are DEBUG). Surface it

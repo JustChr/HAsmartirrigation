@@ -94,6 +94,30 @@ class SelfClosingMixin:
             meters = self._sc_flow_meters = {}
         return meters
 
+    def _sc_cleanup_timers(self) -> dict:
+        """Lazy {zone_id: cancel_cb} of scheduled self-closing cleanup timers.
+
+        review finding D (sister of the I-1 interval overlap fix): the interval sampler
+        and the cosmetic-finish timer are the two per-zone handles a run owns. Both must
+        be cancel-and-replaced on an overlapping run and cancel-and-popped at finalize —
+        otherwise a stale cleanup timer fires _sc_finish_run against a NEWER run and
+        finalizes it early. Mirrors _sc_meters().
+        """
+        timers = getattr(self, "_sc_cleanup_handles", None)
+        if timers is None:
+            timers = self._sc_cleanup_handles = {}
+        return timers
+
+    def _sc_cancel_cleanup(self, zone_id) -> None:
+        """Cancel-and-pop a zone's pending cleanup timer (no-op if none is stored).
+
+        Cancelling an already-fired async_call_later handle (a TimerHandle.cancel) is
+        safe, so this is called both when a run finalizes and before scheduling a new one.
+        """
+        cancel = self._sc_cleanup_timers().pop(zone_id, None)
+        if cancel is not None:
+            cancel()
+
     async def _sc_start_flow_sampling(self, zone: dict) -> None:
         """Start NON-blocking interval sampling of a self-closing zone's flow_sensor.
 
@@ -178,6 +202,9 @@ class SelfClosingMixin:
         if run is None:
             return
         await self._sc_remove_run(zone_id)
+        # review finding D: pop this run's cleanup handle as it finalizes so a stale
+        # timer can't linger (the firing timer itself lands here; cancel is a safe no-op).
+        self._sc_cancel_cleanup(zone_id)
         zone = self.store.get_zone(zone_id) or {}
         # Count usage once, at completion, for the actual delivered volume (the
         # run ran for its full planned duration).
@@ -236,7 +263,16 @@ class SelfClosingMixin:
         async def _done(_now):
             await self._sc_finish_run(zone_id)
 
-        async_call_later(self.hass, max(0.0, delay_seconds), _done)
+        # review finding D (sister of the I-1 interval overlap fix): a manual run that
+        # overlaps an active scheduled run on the SAME zone replaces the persisted record
+        # (_sc_add_run) and the interval sampler (_sc_start_flow_sampling), but the PRIOR
+        # cleanup timer would otherwise linger and fire _sc_finish_run against the NEW run
+        # — finalizing it early (false COMPLETED, actual_s=planned_s, dropped flow tail).
+        # Cancel-and-replace the prior handle, exactly as the interval half does.
+        self._sc_cancel_cleanup(zone_id)
+        self._sc_cleanup_timers()[zone_id] = async_call_later(
+            self.hass, max(0.0, delay_seconds), _done
+        )
 
     async def async_run_self_closing(
         self, zone: dict, *, trigger: str = "schedule"
@@ -384,20 +420,39 @@ class SelfClosingMixin:
         planned_mm = float(run.get(const.RUN_PLANNED_MM) or 0)
         elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
         delivered_frac = min(elapsed / planned, 1.0) if planned > 0 else 1.0
+        # Iter FM-5: finalize the flow sampler UP FRONT — the measured litres both refine
+        # the recorded usage below AND (review finding F) reconcile the bucket. Cancels the
+        # sampler and persists the totalizer end for cross-run learning. measured is None
+        # when there is no sensor, the meter was lost to a restart, or no positive flow was
+        # seen. See test_self_closing.
+        measured, end_changes = self._sc_finish_flow(zone_id)
+        if end_changes:
+            await self.store.async_update_zone(zone_id, end_changes)
         # Reconcile ABSOLUTELY from the pre-run level (RUN_PRE_BUCKET) when we have it: the
         # optimistic open credit may have CLAMPED at the ceiling, so subtracting the
         # undelivered mm from the (clamped) current bucket would over-/under-shoot — the
-        # same clamp-then-delta trap _sc_finish_run reconciles from B0 to avoid. Identical
-        # to the delta when the open credit did not clamp. Legacy delta fallback for a run
-        # persisted before RUN_PRE_BUCKET existed (upgrade mid-run). See test_self_closing.
+        # same clamp-then-delta trap _sc_finish_run reconciles from B0 to avoid. Legacy
+        # delta fallback for a run persisted before RUN_PRE_BUCKET existed (upgrade mid-run).
         pre_bucket = run.get(const.RUN_PRE_BUCKET)
         if pre_bucket is not None:
-            nb = float(pre_bucket) + planned_mm * delivered_frac
             ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
+            if measured is not None:
+                # review finding F: match the completion twin's measured reconcile — when a
+                # flow sensor produced a valid measurement, credit the bucket from the
+                # MEASURED delivered depth (pre_bucket + credited_depth), exactly like
+                # _sc_finish_run, instead of the time-based planned_mm * delivered_frac.
+                # Under a miscalibrated throughput the time-based partial over-/under-credits
+                # the bucket; the measured volume is ground truth. Time-based stays the
+                # no-measurement fallback below.
+                nb = float(pre_bucket) + self._credited_depth_native(zone, measured)
+            else:
+                nb = float(pre_bucket) + planned_mm * delivered_frac
             if ceiling is not None and nb > float(ceiling):
                 nb = float(ceiling)
             await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: nb})
         else:
+            # No pre-run anchor -> no absolute measured reconcile is possible; keep the
+            # time-based undelivered subtraction (measured only refines the usage log).
             undelivered_mm = planned_mm * (1.0 - delivered_frac)
             if undelivered_mm:
                 new_bucket = float(zone.get(const.ZONE_BUCKET) or 0) - undelivered_mm
@@ -406,14 +461,11 @@ class SelfClosingMixin:
                 )
 
         await self._sc_remove_run(zone_id)
-        # Count usage once, for what was actually delivered. Iter FM-5: the sampler ran
-        # until now — prefer its measured litres over the time-based estimate, and persist
-        # the totalizer end for cross-run learning. The bucket correction above stays
-        # time-based (partial semantics); measured only refines the recorded usage.
-        # measured is None (no sensor / dead meter / no flow) -> time-based.
-        measured, end_changes = self._sc_finish_flow(zone_id)
-        if end_changes:
-            await self.store.async_update_zone(zone_id, end_changes)
+        # review finding D: cancel-and-pop the original run's pending cleanup timer so it
+        # can't fire _sc_finish_run after this early stop already removed the run.
+        self._sc_cancel_cleanup(zone_id)
+        # Count usage once, for what was actually delivered: the measured litres (finalized
+        # above) or the time-based estimate when there was no measurement.
         delivered_l = (
             measured if measured is not None else self._timed_volume_l(zone, elapsed)
         )

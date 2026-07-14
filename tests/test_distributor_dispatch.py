@@ -4,7 +4,7 @@ import datetime
 from unittest.mock import AsyncMock, Mock
 
 from custom_components.smart_irrigation import const
-from tests.test_distributor import _host, _dist
+from tests.test_distributor import _dist, _host
 
 
 async def test_master_end_defers_to_pending_deadline_not_immediate_off():
@@ -117,6 +117,58 @@ async def test_dispatch_rain_delay_records_only_member_ids_on_mixed_target():
     await c._dispatch_distributor_cycles([3, 10, 11])
     c.async_run_distributor_cycle.assert_not_awaited()
     c._record_skipped_run.assert_awaited_once_with([10, 11], const.SKIP_REASON_PAUSED)
+
+
+async def test_dispatch_manual_run_bypasses_rain_delay():
+    """Fix E (review finding): a manual member 'irrigate now (X min)' run
+    (duration_override set) must water even during an active rain delay —
+    mirroring async_run_zone's rain-bypass docstring and the force_water path in
+    _dist_run_sweep — instead of being recorded as a paused skip. The rain-delay
+    guard is gated on `not manual`."""
+    c = _host()
+    c.store.config.zone_sequencing = const.CONF_ZONE_SEQUENCING_SEQUENTIAL
+    c._master_off_deadline = None
+    c._rain_delay_active = Mock(return_value=True)  # rain delay ACTIVE
+    c._record_skipped_run = AsyncMock()
+    seen = {}
+
+    async def _run(
+        dist,
+        *,
+        concurrent=False,
+        only_zone_ids=None,
+        duration_override=None,
+        force_water=False,
+    ):
+        seen["force"] = force_water
+        seen["dur"] = duration_override
+        return True
+
+    c.async_run_distributor_cycle = AsyncMock(side_effect=_run)
+    c.store.async_get_distributors = AsyncMock(return_value=[_dist(id=0)])
+    c._dist_members = AsyncMock(return_value=[{"id": 7, "distributor_id": 0}])
+    c._dist_needs_water = Mock(return_value=False)  # not due; manual forces anyway
+    result = await c._dispatch_distributor_cycles([7], duration_override=120.0)
+    c.async_run_distributor_cycle.assert_awaited_once()  # dispatched despite rain
+    assert seen["force"] is True  # force_water=True -> sweep bypasses rain too
+    assert seen["dur"] == 120.0
+    assert result is True  # a manual sweep delivered water
+    c._record_skipped_run.assert_not_awaited()  # NOT recorded as a paused skip
+
+
+async def test_dispatch_scheduled_run_still_paused_by_rain_delay():
+    """Fix E sister-check: a scheduled/bulk run (no duration_override) during an
+    active rain delay still records a PAUSED skip and returns False, unchanged."""
+    c = _host()
+    c._rain_delay_active = Mock(return_value=True)
+    c._record_skipped_run = AsyncMock()
+    c.async_run_distributor_cycle = AsyncMock()
+    c.store.async_get_distributors = AsyncMock(return_value=[_dist(id=0)])
+    c._dist_members = AsyncMock(return_value=[{"id": 10, "distributor_id": 0}])
+    result = await c._dispatch_distributor_cycles("all")  # scheduled (no override)
+    c.async_run_distributor_cycle.assert_not_awaited()
+    c._record_skipped_run.assert_awaited_once_with([10], const.SKIP_REASON_PAUSED)
+    assert result is False
 
 
 async def test_total_duration_uses_distributor_cycle_estimate_not_raw_sum():
