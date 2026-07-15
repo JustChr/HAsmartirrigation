@@ -257,9 +257,20 @@ class CalculationMixin:
                         zone.get(const.ZONE_NAME),
                     )
                     continue
-            await self.async_calculate_zone(
-                zone.get(const.ZONE_ID), forecastdata, now=now, prune=False
-            )
+            try:
+                await self.async_calculate_zone(
+                    zone.get(const.ZONE_ID), forecastdata, now=now, prune=False
+                )
+            except Exception:  # noqa: BLE001
+                # Isolate one zone's calculation failure so it can't abort the daily
+                # calc for EVERY other zone (audit #8). The zone keeps its previous
+                # duration/bucket; the rest still recompute.
+                _LOGGER.exception(
+                    "Error calculating zone %s; skipping it and continuing with the "
+                    "remaining zones",
+                    zone.get(const.ZONE_ID),
+                )
+                continue
             touched_mappings.add(zone.get(const.ZONE_MAPPING))
 
         # Prune each touched mapping once all its zones have advanced.
@@ -548,7 +559,10 @@ class CalculationMixin:
                 "module.calculation.explanation.maximum-bucket-is",
                 self.hass.config.language,
             )
-            + f" {float(maximum_bucket):.1f}"
+            # maximum_bucket is legitimately None ("no ceiling") if the user cleared
+            # the field (guarded everywhere else, e.g. line ~613), so float(None) here
+            # would raise TypeError and abort this zone's calc — render a dash instead.
+            + (f" {float(maximum_bucket):.1f}" if maximum_bucket is not None else " -")
         )
         explanation += (
             ".<br/>"
@@ -621,12 +635,23 @@ class CalculationMixin:
 
             tput = zone.get(const.ZONE_THROUGHPUT)
             sz = zone.get(const.ZONE_SIZE)
-            if not ha_config_is_metric:
-                # throughput is in gpm and size is in sq ft since HA is not in metric, so we need to adjust those first!
-                tput = convert_between(const.UNIT_GPM, const.UNIT_LPM, tput)
-                sz = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, sz)
-            precipitation_rate = (tput * 60) / sz
-            duration = abs(effective_bucket) / precipitation_rate * 3600
+            if not tput or not sz:
+                # Guard a misconfigured zone (size or throughput 0/unset): there is no
+                # valid precipitation rate, so no duration. Without this the
+                # (tput * 60) / sz below raises ZeroDivisionError (or TypeError on None)
+                # and — because the calc-all loop had no per-zone guard — aborted the
+                # calculation for every LATER zone too. Mirrors duration_from_deficit.
+                precipitation_rate = 0.0
+                duration = 0.0
+                tput = tput or 0
+                sz = sz or 0
+            else:
+                if not ha_config_is_metric:
+                    # throughput is in gpm and size is in sq ft since HA is not in metric, so we need to adjust those first!
+                    tput = convert_between(const.UNIT_GPM, const.UNIT_LPM, tput)
+                    sz = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, sz)
+                precipitation_rate = (tput * 60) / sz
+                duration = abs(effective_bucket) / precipitation_rate * 3600
             if effective_bucket != newbucket:
                 explanation += (
                     await localize(

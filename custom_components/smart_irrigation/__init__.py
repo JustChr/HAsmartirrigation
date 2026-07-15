@@ -198,8 +198,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         coordinator = hass.data[const.DOMAIN]["coordinator"]
         current_unit_system = hass.config.units
 
-        # Store the previous unit system in coordinator if not already stored
-        if not hasattr(coordinator, "_previous_unit_system"):
+        # Store the previous unit system in coordinator if not already stored.
+        # (Was `_previous_unit_system` — an attribute never set anywhere — so this
+        # guard was always True, always early-returned, and the change detection
+        # below was dead: a metric<->imperial switch never refreshed until reload.)
+        if not hasattr(coordinator, "previous_unit_system"):
             coordinator.previous_unit_system = current_unit_system
             return
 

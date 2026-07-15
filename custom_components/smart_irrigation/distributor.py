@@ -569,15 +569,33 @@ class DistributorMixin:
         )
         meter.sample(reading[0], reading[1], reading[2], 0.0)  # valve-open seed
         elapsed = 0.0
-        while elapsed < cap:
+        last_live = 0.0  # elapsed at the most recent LIVE read (the seed is live)
+        # Dead-meter extend guard (audit H1): a flow sensor that goes unavailable
+        # mid-window returns None on every poll, so `delivered()` can never reach
+        # `target` — a classic-extend outlet (cap == maximum_duration, default 4h)
+        # would then hold the shared inlet OPEN for hours on a sensor that is simply
+        # dead. Once the gap since the last live read exceeds the meter's max_gap,
+        # treat the meter as dead and STOP extending: finish only the originally
+        # PLANNED window (matching the dead-from-start fallback above that sleeps
+        # `window`), then close. This never shortens a live-but-slow run (those polls
+        # are non-None, so the gap never opens) and does not touch crediting — a dead
+        # meter still degrades to the time-based planned-window credit below.
+        dead_gap = float(const.DISTRIBUTOR_FLOW_POLL_SECONDS) * 4
+        eff_cap = cap
+        while elapsed < eff_cap:
             if target is not None and (meter.delivered() or 0.0) >= target:
                 break  # early stop: reached the target volume
-            step = min(float(const.DISTRIBUTOR_FLOW_POLL_SECONDS), cap - elapsed)
+            step = min(float(const.DISTRIBUTOR_FLOW_POLL_SECONDS), eff_cap - elapsed)
             await self._dist_sleep(step)
             elapsed += step
             r = self._dist_read_flow(sensor)
             if r is not None:
                 meter.sample(r[0], r[1], r[2], elapsed)
+                last_live = elapsed
+            elif elapsed - last_live >= dead_gap:
+                # Meter dead: never hold past the planned window (nor past where we
+                # already are, if the extend had run beyond it before the sensor died).
+                eff_cap = min(cap, max(window, elapsed))
         delivered = meter.delivered()
         stopped_early = (
             target is not None and (delivered or 0.0) >= target and elapsed < cap
@@ -934,6 +952,27 @@ class DistributorMixin:
             )
         except asyncio.CancelledError:
             interrupted = True
+            raise
+        except Exception:
+            # Physical safety (audit C1): an UNEXPECTED error mid-sweep must never
+            # leave the shared inlet valve open. _dist_run_sweep opens and closes the
+            # inlet as plain sequential statements, so a raise between them (e.g. a
+            # store write inside _dist_credit_zone, a failing service call) would
+            # otherwise strand the inlet OPEN until the next restart — and the finally
+            # below clears active_cycle, so async_resume_distributor_cycles can't
+            # recover it either (it keys on a non-empty marker). Close the inlet
+            # defensively before propagating. The close is idempotent (classic: inlet
+            # domain off; service: stop_service), so it is safe even if the sweep had
+            # already closed it. The global master is left to ride its own scheduled-
+            # off deadline down (async_master_schedule_off), so it is not stuck on.
+            try:
+                await self._dist_close_inlet(distributor)
+            except Exception:  # noqa: BLE001 - best-effort safety close
+                _LOGGER.exception(
+                    "Failed to defensively close distributor %s inlet after a "
+                    "cycle error",
+                    dist_id,
+                )
             raise
         finally:
             inflight.discard(dist_id)

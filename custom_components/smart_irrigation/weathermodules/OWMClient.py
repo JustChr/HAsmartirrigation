@@ -101,7 +101,9 @@ class OWMClient:  # pylint: disable=invalid-name
                 req = _SESSION.get(url, timeout=60)
                 doc = json.loads(req.text)
                 _LOGGER.debug(
-                    "OWMClient get_data called API %s and received %s", url, doc
+                    "OWMClient get_data called API %s and received %s",
+                    url.replace(self.api_key, "***") if self.api_key else url,
+                    doc,
                 )
 
                 if doc.get("cod") not in (200, "200"):
@@ -166,7 +168,7 @@ class OWMClient:  # pylint: disable=invalid-name
                 doc = json.loads(req.text)
                 _LOGGER.debug(
                     "OWMClient get_forecast_data called API %s and received %s",
-                    url,
+                    url.replace(self.api_key, "***") if self.api_key else url,
                     doc,
                 )
 

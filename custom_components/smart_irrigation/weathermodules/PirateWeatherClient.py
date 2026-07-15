@@ -142,7 +142,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                 doc = json.loads(req.text)
                 _LOGGER.debug(
                     "PirateWeatherClient get_forecast_data called API %s and received %s",
-                    self.url,
+                    self.url.replace(self.api_key, "***") if self.api_key else self.url,
                     doc,
                 )
                 # parse out values from daily
@@ -237,7 +237,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                 doc = json.loads(req.text)
                 _LOGGER.debug(
                     "PirateWeatherClient get_data called API %s and received %s",
-                    self.url,
+                    self.url.replace(self.api_key, "***") if self.api_key else self.url,
                     doc,
                 )
                 # parse out values for currently and rain/snow from daily[0].

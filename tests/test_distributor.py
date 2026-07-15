@@ -612,6 +612,31 @@ async def test_measure_window_dead_sensor_sleeps_window_not_cap():
     c._dist_sleep.assert_awaited_once_with(30)
 
 
+async def test_measure_window_sensor_dies_mid_extend_stops_before_cap():
+    # Audit H1: a rate meter that is LIVE at the start (so the window is metered and the
+    # target-driven extend is armed) but goes UNAVAILABLE mid-run must not hold the inlet
+    # open to the classic-extend cap. The flow (0.5 L/s) never reaches the 100 L target,
+    # so pre-fix the run would ride cap=1200 s on a dead sensor. Once the dead gap
+    # (4 * DISTRIBUTOR_FLOW_POLL_SECONDS = 20 s) is exceeded the run stops instead.
+    c, d = _flow_host()
+    live = _state(30.0, "L/min")  # 0.5 L/s, slower than the target -> would extend
+    calls = {"n": 0}
+
+    def _drive(_sensor):
+        calls["n"] += 1
+        # seed + first 7 loop reads live (elapsed 5..35 s), unavailable thereafter
+        return live if calls["n"] <= 8 else None
+
+    c.hass.states.get = Mock(side_effect=_drive)
+    measured, actual, stopped = await c._dist_measure_window(
+        d, 30, cap=1200, target=100.0
+    )
+    assert stopped is False
+    # stopped ~one dead-gap past the last live read (elapsed 55 s), far below the cap
+    assert actual == 55
+    assert actual < 1200
+
+
 async def test_measure_window_zero_flow_healthy_sensor_is_unreliable():
     # A live meter reading 0 the whole window (dry pipe / stuck valve) is unreliable
     # -> None (fall back to time-based crediting), NOT a credited 0 L. Part B fail-safe.

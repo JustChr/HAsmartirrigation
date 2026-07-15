@@ -88,6 +88,29 @@ async def test_deficit_produces_negative_bucket_and_duration():
     assert data[const.ZONE_DURATION] == 300
 
 
+async def test_zero_size_zone_does_not_crash_and_yields_zero_duration():
+    """Audit #8: a misconfigured zone (size 0) with a deficit must NOT raise
+    ZeroDivisionError. Pre-fix the (throughput*60)/size division blew up and — with
+    no per-zone guard in the calc-all loop — aborted calculation for every later
+    zone. Now the precipitation rate/duration degrade to 0."""
+    coord = _make_coordinator()
+    data = await coord.calculate_module(_zone(size=0.0), _weather(5.0), None)
+
+    assert data[const.ZONE_DELTA] == pytest.approx(-5.0)
+    assert data[const.ZONE_BUCKET] == pytest.approx(-5.0)
+    assert data[const.ZONE_DURATION] == 0
+
+
+async def test_none_maximum_bucket_does_not_crash():
+    """Audit #8: a zone whose maximum_bucket was cleared (None) must not raise a
+    TypeError from float(None) while building the explanation string."""
+    coord = _make_coordinator()
+    data = await coord.calculate_module(_zone(maximum_bucket=None), _weather(5.0), None)
+
+    assert data[const.ZONE_BUCKET] == pytest.approx(-5.0)
+    assert data[const.ZONE_DURATION] == 300
+
+
 async def test_surplus_is_capped_at_maximum_bucket():
     """Positive delta above max_bucket is clamped; no irrigation needed.
 

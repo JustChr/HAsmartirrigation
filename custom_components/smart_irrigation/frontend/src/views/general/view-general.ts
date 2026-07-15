@@ -115,11 +115,20 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
 
   private debouncedSave = (() => {
     let timeoutId: number | null = null;
+    let pending: Partial<SmartIrrigationConfig> = {};
     return (changes: Partial<SmartIrrigationConfig>) => {
+      // Accumulate deltas across the debounce window. Each call carries ONLY the
+      // field that just changed, so merging (not replacing) is essential: a rapid
+      // edit to a second field within 500 ms would otherwise cancel the first
+      // call's timer and drop its delta, which then vanishes on the next
+      // config_updated refetch (audit finding: silent per-field data loss).
+      pending = { ...pending, ...changes };
       if (timeoutId) clearTimeout(timeoutId);
       timeoutId = window.setTimeout(() => {
-        this.saveData(changes);
+        const batch = pending;
+        pending = {};
         timeoutId = null;
+        this.saveData(batch);
       }, 500);
     };
   })();
