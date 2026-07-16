@@ -62,6 +62,37 @@ if (Test-Path $venvBin) {
   $env:PATH = "$venvBin$([IO.Path]::PathSeparator)$env:PATH"
 }
 
+# The frontend rebuild shells out to node (via `npx rollup`). node is often
+# installed through nvm-windows, whose per-version dirs are NOT on PATH unless
+# `nvm use` ran in this shell. If node isn't resolvable, add the newest v22
+# install (the version the dist is built with) so the release doesn't fail
+# mid-run after already bumping the version files. Prefer v22; fall back to the
+# newest available.
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  $nvmRoots = @($env:NVM_HOME, "$env:LOCALAPPDATA/nvm", "$env:APPDATA/nvm") |
+    Where-Object { $_ -and (Test-Path $_) }
+  $nodeVersions = foreach ($root in $nvmRoots) {
+    Get-ChildItem -Path $root -Directory -Filter "v*" -ErrorAction SilentlyContinue |
+      Where-Object { Test-Path (Join-Path $_.FullName "node.exe") }
+  }
+  if ($nodeVersions) {
+    $pick = $nodeVersions |
+      Where-Object { $_.Name -like "v22.*" } |
+      Sort-Object { [version]($_.Name.TrimStart("v")) } -Descending |
+      Select-Object -First 1
+    if (-not $pick) {
+      $pick = $nodeVersions |
+        Sort-Object { [version]($_.Name.TrimStart("v")) } -Descending |
+        Select-Object -First 1
+    }
+    $env:PATH = "$($pick.FullName)$([IO.Path]::PathSeparator)$env:PATH"
+    Write-Host "Using node from $($pick.FullName) (not on PATH; resolved from nvm)" -ForegroundColor DarkGray
+  }
+}
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  throw "node not found on PATH and no nvm install located - install Node (v22) or run 'nvm use 22' first."
+}
+
 $ConstPath    = "custom_components/smart_irrigation/const.py"
 $ManifestPath = "custom_components/smart_irrigation/manifest.json"
 $PkgPath      = "custom_components/smart_irrigation/frontend/package.json"
