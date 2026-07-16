@@ -616,9 +616,14 @@ class RecurringScheduleManager:
             schedule.get(const.SCHEDULE_CONF_NAME),
             offset_minutes,
         )
+        # HA invokes the sunrise/sunset callback with NO arguments
+        # (async_run_hass_job on a Callable[[], None]), unlike
+        # async_track_point_in_utc_time / async_track_time_change which pass
+        # `now`. A one-arg lambda would raise TypeError at fire time and the
+        # schedule would silently never run, so supply the fire time ourselves.
         return async_track_sunrise(
             self.hass,
-            lambda now: self._execute_schedule(schedule, now),
+            lambda: self._execute_schedule(schedule, dt_util.utcnow()),
             datetime.timedelta(minutes=offset_minutes),
         )
 
@@ -631,9 +636,11 @@ class RecurringScheduleManager:
             schedule.get(const.SCHEDULE_CONF_NAME),
             offset_minutes,
         )
+        # See _setup_sunrise_tracker: HA calls this callback with no arguments,
+        # so a one-arg lambda would raise and the schedule would never run.
         return async_track_sunset(
             self.hass,
-            lambda now: self._execute_schedule(schedule, now),
+            lambda: self._execute_schedule(schedule, dt_util.utcnow()),
             datetime.timedelta(minutes=offset_minutes),
         )
 

@@ -381,6 +381,50 @@ class TestSolarScheduleMatrix:
             assert len(point) == 1 and not sunrise and not sunset
             assert point[0] > dt_util.utcnow()
 
+    @pytest.mark.parametrize(
+        "stype,track_name",
+        [
+            (const.SCHEDULE_TYPE_SUNRISE, "async_track_sunrise"),
+            (const.SCHEDULE_TYPE_SUNSET, "async_track_sunset"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_start_solar_callback_fires_with_no_args(
+        self, coordinator, monkeypatch, stype, track_name
+    ):
+        """Regression: HA invokes the sunrise/sunset callback with NO arguments
+        (Callable[[], None] via async_run_hass_job), unlike the point-in-time /
+        time-change trackers which pass `now`. A one-arg callback raised
+        TypeError at fire time and the schedule silently never ran (issue #32,
+        AlessandroTischer). Capture the callback HA would register and invoke it
+        the way HA does — with zero args — then assert the schedule executes."""
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+
+        captured: dict = {}
+        monkeypatch.setattr(
+            scheduler_module,
+            track_name,
+            lambda hass, cb, off: captured.setdefault("cb", cb) or Mock(),
+        )
+        executed: list = []
+        monkeypatch.setattr(
+            mgr, "_execute_schedule", lambda s, now: executed.append((s, now))
+        )
+
+        sched = _sched(
+            type=stype,
+            time_anchor=const.SCHEDULE_TIME_ANCHOR_START,
+            action="irrigate",
+            zones="all",
+            offset_minutes=60,
+        )
+        await mgr._setup_schedule_tracker(sched)
+
+        # HA calls the job with no positional args — this must not raise.
+        captured["cb"]()
+        assert len(executed) == 1
+        assert executed[0][0] is sched
+
 
 class TestIntervalStartTime:
     """An interval schedule with a start_time anchor is phase-locked to that
