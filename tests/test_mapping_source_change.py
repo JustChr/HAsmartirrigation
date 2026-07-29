@@ -172,6 +172,40 @@ class TestMappingSourceChangeInvalidatesBuffer:
         assert args[1].get(const.MAPPING_DATA) == []
         assert store.async_update_zone.await_count == 1
 
+    async def test_source_change_also_neutralises_the_carry_forward(self):
+        """Clearing MAPPING_DATA alone is not enough any more.
+
+        aggregate_window is now given MAPPING_DATA_LAST_ENTRY as a carry-forward
+        for continuous-update sensor groups, so a value captured from the OLD
+        source would survive the buffer wipe and re-introduce exactly the
+        discontinuity this invalidation exists to prevent. The keys can't be
+        deleted (async_update_mapping merges omitted keys back in), so they are
+        set to None — which aggregate_window ignores.
+        """
+        mapping = _mapping("sensor.rain_rate")
+        mapping[const.MAPPING_DATA_LAST_ENTRY] = {const.MAPPING_PRECIPITATION: 3202.0}
+        store = _store_with_mapping(mapping)
+        coordinator = _make_coordinator(store)
+        coordinator._get_zones_that_use_this_mapping = AsyncMock(return_value=[1])
+
+        new_data = {
+            const.MAPPING_MAPPINGS: {
+                const.MAPPING_PRECIPITATION: {
+                    const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_SENSOR,
+                    const.MAPPING_CONF_SENSOR: "sensor.total_rain",
+                },
+            },
+        }
+
+        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+            await coordinator.async_update_mapping_config(0, new_data)
+
+        args, _ = store.async_update_mapping.call_args
+        assert args[1][const.MAPPING_DATA] == []
+        assert args[1][const.MAPPING_DATA_LAST_ENTRY] == {
+            const.MAPPING_PRECIPITATION: None
+        }
+
     async def test_same_sources_resave_keeps_buffer(self):
         store = _store_with_mapping(_mapping("sensor.rain_rate"))
         coordinator = _make_coordinator(store)

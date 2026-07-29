@@ -45,6 +45,41 @@ class TestSmartIrrigationStore:
         assert updated[const.CONF_DISTRIBUTORS_ENABLED] is True
         assert const.CONF_USE_WEATHER_SERVICE in updated
 
+    async def test_continuous_updates_config_roundtrip(self, hass) -> None:
+        """The continuous-update flag + debounce survive a config round-trip.
+
+        Both need a Config attribute AND a migration setdefault: the migration
+        ends by filtering data["config"] against attr.fields_dict(Config), so a
+        half-wired key silently disappears on every load.
+        """
+        reg = await async_get_registry(hass)
+        cfg = await reg.async_get_config()
+        assert cfg.get(const.CONF_CONTINUOUS_UPDATES) is False
+        assert cfg.get(const.CONF_SENSOR_DEBOUNCE) == const.CONF_DEFAULT_SENSOR_DEBOUNCE
+
+        updated = await reg.async_update_config(
+            {const.CONF_CONTINUOUS_UPDATES: True, const.CONF_SENSOR_DEBOUNCE: 2500}
+        )
+        assert updated[const.CONF_CONTINUOUS_UPDATES] is True
+        assert updated[const.CONF_SENSOR_DEBOUNCE] == 2500
+        # A partial update must not clobber the rest of the config.
+        assert const.CONF_USE_WEATHER_SERVICE in updated
+
+    async def test_migration_keeps_continuous_update_keys(self, hass) -> None:
+        """An altmenorg-era stored value survives the config allowlist strip."""
+        from custom_components.smart_irrigation.store import MigratableStore
+
+        store = MigratableStore(hass, 11, "test.storage")
+        migrated = await store._async_migrate_func(
+            5, {"config": {const.CONF_CONTINUOUS_UPDATES: True}}
+        )
+        assert migrated["config"][const.CONF_CONTINUOUS_UPDATES] is True
+        # And the debounce is defaulted in rather than left missing.
+        assert (
+            migrated["config"][const.CONF_SENSOR_DEBOUNCE]
+            == const.CONF_DEFAULT_SENSOR_DEBOUNCE
+        )
+
     async def test_zone_crud(self, hass) -> None:
         reg = await async_get_registry(hass)
         created = await reg.async_create_zone(
