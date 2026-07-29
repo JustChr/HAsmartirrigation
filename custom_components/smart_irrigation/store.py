@@ -164,7 +164,16 @@ _LOGGER = logging.getLogger(__name__)
 DATA_REGISTRY = f"{DOMAIN}_storage"
 STORAGE_KEY = f"{DOMAIN}.storage"
 STORAGE_VERSION = 11
-SAVE_DELAY = 0
+# Coalescing window (seconds) for the whole-document store write. Every
+# async_schedule_save() reserializes the ENTIRE store — config, zones, modules
+# and every sensor group's reading buffer — and replaces the file, so at 0 a
+# burst of writes becomes one full-file rewrite each (an SD-card killer).
+# HA's Store.async_delay_save re-evaluates the data callback at write time, so a
+# delayed save is never stale; it keeps the earliest pending timer rather than
+# resetting it, so continuous churn cannot postpone the write indefinitely; and
+# it flushes on EVENT_HOMEASSISTANT_FINAL_WRITE, so a clean restart loses
+# nothing. Only a hard crash can lose up to this window.
+SAVE_DELAY = 30
 
 
 @attr.s(slots=True, frozen=True)
