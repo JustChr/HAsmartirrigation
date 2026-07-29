@@ -95,3 +95,74 @@ class TestAggregates:
         out = aggregate_window([_r(0, Temperature=10)], future, {}, now=future)
         # single boundary reading still aggregates (carried-forward anchor)
         assert out[const.MAPPING_TEMPERATURE] == 10
+
+
+class TestContinuousUpdateRows:
+    """The shape event-driven ingestion appends: SPARSE single-key rows.
+
+    ContinuousUpdateMixin appends one row per sensor state change, carrying only
+    the key that changed plus RETRIEVED_AT — unlike the interval poll, which
+    writes every mapped field in one row. These are the regression guard for
+    that ingestion path: if _group_by_sensor ever stopped building per-key
+    parallel lists (or last_entry stopped backfilling), a continuous-update
+    sensor group would silently aggregate the wrong window and mis-water.
+    """
+
+    def test_sparse_single_key_rows_aggregate_per_key(self):
+        readings = [
+            _r(0, Temperature=10),
+            _r(1, Humidity=50),
+            _r(2, Temperature=20),
+            _r(3, Humidity=70),
+        ]
+        out = aggregate_window(
+            readings, None, {}, now=T0 + datetime.timedelta(hours=3)
+        )
+        # Each key averages over only its OWN rows — a row missing a key must
+        # not be read as a zero (that would halve the mean and under-water).
+        assert out[const.MAPPING_TEMPERATURE] == 15.0
+        assert out[const.MAPPING_HUMIDITY] == 60.0
+        # Daily min/max span the temperature rows the event path actually saw.
+        assert out[const.MAPPING_MAX_TEMP] == 20.0
+        assert out[const.MAPPING_MIN_TEMP] == 10.0
+
+    def test_last_entry_backfills_sensor_absent_from_window(self):
+        # Slow-moving sensor (humidity) produced no event inside this window;
+        # without the carry-forward the calc module would get no humidity at all.
+        readings = [_r(0, Temperature=10), _r(1, Temperature=20)]
+        out = aggregate_window(
+            readings,
+            None,
+            {},
+            now=T0 + datetime.timedelta(hours=1),
+            last_entry={const.MAPPING_HUMIDITY: 42},
+        )
+        assert out[const.MAPPING_HUMIDITY] == 42
+        assert out[const.MAPPING_TEMPERATURE] == 15.0
+
+    def test_last_entry_does_not_override_sensor_present_in_window(self):
+        # Fresh readings always win: the carry-forward is a fallback, never a
+        # value that competes with (or dilutes) the real window.
+        readings = [_r(0, Humidity=50), _r(1, Humidity=70)]
+        out = aggregate_window(
+            readings,
+            None,
+            {},
+            now=T0 + datetime.timedelta(hours=1),
+            last_entry={const.MAPPING_HUMIDITY: 42},
+        )
+        assert out[const.MAPPING_HUMIDITY] == 60.0
+
+    def test_last_entry_none_values_are_ignored(self):
+        # A None carry-forward means "never had a reading"; injecting it would
+        # blow up float() in _aggregate.
+        readings = [_r(0, Temperature=10)]
+        out = aggregate_window(
+            readings,
+            None,
+            {},
+            now=T0,
+            last_entry={const.MAPPING_HUMIDITY: None},
+        )
+        assert const.MAPPING_HUMIDITY not in out
+        assert out[const.MAPPING_TEMPERATURE] == 10
