@@ -262,6 +262,13 @@
         "label": "Trigger and size each run from the live deficit",
         "note": "Affects scheduled runs only, and can start a run the daily calculation didn't approve. For frequent watering keep a sensible minimum deficit and a maximum bucket of at least a day's ET."
       },
+      "continuous_updates": {
+        "title": "Continuous sensor updates",
+        "description": "By default, sensor-based weather values are read once per scheduled update (hourly by default), so anything that happened in between is never recorded — the daily minimum and maximum temperature come from those spot readings, and solar radiation is integrated coarsely. With this on, a reading is recorded the moment the sensor changes, which makes the daily aggregates and the resulting evapotranspiration considerably more accurate. Sensor groups that also use a weather service keep their scheduled update for the weather-service values; only the sensor values become continuous. Small changes are ignored, so a noisy sensor does not fill the buffer.",
+        "label": "Record sensor readings when they change",
+        "debounce_label": "Group changes arriving within (milliseconds)",
+        "note": "Applies to sensor groups whose values come from Home Assistant sensors. The grouping delay only postpones the follow-up bookkeeping — no reading is ever dropped by it. Set it to 0 to disable grouping."
+      },
       "distributors": {
         "title": "Mechanical water distributors",
         "description": "Drive a mechanical pressure-distributor — for example a Gardena Water Distributor — that splits one supply into several outlets and advances on water on/off pulses. Assign zones to a distributor's outlets and Smart Irrigation waters them in sequence, tracks the position, and coordinates a master valve or pump. This is a new feature that could not be fully hardware-tested, so treat it as a beta.",

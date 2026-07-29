@@ -307,6 +307,33 @@ def zone_depth_default(mm_value, metric):
     return convert_between(UNIT_MM, UNIT_INCH, mm_value)
 
 
+def resolve_sensor_unit(mapping_key, configured_unit, ha_unit, sensor_id=None):
+    """Pick the unit a sensor state should be converted FROM.
+
+    Prefers the entity's *own* reported unit over the unit hand-picked in the
+    sensor group: HA knows the sensor's real unit, and a mismatch there silently
+    corrupts the value (e.g. a W/m2 solar sensor configured as MJ/day/m2 inflates
+    ET ~12x). Falls back to the configured unit when the entity reports no unit
+    or one we don't recognise for this field.
+
+    Shared by both ingestion paths — the interval poll
+    (``build_sensor_values_for_mapping``) and the event-driven appends in
+    ``ContinuousUpdateMixin`` — so the two can never disagree about a value's
+    unit and write mutually inconsistent rows into the same buffer.
+    """
+    detected_unit = ha_unit_to_internal_unit(ha_unit, mapping_key)
+    if detected_unit and configured_unit and detected_unit != configured_unit:
+        _LOGGER.info(
+            "Sensor %s reports unit '%s' for %s; using it instead of the "
+            "configured '%s'.",
+            sensor_id,
+            detected_unit,
+            mapping_key,
+            configured_unit,
+        )
+    return detected_unit or configured_unit
+
+
 def convert_between(from_unit, to_unit, val):
     """Convert a value from one unit to another based on the provided units.
 

@@ -13,6 +13,8 @@ import {
   CONF_OBSERVED_WATERING_ENABLED,
   CONF_LIVE_ESTIMATE_ENABLED,
   CONF_DISTRIBUTORS_ENABLED,
+  CONF_CONTINUOUS_UPDATES,
+  CONF_SENSOR_DEBOUNCE,
   DOMAIN,
 } from "../../const";
 
@@ -22,7 +24,8 @@ import {
 type ExperimentalFlag =
   | typeof CONF_OBSERVED_WATERING_ENABLED
   | typeof CONF_LIVE_ESTIMATE_ENABLED
-  | typeof CONF_DISTRIBUTORS_ENABLED;
+  | typeof CONF_DISTRIBUTORS_ENABLED
+  | typeof CONF_CONTINUOUS_UPDATES;
 
 /**
  * Setup → Experimental: opt-in features that change how the bucket is filled.
@@ -112,7 +115,87 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         CONF_DISTRIBUTORS_ENABLED,
         this.config.distributors_enabled,
       )}
+      ${this._renderContinuousUpdatesCard()}
     `;
+  }
+
+  /**
+   * Continuous updates: a toggle plus the debounce that only matters once the
+   * toggle is on, so the number input is hidden while it's off rather than
+   * offering a setting with no effect.
+   */
+  private _renderContinuousUpdatesCard(): TemplateResult {
+    if (!this.hass || !this.config) return html``;
+    const base = "panels.experimental.continuous_updates";
+    const enabled = this.config.continuousupdates;
+    return html`
+      <ha-card header="${localize(`${base}.title`, this.hass.language)}">
+        <div class="card-content description-text">
+          ${localize(`${base}.description`, this.hass.language)}
+        </div>
+        <div class="card-content">
+          <div class="setting-row">
+            <label>${localize(`${base}.label`, this.hass.language)}</label>
+            <ha-switch
+              .checked="${enabled}"
+              ?disabled="${this._saving}"
+              @change="${(e: Event) =>
+                this._toggle(
+                  CONF_CONTINUOUS_UPDATES,
+                  (e.target as HTMLInputElement).checked,
+                )}"
+            ></ha-switch>
+          </div>
+          ${enabled
+            ? html`<div class="setting-row">
+                <label>
+                  ${localize(`${base}.debounce_label`, this.hass.language)}
+                </label>
+                <input
+                  type="number"
+                  class="settings-input shortfield"
+                  min="0"
+                  step="500"
+                  inputmode="numeric"
+                  .value="${this.config.sensor_debounce}"
+                  ?disabled="${this._saving}"
+                  @change="${(e: Event) =>
+                    this._saveDebounce((e.target as HTMLInputElement).value)}"
+                />
+              </div>`
+            : ""}
+          <div class="setting-note">
+            ${localize(`${base}.note`, this.hass.language)}
+          </div>
+        </div>
+      </ha-card>
+    `;
+  }
+
+  private async _saveDebounce(raw: string): Promise<void> {
+    if (!this.hass || !this.config) return;
+    // Guard the parse: an empty or non-numeric field must not POST NaN, which
+    // the backend schema would reject and which would leave the panel showing a
+    // value that was never stored.
+    const value = Number.parseInt(raw, 10);
+    if (Number.isNaN(value) || value < 0) {
+      await this._fetchData();
+      return;
+    }
+    this.config = {
+      ...this.config,
+      [CONF_SENSOR_DEBOUNCE]: value,
+    } as SmartIrrigationConfig;
+    this._saving = true;
+    try {
+      await saveConfig(this.hass, { [CONF_SENSOR_DEBOUNCE]: value });
+    } catch (error) {
+      console.error("Error saving sensor debounce:", error);
+      showErrorToast(this, this.hass, "common.errors.save_failed", error);
+      await this._fetchData();
+    } finally {
+      this._saving = false;
+    }
   }
 
   private _renderIntro(): TemplateResult {

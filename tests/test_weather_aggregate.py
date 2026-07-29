@@ -115,9 +115,7 @@ class TestContinuousUpdateRows:
             _r(2, Temperature=20),
             _r(3, Humidity=70),
         ]
-        out = aggregate_window(
-            readings, None, {}, now=T0 + datetime.timedelta(hours=3)
-        )
+        out = aggregate_window(readings, None, {}, now=T0 + datetime.timedelta(hours=3))
         # Each key averages over only its OWN rows — a row missing a key must
         # not be read as a zero (that would halve the mean and under-water).
         assert out[const.MAPPING_TEMPERATURE] == 15.0

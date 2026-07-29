@@ -43,6 +43,11 @@ export const CONF_FORECAST_WEIGHTING_ENABLED = "forecast_weighting_enabled";
 export const CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled";
 export const CONF_LIVE_ESTIMATE_ENABLED = "live_estimate_enabled";
 export const CONF_DISTRIBUTORS_ENABLED = "distributors_enabled";
+// Event-driven weather-sensor ingestion + the debounce (ms) that coalesces a
+// burst of sensor changes. Key name matches the backend's altmenorg-compatible
+// storage key, hence the lower-case run-together spelling.
+export const CONF_CONTINUOUS_UPDATES = "continuousupdates";
+export const CONF_SENSOR_DEBOUNCE = "sensor_debounce";
 
 // Days between irrigation configuration
 export const CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation";

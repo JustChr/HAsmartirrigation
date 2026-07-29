@@ -43,15 +43,16 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 from . import const
 from .calculation import CalculationMixin
 from .config_resolver import resolve_weather_config
+from .continuous_update import ContinuousUpdateMixin
 from .distributor import DistributorMixin
 from .helpers import (
     altitudeToPressure,
     check_time,
     convert_between,
     convert_mapping_to_metric,
-    ha_unit_to_internal_unit,
     loadModules,
     relative_to_absolute_pressure,
+    resolve_sensor_unit,
 )
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
@@ -351,6 +352,7 @@ class SmartIrrigationCoordinator(
     SkipConditionsMixin,
     LiveEstimateMixin,
     ObservedWateringMixin,
+    ContinuousUpdateMixin,
     SelfClosingMixin,
     MasterMixin,
     DistributorMixin,
@@ -358,9 +360,11 @@ class SmartIrrigationCoordinator(
     """Define an object to hold Smart Irrigation device.
 
     This is a plain coordinator: it does all its own scheduling (auto
-    update/calc/clear timers, midnight tracking, debounced updates) and uses none
-    of DataUpdateCoordinator's polling API (no update_interval, no
-    _async_update_data, no listeners), so it does not inherit it.
+    update/calc/clear timers, midnight tracking, and — when continuous updates
+    are enabled — the per-sensor-group ingestion debounce in
+    ContinuousUpdateMixin) and uses none of DataUpdateCoordinator's polling API
+    (no update_interval, no _async_update_data, no listeners), so it does not
+    inherit it.
     """
 
     def __init__(
@@ -471,6 +475,27 @@ class SmartIrrigationCoordinator(
                 self._schedule_observed_watering_setup,
             )
         )
+
+        # Continuous (event-driven) sensor ingestion state (ContinuousUpdateMixin).
+        # Off until async_setup_continuous_updates() subscribes. ``_targets`` maps
+        # a sensor entity → the (sensor group, field) pairs it feeds,
+        # ``_last_value`` holds the deadband reference per (group, field), and
+        # ``_debounce_unsub`` the per-group cancel handles.
+        self._continuous_unsub = None
+        self._continuous_entities = frozenset()
+        self._continuous_targets = {}
+        self._continuous_debounce_unsub = {}
+        self._continuous_last_value = {}
+        self._continuous_flush_count = {}
+        # Follow sensor-group edits: a changed sensor entity (or a toggled
+        # feature flag) must re-target the subscription, exactly as above.
+        self._subscriptions.append(
+            async_dispatcher_connect(
+                hass,
+                const.DOMAIN + "_config_updated",
+                self._schedule_continuous_updates_setup,
+            )
+        )
         self._track_auto_calc_time_unsub = None
         self._track_auto_update_time_unsub = None
         self._track_midnight_time_unsub = None
@@ -509,6 +534,8 @@ class SmartIrrigationCoordinator(
             await self.set_up_auto_calc_time(the_config)
         # Experimental observed-watering observer (no-op unless enabled).
         await self.async_setup_observed_watering()
+        # Event-driven weather-sensor ingestion (no-op unless enabled).
+        await self.async_setup_continuous_updates()
         # Reading appends deliberately schedule no store write (store.buffers), so
         # something has to. A no-op tick when nothing was appended.
         if self._track_buffer_flush_unsub is None:
@@ -527,6 +554,11 @@ class SmartIrrigationCoordinator(
     def _schedule_observed_watering_setup(self, *args) -> None:
         """Re-evaluate the observed-watering subscription after a config change."""
         self.hass.async_create_task(self.async_setup_observed_watering())
+
+    @callback
+    def _schedule_continuous_updates_setup(self, *args) -> None:
+        """Re-evaluate the weather-sensor subscription after a config change."""
+        self.hass.async_create_task(self.async_setup_continuous_updates())
 
     def _get_config_value(self, key: str, default_value):
         """Get configuration value from Home Assistant config, entry data, or options with fallback to default.
@@ -892,6 +924,11 @@ class SmartIrrigationCoordinator(
         _LOGGER.info("Updating weather data for all automatic zones")
         zones = await self.store.async_get_zones()
         mappings = await self._get_unique_mappings_for_automatic_zones(zones)
+        # Strict identity check so a test double / absent attribute is a safe
+        # "off" (same guard the mixin's setup uses).
+        continuous_updates = (
+            getattr(self.store.config, const.CONF_CONTINUOUS_UPDATES, False) is True
+        )
         # loop over the mappings and store sensor data
         for mapping_id in mappings:
             (
@@ -899,6 +936,21 @@ class SmartIrrigationCoordinator(
                 sensor_in_mapping,
                 static_in_mapping,
             ) = self.check_mapping_sources(mapping_id=mapping_id)
+            if continuous_updates and not owm_in_mapping:
+                # Pure sensor/static group: the event path IS its data path, so a
+                # poll row here is pure duplication — extra buffer rows, extra
+                # store writes, and a spot sample that pulls the aggregate toward
+                # whatever the sensor happened to read on the tick. Groups WITH a
+                # weather-service field still need the poll: that data only
+                # arrives by API call, and the event path never fetches it (an
+                # API call per sensor change could cost real money).
+                _LOGGER.debug(
+                    "[async_update_all] continuous updates on and sensor group %s "
+                    "has no weather-service field — already covered by the event "
+                    "path, skipping the poll",
+                    mapping_id,
+                )
+                continue
             mapping = self.store.get_mapping(mapping_id)
             weatherdata = None
             if self.use_weather_service and owm_in_mapping:
@@ -1097,7 +1149,22 @@ class SmartIrrigationCoordinator(
             # watermarks to now — a scoped variant of _async_clear_all_weatherdata.
             source_changed = self._mapping_source_changed(mapping_id, data)
             if source_changed:
-                data = {**data, const.MAPPING_DATA: []}
+                # Clearing MAPPING_DATA alone is no longer enough: the aggregation
+                # now also reads MAPPING_DATA_LAST_ENTRY as a carry-forward, so a
+                # value captured from the OLD sensor would survive the wipe and
+                # re-introduce exactly the discontinuity described above. It can't
+                # simply be dropped — async_update_mapping merges any key the
+                # caller omits straight back in — so each stale key is overwritten
+                # with None, which aggregate_window ignores. A fresh reading from
+                # the new source replaces it.
+                stale = (self.store.get_mapping(mapping_id) or {}).get(
+                    const.MAPPING_DATA_LAST_ENTRY
+                ) or {}
+                data = {
+                    **data,
+                    const.MAPPING_DATA: [],
+                    const.MAPPING_DATA_LAST_ENTRY: dict.fromkeys(stale),
+                }
             await self.store.async_update_mapping(mapping_id, data)
             if source_changed:
                 now = dt_datetime.now()
@@ -1202,31 +1269,17 @@ class SmartIrrigationCoordinator(
                     if state:
                         try:
                             val = float(state.state)
-                            # Prefer the entity's *own* reported unit over the
-                            # unit hand-picked in the sensor group: HA knows the
-                            # sensor's real unit, and a mismatch there silently
-                            # corrupts the value (e.g. a W/m2 solar sensor
-                            # configured as MJ/day/m2 inflates ET ~12x). Fall
-                            # back to the configured unit when the entity reports
-                            # no unit or one we don't recognise for this field.
-                            configured_unit = the_map.get(const.MAPPING_CONF_UNIT)
-                            detected_unit = ha_unit_to_internal_unit(
-                                state.attributes.get(ATTR_UNIT_OF_MEASUREMENT), key
+                            # Effective unit = the entity's own reported unit when
+                            # we recognise it, else the one configured in the
+                            # sensor group (see resolve_sensor_unit for why). The
+                            # rule is shared with the event-driven append path so
+                            # both can't disagree about the same sensor's unit.
+                            unit = resolve_sensor_unit(
+                                key,
+                                the_map.get(const.MAPPING_CONF_UNIT),
+                                state.attributes.get(ATTR_UNIT_OF_MEASUREMENT),
+                                sensor_id,
                             )
-                            unit = detected_unit or configured_unit
-                            if (
-                                detected_unit
-                                and configured_unit
-                                and detected_unit != configured_unit
-                            ):
-                                _LOGGER.info(
-                                    "Sensor %s reports unit '%s' for %s; using it "
-                                    "instead of the configured '%s'.",
-                                    sensor_id,
-                                    detected_unit,
-                                    key,
-                                    configured_unit,
-                                )
                             # make sure to store the val as metric and do necessary conversions along the way
                             val = convert_mapping_to_metric(
                                 val,
@@ -1470,6 +1523,11 @@ class SmartIrrigationCoordinator(
 
         # Cancel the experimental observed-watering valve subscription.
         self.async_teardown_observed_watering()
+
+        # Cancel the continuous-update sensor subscription AND its pending
+        # debounce timers — a surviving async_call_later would fire against this
+        # dead coordinator and ghost-write to the store.
+        self.async_teardown_continuous_updates()
 
         # Release the recurring-schedule listeners. These are plain HA event
         # listeners (not entry-scoped), so nothing else cancels them: a reload

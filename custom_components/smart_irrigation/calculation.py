@@ -134,6 +134,20 @@ class CalculationMixin:
         mappings = await self.store.async_get_mappings()
         for mapping in mappings:
             self.store.set_mapping_buffer(mapping.get(const.MAPPING_ID), [])
+            await self.store.async_update_mapping(
+                mapping.get(const.MAPPING_ID),
+                {
+                    # "Reset all weather data" must also drop the continuous-update
+                    # carry-forwards, or aggregate_window would keep backfilling
+                    # from them and the reset would look like it did nothing. They
+                    # are set to None rather than removed because
+                    # async_update_mapping merges any omitted key back in, and
+                    # aggregate_window skips None values.
+                    const.MAPPING_DATA_LAST_ENTRY: dict.fromkeys(
+                        mapping.get(const.MAPPING_DATA_LAST_ENTRY) or {}
+                    ),
+                },
+            )
         for zone in await self.store.async_get_zones():
             zone_id = zone.get(const.ZONE_ID)
             await self.store.async_update_zone(
@@ -177,6 +191,13 @@ class CalculationMixin:
             watermark,
             mapping.get(const.MAPPING_MAPPINGS) or {},
             now=now,
+            # Carry-forward for continuous-update sensor groups: their rows are
+            # sparse (one field per event), so a slow-moving field can have no
+            # row at all inside this zone's window. Without the fallback the calc
+            # module would be handed a missing field and either refuse to
+            # calculate or substitute a default — both wrong. Never overrides a
+            # field the window does contain (see aggregate_window).
+            last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
         )
         return weatherdata, len(window)
 

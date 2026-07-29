@@ -23,6 +23,7 @@ from .const import (
     CONF_AUTO_UPDATE_INTERVAL,
     CONF_AUTO_UPDATE_SCHEDULE,
     CONF_CALC_TIME,
+    CONF_CONTINUOUS_UPDATES,
     CONF_DAYS_BETWEEN_IRRIGATION,
     CONF_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_AUTO_CALC_ENABLED,
@@ -63,7 +64,6 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING,
     CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
-    CONF_CONTINUOUS_UPDATES,
     CONF_DISTRIBUTORS_ENABLED,
     CONF_FORECAST_WEIGHTING_ENABLED,
     CONF_FREEZE_THRESHOLD,
@@ -624,7 +624,9 @@ class MigratableStore(Store):
             # Note `continuousupdates` is altmenorg's key: a stored True from
             # that fork survives the strip because Config now declares it.
             if CONF_CONTINUOUS_UPDATES not in data["config"]:
-                data["config"][CONF_CONTINUOUS_UPDATES] = CONF_DEFAULT_CONTINUOUS_UPDATES
+                data["config"][
+                    CONF_CONTINUOUS_UPDATES
+                ] = CONF_DEFAULT_CONTINUOUS_UPDATES
             if CONF_SENSOR_DEBOUNCE not in data["config"]:
                 data["config"][CONF_SENSOR_DEBOUNCE] = CONF_DEFAULT_SENSOR_DEBOUNCE
 

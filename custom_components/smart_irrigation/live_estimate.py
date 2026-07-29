@@ -107,7 +107,14 @@ class LiveEstimateMixin:
             return 0.0
         watermark = _wa_parse(zone.get(const.ZONE_LAST_CONSUMED))
         agg = aggregate_window(
-            readings, watermark, mapping.get(const.MAPPING_MAPPINGS) or {}
+            readings,
+            watermark,
+            mapping.get(const.MAPPING_MAPPINGS) or {},
+            # Same carry-forward the daily calc uses, so the live estimate and the
+            # daily calculation aggregate the identical window — a difference here
+            # would show up as the "Live bucket" sensor disagreeing with the
+            # bucket the nightly calc produces.
+            last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
         )
         if not agg:
             return 0.0

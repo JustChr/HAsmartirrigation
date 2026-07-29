@@ -109,9 +109,11 @@ export class SmartIrrigationConfig {
     this.autoupdateinterval = 0;
     this.autoclearenabled = true;
     this.cleardatatime = "23:59";
-    // continuousupdates are disabled by default
+    // continuousupdates are disabled by default; the debounce default mirrors
+    // const.py's CONF_DEFAULT_SENSOR_DEBOUNCE (5 s, not the old 100 ms — that
+    // was short enough to be no debounce at all for a chatty sensor).
     this.continuousupdates = false;
-    this.sensor_debounce = 100;
+    this.sensor_debounce = 5000;
     this.skip_irrigation_on_precipitation = false;
     this.precipitation_threshold_mm = 2.0;
     this.precipitation_forecast_days = 1;
