@@ -80,6 +80,22 @@ CONF_DEFAULT_LIVE_ESTIMATE_ENABLED = False
 # existing cycle; it just hides the Distributors tab + the zone-side selector.
 CONF_DISTRIBUTORS_ENABLED = "distributors_enabled"
 CONF_DEFAULT_DISTRIBUTORS_ENABLED = False
+# Continuous updates: ingest sensor-sourced weather values when the entity
+# CHANGES instead of sampling them on the auto-update timer. The default hourly
+# poll misses the real daily min/max and makes a Riemann-summed field (solar
+# radiation) coarse — an ET accuracy loss, not a cosmetic one. Key name is
+# deliberately altmenorg's ("continuousupdates") so an install that had the
+# option enabled there keeps it after switching forks (both forks share the
+# storage file). Off by default.
+CONF_CONTINUOUS_UPDATES = "continuousupdates"
+CONF_DEFAULT_CONTINUOUS_UPDATES = False
+# Debounce (milliseconds) coalescing a burst of sensor changes into one
+# post-append update per sensor group. altmenorg defaulted to 100 ms, which is
+# effectively no debounce for a chatty sensor; 5 s costs nothing in ET accuracy
+# (readings are appended immediately either way — only the follow-up work is
+# delayed) and collapses bursts. 0 disables the debounce entirely.
+CONF_SENSOR_DEBOUNCE = "sensor_debounce"
+CONF_DEFAULT_SENSOR_DEBOUNCE = 5000
 # Legacy keys read as a fallback on load so an early opt-in survives the
 # renames: v2026.06.28 shipped "fresh_duration_enabled"; it was then
 # "live_duration_enabled" while the feature only *resized* a daily-approved run.
