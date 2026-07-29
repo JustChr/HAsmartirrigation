@@ -498,7 +498,7 @@ class TestClearWeatherData:
 class TestIntervalPollSkip:
     """Step 3 of the port: the event path IS the data path for sensor groups."""
 
-    def _poll_coord(self, *, continuous, owm_in_mapping):
+    def _poll_coord(self, *, continuous, owm_in_mapping, static_in_mapping=False):
         coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
         coord.hass = Mock()
         coord.hass.config.units = METRIC_SYSTEM
@@ -512,7 +512,12 @@ class TestIntervalPollSkip:
         coord.store.async_update_mapping = AsyncMock()
         coord.store.async_update_zone = AsyncMock()
         coord.store.get_mapping = Mock(return_value=_mapping())
-        coord.check_mapping_sources = Mock(return_value=(owm_in_mapping, True, False))
+        coord.check_mapping_sources = Mock(
+            return_value=(owm_in_mapping, True, static_in_mapping)
+        )
+        coord.build_static_values_for_mapping = Mock(
+            return_value={const.MAPPING_HUMIDITY: 50.0}
+        )
         coord.build_sensor_values_for_mapping = Mock(
             return_value={const.MAPPING_TEMPERATURE: 20.0}
         )
@@ -538,5 +543,15 @@ class TestIntervalPollSkip:
 
     async def test_pure_sensor_group_still_polls_when_feature_off(self):
         coord = self._poll_coord(continuous=False, owm_in_mapping=False)
+        await coord._async_update_all()
+        coord.store.async_update_mapping.assert_called_once()
+
+    async def test_group_with_static_values_still_polls_when_continuous(self):
+        # A static field is written ONLY by this poll — the event path has nothing
+        # to subscribe to for it. Skipping the group would drop the static fields
+        # out of the buffer and leave the calc module short an input.
+        coord = self._poll_coord(
+            continuous=True, owm_in_mapping=False, static_in_mapping=True
+        )
         await coord._async_update_all()
         coord.store.async_update_mapping.assert_called_once()

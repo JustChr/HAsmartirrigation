@@ -936,18 +936,29 @@ class SmartIrrigationCoordinator(
                 sensor_in_mapping,
                 static_in_mapping,
             ) = self.check_mapping_sources(mapping_id=mapping_id)
-            if continuous_updates and not owm_in_mapping:
-                # Pure sensor/static group: the event path IS its data path, so a
-                # poll row here is pure duplication — extra buffer rows, extra
-                # store writes, and a spot sample that pulls the aggregate toward
-                # whatever the sensor happened to read on the tick. Groups WITH a
-                # weather-service field still need the poll: that data only
-                # arrives by API call, and the event path never fetches it (an
-                # API call per sensor change could cost real money).
+            if (
+                continuous_updates
+                and sensor_in_mapping
+                and not owm_in_mapping
+                and not static_in_mapping
+            ):
+                # PURE sensor group: the event path is its whole data path, so a
+                # poll row here is duplication — extra buffer rows, extra store
+                # writes, and a spot sample that pulls the aggregate toward
+                # whatever the sensor happened to read on the tick.
+                #
+                # Both exclusions are load-bearing. A weather-service field only
+                # arrives by API call and the event path never fetches it (one
+                # call per sensor change could cost real money). A STATIC field is
+                # only ever written by this poll — altmenorg's rule ignored that
+                # because its debounced update re-appended static values; ours
+                # doesn't, so skipping a mixed sensor+static group would drop the
+                # static fields out of the buffer entirely and leave the calc
+                # module short an input.
                 _LOGGER.debug(
                     "[async_update_all] continuous updates on and sensor group %s "
-                    "has no weather-service field — already covered by the event "
-                    "path, skipping the poll",
+                    "is sensor-only — already covered by the event path, skipping "
+                    "the poll",
                     mapping_id,
                 )
                 continue
