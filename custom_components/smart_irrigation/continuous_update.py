@@ -24,8 +24,11 @@ Three things keep event-driven ingestion from becoming a write amplifier:
    debounced — deferring it would let a calculation advance a zone's watermark
    past readings still sitting in a timer, silently dropping them from the
    window.
-3. ``store.SAVE_DELAY`` bounds how often the whole-document store is actually
-   serialized to disk, so an append is O(1) in memory between flushes.
+3. **The append never touches the disk.** Readings live in ``store.buffers``,
+   outside the routine save payload, so ``append_mapping_reading`` schedules no
+   write at all — they ride out on the flush timer, on a write somebody else
+   triggers, or at shutdown. ``store.SAVE_DELAY`` then coalesces whatever writes
+   do happen (the debounced bookkeeping below).
 
 Deliberately unlike altmenorg (where this feature came from), the debounced
 follow-up does **not** trigger zone calculations. justchr consumes the buffer
@@ -117,11 +120,13 @@ class ContinuousUpdateMixin:
         # target of a change must be visited, not just the first match.
         targets: dict[str, list[tuple[int, str, dict]]] = {}
         if enabled:
-            for mapping in await self.store.async_get_mappings():
-                mapping_id = mapping.get(const.MAPPING_ID)
-                if mapping_id is None:
-                    continue
-                for key, the_map in (mapping.get(const.MAPPING_MAPPINGS) or {}).items():
+            # get_mapping_field_configs(), NOT async_get_mappings(): the latter
+            # attr.asdict()s every sensor group, and this method re-runs on every
+            # _config_updated signal — which the ingestion flush itself emits, so
+            # it is effectively on the ingestion path and must not copy anything
+            # it does not need.
+            for mapping_id, field_configs in self.store.get_mapping_field_configs():
+                for key, the_map in field_configs.items():
                     # Legacy stored shape: a bare string instead of a config dict.
                     if isinstance(the_map, str):
                         continue
@@ -239,14 +244,27 @@ class ContinuousUpdateMixin:
             if self._continuous_in_deadband(mapping_id, key, value):
                 continue
             self._continuous_last_value[(mapping_id, key)] = value
-            # The append itself is async (the store API is), but it must not be
-            # inlined here: reading the buffer in this callback and writing it
-            # back later would let two events for the same sensor group both read
-            # the pre-append snapshot, and the second write would drop the first
-            # row. Doing the whole read-modify-write inside the task keeps it
-            # atomic, and tasks run in creation order.
-            self.hass.async_create_task(
-                self._async_append_reading(mapping_id, key, value, timestamp)
+            # Synchronous, O(1), and no task hop: store.append_mapping_reading
+            # appends to the live buffer in store.buffers and schedules NO write.
+            # The previous shape — read a get_mapping() copy in a task, mutate,
+            # write it back — was both a lost-update race (two events for one
+            # group could each read the pre-append snapshot) and O(buffer) per
+            # reading, because get_mapping() attr.asdict()s what it returns.
+            if not self.store.append_mapping_reading(
+                mapping_id, {key: value, const.RETRIEVED_AT: timestamp}
+            ):
+                continue
+            # Carry-forward for aggregate_window(last_entry=...): a zone window
+            # containing no row for this field falls back to this value rather
+            # than feeding the calc module nothing at all. Save-free for the same
+            # reason the append is — see store.set_mapping_last_entry_value.
+            self.store.set_mapping_last_entry_value(mapping_id, key, value)
+            _LOGGER.debug(
+                "Continuous updates: sensor group %s %s = %s at %s",
+                mapping_id,
+                key,
+                value,
+                timestamp,
             )
             touched.add(mapping_id)
 
@@ -268,39 +286,6 @@ class ContinuousUpdateMixin:
         if threshold <= 0:
             return False
         return abs(value - previous) < threshold
-
-    async def _async_append_reading(
-        self, mapping_id: int, key: str, value: float, timestamp: datetime
-    ) -> None:
-        """Append one sparse reading row and refresh the carry-forward value.
-
-        The buffer lives in ``store.buffers``, not on the MappingEntry, so it is
-        read and written through the buffer accessors. Neither they nor
-        ``async_update_mapping`` await, so this read-modify-write runs to
-        completion without another writer interleaving.
-        """
-        mapping = self.store.get_mapping(mapping_id)
-        if mapping is None:
-            return
-        data = list(self.store.get_mapping_buffer(mapping_id))
-        data.append({key: value, const.RETRIEVED_AT: timestamp})
-        self.store.set_mapping_buffer(mapping_id, data)
-        # Carry-forward for aggregate_window(last_entry=...): a zone window that
-        # contains no row for this field falls back to this value instead of
-        # feeding the calc module nothing at all.
-        last_entry = dict(mapping.get(const.MAPPING_DATA_LAST_ENTRY) or {})
-        last_entry[key] = value
-        await self.store.async_update_mapping(
-            mapping_id,
-            {const.MAPPING_DATA_LAST_ENTRY: last_entry},
-        )
-        _LOGGER.debug(
-            "Continuous updates: sensor group %s %s = %s at %s",
-            mapping_id,
-            key,
-            value,
-            timestamp,
-        )
 
     @callback
     def _schedule_continuous_flush(self, mapping_id: int) -> None:
@@ -340,8 +325,11 @@ class ContinuousUpdateMixin:
         publishes what the panel and the zone entities show (last updated, number
         of data points) and keeps the buffer bounded.
         """
-        mapping = self.store.get_mapping(mapping_id)
-        if mapping is None:
+        # Row count via the cheap accessor, not get_mapping(): see
+        # store.get_mapping_field_configs for why the buffer must not be copied on
+        # a per-burst path. Doubles as the existence check.
+        row_count = self.store.get_mapping_row_count(mapping_id)
+        if row_count is None:
             return
         now = datetime.now()
         await self.store.async_update_mapping(
@@ -349,11 +337,13 @@ class ContinuousUpdateMixin:
         )
 
         # Match the interval path's count: it stores len(data) - 1 because the
-        # oldest row is the carried-forward boundary, not a new reading.
-        data = self.store.get_mapping_buffer(mapping_id)
+        # oldest row is the carried-forward boundary, not a new reading. Re-read
+        # after the await above — an append can land in between, and a count taken
+        # from a pre-await snapshot would under-report the buffer.
+        row_count = self.store.get_mapping_row_count(mapping_id) or 0
         changes_to_zone = {
             const.ZONE_LAST_UPDATED: now,
-            const.ZONE_NUMBER_OF_DATA_POINTS: max(len(data) - 1, 0),
+            const.ZONE_NUMBER_OF_DATA_POINTS: max(row_count - 1, 0),
         }
         for zone_id in await self._get_zones_that_use_this_mapping(mapping_id):
             await self.store.async_update_zone(zone_id, changes_to_zone)
@@ -376,11 +366,13 @@ class ContinuousUpdateMixin:
         memory bound and it says so in the log. The oldest surviving row is kept
         as the DELTA / RIEMANNSUM baseline that ``select_window`` expects.
         """
-        if self.store.get_mapping(mapping_id) is None:
+        # get_mapping_row_count doubles as the existence check (None = unknown
+        # group) and never materializes the buffer, so this runs on every prune
+        # cycle for the cost of a len().
+        row_count = self.store.get_mapping_row_count(mapping_id)
+        if row_count is None or row_count <= CONTINUOUS_MAX_BUFFER_ROWS:
             return
         data = self.store.get_mapping_buffer(mapping_id)
-        if len(data) <= CONTINUOUS_MAX_BUFFER_ROWS:
-            return
         keep = data[-CONTINUOUS_MAX_BUFFER_ROWS:]
         keep.insert(0, data[0])
         _LOGGER.warning(

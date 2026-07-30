@@ -84,6 +84,62 @@ async def test_append_schedules_no_write_but_marks_the_buffer_dirty(hass) -> Non
 
 
 @pytest.mark.asyncio
+async def test_carry_forward_refresh_schedules_no_write_either(hass) -> None:
+    """The companion to the append, and the subtler half of it.
+
+    Continuous updates refresh ``data_last_entry`` on EVERY reading. It is a
+    MappingEntry field, so evolving it through the normal ``async_update_mapping``
+    would schedule a whole-document write per reading — reintroducing exactly the
+    cost the buffer split removed, through the one field an append still touches.
+    """
+    store, mid = await _store_with_mapping(hass)
+    writes = []
+    store._store.async_delay_save = lambda func, delay=0: writes.append(func)
+
+    store.set_mapping_last_entry_value(mid, const.MAPPING_TEMPERATURE, 21.5)
+
+    assert writes == []
+    assert store.get_mapping(mid)[const.MAPPING_DATA_LAST_ENTRY] == {
+        const.MAPPING_TEMPERATURE: 21.5
+    }
+
+
+@pytest.mark.asyncio
+async def test_carry_forward_rides_out_on_the_next_write(hass) -> None:
+    """It needs no dirty flag: it is in the ROUTINE payload, so any write carries
+    it. That is what makes losing it to a hard crash acceptable — and it is
+    recoverable anyway, being just the newest value per field in the buffer.
+    """
+    store, mid = await _store_with_mapping(hass)
+    store.set_mapping_last_entry_value(mid, const.MAPPING_TEMPERATURE, 21.5)
+
+    routine = store._data_to_save()
+    assert routine["mappings"][0][const.MAPPING_DATA_LAST_ENTRY] == {
+        const.MAPPING_TEMPERATURE: 21.5
+    }
+
+
+@pytest.mark.asyncio
+async def test_carry_forward_is_not_shared_between_sensor_groups(hass) -> None:
+    """MappingEntry.data_last_entry's attrs default is ONE shared ``{}`` object.
+
+    Mutating it in place would leak one sensor group's carry-forward into every
+    other group that was created without an explicit value — a cross-contaminated
+    ET input, silently.
+    """
+    store, first = await _store_with_mapping(hass)
+    second = (
+        await store.async_create_mapping(
+            {const.MAPPING_NAME: "Other", const.MAPPING_MAPPINGS: {}}
+        )
+    )[const.MAPPING_ID]
+
+    store.set_mapping_last_entry_value(first, const.MAPPING_TEMPERATURE, 21.5)
+
+    assert store.get_mapping(second)[const.MAPPING_DATA_LAST_ENTRY] == {}
+
+
+@pytest.mark.asyncio
 async def test_a_write_by_anyone_else_carries_the_buffer(hass) -> None:
     """The failure this guards: a zone write emitting the buffer-less payload
     while readings are unpersisted would discard every buffered row, not just

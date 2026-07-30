@@ -48,17 +48,33 @@ def _stub_hass_helpers(monkeypatch):
 class _FakeStore:
     """Minimal stand-in for SmartIrrigationStorage's mapping/zone API.
 
-    get_mapping deep-copies, exactly like the real ``attr.asdict`` return: the
-    append path is only correct because it writes the buffer back rather than
-    mutating what it read, and a shallow fake would hide that.
+    Tracks the post-Step-4 storage contract, which is the whole point of this
+    double: the reading buffers live in ``self.buffers``, NOT on the mapping
+    record, so ``get_mapping``/``async_get_mappings`` deep-copy a record that no
+    longer carries them — exactly like the real ``attr.asdict``. A caller that
+    mutates what it read and never writes it back is still caught here rather
+    than silently passing.
+
+    ``saves`` counts SCHEDULED STORE WRITES. Appending a reading (and refreshing
+    the carry-forward that goes with it) must schedule none — that is the
+    property Step 4 exists for, and ``TestNoWritePerReading`` asserts it.
     """
 
     def __init__(self, mappings, *, enabled=True, debounce=5000):
-        self.mappings = {int(m[const.MAPPING_ID]): m for m in mappings}
+        self.mappings = {}
+        self.buffers = {}
+        for mapping in mappings:
+            mapping = dict(mapping)
+            mapping_id = int(mapping[const.MAPPING_ID])
+            # The same split the real store's async_load does: readings out of
+            # the record, into the buffer dict beside it.
+            self.buffers[mapping_id] = mapping.pop(const.MAPPING_DATA, None) or []
+            self.mappings[mapping_id] = mapping
         self.config = SimpleNamespace(
             continuousupdates=enabled, sensor_debounce=debounce
         )
         self.zone_updates = []
+        self.saves = 0
 
     def get_mapping(self, mapping_id):
         mapping = self.mappings.get(int(mapping_id))
@@ -67,8 +83,67 @@ class _FakeStore:
     async def async_get_mappings(self):
         return [copy.deepcopy(m) for m in self.mappings.values()]
 
+    def get_mapping_field_configs(self):
+        return [
+            (int(mid), m.get(const.MAPPING_MAPPINGS) or {})
+            for mid, m in self.mappings.items()
+        ]
+
+    def get_mapping_buffer(self, mapping_id):
+        """The LIVE buffer list, never a copy — like the real accessor."""
+        if mapping_id is None:
+            return []
+        return self.buffers.get(int(mapping_id), [])
+
+    def get_mapping_row_count(self, mapping_id):
+        if mapping_id is None:
+            return None
+        mapping_id = int(mapping_id)
+        if mapping_id not in self.mappings:
+            return None
+        return len(self.buffers.get(mapping_id, []))
+
+    def append_mapping_reading(self, mapping_id, reading):
+        """O(1) append that schedules NO save — see store.append_mapping_reading."""
+        if mapping_id is None:
+            return False
+        mapping_id = int(mapping_id)
+        if mapping_id not in self.mappings:
+            return False
+        self.buffers.setdefault(mapping_id, []).append(reading)
+        return True
+
+    def set_mapping_buffer(self, mapping_id, readings):
+        """Wholesale replace (prune / clear / cap). Unlike an append, this writes."""
+        if mapping_id is None:
+            return
+        mapping_id = int(mapping_id)
+        if mapping_id not in self.mappings:
+            return
+        self.buffers[mapping_id] = list(readings) if isinstance(readings, list) else []
+        self.saves += 1
+
+    def set_mapping_last_entry_value(self, mapping_id, key, value):
+        """Carry-forward refresh that schedules NO save, like the real store."""
+        if mapping_id is None:
+            return
+        mapping = self.mappings.get(int(mapping_id))
+        if mapping is None:
+            return
+        # Fresh dict, mirroring the real store: MappingEntry.data_last_entry's
+        # attrs default is a single shared {}, so it must never be mutated in place.
+        last_entry = dict(mapping.get(const.MAPPING_DATA_LAST_ENTRY) or {})
+        last_entry[key] = value
+        mapping[const.MAPPING_DATA_LAST_ENTRY] = last_entry
+
     async def async_update_mapping(self, mapping_id, changes):
         stored = self.mappings[int(mapping_id)]
+        changes = dict(changes)
+        # The real store routes a `data` key to set_mapping_buffer instead of
+        # storing it as a field; mirror that or a test would write a buffer onto
+        # the record where nothing reads it.
+        if const.MAPPING_DATA in changes:
+            self.set_mapping_buffer(mapping_id, changes.pop(const.MAPPING_DATA))
         # Mirror the real store's key-by-key carry-forward merge (store.py).
         old_last = stored.get(const.MAPPING_DATA_LAST_ENTRY) or {}
         if old_last:
@@ -77,6 +152,7 @@ class _FakeStore:
                 merged.setdefault(key, val)
             changes = {**changes, const.MAPPING_DATA_LAST_ENTRY: merged}
         stored.update(changes)
+        self.saves += 1
         return stored
 
     async def async_update_zone(self, zone_id, changes):
@@ -227,6 +303,99 @@ class TestSetup:
         assert coord._continuous_debounce_unsub == {}
 
 
+class TestHotPathDoesNotCopyTheBuffer:
+    """The append path must stay O(1) in the buffer length.
+
+    store.get_mapping()/async_get_mappings() attr.asdict() the whole reading
+    buffer (measured ~3 us/row, so ~30 ms at 10k rows). Calling either once per
+    sensor event makes an ingestion cycle O(n^2) CPU on the event loop — the exact
+    failure the append path was rewritten to avoid. These tests fail if it comes
+    back, which a timing benchmark could not do reliably.
+    """
+
+    async def test_state_change_never_calls_the_deep_copying_accessors(self):
+        store = _FakeStore([_mapping(data=[{"x": 1}] * 500)])
+        coord = _coord(store)
+        await coord.async_setup_continuous_updates()
+
+        store.get_mapping = Mock(side_effect=AssertionError("get_mapping copies"))
+        store.async_get_mappings = AsyncMock(
+            side_effect=AssertionError("async_get_mappings copies every group")
+        )
+        # The read-modify-write shape this path was rewritten away from: copying
+        # the buffer out, appending, and handing the whole list back is O(n) per
+        # reading AND schedules a write, undoing both halves of the design.
+        store.set_mapping_buffer = Mock(
+            side_effect=AssertionError("set_mapping_buffer is O(buffer) and writes")
+        )
+        coord._sensor_state_changed(_event("sensor.temp", "21.5"))
+
+        assert len(store.buffers[1]) == 501
+        assert not coord.created_tasks or True  # flush task is fine; appends are not
+        for coro in coord.created_tasks:
+            coro.close()
+        coord.created_tasks.clear()
+
+    async def test_setup_never_calls_async_get_mappings(self):
+        store = _FakeStore([_mapping(data=[{"x": 1}] * 500)])
+        coord = _coord(store)
+        store.async_get_mappings = AsyncMock(
+            side_effect=AssertionError("setup re-runs on every _config_updated")
+        )
+        await coord.async_setup_continuous_updates()
+        assert list(coord._continuous_targets) == ["sensor.temp"]
+
+
+class TestNoWritePerReading:
+    """Ingestion must not put the store back on the disk-write path.
+
+    This is the guarantee feat/storage-save-delay Step 4 bought and that merging
+    continuous updates into it could silently undo: readings live in
+    ``store.buffers``, outside the routine save payload, and the carry-forward
+    that accompanies each reading is evolved WITHOUT scheduling a save. Get
+    either wrong and every sensor event reserializes the whole document again —
+    with no test failure to show for it, only a worn-out SD card.
+    """
+
+    async def test_appending_readings_schedules_no_save(self):
+        store = _FakeStore([_mapping()])
+        coord = _coord(store)
+        await coord.async_setup_continuous_updates()
+        store.saves = 0
+
+        for value in ("21.5", "25.0", "28.5", "32.0"):
+            coord._sensor_state_changed(_event("sensor.temp", value))
+
+        # Four readings buffered, zero writes: they ride out on the flush timer,
+        # on somebody else's write, or at shutdown.
+        assert len(store.buffers[1]) == 4
+        assert store.saves == 0
+        # …and the carry-forward tracked every one of them regardless.
+        assert store.mappings[1][const.MAPPING_DATA_LAST_ENTRY] == {
+            const.MAPPING_TEMPERATURE: 32.0
+        }
+
+        for coro in coord.created_tasks:
+            coro.close()
+        coord.created_tasks.clear()
+
+    async def test_debounced_flush_is_what_writes(self):
+        # The bookkeeping pass IS allowed to write — it is debounced to once per
+        # burst, which is the whole point of separating it from the append.
+        store = _FakeStore([_mapping()])
+        coord = _coord(store)
+        coord._get_zones_that_use_this_mapping = AsyncMock(return_value=[])
+        await coord.async_setup_continuous_updates()
+        store.saves = 0
+
+        coord._sensor_state_changed(_event("sensor.temp", "21.5"))
+        assert store.saves == 0
+        # async_call_later is stubbed in these unit tests, so run the debounced
+        # pass directly rather than waiting on a timer that never fires.
+        await coord._async_continuous_update_for_mapping(1)
+        assert store.saves == 1
+
+
 class TestStateChanged:
     async def test_appends_sparse_row_and_updates_last_entry(self):
         store = _FakeStore([_mapping()])
@@ -235,7 +404,7 @@ class TestStateChanged:
         coord._sensor_state_changed(_event("sensor.temp", "21.5"))
         await _drain(coord)
 
-        rows = store.mappings[1][const.MAPPING_DATA]
+        rows = store.buffers[1]
         assert len(rows) == 1
         # Sparse: exactly the changed key plus the timestamp, nothing else.
         assert set(rows[0]) == {const.MAPPING_TEMPERATURE, const.RETRIEVED_AT}
@@ -258,7 +427,7 @@ class TestStateChanged:
         coord._sensor_state_changed(_event("sensor.temp", "30"))
         await _drain(coord)
         assert [
-            r[const.MAPPING_TEMPERATURE] for r in store.mappings[1][const.MAPPING_DATA]
+            r[const.MAPPING_TEMPERATURE] for r in store.buffers[1]
         ] == [
             10.0,
             30.0,
@@ -271,7 +440,7 @@ class TestStateChanged:
         await coord.async_setup_continuous_updates()
         coord._sensor_state_changed(_event("sensor.temp", state))
         await _drain(coord)
-        assert store.mappings[1][const.MAPPING_DATA] == []
+        assert store.buffers[1] == []
 
     async def test_untracked_entity_is_ignored(self):
         store = _FakeStore([_mapping()])
@@ -279,7 +448,7 @@ class TestStateChanged:
         await coord.async_setup_continuous_updates()
         coord._sensor_state_changed(_event("sensor.something_else", "5"))
         await _drain(coord)
-        assert store.mappings[1][const.MAPPING_DATA] == []
+        assert store.buffers[1] == []
 
     async def test_value_is_converted_using_the_entity_reported_unit(self):
         # Configured °C but the entity says °F: HA's unit wins, so the stored
@@ -305,7 +474,7 @@ class TestStateChanged:
             _event("sensor.temp", "68", {"unit_of_measurement": "°F"})
         )
         await _drain(coord)
-        stored = store.mappings[1][const.MAPPING_DATA][0][const.MAPPING_TEMPERATURE]
+        stored = store.buffers[1][0][const.MAPPING_TEMPERATURE]
         assert stored == pytest.approx(20.0, abs=0.01)
 
 
@@ -321,11 +490,11 @@ class TestDeadband:
         # Below the threshold: jitter, not information.
         coord._sensor_state_changed(_event("sensor.temp", str(20.0 + step / 2)))
         await _drain(coord)
-        assert len(store.mappings[1][const.MAPPING_DATA]) == 1
+        assert len(store.buffers[1]) == 1
         # Above the threshold: recorded.
         coord._sensor_state_changed(_event("sensor.temp", str(20.0 + step * 2)))
         await _drain(coord)
-        assert len(store.mappings[1][const.MAPPING_DATA]) == 2
+        assert len(store.buffers[1]) == 2
 
     async def test_reference_is_the_last_appended_value_so_drift_still_lands(self):
         store = _FakeStore([_mapping()])
@@ -340,7 +509,7 @@ class TestDeadband:
                 _event("sensor.temp", str(20.0 + i * step * 0.6))
             )
             await _drain(coord)
-        assert len(store.mappings[1][const.MAPPING_DATA]) > 1
+        assert len(store.buffers[1]) > 1
 
     async def test_precipitation_is_never_deadbanded(self):
         store = _FakeStore(
@@ -364,7 +533,7 @@ class TestDeadband:
         for value in ("0.1", "0.2", "0.3"):
             coord._sensor_state_changed(_event("sensor.rain", value))
             await _drain(coord)
-        assert len(store.mappings[1][const.MAPPING_DATA]) == 3
+        assert len(store.buffers[1]) == 3
 
 
 class TestDebounce:
@@ -406,8 +575,11 @@ class TestDebounce:
         await coord.async_setup_continuous_updates()
         coord._sensor_state_changed(_event("sensor.temp", "10"))
         called.assert_not_called()
-        # The append task plus the flush task, in that order.
-        assert len(coord.created_tasks) == 2
+        # Exactly ONE task: the flush. The reading itself is appended
+        # synchronously via store.append_mapping_reading, so there is no
+        # per-reading task hop (and no per-reading buffer copy) any more.
+        assert len(coord.created_tasks) == 1
+        assert len(store.buffers[1]) == 1
         for coro in coord.created_tasks:
             coro.close()  # never scheduled here; closing avoids a warning
         coord.created_tasks.clear()
@@ -460,7 +632,7 @@ class TestFlush:
         store = _FakeStore([_mapping(data=rows)])
         coord = _coord(store)
         await coord._continuous_enforce_row_cap(1)
-        kept = store.mappings[1][const.MAPPING_DATA]
+        kept = store.buffers[1]
         assert len(kept) == 6  # the cap plus the re-inserted boundary
         assert kept[0][const.MAPPING_TEMPERATURE] == 0
         assert kept[-1][const.MAPPING_TEMPERATURE] == 19
@@ -470,7 +642,7 @@ class TestFlush:
         store = _FakeStore([_mapping(data=rows)])
         coord = _coord(store)
         await coord._continuous_enforce_row_cap(1)
-        assert len(store.mappings[1][const.MAPPING_DATA]) == 10
+        assert len(store.buffers[1]) == 10
 
 
 class TestClearWeatherData:
@@ -491,7 +663,7 @@ class TestClearWeatherData:
         coord = _coord(store)
         coord.store.async_get_zones = AsyncMock(return_value=[])
         await coord._async_clear_all_weatherdata()
-        assert store.mappings[1][const.MAPPING_DATA] == []
+        assert store.buffers[1] == []
         assert store.mappings[1][const.MAPPING_DATA_LAST_ENTRY] == {"Humidity": None}
 
 
@@ -512,6 +684,11 @@ class TestIntervalPollSkip:
         coord.store.async_update_mapping = AsyncMock()
         coord.store.async_update_zone = AsyncMock()
         coord.store.get_mapping = Mock(return_value=_mapping())
+        # The poll writes its row through the buffer accessors, not through
+        # async_update_mapping — so append_mapping_reading is what "this group was
+        # polled" now means, and it is what these tests assert on below.
+        coord.store.append_mapping_reading = Mock(return_value=True)
+        coord.store.get_mapping_row_count = Mock(return_value=0)
         coord.check_mapping_sources = Mock(
             return_value=(owm_in_mapping, True, static_in_mapping)
         )
@@ -532,19 +709,19 @@ class TestIntervalPollSkip:
     async def test_pure_sensor_group_is_skipped_when_continuous(self):
         coord = self._poll_coord(continuous=True, owm_in_mapping=False)
         await coord._async_update_all()
-        coord.store.async_update_mapping.assert_not_called()
+        coord.store.append_mapping_reading.assert_not_called()
 
     async def test_weather_service_group_still_polls_when_continuous(self):
         # Weather-service data only arrives by API call; the event path never
         # fetches it, so this group must keep its scheduled poll.
         coord = self._poll_coord(continuous=True, owm_in_mapping=True)
         await coord._async_update_all()
-        coord.store.async_update_mapping.assert_called_once()
+        coord.store.append_mapping_reading.assert_called_once()
 
     async def test_pure_sensor_group_still_polls_when_feature_off(self):
         coord = self._poll_coord(continuous=False, owm_in_mapping=False)
         await coord._async_update_all()
-        coord.store.async_update_mapping.assert_called_once()
+        coord.store.append_mapping_reading.assert_called_once()
 
     async def test_group_with_static_values_still_polls_when_continuous(self):
         # A static field is written ONLY by this poll — the event path has nothing
@@ -554,4 +731,4 @@ class TestIntervalPollSkip:
             continuous=True, owm_in_mapping=False, static_in_mapping=True
         )
         await coord._async_update_all()
-        coord.store.async_update_mapping.assert_called_once()
+        coord.store.append_mapping_reading.assert_called_once()

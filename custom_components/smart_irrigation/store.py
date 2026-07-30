@@ -1510,6 +1510,40 @@ class SmartIrrigationStorage:
         """
         return [attr.asdict(val) for val in self.mappings.values()]
 
+    # ------------------------------------------------------------------
+    # Buffer-aware fast paths.
+    #
+    # get_mapping()/async_get_mappings() return attr.asdict() DEEP COPIES of the
+    # MappingEntry — its field-config dict, both carry-forward dicts, the lot.
+    # That is fine for the hourly poll but not for anything running per sensor
+    # event, and the copy is pure waste when the caller only wants a row count or
+    # the field configs. The helpers below give the hot paths what they need
+    # without copying anything.
+    #
+    # The readings themselves are no longer part of that copy at all — they live
+    # in self.buffers rather than on the entry — which is what makes an append
+    # O(1) in buffer length instead of O(n).
+    # ------------------------------------------------------------------
+
+    @callback
+    def get_mapping_field_configs(self) -> list[tuple[int, dict]]:
+        """Return ``(mapping_id, MAPPING_MAPPINGS)`` for every sensor group.
+
+        Read-only view for the continuous-update subscription rebuild, which runs
+        on every ``_config_updated`` signal — including the ones ingestion itself
+        emits. The returned field-config dicts are the LIVE objects, not copies —
+        callers must treat them as immutable. That is safe because every writer
+        goes through ``async_update_mapping``, which ``attr.evolve``s a
+        replacement rather than mutating in place, so a held reference can only
+        ever go stale (and the ``_config_updated`` signal re-reads it), never be
+        corrupted underneath.
+        """
+        return [
+            (int(entry.id), entry.mappings or {})
+            for entry in self.mappings.values()
+            if entry.id is not None
+        ]
+
     @callback
     def get_mapping_buffer(self, mapping_id: int) -> list:
         """Return a sensor group's reading buffer — the LIVE list, not a copy.
@@ -1571,6 +1605,41 @@ class SmartIrrigationStorage:
         self.buffers[mapping_id] = _as_buffer(readings)
         self._buffers_dirty = True
         self.async_schedule_save()
+
+    @callback
+    def set_mapping_last_entry_value(self, mapping_id: int, key: str, value) -> None:
+        """Refresh one carry-forward field WITHOUT scheduling a save.
+
+        The companion to ``append_mapping_reading`` for the event-driven ingestion
+        path: every reading also updates ``data_last_entry`` (the value
+        ``aggregate_window`` falls back to for a field with no row in a zone's
+        window), and scheduling a write for that would put ingestion straight back
+        on the disk — reintroducing per-reading whole-document saves through the
+        one field of MappingEntry that an append touches.
+
+        So it rides along on the next write like the buffers do. Unlike them it
+        needs no dirty flag: ``data_last_entry`` is a MappingEntry field, so it is
+        in the routine payload and ANY subsequent write carries it. Losing it to a
+        hard crash is recoverable — it is derivable from the buffer, being simply
+        the newest value seen per field.
+
+        Deliberately NOT mutated in place: the attrs default for
+        ``data_last_entry`` is a bare ``{}``, i.e. ONE dict object shared by every
+        MappingEntry constructed without an explicit value, so writing into it
+        would leak carry-forward values between unrelated sensor groups. Evolving
+        a fresh dict costs one small copy (a handful of fields, never the buffer)
+        and is safe.
+        """
+        if mapping_id is None:
+            return
+        mapping_id = int(mapping_id)
+        entry = self.mappings.get(mapping_id)
+        if entry is None:
+            return
+        last_entry = entry.data_last_entry
+        last_entry = dict(last_entry) if isinstance(last_entry, dict) else {}
+        last_entry[key] = value
+        self.mappings[mapping_id] = attr.evolve(entry, data_last_entry=last_entry)
 
     async def async_create_mapping(self, data: dict) -> MappingEntry:
         """Create a new MappingEntry."""
