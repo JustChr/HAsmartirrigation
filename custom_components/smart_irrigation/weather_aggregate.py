@@ -24,6 +24,14 @@ from .helpers import parse_datetime
 
 _LOGGER = logging.getLogger(__name__)
 
+# Aggregates that ACCUMULATE over the window (area under a rate curve, or a
+# running total) rather than summarising level samples. A carried-forward value
+# must never be backfilled into one of these — see aggregate_window.
+_INTEGRAL_AGGREGATES = (
+    const.MAPPING_CONF_AGGREGATE_RIEMANNSUM,
+    const.MAPPING_CONF_AGGREGATE_SUM,
+)
+
 
 def _parse(value):
     """Parse a stored RETRIEVED_AT (datetime or ISO string) to datetime/None."""
@@ -131,13 +139,58 @@ def aggregate_window(
     by_sensor = _group_by_sensor(effective)
     if last_entry:
         for key, val in last_entry.items():
-            if key not in by_sensor and val is not None:
-                by_sensor[key] = [val]
+            if key in by_sensor or val is None:
+                continue
+            # Never backfill a field whose aggregate INTEGRATES the window: one
+            # carried-forward sample would be read as real accumulation rather
+            # than as a level. Concretely, a sensor-sourced precipitation field
+            # overridden to riemannsum takes the single-value path and returns
+            # the rate verbatim — as if it had rained at that rate for an hour —
+            # so a stale carry-forward fabricates rain, and fabricated rain
+            # suppresses irrigation (under-watering).
+            #
+            # DELTA is deliberately NOT excluded: it is a counter difference, so a
+            # single value yields 0, which is exactly right — no change in a
+            # cumulative rain gauge means no rain, and an explicit 0 is better for
+            # the calc module than a missing field.
+            if _effective_aggregate(key, mappings_config) in _INTEGRAL_AGGREGATES:
+                continue
+            by_sensor[key] = [val]
 
     resultdata = {}
     resultdata[const.MAPPING_DATA_MULTIPLIER] = _hour_multiplier(window, watermark, now)
     _aggregate(by_sensor, mappings_config, resultdata)
     return resultdata
+
+
+def _effective_aggregate(key, mappings_config):
+    """Resolve which aggregate applies to ``key``.
+
+    Single source of truth for the rule, so the backfill guard in
+    ``aggregate_window`` and the arithmetic in ``_aggregate`` cannot drift apart.
+    """
+    aggregate = const.MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT
+    if key == const.MAPPING_PRECIPITATION:
+        # Cumulative rain-gauge sensors count up and reset at midnight (DELTA);
+        # weather-service precip is a rate (mm/h) integrated by RIEMANNSUM so
+        # the result is correct at any update frequency.
+        precip_source = (
+            (mappings_config.get(const.MAPPING_PRECIPITATION) or {}).get(
+                const.MAPPING_CONF_SOURCE
+            )
+            if mappings_config
+            else None
+        )
+        if precip_source == const.MAPPING_CONF_SOURCE_WEATHER_SERVICE:
+            aggregate = const.MAPPING_CONF_AGGREGATE_RIEMANNSUM
+        else:
+            aggregate = const.MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION
+    if mappings_config and key in mappings_config:
+        field_config = mappings_config[key]
+        # Legacy stored shape: a bare string instead of a config dict.
+        if isinstance(field_config, dict):
+            aggregate = field_config.get(const.MAPPING_CONF_AGGREGATE, aggregate)
+    return aggregate
 
 
 def _aggregate(by_sensor, mappings_config, resultdata):
@@ -147,29 +200,10 @@ def _aggregate(by_sensor, mappings_config, resultdata):
             continue
         d = [float(i) for i in raw]
 
-        aggregate = const.MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT
-        if key == const.MAPPING_PRECIPITATION:
-            # Cumulative rain-gauge sensors count up and reset at midnight (DELTA);
-            # weather-service precip is a rate (mm/h) integrated by RIEMANNSUM so
-            # the result is correct at any update frequency.
-            precip_source = (
-                mappings_config.get(const.MAPPING_PRECIPITATION, {}).get(
-                    const.MAPPING_CONF_SOURCE
-                )
-                if mappings_config
-                else None
-            )
-            if precip_source == const.MAPPING_CONF_SOURCE_WEATHER_SERVICE:
-                aggregate = const.MAPPING_CONF_AGGREGATE_RIEMANNSUM
-            else:
-                aggregate = const.MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION
-        elif key == const.MAPPING_TEMPERATURE:
+        if key == const.MAPPING_TEMPERATURE:
             resultdata[const.MAPPING_MAX_TEMP] = max(d)
             resultdata[const.MAPPING_MIN_TEMP] = min(d)
-        if key in mappings_config:
-            aggregate = mappings_config[key].get(
-                const.MAPPING_CONF_AGGREGATE, aggregate
-            )
+        aggregate = _effective_aggregate(key, mappings_config)
 
         if aggregate == const.MAPPING_CONF_AGGREGATE_DELTA:
             # Cumulative counter: sum positive increments, treating the first

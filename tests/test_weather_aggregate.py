@@ -164,3 +164,66 @@ class TestContinuousUpdateRows:
         )
         assert const.MAPPING_HUMIDITY not in out
         assert out[const.MAPPING_TEMPERATURE] == 10
+
+    def test_last_entry_never_backfills_an_integrating_aggregate(self):
+        """A carry-forward must not become fabricated accumulation.
+
+        A sensor-sourced precipitation field overridden to riemannsum takes the
+        single-value path, which returns the rate verbatim — as if it had rained
+        at that rate for a full hour. Backfilling it would invent rain from a
+        stale reading, and invented rain suppresses irrigation (under-watering).
+        """
+        config = {
+            const.MAPPING_PRECIPITATION: {
+                const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_SENSOR,
+                const.MAPPING_CONF_AGGREGATE: (
+                    const.MAPPING_CONF_AGGREGATE_RIEMANNSUM
+                ),
+            }
+        }
+        out = aggregate_window(
+            [_r(0, Temperature=10)],
+            None,
+            config,
+            now=T0 + datetime.timedelta(hours=1),
+            last_entry={const.MAPPING_PRECIPITATION: 2.5},
+        )
+        assert const.MAPPING_PRECIPITATION not in out
+
+    def test_last_entry_still_backfills_a_delta_rain_gauge(self):
+        """DELTA is a counter difference, so a single value is a correct 0.
+
+        No change in a cumulative rain gauge genuinely means no rain, and an
+        explicit 0 is more useful to the calc module than a missing field — so
+        this one must NOT be caught by the integral-aggregate guard above.
+        """
+        config = {
+            const.MAPPING_PRECIPITATION: {
+                const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_SENSOR,
+            }
+        }
+        out = aggregate_window(
+            [_r(0, Temperature=10)],
+            None,
+            config,
+            now=T0 + datetime.timedelta(hours=1),
+            last_entry={const.MAPPING_PRECIPITATION: 2.5},
+        )
+        assert out[const.MAPPING_PRECIPITATION] == 0
+
+    def test_weather_service_precip_is_unaffected_by_the_guard(self):
+        # Weather-service precip defaults to RIEMANNSUM and its groups keep
+        # polling, so it always has real rows — but assert the guard does not
+        # disturb that path either.
+        config = {
+            const.MAPPING_PRECIPITATION: {
+                const.MAPPING_CONF_SOURCE: (
+                    const.MAPPING_CONF_SOURCE_WEATHER_SERVICE
+                ),
+            }
+        }
+        readings = [_r(0, Precipitation=1.0), _r(1, Precipitation=1.0)]
+        out = aggregate_window(
+            readings, None, config, now=T0 + datetime.timedelta(hours=1)
+        )
+        assert out[const.MAPPING_PRECIPITATION] == 1.0  # 1 mm/h over 1 h
