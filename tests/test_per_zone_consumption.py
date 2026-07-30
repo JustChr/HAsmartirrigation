@@ -84,7 +84,7 @@ async def test_calculating_one_zone_keeps_sibling_history(coord):
     await c.async_calculate_zone(a, now=now_a)
 
     # The shared buffer must NOT be wiped — the sibling still needs it.
-    assert len(store.get_mapping(mid)[const.MAPPING_DATA]) == 4
+    assert len(store.get_mapping_buffer(mid)) == 4
     # Zone A advanced its watermark; zone B is untouched.
     assert store.get_zone(a)[const.ZONE_LAST_CONSUMED] == now_a
     assert store.get_zone(b)[const.ZONE_LAST_CONSUMED] == old_wm
@@ -111,11 +111,10 @@ async def test_second_calc_only_consumes_new_readings(coord):
 
     # A new reading arrives; the next calc must only see the new one (window is
     # strictly after the advanced watermark), not re-consume the old readings.
-    data = store.get_mapping(mid)[const.MAPPING_DATA]
-    data.append(
-        {const.RETRIEVED_AT: T0 + timedelta(hours=3), const.MAPPING_TEMPERATURE: 30.0}
+    store.append_mapping_reading(
+        mid,
+        {const.RETRIEVED_AT: T0 + timedelta(hours=3), const.MAPPING_TEMPERATURE: 30.0},
     )
-    await store.async_update_mapping(mid, {const.MAPPING_DATA: data})
 
     c.calculate_module.reset_mock()
     await c.async_calculate_zone(z, now=T0 + timedelta(hours=4))
@@ -139,5 +138,5 @@ async def test_prune_keeps_oldest_watermark_but_caps_at_retention(coord):
     await c._prune_mapping_buffer(mid, now=T0 + timedelta(hours=4))
     # Disabled zone excluded -> floor is zone A's watermark (T0+3h); only the
     # last reading (t0+3h) plus boundary remain.
-    remaining = store.get_mapping(mid)[const.MAPPING_DATA]
+    remaining = store.get_mapping_buffer(mid)
     assert len(remaining) < 4

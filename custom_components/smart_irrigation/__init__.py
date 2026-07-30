@@ -62,7 +62,7 @@ from .scheduler import RecurringScheduleManager
 from .self_closing import SelfClosingMixin
 from .services import ServiceHandlersMixin, async_register_services
 from .skip_conditions import SkipConditionsMixin
-from .store import SmartIrrigationStorage, async_get_registry
+from .store import BUFFER_FLUSH_INTERVAL, SmartIrrigationStorage, async_get_registry
 from .watering_calendar import WateringCalendarMixin
 from .weathermodules.MetOfficeClient import MetOfficeClient
 from .weathermodules.OpenMeteoClient import OpenMeteoClient
@@ -475,6 +475,7 @@ class SmartIrrigationCoordinator(
         self._track_auto_update_time_unsub = None
         self._track_midnight_time_unsub = None
         self._pending_track_update_unsub = None  # cancel handle for async_call_later
+        self._track_buffer_flush_unsub = None
         # Auto update/calc timers are set up by async_setup_timers(), which
         # async_setup_entry awaits after construction — see that method. Doing it
         # here previously required fire-and-forget tasks (unawaited, errors lost).
@@ -508,6 +509,19 @@ class SmartIrrigationCoordinator(
             await self.set_up_auto_calc_time(the_config)
         # Experimental observed-watering observer (no-op unless enabled).
         await self.async_setup_observed_watering()
+        # Reading appends deliberately schedule no store write (store.buffers), so
+        # something has to. A no-op tick when nothing was appended.
+        if self._track_buffer_flush_unsub is None:
+            self._track_buffer_flush_unsub = async_track_time_interval(
+                self.hass,
+                self._flush_reading_buffers,
+                timedelta(seconds=BUFFER_FLUSH_INTERVAL),
+            )
+
+    @callback
+    def _flush_reading_buffers(self, *args) -> None:
+        """Persist sensor readings that no other write has carried out yet."""
+        self.store.async_flush_buffers()
 
     @callback
     def _schedule_observed_watering_setup(self, *args) -> None:
@@ -832,30 +846,26 @@ class SmartIrrigationCoordinator(
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
                 weatherdata[const.RETRIEVED_AT] = dt_datetime.now()
-                mapping_data = mapping[const.MAPPING_DATA]
-                if isinstance(mapping_data, list):
-                    mapping_data.append(weatherdata)
-                elif isinstance(mapping_data, str):
-                    mapping_data = [weatherdata]
-                else:
-                    _LOGGER.error(
-                        "[async_update_all]: sensor group is unexpected type: %s",
-                        mapping_data,
-                    )
+                # Appends the row in place and schedules no write of its own; it
+                # reaches disk with the zone bookkeeping below (or, failing that,
+                # the buffer flush timer). See store.append_mapping_reading.
+                self.store.append_mapping_reading(mapping_id, weatherdata)
                 _LOGGER.debug(
                     "async_update_all for mapping %s new weatherdata: %s",
                     mapping_id,
                     weatherdata,
                 )
-                changes = {
-                    "data": mapping_data,
-                    const.MAPPING_DATA_LAST_UPDATED: dt_datetime.now(),
-                }
-                await self.store.async_update_mapping(mapping_id, changes)
+                updated_at = dt_datetime.now()
+                await self.store.async_update_mapping(
+                    mapping_id, {const.MAPPING_DATA_LAST_UPDATED: updated_at}
+                )
                 # store last updated and number of data points in the zone here.
+                # The oldest row is the carried-forward boundary reading, not a
+                # new one, hence the -1.
+                row_count = self.store.get_mapping_row_count(mapping_id) or 0
                 changes_to_zone = {
-                    const.ZONE_LAST_UPDATED: changes[const.MAPPING_DATA_LAST_UPDATED],
-                    const.ZONE_NUMBER_OF_DATA_POINTS: len(mapping_data) - 1,
+                    const.ZONE_LAST_UPDATED: updated_at,
+                    const.ZONE_NUMBER_OF_DATA_POINTS: max(row_count - 1, 0),
                 }
                 await self.store.async_update_zone(zone_id, changes_to_zone)
                 async_dispatcher_send(
@@ -944,29 +954,19 @@ class SmartIrrigationCoordinator(
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
                 weatherdata[const.RETRIEVED_AT] = dt_datetime.now()
-                mapping_data = mapping[const.MAPPING_DATA]
-                if isinstance(mapping_data, list):
-                    mapping_data.append(weatherdata)
-                elif isinstance(mapping_data, str):
-                    mapping_data = [weatherdata]
-                else:
-                    _LOGGER.error(
-                        "[async_update_all]: sensor group is unexpected type: %s",
-                        mapping_data,
-                    )
+                # See _async_update_zone: the append is O(1) and writes nothing;
+                # the per-zone writes below are what carry it to disk.
+                self.store.append_mapping_reading(mapping_id, weatherdata)
                 _LOGGER.debug(
                     "async_update_all for mapping %s new weatherdata: %s",
                     mapping_id,
                     weatherdata,
                 )
-                changes = {
-                    "data": mapping_data,
-                }
-                await self.store.async_update_mapping(mapping_id, changes)
                 # store last updated and number of data points in the zone here.
+                row_count = self.store.get_mapping_row_count(mapping_id) or 0
                 changes_to_zone = {
                     const.ZONE_LAST_UPDATED: dt_datetime.now(),
-                    const.ZONE_NUMBER_OF_DATA_POINTS: len(mapping_data) - 1,
+                    const.ZONE_NUMBER_OF_DATA_POINTS: max(row_count - 1, 0),
                 }
                 zones_to_loop = await self._get_zones_that_use_this_mapping(mapping_id)
                 for z in zones_to_loop:
@@ -1297,7 +1297,7 @@ class SmartIrrigationCoordinator(
             mapping = (
                 self.store.get_mapping(mapping_id) if mapping_id is not None else None
             )
-            if mapping is None or not mapping.get(const.MAPPING_DATA):
+            if mapping is None or not self.store.get_mapping_row_count(mapping_id):
                 if mapping_id is None:
                     msg = f"Zone '{zone_name}' has no mapping configured. Assign a mapping with sensor data before calculating."
                 else:
@@ -1441,6 +1441,7 @@ class SmartIrrigationCoordinator(
             self._track_auto_update_time_unsub,
             self._track_auto_calc_time_unsub,
             self._track_midnight_time_unsub,
+            self._track_buffer_flush_unsub,
         ]:
             if unsub:
                 unsub()
@@ -1448,6 +1449,7 @@ class SmartIrrigationCoordinator(
         self._track_auto_update_time_unsub = None
         self._track_auto_calc_time_unsub = None
         self._track_midnight_time_unsub = None
+        self._track_buffer_flush_unsub = None
 
         # Cancel the experimental observed-watering valve subscription.
         self.async_teardown_observed_watering()

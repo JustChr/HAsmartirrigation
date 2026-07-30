@@ -377,6 +377,7 @@ class TestCoordinatorUnloadClearsTrackers:
         coordinator._track_auto_update_time_unsub = None
         coordinator._track_auto_calc_time_unsub = None
         coordinator._track_midnight_time_unsub = None
+        coordinator._track_buffer_flush_unsub = None
         coordinator.async_teardown_observed_watering = Mock()
         coordinator._subscriptions = []
 

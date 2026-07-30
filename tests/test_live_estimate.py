@@ -211,8 +211,11 @@ def test_observed_precip_is_time_weighted_not_plain_sum():
             const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_WEATHER_SERVICE
         }
     }
-    mapping = {const.MAPPING_DATA: readings, const.MAPPING_MAPPINGS: mappings_config}
-    coord.store = SimpleNamespace(get_mapping=lambda _mid: mapping)
+    mapping = {const.MAPPING_MAPPINGS: mappings_config}
+    coord.store = SimpleNamespace(
+        get_mapping=lambda _mid: mapping,
+        get_mapping_buffer=lambda _mid: readings,
+    )
     watermark = "2026-06-07T09:00:00.000000"
     zone = {const.ZONE_MAPPING: 0, const.ZONE_LAST_CONSUMED: watermark}
 
@@ -227,7 +230,10 @@ def test_observed_precip_is_time_weighted_not_plain_sum():
 
 def test_observed_precip_handles_no_mapping():
     coord = _Coord(METRIC_SYSTEM)
-    coord.store = SimpleNamespace(get_mapping=lambda _mid: None)
+    coord.store = SimpleNamespace(
+        get_mapping=lambda _mid: None,
+        get_mapping_buffer=lambda _mid: [],
+    )
     assert coord._observed_precip_since_mm({}) == 0.0
     assert coord._observed_precip_since_mm({const.ZONE_MAPPING: 7}) == 0.0
 

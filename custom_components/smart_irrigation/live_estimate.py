@@ -102,7 +102,7 @@ class LiveEstimateMixin:
         mapping = self.store.get_mapping(mapping_id)
         if not mapping:
             return 0.0
-        readings = mapping.get(const.MAPPING_DATA) or []
+        readings = self.store.get_mapping_buffer(mapping_id)
         if not readings:
             return 0.0
         watermark = _wa_parse(zone.get(const.ZONE_LAST_CONSUMED))

@@ -486,8 +486,9 @@ async def websocket_get_weather_records(hass: HomeAssistant, connection, msg):
             connection.send_result(msg["id"], [])
             return
 
-        # Get weather data from the mapping
-        mapping_data = mapping.get(const.MAPPING_DATA, [])
+        # The readings live apart from the mapping record (store.buffers), so
+        # they need their own accessor — mapping dicts no longer carry them.
+        mapping_data = coordinator.store.get_mapping_buffer(int(mapping_id))
 
         if not mapping_data or not isinstance(mapping_data, list):
             _LOGGER.debug("No weather data found for mapping %s", mapping_id)
