@@ -224,6 +224,29 @@ async def test_coordinator_arms_and_cancels_the_flush_timer(hass) -> None:
 
 
 @pytest.mark.asyncio
+async def test_panel_weather_records_still_see_the_buffer(hass) -> None:
+    """The panel's Weather Records table reads the buffer through its own
+    accessor now. Worth asserting: the handler catches every exception and
+    returns [], so a broken read would show up as an empty table, not an error.
+    """
+    from custom_components.smart_irrigation.websockets import (
+        websocket_get_weather_records,
+    )
+
+    store, mid = await _store_with_mapping(hass)
+    store.append_mapping_reading(mid, _reading(0, 20.0))
+    store.append_mapping_reading(mid, _reading(1, 21.0))
+    hass.data[const.DOMAIN] = {"coordinator": Mock(store=store)}
+
+    connection = Mock()
+    await websocket_get_weather_records.__wrapped__(
+        hass, connection, {"id": 1, "mapping_id": mid, "limit": 10}
+    )
+    records = connection.send_result.call_args.args[1]
+    assert [r["temperature"] for r in records] == [21.0, 20.0]  # newest first
+
+
+@pytest.mark.asyncio
 async def test_incoming_data_key_is_routed_to_the_buffer(hass) -> None:
     """``data`` arrives inside change dicts (stored records, the mapping API, the
     source-change invalidation), so create/update must accept it even though it

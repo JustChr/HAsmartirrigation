@@ -180,8 +180,8 @@ SAVE_DELAY = 30
 # else happens to write. Appends go to SmartIrrigationStorage.buffers and do NOT
 # schedule a save of their own (that is the whole point — see .buffers), so
 # without this timer a quiet install could hold hours of readings in memory only.
-# A clean shutdown flushes regardless (final-write listener), so this bounds the
-# hard-crash loss window, not the normal one.
+# A clean shutdown flushes regardless (the EVENT_HOMEASSISTANT_STOP listener), so
+# this bounds the hard-crash loss window, not the normal one.
 BUFFER_FLUSH_INTERVAL = 600
 
 
