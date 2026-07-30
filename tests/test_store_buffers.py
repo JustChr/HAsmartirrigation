@@ -316,6 +316,63 @@ async def test_deleting_the_config_does_not_let_the_buffer_resurrect_it(hass) ->
 
 
 @pytest.mark.asyncio
+async def test_re_adding_the_integration_re_arms_the_shutdown_flush(hass) -> None:
+    """Deleting the config entry unregisters the shutdown listener; re-adding the
+    integration must get it back.
+
+    The storage instance is cached in ``hass.data`` for the lifetime of hass, so
+    ``async_load`` — which is where the listener is normally armed — runs exactly
+    once. Without re-arming on setup, the sequence "remove the integration, add it
+    again, don't restart HA" left the buffer with no shutdown flush for the rest of
+    the session: a clean restart would then lose up to BUFFER_FLUSH_INTERVAL of
+    readings instead of nothing, with no error to show for it.
+    """
+    from custom_components.smart_irrigation.store import (
+        DATA_REGISTRY,
+        async_get_registry,
+    )
+
+    store = await async_get_registry(hass)
+    mapping = await store.async_create_mapping(
+        {const.MAPPING_NAME: "Group", const.MAPPING_MAPPINGS: {}}
+    )
+    mid = mapping[const.MAPPING_ID]
+
+    # Remove the config entry: the listener goes, so a stale buffer cannot write
+    # the just-deleted document back at shutdown.
+    await store.async_delete()
+    assert store._unsub_stop is None
+
+    # Re-add without restarting hass: same cached instance, no second async_load.
+    again = await async_get_registry(hass)
+    assert again is store, "precondition: the instance is cached for hass's lifetime"
+    assert hass.data[DATA_REGISTRY] is not None
+
+    # The shutdown flush must work again.
+    store.append_mapping_reading(mid, _reading())
+    pending = []
+    store._store.async_delay_save = lambda func, delay=0: pending.append(func)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+    await hass.async_block_till_done()
+
+    assert pending, "re-adding the integration left the shutdown flush unarmed"
+    assert pending[-1]()["mappings"][0][const.MAPPING_DATA] == [_reading()]
+
+
+@pytest.mark.asyncio
+async def test_ensure_stop_listener_does_not_stack_subscriptions(hass) -> None:
+    """Repeated setups must not pile up duplicate one-shot listeners."""
+    store, _mid = await _store_with_mapping(hass)
+    first = store._unsub_stop
+    assert first is not None
+
+    store.async_ensure_stop_listener()
+    store.async_ensure_stop_listener()
+
+    assert store._unsub_stop is first
+
+
+@pytest.mark.asyncio
 async def test_panel_weather_records_still_see_the_buffer(hass) -> None:
     """The panel's Weather Records table reads the buffer through its own
     accessor now. Worth asserting: the handler catches every exception and

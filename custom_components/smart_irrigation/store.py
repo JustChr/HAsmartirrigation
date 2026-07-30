@@ -950,22 +950,34 @@ class SmartIrrigationStorage:
         self.buffers = buffers
         # Everything just loaded is by definition already on disk.
         self._buffers_dirty = False
-        # A clean shutdown must not lose the buffered readings, which no append
-        # ever scheduled a write for. HA's own Store only flushes a save that is
-        # already PENDING, so this listener is what makes "a restart loses
-        # nothing" true for the buffer: it makes one pending, which Store then
-        # writes on EVENT_HOMEASSISTANT_FINAL_WRITE.
-        #
-        # STOP, not FINAL_WRITE: hass is already `stopping` here, so
-        # async_delay_save records the payload and arms Store's own final-write
-        # listener instead of a loop timer that may never fire. Writing the file
-        # ourselves during FINAL_WRITE would instead race that listener — the
-        # first of the two to run tears down a one-time subscription HA has
-        # already consumed, which logs a core error on every shutdown.
-        #
-        # Registered once per storage instance: the instance is cached in
-        # hass.data for the lifetime of hass, so a config-entry reload does not
-        # stack duplicates.
+        self.async_ensure_stop_listener()
+
+    @callback
+    def async_ensure_stop_listener(self) -> None:
+        """Arm the shutdown flush if it is not already armed. Idempotent.
+
+        A clean shutdown must not lose the buffered readings, which no append ever
+        scheduled a write for. HA's own Store only flushes a save that is already
+        PENDING, so this listener is what makes "a restart loses nothing" true for
+        the buffer: it makes one pending, which Store then writes on
+        EVENT_HOMEASSISTANT_FINAL_WRITE.
+
+        STOP, not FINAL_WRITE: hass is already `stopping` here, so
+        async_delay_save records the payload and arms Store's own final-write
+        listener instead of a loop timer that may never fire. Writing the file
+        ourselves during FINAL_WRITE would instead race that listener — the first
+        of the two to run tears down a one-time subscription HA has already
+        consumed, which logs a core error on every shutdown.
+
+        Called from ``async_load`` and again from ``async_get_registry`` on every
+        setup. The second call is the one that matters: ``async_delete`` drops the
+        listener, but the storage instance is cached in ``hass.data`` for the
+        lifetime of hass and ``async_load`` never runs twice — so re-adding the
+        integration without restarting HA would otherwise leave it permanently
+        unarmed, silently downgrading "a clean restart loses nothing" to "loses up
+        to BUFFER_FLUSH_INTERVAL". The ``is None`` guard keeps repeat calls from
+        stacking duplicate subscriptions.
+        """
         if self._unsub_stop is None:
             self._unsub_stop = self.hass.bus.async_listen_once(
                 EVENT_HOMEASSISTANT_STOP, self._async_flush_on_stop
@@ -1543,4 +1555,11 @@ async def async_get_registry(hass: HomeAssistant) -> SmartIrrigationStorage:
         task = hass.data[DATA_REGISTRY] = hass.async_create_task(_load_reg())
 
     data = await task
-    return cast(SmartIrrigationStorage, data)
+    registry = cast(SmartIrrigationStorage, data)
+    # Re-arm the shutdown flush. This instance is cached above for the lifetime of
+    # hass, so on the second and later setups async_load (and its own arming) does
+    # not run — and async_delete unregisters the listener. Re-adding the
+    # integration without an HA restart would otherwise leave the buffer with no
+    # shutdown flush at all. Idempotent, so the common path is a no-op.
+    registry.async_ensure_stop_listener()
+    return registry
