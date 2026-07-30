@@ -224,6 +224,26 @@ async def test_coordinator_arms_and_cancels_the_flush_timer(hass) -> None:
 
 
 @pytest.mark.asyncio
+async def test_deleting_the_config_does_not_let_the_buffer_resurrect_it(hass) -> None:
+    """Store.async_remove cancels HA's own pending writes so a deleted document
+    stays deleted. A dirty buffer plus our shutdown listener would undo that and
+    write the just-deleted configuration back at the next shutdown.
+    """
+    store, mid = await _store_with_mapping(hass)
+    store.append_mapping_reading(mid, _reading())
+
+    await store.async_delete()
+    assert store._buffers_dirty is False
+    assert store.buffers == {}
+
+    pending = []
+    store._store.async_delay_save = lambda func, delay=0: pending.append(func)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+    await hass.async_block_till_done()
+    assert pending == []
+
+
+@pytest.mark.asyncio
 async def test_panel_weather_records_still_see_the_buffer(hass) -> None:
     """The panel's Weather Records table reads the buffer through its own
     accessor now. Worth asserting: the handler catches every exception and

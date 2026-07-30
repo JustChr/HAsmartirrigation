@@ -1162,6 +1162,15 @@ class SmartIrrigationStorage:
         """Delete config."""
         _LOGGER.warning("Removing Smart Irrigation configuration data!")
         await self._store.async_remove()
+        # async_remove() cancels HA's own pending/shutdown writes so the deleted
+        # file cannot come back. Ours has to go the same way: a buffer left dirty
+        # would otherwise resurrect the whole document — with the configuration
+        # the user just deleted — at the next HA shutdown.
+        if self._unsub_stop is not None:
+            self._unsub_stop()
+            self._unsub_stop = None
+        self.buffers = {}
+        self._buffers_dirty = False
         # self.config = Config()
         # await self.async_factory_default_zones()
         # await self.async_factory_default_modules()
