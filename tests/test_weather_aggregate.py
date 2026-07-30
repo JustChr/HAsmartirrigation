@@ -49,11 +49,29 @@ class TestAggregates:
     def test_average_includes_boundary(self):
         wm = T0
         readings = [_r(0, Temperature=10), _r(1, Temperature=20)]
-        out = aggregate_window(readings, wm, {}, now=T0 + datetime.timedelta(hours=1))
-        # boundary (10) + window (20) -> mean 15, and temp min/max span both
+        out = aggregate_window(readings, wm, {}, now=T0 + datetime.timedelta(hours=2))
+        # Boundary (10) holds from the watermark to t=1h, then 20 holds to now
+        # at t=2h: one hour each, so the time-weighted mean is 15. Min/max still
+        # span every sample regardless of how long each one stood.
         assert out[const.MAPPING_TEMPERATURE] == 15
         assert out[const.MAPPING_MAX_TEMP] == 20
         assert out[const.MAPPING_MIN_TEMP] == 10
+
+    def test_average_weights_by_dwell_time_not_sample_count(self):
+        """The bug this aggregate exists to prevent, in miniature.
+
+        Three readings, but the first value stood for three quarters of the
+        window. A plain mean returns 30; the window really averaged 17.5.
+        """
+        wm = T0
+        readings = [
+            _r(0, Temperature=10),  # boundary, holds 0h -> 3h
+            _r(3, Temperature=30),  # holds 3h -> 3.5h
+            _r(3.5, Temperature=50),  # holds 3.5h -> now (4h)
+        ]
+        out = aggregate_window(readings, wm, {}, now=T0 + datetime.timedelta(hours=4))
+        # (10*3 + 30*0.5 + 50*0.5) / 4
+        assert out[const.MAPPING_TEMPERATURE] == 17.5
 
     def test_delta_accumulates_increments_from_boundary(self):
         wm = T0
@@ -115,14 +133,73 @@ class TestContinuousUpdateRows:
             _r(2, Temperature=20),
             _r(3, Humidity=70),
         ]
-        out = aggregate_window(readings, None, {}, now=T0 + datetime.timedelta(hours=3))
+        out = aggregate_window(readings, None, {}, now=T0 + datetime.timedelta(hours=4))
         # Each key averages over only its OWN rows — a row missing a key must
-        # not be read as a zero (that would halve the mean and under-water).
+        # not be read as a zero (that would halve the mean and under-water) —
+        # and each value is weighted by how long it stood, not by how many rows
+        # its field happened to produce.
+        # Temperature: 10 for 0h->2h, 20 for 2h->4h.
         assert out[const.MAPPING_TEMPERATURE] == 15.0
-        assert out[const.MAPPING_HUMIDITY] == 60.0
+        # Humidity: first sample held back to the window start, so 50 for
+        # 0h->3h and 70 for 3h->4h.
+        assert out[const.MAPPING_HUMIDITY] == 55.0
         # Daily min/max span the temperature rows the event path actually saw.
         assert out[const.MAPPING_MAX_TEMP] == 20.0
         assert out[const.MAPPING_MIN_TEMP] == 10.0
+
+    def test_average_of_a_field_constant_for_part_of_the_window(self):
+        """Solar radiation over a day, in miniature — the shipped-bug shape.
+
+        Solar only produces rows while it is changing, and it is pinned at 0 all
+        night, so a day's buffer holds a dense daylight cluster and nothing else.
+        A plain mean of the stored rows is then a mean over daylight only. On
+        nine days of production data that read 2.02-2.78x the true 24 h mean, and
+        PyETO's clear-sky clamp masked it by pinning Rs at Rso.
+
+        Here: 12 h of night at 0, then six hourly daylight rows, then night
+        again. The true 24 h mean is 15; the plain mean of the stored rows is
+        45 — 3x over, the same shape and direction as the production numbers.
+        """
+        sun = const.MAPPING_SOLRAD
+        readings = [
+            _r(0, **{sun: 0}),  # dusk the evening before
+            _r(12, **{sun: 20}),
+            _r(13, **{sun: 40}),
+            _r(14, **{sun: 60}),
+            _r(15, **{sun: 80}),
+            _r(16, **{sun: 100}),
+            _r(17, **{sun: 60}),
+            _r(18, **{sun: 0}),  # dusk: back to 0 for the rest of the day
+        ]
+        out = aggregate_window(readings, T0, {}, now=T0 + datetime.timedelta(hours=24))
+        # (20+40+60+80+100+60) MJ/day/m2 x 1 h each = 360, over a 24 h window.
+        assert out[const.MAPPING_SOLRAD] == 15.0
+
+    def test_riemannsum_uses_per_key_stamps_on_a_sparse_buffer(self):
+        """RETRIEVED_AT is on every row; a sparse field is on only a few.
+
+        Reading one parallel stamp list meant the lengths never matched on a
+        continuous-update buffer, and the integral silently fell back to a flat
+        1 h per interval. Latent rather than shipped — weather-service groups do
+        not use the event path — but the same root cause as the mean above.
+        """
+        config = {
+            const.MAPPING_PRECIPITATION: {
+                const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_WEATHER_SERVICE
+            }
+        }
+        readings = [
+            _r(0, Precipitation=2.0),
+            _r(1, Temperature=10),  # interleaved sparse row for another field
+            _r(2, Precipitation=2.0),
+            _r(3, Temperature=12),
+        ]
+        out = aggregate_window(
+            readings, T0, config, now=T0 + datetime.timedelta(hours=3)
+        )
+        # 2 mm/h held across the 2 h between its own two rows. Falling back to
+        # dt = 1 h would have returned 2.0.
+        assert out[const.MAPPING_PRECIPITATION] == 4.0
 
     def test_last_entry_backfills_sensor_absent_from_window(self):
         # Slow-moving sensor (humidity) produced no event inside this window;
@@ -132,7 +209,7 @@ class TestContinuousUpdateRows:
             readings,
             None,
             {},
-            now=T0 + datetime.timedelta(hours=1),
+            now=T0 + datetime.timedelta(hours=2),
             last_entry={const.MAPPING_HUMIDITY: 42},
         )
         assert out[const.MAPPING_HUMIDITY] == 42
@@ -146,7 +223,7 @@ class TestContinuousUpdateRows:
             readings,
             None,
             {},
-            now=T0 + datetime.timedelta(hours=1),
+            now=T0 + datetime.timedelta(hours=2),
             last_entry={const.MAPPING_HUMIDITY: 42},
         )
         assert out[const.MAPPING_HUMIDITY] == 60.0
@@ -176,9 +253,7 @@ class TestContinuousUpdateRows:
         config = {
             const.MAPPING_PRECIPITATION: {
                 const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_SENSOR,
-                const.MAPPING_CONF_AGGREGATE: (
-                    const.MAPPING_CONF_AGGREGATE_RIEMANNSUM
-                ),
+                const.MAPPING_CONF_AGGREGATE: (const.MAPPING_CONF_AGGREGATE_RIEMANNSUM),
             }
         }
         out = aggregate_window(
@@ -217,9 +292,7 @@ class TestContinuousUpdateRows:
         # disturb that path either.
         config = {
             const.MAPPING_PRECIPITATION: {
-                const.MAPPING_CONF_SOURCE: (
-                    const.MAPPING_CONF_SOURCE_WEATHER_SERVICE
-                ),
+                const.MAPPING_CONF_SOURCE: (const.MAPPING_CONF_SOURCE_WEATHER_SERVICE),
             }
         }
         readings = [_r(0, Precipitation=1.0), _r(1, Precipitation=1.0)]

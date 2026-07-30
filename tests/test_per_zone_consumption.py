@@ -94,8 +94,10 @@ async def test_calculating_one_zone_keeps_sibling_history(coord):
     await c.async_calculate_zone(b, now=T0 + timedelta(hours=6))
     weatherdata = c.calculate_module.call_args.args[1]
     assert weatherdata is not None
-    # 4 readings (20,21,22,23) averaged -> 21.5
-    assert weatherdata[const.MAPPING_TEMPERATURE] == 21.5
+    # 4 readings (20,21,22,23) at T0..T0+3h, time-weighted over the zone's whole
+    # window (T0-1h .. T0+6h): 20 stands 2h (held back to the watermark), 21 and
+    # 22 an hour each, and 23 the remaining 3h -> 152/7.
+    assert weatherdata[const.MAPPING_TEMPERATURE] == pytest.approx(152 / 7)
     assert store.get_zone(b)[const.ZONE_LAST_CONSUMED] == T0 + timedelta(hours=6)
 
 
