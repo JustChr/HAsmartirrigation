@@ -9,14 +9,20 @@ the rows reach the file on the flush timer, on any write somebody else triggers,
 or at shutdown.
 
 The invariant these tests protect: **a document is never written with the
-``data`` key missing while unpersisted readings exist.** The routine payload
-omits the buffer, so writing it while dirty would not lose the last few minutes
-of readings — it would silently discard the whole buffer.
+``data`` key missing while ANY buffered readings exist** — not merely while
+unpersisted ones do. Writing the routine payload does not omit the buffer, it
+DELETES it from the stored document, so the loss is never "the last few minutes
+of readings", it is always the whole buffer.
+
+That distinction is the bug this file now guards: the check used to be "are there
+unpersisted appends", which goes false the moment a full write lands, after which
+the next unrelated write quietly erased everything.
 """
 
 import datetime
 from unittest.mock import AsyncMock, Mock
 
+import attr
 import pytest
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.util import dt as dt_util
@@ -97,7 +103,73 @@ async def test_a_write_by_anyone_else_carries_the_buffer(hass) -> None:
     assert payload["mappings"][0][const.MAPPING_DATA] == [_reading()]
     # Evaluating the payload is the moment the rows are on their way to the file.
     assert store._buffers_dirty is False
-    assert const.MAPPING_DATA not in store._data_to_save_scheduled()["mappings"][0]
+    # …and a SECOND write, with the flag now clean, must still carry them. This
+    # line previously asserted the opposite and locked in a silent data loss:
+    # writing the buffer-less payload deletes the rows from the document, so the
+    # next clean restart came up with an empty buffer. See
+    # test_routine_write_never_deletes_a_persisted_buffer.
+    assert store._data_to_save_scheduled()["mappings"][0][const.MAPPING_DATA] == [
+        _reading()
+    ]
+
+
+@pytest.mark.asyncio
+async def test_routine_write_never_deletes_a_persisted_buffer(hass) -> None:
+    """Regression: a clean restart used to come up with an empty buffer.
+
+    Found by running the branch against a real config — 305 readings, a whole
+    calculation window, gone. The sequence is entirely ordinary:
+
+      1. load (or any full write) puts the buffer in the file and clears the flag
+      2. ANY unrelated write — a zone's last_updated, a config change — then
+         emitted the buffer-less payload, DELETING the rows from the document
+      3. nothing marked them unpersisted again, so neither the flush timer nor the
+         shutdown listener would restore them
+      4. clean restart -> ``data`` key absent -> empty buffer, no error anywhere
+
+    The failure surfaces as one silently under-watered day, not an exception,
+    which is exactly why it needs a test rather than a comment.
+    """
+    store, mid = await _store_with_mapping(hass)
+    zone = await store.async_create_zone({const.ZONE_NAME: "z"})
+    store.append_mapping_reading(mid, _reading())
+
+    # Step 1: a full write persists the rows and clears the dirty flag.
+    assert store._data_to_save_full()["mappings"][0][const.MAPPING_DATA] == [_reading()]
+    assert store._buffers_dirty is False
+
+    # Step 2: an unrelated write, with nothing appended since. The payload it
+    # emits is what lands on disk — it MUST still contain the readings.
+    await store.async_update_zone(zone[const.ZONE_ID], {const.ZONE_LAST_UPDATED: T0})
+    payload = store._data_to_save_scheduled()
+    assert payload["mappings"][0][const.MAPPING_DATA] == [
+        _reading()
+    ], "an unrelated write erased the buffer from the stored document"
+
+
+@pytest.mark.asyncio
+async def test_buffer_survives_a_clean_restart_after_an_unrelated_write(
+    hass, hass_storage
+) -> None:
+    """The same bug, end to end through the file: write, reload, rows still there.
+
+    Mirrors what the live instance did — poll, unrelated config write, restart —
+    with the reload standing in for the restart.
+    """
+    store, mid = await _store_with_mapping(hass)
+    store.append_mapping_reading(mid, _reading())
+    await store.async_save()  # rows reach the file; flag goes clean
+
+    # An unrelated write lands while nothing new has been appended.
+    store.config = attr.evolve(store.config, calctime="03:00")
+    await store._store.async_save(store._data_to_save_scheduled())
+
+    # "Restart": a fresh storage instance reading the same document.
+    reloaded = SmartIrrigationStorage(hass)
+    await reloaded.async_load()
+    assert reloaded.get_mapping_buffer(mid) == [
+        _reading()
+    ], "the buffer did not survive a clean restart"
 
 
 @pytest.mark.asyncio

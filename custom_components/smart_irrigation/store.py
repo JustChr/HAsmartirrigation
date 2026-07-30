@@ -1106,17 +1106,28 @@ class SmartIrrigationStorage:
     def _data_to_save_scheduled(self) -> dict:
         """Payload for a *scheduled* save, chosen when the write actually happens.
 
-        Buffers are included whenever they are dirty — not only when the flush
-        timer asked for it. Two reasons, both load-bearing:
+        The buffer-less payload is emitted ONLY when there are no buffered
+        readings at all, because writing it is not merely "omitting" the buffer —
+        it REMOVES it from the document on disk.
 
-        - A save scheduled by any other writer (a zone's last_updated, a config
-          change) would otherwise write a document with the ``data`` key MISSING
-          while unpersisted readings exist, i.e. silently discard the whole buffer
-          rather than the last few minutes of it.
-        - It makes appends free-riders on writes that were going to happen anyway,
-          which is most of them.
+        ⚠️ Do not narrow this to ``self._buffers_dirty``. That was the original
+        form and it silently lost data: the flag means "there are appends not yet
+        written", not "the buffer is in the file". Once a full write cleared it,
+        the next unrelated write (a zone's last_updated, a config change) emitted
+        the buffer-less payload and erased every buffered reading from the file —
+        while leaving the flag clean, so neither ``async_flush_buffers`` nor the
+        shutdown listener would ever put them back. A clean restart then loaded an
+        empty buffer: a whole calculation window of ET gone, silently, which shows
+        up as one under-watered day rather than as an error. Verified against a
+        real config: 305 readings lost across a clean restart.
+
+        Keeping the buffer in every write costs O(buffer) per WRITE, which is fine
+        — Step 4's win is that an append schedules no write at all, so writes stay
+        far rarer than readings. It also restores the invariant the rest of this
+        class depends on: **if the buffer is non-empty and not dirty, it is in the
+        file.**
         """
-        if self._buffers_dirty:
+        if self._buffers_dirty or any(self.buffers.values()):
             return self._data_to_save_full()
         return self._data_to_save()
 
@@ -1124,11 +1135,13 @@ class SmartIrrigationStorage:
     def _data_to_save(self) -> dict:
         """Return data for the registry for Smart Irrigation to store in a file.
 
-        WITHOUT the sensor-group reading buffers: this is the routine payload, so
-        a config or zone write does not reserialize every buffered reading.
-        ``async_load`` treats a missing ``data`` key as an empty buffer, so this
-        shape needs no migration — but it must only ever be written when the
-        buffers are clean (see ``_data_to_save_scheduled``).
+        WITHOUT the sensor-group reading buffers. ``async_load`` treats a missing
+        ``data`` key as an empty buffer, so this shape needs no migration.
+
+        ⚠️ Writing this payload DELETES the buffer from the stored document — the
+        key is absent, not merely stale. It must therefore only ever be the
+        payload when there are no buffered readings to lose; ``_data_to_save_full``
+        calls it as a base, and ``_data_to_save_scheduled`` owns that decision.
         """
         store_data = {
             "config": attr.asdict(self.config),
