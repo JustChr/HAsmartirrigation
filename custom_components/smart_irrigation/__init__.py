@@ -1113,6 +1113,15 @@ class SmartIrrigationCoordinator(
                             const.ZONE_NUMBER_OF_DATA_POINTS: 0,
                         },
                     )
+                    # Per ZONE, not just once per mapping. The zone sensors cache
+                    # their values and re-read only when this signal carries their
+                    # own id, so the mapping-scoped dispatch below refreshes at
+                    # most the one zone whose id happens to equal mapping_id and
+                    # leaves every other consumer showing counts for readings that
+                    # no longer exist.
+                    async_dispatcher_send(
+                        self.hass, const.DOMAIN + "_config_updated", zone_id
+                    )
             async_dispatcher_send(
                 self.hass, const.DOMAIN + "_config_updated", mapping_id
             )
