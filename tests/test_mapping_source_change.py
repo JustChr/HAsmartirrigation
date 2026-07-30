@@ -78,6 +78,9 @@ class TestMappingSourceChangeInvalidatesBuffer:
             anchored.add(zone_id)
             assert const.ZONE_LAST_CONSUMED in changes
             assert isinstance(changes[const.ZONE_LAST_CONSUMED], datetime)
+            # The data-point count is derived from the buffer that was just
+            # emptied; leaving it stale reports readings that no longer exist.
+            assert changes[const.ZONE_NUMBER_OF_DATA_POINTS] == 0
         assert anchored == {1, 2}
 
     async def test_source_type_change_clears_buffer(self):
