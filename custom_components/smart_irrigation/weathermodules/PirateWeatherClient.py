@@ -21,6 +21,7 @@ from ..const import (
     MAPPING_WINDSPEED,
     OBSERVATION_TIME,
 )
+from ..pressure import relative_to_absolute_pressure
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -158,11 +159,9 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                             PirateWeather_wind_speed_key_name
                         ] * (4.87 / math.log((67.8 * 10) - 5.42))
 
-                        parsed_data[MAPPING_PRESSURE] = (
-                            self.relative_to_absolute_pressure(
-                                data[PirateWeather_pressure_key_name],
-                                self.elevation,
-                            )
+                        parsed_data[MAPPING_PRESSURE] = relative_to_absolute_pressure(
+                            data[PirateWeather_pressure_key_name],
+                            self.elevation,
                         )
 
                         parsed_data[MAPPING_HUMIDITY] = (
@@ -205,19 +204,6 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
             # return cached_data
             _LOGGER.debug("Returning cached PirateWeather forecastdata")
             return self._cached_forecast_data
-
-    def relative_to_absolute_pressure(self, pressure, height):
-        """Convert relative pressure to absolute pressure."""
-        # Constants
-        g = 9.80665  # m/s^2
-        M = 0.0289644  # kg/mol
-        R = 8.31447  # J/(mol*K)
-        T0 = 288.15  # K
-
-        # Calculate temperature at given height
-        temperature = T0 - (g * M * float(height)) / (R * T0)
-        # Calculate absolute pressure at given height
-        return pressure * (T0 / temperature) ** (g * M / (R * 287))
 
     def get_data(self):
         """Validate and return data."""
@@ -273,7 +259,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                         elif k is PirateWeather_pressure_key_name:
                             # PirateWeather provides relative pressure, replace it with estimated absolute pressure returning!
                             data[PirateWeather_pressure_key_name] = (
-                                self.relative_to_absolute_pressure(
+                                relative_to_absolute_pressure(
                                     data[PirateWeather_pressure_key_name],
                                     self.elevation,
                                 )

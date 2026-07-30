@@ -17,8 +17,10 @@ from custom_components.smart_irrigation.helpers import (
     convert_pressure,
     convert_speed,
     convert_temperatures,
-    relative_to_absolute_pressure,
     validate_api_key,
+)
+from custom_components.smart_irrigation.pressure import (
+    relative_to_absolute_pressure,
 )
 
 
@@ -37,14 +39,46 @@ class TestHelperFunctions:
         assert pressure_1000m == pytest.approx(898.7, rel=1e-1)
 
     def test_relative_to_absolute_pressure(self) -> None:
-        """Test relative to absolute pressure conversion."""
-        relative_pressure = 1013.25
-        altitude = 100
-
-        absolute_pressure = relative_to_absolute_pressure(relative_pressure, altitude)
+        """Station pressure is lower than the sea-level pressure it came from."""
+        absolute_pressure = relative_to_absolute_pressure(1013.25, 100)
 
         assert isinstance(absolute_pressure, float)
-        assert absolute_pressure > 0
+        assert absolute_pressure < 1013.25
+        assert absolute_pressure == pytest.approx(1001.3, abs=0.1)
+
+    def test_relative_to_absolute_pressure_at_sea_level(self) -> None:
+        """No elevation, no correction."""
+        assert relative_to_absolute_pressure(1020.0, 0) == pytest.approx(1020.0)
+
+    def test_relative_to_absolute_pressure_below_sea_level(self) -> None:
+        """Below sea level the station reads higher than the reduced value."""
+        assert relative_to_absolute_pressure(1013.25, -100) == pytest.approx(
+            1025.3, abs=0.1
+        )
+
+    def test_relative_to_absolute_pressure_magnitude(self) -> None:
+        """The correction is tens of hPa, not a rounding error.
+
+        Guards the previous formula, which was dimensionally broken and moved
+        1020 hPa by 1.5e-5 hPa at this elevation instead of ~37 hPa. That fed
+        the psychrometric constant, so it was a silent ET bias, not a crash.
+        """
+        absolute = relative_to_absolute_pressure(1020.0, 311)
+
+        assert 1020.0 - absolute == pytest.approx(37.0, abs=0.5)
+
+    def test_relative_to_absolute_pressure_matches_altitude_to_pressure(self) -> None:
+        """Both helpers model the same atmosphere and must not disagree."""
+        for altitude in (0, 100, 311, 1000, 3000):
+            assert relative_to_absolute_pressure(1013.25, altitude) == pytest.approx(
+                altitudeToPressure(altitude), abs=0.05
+            )
+
+    def test_relative_to_absolute_pressure_accepts_string_height(self) -> None:
+        """Elevation arrives as a string from some weather-service configs."""
+        assert relative_to_absolute_pressure(1020.0, "311") == pytest.approx(
+            relative_to_absolute_pressure(1020.0, 311)
+        )
 
     def test_check_time_valid(self) -> None:
         """Test check_time with valid time string."""

@@ -19,6 +19,7 @@ from ..const import (
     MAPPING_WINDSPEED,
     OBSERVATION_TIME,
 )
+from ..pressure import relative_to_absolute_pressure
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ class OWMClient:  # pylint: disable=invalid-name
 
                 temp = main["temp"]
                 humidity = main["humidity"]
-                pressure = self.relative_to_absolute_pressure(
+                pressure = relative_to_absolute_pressure(
                     main["pressure"], self.elevation
                 )
                 wind_speed = wind.get("speed", 0.0) * _WIND_HEIGHT_CORRECTION
@@ -214,7 +215,7 @@ class OWMClient:  # pylint: disable=invalid-name
                             MAPPING_MIN_TEMP: min_temp,
                             MAPPING_MAX_TEMP: max_temp,
                             MAPPING_HUMIDITY: avg_humidity,
-                            MAPPING_PRESSURE: self.relative_to_absolute_pressure(
+                            MAPPING_PRESSURE: relative_to_absolute_pressure(
                                 avg_pressure, self.elevation
                             ),
                             MAPPING_WINDSPEED: avg_wind * _WIND_HEIGHT_CORRECTION,
@@ -235,15 +236,6 @@ class OWMClient:  # pylint: disable=invalid-name
         else:
             _LOGGER.debug("Returning cached OWM forecastdata")
             return self._cached_forecast_data
-
-    def relative_to_absolute_pressure(self, pressure, height):
-        """Convert sea-level pressure (hPa) to station pressure at the given elevation (m)."""
-        g = 9.80665
-        M = 0.0289644
-        R = 8.31447
-        T0 = 288.15
-        temperature = T0 - (g * M * height) / (R * T0)
-        return pressure * (T0 / temperature) ** (g * M / (R * 287))
 
     def raiseHTTPError(self):
         """Raise an OSError when the OWM API returns an HTTP error."""

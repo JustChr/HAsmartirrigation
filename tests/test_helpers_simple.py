@@ -9,8 +9,10 @@ from custom_components.smart_irrigation.helpers import (
     InvalidAuth,
     altitudeToPressure,
     check_time,
-    relative_to_absolute_pressure,
     validate_api_key,
+)
+from custom_components.smart_irrigation.pressure import (
+    relative_to_absolute_pressure,
 )
 
 
@@ -50,10 +52,11 @@ class TestPressureFunctions:
         assert pressure > 1020
 
     def test_relative_to_absolute_pressure(self):
-        """Test relative to absolute pressure conversion."""
+        """Station pressure at altitude is below the sea-level value."""
         absolute = relative_to_absolute_pressure(1000, 100)
-        assert absolute > 1000
         assert isinstance(absolute, float)
+        assert absolute < 1000
+        assert absolute == pytest.approx(988.2, abs=0.1)
 
 
 class TestTimeFunctions:

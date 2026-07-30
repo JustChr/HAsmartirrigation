@@ -51,13 +51,13 @@ from .helpers import (
     convert_mapping_to_metric,
     ha_unit_to_internal_unit,
     loadModules,
-    relative_to_absolute_pressure,
 )
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin
 from .observed_watering import ObservedWateringMixin
 from .panel import async_register_panel, remove_panel
+from .pressure import relative_to_absolute_pressure
 from .scheduler import RecurringScheduleManager
 from .self_closing import SelfClosingMixin
 from .services import ServiceHandlersMixin, async_register_services

@@ -717,21 +717,6 @@ def convert_temperatures(from_unit, to_unit, val):
     return None
 
 
-def relative_to_absolute_pressure(pressure, height):
-    """Convert relative pressure to absolute pressure."""
-    # Constants
-    g = 9.80665  # m/s^2
-    M = 0.0289644  # kg/mol
-    R = 8.31447  # J/(mol*K)
-    T0 = 288.15  # K
-
-    # Calculate temperature at given height
-    temperature = T0 - (g * M * height) / (R * T0)
-
-    # Calculate absolute pressure at given height
-    return pressure * (T0 / temperature) ** (g * M / (R * 287))
-
-
 def altitudeToPressure(alt):
     """Take altitude in meters and convert it to hPa = mbar."""
     return 100 * ((44331.514 - alt) / 11880.516) ** (1 / 0.1902632) / 100
