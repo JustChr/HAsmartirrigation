@@ -732,3 +732,61 @@ class TestIntervalPollSkip:
         )
         await coord._async_update_all()
         coord.store.append_mapping_reading.assert_called_once()
+
+
+class TestBaselineSeeding:
+    """Subscribing must capture each sensor's CURRENT value, not just future changes.
+
+    A flat field (overnight solar at 0, calm wind, an unchanged rain counter) emits
+    no state-change event, so without seeding it never reaches the buffer at all —
+    and with the interval poll skipped or disabled there is no other writer. This
+    was found by running the branch against live sensor data.
+    """
+
+    async def test_current_values_are_recorded_on_subscribe(self):
+        store = _FakeStore([_mapping()])
+        coord = _coord(store)
+        coord.hass.states.get = Mock(
+            return_value=SimpleNamespace(
+                state="21.0", attributes={"unit_of_measurement": "°C"}
+            )
+        )
+        await coord.async_setup_continuous_updates()
+        rows = store.buffers[1]
+        assert len(rows) == 1
+        assert rows[0][const.MAPPING_TEMPERATURE] == 21.0
+        # The deadband reference is seeded too, so the next small move is measured
+        # against a real value instead of being treated as a first reading.
+        assert coord._continuous_last_value[(1, const.MAPPING_TEMPERATURE)] == 21.0
+
+    async def test_unavailable_and_non_numeric_states_are_not_seeded(self):
+        for bad in (STATE_UNAVAILABLE, STATE_UNKNOWN, "not a number"):
+            store = _FakeStore([_mapping()])
+            coord = _coord(store)
+            coord.hass.states.get = Mock(
+                return_value=SimpleNamespace(state=bad, attributes={})
+            )
+            await coord.async_setup_continuous_updates()
+            assert store.buffers[1] == [], bad
+
+    async def test_no_seeding_when_feature_is_off(self):
+        store = _FakeStore([_mapping()], enabled=False)
+        coord = _coord(store)
+        coord.hass.states.get = Mock(
+            return_value=SimpleNamespace(state="21.0", attributes={})
+        )
+        await coord.async_setup_continuous_updates()
+        assert store.buffers[1] == []
+
+    async def test_unchanged_entity_set_does_not_reseed(self):
+        # _config_updated fires constantly; re-seeding on every one would append a
+        # duplicate row each time.
+        store = _FakeStore([_mapping()])
+        coord = _coord(store)
+        coord.hass.states.get = Mock(
+            return_value=SimpleNamespace(state="21.0", attributes={})
+        )
+        await coord.async_setup_continuous_updates()
+        await coord.async_setup_continuous_updates()
+        await coord.async_setup_continuous_updates()
+        assert len(store.buffers[1]) == 1

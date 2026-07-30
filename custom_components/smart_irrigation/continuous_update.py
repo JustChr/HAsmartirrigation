@@ -167,6 +167,64 @@ class ContinuousUpdateMixin:
             len(entities),
             self._continuous_debounce_ms(),
         )
+        self._continuous_seed_baseline(entities)
+
+    @callback
+    def _continuous_seed_baseline(self, entities) -> None:
+        """Record each tracked sensor's CURRENT value right after subscribing.
+
+        Subscribing only sees *future* changes, so a field whose value is genuinely
+        flat is never recorded at all: overnight solar radiation sits at 0, a calm
+        night's wind at 0, a cumulative rain gauge unchanged for days. After a
+        restart those fields would be missing from the buffer entirely, and the
+        aggregation would fall back to ``MAPPING_DATA_LAST_ENTRY`` — or, on a first
+        run, to nothing, leaving the calc module short an input.
+
+        The interval poll used to paper over this by writing every field on every
+        tick. With continuous updates on, a pure-sensor group has no poll (and an
+        install can disable auto-update entirely), so the baseline has to come from
+        here.
+
+        Deliberately reuses the normal append path, so the deadband reference is
+        seeded too and the very next real change is measured against a true value
+        rather than against nothing. Only runs when a subscription is actually
+        (re)created — the entity-set diff above makes that rare, so this cannot
+        append duplicate rows on every ``_config_updated``.
+        """
+        timestamp = datetime.now()
+        system_is_metric = self.hass.config.units is METRIC_SYSTEM
+        seeded = 0
+        for entity_id in entities:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in (None, STATE_UNKNOWN, STATE_UNAVAILABLE):
+                continue
+            try:
+                raw_value = float(state.state)
+            except (TypeError, ValueError):
+                continue
+            ha_unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+            for mapping_id, key, the_map in self._continuous_targets.get(entity_id, []):
+                unit = resolve_sensor_unit(
+                    key, the_map.get(const.MAPPING_CONF_UNIT), ha_unit, entity_id
+                )
+                value = convert_mapping_to_metric(
+                    raw_value, key, unit, system_is_metric
+                )
+                if value is None:
+                    continue
+                if self.store.append_mapping_reading(
+                    mapping_id, {key: value, const.RETRIEVED_AT: timestamp}
+                ):
+                    # Carry-forward too, exactly like the live path — both are
+                    # save-free, so the seed costs no write either.
+                    self.store.set_mapping_last_entry_value(mapping_id, key, value)
+                    self._continuous_last_value[(mapping_id, key)] = value
+                    seeded += 1
+        if seeded:
+            _LOGGER.info(
+                "Continuous updates: seeded %d baseline reading(s) from current state",
+                seeded,
+            )
 
     def async_teardown_continuous_updates(self) -> None:
         """Cancel the sensor subscription and any pending debounce timers.
