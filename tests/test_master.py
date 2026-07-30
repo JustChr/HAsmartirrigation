@@ -33,8 +33,10 @@ def _mcoord(**master_cfg):
     return c
 
 
-def test_storage_version_is_11():
-    assert STORAGE_VERSION == 11
+def test_storage_version_is_12():
+    # v12 repairs depth-valued zone defaults seeded with the raw mm constants on
+    # imperial installs (see tests/test_zone_depth_defaults.py).
+    assert STORAGE_VERSION == 12
 
 
 def test_config_has_master_defaults():

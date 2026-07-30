@@ -156,14 +156,14 @@ from .const import (
     ZONE_THROUGHPUT,
     ZONE_WATER_USED_TOTAL,
 )
-from .helpers import loadModules
+from .helpers import loadModules, zone_depth_default
 from .localize import localize
 
 _LOGGER = logging.getLogger(__name__)
 
 DATA_REGISTRY = f"{DOMAIN}_storage"
 STORAGE_KEY = f"{DOMAIN}.storage"
-STORAGE_VERSION = 11
+STORAGE_VERSION = 12
 SAVE_DELAY = 0
 
 
@@ -487,6 +487,42 @@ class MigratableStore(Store):
                 zone.setdefault("distributor_id", None)
                 zone.setdefault("outlet_number", None)
 
+        if old_version <= 11:
+            # v12: repair depth-valued zone defaults that were seeded with the raw
+            # MILLIMETRE constants on an IMPERIAL install, where the field is stored
+            # in inches (see helpers.zone_depth_default).
+            #
+            # This is not cosmetic. Every existing install already has these values
+            # persisted: the fields were absent before they shipped, hydration filled
+            # them from the constants, and the whole store is then written back — so
+            # fixing only the default helps nobody who has already started the
+            # integration. bucket_threshold is the damaging one; irrigation gates on
+            # `bucket < bucket_threshold`, and -10 INCHES (-254 mm) is a deficit no
+            # bucket reaches, so every deficit-gated run was silently suppressed.
+            #
+            # Scoped deliberately tight: only on an imperial install, and only when the
+            # stored number is EXACTLY the raw mm constant, which no one would choose
+            # in inches (a 610 mm ceiling, 508 mm/h drainage, a 254 mm trigger). A
+            # deliberate metric value is untouched because metric needs no conversion,
+            # and the rewrite is idempotent — the converted value no longer matches.
+            if self.hass.config.units is not METRIC_SYSTEM:
+                for zone in data.get("zones", []):
+                    for key, mm_default in (
+                        (ZONE_MAXIMUM_BUCKET, CONF_DEFAULT_MAXIMUM_BUCKET),
+                        (ZONE_DRAINAGE_RATE, CONF_DEFAULT_DRAINAGE_RATE),
+                        (ZONE_BUCKET_THRESHOLD, CONF_DEFAULT_BUCKET_THRESHOLD),
+                    ):
+                        if zone.get(key) == mm_default:
+                            zone[key] = zone_depth_default(mm_default, False)
+                            _LOGGER.info(
+                                "Migration v12: zone %s %s was the unconverted %s mm "
+                                "default; stored as %.4f in",
+                                zone.get(ZONE_ID),
+                                key,
+                                mm_default,
+                                zone[key],
+                            )
+
         # CRITICAL: Always ensure required fields are present and strip unrecognized keys
         # This prevents TypeError when Config(**config_data) is called
         if "config" in data:
@@ -729,6 +765,9 @@ class SmartIrrigationStorage:
             )
 
             if "zones" in data:
+                # Depth-valued defaults below are authored in mm but stored in the
+                # zone's display units — see helpers.zone_depth_default.
+                is_metric = self.hass.config.units is METRIC_SYSTEM
                 for zone in data["zones"]:
                     zones[zone[ZONE_ID]] = ZoneEntry(
                         id=zone[ZONE_ID],
@@ -747,7 +786,8 @@ class SmartIrrigationStorage:
                             ZONE_MAXIMUM_DURATION, CONF_DEFAULT_MAXIMUM_DURATION
                         ),
                         maximum_bucket=zone.get(
-                            ZONE_MAXIMUM_BUCKET, CONF_DEFAULT_MAXIMUM_BUCKET
+                            ZONE_MAXIMUM_BUCKET,
+                            zone_depth_default(CONF_DEFAULT_MAXIMUM_BUCKET, is_metric),
                         ),
                         last_calculated=zone.get(ZONE_LAST_CALCULATED, None),
                         # Migration: existing zones (pre last_consumed_at) inherit
@@ -772,7 +812,10 @@ class SmartIrrigationStorage:
                         plant_type=zone.get(ZONE_PLANT_TYPE, CONF_DEFAULT_PLANT_TYPE),
                         linked_entity=zone.get(ZONE_LINKED_ENTITY, None),
                         bucket_threshold=zone.get(
-                            ZONE_BUCKET_THRESHOLD, CONF_DEFAULT_BUCKET_THRESHOLD
+                            ZONE_BUCKET_THRESHOLD,
+                            zone_depth_default(
+                                CONF_DEFAULT_BUCKET_THRESHOLD, is_metric
+                            ),
                         ),
                         flow_sensor=zone.get(ZONE_FLOW_SENSOR, None),
                         irrigation_target_bucket=zone.get(
@@ -1065,7 +1108,20 @@ class SmartIrrigationStorage:
         # Drop unknown keys (an older or forward client may send a field this
         # version doesn't have) so a stray key can't raise TypeError on construction.
         valid_fields = set(attr.fields_dict(ZoneEntry).keys())
-        new_zone = ZoneEntry(**{k: v for k, v in data.items() if k in valid_fields})
+        data = {k: v for k, v in data.items() if k in valid_fields}
+        # The attrs defaults for the depth fields are the raw MILLIMETRE constants,
+        # and attrs cannot know the unit system — so seed them here instead, in the
+        # units the zone is stored in. Only when the caller omitted them: an explicit
+        # value from the panel is already in display units.
+        is_metric = self.hass.config.units is METRIC_SYSTEM
+        for key, mm_default in (
+            (ZONE_MAXIMUM_BUCKET, CONF_DEFAULT_MAXIMUM_BUCKET),
+            (ZONE_DRAINAGE_RATE, CONF_DEFAULT_DRAINAGE_RATE),
+            (ZONE_BUCKET_THRESHOLD, CONF_DEFAULT_BUCKET_THRESHOLD),
+        ):
+            if data.get(key) is None:
+                data[key] = zone_depth_default(mm_default, is_metric)
+        new_zone = ZoneEntry(**data)
         if not new_zone.id:
             zones = await self.async_get_zones()
             new_zone = attr.evolve(new_zone, id=self.generate_next_id(zones))

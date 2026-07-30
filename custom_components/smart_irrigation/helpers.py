@@ -271,6 +271,42 @@ def ha_unit_to_internal_unit(ha_unit, mapping_key):
     return internal
 
 
+def zone_depth_default(mm_value, metric):
+    """Materialise a depth-valued zone default in the zone's STORED units.
+
+    Depth-valued zone fields — ``bucket``, ``maximum_bucket``, ``drainage_rate``,
+    ``bucket_threshold`` — are stored in the user's DISPLAY units (mm when metric,
+    inches when imperial); ``calculate_module`` converts them to mm for the maths and
+    back before storing.
+
+    This integration has two unit conventions, distinguished by the field NAME:
+
+      * ``*_mm`` (only ``precipitation_threshold_mm`` today) is stored canonically in
+        millimetres and converted at the backend boundary — ``websocket_get_config``
+        on read, ``async_update_config`` on write.
+      * everything else, including all four depth fields, is stored in display units.
+        ``websocket_get_zones`` is a pure passthrough with no conversion.
+
+    Note the UI label proves nothing either way: ``precipitation_threshold_mm`` and
+    ``bucket_threshold`` are both rendered with ``output_unit(config, ...)``, one over
+    canonical mm and one over display units. The suffix is the signal.
+
+    Their default CONSTANTS, however, are authored in millimetres. Handing a raw mm
+    constant to an imperial zone stores it verbatim and therefore means inches — 24
+    becomes 610 mm, 20 becomes 508 mm/h, and -10 becomes -254 mm. The last one is the
+    damaging case: irrigation gates on ``bucket < bucket_threshold``, so no realistic
+    bucket ever passes and every deficit-gated run is silently suppressed.
+
+    Call this at every point a default is materialised for a zone (store hydration,
+    zone creation) so the authored intent survives into either unit system.
+    """
+    if mm_value is None:
+        return None
+    if metric:
+        return mm_value
+    return convert_between(UNIT_MM, UNIT_INCH, mm_value)
+
+
 def convert_between(from_unit, to_unit, val):
     """Convert a value from one unit to another based on the provided units.
 

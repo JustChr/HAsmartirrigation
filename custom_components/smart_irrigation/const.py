@@ -213,6 +213,9 @@ CONF_USE_WEATHER_SERVICE = "use_weather_service"
 CONF_DEFAULT_MAXIMUM_DURATION = (
     3600  # default maximum duration to one hour == 3600 seconds
 )
+# NOTE: this and the two depth defaults below are authored in MILLIMETRES, but the
+# zone fields they seed are stored in the user's DISPLAY units. Always materialise
+# them through helpers.zone_depth_default(); see that docstring for why.
 CONF_DEFAULT_MAXIMUM_BUCKET = 24  # mm default maximum bucket of 24mm
 # mm/hour at saturation. 20 suits medium/loam soil; lower for heavy clay
 # (~2-10), higher for sand. Was 50.8 (2 in/h, sandy) — too fast for most.
@@ -326,7 +329,11 @@ PLANT_TYPE_KC = {
 }
 ZONE_LINKED_ENTITY = "linked_entity"
 ZONE_BUCKET_THRESHOLD = "bucket_threshold"
-# mm; new zones require a 10 mm deficit before irrigating (bucket < -10).
+# MILLIMETRES, like the other depth defaults — materialise via
+# helpers.zone_depth_default(). Irrigation gates on `bucket < bucket_threshold`,
+# so seeding an imperial zone with the raw mm number means -254 mm and silently
+# suppresses every run.
+# New zones require a 10 mm deficit before irrigating (bucket < -10).
 # Stored 0-or-negative; 0 = irrigate on any deficit. Existing zones keep their
 # stored value — this only seeds newly created zones.
 CONF_DEFAULT_BUCKET_THRESHOLD = -10.0

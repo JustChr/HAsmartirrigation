@@ -329,13 +329,17 @@ export class SmartIrrigationZone {
     this.mapping = undefined;
     this.lead_time = 0;
     this.maximum_duration = 3600; //default maximum duration to one hour = 3600 seconds
-    this.maximum_bucket = 50; //default maximum bucket size to 50 mm
+    // NOTE: these three are DEPTH values, stored in the zone's display units
+    // (mm metric / inches imperial). The numbers here are mm and are NOT what a
+    // new zone gets — handleAddZone sends them undefined and the backend seeds them
+    // unit-aware via helpers.zone_depth_default. Do not 'fix' a unit bug here.
+    this.maximum_bucket = 50; // mm; backend reseeds per unit system
     this.last_calculated = undefined;
-    this.drainage_rate = 20; // default mm/hour at saturation (medium soil)
+    this.drainage_rate = 20; // mm/hour at saturation; backend reseeds per unit system
     this.current_drainage = 0;
     this.kc = 1.0; // crop coefficient: 1.0 = reference grass ET (no scaling)
     this.plant_type = "custom";
-    this.bucket_threshold = -10; // require a 10 mm deficit before irrigating
+    this.bucket_threshold = -10; // mm deficit; backend reseeds per unit system
   }
 }
 
