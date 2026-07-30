@@ -37,6 +37,8 @@ from .const import (
     KMH_TO_MS_FACTOR,
     LITER_TO_GALLON_FACTOR,
     M2_TO_SQ_FT_FACTOR,
+    MAPPING_CONF_PRESSURE_RELATIVE,
+    MAPPING_CONF_PRESSURE_TYPE,
     MAPPING_CURRENT_PRECIPITATION,
     MAPPING_DEWPOINT,
     MAPPING_EVAPOTRANSPIRATION,
@@ -757,6 +759,40 @@ def relative_to_absolute_pressure(pressure, height):
 
     # Calculate absolute pressure at given height
     return pressure * (T0 / temperature) ** (g * M / (R * 287))
+
+
+def to_absolute_pressure(value, mapping, field_config, elevation):
+    """Return a Pressure reading as ABSOLUTE (station) pressure.
+
+    ``MAPPING_PRESSURE`` must hold one physical quantity, because the calc
+    modules read it as station pressure (FAO-56 uses it for the psychrometric
+    constant) and ``weather_aggregate`` means the buffer's rows together. A
+    station reporting sea-level ("relative") pressure needs the elevation
+    correction first; a buffer mixing corrected and uncorrected rows biases ET by
+    however far apart the two writers' outputs are.
+
+    Every writer of that field therefore funnels through here: the interval poll
+    in ``__init__`` and the event-driven appends in ``continuous_update``. Takes
+    the field's own sensor-group config (the dict that carries
+    ``MAPPING_CONF_PRESSURE_TYPE``) so it can be called unconditionally in a loop
+    over all mapping keys — anything that is not a relative-typed Pressure field
+    is returned untouched.
+
+    The correction itself is ``relative_to_absolute_pressure``, shared with the
+    polled path so both writers of the field produce the same quantity.
+    """
+    if mapping != MAPPING_PRESSURE or value is None:
+        return value
+    # Legacy stored shape: a bare sensor id string instead of a config dict. No
+    # pressure_type to read, so the value is taken as already absolute.
+    if not isinstance(field_config, dict):
+        return value
+    if (
+        field_config.get(MAPPING_CONF_PRESSURE_TYPE) != MAPPING_CONF_PRESSURE_RELATIVE
+        or elevation is None
+    ):
+        return value
+    return relative_to_absolute_pressure(value, elevation)
 
 
 def altitudeToPressure(alt):

@@ -11,13 +11,18 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import CONF_ELEVATION, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation.const import UNIT_INHG
 from custom_components.smart_irrigation.continuous_update import (
     CONTINUOUS_PRUNE_EVERY,
     SENSOR_DEADBAND,
+)
+from custom_components.smart_irrigation.helpers import (
+    convert_mapping_to_metric,
+    relative_to_absolute_pressure,
 )
 
 
@@ -426,9 +431,7 @@ class TestStateChanged:
         coord._sensor_state_changed(_event("sensor.temp", "10"))
         coord._sensor_state_changed(_event("sensor.temp", "30"))
         await _drain(coord)
-        assert [
-            r[const.MAPPING_TEMPERATURE] for r in store.buffers[1]
-        ] == [
+        assert [r[const.MAPPING_TEMPERATURE] for r in store.buffers[1]] == [
             10.0,
             30.0,
         ]
@@ -790,3 +793,133 @@ class TestBaselineSeeding:
         await coord.async_setup_continuous_updates()
         await coord.async_setup_continuous_updates()
         assert len(store.buffers[1]) == 1
+
+
+# Elevation of the sensor group this was reported against, in metres.
+_ELEVATION = 311
+
+
+def _pressure_mapping(pressure_type):
+    """A sensor group whose only field is a pressure sensor of the given type."""
+    field = {
+        const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_SENSOR,
+        const.MAPPING_CONF_SENSOR: "sensor.pressure",
+    }
+    if pressure_type is not None:
+        field[const.MAPPING_CONF_PRESSURE_TYPE] = pressure_type
+    return _mapping(mappings={const.MAPPING_PRESSURE: field})
+
+
+def _pressure_coord(store):
+    coord = _coord(store)
+    coord.hass.config.elevation = _ELEVATION
+    # The interval path reads elevation out of the full config dict, the event
+    # path off the attribute; a Mock hass has to answer both.
+    coord.hass.config.as_dict = Mock(return_value={CONF_ELEVATION: _ELEVATION})
+    return coord
+
+
+class TestRelativePressureIsAbsolutised:
+    """Both writers of MAPPING_PRESSURE must store the SAME physical quantity.
+
+    The calc modules read that field as station (absolute) pressure, and
+    weather_aggregate means the buffer's rows together — so a buffer holding
+    sea-level rows from one ingestion path and station rows from the other makes
+    the daily aggregate a mix of two quantities. The interval poll has always
+    applied the elevation correction for a ``pressure_type: relative`` group; the
+    event-driven path bypassed it entirely until both were routed through
+    helpers.to_absolute_pressure.
+    """
+
+    async def test_state_change_converts_relative_pressure(self):
+        store = _FakeStore([_pressure_mapping(const.MAPPING_CONF_PRESSURE_RELATIVE)])
+        coord = _pressure_coord(store)
+        await coord.async_setup_continuous_updates()
+        coord._sensor_state_changed(
+            _event("sensor.pressure", "1020.0", {"unit_of_measurement": "hPa"})
+        )
+        await _drain(coord)
+
+        stored = store.buffers[1][0][const.MAPPING_PRESSURE]
+        assert stored == relative_to_absolute_pressure(1020.0, _ELEVATION)
+        # Not the raw reading: the elevation correction was actually applied.
+        assert stored != 1020.0
+        # The carry-forward has to hold the corrected value too — a window with
+        # no pressure row falls back to it and would otherwise reintroduce the
+        # sea-level quantity the buffer no longer carries.
+        assert store.mappings[1][const.MAPPING_DATA_LAST_ENTRY] == {
+            const.MAPPING_PRESSURE: stored
+        }
+
+    async def test_baseline_seed_converts_relative_pressure(self):
+        # The seed is a separate writer into the same buffer, so it needs the
+        # same treatment — a group whose pressure never moves is seeded and then
+        # never touched again.
+        store = _FakeStore([_pressure_mapping(const.MAPPING_CONF_PRESSURE_RELATIVE)])
+        coord = _pressure_coord(store)
+        coord.hass.states.get = Mock(
+            return_value=SimpleNamespace(
+                state="1020.0", attributes={"unit_of_measurement": "hPa"}
+            )
+        )
+        await coord.async_setup_continuous_updates()
+
+        stored = store.buffers[1][0][const.MAPPING_PRESSURE]
+        assert stored == relative_to_absolute_pressure(1020.0, _ELEVATION)
+        assert stored != 1020.0
+        # The deadband reference is the appended value, so it must be corrected
+        # as well or the next reading is compared against a different quantity.
+        assert coord._continuous_last_value[(1, const.MAPPING_PRESSURE)] == stored
+
+    @pytest.mark.parametrize("pressure_type", [None, "absolute"])
+    async def test_non_relative_groups_are_stored_untouched(self, pressure_type):
+        store = _FakeStore([_pressure_mapping(pressure_type)])
+        coord = _pressure_coord(store)
+        await coord.async_setup_continuous_updates()
+        coord._sensor_state_changed(
+            _event("sensor.pressure", "1020.0", {"unit_of_measurement": "hPa"})
+        )
+        await _drain(coord)
+
+        assert store.buffers[1][0][const.MAPPING_PRESSURE] == 1020.0
+
+    async def test_event_and_interval_paths_agree(self):
+        """The property the split is really about: same input, same stored value.
+
+        Asserts against the poll path's own output rather than a hard-coded
+        number, so the two cannot drift apart again if the conversion itself is
+        ever revised.
+        """
+        store = _FakeStore([_pressure_mapping(const.MAPPING_CONF_PRESSURE_RELATIVE)])
+        coord = _pressure_coord(store)
+        await coord.async_setup_continuous_updates()
+        coord._sensor_state_changed(
+            _event("sensor.pressure", "1020.0", {"unit_of_measurement": "hPa"})
+        )
+        await _drain(coord)
+        from_event = store.buffers[1][0][const.MAPPING_PRESSURE]
+
+        # What the interval poll would have appended for the same reading.
+        polled = {const.MAPPING_PRESSURE: 1020.0}
+        coord._apply_pressure_type(store.get_mapping(1), polled)
+
+        assert from_event == polled[const.MAPPING_PRESSURE]
+
+    async def test_imperial_sensor_is_converted_to_hpa_before_the_correction(self):
+        # Order matters: the elevation correction is defined on hPa, so an inHg
+        # sensor has to reach metric first. Running it the other way round would
+        # correct a number that is not a pressure in the expected unit.
+        store = _FakeStore([_pressure_mapping(const.MAPPING_CONF_PRESSURE_RELATIVE)])
+        coord = _pressure_coord(store)
+        await coord.async_setup_continuous_updates()
+        coord._sensor_state_changed(
+            _event("sensor.pressure", "30.12", {"unit_of_measurement": "inHg"})
+        )
+        await _drain(coord)
+
+        in_hpa = convert_mapping_to_metric(
+            30.12, const.MAPPING_PRESSURE, UNIT_INHG, True
+        )
+        assert store.buffers[1][0][const.MAPPING_PRESSURE] == (
+            relative_to_absolute_pressure(in_hpa, _ELEVATION)
+        )

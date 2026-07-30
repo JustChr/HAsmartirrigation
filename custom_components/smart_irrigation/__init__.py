@@ -51,8 +51,8 @@ from .helpers import (
     convert_between,
     convert_mapping_to_metric,
     loadModules,
-    relative_to_absolute_pressure,
     resolve_sensor_unit,
+    to_absolute_pressure,
 )
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
@@ -815,6 +815,36 @@ class SmartIrrigationCoordinator(
             if z.get(const.ZONE_MAPPING) == mapping
         ]
 
+    def _apply_pressure_type(self, mapping, weatherdata):
+        """Normalise a polled row's Pressure to absolute, in place.
+
+        Sensor/static sources report whatever the station is configured for, so
+        a relative (sea-level) reading has to be corrected for elevation before
+        it joins the buffer — see helpers.to_absolute_pressure for why the field
+        must carry exactly one quantity. The event-driven path in
+        continuous_update calls that same helper per reading.
+        """
+        if not weatherdata:
+            return
+        mapping_mappings = (mapping or {}).get(const.MAPPING_MAPPINGS) or {}
+        pressure_map = mapping_mappings.get(const.MAPPING_PRESSURE) or {}
+        elevation = self.hass.config.as_dict().get(CONF_ELEVATION)
+        if const.MAPPING_PRESSURE in weatherdata:
+            weatherdata[const.MAPPING_PRESSURE] = to_absolute_pressure(
+                weatherdata[const.MAPPING_PRESSURE],
+                const.MAPPING_PRESSURE,
+                pressure_map,
+                elevation,
+            )
+        elif (
+            pressure_map.get(const.MAPPING_CONF_PRESSURE_TYPE)
+            == const.MAPPING_CONF_PRESSURE_RELATIVE
+        ):
+            # Configured relative but the source produced nothing this tick:
+            # standard-atmosphere pressure for the site is a better input to the
+            # psychrometric constant than leaving the calc module short a field.
+            weatherdata[const.MAPPING_PRESSURE] = altitudeToPressure(elevation)
+
     async def _async_update_zone(self, zone_id):
         # update the weather data for the mapping for the zone
         _LOGGER.info("Updating weather data for zone %s", zone_id)
@@ -856,24 +886,7 @@ class SmartIrrigationCoordinator(
                     weatherdata, static_values
                 )
             if sensor_in_mapping or static_in_mapping:
-                # convert relative pressure to absolute if configured
-                mapping_mappings = mapping.get(const.MAPPING_MAPPINGS) or {}
-                pressure_map = mapping_mappings.get(const.MAPPING_PRESSURE) or {}
-                if (
-                    pressure_map.get(const.MAPPING_CONF_PRESSURE_TYPE)
-                    == const.MAPPING_CONF_PRESSURE_RELATIVE
-                ):
-                    if const.MAPPING_PRESSURE in weatherdata:
-                        weatherdata[const.MAPPING_PRESSURE] = (
-                            relative_to_absolute_pressure(
-                                weatherdata[const.MAPPING_PRESSURE],
-                                self.hass.config.as_dict().get(CONF_ELEVATION),
-                            )
-                        )
-                    else:
-                        weatherdata[const.MAPPING_PRESSURE] = altitudeToPressure(
-                            self.hass.config.as_dict().get(CONF_ELEVATION)
-                        )
+                self._apply_pressure_type(mapping, weatherdata)
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
@@ -995,24 +1008,7 @@ class SmartIrrigationCoordinator(
                     weatherdata, static_values
                 )
             if sensor_in_mapping or static_in_mapping:
-                # convert relative pressure to absolute if configured
-                mapping_mappings = mapping.get(const.MAPPING_MAPPINGS) or {}
-                pressure_map = mapping_mappings.get(const.MAPPING_PRESSURE) or {}
-                if (
-                    pressure_map.get(const.MAPPING_CONF_PRESSURE_TYPE)
-                    == const.MAPPING_CONF_PRESSURE_RELATIVE
-                ):
-                    if const.MAPPING_PRESSURE in weatherdata:
-                        weatherdata[const.MAPPING_PRESSURE] = (
-                            relative_to_absolute_pressure(
-                                weatherdata[const.MAPPING_PRESSURE],
-                                self.hass.config.as_dict().get(CONF_ELEVATION),
-                            )
-                        )
-                    else:
-                        weatherdata[const.MAPPING_PRESSURE] = altitudeToPressure(
-                            self.hass.config.as_dict().get(CONF_ELEVATION)
-                        )
+                self._apply_pressure_type(mapping, weatherdata)
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:

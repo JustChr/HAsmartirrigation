@@ -56,7 +56,11 @@ from homeassistant.helpers.event import async_call_later, async_track_state_chan
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
-from .helpers import convert_mapping_to_metric, resolve_sensor_unit
+from .helpers import (
+    convert_mapping_to_metric,
+    resolve_sensor_unit,
+    to_absolute_pressure,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -169,6 +173,30 @@ class ContinuousUpdateMixin:
         )
         self._continuous_seed_baseline(entities)
 
+    def _continuous_metric_value(
+        self,
+        raw_value,
+        key: str,
+        the_map: dict,
+        ha_unit,
+        entity_id: str,
+        system_is_metric: bool,
+    ):
+        """Turn a raw sensor state into the value that goes in the buffer.
+
+        Both event-driven writers (the baseline seed and the state-change
+        handler) go through here so they cannot drift apart: the buffer is shared
+        with the interval poll, and a field written by one path in a different
+        quantity than the other makes the aggregate a mix of the two. Pressure is
+        exactly that case — it is corrected to absolute here, matching
+        ``_apply_pressure_type`` on the poll side.
+        """
+        unit = resolve_sensor_unit(
+            key, the_map.get(const.MAPPING_CONF_UNIT), ha_unit, entity_id
+        )
+        value = convert_mapping_to_metric(raw_value, key, unit, system_is_metric)
+        return to_absolute_pressure(value, key, the_map, self.hass.config.elevation)
+
     @callback
     def _continuous_seed_baseline(self, entities) -> None:
         """Record each tracked sensor's CURRENT value right after subscribing.
@@ -204,11 +232,8 @@ class ContinuousUpdateMixin:
                 continue
             ha_unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
             for mapping_id, key, the_map in self._continuous_targets.get(entity_id, []):
-                unit = resolve_sensor_unit(
-                    key, the_map.get(const.MAPPING_CONF_UNIT), ha_unit, entity_id
-                )
-                value = convert_mapping_to_metric(
-                    raw_value, key, unit, system_is_metric
+                value = self._continuous_metric_value(
+                    raw_value, key, the_map, ha_unit, entity_id, system_is_metric
                 )
                 if value is None:
                     continue
@@ -293,10 +318,9 @@ class ContinuousUpdateMixin:
 
         touched: set[int] = set()
         for mapping_id, key, the_map in targets:
-            unit = resolve_sensor_unit(
-                key, the_map.get(const.MAPPING_CONF_UNIT), ha_unit, entity_id
+            value = self._continuous_metric_value(
+                raw_value, key, the_map, ha_unit, entity_id, system_is_metric
             )
-            value = convert_mapping_to_metric(raw_value, key, unit, system_is_metric)
             if value is None:
                 continue
             if self._continuous_in_deadband(mapping_id, key, value):
