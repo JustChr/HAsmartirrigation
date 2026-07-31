@@ -939,7 +939,10 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     const unit = output_unit(this.config, ZONE_BUCKET);
     const color =
       est.live_deficit < 0 ? "var(--warning-color)" : "var(--success-color)";
-    const methodKey = est.method === "proxy" ? "proxy" : "hourly";
+    const methodKey =
+      est.method === "proxy" || est.method === "hourly_sensor"
+        ? est.method
+        : "hourly";
     const detail =
       localize(`panels.zones.status.estimate_method.${methodKey}`, lang) +
       (est.as_of ? ` · ${formatTime(est.as_of)}` : "");

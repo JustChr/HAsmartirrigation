@@ -189,9 +189,10 @@ export interface UpcomingRun {
 /** Read-only intra-day "live status" estimate for one zone. */
 export interface ZoneEstimate {
   available: boolean;
-  method: "hourly" | "proxy" | string | null;
+  method: "hourly" | "hourly_sensor" | "proxy" | string | null;
   et_since: number | null;
   precip_since: number | null;
+  drainage_since: number | null;
   live_deficit: number | null;
   as_of: string | null;
 }

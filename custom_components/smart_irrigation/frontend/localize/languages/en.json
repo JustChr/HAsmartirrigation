@@ -604,6 +604,7 @@
         "estimate_tag": "est.",
         "estimate_method": {
           "hourly": "Live estimate from hourly weather since the last calculation",
+          "hourly_sensor": "Live estimate from hourly sensor readings since the last calculation",
           "proxy": "Estimate distributed from today's forecast since the last calculation"
         }
       },
