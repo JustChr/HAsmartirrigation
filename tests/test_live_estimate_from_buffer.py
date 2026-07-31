@@ -80,13 +80,55 @@ def _readings(end, *, rain=None, step=10):
     return out
 
 
+def _sparse(end, *, step=10, slow_fields=True):
+    """A sparse buffer: one field per row, as continuous updates write it.
+
+    Only solar moves; the other fields appear once (or not at all, when
+    ``slow_fields`` is off and they have to arrive through the mapping's
+    carry-forward instead). Same values as ``_readings``, so the two shapes must
+    reduce to the same hourly rows.
+
+    The slow fields sit just INSIDE the window rather than on the anchor:
+    ``select_window`` keeps a single boundary row, so several rows stamped
+    exactly at the watermark compete for that one slot and all but one are
+    dropped. Held backwards to the window start by the row builder either way,
+    so the values are unaffected.
+    """
+    out = []
+    if slow_fields:
+        first = ANCHOR + timedelta(minutes=1)
+        out += [
+            {const.RETRIEVED_AT: first, const.MAPPING_TEMPERATURE: 20.0},
+            {const.RETRIEVED_AT: first, const.MAPPING_HUMIDITY: 55.0},
+            {const.RETRIEVED_AT: first, const.MAPPING_WINDSPEED: 1.5},
+        ]
+    stamp = ANCHOR
+    while stamp <= end:
+        hour = stamp.hour + stamp.minute / 60.0
+        out.append(
+            {
+                const.RETRIEVED_AT: stamp,
+                const.MAPPING_SOLRAD: 700.0 * W_TO_MJ_DAY * (hour - 5) / 8,
+            }
+        )
+        stamp += timedelta(minutes=step)
+    return out
+
+
 class _Store:
-    def __init__(self, readings, *, module=_PYETO_HOURLY, mappings_config=None):
+    def __init__(
+        self,
+        readings,
+        *,
+        module=_PYETO_HOURLY,
+        mappings_config=None,
+        last_entry=None,
+    ):
         self.readings = readings
         self.module = module
         self.mapping = {
             const.MAPPING_MAPPINGS: mappings_config or {},
-            const.MAPPING_DATA_LAST_ENTRY: {},
+            const.MAPPING_DATA_LAST_ENTRY: last_entry or {},
         }
 
     def get_module(self, _module_id):
@@ -206,6 +248,73 @@ class TestSensorOnlyInstall:
         now = ANCHOR + timedelta(hours=3)
         coord = _Coord(_Store([]))
         assert coord._intraday_for_zone(_zone(), _inputs(now))["available"] is False
+
+
+class TestBothBufferShapes:
+    """The poll path writes every mapped field on every row; the continuous
+    path writes ONE field per event. This install produces the sparse kind, and
+    code that assumes dense rows silently drops most of such a buffer."""
+
+    def test_sparse_and_dense_buffers_give_the_same_estimate(self):
+        now = ANCHOR + timedelta(hours=3, minutes=30)
+        dense = _Coord(_Store(_readings(now)))._intraday_for_zone(_zone(), _inputs(now))
+        sparse = _Coord(_Store(_sparse(now)))._intraday_for_zone(_zone(), _inputs(now))
+
+        assert sparse["available"] is True
+        assert sparse["method"] == "hourly_sensor"
+        assert sparse["et_since"] == pytest.approx(dense["et_since"])
+        assert sparse["live_deficit"] == pytest.approx(dense["live_deficit"])
+
+    def test_a_slow_field_reaches_the_estimate_through_the_carry_forward(self):
+        """A field that moves rarely can have NO row inside the window at all.
+        The mapping's last-seen value is what it was reading throughout, which
+        is the same fallback the daily calculation uses."""
+        now = ANCHOR + timedelta(hours=3, minutes=30)
+        readings = _sparse(now, slow_fields=False)
+        carried = {
+            const.MAPPING_TEMPERATURE: 20.0,
+            const.MAPPING_HUMIDITY: 55.0,
+            const.MAPPING_WINDSPEED: 1.5,
+        }
+        est = _Coord(_Store(readings, last_entry=carried))._intraday_for_zone(
+            _zone(), _inputs(now)
+        )
+        reference = _Coord(_Store(_sparse(now)))._intraday_for_zone(
+            _zone(), _inputs(now)
+        )
+
+        assert est["available"] is True
+        assert est["et_since"] == pytest.approx(reference["et_since"])
+
+    def test_a_field_in_neither_the_window_nor_the_carry_forward_declines(self):
+        """No radiation anywhere means no hourly ETo. Declining leaves the other
+        sources in place rather than summing a fabricated series."""
+        now = ANCHOR + timedelta(hours=3, minutes=30)
+        readings = [r for r in _sparse(now) if const.MAPPING_SOLRAD not in r]
+        coord = _Coord(_Store(readings))
+        assert coord._intraday_for_zone(_zone(), _inputs(now))["available"] is False
+
+    def test_a_sparse_rain_gauge_is_still_counted(self):
+        """Precipitation arrives as its own rows on this path, never alongside
+        the other fields."""
+        now = ANCHOR + timedelta(hours=3)
+        readings = _sparse(now)
+        readings += [
+            {
+                const.RETRIEVED_AT: ANCHOR + timedelta(minutes=5),
+                const.MAPPING_PRECIPITATION: 12.0,
+            },
+            {
+                const.RETRIEVED_AT: ANCHOR + timedelta(hours=1, minutes=5),
+                const.MAPPING_PRECIPITATION: 15.0,
+            },
+        ]
+        readings.sort(key=lambda r: r[const.RETRIEVED_AT])
+        est = _Coord(_Store(readings))._intraday_for_zone(_zone(), _inputs(now))
+
+        # A cumulative gauge: the first reading is the baseline, so the window's
+        # rain is the 3 mm step, not the 15 mm the counter reads.
+        assert est["precip_since"] == pytest.approx(3.0)
 
     @freeze_time("2026-05-22 12:30:00")
     async def test_the_whole_orchestration_runs_without_a_weather_client(self):

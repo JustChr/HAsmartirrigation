@@ -491,6 +491,7 @@
         "estimate_tag": "stima",
         "estimate_method": {
           "hourly": "Stima live dai dati meteo orari dall'ultimo calcolo",
+          "hourly_sensor": "Stima live dai dati orari dei sensori dall'ultimo calcolo",
           "proxy": "Stima distribuita dalla previsione di oggi dall'ultimo calcolo"
         }
       },

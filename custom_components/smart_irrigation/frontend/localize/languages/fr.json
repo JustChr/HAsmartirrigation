@@ -451,6 +451,7 @@
         "estimate_tag": "est.",
         "estimate_method": {
           "hourly": "Estimation en direct à partir de la météo horaire depuis le dernier calcul",
+          "hourly_sensor": "Estimation en direct à partir des relevés horaires des capteurs depuis le dernier calcul",
           "proxy": "Estimation répartie à partir de la prévision du jour depuis le dernier calcul"
         }
       },

@@ -451,6 +451,7 @@
         "estimate_tag": "gesch.",
         "estimate_method": {
           "hourly": "Live-Schätzung aus stündlichem Wetter seit der letzten Berechnung",
+          "hourly_sensor": "Live-Schätzung aus stündlichen Sensorwerten seit der letzten Berechnung",
           "proxy": "Schätzung aus der heutigen Vorhersage seit der letzten Berechnung"
         }
       },

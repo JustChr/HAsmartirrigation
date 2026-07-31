@@ -451,6 +451,7 @@
         "estimate_tag": "est.",
         "estimate_method": {
           "hourly": "Estimación en vivo del tiempo horario desde el último cálculo",
+          "hourly_sensor": "Estimación en vivo de las lecturas horarias de los sensores desde el último cálculo",
           "proxy": "Estimación distribuida de la previsión de hoy desde el último cálculo"
         }
       },

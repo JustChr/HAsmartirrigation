@@ -451,6 +451,7 @@
         "estimate_tag": "est.",
         "estimate_method": {
           "hourly": "Sanntidsestimat fra timesvær siden forrige beregning",
+          "hourly_sensor": "Sanntidsestimat fra timesbaserte sensoravlesninger siden forrige beregning",
           "proxy": "Estimat fordelt fra dagens varsel siden forrige beregning"
         }
       },

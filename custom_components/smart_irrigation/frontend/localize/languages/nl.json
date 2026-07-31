@@ -451,6 +451,7 @@
         "estimate_tag": "schat.",
         "estimate_method": {
           "hourly": "Live schatting op basis van uurlijks weer sinds de laatste berekening",
+          "hourly_sensor": "Live schatting op basis van uurlijkse sensormetingen sinds de laatste berekening",
           "proxy": "Schatting verdeeld op basis van de verwachting van vandaag sinds de laatste berekening"
         }
       },

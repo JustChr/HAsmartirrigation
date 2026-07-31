@@ -451,6 +451,7 @@
         "estimate_tag": "odh.",
         "estimate_method": {
           "hourly": "Živý odhad z hodinového počasia od posledného výpočtu",
+          "hourly_sensor": "Živý odhad z hodinových údajov zo senzorov od posledného výpočtu",
           "proxy": "Odhad rozložený z dnešnej predpovede od posledného výpočtu"
         }
       },
