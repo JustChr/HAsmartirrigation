@@ -838,11 +838,28 @@ def loadModules(moduleDir=None):
 
 
 def parse_datetime(val) -> datetime | None:
-    """Gets a datetime value or converts one from a string."""
+    """Gets a datetime value or converts one from a string.
+
+    Parsed with ``fromisoformat`` rather than a fixed ``strptime`` pattern.
+    Stored timestamps are written by serialising a ``datetime`` with
+    ``isoformat()``, which OMITS the fractional part when the microsecond field
+    happens to be 0 -- so a pattern requiring ``.%f`` rejects a value this
+    integration wrote itself, roughly once in a million writes.
+
+    That is not a transient failure. The strings reaching here are the zone
+    consumption watermark and each buffered reading's timestamp, and the
+    watermark is only advanced at the END of a successful calculation. A
+    watermark that cannot be parsed therefore aborts the calculation before it
+    can be replaced, so the zone never calculates again until the value is
+    edited by hand.
+
+    ``fromisoformat`` accepts both forms, and matches the full-ISO parser
+    ``websockets._safe_parse_datetime`` already uses on these same strings.
+    """
     if isinstance(val, datetime):
         return val
     if isinstance(val, str):
-        return datetime.strptime(val, "%Y-%m-%dT%H:%M:%S.%f")
+        return datetime.fromisoformat(val)
     _LOGGER.warning("[get_datetime]: value not instanceof datetime or string: %s", val)
     return None
 

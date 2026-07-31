@@ -1,6 +1,7 @@
 """Test Smart Irrigation helper functions."""
 
 import contextlib
+from datetime import datetime
 
 import pytest
 
@@ -17,6 +18,7 @@ from custom_components.smart_irrigation.helpers import (
     convert_pressure,
     convert_speed,
     convert_temperatures,
+    parse_datetime,
     relative_to_absolute_pressure,
     validate_api_key,
 )
@@ -182,3 +184,36 @@ class TestExceptionClasses:
             raise InvalidAuth(message)
 
         assert str(exc_info.value) == message
+
+
+class TestParseDatetime:
+    """Stored timestamps round-trip, including the ones without microseconds.
+
+    ``isoformat()`` omits the fractional part when the microsecond field is 0,
+    so the integration writes two shapes and has to read both. It previously
+    read only one, which made a whole-second timestamp unparseable and, for a
+    zone's consumption watermark, permanently so: the watermark advances only
+    after a successful calculation, so a value that aborts the calculation is
+    never replaced.
+    """
+
+    def test_parses_a_timestamp_with_microseconds(self) -> None:
+        assert parse_datetime("2026-07-31T08:18:35.123456") == datetime(
+            2026, 7, 31, 8, 18, 35, 123456
+        )
+
+    def test_parses_a_timestamp_without_microseconds(self) -> None:
+        assert parse_datetime("2026-07-31T08:18:35") == datetime(2026, 7, 31, 8, 18, 35)
+
+    def test_a_datetime_passes_straight_through(self) -> None:
+        value = datetime(2026, 7, 31, 8, 18, 35)
+        assert parse_datetime(value) is value
+
+    def test_non_datetime_non_string_is_none(self) -> None:
+        assert parse_datetime(12345) is None
+
+    @pytest.mark.parametrize("microsecond", [0, 1, 999999])
+    def test_round_trips_what_the_store_serialises(self, microsecond) -> None:
+        """The store writes datetimes through isoformat(); read back what it writes."""
+        original = datetime(2026, 7, 31, 8, 18, 35, microsecond)
+        assert parse_datetime(original.isoformat()) == original
