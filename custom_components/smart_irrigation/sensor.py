@@ -763,6 +763,10 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             "method": est.get("method"),
             "et_since_calculation": est.get("et_since"),
             "precipitation_since_calculation": est.get("precip_since"),
+            # The third term of the same balance. Published so a dashboard can
+            # plot drainage as its own trace against the bucket and the ET,
+            # rather than inferring it from the gap between them.
+            "drainage_since_calculation": est.get("drainage_since"),
             "as_of": est.get("as_of"),
         }
 

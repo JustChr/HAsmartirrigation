@@ -165,6 +165,13 @@ class _FakeStore:
     async def async_update_zone(self, zone_id, changes):
         self.zone_updates.append((zone_id, changes))
 
+    async def async_get_zones(self):
+        """No zones: the debounced flush refreshes the intraday estimates."""
+        return []
+
+    def get_zones(self):
+        return []
+
 
 def _mapping(mapping_id=1, mappings=None, data=None, last_entry=None):
     return {
@@ -189,6 +196,9 @@ def _coord(store):
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     coord.hass = Mock()
     coord.hass.config.units = METRIC_SYSTEM
+    # A real dict, not a Mock: the debounced flush ends by refreshing the
+    # intraday estimates, and the dispatcher walks hass.data.
+    coord.hass.data = {}
     coord.store = store
     coord._continuous_unsub = None
     coord._continuous_entities = frozenset()

@@ -24,6 +24,15 @@ from custom_components.smart_irrigation.live_estimate import (
 class _Coord(LiveEstimateMixin):
     def __init__(self, units):
         self.hass = SimpleNamespace(config=SimpleNamespace(units=units))
+        # A store that offers nothing: no module, so the buffer path declines
+        # and the client/proxy sources below are what gets exercised. Individual
+        # tests replace it.
+        self.store = SimpleNamespace(
+            get_module=lambda _id: None,
+            get_mapping=lambda _id: None,
+            get_mapping_buffer=lambda _id: [],
+            get_zones=list,
+        )
 
 
 def _client():
@@ -131,7 +140,9 @@ def test_intraday_proxy_no_spurious_et_right_after_calc(monkeypatch):
     monkeypatch.setattr(le.dt_util, "now", lambda: now_local)
 
     coord = _Coord(METRIC_SYSTEM)
-    coord.store = SimpleNamespace(get_mapping=lambda _mid: None)  # no precip
+    coord.store = SimpleNamespace(
+        get_module=lambda _id: None, get_mapping=lambda _mid: None
+    )  # no precip
     forecast = [{const.MAPPING_MIN_TEMP: 14.0, const.MAPPING_MAX_TEMP: 28.0}]
     inputs = {"client": _client(), "rows": None, "tz": None, "forecast": forecast}
     zone = {
@@ -163,7 +174,9 @@ def test_intraday_proxy_window_spans_midnight(monkeypatch):
     monkeypatch.setattr(le.dt_util, "now", lambda: now_local)
 
     coord = _Coord(METRIC_SYSTEM)
-    coord.store = SimpleNamespace(get_mapping=lambda _mid: None)
+    coord.store = SimpleNamespace(
+        get_module=lambda _id: None, get_mapping=lambda _mid: None
+    )
     tmin, tmax = 14.0, 30.0
     forecast = [{const.MAPPING_MIN_TEMP: tmin, const.MAPPING_MAX_TEMP: tmax}]
     inputs = {"client": _client(), "rows": None, "tz": None, "forecast": forecast}
@@ -217,9 +230,9 @@ def test_observed_precip_is_time_weighted_not_plain_sum():
         get_mapping_buffer=lambda _mid: readings,
     )
     watermark = "2026-06-07T09:00:00.000000"
-    zone = {const.ZONE_MAPPING: 0, const.ZONE_LAST_CONSUMED: watermark}
+    zone = {const.ZONE_MAPPING: 0, const.ZONE_LAST_CALCULATED: watermark}
 
-    result = coord._observed_precip_since_mm(zone)
+    result = coord._observed_precip_since_mm(zone, _parse(watermark))
     expected = aggregate_window(readings, _parse(watermark), mappings_config).get(
         const.MAPPING_PRECIPITATION
     )
@@ -234,8 +247,8 @@ def test_observed_precip_handles_no_mapping():
         get_mapping=lambda _mid: None,
         get_mapping_buffer=lambda _mid: [],
     )
-    assert coord._observed_precip_since_mm({}) == 0.0
-    assert coord._observed_precip_since_mm({const.ZONE_MAPPING: 7}) == 0.0
+    assert coord._observed_precip_since_mm({}, None) == 0.0
+    assert coord._observed_precip_since_mm({const.ZONE_MAPPING: 7}, None) == 0.0
 
 
 def test_intraday_unavailable_until_first_calc():

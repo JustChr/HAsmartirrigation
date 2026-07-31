@@ -171,6 +171,11 @@ class CalculationMixin:
         # readings that would refill those buffers. See
         # ContinuousUpdateMixin.clear_continuous_deadband_state.
         self.clear_continuous_deadband_state()
+        # The intraday estimate carries completed hours' ETo in memory, keyed on
+        # the zone's last_calculated — which this does not move. Without dropping
+        # it the live deficit would keep reporting ET computed from readings the
+        # user just deleted.
+        self.invalidate_live_estimate_carry()
         mappings = await self.store.async_get_mappings()
         for mapping in mappings:
             self.store.set_mapping_buffer(mapping.get(const.MAPPING_ID), [])

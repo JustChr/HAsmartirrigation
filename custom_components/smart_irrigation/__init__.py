@@ -1324,6 +1324,11 @@ class SmartIrrigationCoordinator(
             # watermarks to now — a scoped variant of _async_clear_all_weatherdata.
             source_changed = self._mapping_source_changed(mapping_id, data)
             if source_changed:
+                # Same reason the buffer is wiped: the intraday estimate carries
+                # completed hours' ETo computed from readings that are about to
+                # stop existing, and its key (the zone's last_calculated) does
+                # not move here.
+                self.invalidate_live_estimate_carry(mapping_id)
                 # Clearing MAPPING_DATA alone is no longer enough: the aggregation
                 # now also reads MAPPING_DATA_LAST_ENTRY as a carry-forward, so a
                 # value captured from the OLD sensor would survive the wipe and

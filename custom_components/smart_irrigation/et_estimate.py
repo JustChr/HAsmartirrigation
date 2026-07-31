@@ -226,6 +226,32 @@ def replay_water_balance(
     return value, drainage_total, runoff_total
 
 
+def live_balance(
+    bucket: float,
+    et_since: float,
+    precip_since: float,
+    maximum_bucket: float | None = None,
+    drainage_rate: float = 0.0,
+    elapsed_hours: float = 0.0,
+) -> tuple[float, float]:
+    """``(deficit, drained)`` for the intra-day window — see :func:`live_deficit`.
+
+    The drainage is returned rather than recomputed by the caller so the figure
+    a dashboard plots as its own trace can never disagree with the deficit it is
+    plotted against: they are the two halves of one balance.
+    """
+    value = bucket - et_since + precip_since
+    if maximum_bucket is not None and value > maximum_bucket:
+        value = float(maximum_bucket)
+    drained = 0.0
+    if value > 0:
+        drained = drained_over_window(
+            value, drainage_rate, elapsed_hours, maximum_bucket
+        )
+        value -= drained
+    return value, drained
+
+
 def live_deficit(
     bucket: float,
     et_since: float,
@@ -243,11 +269,11 @@ def live_deficit(
     that only want the raw deficit are unaffected. The daily calculation
     remains the source of truth for the stored bucket.
     """
-    value = bucket - et_since + precip_since
-    if maximum_bucket is not None and value > maximum_bucket:
-        value = float(maximum_bucket)
-    if value > 0:
-        value -= drained_over_window(
-            value, drainage_rate, elapsed_hours, maximum_bucket
-        )
-    return value
+    return live_balance(
+        bucket,
+        et_since,
+        precip_since,
+        maximum_bucket,
+        drainage_rate=drainage_rate,
+        elapsed_hours=elapsed_hours,
+    )[0]

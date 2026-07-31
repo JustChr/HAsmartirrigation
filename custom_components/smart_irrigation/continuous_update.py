@@ -471,6 +471,15 @@ class ContinuousUpdateMixin:
             await self._prune_mapping_buffer(mapping_id, now=now)
             await self._continuous_enforce_row_cap(mapping_id)
 
+        # Last, so the estimate is published against the buffer's final state for
+        # this burst and nothing above depends on it. Event ingestion is the only
+        # thing feeding a sensor-only install, so without this the intraday
+        # estimate would move only on the poll timer (hourly by default) or at
+        # calculation time. Throttled because this runs once per burst; the
+        # per-zone completed-hour carry is what keeps each refresh to the current
+        # partial hour rather than the whole window.
+        await self.async_refresh_zone_estimates_throttled()
+
     async def _continuous_enforce_row_cap(self, mapping_id: int) -> None:
         """Backstop trim once the watermark prune has left too many rows.
 
@@ -499,3 +508,7 @@ class ContinuousUpdateMixin:
             len(data),
         )
         self.store.set_mapping_buffer(mapping_id, keep)
+        # Rows an enabled zone had not consumed are gone, so any completed-hour
+        # ETo the intraday estimate carried for those zones was computed from
+        # readings that no longer exist.
+        self.invalidate_live_estimate_carry(mapping_id)
