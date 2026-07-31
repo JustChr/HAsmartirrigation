@@ -40,14 +40,16 @@ def _stub_hass_helpers(monkeypatch):
         "custom_components.smart_irrigation.continuous_update.async_call_later",
         Mock(side_effect=lambda *_args, **_kw: Mock()),
     )
-    # The real dispatcher walks hass.data; these tests use a Mock hass.
-    monkeypatch.setattr(
-        "custom_components.smart_irrigation.continuous_update.async_dispatcher_send",
-        Mock(),
-    )
-    monkeypatch.setattr(
-        "custom_components.smart_irrigation.async_dispatcher_send", Mock()
-    )
+    # The real dispatcher walks hass.data; these tests use a Mock hass. Every
+    # module these tests reach into has to be stubbed, not just the one under
+    # test: _async_clear_all_weatherdata lives in calculation and notifies the
+    # frontend, so leaving that one real fails on a Mock hass.data.
+    for module in (
+        "custom_components.smart_irrigation.continuous_update",
+        "custom_components.smart_irrigation",
+        "custom_components.smart_irrigation.calculation",
+    ):
+        monkeypatch.setattr(f"{module}.async_dispatcher_send", Mock())
 
 
 class _FakeStore:
