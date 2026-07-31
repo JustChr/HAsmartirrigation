@@ -3,6 +3,8 @@
 import datetime
 import math
 
+from freezegun import freeze_time
+
 from custom_components.smart_irrigation.weathermodules.OpenMeteoClient import (
     OpenMeteoClient,
 )
@@ -15,8 +17,12 @@ def _fake_doc():
     now = datetime.datetime.utcnow()
     today = now.date()
     times, temp, rh, wind, rad, precip = [], [], [], [], [], []
+    midnight = datetime.datetime(today.year, today.month, today.day)
     for hr in range(0, now.hour + 2):  # +2 => include one future hour
-        dt = datetime.datetime(today.year, today.month, today.day, hr)
+        # Offset from midnight rather than passing hr as the hour argument: at
+        # 23:00 UTC the future hour is 24, which is not a valid hour and rolls
+        # into tomorrow.
+        dt = midnight + datetime.timedelta(hours=hr)
         times.append(dt.strftime("%Y-%m-%dT%H:%M"))
         temp.append(20.0)
         rh.append(50.0)
@@ -66,7 +72,8 @@ def _fake_doc_with_past():
     times, temp, rh, wind, rad, precip = [], [], [], [], [], []
 
     def add(d, hr):
-        dt = datetime.datetime(d.year, d.month, d.day, hr)
+        # See _fake_doc: hr reaches 24 at 23:00 UTC, so offset from midnight.
+        dt = datetime.datetime(d.year, d.month, d.day) + datetime.timedelta(hours=hr)
         times.append(dt.strftime("%Y-%m-%dT%H:%M"))
         temp.append(20.0)
         rh.append(50.0)
@@ -111,6 +118,22 @@ def test_get_hourly_data_includes_past_day(monkeypatch):
     assert len(rows) == 24 + now.hour + 1
     assert rows[0]["time"].startswith(yesterday.isoformat())
     assert all(datetime.datetime.fromisoformat(r["time"]) <= now for r in rows)
+
+
+@freeze_time("2026-07-31 23:30:00")
+def test_fixtures_survive_the_last_hour_of_the_day(monkeypatch):
+    """The fixtures build one hour past the current one, which is 24 at 23:00.
+
+    Passing 24 as a datetime hour raises, and ``get_hourly_data`` catches
+    ValueError and returns ``(None, None)``, so the failure surfaced as an
+    unrelated-looking ``None == 0.0`` in the two tests above for one hour a day.
+    """
+    for fetch, expected in ((_fake_doc, 24), (_fake_doc_with_past, 48)):
+        client = OpenMeteoClient(latitude=48.39, longitude=16.23, elevation=180)
+        monkeypatch.setattr(client, "_fetch", fetch)
+        rows, tz = client.get_hourly_data()
+        assert tz == 0.0
+        assert len(rows) == expected
 
 
 def test_get_hourly_data_handles_empty(monkeypatch):
