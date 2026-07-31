@@ -64,6 +64,7 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "Note: this explanation uses '.' as decimal separator, shows rounded and metric values. Module returned Evapotranspiration deficiency ( = et0 * hour_multiplier + precipitation) of",
+        "module-returned-evapotranspiration-deficiency-hourly": "Note: this explanation uses '.' as decimal separator, shows rounded and metric values. Evapotranspiration deficiency ( = sum of hourly FAO-56 et0 over the window + precipitation) of",
         "bucket-was": "Bucket was",
         "new-bucket-values-is": "New bucket value is",
         "bucket": "bucket",

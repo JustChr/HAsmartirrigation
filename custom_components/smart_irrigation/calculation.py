@@ -10,14 +10,21 @@ Protected by tests/test_calculate_module.py (calculate_module characterization).
 import logging
 from datetime import datetime, timedelta
 
+import homeassistant.util.dt as dt_util
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
-from .et_estimate import drained_over_window, replay_water_balance
+from .calcmodules.pyeto import SOLRAD_behavior
+from .et_estimate import drained_over_window, eto_hourly_series, replay_water_balance
 from .helpers import convert_between, loadModules, parse_datetime
 from .localize import localize
-from .weather_aggregate import aggregate_window, build_substeps, select_window
+from .weather_aggregate import (
+    aggregate_window,
+    build_hourly_rows,
+    build_substeps,
+    select_window,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -427,7 +434,86 @@ class CalculationMixin:
                 modinst._elevation = eff_elev
         return modinst
 
-    def _substeps_for_zone(self, zone, precip_total, *, now):
+    def _hourly_et_for_zone(self, zone, modinst, *, now):
+        """Summed FAO-56 hourly ETo over this zone's window, or None to use the daily form.
+
+        The daily FAO-56 equation run on window-mean weather is systematically
+        biased by cloudiness: fed one identical Open-Meteo hourly series over 362
+        days it runs 1.144x the reference on overcast days and 0.925x on clear
+        ones, while the same series summed hour by hour sits flat at 1.02-1.04
+        across every sky band (mean absolute daily error 0.099 mm against
+        0.254 mm). The bias is in the aggregation, not the sensors, so summing
+        hourly removes it.
+
+        Returns ``(total_mm, {hour_start: mm})`` — the second so the water-balance
+        sub-steps can charge each hour its own ET rather than shaping one daily
+        number. Returns None whenever the hourly form cannot be applied honestly:
+
+        * the module estimates solar radiation rather than measuring it, so the
+          measured series is not what it would have used;
+        * forecast days are configured, which averages today with days that have
+          no hourly series at all;
+        * the site has no coordinates;
+        * the window cannot be reduced to hourly rows (see build_hourly_rows).
+
+        In every case the caller keeps the daily path, so the fallback is today's
+        behaviour rather than a fabricated series.
+        """
+        if str(getattr(modinst, "_solrad_behavior", "")) != str(
+            SOLRAD_behavior.DontEstimate.value
+        ):
+            return None
+        if getattr(modinst, "forecast_days", 0):
+            return None
+        latitude = getattr(self, "_effective_latitude", None)
+        longitude = getattr(self, "_effective_longitude", None)
+        if latitude is None or longitude is None:
+            return None
+        elevation = getattr(self, "_effective_elevation", None) or 0
+
+        mapping_id = zone.get(const.ZONE_MAPPING)
+        if mapping_id is None:
+            return None
+        mapping = self.store.get_mapping(mapping_id)
+        if not isinstance(mapping, dict):
+            return None
+        readings = self.store.get_mapping_buffer(mapping_id)
+        mappings_config = mapping.get(const.MAPPING_MAPPINGS)
+        if not isinstance(readings, list) or not isinstance(mappings_config, dict):
+            return None
+
+        rows = build_hourly_rows(
+            readings,
+            _as_datetime(zone.get(const.ZONE_LAST_CONSUMED)),
+            mappings_config,
+            now=now,
+            last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
+        )
+        if not rows:
+            return None
+
+        # Buffer stamps are naive LOCAL times, so the solar-time correction wants
+        # the local UTC offset. Taken once for the window: it only feeds Ra, and
+        # Ra only reaches ETo through the cloudiness correction on the longwave
+        # term, so the twice-a-year DST hour is far below the effects this change
+        # is about.
+        offset = dt_util.now().utcoffset()
+        tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
+        series = eto_hourly_series(rows, latitude, longitude, tz_offset_h, elevation)
+
+        per_hour = {}
+        for row, eto in zip(rows, series, strict=True):
+            per_hour[row["hour_start"]] = per_hour.get(row["hour_start"], 0.0) + eto
+        total = sum(series)
+        _LOGGER.debug(
+            "[calculate-module]: summed hourly ETo for zone %s: %s mm over %s hours",
+            zone.get(const.ZONE_ID),
+            total,
+            len(rows),
+        )
+        return total, per_hour
+
+    def _substeps_for_zone(self, zone, precip_total, *, now, hourly_et=None):
         """Water-balance sub-steps for this zone's window, or None to lump.
 
         Reconciled against the aggregate's precipitation total before being
@@ -452,6 +538,7 @@ class CalculationMixin:
             _as_datetime(zone.get(const.ZONE_LAST_CONSUMED)),
             mappings_config,
             now=now,
+            hourly_et=hourly_et,
         )
         if not steps:
             return None
@@ -538,11 +625,26 @@ class CalculationMixin:
         kc = zone.get(const.ZONE_KC, const.CONF_DEFAULT_KC)
         if kc is None:
             kc = const.CONF_DEFAULT_KC
-        et_term = delta
-        delta = delta * kc
         hour_multiplier = weatherdata.get(const.MAPPING_DATA_MULTIPLIER, 1.0)
         _LOGGER.debug("[calculate-module]: hour_multiplier: %s", hour_multiplier)
-        et_delta = delta * hour_multiplier
+        hourly = (
+            self._hourly_et_for_zone(zone, modinst, now=now or datetime.now())
+            if module_uses_precipitation
+            else None
+        )
+        hourly_et = None
+        if hourly is not None:
+            hourly_total, hourly_et = hourly
+            # hour_multiplier scales a DAILY et0 by the window's fraction of a
+            # day. Summing hourly ETo has already integrated over the window, so
+            # applying it here as well would scale the same window twice. It is
+            # still needed for elapsed_hours below, which is a drainage duration
+            # rather than an ET scale.
+            et_term = -hourly_total
+            et_delta = et_term * kc
+        else:
+            et_term = delta
+            et_delta = delta * kc * hour_multiplier
         delta = et_delta + precip
         data[const.ZONE_DELTA] = delta
         _LOGGER.debug("[calculate-module]: new delta: %s", delta)
@@ -574,7 +676,9 @@ class CalculationMixin:
         # removes both without changing the ledger — still one calculation, one
         # bucket write, one delta, one explanation. See ``build_substeps``.
         steps = (
-            self._substeps_for_zone(zone, precip, now=now or datetime.now())
+            self._substeps_for_zone(
+                zone, precip, now=now or datetime.now(), hourly_et=hourly_et
+            )
             if module_uses_precipitation
             else None
         )
@@ -664,7 +768,14 @@ class CalculationMixin:
 
         explanation = (
             await localize(
-                "module.calculation.explanation.module-returned-evapotranspiration-deficiency",
+                # Which ET form produced this number. The two differ by up to
+                # ~12% on identical inputs, so a day that switches forms shows a
+                # step in the ET series that is otherwise unexplainable.
+                (
+                    "module.calculation.explanation.module-returned-evapotranspiration-deficiency-hourly"
+                    if hourly is not None
+                    else "module.calculation.explanation.module-returned-evapotranspiration-deficiency"
+                ),
                 self.hass.config.language,
             )
             + f" {data[const.ZONE_DELTA]:.2f}."

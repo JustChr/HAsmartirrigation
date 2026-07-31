@@ -73,21 +73,29 @@ def proxy_et_since(
     return daily_et0 * (elapsed / all_day)
 
 
-def rigorous_et_since(
+def eto_hourly_series(
     rows: list[dict],
     latitude_deg: float,
     longitude_deg: float,
     tz_offset_h: float,
     elevation_m: float = 0.0,
-) -> float:
-    """Sum hourly FAO-56 ETo over ``rows`` (each one elapsed hour).
+) -> list[float]:
+    """Per-row FAO-56 hourly ETo [mm], one entry per row, in row order.
 
     Each row needs: ``hour`` (local clock midpoint), ``doy``, ``temperature``,
-    ``humidity``, ``wind_2m`` and ``solar_mj_h``.
+    ``humidity``, ``wind_2m`` and ``solar_mj_h``. Two optional keys:
+
+    * ``pressure_kpa`` — a measured barometer, used in place of the
+      elevation-derived standard atmosphere. The psychrometric constant is
+      linear in it, so a station 3 kPa off standard shifts ETo by ~1%.
+    * ``coverage_h`` — the fraction of the hour the row actually covers,
+      defaulting to a whole hour. The partial hours at the ends of a
+      calculation window are charged their real share this way rather than a
+      full hour of ET.
     """
-    total = 0.0
+    out = []
     for r in rows:
-        total += eto_hourly(
+        eto = eto_hourly(
             t_c=r["temperature"],
             rh_pct=r["humidity"],
             wind_2m=r["wind_2m"],
@@ -98,8 +106,23 @@ def rigorous_et_since(
             hour_mid=r["hour"],
             tz_offset_h=tz_offset_h,
             elevation_m=elevation_m,
+            pressure_kpa=r.get("pressure_kpa"),
         )
-    return total
+        out.append(eto * r.get("coverage_h", 1.0))
+    return out
+
+
+def rigorous_et_since(
+    rows: list[dict],
+    latitude_deg: float,
+    longitude_deg: float,
+    tz_offset_h: float,
+    elevation_m: float = 0.0,
+) -> float:
+    """Sum hourly FAO-56 ETo over ``rows`` (each one elapsed hour)."""
+    return sum(
+        eto_hourly_series(rows, latitude_deg, longitude_deg, tz_offset_h, elevation_m)
+    )
 
 
 def drained_over_window(

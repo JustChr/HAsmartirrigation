@@ -51,6 +51,32 @@ _SUBSTEP_MAX_HOURS = 1.0
 # window; only the idle-hours ceiling is dropped.
 _SUBSTEP_MAX_HOUR_BOUNDARIES = 24 * 62
 
+# Longest window ``build_hourly_rows`` will reduce. Matches the buffer retention
+# cap: beyond it the buffer cannot hold readings for most of the window, so every
+# extra hour would be pure carry-forward from one stale sample. Summing a
+# fabricated series is worse than the daily form, so the caller falls back.
+_HOURLY_ROWS_MAX_HOURS = 24 * 7
+
+# Fields an hourly FAO-56 row cannot be built without. Pressure is optional (the
+# ETo helper derives it from elevation when absent) and precipitation is carried
+# for the row consumers rather than for the ET itself.
+_HOURLY_ROW_REQUIRED = (
+    const.MAPPING_TEMPERATURE,
+    const.MAPPING_HUMIDITY,
+    const.MAPPING_WINDSPEED,
+    const.MAPPING_SOLRAD,
+)
+
+# Buffer solar radiation is stored as MJ/day/m2; FAO-56 hourly wants MJ/m2/h.
+# 1 W/m2 = 0.0864 MJ/day/m2 = 0.0036 MJ/m2/h, so the ratio is exactly 24.
+# Worked case: 800 W/m2 -> 69.12 MJ/day/m2 -> 2.88 MJ/m2/h. Omitting this hands
+# the ETo helper ~12x the solar constant and the day's ET goes with it.
+_MJ_DAY_TO_MJ_HOUR = 1.0 / 24.0
+
+# Stored pressure is absolute hPa (both ingestion paths correct relative
+# readings before the buffer); FAO-56 takes kPa.
+_HPA_TO_KPA = 1.0 / 10.0
+
 # Aggregates that ACCUMULATE over the window (area under a rate curve, or a
 # running total) rather than summarising level samples. A carried-forward value
 # must never be backfilled into one of these — see aggregate_window.
@@ -534,7 +560,186 @@ def _substep_boundaries(start, end, event_times):
     return sorted(cuts)
 
 
-def build_substeps(readings, watermark, mappings_config, *, now=None):
+def _effective_series(readings, watermark, now):
+    """``(effective_rows, start, end)`` for a zone's window, or ``(None, ...)``.
+
+    The same window ``aggregate_window`` reduces, so anything derived from it
+    agrees with the aggregate by construction rather than by coincidence.
+    """
+    boundary, window = select_window(readings, watermark)
+    if boundary is None and not window:
+        return None, None, None
+    effective = []
+    if boundary is not None:
+        effective.append({**boundary, const.RETRIEVED_AT: watermark})
+    effective.extend(window)
+    start, end = _window_bounds(effective, watermark, now)
+    if start is None:
+        return None, None, None
+    return effective, start, end
+
+
+def _hourly_mean(table, a, b):
+    """Mean of a held level field over ``[a, b]`` from a cumulative table."""
+    span = (b - a).total_seconds()
+    if span <= 0:
+        return None
+    return (_hold_integral_upto(*table, b) - _hold_integral_upto(*table, a)) / span
+
+
+def build_hourly_rows(
+    readings, watermark, mappings_config, *, now=None, last_entry=None
+):
+    """Reduce a zone's window of the shared buffer to hourly FAO-56 rows, or None.
+
+    One row per wall-clock hour the window touches, carrying the row shape the
+    hourly ETo helpers consume: ``hour`` (local clock midpoint), ``doy``,
+    ``temperature``, ``humidity``, ``wind_2m``, ``solar_mj_h``, ``time``, plus
+    ``precipitation``, ``pressure_kpa`` and ``coverage_h``.
+
+    Each field's hourly value is the zero-order-hold mean over the part of that
+    hour inside the window — the same rule ``_time_weighted_mean`` applies to the
+    whole window, reused rather than re-derived so the two cannot drift. That is
+    also the missing-hour policy: a field that produced no reading during an hour
+    is still reading its last value, which is what carry-forward means. Solar
+    radiation is the case that makes it necessary, because it emits no rows at
+    all overnight.
+
+    ``coverage_h`` is the fraction of the hour the window actually covers, so the
+    partial hours at each end of the window are charged their real share rather
+    than a whole hour of ET.
+
+    Returns None whenever the window cannot support hourly rows — no readings, a
+    zero-length window, an absurdly long one, or any required field missing from
+    both the window and the carry-forward. The caller then keeps the daily form,
+    so the failure mode is today's behaviour rather than a fabricated series.
+    """
+    if now is None:
+        now = datetime.datetime.now()
+
+    effective, start, end = _effective_series(readings, watermark, now)
+    if effective is None:
+        return None
+    if (end - start).total_seconds() > _HOURLY_ROWS_MAX_HOURS * 3600:
+        return None
+
+    by_sensor = _group_by_sensor(effective)
+    tables = {}
+    for key in (*_HOURLY_ROW_REQUIRED, const.MAPPING_PRESSURE):
+        samples = by_sensor.get(key)
+        if samples:
+            samples = _clamped_samples(samples, start, end)
+        elif last_entry and last_entry.get(key) is not None:
+            # Sparse (continuous-update) buffers append one field per event, so a
+            # slow-moving field can have no row inside this zone's window at all.
+            # The mapping's last-seen value is what it was reading throughout —
+            # the same fallback aggregate_window uses, held from the window start.
+            samples = [(start, float(last_entry[key]))]
+        else:
+            samples = None
+        if samples is None:
+            if key in _HOURLY_ROW_REQUIRED:
+                return None
+            continue
+        tables[key] = _hold_integral_table(samples, start, end)
+
+    # Precipitation is not part of the ET, but the row shape carries it for the
+    # consumers that read a window as a series. Omitted entirely rather than
+    # zero-filled when the field has no time structure: an absent key is honest,
+    # a 0.0 is a claim that it did not rain.
+    rain_by_hour = None
+    precip_samples = by_sensor.get(const.MAPPING_PRECIPITATION)
+    if precip_samples:
+        precip_samples = _clamped_samples(precip_samples, start, end)
+        if precip_samples is not None:
+            increments = _precip_increments(
+                precip_samples,
+                _effective_aggregate(const.MAPPING_PRECIPITATION, mappings_config),
+            )
+            if increments is not None:
+                rain_by_hour = {}
+                for t, mm in increments:
+                    hour_start = t.replace(minute=0, second=0, microsecond=0)
+                    rain_by_hour[hour_start] = rain_by_hour.get(hour_start, 0.0) + mm
+
+    rows = []
+    hour_start = start.replace(minute=0, second=0, microsecond=0)
+    step = datetime.timedelta(hours=1)
+    while hour_start < end:
+        a = max(hour_start, start)
+        b = min(hour_start + step, end)
+        coverage = (b - a).total_seconds() / 3600
+        if coverage <= 0:
+            # Unreachable: the loop only visits hours that overlap the window.
+            # Bail rather than silently drop an hour's ET if it ever is not.
+            return None
+        row = {
+            "time": hour_start.isoformat(),
+            "hour_start": hour_start,
+            # Midpoint of the WHOLE clock hour even for a partial one: Ra is
+            # integrated over the hour's solar-time angles and the partial
+            # coverage is charged through coverage_h instead.
+            "hour": hour_start.hour + 0.5,
+            "doy": hour_start.timetuple().tm_yday,
+            "coverage_h": coverage,
+        }
+        means = {key: _hourly_mean(table, a, b) for key, table in tables.items()}
+        if any(v is None for v in means.values()):
+            return None
+        row["temperature"] = means[const.MAPPING_TEMPERATURE]
+        row["humidity"] = means[const.MAPPING_HUMIDITY]
+        # Sensor wind speed is handed to FAO-56 as u2 exactly as the daily path
+        # does: the integration has never modelled the anemometer's height, and
+        # rescaling here only for the hourly form would make the two disagree.
+        row["wind_2m"] = means[const.MAPPING_WINDSPEED]
+        row["solar_mj_h"] = means[const.MAPPING_SOLRAD] * _MJ_DAY_TO_MJ_HOUR
+        if const.MAPPING_PRESSURE in means:
+            row["pressure_kpa"] = means[const.MAPPING_PRESSURE] * _HPA_TO_KPA
+        if rain_by_hour is not None:
+            row["precipitation"] = rain_by_hour.get(hour_start, 0.0)
+        rows.append(row)
+        hour_start += step
+
+    if not rows:
+        return None
+    return rows
+
+
+def _weights_from_hourly_et(weights, hours, dt_hours, hourly_et):
+    """Rescale intra-hour weights so each hour carries its own ET, or None.
+
+    ``weights`` shape the ET *within* an hour; ``hourly_et`` sets how much ET
+    that hour gets. Multiplying the two gives a weight set whose per-hour sums
+    are proportional to the hourly ETo series, which is what makes the window
+    total a sum of hourly quanta rather than one daily number spread out.
+
+    Returns None when a step's hour is absent from ``hourly_et``: the two are
+    derived from the same window, so a gap means an assumption broke, and
+    charging that hour zero ET would silently under-water.
+    """
+    per_hour_weight = {}
+    for hour, weight in zip(hours, weights, strict=True):
+        if hour not in hourly_et:
+            return None
+        per_hour_weight[hour] = per_hour_weight.get(hour, 0.0) + weight
+    out = []
+    for hour, weight, dt in zip(hours, weights, dt_hours, strict=True):
+        share = per_hour_weight[hour]
+        if share > 0:
+            fraction = weight / share
+        else:
+            # This hour is entirely dark (or has no usable radiation) but still
+            # has ET to place: fall back to elapsed time WITHIN the hour, so the
+            # hour's own total is preserved rather than leaking to a bright one.
+            hour_seconds = sum(
+                d for h, d in zip(hours, dt_hours, strict=True) if h == hour
+            )
+            fraction = dt / hour_seconds if hour_seconds > 0 else 0.0
+        out.append(fraction * hourly_et[hour])
+    return out
+
+
+def build_substeps(readings, watermark, mappings_config, *, now=None, hourly_et=None):
     """Cut a zone's window into ordered water-balance sub-steps, or None.
 
     The single-shot form collapses a whole window to one ``(delta, elapsed)``
@@ -551,24 +756,25 @@ def build_substeps(readings, watermark, mappings_config, *, now=None):
     rather than approximate: ``drained_over_window`` is the closed-form solution
     of the drainage ODE at any dt, so irregular steps introduce no error.
 
+    ``hourly_et`` turns the window's ET into a **per-hour quantum**: given
+    ``{hour_start: eto_mm}`` each hour's own ET is distributed across the steps
+    inside that hour, instead of one window total being spread across every step.
+    The cuts already fall on wall-clock hour boundaries, so every step lies in
+    exactly one hour and no re-cutting is needed. The returned weights still sum
+    to 1 and are still applied to a single window total by the caller, so this
+    only changes how that total is shaped.
+
     Returns None whenever the window cannot be sub-stepped faithfully — no
-    timestamps, a zero-length window, or a precipitation aggregate with no time
-    structure. The caller then keeps the single-shot behaviour, so the failure
-    mode is the status quo rather than a fabricated series.
+    timestamps, a zero-length window, a precipitation aggregate with no time
+    structure, or a step whose hour is missing from ``hourly_et``. The caller
+    then keeps the single-shot behaviour, so the failure mode is the status quo
+    rather than a fabricated series.
     """
     if now is None:
         now = datetime.datetime.now()
 
-    boundary, window = select_window(readings, watermark)
-    if boundary is None and not window:
-        return None
-    effective = []
-    if boundary is not None:
-        effective.append({**boundary, const.RETRIEVED_AT: watermark})
-    effective.extend(window)
-
-    start, end = _window_bounds(effective, watermark, now)
-    if start is None:
+    effective, start, end = _effective_series(readings, watermark, now)
+    if effective is None:
         return None
 
     by_sensor = _group_by_sensor(effective)
@@ -621,6 +827,7 @@ def build_substeps(readings, watermark, mappings_config, *, now=None):
 
     steps = []
     weights = []
+    hours = []
     for i in range(len(cuts) - 1):
         a, b = cuts[i], cuts[i + 1]
         dt_hours = (b - a).total_seconds() / 3600
@@ -634,7 +841,15 @@ def build_substeps(readings, watermark, mappings_config, *, now=None):
                 _hold_integral_upto(*table, b) - _hold_integral_upto(*table, a),
             )
         weights.append(weight)
+        hours.append(a.replace(minute=0, second=0, microsecond=0))
         steps.append((dt_hours, rain_at.get(b, 0.0)))
+
+    if hourly_et is not None:
+        weights = _weights_from_hourly_et(
+            weights, hours, [dt for dt, _ in steps], hourly_et
+        )
+        if weights is None:
+            return None
 
     total = sum(weights)
     if total <= 0:
