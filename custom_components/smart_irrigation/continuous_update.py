@@ -3,9 +3,10 @@
 By default weather sensors are sampled by POLL: the auto-update timer fires
 (hourly, by default) and ``build_sensor_values_for_mapping`` reads
 ``hass.states`` once. Everything that happened between ticks is never recorded,
-so the daily min/max temperature come from ~24 spot samples and a
-Riemann-summed field (solar radiation) is integrated very coarsely. That is an
-ET *accuracy* loss, not a cosmetic one.
+so the daily min/max temperature come from ~24 spot samples rather than from the
+day's real extremes, and every time-weighted mean is resolved only to the poll
+interval. Both feed the daily FAO-56 inputs directly, so that is an ET
+*accuracy* loss, not a cosmetic one.
 
 When "continuous updates" is enabled (Setup → Experimental) this mixin instead
 subscribes to the mapped sensor entities and appends a reading the moment the
