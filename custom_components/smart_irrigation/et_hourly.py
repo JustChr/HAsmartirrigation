@@ -97,6 +97,16 @@ def extraterrestrial_radiation_hourly(
     return max(0.0, ra)
 
 
+def clear_sky_radiation_hourly(ra_hr: float, elevation_m: float) -> float:
+    """Clear-sky solar radiation Rso [MJ m-2 h-1] (FAO-56 Eq. 37).
+
+    The most incoming shortwave a cloudless sky can deliver. Used both as the
+    reference for the cloudiness function and as the physical ceiling a measured
+    pyranometer reading is checked against on ingest.
+    """
+    return (0.75 + 2e-5 * elevation_m) * ra_hr
+
+
 def net_radiation_hourly(
     solar_rad_hr: float,
     ra_hr: float,
@@ -110,7 +120,7 @@ def net_radiation_hourly(
     for the net long-wave term (FAO-56 Eq. 38-40, hourly).
     """
     rns = (1 - ALBEDO) * solar_rad_hr
-    rso = (0.75 + 2e-5 * elevation_m) * ra_hr
+    rso = clear_sky_radiation_hourly(ra_hr, elevation_m)
     # Cloudiness function fcd = 1.35 Rs/Rso − 0.35, bounded to [0.05, 1.0].
     # At night (Rso ≈ 0) the ratio is undefined; fall back to the lower bound,
     # which keeps the (small) night-time Rnl reasonable for a status estimate.

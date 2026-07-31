@@ -561,6 +561,16 @@ KMH_TO_MS_FACTOR = 0.277777777777778  # kmh * factor = ms
 MS_TO_KMH_FACTOR = 3.6  # m/s * factor = kmh
 W_TO_MJ_DAY_FACTOR = 0.0864  # w * factor = mj/day, same for w/m2 to mj/day/m2
 K_TO_C_FACTOR = 273.15  # K-factor = C, C+factor=K
+
+# Plausibility ceiling on an ingested solar-radiation reading, as a multiple of
+# the clear-sky maximum for that moment. Broken-cloud edge enhancement really can
+# push a pyranometer above clear sky for short stretches, so the ceiling has
+# headroom; nothing physical stays there.
+SOLAR_CLEAR_SKY_TOLERANCE = 1.3
+# Absolute floor on that ceiling, in W/m2 before conversion. Clear sky is exactly
+# 0 at night and near 0 around sunrise and sunset, and a pyranometer's deadband
+# noise sits at a few W/m2, so without this every night reading would clamp.
+SOLAR_PLAUSIBILITY_FLOOR_W_M2 = 10.0
 INHG_TO_PSI_FACTOR = 0.49115420057253  # inhg * factor = PSI
 PSI_TO_INHG_FACTOR = 2.0360206576012  # psi * factor = inhg
 

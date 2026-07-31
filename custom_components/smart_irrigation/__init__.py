@@ -12,6 +12,7 @@ from datetime import datetime as dt_datetime
 from datetime import timedelta
 from functools import partial
 
+import homeassistant.util.dt as dt_util
 from homeassistant.components.sensor import DOMAIN as PLATFORM
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -50,6 +51,7 @@ from .distributor import DistributorMixin
 from .helpers import (
     altitudeToPressure,
     check_time,
+    clamp_solar_to_clear_sky,
     convert_between,
     convert_mapping_to_metric,
     loadModules,
@@ -75,6 +77,10 @@ from .weathermodules.PirateWeatherClient import PirateWeatherClient
 from .websockets import async_register_websockets
 
 _LOGGER = logging.getLogger(__name__)
+
+# How often a still-firing solar clamp is re-reported. Long enough not to spam a
+# log, short enough that a sensor stuck for a day cannot pass unnoticed.
+SOLAR_CLAMP_WARN_INTERVAL = timedelta(hours=1)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(const.DOMAIN)
 
@@ -957,6 +963,57 @@ class SmartIrrigationCoordinator(
             # psychrometric constant than leaving the calc module short a field.
             weatherdata[const.MAPPING_PRESSURE] = altitudeToPressure(elevation)
 
+    def _clamp_solar_reading(self, value, *, now=None):
+        """Ceiling one ingested solar-radiation reading at clear sky.
+
+        Shared by both writers of the buffer's Solar Radiation field, the same
+        way ``to_absolute_pressure`` is shared for Pressure: a buffer holding
+        clamped and unclamped rows would aggregate to a mix of the two.
+
+        The clamp is reported at WARNING and re-reported hourly for as long as it
+        keeps firing. Deliberately not once per lifetime: PyETO's clear-sky clamp
+        warns exactly once per module instance, and that is how a solar
+        aggregation bug stayed hidden for months while its symptom was being
+        clamped away every day. A sensor that needs clamping is a sensor to look
+        at, so it has to stay visible.
+        """
+        if value is None:
+            return value
+        if now is None:
+            now = dt_datetime.now()
+        offset = dt_util.now().utcoffset()
+        clamped = clamp_solar_to_clear_sky(
+            value,
+            now,
+            getattr(self, "_effective_latitude", None),
+            getattr(self, "_effective_longitude", None),
+            getattr(self, "_effective_elevation", None),
+            offset.total_seconds() / 3600.0 if offset else 0.0,
+        )
+        if clamped < value:
+            last = getattr(self, "_solar_clamp_warned_at", None)
+            if last is None or now - last >= SOLAR_CLAMP_WARN_INTERVAL:
+                self._solar_clamp_warned_at = now
+                _LOGGER.warning(
+                    "Solar radiation reading %.2f MJ/day/m2 exceeds the clear-sky "
+                    "maximum for %s and was clamped to %.2f. Check the Solar "
+                    "Radiation sensor: a stuck or miscalibrated pyranometer reads "
+                    "as extra evapotranspiration and under-waters every zone in "
+                    "the sensor group.",
+                    value,
+                    now.isoformat(timespec="seconds"),
+                    clamped,
+                )
+        return clamped
+
+    def _apply_solar_clamp(self, weatherdata):
+        """Ceiling a polled row's Solar Radiation at clear sky, in place."""
+        if not weatherdata or const.MAPPING_SOLRAD not in weatherdata:
+            return
+        weatherdata[const.MAPPING_SOLRAD] = self._clamp_solar_reading(
+            weatherdata[const.MAPPING_SOLRAD]
+        )
+
     async def _async_update_zone(self, zone_id):
         # update the weather data for the mapping for the zone
         _LOGGER.info("Updating weather data for zone %s", zone_id)
@@ -999,6 +1056,10 @@ class SmartIrrigationCoordinator(
                 )
             if sensor_in_mapping or static_in_mapping:
                 self._apply_pressure_type(mapping, weatherdata)
+                # Only ingested sensor/static radiation. A weather service's
+                # radiation is modelled and cannot exceed clear sky by
+                # construction, so clamping it would only add noise.
+                self._apply_solar_clamp(weatherdata)
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
@@ -1121,6 +1182,10 @@ class SmartIrrigationCoordinator(
                 )
             if sensor_in_mapping or static_in_mapping:
                 self._apply_pressure_type(mapping, weatherdata)
+                # Only ingested sensor/static radiation. A weather service's
+                # radiation is modelled and cannot exceed clear sky by
+                # construction, so clamping it would only add noise.
+                self._apply_solar_clamp(weatherdata)
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:

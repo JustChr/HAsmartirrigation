@@ -193,13 +193,17 @@ class ContinuousUpdateMixin:
         with the interval poll, and a field written by one path in a different
         quantity than the other makes the aggregate a mix of the two. Pressure is
         exactly that case — it is corrected to absolute here, matching
-        ``_apply_pressure_type`` on the poll side.
+        ``_apply_pressure_type`` on the poll side. Solar radiation is the other:
+        it is ceilinged at clear sky here, matching ``_apply_solar_clamp``.
         """
         unit = resolve_sensor_unit(
             key, the_map.get(const.MAPPING_CONF_UNIT), ha_unit, entity_id
         )
         value = convert_mapping_to_metric(raw_value, key, unit, system_is_metric)
-        return to_absolute_pressure(value, key, the_map, self.hass.config.elevation)
+        value = to_absolute_pressure(value, key, the_map, self.hass.config.elevation)
+        if key == const.MAPPING_SOLRAD:
+            value = self._clamp_solar_reading(value)
+        return value
 
     @callback
     def _continuous_seed_baseline(self, entities) -> None:
