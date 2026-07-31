@@ -18,12 +18,12 @@ computed here both triggers and sizes runs (see ``irrigation.py``), which is why
 the buffer path is gated to the configurations where it agrees with the daily
 form rather than offered everywhere.
 
-Window correctness: ONE anchor, the zone's ``last_calculated``, for ET and for
-precipitation alike, and NOT local midnight. The daily calculation already folds
-today's ET into the bucket, so a since-midnight window would double-count it
-once that calc has run; and two different anchors for the two halves of the same
-balance is upstream issue #38, where precipitation was aggregated from a window
-the ET was not.
+Window correctness: ONE anchor for ET and precipitation alike -- the zone's
+``last_calculated``, floored at its consume watermark -- and NOT local midnight.
+The daily calculation already folds today's ET into the bucket, so a
+since-midnight window would double-count it once that calc has run; and two
+different anchors for the two halves of the same balance is upstream issue #38,
+where precipitation was aggregated from a window the ET was not.
 """
 
 import datetime
@@ -163,12 +163,11 @@ class LiveEstimateMixin:
         over-count sub-hourly rate readings. Read-only — never advances the
         consume watermark. Includes snow as water-equivalent.
 
-        The anchor is the caller's, and every caller passes the zone's
-        ``last_calculated``: the ET half of the balance is measured from there,
-        so measuring the rain half from ``last_consumed_at`` instead would make
-        the deficit the difference of two different windows. That is upstream
-        issue #38. The two watermarks are equal on a healthy install — the daily
-        calc writes both from one ``now`` — which is exactly why the divergence
+        The anchor is the caller's, and every caller passes the one the ET is
+        measured from: aggregating the rain half over a different window makes
+        the deficit the difference of two windows, which is upstream issue #38.
+        The candidates are equal on a healthy install — the daily calc writes
+        both watermarks from one ``now`` — which is exactly why a divergence
         only shows up after a weather-data reset or a source change and then
         looks like anything but a window bug.
         """
@@ -407,6 +406,20 @@ class LiveEstimateMixin:
             # shared, un-anchored value). Offer no estimate until the first calc.
             if last_calc is None:
                 return result
+            # ONE anchor for both halves of the balance, but not earlier than the
+            # consume watermark. The two are equal in normal operation; a weather
+            # data reset or a sensor-group source change advances the watermark
+            # alone, deleting the readings behind it. Anchoring at
+            # last_calculated then reaches back over a stretch with no readings,
+            # and carry-forward answers by holding the CURRENT value across all
+            # of it: measured live, a reset at midday charged 16.6 mm of ET for a
+            # day whose real total is a few mm, because a bright midday
+            # pyranometer reading was held backwards through the night. Starting
+            # at the watermark instead omits the deleted stretch, which is the
+            # honest answer for data that no longer exists, and it is also the
+            # floor the buffer is pruned to.
+            last_consumed = _parse_local_naive(zone.get(const.ZONE_LAST_CONSUMED))
+            anchor = max(last_calc, last_consumed) if last_consumed else last_calc
 
             now_local = inputs.get("now") or dt_util.now().replace(tzinfo=None)
             tz_offset_h = inputs.get("tz_offset_h")
@@ -423,7 +436,7 @@ class LiveEstimateMixin:
             # observations for the same site and drifts from the ledger.
             buffer_et_mm = self._buffer_hourly_et_mm(
                 zone,
-                last_calc,
+                anchor,
                 now=now_local,
                 lat=lat,
                 lon=lon,
@@ -434,13 +447,13 @@ class LiveEstimateMixin:
                 et_mm = buffer_et_mm
                 # Same anchor as the ET, aggregated the way the daily calc does
                 # (rate -> Riemann, cumulative gauge -> delta).
-                precip_mm = self._observed_precip_since_mm(zone, last_calc)
+                precip_mm = self._observed_precip_since_mm(zone, anchor)
                 method = "hourly_sensor"
                 # The buffer is current to now, not to the last closed hour.
                 as_of = now_local.isoformat()
             elif rows:
                 tz = inputs["tz"] or 0.0
-                window = self._rows_since(rows, last_calc)
+                window = self._rows_since(rows, anchor)
                 et_mm = rigorous_et_since(window, lat, lon, tz, elevation)
                 precip_mm = sum(r.get("precipitation", 0.0) for r in window)
                 method = "hourly"
@@ -458,16 +471,16 @@ class LiveEstimateMixin:
                 tz = tz_offset_h
                 doy = local.timetuple().tm_yday
                 # Window = elapsed hours since the last daily calc, anchored to
-                # its LOCAL wall-clock time (last_calc is naive local). When the
+                # its LOCAL wall-clock time (the anchor is naive local). When the
                 # calc was on a previous day the window spans midnight, so
                 # accumulate the remaining hours of the calc day plus today's
                 # elapsed hours rather than resetting to 00:00 — the two days'
                 # daily ET0 are ~equal over a <=24 h window (today's is used).
-                days_ago = (local.date() - last_calc.date()).days
+                days_ago = (local.date() - anchor.date()).days
                 if days_ago <= 0:
-                    elapsed = [h + 0.5 for h in range(last_calc.hour, local.hour + 1)]
+                    elapsed = [h + 0.5 for h in range(anchor.hour, local.hour + 1)]
                 elif days_ago == 1:
-                    elapsed = [h + 0.5 for h in range(last_calc.hour, 24)] + [
+                    elapsed = [h + 0.5 for h in range(anchor.hour, 24)] + [
                         h + 0.5 for h in range(0, local.hour + 1)
                     ]
                 else:
@@ -479,7 +492,7 @@ class LiveEstimateMixin:
                 # actually collected into the sensor group since the last calc,
                 # aggregated the same way the daily calc does (rate->Riemann /
                 # gauge->delta), so it's time-weighted. 0 when nothing collected.
-                precip_mm = self._observed_precip_since_mm(zone, last_calc)
+                precip_mm = self._observed_precip_since_mm(zone, anchor)
                 method = "proxy"
                 as_of = local.isoformat()
 
@@ -487,8 +500,8 @@ class LiveEstimateMixin:
             # and precip deltas cover — so any surplus above field capacity is
             # drained over exactly that window (mirrors the daily calc's
             # capacity cap + drainage, integrated analytically). Compared in
-            # local time since last_calc is naive local (see _parse_local_naive).
-            elapsed_hours = max(0.0, (now_local - last_calc).total_seconds() / 3600.0)
+            # local time since the anchor is naive local (see _parse_local_naive).
+            elapsed_hours = max(0.0, (now_local - anchor).total_seconds() / 3600.0)
             # Crop coefficient (WS-4): scale the intraday ET0 term by the zone's Kc
             # so the live deficit stays consistent with the daily calc (which also
             # applies Kc to the ET term only). Precip is NOT scaled. Default 1.0.

@@ -229,32 +229,53 @@ class TestSensorOnlyInstall:
 class TestOneAnchor:
     """ET and precipitation measured from the SAME instant (upstream #38)."""
 
-    def test_both_halves_are_measured_from_last_calculated(self):
+    def test_both_halves_are_measured_from_the_last_calculation(self):
         now = ANCHOR + timedelta(hours=3)
-        # A cumulative gauge that steps at 10:30, inside the window but before a
-        # last_consumed_at that has been pushed forward on its own (what a
-        # weather-data reset or a source change does).
+        # A cumulative gauge that steps at 10:30, inside the window.
         rain = {
             ANCHOR + timedelta(minutes=30): 0.0,
             ANCHOR + timedelta(hours=1, minutes=30): 4.0,
         }
         readings = _readings(now, rain=rain)
         coord = _Coord(_Store(readings))
-        zone = _zone(
-            **{const.ZONE_LAST_CONSUMED: ANCHOR + timedelta(hours=2, minutes=30)}
-        )
-        est = coord._intraday_for_zone(zone, _inputs(now))
+        est = coord._intraday_for_zone(_zone(), _inputs(now))
 
         expected_precip = aggregate_window(readings, ANCHOR, {}).get(
             const.MAPPING_PRECIPITATION
         )
         assert expected_precip == pytest.approx(4.0)
-        # Anchored to last_consumed_at instead, the gauge's step is already
-        # behind the window and this reads 0 -- rain the deficit never sees.
         assert est["precip_since"] == pytest.approx(4.0)
         assert est["et_since"] == pytest.approx(
             round(_expected_et_mm(readings, ANCHOR, now), 2)
         )
+
+    def test_a_watermark_ahead_of_the_calculation_moves_both_halves(self):
+        """A weather reset or a source change advances the consume watermark on
+        its own and deletes the readings behind it. Anchoring at
+        ``last_calculated`` then reaches over a stretch with no readings, and
+        carry-forward answers by holding the CURRENT value across all of it --
+        measured live, a midday reset charged 16.6 mm of ET for a day whose real
+        total is a few mm. Both halves move to the watermark together, so the
+        deficit stays the difference of ONE window.
+        """
+        now = ANCHOR + timedelta(hours=3)
+        watermark = ANCHOR + timedelta(hours=2, minutes=30)
+        rain = {
+            ANCHOR + timedelta(minutes=30): 0.0,
+            ANCHOR + timedelta(hours=1, minutes=30): 4.0,
+        }
+        readings = _readings(now, rain=rain)
+        coord = _Coord(_Store(readings))
+        zone = _zone(**{const.ZONE_LAST_CONSUMED: watermark})
+        est = coord._intraday_for_zone(zone, _inputs(now))
+
+        # The gauge's step is behind the watermark, so it is the baseline rather
+        # than rain -- and the ET is the half-hour since, not three hours of it.
+        assert est["precip_since"] == pytest.approx(0.0)
+        assert est["et_since"] == pytest.approx(
+            round(_expected_et_mm(readings, watermark, now), 2)
+        )
+        assert est["et_since"] < round(_expected_et_mm(readings, ANCHOR, now), 2)
 
     def test_the_deficit_reconciles_with_its_own_terms(self):
         now = ANCHOR + timedelta(hours=3)
