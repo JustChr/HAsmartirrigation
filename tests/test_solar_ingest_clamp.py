@@ -119,15 +119,28 @@ class TestBothIngestionPaths:
         assert weatherdata == {const.MAPPING_TEMPERATURE: 25.0}
 
     def test_the_event_driven_reading_is_clamped_too(self, coordinator):
-        """The continuous-update path writes the same field, one event at a time."""
+        """The continuous-update path writes the same field, one event at a time.
+
+        Asserted with a value no clear sky can produce at any hour, because this
+        entry point clamps against the real clock: what counts as plausible
+        depends on the time of day, so a mid-range reading would pass or clamp
+        depending on when the suite runs.
+        """
         value = coordinator._continuous_metric_value(
             5000.0, const.MAPPING_SOLRAD, {}, "W/m²", "sensor.pyranometer", True
         )
         assert value < 5000.0 * F
-        # A plausible reading goes through the same call unchanged apart from
-        # the unit conversion.
+
+    def test_a_non_solar_field_is_not_touched_by_the_clamp(self, coordinator):
+        """Only Solar Radiation routes through the ceiling."""
         assert coordinator._continuous_metric_value(
-            300.0, const.MAPPING_SOLRAD, {}, "W/m²", "sensor.pyranometer", True
+            25.0, const.MAPPING_TEMPERATURE, {}, "°C", "sensor.temp", True
+        ) == pytest.approx(25.0)
+
+    def test_a_plausible_reading_passes_through_untouched(self, coordinator):
+        """Same path, with the clock pinned so the ceiling is deterministic."""
+        assert coordinator._clamp_solar_reading(
+            300.0 * F, now=SUMMER_NOON
         ) == pytest.approx(300.0 * F)
 
 
