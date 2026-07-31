@@ -603,11 +603,24 @@ class CalculationMixin:
         # replaying a window for Static or Passthrough would introduce water the
         # shipped model deliberately leaves out.
         module_uses_precipitation = m[const.MODULE_NAME] == "PyETO"
+        # Resolved BEFORE the daily equation runs, so that equation is skipped
+        # entirely when its answer would be discarded. It is not just wasted work:
+        # PyETO clamps the window's mean radiation against a DAILY clear-sky
+        # maximum, and a window that is all daylight legitimately exceeds that, so
+        # it would warn the user to check a sensor whose reading the calculation
+        # never used. A clamp warning has to mean something.
+        hourly = (
+            self._hourly_et_for_zone(zone, modinst, now=now)
+            if module_uses_precipitation
+            else None
+        )
+        delta = 0.0
         if m[const.MODULE_NAME] == "PyETO":
-            # pyeto expects pressure in hpa, solar radiation in mj/m2/day and wind speed in m/s
-            delta = modinst.calculate(
-                weather_data=weatherdata, forecast_data=forecastdata
-            )
+            if hourly is None:
+                # pyeto expects pressure in hpa, solar radiation in mj/m2/day and wind speed in m/s
+                delta = modinst.calculate(
+                    weather_data=weatherdata, forecast_data=forecastdata
+                )
             # only PyETO uses precipitation
             precip = weatherdata.get(const.MAPPING_PRECIPITATION, 0)
             _LOGGER.debug("[calculate-module]: precip: %s", precip)
@@ -634,11 +647,6 @@ class CalculationMixin:
             kc = const.CONF_DEFAULT_KC
         hour_multiplier = weatherdata.get(const.MAPPING_DATA_MULTIPLIER, 1.0)
         _LOGGER.debug("[calculate-module]: hour_multiplier: %s", hour_multiplier)
-        hourly = (
-            self._hourly_et_for_zone(zone, modinst, now=now)
-            if module_uses_precipitation
-            else None
-        )
         hourly_et = None
         if hourly is not None:
             hourly_total, hourly_et = hourly
