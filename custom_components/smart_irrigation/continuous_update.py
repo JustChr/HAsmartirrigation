@@ -157,7 +157,6 @@ class ContinuousUpdateMixin:
 
         self.async_teardown_continuous_updates()
         self._continuous_targets = targets
-        self._continuous_entities = entities
 
         if not entities:
             _LOGGER.debug("Continuous updates: disabled or no sensor-mapped fields")
@@ -166,6 +165,10 @@ class ContinuousUpdateMixin:
         self._continuous_unsub = async_track_state_change_event(
             self.hass, list(entities), self._sensor_state_changed
         )
+        # Recorded only once the subscription exists. The early return above
+        # diffs against this set, so recording it first and then failing to
+        # subscribe would leave ingestion off with nothing to retry it.
+        self._continuous_entities = entities
         _LOGGER.info(
             "Continuous updates: tracking %d weather sensor(s), debounce %d ms",
             len(entities),

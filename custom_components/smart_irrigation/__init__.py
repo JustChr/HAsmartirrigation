@@ -960,7 +960,7 @@ class SmartIrrigationCoordinator(
                 # writes, and a spot sample that pulls the aggregate toward
                 # whatever the sensor happened to read on the tick.
                 #
-                # Both exclusions are load-bearing. A weather-service field only
+                # Both exclusions are required. A weather-service field only
                 # arrives by API call and the event path never fetches it (one
                 # call per sensor change could cost real money). A STATIC field is
                 # only ever written by this poll — altmenorg's rule ignored that
