@@ -14,10 +14,10 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
-from .et_estimate import drained_over_window
+from .et_estimate import drained_over_window, replay_water_balance
 from .helpers import convert_between, loadModules, parse_datetime
 from .localize import localize
-from .weather_aggregate import aggregate_window, select_window
+from .weather_aggregate import aggregate_window, build_substeps, select_window
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -363,7 +363,9 @@ class CalculationMixin:
             )
             return
 
-        calc_data = await self.calculate_module(zone, weatherdata, forecastdata)
+        calc_data = await self.calculate_module(
+            zone, weatherdata, forecastdata, now=now
+        )
         if calc_data is None:
             _LOGGER.error(
                 "async_calculate_zone: calculation returned no result for zone %s "
@@ -425,7 +427,47 @@ class CalculationMixin:
                 modinst._elevation = eff_elev
         return modinst
 
-    async def calculate_module(self, zone, weatherdata, forecastdata):
+    def _substeps_for_zone(self, zone, precip_total, *, now):
+        """Water-balance sub-steps for this zone's window, or None to lump.
+
+        Reconciled against the aggregate's precipitation total before being
+        trusted. ZONE_DELTA is published from the aggregate while the bucket is
+        driven by these increments, so the two have to be the same water; they
+        are derived from the same rows by the same rule, and a disagreement means
+        an assumption has broken. Falling back then costs the sub-stepping but
+        keeps the ledger self-consistent, which is the more important property.
+        """
+        mapping_id = zone.get(const.ZONE_MAPPING)
+        if mapping_id is None:
+            return None
+        mapping = self.store.get_mapping(mapping_id)
+        if not isinstance(mapping, dict):
+            return None
+        readings = self.store.get_mapping_buffer(mapping_id)
+        mappings_config = mapping.get(const.MAPPING_MAPPINGS)
+        if not isinstance(readings, list) or not isinstance(mappings_config, dict):
+            return None
+        steps = build_substeps(
+            readings,
+            _as_datetime(zone.get(const.ZONE_LAST_CONSUMED)),
+            mappings_config,
+            now=now,
+        )
+        if not steps:
+            return None
+        stepped = sum(s.precip_mm for s in steps)
+        if abs(stepped - precip_total) > max(1e-6, abs(precip_total) * 1e-6):
+            _LOGGER.debug(
+                "[calculate-module]: sub-step precipitation %s does not reconcile "
+                "with the aggregated %s for zone %s; using the single-shot balance",
+                stepped,
+                precip_total,
+                zone.get(const.ZONE_ID),
+            )
+            return None
+        return steps
+
+    async def calculate_module(self, zone, weatherdata, forecastdata, *, now=None):
         """Calculate irrigation values for a zone using the specified weather and forecast data.
 
         Args:
@@ -462,6 +504,11 @@ class CalculationMixin:
         explanation = ""
 
         precip = 0
+        # Only PyETO folds precipitation into the deficit, and sub-stepping the
+        # water balance is only meaningful for a module that models rain at all:
+        # replaying a window for Static or Passthrough would introduce water the
+        # shipped model deliberately leaves out.
+        module_uses_precipitation = m[const.MODULE_NAME] == "PyETO"
         if m[const.MODULE_NAME] == "PyETO":
             # pyeto expects pressure in hpa, solar radiation in mj/m2/day and wind speed in m/s
             delta = modinst.calculate(
@@ -495,20 +542,10 @@ class CalculationMixin:
         delta = delta * kc
         hour_multiplier = weatherdata.get(const.MAPPING_DATA_MULTIPLIER, 1.0)
         _LOGGER.debug("[calculate-module]: hour_multiplier: %s", hour_multiplier)
-        delta = delta * hour_multiplier + precip
+        et_delta = delta * hour_multiplier
+        delta = et_delta + precip
         data[const.ZONE_DELTA] = delta
         _LOGGER.debug("[calculate-module]: new delta: %s", delta)
-        newbucket = bucket + delta
-
-        # if maximum bucket configured, limit bucket with that.
-        # any water above maximum is removed with runoff / bypass flow.
-        if maximum_bucket is not None and newbucket > maximum_bucket:
-            newbucket = float(maximum_bucket)
-            _LOGGER.debug(
-                "[calculate-module]: capped new bucket because of maximum bucket: %s",
-                newbucket,
-            )
-        bucket_plus_delta_capped = newbucket
 
         # take drainage rate into account
         drainage_rate = zone.get(const.ZONE_DRAINAGE_RATE, 0.0)
@@ -521,19 +558,63 @@ class CalculationMixin:
                 const.UNIT_INCH, const.UNIT_MM, drainage_rate
             )
         _LOGGER.debug("[calculate-module]: drainage_rate: %s", drainage_rate)
-        # Drainage only acts on water above field capacity (surplus > 0) and is
-        # integrated analytically over the elapsed window (see
-        # ``drained_over_window``). This replaces the previous single
-        # explicit-Euler step, which over-drained because the rate was sampled
-        # once at the end-of-window surplus and charged for the whole window.
         elapsed_hours = hour_multiplier * 24
-        drainage = drained_over_window(
-            bucket_plus_delta_capped,
-            drainage_rate,
-            elapsed_hours,
-            maximum_bucket if maximum_bucket and maximum_bucket > 0 else None,
+        # A maximum bucket of 0 still clamps, but there is no field capacity to
+        # scale Brooks-Corey against, so drainage falls back to a constant rate.
+        drain_maximum = (
+            maximum_bucket if maximum_bucket and maximum_bucket > 0 else None
         )
-        newbucket = bucket_plus_delta_capped - drainage
+
+        # The single-shot form of what follows lands the window's whole
+        # precipitation at the window START, clamps it against maximum_bucket
+        # there, and drains whatever survives for the entire window. Both errors
+        # run one way: late rain is over-drained and spread-out rain is
+        # over-clamped, because the drainage that would have made room between
+        # bursts never happens. Replaying the window at its own event times
+        # removes both without changing the ledger — still one calculation, one
+        # bucket write, one delta, one explanation. See ``build_substeps``.
+        steps = (
+            self._substeps_for_zone(zone, precip, now=now or datetime.now())
+            if module_uses_precipitation
+            else None
+        )
+        runoff = 0.0
+        # Kept for the explanation in both paths: it is the number the reader
+        # recognises as "bucket plus delta, capped", and it is what selects the
+        # no-drainage wording.
+        bucket_plus_delta_capped = bucket + delta
+        if maximum_bucket is not None and bucket_plus_delta_capped > maximum_bucket:
+            bucket_plus_delta_capped = float(maximum_bucket)
+        if steps is not None:
+            newbucket, drainage, runoff = replay_water_balance(
+                bucket,
+                et_delta,
+                steps,
+                drainage_rate,
+                maximum_bucket,
+                drain_maximum,
+            )
+            _LOGGER.debug(
+                "[calculate-module]: sub-stepped water balance over %s steps: "
+                "drainage %s, runoff %s",
+                len(steps),
+                drainage,
+                runoff,
+            )
+        else:
+            newbucket = bucket_plus_delta_capped
+            # Drainage only acts on water above field capacity (surplus > 0) and
+            # is integrated analytically over the elapsed window (see
+            # ``drained_over_window``). This replaces the previous single
+            # explicit-Euler step, which over-drained because the rate was sampled
+            # once at the end-of-window surplus and charged for the whole window.
+            drainage = drained_over_window(
+                bucket_plus_delta_capped,
+                drainage_rate,
+                elapsed_hours,
+                drain_maximum,
+            )
+            newbucket = bucket_plus_delta_capped - drainage
         _LOGGER.debug("[calculate-module]: current_drainage: %s", drainage)
 
         data[const.ZONE_CURRENT_DRAINAGE] = drainage
@@ -646,7 +727,36 @@ class CalculationMixin:
             self.hass.config.language,
         )
 
-        if bucket_plus_delta_capped <= 0:
+        if steps is not None:
+            # The single-shot formulas below would not add up here: the balance
+            # was replayed, so rain, drainage and the clamp were applied at the
+            # times they happened. Report what the replay actually did instead.
+            runoff_loc = await localize(
+                "module.calculation.explanation.runoff-variable",
+                self.hass.config.language,
+            )
+            explanation += (
+                await localize(
+                    "module.calculation.explanation.water-balance-substepped",
+                    self.hass.config.language,
+                )
+                + f" {len(steps)}.<br/>"
+                + await localize(
+                    "module.calculation.explanation.current-drainage-is",
+                    self.hass.config.language,
+                )
+                + f" {drainage:.2f}"
+            )
+            if runoff > 0:
+                explanation += (
+                    ".<br/>"
+                    + await localize(
+                        "module.calculation.explanation.runoff-is",
+                        self.hass.config.language,
+                    )
+                    + f" {runoff:.2f}"
+                )
+        elif bucket_plus_delta_capped <= 0:
             explanation += (
                 await localize(
                     "module.calculation.explanation.no-drainage",
@@ -675,7 +785,16 @@ class CalculationMixin:
             self.hass.config.language,
         )
 
-        if maximum_bucket is not None and maximum_bucket > 0:
+        if steps is not None:
+            # Water in minus water out, and it balances exactly: every sub-step
+            # adds its ET share and its rain and removes its drainage and its
+            # runoff, so the totals telescope back to this one line.
+            explanation += (
+                f" [{old_bucket_loc}] + [{delta_loc}] - [{drainage_loc}]"
+                f" - [{runoff_loc}] = {old_bucket:.2f}{data[const.ZONE_DELTA]:+.2f}"
+                f" - {drainage:.2f} - {runoff:.2f} = {newbucket:.2f}.<br/>"
+            )
+        elif maximum_bucket is not None and maximum_bucket > 0:
             explanation += f" min([{old_bucket_loc}] + [{delta_loc}], {max_bucket_loc}) - [{drainage_loc}] = min({old_bucket:.2f}{data[const.ZONE_DELTA]:+.2f}, {maximum_bucket:.1f}) - {drainage:.2f} = {newbucket:.2f}.<br/>"
         else:
             explanation += f" [{old_bucket_loc}] + [{delta_loc}] - [{drainage_loc}] = {old_bucket:.2f} + {data[const.ZONE_DELTA]:.2f} - {drainage:.2f} = {newbucket:.2f}.<br/>"

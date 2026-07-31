@@ -90,6 +90,9 @@
         "current-drainage-is": "Current drainage is calculated as",
         "drainage-integrated": "the surplus above field capacity drains continuously over the window (Brooks–Corey), so the rate falls as it drains",
         "no-drainage": "Current drainage is 0 because",
+        "water-balance-substepped": "The water balance was replayed across the window, so rain, drainage and the maximum bucket clamp were applied at the times they occurred rather than all at the start of the window. Number of steps:",
+        "runoff-is": "Water above the maximum bucket that was lost to runoff:",
+        "runoff-variable": "runoff",
         "forecast-weighting-applied": "Forecast weighting reduced the deficit for the expected rain",
         "crop-coefficient-applied": "Scaled by the crop coefficient"
       }

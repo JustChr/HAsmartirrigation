@@ -28,14 +28,28 @@ off this module is byte-identical to the poll-only behaviour that shipped before
 continuous updates existed.
 """
 
+import bisect
 import datetime
 import logging
 import statistics
+from typing import NamedTuple
 
 from . import const
 from .helpers import parse_datetime
 
 _LOGGER = logging.getLogger(__name__)
+
+# Ceiling on how long one water-balance sub-step may run. Sub-steps are aligned
+# to wall-clock hours rather than to "every N hours from the window start" so
+# that they coincide with the hour FAO-56 hourly ETo is defined on — the ET
+# quantum a later change can hand this loop without re-cutting the steps.
+_SUBSTEP_MAX_HOURS = 1.0
+
+# Backstop on the hour-boundary walk. A zone whose watermark is absurdly far in
+# the past (a corrupted store, a clock jump) would otherwise spin building
+# millions of boundaries. Past this the precipitation event times still cut the
+# window; only the idle-hours ceiling is dropped.
+_SUBSTEP_MAX_HOUR_BOUNDARIES = 24 * 62
 
 # Aggregates that ACCUMULATE over the window (area under a rate curve, or a
 # running total) rather than summarising level samples. A carried-forward value
@@ -394,3 +408,244 @@ def _aggregate(
                     dt_hours = 1.0
                 riemann += ((d[i] + d[i + 1]) / 2) * dt_hours
             resultdata[key] = riemann
+
+
+class WaterStep(NamedTuple):
+    """One sub-step of the water balance over a calculation window.
+
+    ``et_weight`` is this step's share of the window's total ET and the weights
+    sum to 1.0, so the window's ET is exactly conserved however it is split.
+    ``precip_mm`` is the rain that landed at the END of the step: a rain-gauge
+    increment read at time t fell during the interval ending at t.
+    """
+
+    dt_hours: float
+    et_weight: float
+    precip_mm: float
+
+
+def _clamped_samples(samples, start, end):
+    """``[(time, value)]`` clamped into the window, stamps required.
+
+    Returns None if any stamp is missing, which is the signal to fall back: a
+    value with no time cannot be placed on a timeline.
+    """
+    out = []
+    for t, v in samples:
+        if t is None:
+            return None
+        out.append((min(max(t, start), end), float(v)))
+    return out
+
+
+def _hold_integral_table(samples, start, end):
+    """Cumulative zero-order-hold integral of a level field over the window.
+
+    Same hold rules as ``_time_weighted_mean`` — first sample held back to the
+    window start, last held forward to the end — but retained as a cumulative
+    table so an arbitrary sub-interval's integral is two lookups rather than a
+    re-scan. Returns ``(points, values, cumulative)`` where ``values[i]`` is in
+    force on ``[points[i], points[i + 1]]``.
+    """
+    points = [start]
+    values = []
+    prev_v = samples[0][1]
+    for t, v in samples:
+        if t > points[-1]:
+            points.append(t)
+            values.append(prev_v)
+        prev_v = v
+    if end > points[-1]:
+        points.append(end)
+        values.append(prev_v)
+    cumulative = [0.0]
+    for i, v in enumerate(values):
+        cumulative.append(
+            cumulative[-1] + v * (points[i + 1] - points[i]).total_seconds()
+        )
+    return points, values, cumulative
+
+
+def _hold_integral_upto(points, values, cumulative, t):
+    """Integral of the held step function from the window start to ``t``."""
+    if t <= points[0]:
+        return 0.0
+    if t >= points[-1]:
+        return cumulative[-1]
+    i = bisect.bisect_right(points, t) - 1
+    return cumulative[i] + values[i] * (t - points[i]).total_seconds()
+
+
+def _precip_increments(samples, aggregate):
+    """``[(time, mm)]`` whose sum is exactly what ``_aggregate`` reports.
+
+    The two halves of the calculation have to agree to the last decimal: the
+    aggregate's total becomes ZONE_DELTA while these increments drive the bucket,
+    and a mismatch would surface as a ledger that does not add up. So this
+    mirrors the arithmetic in ``_aggregate`` rather than re-deriving it.
+
+    Returns None when the field has no time structure to sub-step, which is the
+    signal to keep the single-shot path.
+    """
+    if aggregate == const.MAPPING_CONF_AGGREGATE_DELTA:
+        # Cumulative counter: the first sample is the baseline (contributing 0),
+        # and a drop to zero is a midnight rollover rather than negative rain.
+        out = []
+        prev = samples[0][1]
+        for t, val in samples:
+            if val < prev:
+                prev = 0.0 if val == 0 else val
+            out.append((t, val - prev))
+            prev = val
+        return out
+    if aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM:
+        if len(samples) < 2:
+            # A lone rate sample takes _aggregate's single-value path, which
+            # reports the rate verbatim. There is no interval to attribute it to.
+            return None
+        out = []
+        for i in range(len(samples) - 1):
+            t0, v0 = samples[i]
+            t1, v1 = samples[i + 1]
+            dt_hours = max((t1 - t0).total_seconds() / 3600, 0)
+            out.append((t1, (v0 + v1) / 2 * dt_hours))
+        return out
+    return None
+
+
+def _substep_boundaries(start, end, event_times):
+    """Sorted cut points for the window: every event, plus the hourly ceiling.
+
+    Rain events are where sub-stepping earns its keep; wall-clock hour boundaries
+    bound how long a single step can run when nothing is happening.
+    """
+    cuts = {start, end}
+    for t in event_times:
+        if start < t < end:
+            cuts.add(t)
+    step = datetime.timedelta(hours=_SUBSTEP_MAX_HOURS)
+    boundary = start.replace(minute=0, second=0, microsecond=0) + step
+    added = 0
+    while boundary < end and added < _SUBSTEP_MAX_HOUR_BOUNDARIES:
+        if boundary > start:
+            cuts.add(boundary)
+        boundary += step
+        added += 1
+    return sorted(cuts)
+
+
+def build_substeps(readings, watermark, mappings_config, *, now=None):
+    """Cut a zone's window into ordered water-balance sub-steps, or None.
+
+    The single-shot form collapses a whole window to one ``(delta, elapsed)``
+    pair: every drop of the window's rain lands at the window start, is clamped
+    against ``maximum_bucket`` there, and whatever survives then drains for the
+    full window. Both errors run one way. Late rain is over-drained (a downpour
+    at :55 is charged a full hour of drainage), and rain spread through the day
+    is over-clamped, because the drainage that would have made room between the
+    bursts never happens. Measured across 140 real rain days, that booked
+    186 mm/year as runoff that never occurred and cost up to 12.7 mm of bucket,
+    which is 88 minutes of runtime on the slowest zone here.
+
+    Replaying the window at its own event times removes both, and it is exact
+    rather than approximate: ``drained_over_window`` is the closed-form solution
+    of the drainage ODE at any dt, so irregular steps introduce no error.
+
+    Returns None whenever the window cannot be sub-stepped faithfully — no
+    timestamps, a zero-length window, or a precipitation aggregate with no time
+    structure. The caller then keeps the single-shot behaviour, so the failure
+    mode is the status quo rather than a fabricated series.
+    """
+    if now is None:
+        now = datetime.datetime.now()
+
+    boundary, window = select_window(readings, watermark)
+    if boundary is None and not window:
+        return None
+    effective = []
+    if boundary is not None:
+        effective.append({**boundary, const.RETRIEVED_AT: watermark})
+    effective.extend(window)
+
+    start, end = _window_bounds(effective, watermark, now)
+    if start is None:
+        return None
+
+    by_sensor = _group_by_sensor(effective)
+
+    increments = []
+    precip_samples = by_sensor.get(const.MAPPING_PRECIPITATION)
+    if precip_samples:
+        precip_samples = _clamped_samples(precip_samples, start, end)
+        if precip_samples is None:
+            return None
+        increments = _precip_increments(
+            precip_samples,
+            _effective_aggregate(const.MAPPING_PRECIPITATION, mappings_config),
+        )
+        if increments is None:
+            return None
+
+    # Only rain that actually fell earns a cut. A cumulative gauge reports on
+    # every reading, so a dry day would otherwise be sliced into one step per
+    # reading for no gain: the interval that matters is the one the rain landed
+    # in, not the one the gauge happened to be read in.
+    increments = [(t, mm) for t, mm in increments if mm]
+    cuts = _substep_boundaries(start, end, [t for t, _ in increments])
+    if len(cuts) < 2:
+        return None
+
+    # Rain is booked against the step it ends, and every increment time is one of
+    # the cuts -- except one landing exactly on the window start, which belongs
+    # to the first step rather than to a step that does not exist before it.
+    rain_at = {}
+    for t, mm in increments:
+        idx = min(max(bisect.bisect_left(cuts, t), 1), len(cuts) - 1)
+        rain_at[cuts[idx]] = rain_at.get(cuts[idx], 0.0) + mm
+
+    # ET is apportioned by measured solar radiation rather than evenly by elapsed
+    # time. Both conserve the window total and the two differ by <= 0.004 mm on
+    # the bucket, but ETo is ~93% radiation-driven at this site, so the
+    # solar-weighted curve tracks a true per-minute evaluation to 0.006 mm/day
+    # against 0.039 for the flat one, with an hour-boundary jump smaller than a
+    # typical within-hour step. That is what keeps the intra-day shape honest for
+    # anything that later publishes it.
+    solar = by_sensor.get(const.MAPPING_SOLRAD)
+    table = None
+    if solar:
+        solar = _clamped_samples(solar, start, end)
+        if solar is not None:
+            points, values, cumulative = _hold_integral_table(solar, start, end)
+            if cumulative[-1] > 0:
+                table = (points, values, cumulative)
+
+    steps = []
+    weights = []
+    for i in range(len(cuts) - 1):
+        a, b = cuts[i], cuts[i + 1]
+        dt_hours = (b - a).total_seconds() / 3600
+        if table is None:
+            # No usable radiation (unmapped, or a window entirely after dark):
+            # fall back to elapsed time, which is the same total spread flat.
+            weight = dt_hours
+        else:
+            weight = max(
+                0.0,
+                _hold_integral_upto(*table, b) - _hold_integral_upto(*table, a),
+            )
+        weights.append(weight)
+        steps.append((dt_hours, rain_at.get(b, 0.0)))
+
+    total = sum(weights)
+    if total <= 0:
+        # Night-only window under solar weighting. ET over such a window is
+        # <= 0.017 mm/day, but it still has to go somewhere: spread it by time.
+        weights = [dt for dt, _ in steps]
+        total = sum(weights)
+        if total <= 0:
+            return None
+
+    return [
+        WaterStep(dt_hours, weight / total, precip_mm)
+        for (dt_hours, precip_mm), weight in zip(steps, weights, strict=True)
+    ]

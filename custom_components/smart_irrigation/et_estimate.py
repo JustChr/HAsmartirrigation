@@ -139,6 +139,57 @@ def drained_over_window(
     return surplus - w_end
 
 
+def replay_water_balance(
+    bucket: float,
+    et_total: float,
+    steps,
+    drainage_rate: float,
+    maximum_bucket: float | None,
+    drain_maximum: float | None = None,
+) -> tuple[float, float, float]:
+    """Step the window's water balance instead of lumping it into one update.
+
+    ``et_total`` is the window's whole ET contribution (negative, already scaled
+    by the crop coefficient and the window length) and ``steps`` are
+    ``WaterStep``s whose ``et_weight`` sums to 1, so the same total ET is charged
+    either way — only its interleaving with rain and drainage changes. Each step
+    runs **ET share, then drainage, then rain, then the clamp**, which is the
+    order the single-shot form applies over the whole window at once.
+
+    Exact rather than approximate at any step length: ``drained_over_window`` is
+    the closed-form solution of the drainage ODE, so cutting the window at
+    irregular event times costs nothing in accuracy.
+
+    ``drain_maximum`` is the field capacity Brooks-Corey scales against, which is
+    ``maximum_bucket`` except when that is 0 — a bucket still clamps at 0 but has
+    no capacity to scale by, so drainage falls back to a constant rate.
+
+    Returns ``(bucket, drainage_total, runoff_total)``. The three conserve water
+    against the inputs: ``bucket + et_total + rain - drainage - runoff``.
+    """
+    value = float(bucket)
+    # The stored bucket is always the output of a previous clamp, so this is a
+    # no-op in practice; it keeps the invariant if one was set externally. Not
+    # counted as runoff — it is not this window's water.
+    if maximum_bucket is not None and value > maximum_bucket:
+        value = float(maximum_bucket)
+
+    drainage_total = 0.0
+    runoff_total = 0.0
+    for step in steps:
+        value += et_total * step.et_weight
+        drained = drained_over_window(
+            value, drainage_rate, step.dt_hours, drain_maximum
+        )
+        value -= drained
+        drainage_total += drained
+        value += step.precip_mm
+        if maximum_bucket is not None and value > maximum_bucket:
+            runoff_total += value - float(maximum_bucket)
+            value = float(maximum_bucket)
+    return value, drainage_total, runoff_total
+
+
 def live_deficit(
     bucket: float,
     et_since: float,
