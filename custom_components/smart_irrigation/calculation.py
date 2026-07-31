@@ -576,6 +576,13 @@ class CalculationMixin:
         if not modinst:
             _LOGGER.error("Unknown module for zone %s", zone.get(const.ZONE_NAME))
             return None
+        # Resolved ONCE. The hourly ETo rows and the water-balance sub-steps are
+        # two reductions of the same window that have to agree on where the hour
+        # boundaries fall, so reading the clock separately for each would let a
+        # window end land in different hours and silently drop the calculation
+        # back to the single-shot path.
+        if now is None:
+            now = datetime.now()
         # precip = 0
         ha_config_is_metric = self.hass.config.units is METRIC_SYSTEM
         bucket = zone.get(const.ZONE_BUCKET)
@@ -628,7 +635,7 @@ class CalculationMixin:
         hour_multiplier = weatherdata.get(const.MAPPING_DATA_MULTIPLIER, 1.0)
         _LOGGER.debug("[calculate-module]: hour_multiplier: %s", hour_multiplier)
         hourly = (
-            self._hourly_et_for_zone(zone, modinst, now=now or datetime.now())
+            self._hourly_et_for_zone(zone, modinst, now=now)
             if module_uses_precipitation
             else None
         )
@@ -676,9 +683,7 @@ class CalculationMixin:
         # removes both without changing the ledger — still one calculation, one
         # bucket write, one delta, one explanation. See ``build_substeps``.
         steps = (
-            self._substeps_for_zone(
-                zone, precip, now=now or datetime.now(), hourly_et=hourly_et
-            )
+            self._substeps_for_zone(zone, precip, now=now, hourly_et=hourly_et)
             if module_uses_precipitation
             else None
         )
