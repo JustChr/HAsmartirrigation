@@ -348,6 +348,27 @@ async def test_errored_cycle_clears_active_cycle_marker():
     c._dist_clear_cycle.assert_awaited_once_with(0)
 
 
+async def test_errored_cycle_releases_the_master_hold():
+    # Refcount master model (f7dc6c17): an UNEXPECTED mid-sweep error must release
+    # this distributor's own 'dist:<id>' hold. _dist_master_start took the hold; the
+    # terminal _dist_master_end (which discards it) is SKIPPED on the error path, so
+    # without an explicit release the hold LEAKS -- master.py::_fire returns while any
+    # hold remains and never powers the pump off (master_off_after), so the pump
+    # dead-heads until the next same-distributor cycle or a restart reconcile.
+    c = _loop_host([_mem(1, 1), _mem(2, 2)])
+    c.store.config.master_entity = "switch.pump"  # a real master must be configured
+    c.async_master_schedule_off = AsyncMock()  # last-release collapse; no hardware
+    cfg = _dist_cfg()
+    token = c._dist_master_token(cfg)
+    c._master_holds = {token}  # _dist_master_start acquired this before the raise
+    c._dist_run_sweep = AsyncMock(side_effect=RuntimeError("boom"))
+
+    with pytest.raises(RuntimeError):
+        await c.async_run_distributor_cycle(cfg)
+
+    assert token not in c.master_holds(), "master hold leaked after a mid-sweep error"
+
+
 async def test_cycle_survives_none_pause_and_skip():
     # A distributor persisted with None timings must not crash the cycle.
     members = [_mem(1, 1), _mem(2, 2)]

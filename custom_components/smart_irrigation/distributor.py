@@ -998,14 +998,34 @@ class DistributorMixin:
             # recover it either (it keys on a non-empty marker). Close the inlet
             # defensively before propagating. The close is idempotent (classic: inlet
             # domain off; service: stop_service), so it is safe even if the sweep had
-            # already closed it. The global master is left to ride its own scheduled-
-            # off deadline down (async_master_schedule_off), so it is not stuck on.
+            # already closed it.
             try:
                 await self._dist_close_inlet(distributor)
             except Exception:  # noqa: BLE001 - best-effort safety close
                 _LOGGER.exception(
                     "Failed to defensively close distributor %s inlet after a "
                     "cycle error",
+                    dist_id,
+                )
+            # Physical safety (refcount master model): release the master hold that
+            # _dist_master_start took for this sweep. The terminal _dist_master_end,
+            # which discards this token, is SKIPPED on the error path — so without
+            # this the 'dist:<id>' hold LEAKS: master.py::_fire returns while any hold
+            # remains and never powers the pump off (master_off_after), so a pump
+            # dead-heads until the next same-distributor cycle re-acquires+releases
+            # the identical token or a restart reconcile — potentially ~a day on a
+            # daily schedule. (f7dc6c17 converted _dist_master_start/end to holds but
+            # left this except path — and its now-stale "rides its own deadline down"
+            # comment — unadjusted.) async_master_release is idempotent (a plain
+            # set.discard) and no-ops when no master is configured, so it is safe even
+            # if the sweep raised before _dist_master_start ran. Best-effort — a
+            # raising release must not mask the original error.
+            # siehe test_distributor_cycle.py::test_errored_cycle_releases_the_master_hold
+            try:
+                await self.async_master_release(self._dist_master_token(distributor))
+            except Exception:  # noqa: BLE001 - best-effort hold release
+                _LOGGER.exception(
+                    "Failed to release distributor %s master hold after a cycle error",
                     dist_id,
                 )
             raise
