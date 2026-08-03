@@ -55,6 +55,50 @@ def atm_pressure(elevation_m: float) -> float:
     return 101.3 * math.pow((293.0 - 0.0065 * elevation_m) / 293.0, 5.26)
 
 
+def _solar_declination(doy: int) -> float:
+    """Solar declination δ [rad] for a day of year (FAO-56 Eq. 24)."""
+    return 0.409 * math.sin((2 * math.pi / 365) * doy - 1.39)
+
+
+def _solar_time_angle(
+    longitude_deg: float, doy: int, hour: float, tz_offset_h: float
+) -> float:
+    """Solar time angle ω [rad] at local clock ``hour`` (FAO-56 Eq. 31-33).
+
+    ``longitude_deg`` / ``tz_offset_h`` use the usual east-positive convention
+    (e.g. Vienna +16.23°, UTC+2); they are converted internally to FAO's
+    west-of-Greenwich convention.
+    """
+    # Seasonal correction for solar time [hour].
+    b = (2 * math.pi * (doy - 81)) / 364
+    sc = 0.1645 * math.sin(2 * b) - 0.1255 * math.cos(b) - 0.025 * math.sin(b)
+    # Longitudes of the time-zone centre (Lz) and the site (Lm), degrees WEST.
+    lz_west = -15.0 * tz_offset_h
+    lm_west = -longitude_deg
+    return (math.pi / 12) * ((hour + 0.06667 * (lz_west - lm_west) + sc) - 12)
+
+
+def solar_elevation_sin(
+    latitude_deg: float,
+    longitude_deg: float,
+    doy: int,
+    hour: float,
+    tz_offset_h: float,
+) -> float:
+    """sin(β), the sine of the solar elevation angle, at local clock ``hour``.
+
+    Negative before sunrise and after sunset. FAO-56 Eq. 62 — the airmass term
+    Eq. 36 divides by, which is what makes its clear-sky transmittance fall at
+    low sun instead of staying at the constant Eq. 37 assumes.
+    """
+    lat = math.radians(latitude_deg)
+    sol_dec = _solar_declination(doy)
+    omega = _solar_time_angle(longitude_deg, doy, hour, tz_offset_h)
+    return math.sin(lat) * math.sin(sol_dec) + math.cos(lat) * math.cos(
+        sol_dec
+    ) * math.cos(omega)
+
+
 def extraterrestrial_radiation_hourly(
     latitude_deg: float,
     longitude_deg: float,
@@ -73,16 +117,10 @@ def extraterrestrial_radiation_hourly(
     """
     lat = math.radians(latitude_deg)
     # Solar declination [rad] and inverse relative Earth-Sun distance.
-    sol_dec = 0.409 * math.sin((2 * math.pi / 365) * doy - 1.39)
+    sol_dec = _solar_declination(doy)
     dr = 1 + 0.033 * math.cos((2 * math.pi / 365) * doy)
-    # Seasonal correction for solar time [hour].
-    b = (2 * math.pi * (doy - 81)) / 364
-    sc = 0.1645 * math.sin(2 * b) - 0.1255 * math.cos(b) - 0.025 * math.sin(b)
-    # Longitudes of the time-zone centre (Lz) and the site (Lm), degrees WEST.
-    lz_west = -15.0 * tz_offset_h
-    lm_west = -longitude_deg
     # Solar time angle at the midpoint of the period and the hour bounds.
-    omega = (math.pi / 12) * ((hour_mid + 0.06667 * (lz_west - lm_west) + sc) - 12)
+    omega = _solar_time_angle(longitude_deg, doy, hour_mid, tz_offset_h)
     omega1 = omega - math.pi / 24
     omega2 = omega + math.pi / 24
     ra = (
@@ -105,6 +143,45 @@ def clear_sky_radiation_hourly(ra_hr: float, elevation_m: float) -> float:
     pyranometer reading is checked against on ingest.
     """
     return (0.75 + 2e-5 * elevation_m) * ra_hr
+
+
+def clear_sky_radiation_hourly_eq36(
+    ra_hr: float,
+    sin_beta: float,
+    pressure_kpa: float,
+    avp_kpa: float,
+) -> float:
+    """Clear-sky solar radiation Rso [MJ m-2 h-1] (FAO-56 Eq. 36).
+
+    Eq. 37 above models transmittance as the CONSTANT ``0.75 + 2e-5 z``. Real
+    transmittance falls with airmass, so near sunrise and sunset Eq. 37
+    overstates Rso. That matters wherever Rso is a *denominator*: a clearness
+    ratio ``Rs/Rso`` taken from a low-sun reading comes out artificially low, and
+    carrying that ratio into a brighter hour then under-estimates the radiation
+    there.
+
+    Eq. 36 splits transmittance into a beam component Kb (Eq. 36 proper, driven
+    by relative airmass ``1/sin β``, station pressure and precipitable water
+    Eq. 34) and a diffuse component Kd (Eq. 35), so the denominator tracks the
+    sun's height. Turbidity Kt is taken as 1.0 (clean air), the FAO default.
+
+    ⚠️ The benefit has the OPPOSITE sign for a clear-sky *ceiling* such as
+    ``helpers.clamp_solar_to_clear_sky``: a lower Rso tightens the clamp and
+    turns legitimate readings into false positives. A ratio wants an accurate
+    denominator, a ceiling wants a generous one — do not swap Eq. 37 for this
+    one there.
+
+    Returns 0.0 when the sun is at or below the horizon.
+    """
+    if sin_beta <= 0.001 or ra_hr <= 0:
+        return 0.0
+    # Precipitable water in the atmosphere [mm] (Eq. 34).
+    w = 0.14 * max(0.0, avp_kpa) * pressure_kpa + 2.1
+    kb = 0.98 * math.exp(
+        -0.00146 * pressure_kpa / sin_beta - 0.075 * math.pow(w / sin_beta, 0.4)
+    )
+    kd = 0.35 - 0.33 * kb if kb >= 0.15 else 0.18 + 0.82 * kb
+    return (kb + kd) * ra_hr
 
 
 def net_radiation_hourly(

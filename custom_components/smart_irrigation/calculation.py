@@ -510,23 +510,31 @@ class CalculationMixin:
         if not isinstance(readings, list) or not isinstance(mappings_config, dict):
             return None
 
+        # Buffer stamps are naive LOCAL times, so the solar-time correction wants
+        # the local UTC offset. Taken once for the window: it feeds Ra, and Ra
+        # reaches ETo through the cloudiness correction on the longwave term and
+        # through the clear-sky denominator of the solar gap hold, so the
+        # twice-a-year DST hour is far below the effects this change is about.
+        offset = dt_util.now().utcoffset()
+        tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
+
         rows = build_hourly_rows(
             readings,
             _as_datetime(zone.get(const.ZONE_LAST_CONSUMED)),
             mappings_config,
             now=now,
             last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
+            # An hour that saw no solar reading is refilled from the held
+            # clearness ratio rather than the last absolute value, which needs
+            # the site's own solar geometry.
+            latitude=latitude,
+            longitude=longitude,
+            elevation=elevation,
+            tz_offset_h=tz_offset_h,
         )
         if not rows:
             return None
 
-        # Buffer stamps are naive LOCAL times, so the solar-time correction wants
-        # the local UTC offset. Taken once for the window: it only feeds Ra, and
-        # Ra only reaches ETo through the cloudiness correction on the longwave
-        # term, so the twice-a-year DST hour is far below the effects this change
-        # is about.
-        offset = dt_util.now().utcoffset()
-        tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
         series = eto_hourly_series(rows, latitude, longitude, tz_offset_h, elevation)
 
         per_hour = {}
