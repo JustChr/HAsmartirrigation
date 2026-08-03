@@ -1765,7 +1765,26 @@ class IrrigationRunnerMixin:
         }
         log = list(zone.get(const.ZONE_RUN_LOG) or [])
         log.insert(0, entry)
-        del log[const.RUN_LOG_MAX_ENTRIES :]
+        # Bound the log, but never let opt-in no_demand entries evict a REAL run
+        # (Option C, review of the no-demand feature): a zone that rarely waters
+        # would otherwise fill its whole history with no_demand rows and push the
+        # real runs — the very thing the user is trying to understand — out. Drop
+        # the OLDEST no_demand entries first; only if none remain do we fall back
+        # to trimming the oldest overall. siehe
+        # test_no_demand_logging.py::test_real_run_evicts_oldest_no_demand_before_a_real_run
+        overflow = len(log) - const.RUN_LOG_MAX_ENTRIES
+        if overflow > 0:
+            for i in range(len(log) - 1, -1, -1):
+                if overflow <= 0:
+                    break
+                e = log[i]
+                if (
+                    e.get("result") == const.RUN_RESULT_SKIPPED
+                    and e.get("detail") == const.SKIP_REASON_NO_DEMAND
+                ):
+                    del log[i]
+                    overflow -= 1
+            del log[const.RUN_LOG_MAX_ENTRIES :]
         changes = {const.ZONE_RUN_LOG: log}
         if add_to_total and volume_l and volume_l > 0:
             changes[const.ZONE_WATER_USED_TOTAL] = (

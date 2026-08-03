@@ -131,6 +131,53 @@ async def test_helper_dedups_same_day_with_intervening_run(monkeypatch):
     assert len(coord.store.zones[1][const.ZONE_RUN_LOG]) == 2  # no second no_demand
 
 
+def _run_entry(ts, result=const.RUN_RESULT_COMPLETED, detail=None):
+    return {
+        "ts": ts,
+        "trigger": "schedule",
+        "planned_s": None,
+        "actual_s": None,
+        "volume_l": 0.0,
+        "result": result,
+        "detail": detail,
+    }
+
+
+async def test_real_run_evicts_oldest_no_demand_before_a_real_run(monkeypatch):
+    # Option C: a no_demand entry must never push a real run out of the bounded
+    # log. Fill the log to capacity with the OLDEST slot a real run and one
+    # no_demand mixed in; recording a new real run must evict the no_demand, not
+    # the oldest real run.
+    log = [_run_entry(f"real-{i}") for i in range(const.RUN_LOG_MAX_ENTRIES)]
+    log[-1] = _run_entry("oldest-real")  # the oldest entry is a REAL run
+    log[25] = _run_entry(
+        "mid-nd", const.RUN_RESULT_SKIPPED, const.SKIP_REASON_NO_DEMAND
+    )
+    coord = _coord(monkeypatch, [_zone(run_log=log)])
+
+    await coord._record_run(1, result=const.RUN_RESULT_COMPLETED)
+
+    out = coord.store.zones[1][const.ZONE_RUN_LOG]
+    assert len(out) == const.RUN_LOG_MAX_ENTRIES
+    # the oldest real run survived; the no_demand was evicted instead
+    assert any(e["ts"] == "oldest-real" for e in out)
+    assert not any(e["detail"] == const.SKIP_REASON_NO_DEMAND for e in out)
+
+
+async def test_full_log_without_no_demand_trims_oldest(monkeypatch):
+    # Fallback: with no no_demand entry to sacrifice, the bound still holds by
+    # dropping the oldest overall (unchanged pre-Option-C behaviour).
+    log = [_run_entry(f"real-{i}") for i in range(const.RUN_LOG_MAX_ENTRIES)]
+    log[-1] = _run_entry("oldest-real")
+    coord = _coord(monkeypatch, [_zone(run_log=log)])
+
+    await coord._record_run(1, result=const.RUN_RESULT_COMPLETED)
+
+    out = coord.store.zones[1][const.ZONE_RUN_LOG]
+    assert len(out) == const.RUN_LOG_MAX_ENTRIES
+    assert not any(e["ts"] == "oldest-real" for e in out)  # oldest real dropped
+
+
 def _linked_zone(**over):
     z = {
         const.ZONE_ID: 1,
