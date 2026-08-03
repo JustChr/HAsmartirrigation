@@ -64,6 +64,10 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "NB: cette explication utilise '.' comme séparateur décimal, et affiche des valeurs arrondies. Le module a donné un manque d'Évapotranspiration de",
+        "module-returned-evapotranspiration-deficiency-hourly": "NB: cette explication utilise '.' comme séparateur décimal, et affiche des valeurs arrondies. Manque d'évapotranspiration ( = somme des et0 horaires FAO-56 sur la période + précipitations) de",
+        "water-balance-substepped": "Le bilan hydrique a été rejoué sur la période, de sorte que la pluie, le drainage et le plafonnement au seau (bucket) maximal ont été appliqués aux moments où ils se sont produits plutôt que tous au début de la période. Nombre d'étapes:",
+        "runoff-is": "Eau au-dessus du seau (bucket) maximal perdue par ruissellement:",
+        "runoff-variable": "ruissellement",
         "bucket-was": "Le seau (bucket) était de",
         "new-bucket-values-is": "La nouvelle valeur du seau (bucket) est",
         "old-bucket-variable": "ancien_bucket",

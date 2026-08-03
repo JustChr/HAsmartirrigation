@@ -64,6 +64,10 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "Merk: Denne forklaringen bruker '.' som desimaltegn og viser avrundede verdier. Modulen returnerte evapotranspirasjonsunderskudd på",
+        "module-returned-evapotranspiration-deficiency-hourly": "Merk: Denne forklaringen bruker '.' som desimaltegn og viser avrundede verdier. Evapotranspirasjonsunderskudd ( = summen av timevise FAO-56 et0 over perioden + nedbør) på",
+        "water-balance-substepped": "Vannbalansen ble spilt av på nytt gjennom perioden, slik at regn, drenering og begrensningen til maksimal bucket ble brukt på tidspunktene de faktisk skjedde i stedet for alt ved starten av perioden. Antall steg:",
+        "runoff-is": "Vann over maksimal bucket som gikk tapt som avrenning:",
+        "runoff-variable": "avrenning",
         "bucket-was": "Bucket var",
         "new-bucket-values-is": "Ny bucket verdien er",
         "old-bucket-variable": "gammel_bucket",

@@ -64,6 +64,10 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "Beachte: Diese Beschreibung nutzt '.' als Dezimalzeichen und zeigt gerundete Werte. Das Modul berechnete einen Evapotranspirationsmangel von",
+        "module-returned-evapotranspiration-deficiency-hourly": "Beachte: Diese Beschreibung nutzt '.' als Dezimalzeichen und zeigt gerundete Werte. Evapotranspirationsmangel ( = Summe der stündlichen FAO-56-et0 über den Zeitraum + Niederschlag) von",
+        "water-balance-substepped": "Die Wasserbilanz wurde über den Zeitraum nachgerechnet, sodass Regen, Drainage und die Begrenzung auf den maximalen Vorrat zu ihren tatsächlichen Zeitpunkten angewendet wurden statt alle zu Beginn des Zeitraums. Anzahl der Schritte:",
+        "runoff-is": "Wasser über dem maximalen Vorrat, das als Abfluss verloren ging:",
+        "runoff-variable": "Abfluss",
         "bucket-was": "Der alte Vorrat war",
         "new-bucket-values-is": "Der neue Vorrat ist",
         "old-bucket-variable": "alter_Vorrat",

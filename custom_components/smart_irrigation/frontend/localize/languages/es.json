@@ -64,6 +64,10 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "Nota: esta explicación utiliza '.' como separador decimal y muestra valores redondeados. El módulo devuelve una deficiencia de evapotranspiración de",
+        "module-returned-evapotranspiration-deficiency-hourly": "Nota: esta explicación utiliza '.' como separador decimal y muestra valores redondeados. Deficiencia de evapotranspiración ( = suma de la et0 horaria FAO-56 durante el periodo + precipitación) de",
+        "water-balance-substepped": "El balance hídrico se recalculó a lo largo del periodo, de modo que la lluvia, el drenaje y el límite del cubo máximo se aplicaron en los momentos en que ocurrieron y no todos al inicio del periodo. Número de pasos:",
+        "runoff-is": "Agua por encima del cubo máximo que se perdió por escorrentía:",
+        "runoff-variable": "runoff",
         "bucket-was": "El cubo era",
         "new-bucket-values-is": "El nuevo valor del cubo es",
         "old-bucket-variable": "old_bucket",

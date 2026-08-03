@@ -64,6 +64,10 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "Il modulo ha restituito un deficit di evapotraspirazione del",
+        "module-returned-evapotranspiration-deficiency-hourly": "Deficit di evapotraspirazione ( = somma delle et0 orarie FAO-56 nel periodo + precipitazioni) di",
+        "water-balance-substepped": "Il bilancio idrico è stato ricalcolato lungo il periodo, così pioggia, drenaggio e il limite del secchio massimo sono stati applicati nei momenti in cui si sono verificati anziché tutti all'inizio del periodo. Numero di passi:",
+        "runoff-is": "Acqua oltre il secchio massimo persa per deflusso:",
+        "runoff-variable": "deflusso",
         "bucket-was": "Il secchio era",
         "new-bucket-values-is": "Il nuovo valore del secchio è",
         "bucket": "secchio",

@@ -64,6 +64,10 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "NB: in deze uitleg wordt de '.' as decimaalscheidingsteken gebruikt, worden afgeronde en metrische getallen getoond. Module berekende ET waarde van",
+        "module-returned-evapotranspiration-deficiency-hourly": "NB: in deze uitleg wordt de '.' as decimaalscheidingsteken gebruikt, worden afgeronde en metrische getallen getoond. Evapotranspiratietekort ( = som van de uurlijkse FAO-56 et0 over de periode + neerslag) van",
+        "water-balance-substepped": "De waterbalans is over de periode opnieuw doorgerekend, zodat regen, drainage en de begrenzing op de maximale voorraad zijn toegepast op de momenten waarop ze plaatsvonden in plaats van allemaal aan het begin van de periode. Aantal stappen:",
+        "runoff-is": "Water boven de maximale voorraad dat als afvoer verloren is gegaan:",
+        "runoff-variable": "afvoer",
         "bucket-was": "Voorraad was",
         "new-bucket-values-is": "Nieuwe voorraad is",
         "old-bucket-variable": "oude_voorraad",

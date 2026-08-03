@@ -64,6 +64,10 @@
     "calculation": {
       "explanation": {
         "module-returned-evapotranspiration-deficiency": "Poznámka: toto vysvetlenie používa '.' ako oddeľovač desatinných miest zobrazuje zaokrúhlené a metrické hodnoty. Modul vrátil nedostatok evapotranspirácie",
+        "module-returned-evapotranspiration-deficiency-hourly": "Poznámka: toto vysvetlenie používa '.' ako oddeľovač desatinných miest zobrazuje zaokrúhlené a metrické hodnoty. Nedostatok evapotranspirácie ( = súčet hodinových FAO-56 et0 za obdobie + zrážky)",
+        "water-balance-substepped": "Vodná bilancia bola prepočítaná v priebehu obdobia, takže dážď, drenáž a obmedzenie na maximálne vedro sa uplatnili v časoch, keď nastali, a nie všetky na začiatku obdobia. Počet krokov:",
+        "runoff-is": "Voda nad maximálnym vedrom, ktorá sa stratila odtokom:",
+        "runoff-variable": "odtok",
         "bucket-was": "Vedro bolo",
         "new-bucket-values-is": "Hodnota nového vedra je",
         "old-bucket-variable": "staré_vedro",
