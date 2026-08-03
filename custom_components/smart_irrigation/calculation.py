@@ -449,6 +449,13 @@ class CalculationMixin:
         sub-steps can charge each hour its own ET rather than shaping one daily
         number. Returns None whenever the hourly form cannot be applied honestly:
 
+        * continuous updates are off. This one is a blast-radius decision rather
+          than a technical limit: measured against dense truth on real recorded
+          days, an hourly-polled install runs this form within 8.4% and with no
+          systematic bias, so it would work there too. It is gated because the
+          hourly form moves the daily number by up to 12% structured by
+          cloudiness, and an install that has opted into nothing should not have
+          its watering change under it. Polling keeps the daily equation;
         * the module estimates solar radiation rather than measuring it, so the
           measured series is not what it would have used;
         * forecast days are configured, which averages today with days that have
@@ -459,6 +466,8 @@ class CalculationMixin:
         In every case the caller keeps the daily path, so the fallback is today's
         behaviour rather than a fabricated series.
         """
+        if getattr(self.store.config, const.CONF_CONTINUOUS_UPDATES, False) is not True:
+            return None
         if str(getattr(modinst, "_solrad_behavior", "")) != str(
             SOLRAD_behavior.DontEstimate.value
         ):

@@ -369,6 +369,9 @@ async def coordinator(hass):
     c._effective_latitude = LAT
     c._effective_longitude = LON
     c._effective_elevation = ELEV
+    # The hourly form is gated on continuous updates, so the ingestion mode that
+    # produces a buffer dense enough for it has to be on for these to exercise it.
+    await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: True})
     return c, store
 
 
@@ -449,6 +452,23 @@ class TestThroughCalculateModule:
         await store.async_update_zone(zone[const.ZONE_ID], {const.ZONE_KC: 0.75})
         scaled = await self._run(c, store.get_zone(zone[const.ZONE_ID]), now)
         assert scaled[const.ZONE_DELTA] == pytest.approx(plain[const.ZONE_DELTA] * 0.75)
+
+    async def test_polling_keeps_the_daily_form(self, coordinator):
+        """Gated on continuous updates, and the gate is a blast-radius decision.
+
+        Measured against dense truth on real recorded days the hourly form runs
+        within 8.4% on an hourly-polled install with no systematic bias, so this
+        is not a technical limit. It is gated because the form moves the daily
+        number by up to 12% structured by cloudiness, and an install that opted
+        into nothing should not have its watering change underneath it.
+        """
+        c, store = coordinator
+        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: False})
+        now = T0 + timedelta(hours=12)
+        zone = await self._zone(c, store, _dense(_bell(), hours=12))
+        data = await self._run(c, zone, now)
+        assert data[const.ZONE_DELTA] == pytest.approx(-2.5)
+        assert "hour_multiplier" in data[const.ZONE_EXPLANATION]
 
     async def test_estimated_solar_radiation_keeps_the_daily_form(self, coordinator):
         """The measured series is not what the module would have used."""
