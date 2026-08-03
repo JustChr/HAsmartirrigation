@@ -187,6 +187,11 @@ def _inputs(now):
         "forecast": None,
         "now": now,
         "tz_offset_h": TZ,
+        # The site's own timezone, not Home Assistant's default, which under
+        # pytest is UTC. A fixed offset rather than a named zone: these windows
+        # are hours long and never straddle a transition, so this pins that the
+        # per-row offset agrees with the scalar instead of quietly replacing it.
+        "site_tz": datetime.timezone(timedelta(hours=TZ)),
     }
 
 
@@ -467,6 +472,37 @@ class TestDrainageTrace:
         coord = _Coord(_Store(_readings(now)))
         zone = _zone(**{const.ZONE_DRAINAGE_RATE: 20.0})
         assert coord._intraday_for_zone(zone, _inputs(now))["drainage_since"] == 0.0
+
+
+class TestTheRowBuilderGetsTheSameGeometryAsTheDailyCalculation:
+    """The estimate exists to track the bucket the nightly calculation lands on,
+    so any solar-geometry argument the daily site passes and this one does not is
+    a silent divergence: the two price a gapped window differently, nothing
+    raises, and no other test notices.
+    """
+
+    def test_the_site_geometry_and_its_timezone_both_reach_the_row_builder(
+        self, monkeypatch
+    ):
+        seen = {}
+        original = le.build_hourly_rows
+
+        def spy(readings, watermark, config, **kwargs):
+            seen.update(kwargs)
+            return original(readings, watermark, config, **kwargs)
+
+        monkeypatch.setattr(le, "build_hourly_rows", spy)
+        now = ANCHOR + timedelta(hours=3, minutes=30)
+        coord = _Coord(_Store(_readings(now)))
+        coord._intraday_for_zone(_zone(), _inputs(now))
+
+        assert (seen["latitude"], seen["longitude"]) == (LAT, LON)
+        assert seen["elevation"] == ELEV
+        assert seen["tz_offset_h"] == TZ
+        # The timezone travels with the offset it was measured from. Reading it
+        # from dt_util here instead would be UTC under pytest and silently
+        # override the scalar above, because a per-row offset wins over it.
+        assert seen["tz"].utcoffset(now) == timedelta(hours=TZ)
 
 
 class TestCompletedHourCarry:

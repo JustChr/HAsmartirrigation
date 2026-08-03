@@ -126,6 +126,10 @@ class LiveEstimateMixin:
             # next zone's has not.
             "now": now.replace(tzinfo=None),
             "tz_offset_h": offset.total_seconds() / 3600.0 if offset else 0.0,
+            # Carried alongside the offset it was measured from, so the hourly
+            # rows can resolve a per-row offset across a DST transition without
+            # a second, unrelated timezone overriding the scalar above.
+            "site_tz": dt_util.DEFAULT_TIME_ZONE,
         }
         client = getattr(self, "_WeatherServiceClient", None)
         if client is None:
@@ -246,7 +250,9 @@ class LiveEstimateMixin:
             return False
         return forecast_days == 0
 
-    def _buffer_hourly_et_mm(self, zone, anchor, *, now, lat, lon, tz_offset_h, elev):
+    def _buffer_hourly_et_mm(
+        self, zone, anchor, *, now, lat, lon, tz_offset_h, elev, tz=None
+    ):
         """Summed FAO-56 hourly ETo (mm) since ``anchor`` from the zone's buffer.
 
         Returns None when the hourly form does not apply to this zone or the
@@ -287,6 +293,26 @@ class LiveEstimateMixin:
             mappings_config,
             now=now,
             last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
+            # Must match _hourly_et_for_zone exactly. Without the site geometry
+            # an hour with no solar reading falls back to the flat hold while
+            # the daily calculation refills it from the held clearness ratio, so
+            # the two would price a gapped window differently and the live
+            # deficit would drift from the bucket the nightly calc lands on --
+            # the one thing this estimate exists to track.
+            latitude=lat,
+            longitude=lon,
+            elevation=elev,
+            tz_offset_h=tz_offset_h,
+            # The timezone as well as the offset, so each row resolves the offset
+            # from its own stamp. The scalar alone is not a smaller version of
+            # the same thing: a window reaches seven days and can straddle a DST
+            # transition, which puts every row past it an hour out in solar time,
+            # and the daily form resolves per row -- so the drift this whole call
+            # exists to prevent returns on exactly those windows. It travels with
+            # tz_offset_h rather than being read from dt_util here, because the
+            # offset is the caller's and a timezone from anywhere else would
+            # silently win over it.
+            tz=tz,
         )
         if not rows:
             return None
@@ -433,9 +459,11 @@ class LiveEstimateMixin:
 
             now_local = inputs.get("now") or dt_util.now().replace(tzinfo=None)
             tz_offset_h = inputs.get("tz_offset_h")
+            site_tz = inputs.get("site_tz")
             if tz_offset_h is None:
                 offset = dt_util.now().utcoffset()
                 tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
+                site_tz = dt_util.DEFAULT_TIME_ZONE
 
             rows = inputs["rows"]
             # The buffer FIRST, ahead of any weather client's own hourly series.
@@ -452,6 +480,7 @@ class LiveEstimateMixin:
                 lon=lon,
                 tz_offset_h=tz_offset_h,
                 elev=elevation,
+                tz=site_tz,
             )
             if buffer_et_mm is not None:
                 et_mm = buffer_et_mm
