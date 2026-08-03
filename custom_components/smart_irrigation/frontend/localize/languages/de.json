@@ -122,7 +122,7 @@
           "header": "Verlaufs-Protokollierung",
           "description": "Wenn aktiv, wird ein geplanter Lauf, der eine Zone mangels Bedarf überspringt, im Verlauf der Zone protokolliert. Standardmäßig aus; bestehender Verlauf bleibt unberührt.",
           "labels": {
-            "log-no-demand": "„Kein Bedarf\"-Übersprünge im Verlauf protokollieren"
+            "log-no-demand": "„Kein Bedarf“-Übersprünge im Verlauf protokollieren"
           }
         },
         "automatic-update": {

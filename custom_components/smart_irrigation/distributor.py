@@ -1140,9 +1140,12 @@ class DistributorMixin:
             # empty-`to_water` return below (so a fully-satisfied ring still
             # leaves a trace). Scheduled branch only (test-run / manual force are
             # not demand evaluations); rain delay already returned above.
-            await self._record_no_demand_skips(
-                self._dist_no_demand_members(members, allow)
-            )
+            # N1: gate on the flag so _dist_no_demand_members is not evaluated on
+            # the default off-path (the helper itself is already a no-op when off).
+            if getattr(self.store.config, "log_no_demand", False):
+                await self._record_no_demand_skips(
+                    self._dist_no_demand_members(members, allow)
+                )
             candidates = [
                 m
                 for m in members

@@ -501,7 +501,10 @@ class IrrigationRunnerMixin:
         # helper is gated on config + rain-delay + same-day dedup, so paused runs
         # never double-log. Under live_gate the demand decision is deferred to
         # _apply_live_durations, so that set is logged there instead (see below).
-        if not live_gate:
+        # N1: gate the whole computation on the flag so the off-path (the default)
+        # never builds these sets — the helper is a no-op when off, but its
+        # arguments are evaluated regardless.
+        if not live_gate and getattr(self.store.config, "log_no_demand", False):
             _watered_ids = {int(z.get(const.ZONE_ID)) for z in zones_to_irrigate}
             await self._record_no_demand_skips(
                 [
@@ -541,7 +544,7 @@ class IrrigationRunnerMixin:
         # Iter ND-3: opt-in transparency (live-estimate gate). The zones the live
         # estimate dropped for no live deficit. Exclude soil-vetoed zones — they
         # already logged soil_moisture at _apply_soil_moisture_veto above.
-        if live_gate:
+        if live_gate and getattr(self.store.config, "log_no_demand", False):
             _vetoed_ids = set(self.get_zone_skips().keys())
             _watered_ids = {int(z.get(const.ZONE_ID)) for z in zones_to_irrigate}
             await self._record_no_demand_skips(
