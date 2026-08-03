@@ -32,6 +32,9 @@ class _Coord(LiveEstimateMixin):
             get_mapping=lambda _id: None,
             get_mapping_buffer=lambda _id: [],
             get_zones=list,
+            # The buffer source is gated on continuous updates; these cases
+            # exercise the weather-client and proxy sources, which are not.
+            config=SimpleNamespace(continuousupdates=False),
         )
 
 
@@ -141,7 +144,9 @@ def test_intraday_proxy_no_spurious_et_right_after_calc(monkeypatch):
 
     coord = _Coord(METRIC_SYSTEM)
     coord.store = SimpleNamespace(
-        get_module=lambda _id: None, get_mapping=lambda _mid: None
+        get_module=lambda _id: None,
+        get_mapping=lambda _mid: None,
+        config=SimpleNamespace(continuousupdates=False),
     )  # no precip
     forecast = [{const.MAPPING_MIN_TEMP: 14.0, const.MAPPING_MAX_TEMP: 28.0}]
     inputs = {"client": _client(), "rows": None, "tz": None, "forecast": forecast}
@@ -175,7 +180,9 @@ def test_intraday_proxy_window_spans_midnight(monkeypatch):
 
     coord = _Coord(METRIC_SYSTEM)
     coord.store = SimpleNamespace(
-        get_module=lambda _id: None, get_mapping=lambda _mid: None
+        get_module=lambda _id: None,
+        get_mapping=lambda _mid: None,
+        config=SimpleNamespace(continuousupdates=False),
     )
     tmin, tmax = 14.0, 30.0
     forecast = [{const.MAPPING_MIN_TEMP: tmin, const.MAPPING_MAX_TEMP: tmax}]
@@ -228,6 +235,7 @@ def test_observed_precip_is_time_weighted_not_plain_sum():
     coord.store = SimpleNamespace(
         get_mapping=lambda _mid: mapping,
         get_mapping_buffer=lambda _mid: readings,
+        config=SimpleNamespace(continuousupdates=False),
     )
     watermark = "2026-06-07T09:00:00.000000"
     zone = {const.ZONE_MAPPING: 0, const.ZONE_LAST_CALCULATED: watermark}
@@ -246,6 +254,7 @@ def test_observed_precip_handles_no_mapping():
     coord.store = SimpleNamespace(
         get_mapping=lambda _mid: None,
         get_mapping_buffer=lambda _mid: [],
+        config=SimpleNamespace(continuousupdates=False),
     )
     assert coord._observed_precip_since_mm({}, None) == 0.0
     assert coord._observed_precip_since_mm({const.ZONE_MAPPING: 7}, None) == 0.0

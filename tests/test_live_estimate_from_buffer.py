@@ -126,6 +126,9 @@ class _Store:
     ):
         self.readings = readings
         self.module = module
+        # Axis A and B are both gated on continuous updates: that ingestion mode
+        # is what produces a buffer dense enough for an hourly series.
+        self.config = SimpleNamespace(continuousupdates=True)
         self.mapping = {
             const.MAPPING_MAPPINGS: mappings_config or {},
             const.MAPPING_DATA_LAST_ENTRY: last_entry or {},
@@ -211,6 +214,22 @@ class TestSensorOnlyInstall:
         assert est["method"] == "hourly_sensor"
         assert est["et_since"] == pytest.approx(round(expected, 2))
         assert est["live_deficit"] == pytest.approx(round(-2.0 - expected, 2))
+
+    def test_polling_declines_the_buffer_source(self):
+        """Gated on continuous updates, in step with the daily calculation.
+
+        If the daily calc runs the daily equation while this reports
+        ``hourly_sensor``, the panel shows a live curve the stored bucket never
+        meets, differing by the 12% that separates the two forms.
+        """
+        now = ANCHOR + timedelta(hours=3)
+        store = _Store(_readings(now))
+        store.config = SimpleNamespace(continuousupdates=False)
+        coord = _Coord(store)
+        assert coord._hourly_form_applies(_zone()) is False
+        # Nothing else can supply a sensor-only install, so it offers no estimate
+        # rather than falling to a source that disagrees with the ledger.
+        assert coord._intraday_for_zone(_zone(), _inputs(now))["available"] is False
 
     def test_a_module_that_estimates_radiation_keeps_its_own_source(self):
         """The daily calc would run the daily equation for such a zone, and the

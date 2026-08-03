@@ -220,7 +220,17 @@ class LiveEstimateMixin:
         from the stored module config rather than an instance: instantiating a
         module re-scans the calc-module directory, which is far too heavy for a
         path that runs every minute per zone.
+
+        The continuous-updates gate is part of that mirror and has to stay in
+        step with it: if the daily calculation is running the daily equation
+        while this reports ``hourly_sensor``, the panel shows a live curve the
+        stored bucket never meets, differing by the 12% that separates the two
+        forms. Note this gates only the BUFFER source — a weather-service
+        install keeps the client and proxy estimates it already had, which is
+        why the check is here rather than in ``_intraday_for_zone``.
         """
+        if getattr(self.store.config, const.CONF_CONTINUOUS_UPDATES, False) is not True:
+            return False
         module = self.store.get_module(zone.get(const.ZONE_MODULE))
         if not module or module.get(const.MODULE_NAME) != "PyETO":
             return False
