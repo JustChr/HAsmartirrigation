@@ -434,6 +434,25 @@ class CalculationMixin:
                 modinst._elevation = eff_elev
         return modinst
 
+    def _continuous_updates_enabled(self) -> bool:
+        """Whether this install has opted into event-driven ingestion.
+
+        The single gate for both halves of this feature, so they cannot drift
+        apart: the summed-hourly ET form and the replayed water balance each
+        move the numbers an existing install already sees, and neither should
+        arrive without the user turning something on. Strict identity check so a
+        test double or an absent attribute reads as off, matching the poll-skip
+        guard and the mixin's own setup.
+        """
+        return (
+            getattr(
+                getattr(self.store, "config", None),
+                const.CONF_CONTINUOUS_UPDATES,
+                False,
+            )
+            is True
+        )
+
     def _hourly_et_for_zone(self, zone, modinst, *, now):
         """Summed FAO-56 hourly ETo over this zone's window, or None to use the daily form.
 
@@ -466,7 +485,7 @@ class CalculationMixin:
         In every case the caller keeps the daily path, so the fallback is today's
         behaviour rather than a fabricated series.
         """
-        if getattr(self.store.config, const.CONF_CONTINUOUS_UPDATES, False) is not True:
+        if not self._continuous_updates_enabled():
             return None
         if str(getattr(modinst, "_solrad_behavior", "")) != str(
             SOLRAD_behavior.DontEstimate.value
@@ -531,7 +550,17 @@ class CalculationMixin:
         are derived from the same rows by the same rule, and a disagreement means
         an assumption has broken. Falling back then costs the sub-stepping but
         keeps the ledger self-consistent, which is the more important property.
+
+        Gated behind continuous updates for the same reason as the hourly ET
+        form: replaying the window changes the stored bucket on any install that
+        maps precipitation, because rain that used to be booked at the window
+        start (clamped against maximum_bucket there, and over-drained for the
+        whole window afterwards) is now booked when it fell. That is a better
+        number, but it is still a change to what an install that opted into
+        nothing sees, so it travels with the same switch.
         """
+        if not self._continuous_updates_enabled():
+            return None
         mapping_id = zone.get(const.ZONE_MAPPING)
         if mapping_id is None:
             return None

@@ -309,6 +309,10 @@ async def coordinator(hass):
     hass.config.language = "en"
     store = SmartIrrigationStorage(hass)
     await store.async_load()
+    # The replay is gated behind continuous updates, so the tests that exercise
+    # it have to opt in the way a user does. TestTheContinuousUpdatesGate below
+    # pins what happens without it.
+    await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: True})
     entry = Mock()
     entry.unique_id = "t"
     entry.data = {}
@@ -411,3 +415,51 @@ class TestThroughCalculateModule:
         )
         assert data[const.ZONE_BUCKET] == pytest.approx(-5.0)
         assert "replayed across the window" not in data[const.ZONE_EXPLANATION]
+
+
+class TestTheContinuousUpdatesGate:
+    """Polling keeps the single-shot balance, byte for byte.
+
+    The replay is a better number on the same data, but it moves the stored
+    bucket on any install that maps precipitation, so it does not arrive
+    unrequested. An install that has opted into nothing keeps the arithmetic it
+    already had.
+    """
+
+    async def test_polling_keeps_the_single_shot_balance(self, coordinator):
+        c, store = coordinator
+        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: False})
+        zone = await TestThroughCalculateModule()._zone_with_a_rain_day(
+            c, store, {h: 38.10 / 6 for h in range(16, 22)}, 2.97, et=3.0
+        )
+        now = T0 + timedelta(hours=24)
+        weatherdata, _ = await c._aggregate_for_zone(zone, now=now)
+        data = await c.calculate_module(zone, weatherdata, None, now=now)
+
+        expected, drainage, _runoff = _single_shot(2.97, data[const.ZONE_DELTA])
+        assert data[const.ZONE_BUCKET] == pytest.approx(expected, abs=1e-6)
+        assert data[const.ZONE_CURRENT_DRAINAGE] == pytest.approx(drainage, abs=1e-6)
+        assert "replayed across the window" not in data[const.ZONE_EXPLANATION]
+
+    async def test_the_same_window_replays_once_the_flag_is_on(self, coordinator):
+        """The gate is the only difference, so the same day must move the bucket."""
+        c, store = coordinator
+        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: False})
+        zone = await TestThroughCalculateModule()._zone_with_a_rain_day(
+            c, store, {h: 38.10 / 6 for h in range(16, 22)}, 2.97, et=3.0
+        )
+        now = T0 + timedelta(hours=24)
+        weatherdata, _ = await c._aggregate_for_zone(zone, now=now)
+        polled = await c.calculate_module(zone, weatherdata, None, now=now)
+
+        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: True})
+        zone = store.get_zone(zone[const.ZONE_ID])
+        zone[const.ZONE_BUCKET] = 2.97
+        zone[const.ZONE_LAST_CONSUMED] = T0
+        weatherdata, _ = await c._aggregate_for_zone(zone, now=now)
+        replayed = await c.calculate_module(zone, weatherdata, None, now=now)
+
+        # Lumping the same rain clamps it against maximum_bucket at the window
+        # start and discards the excess; replaying it keeps that water.
+        assert replayed[const.ZONE_BUCKET] > polled[const.ZONE_BUCKET] + 5.0
+        assert "replayed across the window" in replayed[const.ZONE_EXPLANATION]
