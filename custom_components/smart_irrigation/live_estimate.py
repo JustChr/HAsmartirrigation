@@ -532,12 +532,24 @@ class LiveEstimateMixin:
                 elapsed_hours=elapsed_hours,
             )
             ndigits = 2 if metric else 3
+            # The three accumulators are graph inputs rather than display
+            # strings: they run since the last calculation, so a dashboard
+            # differentiates them to recover a rate. Display precision is too
+            # coarse for that. At a midday ET of 0.4 mm/h an imperial install
+            # gains 0.00026 in/min against a 0.001 in step, so the value would
+            # only move every ~4 minutes and a per-minute derivative would
+            # alternate between zero and a spike instead of tracing a rate.
+            # Nothing renders these — the panel chip formats live_deficit alone
+            # — so the extra digits cost only bytes.
+            trace_digits = ndigits + 2
             result.update(
                 available=True,
                 method=method,
-                et_since=round(from_mm(et_mm), ndigits),
-                precip_since=round(from_mm(precip_mm), ndigits),
-                drainage_since=round(from_mm(drained_mm), ndigits),
+                et_since=round(from_mm(et_mm), trace_digits),
+                precip_since=round(from_mm(precip_mm), trace_digits),
+                drainage_since=round(from_mm(drained_mm), trace_digits),
+                # The sensor's own state, which IS displayed. Kept at display
+                # precision so the entity does not show five decimals.
                 live_deficit=round(from_mm(live_mm), ndigits),
                 as_of=as_of,
             )

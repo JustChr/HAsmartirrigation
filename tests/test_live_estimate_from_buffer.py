@@ -212,8 +212,31 @@ class TestSensorOnlyInstall:
         assert expected > 0
         assert est["available"] is True
         assert est["method"] == "hourly_sensor"
-        assert est["et_since"] == pytest.approx(round(expected, 2))
+        assert est["et_since"] == pytest.approx(round(expected, 4))
         assert est["live_deficit"] == pytest.approx(round(-2.0 - expected, 2))
+
+    def test_the_accumulators_carry_finer_precision_than_the_shown_state(self):
+        """They are graph inputs, and a dashboard differentiates them for a rate.
+
+        At display precision an imperial install's ``et_since`` gains
+        0.00026 in/min against a 0.001 in step at a midday ET of 0.4 mm/h, so it
+        would move only every ~4 minutes and a per-minute derivative would
+        alternate between zero and a spike. The state keeps display precision
+        because, unlike the attributes, it is rendered.
+        """
+        now = ANCHOR + timedelta(hours=3, minutes=30)
+        coord = _Coord(_Store(_readings(now)))
+        est = coord._intraday_for_zone(_zone(), _inputs(now))
+        expected = _expected_et_mm(coord.store.readings, ANCHOR, now)
+
+        # Guards the fixture: an ET that happened to land on two decimals would
+        # make the assertion below pass for the wrong reason.
+        assert round(expected, 4) != round(expected, 2)
+        assert est["et_since"] == pytest.approx(round(expected, 4))
+        assert est["et_since"] != pytest.approx(round(expected, 2))
+        # Rounded to display precision already, so this is a no-op unless the
+        # state is ever given the accumulators' extra digits.
+        assert est["live_deficit"] == round(est["live_deficit"], 2)
 
     def test_polling_declines_the_buffer_source(self):
         """Gated on continuous updates, in step with the daily calculation.
@@ -374,7 +397,7 @@ class TestOneAnchor:
         assert expected_precip == pytest.approx(4.0)
         assert est["precip_since"] == pytest.approx(4.0)
         assert est["et_since"] == pytest.approx(
-            round(_expected_et_mm(readings, ANCHOR, now), 2)
+            round(_expected_et_mm(readings, ANCHOR, now), 4)
         )
 
     def test_a_watermark_ahead_of_the_calculation_moves_both_halves(self):
@@ -401,9 +424,9 @@ class TestOneAnchor:
         # than rain -- and the ET is the half-hour since, not three hours of it.
         assert est["precip_since"] == pytest.approx(0.0)
         assert est["et_since"] == pytest.approx(
-            round(_expected_et_mm(readings, watermark, now), 2)
+            round(_expected_et_mm(readings, watermark, now), 4)
         )
-        assert est["et_since"] < round(_expected_et_mm(readings, ANCHOR, now), 2)
+        assert est["et_since"] < round(_expected_et_mm(readings, ANCHOR, now), 4)
 
     def test_the_deficit_reconciles_with_its_own_terms(self):
         now = ANCHOR + timedelta(hours=3)

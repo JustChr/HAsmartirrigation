@@ -108,7 +108,7 @@ def test_intraday_metric_hourly_balance():
     et = rigorous_et_since(_rows(), 48.39, 16.23, 2.0, 180)
     assert est["available"] is True
     assert est["method"] == "hourly"
-    assert abs(est["et_since"] - round(et, 2)) < 1e-9
+    assert abs(est["et_since"] - round(et, 4)) < 1e-9
     assert abs(est["live_deficit"] - round(-2.0 - et, 2)) < 1e-9
 
 
@@ -201,7 +201,7 @@ def test_intraday_proxy_window_spans_midnight(monkeypatch):
         estimate_daily_et0_hargreaves(tmin, tmax, lat, doy), lat, lon, doy, 2.0, elapsed
     )
     assert est["method"] == "proxy"
-    assert abs(est["et_since"] - round(expected, 2)) < 1e-9
+    assert abs(est["et_since"] - round(expected, 4)) < 1e-9
     assert est["et_since"] > 0  # daytime hours of both sides contribute
 
 
