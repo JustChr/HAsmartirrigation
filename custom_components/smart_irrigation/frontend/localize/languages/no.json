@@ -701,6 +701,13 @@
         "label": "Utløs og dimensjoner hver kjøring fra sanntidsunderskuddet",
         "note": "Påvirker kun planlagte kjøringer og kan starte en som den daglige beregningen ikke godkjente. For hyppig vanning, behold et fornuftig minimumsunderskudd og en maksbøtte på minst en dags ET."
       },
+      "continuous_updates": {
+        "title": "Kontinuerlige sensoroppdateringer",
+        "description": "Som standard leses sensorbaserte værverdier én gang per planlagt oppdatering (hver time som standard), så alt som skjer i mellomtiden, blir aldri registrert — den daglige minimums- og maksimumstemperaturen kommer fra disse øyeblikksavlesningene, og solstråling integreres grovt. Med dette på registreres en avlesning i det øyeblikket sensoren endrer seg, noe som gjør de daglige aggregerte verdiene og den resulterende evapotranspirasjonen betydelig mer nøyaktige. Sensorgrupper som også bruker en værtjeneste, beholder den planlagte oppdateringen for værtjenesteverdiene; bare sensorverdiene blir kontinuerlige. Små endringer ignoreres, så en støyende sensor fyller ikke opp bufferen.",
+        "label": "Registrer sensoravlesninger når de endrer seg",
+        "debounce_label": "Grupper endringer som kommer innen (millisekunder)",
+        "note": "Gjelder sensorgrupper der verdiene kommer fra Home Assistant-sensorer. Grupperingsforsinkelsen utsetter bare den påfølgende bokføringen — ingen avlesning forkastes av den. Sett den til 0 for å slå av gruppering."
+      },
       "distributors": {
         "title": "Mekaniske vannfordelere",
         "description": "Styr en mekanisk trykkfordeler — for eksempel en Gardena vannfordeler — som deler én tilførsel i flere uttak og rykker fram ved å pulse vannet av og på. Tilordne soner til uttakene på en fordeler, så vanner Smart Irrigation dem etter tur, sporer posisjonen og koordinerer en masterventil eller pumpe. Dette er en ny funksjon som ikke kunne testes fullt ut på maskinvare, så behandle den som en beta.",

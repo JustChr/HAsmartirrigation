@@ -701,6 +701,13 @@
         "label": "Déclencher et dimensionner chaque exécution selon le déficit en direct",
         "note": "N'affecte que les exécutions planifiées et peut en démarrer une que le calcul quotidien n'a pas approuvée. Pour des arrosages fréquents, conservez un déficit minimal raisonnable et un seau maximal d'au moins l'ET d'une journée."
       },
+      "continuous_updates": {
+        "title": "Mises à jour continues des capteurs",
+        "description": "Par défaut, les valeurs météo issues de capteurs sont lues une fois par mise à jour planifiée (toutes les heures par défaut), de sorte que tout ce qui se produit entre-temps n'est jamais enregistré — les températures minimale et maximale du jour proviennent de ces relevés ponctuels, et le rayonnement solaire est intégré grossièrement. Avec cette option, un relevé est enregistré dès que le capteur change, ce qui rend les agrégats quotidiens et l'évapotranspiration qui en résulte nettement plus précis. Les groupes de capteurs qui utilisent aussi un service météo conservent leur mise à jour planifiée pour les valeurs du service météo ; seules les valeurs des capteurs deviennent continues. Les petits changements sont ignorés, afin qu'un capteur bruyant ne remplisse pas le tampon.",
+        "label": "Enregistrer les relevés des capteurs lorsqu'ils changent",
+        "debounce_label": "Regrouper les changements survenant en moins de (millisecondes)",
+        "note": "S'applique aux groupes de capteurs dont les valeurs proviennent de capteurs Home Assistant. Le délai de regroupement ne fait que différer la comptabilisation qui suit — aucun relevé n'est jamais écarté pour autant. Mettre 0 pour désactiver le regroupement."
+      },
       "distributors": {
         "title": "Distributeurs d'eau mécaniques",
         "description": "Pilotez un distributeur à pression mécanique — par exemple un Distributeur d'eau Gardena — qui répartit une alimentation sur plusieurs sorties et avance par impulsions d'ouverture et de fermeture de l'eau. Affectez des zones aux sorties d'un distributeur et Smart Irrigation les arrose en séquence, suit la position et coordonne une vanne maître ou une pompe. Il s'agit d'une nouvelle fonctionnalité qui n'a pas pu être entièrement testée sur matériel ; considérez-la donc comme une bêta.",

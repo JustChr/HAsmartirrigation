@@ -700,6 +700,13 @@
         "label": "Activar y dimensionar cada ejecución según el déficit en vivo",
         "note": "Afecta solo a las ejecuciones programadas y puede iniciar una que el cálculo diario no aprobó. Para riegos frecuentes, mantenga un déficit mínimo razonable y un depósito máximo de al menos la ET de un día."
       },
+      "continuous_updates": {
+        "title": "Actualizaciones continuas de sensores",
+        "description": "De forma predeterminada, los valores meteorológicos basados en sensores se leen una vez por cada actualización programada (cada hora de forma predeterminada), por lo que nunca se registra lo ocurrido entre una y otra — la temperatura mínima y máxima diarias provienen de esas lecturas puntuales, y la radiación solar se integra de forma aproximada. Con esta opción activada, se registra una lectura en el momento en que el sensor cambia, lo que hace que los agregados diarios y la evapotranspiración resultante sean considerablemente más precisos. Los grupos de sensores que además usan un servicio meteorológico mantienen su actualización programada para los valores del servicio meteorológico; solo los valores de sensor se vuelven continuos. Los cambios pequeños se ignoran, de modo que un sensor ruidoso no llena el búfer.",
+        "label": "Registrar las lecturas del sensor cuando cambian",
+        "debounce_label": "Agrupar los cambios que llegan dentro de (milisegundos)",
+        "note": "Se aplica a los grupos de sensores cuyos valores provienen de sensores de Home Assistant. El retardo de agrupación solo pospone el registro posterior — nunca descarta ninguna lectura. Ponlo a 0 para desactivar la agrupación."
+      },
       "distributors": {
         "title": "Distribuidores de agua mecánicos",
         "description": "Controla un distribuidor de presión mecánico —por ejemplo un Distribuidor de agua Gardena— que reparte un suministro en varias salidas y avanza con impulsos de encendido y apagado del agua. Asigna zonas a las salidas de un distribuidor y Smart Irrigation las riega en secuencia, sigue la posición y coordina una válvula maestra o una bomba. Es una función nueva que no pudo probarse por completo en hardware, así que trátala como una beta.",

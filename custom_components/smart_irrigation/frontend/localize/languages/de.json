@@ -699,6 +699,13 @@
         "label": "Jeden Lauf anhand des Live-Defizits auslösen und bemessen",
         "note": "Betrifft nur geplante Läufe und kann einen Lauf starten, den die tägliche Berechnung nicht freigegeben hat. Für häufiges Gießen ein sinnvolles Mindestdefizit und einen maximalen Eimer von mindestens der ET eines Tages beibehalten."
       },
+      "continuous_updates": {
+        "title": "Kontinuierliche Sensoraktualisierungen",
+        "description": "Standardmäßig werden sensorbasierte Wetterwerte einmal pro geplanter Aktualisierung ausgelesen (standardmäßig stündlich), sodass alles, was dazwischen passiert, nie erfasst wird — die tägliche Minimal- und Maximaltemperatur stammen aus diesen punktuellen Messungen, und die Solarstrahlung wird nur grob integriert. Ist diese Option aktiv, wird ein Messwert in dem Moment erfasst, in dem sich der Sensor ändert, was die täglichen Aggregate und die daraus resultierende Verdunstung deutlich genauer macht. Sensorgruppen, die zusätzlich einen Wetterdienst nutzen, behalten für die Werte des Wetterdienstes ihre geplante Aktualisierung; nur die Sensorwerte werden kontinuierlich. Kleine Änderungen werden ignoriert, sodass ein verrauschter Sensor den Puffer nicht füllt.",
+        "label": "Sensormesswerte erfassen, wenn sie sich ändern",
+        "debounce_label": "Änderungen gruppieren, die innerhalb von (Millisekunden) eintreffen",
+        "note": "Gilt für Sensorgruppen, deren Werte von Home-Assistant-Sensoren stammen. Die Gruppierungs-Verzögerung verschiebt nur die nachgelagerte Verbuchung — kein Messwert geht dadurch je verloren. Auf 0 setzen, um die Gruppierung zu deaktivieren."
+      },
       "distributors": {
         "title": "Mechanische Wasserverteiler",
         "description": "Steuert einen mechanischen Druck-Verteiler — z. B. einen Gardena Wasserverteiler — der eine Zuleitung auf mehrere Abgänge aufteilt und durch An-/Aus-Impulse des Wassers weiterschaltet. Ordne Zonen den Abgängen eines Verteilers zu; Smart Irrigation bewässert sie der Reihe nach, verfolgt die Position und koordiniert ein Master-Ventil bzw. eine Pumpe. Das ist eine neue Funktion, die nicht vollständig an Hardware getestet werden konnte — behandle sie als Beta.",

@@ -699,6 +699,13 @@
         "label": "Spustiť a nadimenzovať každý beh podľa živého deficitu",
         "note": "Týka sa len naplánovaných behov a môže spustiť taký, ktorý denný výpočet neschválil. Pri častom zavlažovaní ponechajte rozumný minimálny deficit a maximálne vedro aspoň na úroveň dennej ET."
       },
+      "continuous_updates": {
+        "title": "Priebežné aktualizácie senzorov",
+        "description": "Štandardne sa poveternostné hodnoty zo senzorov načítajú raz za naplánovanú aktualizáciu (predvolene každú hodinu), takže všetko, čo sa stalo medzitým, sa nikdy nezaznamená — denné minimum a maximum teploty vychádzajú z týchto jednotlivých meraní a slnečné žiarenie sa integruje len hrubo. Pri zapnutí sa meranie zaznamená v okamihu, keď sa senzor zmení, čo výrazne spresňuje denné súhrny aj výslednú evapotranspiráciu. Skupiny senzorov, ktoré využívajú aj poveternostnú službu, si pre hodnoty z poveternostnej služby ponechávajú naplánovanú aktualizáciu; priebežnými sa stávajú len hodnoty zo senzorov. Malé zmeny sa ignorujú, takže zašumený senzor nezaplní vyrovnávaciu pamäť.",
+        "label": "Zaznamenávať merania senzorov, keď sa zmenia",
+        "debounce_label": "Zoskupiť zmeny prichádzajúce v rámci (milisekundy)",
+        "note": "Týka sa skupín senzorov, ktorých hodnoty pochádzajú zo senzorov Home Assistant. Zoskupovacie oneskorenie len odloží následnú evidenciu — nezahodí sa ním žiadne meranie. Nastavením na 0 zoskupovanie vypnete."
+      },
       "distributors": {
         "title": "Mechanické rozvádzače vody",
         "description": "Ovládajte mechanický tlakový rozvádzač — napríklad rozvádzač vody Gardena — ktorý rozdeľuje jeden prívod na niekoľko výstupov a posúva sa impulzmi zapnutia a vypnutia vody. Priraďte zóny k výstupom rozvádzača a Smart Irrigation ich zavlažuje postupne, sleduje polohu a koordinuje hlavný ventil alebo čerpadlo. Ide o novú funkciu, ktorú nebolo možné úplne otestovať na hardvéri, preto ju berte ako beta verziu.",

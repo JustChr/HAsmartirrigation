@@ -704,6 +704,13 @@
         "label": "Attiva e dimensiona ogni esecuzione dal deficit in tempo reale",
         "note": "Riguarda solo le esecuzioni pianificate e può avviarne una non approvata dal calcolo giornaliero. Per irrigazioni frequenti mantieni un deficit minimo ragionevole e un secchio massimo pari ad almeno l'ET di un giorno."
       },
+      "continuous_updates": {
+        "title": "Aggiornamenti continui dei sensori",
+        "description": "Per impostazione predefinita, i valori meteo basati su sensori vengono letti una volta per ogni aggiornamento pianificato (di norma ogni ora), quindi tutto ciò che accade nel frattempo non viene mai registrato — la temperatura minima e massima del giorno provengono da quelle letture istantanee e l'irradiamento solare viene integrato in modo grossolano. Con questa opzione attiva, una lettura viene registrata nel momento in cui il sensore cambia, il che rende gli aggregati giornalieri e l'evapotraspirazione risultante notevolmente più accurati. I gruppi di sensori che usano anche un servizio meteo mantengono il loro aggiornamento pianificato per i valori del servizio meteo; solo i valori dei sensori diventano continui. Le piccole variazioni vengono ignorate, così un sensore rumoroso non riempie il buffer.",
+        "label": "Registra le letture del sensore quando cambiano",
+        "debounce_label": "Raggruppa le variazioni ricevute entro (millisecondi)",
+        "note": "Si applica ai gruppi di sensori i cui valori provengono da sensori di Home Assistant. Il ritardo di raggruppamento posticipa soltanto la contabilizzazione successiva — nessuna lettura viene mai scartata a causa sua. Imposta 0 per disattivare il raggruppamento."
+      },
       "distributors": {
         "title": "Distributori d'acqua meccanici",
         "description": "Comanda un distributore a pressione meccanico — ad esempio un Distributore d'acqua Gardena — che suddivide un'alimentazione in più uscite e avanza tramite impulsi di apertura e chiusura dell'acqua. Assegna le zone alle uscite di un distributore e Smart Irrigation le irriga in sequenza, traccia la posizione e coordina una valvola master o una pompa. È una funzione nuova che non è stato possibile testare completamente sull'hardware, quindi trattala come una beta.",

@@ -699,6 +699,13 @@
         "label": "Elke beurt starten en dimensioneren op het live tekort",
         "note": "Heeft alleen invloed op geplande beurten en kan er een starten die de dagelijkse berekening niet goedkeurde. Houd voor frequent water geven een redelijk minimumtekort aan en een maximale emmer van ten minste een dag ET."
       },
+      "continuous_updates": {
+        "title": "Continue sensorupdates",
+        "description": "Standaard worden sensorgebaseerde weerwaarden één keer per geplande update uitgelezen (standaard elk uur), zodat alles wat er tussenin gebeurt nooit wordt vastgelegd — de dagelijkse minimum- en maximumtemperatuur komen uit die momentmetingen en de zonnestraling wordt grof geïntegreerd. Met deze optie aan wordt een meting vastgelegd zodra de sensor verandert, waardoor de dagelijkse aggregaten en de daaruit berekende verdamping aanzienlijk nauwkeuriger worden. Sensorgroepen die ook een weerdienst gebruiken, behouden hun geplande update voor de waarden van de weerdienst; alleen de sensorwaarden worden continu. Kleine veranderingen worden genegeerd, zodat een ruisende sensor de buffer niet laat vollopen.",
+        "label": "Sensormetingen vastleggen wanneer ze veranderen",
+        "debounce_label": "Veranderingen groeperen die binnen (milliseconden) aankomen",
+        "note": "Van toepassing op sensorgroepen waarvan de waarden uit Home Assistant-sensoren komen. De groeperingsvertraging stelt alleen de verdere verwerking uit — er gaat door de vertraging nooit een meting verloren. Zet op 0 om groeperen uit te schakelen."
+      },
       "distributors": {
         "title": "Mechanische waterverdelers",
         "description": "Stuur een mechanische drukverdeler aan — bijvoorbeeld een Gardena Waterverdeler — die één toevoer over meerdere uitgangen verdeelt en doorschakelt op aan/uit-pulsen van het water. Wijs zones toe aan de uitgangen van een verdeler en Smart Irrigation bewatert ze na elkaar, houdt de positie bij en coördineert een masterklep of pomp. Dit is een nieuwe functie die niet volledig op hardware getest kon worden, dus behandel het als bèta.",
