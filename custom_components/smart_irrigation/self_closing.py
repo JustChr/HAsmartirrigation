@@ -268,6 +268,9 @@ class SelfClosingMixin:
         # A self-closing zone can't stop early, so it gets the same calibration advisory
         # (shared base helper) as a can't-stop distributor member (FM-7).
         await self._flow_calibration_check(zone, measured, planned_s)
+        # Ordered AFTER _sc_remove_run above so the calculation no longer sees a run
+        # in flight. No-op unless this run displaced one.
+        await self.async_run_deferred_calculation(zone_id)
 
     def _sc_schedule_cleanup(self, zone_id, delay_seconds: float) -> None:
         """Schedule the cosmetic finish after the run's planned duration."""
@@ -293,6 +296,20 @@ class SelfClosingMixin:
         zone_id = zone.get(const.ZONE_ID)
         planned_seconds = float(zone.get(const.ZONE_DURATION) or 0)
         if planned_seconds <= 0:
+            return False
+
+        # Single-flight backstop. Every caller filters in-flight zones out first,
+        # but _sc_add_run silently REPLACES an existing record for the same zone
+        # rather than rejecting — so a second dispatch that reached here would
+        # open the valve again, credit the bucket a second time, and orphan the
+        # first run's record. Mirrors the distributor's busy check (irrigation.py
+        # async_run_zone). See tests/test_run_in_flight.py.
+        if self.zone_run_in_flight(zone_id):
+            _LOGGER.info(
+                "Zone %s already has a run in flight; ignoring the self-closing "
+                "dispatch",
+                zone_id,
+            )
             return False
 
         # Observed-watering (opt-in) may watch this zone's observed_entity, which
@@ -505,6 +522,9 @@ class SelfClosingMixin:
             trigger=const.RUN_TRIGGER_SELF_CLOSING,
             add_to_total=True,
         )
+        # Ordered AFTER _sc_remove_run above so the calculation no longer sees a run
+        # in flight. No-op unless this run displaced one.
+        await self.async_run_deferred_calculation(zone_id)
         return True
 
     async def async_resume_self_closing_runs(self) -> None:

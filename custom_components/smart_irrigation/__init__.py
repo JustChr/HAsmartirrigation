@@ -64,6 +64,7 @@ from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin
 from .observed_watering import ObservedWateringMixin
 from .panel import async_register_panel, async_remove_card_resource, remove_panel
+from .run_state import RunStateMixin
 from .scheduler import RecurringScheduleManager
 from .self_closing import SelfClosingMixin
 from .services import ServiceHandlersMixin, async_register_services
@@ -383,6 +384,7 @@ class SmartIrrigationCoordinator(
     SelfClosingMixin,
     MasterMixin,
     DistributorMixin,
+    RunStateMixin,
 ):
     """Define an object to hold Smart Irrigation device.
 
