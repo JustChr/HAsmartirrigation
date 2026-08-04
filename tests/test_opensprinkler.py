@@ -14,7 +14,10 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import async_mock_service
+from pytest_homeassistant_custom_component.common import (
+    async_fire_time_changed,
+    async_mock_service,
+)
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation.opensprinkler import (
@@ -83,6 +86,8 @@ def _coord(hass):
 
     c.store.config = Mock()
     c.store.config.zone_sequencing = const.CONF_ZONE_SEQUENCING_PARALLEL
+    c.store.config.zone_sequencing_max_consecutive_duration = 5
+    c.store.config.zone_sequencing_min_absorption_time = 0
     c.store.config.active_valve_runs = c._runs
 
     async def _persist(runs):
@@ -413,7 +418,9 @@ async def test_a_refused_zone_does_not_stall_the_chain(hass):
         }
     )
     existing = c.store.get_zone.side_effect
-    c.store.get_zone = Mock(side_effect=lambda z: broken if int(z) == 4 else existing(z))
+    c.store.get_zone = Mock(
+        side_effect=lambda z: broken if int(z) == 4 else existing(z)
+    )
     await c.async_dispatch_opensprinkler_zones(
         [zones[0], broken, zones[1]], trigger="schedule"
     )
@@ -471,8 +478,7 @@ async def test_a_station_the_controller_drops_is_written_off_immediately(hass):
     assert _buckets(c)[-1] == -5.0
     assert c._record_run.await_args.kwargs["actual_s"] == 0.0
     assert (
-        c._record_run.await_args.kwargs["detail"]
-        == const.RUN_DETAIL_STATION_NEVER_RAN
+        c._record_run.await_args.kwargs["detail"] == const.RUN_DETAIL_STATION_NEVER_RAN
     )
     c._set_zone_fault.assert_called_with(2, const.PROBLEM_STATION_NEVER_RAN)
 
@@ -554,6 +560,213 @@ async def test_a_second_dispatch_on_a_queued_zone_is_refused(hass):
 
 
 # --------------------------------------------------------------------------- #
+# Rotating: the same total, delivered in slices
+# --------------------------------------------------------------------------- #
+def _rotating(
+    hass, c, *, duration=180.0, slot_minutes=1, absorption_minutes=0, two_zones=True
+):
+    """Set up a rotation, with a store that remembers what was written to it.
+
+    The bucket has to accumulate across slots for the totals to mean anything,
+    and volume/depth have to come from the slot length rather than being fixed,
+    or a rotation and a single run would credit the same amount whatever the
+    split was.
+    """
+    _publish(hass)
+    c.store.config.zone_sequencing = const.CONF_ZONE_SEQUENCING_ROTATING
+    c.store.config.zone_sequencing_max_consecutive_duration = slot_minutes
+    c.store.config.zone_sequencing_min_absorption_time = absorption_minutes
+    zones = {2: _zone(**{const.ZONE_DURATION: duration})}
+    if two_zones:
+        _publish_b(hass)
+        zones[3] = _zone(
+            **{
+                const.ZONE_ID: 3,
+                const.ZONE_DURATION: duration,
+                const.ZONE_LINKED_ENTITY: STATION_B,
+            }
+        )
+    c.store.get_zone = Mock(side_effect=lambda z: zones.get(int(z)))
+
+    async def _update(zone_id, changes):
+        zones[int(zone_id)].update(changes)
+
+    c.store.async_update_zone = AsyncMock(side_effect=_update)
+    c._timed_volume_l = Mock(side_effect=lambda z, seconds: float(seconds) * 0.5)
+    c._credited_depth_native = Mock(side_effect=lambda z, litres: float(litres) / 10.0)
+    return zones
+
+
+async def _water_slot(hass, freezer, *, station_b=False, seconds=60.0):
+    """Let the station that was just dispatched water for ``seconds``, then stop."""
+    publish = _publish_b if station_b else _publish
+    publish(hass, running="on", program_id=99)
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=seconds))
+    publish(hass, running="off", program_id=0)
+    await hass.async_block_till_done()
+
+
+def _slot_seconds(c):
+    return [
+        call.data[const.OPENSPRINKLER_FIELD_RUN_SECONDS] for call in c._os_calls["run"]
+    ]
+
+
+async def test_rotating_alternates_slot_sized_runs_between_the_zones(hass, freezer):
+    """Three minutes each in one-minute slots is six dispatches, alternating -
+    not two runs of three minutes, which is the runoff the mode exists to
+    avoid."""
+    c = _coord(hass)
+    zones = _rotating(hass, c, duration=180.0, slot_minutes=1)
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+
+    assert _dispatched(c) == [STATION]
+    for _ in range(3):
+        await _water_slot(hass, freezer)
+        await _water_slot(hass, freezer, station_b=True)
+
+    assert _dispatched(c) == [STATION, STATION_B] * 3
+    assert _slot_seconds(c) == [60] * 6
+    # The rotation is over, so its master hold is gone.
+    assert [
+        ck.args[0]
+        for ck in c.async_master_release.await_args_list
+        if str(ck.args[0]).startswith("os-chain:")
+    ]
+
+
+async def test_a_rotated_zone_is_given_the_same_water_as_a_single_run(hass, freezer):
+    """Slicing is a delivery schedule, not a discount: the bucket credit and the
+    logged volume have to come out where one long run would have left them."""
+    rotated = _coord(hass)
+    zones = _rotating(hass, rotated, duration=180.0, slot_minutes=1, two_zones=False)
+    await rotated.async_dispatch_opensprinkler_zones(
+        list(zones.values()), trigger="schedule"
+    )
+    for _ in range(3):
+        await _water_slot(hass, freezer)
+
+    whole = _coord(hass)
+    whole_zones = _rotating(
+        hass, whole, duration=180.0, slot_minutes=1, two_zones=False
+    )
+    whole.store.config.zone_sequencing = const.CONF_ZONE_SEQUENCING_PARALLEL
+    await whole.async_dispatch_opensprinkler_zones(
+        list(whole_zones.values()), trigger="schedule"
+    )
+    await _water_slot(hass, freezer, seconds=180.0)
+
+    assert sum(_slot_seconds(rotated)) == sum(_slot_seconds(whole)) == 180
+    assert zones[2][const.ZONE_BUCKET] == whole_zones[2][const.ZONE_BUCKET]
+    assert sum(
+        ck.kwargs["volume_l"] for ck in rotated._record_run.await_args_list
+    ) == sum(ck.kwargs["volume_l"] for ck in whole._record_run.await_args_list)
+
+
+async def test_a_zone_is_not_returned_to_until_it_has_absorbed(hass, freezer):
+    """The wait is the whole point of the setting - a zone that came straight
+    back round would put the water down as fast as one long run did."""
+    c = _coord(hass)
+    zones = _rotating(
+        hass, c, duration=120.0, slot_minutes=1, absorption_minutes=5, two_zones=True
+    )
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+
+    # Each zone's first slot goes out back to back: neither has anything to
+    # absorb yet, so the wait applies to the second turn, not the first.
+    await _water_slot(hass, freezer)
+    await _water_slot(hass, freezer, station_b=True)
+    assert _dispatched(c) == [STATION, STATION_B]
+    assert c._os_chain_state()["absorb"] is not None
+
+    freezer.tick(timedelta(seconds=301))
+    async_fire_time_changed(hass, dt_util.utcnow(), fire_all=True)
+    await hass.async_block_till_done()
+    assert _dispatched(c) == [STATION, STATION_B, STATION]
+
+
+async def test_a_wait_that_expires_a_hair_early_dispatches_anyway(hass, freezer):
+    """The timer runs on the event loop's clock and the window is measured on the
+    wall clock. Live the two landed 2 ms apart, so without slack every single
+    dispatch was preceded by a second, zero-length wait."""
+    c = _coord(hass)
+    zones = _rotating(
+        hass, c, duration=120.0, slot_minutes=1, absorption_minutes=5, two_zones=False
+    )
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+    await _water_slot(hass, freezer)
+    assert c._os_chain_state()["absorb"] is not None
+
+    # Two milliseconds short of the window, exactly as the live boundary landed.
+    freezer.tick(timedelta(seconds=299.998))
+    async_fire_time_changed(hass, dt_util.utcnow(), fire_all=True)
+    await hass.async_block_till_done()
+    assert _dispatched(c) == [STATION, STATION]
+    assert c._os_chain_state()["absorb"] is None
+
+
+async def test_a_slot_the_controller_cuts_short_still_ends_the_turn(hass, freezer):
+    """The controller can stop a station whenever it likes. A rotation that
+    waited for the slot it asked for would stall there for the whole cycle."""
+    c = _coord(hass)
+    zones = _rotating(hass, c, duration=120.0, slot_minutes=1)
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+
+    await _water_slot(hass, freezer, seconds=5.0)
+    assert _dispatched(c) == [STATION, STATION_B]
+    assert c._record_run.await_args.kwargs["result"] == const.RUN_RESULT_PARTIAL
+
+    await _water_slot(hass, freezer, station_b=True)
+    await _water_slot(hass, freezer)
+    await _water_slot(hass, freezer, station_b=True)
+    # The 55 s the controller kept back are not re-queued: a controller that
+    # drops or truncates everything it is given would otherwise rotate for ever.
+    assert _dispatched(c) == [STATION, STATION_B, STATION, STATION_B]
+
+
+async def test_teardown_cancels_a_pending_absorption_wait(hass, freezer):
+    """The rotation is in memory by design, so unload has to end it - a surviving
+    timer would dispatch a station into an integration that is gone."""
+    c = _coord(hass)
+    zones = _rotating(hass, c, duration=120.0, slot_minutes=1, absorption_minutes=5)
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+    await _water_slot(hass, freezer)
+    await _water_slot(hass, freezer, station_b=True)
+    assert c._os_chain_state()["absorb"] is not None
+
+    c.async_teardown_opensprinkler_watchers()
+    assert c._os_chain_state()["absorb"] is None
+    assert c._os_chain_state()["rotation"] is None
+
+    freezer.tick(timedelta(seconds=301))
+    async_fire_time_changed(hass, dt_util.utcnow(), fire_all=True)
+    await hass.async_block_till_done()
+    assert _dispatched(c) == [STATION, STATION_B]
+
+
+async def test_one_zone_on_its_own_is_still_split_into_slots(hass, freezer):
+    """Rotating is about how fast the soil takes water, not about sharing a
+    controller, so a single zone is sliced exactly as several are."""
+    c = _coord(hass)
+    zones = _rotating(hass, c, duration=180.0, slot_minutes=1, two_zones=False)
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+    for _ in range(3):
+        await _water_slot(hass, freezer)
+    assert _slot_seconds(c) == [60, 60, 60]
+
+
+async def test_rotating_leaves_the_zones_stored_duration_alone(hass, freezer):
+    """The slot is this run's duration, not the zone's: the panel keeps showing
+    what the calculation asked for, and a later rotation is built from it."""
+    c = _coord(hass)
+    zones = _rotating(hass, c, duration=180.0, slot_minutes=1, two_zones=False)
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+    await _water_slot(hass, freezer)
+    assert zones[2][const.ZONE_DURATION] == 180.0
+
+
+# --------------------------------------------------------------------------- #
 # In-flight bounds
 # --------------------------------------------------------------------------- #
 def _run(zone_id=2, planned=600.0, started="2026-08-04T10:00:00+00:00", **kw):
@@ -579,9 +792,7 @@ def test_the_deadline_scales_with_what_the_run_is_queued_behind():
     )
 
 
-async def test_a_queued_run_stays_in_flight_past_its_own_planned_window(
-    hass, freezer
-):
+async def test_a_queued_run_stays_in_flight_past_its_own_planned_window(hass, freezer):
     """The defect this mode has to avoid: a zone queued behind three others
     would otherwise stop counting as in flight while its station is still shut,
     dropping both the duplicate-dispatch guard and the calculation deferral in

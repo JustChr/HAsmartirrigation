@@ -281,7 +281,7 @@ class SelfClosingMixin:
         await self.async_run_deferred_calculation(zone_id)
         # Likewise ordered after the removal: the chain only starts the next
         # station once nothing is in flight. No-op unless one is pending.
-        await self._os_chain_advance()
+        await self._os_chain_advance(zone_id)
 
     def _sc_schedule_cleanup(self, zone_id, delay_seconds: float) -> None:
         """Schedule the cosmetic finish after the run's planned duration."""
@@ -632,7 +632,7 @@ class SelfClosingMixin:
         await self.async_run_deferred_calculation(zone_id)
         # A stopped, dropped or short run ends the chain's turn exactly as a
         # completed one does, so the next station must start from here too.
-        await self._os_chain_advance()
+        await self._os_chain_advance(zone_id)
         return True
 
     async def async_resume_self_closing_runs(self) -> None:

@@ -332,21 +332,27 @@ class OpenSprinklerMixin:
             self._os_cancel_watch(zone_id)
         # The chain lives in memory only, so unload ends it. The master hold goes
         # with the coordinator; there is nothing left that could release it.
+        self._os_cancel_absorption()
         chain = self._os_chain_state()
         chain["zones"], chain["trigger"], chain["token"] = [], None, None
+        chain["rotation"] = None
 
     # --- sequencing ---------------------------------------------------------
 
     def _os_chain_state(self) -> dict:
         """Lazy dispatch chain: zones still to start, and the cycle's master hold.
 
+        ``zones`` carries the sequential chain (one dispatch per zone, in order);
+        ``rotation`` carries the rotating one (many slot-sized dispatches per
+        zone, see ``_os_start_rotation``). Only one of the two is ever set.
+
         In memory only, deliberately. Persisting it would mean re-dispatching
         after a restart, and this mode's contract is that Smart Irrigation never
         actuates a station on the way back up — see ``_os_resume_run``. The cost
         is that a restart mid-cycle abandons whatever had not been dispatched
-        yet, which is the trade sequential sequencing makes: under ``parallel``
-        the whole cycle sits in the controller's queue and survives a crash,
-        under ``sequential`` only the run that already started does.
+        yet, which is the trade sequential and rotating sequencing make: under
+        ``parallel`` the whole cycle sits in the controller's queue and survives
+        a crash, under the other two only the run that already started does.
         """
         state = getattr(self, "_os_pending_chain", None)
         if state is None:
@@ -354,6 +360,8 @@ class OpenSprinklerMixin:
                 "zones": [],
                 "trigger": None,
                 "token": None,
+                "rotation": None,
+                "absorb": None,
             }
         return state
 
@@ -370,26 +378,24 @@ class OpenSprinklerMixin:
         dispatches one station and holds the rest back until that run finalises,
         so the setting means the same thing on a controller whose stations are
         flagged to run concurrently as on one whose stations are not.
+
+        ``rotating`` is that chain with each zone re-entering it until its
+        duration is spent — see ``_os_start_rotation``.
         """
         zones = [z for z in zones if self._os_is_opensprinkler(z)]
         if not zones:
             return
         sequencing = self.store.config.zone_sequencing
+        if sequencing == const.CONF_ZONE_SEQUENCING_ROTATING:
+            # Checked before the single-zone shortcut below: rotating is about
+            # runoff, not order, so one zone's duration is split into slots just
+            # the same as four zones' are.
+            await self._os_start_rotation(zones, trigger=trigger)
+            return
         if sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL or len(zones) == 1:
             for zone in zones:
                 await self.async_run_self_closing(zone, trigger=trigger)
             return
-        if sequencing == const.CONF_ZONE_SEQUENCING_ROTATING:
-            # Rotating splits each zone's duration into slots with absorption
-            # waits between turns. That is a different dispatch shape, not a
-            # chain, and is not implemented for stations yet — say so rather than
-            # let it look like it was honoured.
-            _LOGGER.warning(
-                "Zone sequencing '%s' is not implemented for OpenSprinkler "
-                "stations; running the %s station zones sequentially instead",
-                const.CONF_ZONE_SEQUENCING_ROTATING,
-                len(zones),
-            )
 
         state = self._os_chain_state()
         state["zones"] = [int(z.get(const.ZONE_ID)) for z in zones[1:]]
@@ -409,18 +415,32 @@ class OpenSprinklerMixin:
             # Refused (an unresolvable station); the chain must not stall on it.
             await self._os_chain_advance()
 
-    async def _os_chain_advance(self) -> None:
-        """Start the next chained zone, or end the chain.
+    async def _os_chain_advance(self, finished_zone_id=None) -> None:
+        """Start the next chained zone or rotation slot, or end the cycle.
 
         Safe to call from every finalisation path: it returns while any station
         run is still in flight, so whichever of them fires first advances once.
+        ``finished_zone_id`` is the zone whose run just ended, which is what a
+        rotation measures its absorption wait from; the sequential chain ignores
+        it, and so does a zone that is not part of the current cycle.
         """
         state = self._os_chain_state()
-        if not state["zones"] and state["token"] is None:
+        if not state["zones"] and state["rotation"] is None and state["token"] is None:
             return
+        rotation = state["rotation"]
+        if rotation is not None and finished_zone_id is not None:
+            # Stamped as the turn ends, not as the slot was dispatched: what the
+            # soil is given to absorb is the water, so the wait runs from the
+            # moment the station stopped.
+            zid = int(finished_zone_id)
+            if zid in rotation["remaining"]:
+                rotation["last_finish"][zid] = dt_util.utcnow()
         for run in await self._sc_active_runs():
             if run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER:
                 return
+        if rotation is not None:
+            await self._os_rotation_advance()
+            return
         while state["zones"]:
             zone_id = state["zones"].pop(0)
             zone = self.store.get_zone(zone_id) or {}
@@ -438,10 +458,187 @@ class OpenSprinklerMixin:
     async def _os_chain_release(self) -> None:
         """Drop the chain and its master hold."""
         state = self._os_chain_state()
-        state["zones"], state["trigger"] = [], None
+        self._os_cancel_absorption()
+        state["zones"], state["trigger"], state["rotation"] = [], None, None
         token, state["token"] = state["token"], None
         if token:
             await self.async_master_release(token)
+
+    # --- rotating -----------------------------------------------------------
+
+    async def _os_start_rotation(self, zones: list, *, trigger) -> None:
+        """Split every zone's duration into slots and start the first one.
+
+        The classic rotation (``irrigation._run_rotation``) is a loop that opens
+        and closes ``linked_entity`` itself, which for a station switch would
+        rewrite the controller's configuration and water nothing — see this
+        module's header. So the same behaviour is rebuilt on top of the
+        observation lifecycle instead: a zone re-enters the sequential chain,
+        for at most ``zone_sequencing_max_consecutive_duration`` minutes at a
+        time, until its duration is spent, and is not dispatched again until
+        ``zone_sequencing_min_absorption_time`` has passed since its last slot
+        stopped. That is what the setting is for: a long run on tight soil puts
+        down more water than the soil can take, so the same total is delivered
+        in slices.
+
+        Slots are dispatched one at a time even where the controller would run
+        two stations concurrently, for the same reason ``sequential`` is: the
+        concurrency flag is the controller's, and a mode that only sometimes
+        governs is worse than none.
+        """
+        state = self._os_chain_state()
+        rotation = {
+            "order": [],
+            "remaining": {},
+            "last_finish": {},
+            # Index into "order" of the zone dispatched last, so the next turn
+            # resumes after it instead of restarting at the top every time.
+            "cursor": -1,
+            "slot": max(
+                1,
+                (self.store.config.zone_sequencing_max_consecutive_duration or 5),
+            )
+            * 60.0,
+            "absorption": (self.store.config.zone_sequencing_min_absorption_time or 0)
+            * 60.0,
+        }
+        for zone in zones:
+            duration = float(zone.get(const.ZONE_DURATION) or 0)
+            if duration <= 0:
+                continue
+            zone_id = int(zone.get(const.ZONE_ID))
+            rotation["order"].append(zone_id)
+            rotation["remaining"][zone_id] = duration
+        if not rotation["order"]:
+            return
+
+        state["rotation"] = rotation
+        state["zones"] = []
+        state["trigger"] = trigger
+        if state["token"] is None:
+            # One hold for the whole rotation, as the classic rotation takes:
+            # the absorption waits are part of the cycle and stretch it far past
+            # any up-front estimate, and a per-slot hold would drop the master
+            # in every gap.
+            state["token"] = f"os-chain:{uuid.uuid4().hex[:8]}"
+            await self.async_master_acquire(state["token"])
+        _LOGGER.info(
+            "OpenSprinkler: rotating %s station zones in slots of up to %.0fs "
+            "with a %.0fs absorption wait",
+            len(rotation["order"]),
+            rotation["slot"],
+            rotation["absorption"],
+        )
+        await self._os_rotation_advance()
+
+    def _os_rotation_next(self, rotation: dict):
+        """``((index, zone_id), None)`` for the zone whose turn it is.
+
+        ``(None, seconds)`` when every zone with water left is still absorbing,
+        and ``(None, None)`` when the rotation is finished. Zones are considered
+        in order from the one after the last dispatch, so a zone still absorbing
+        is passed over for the next one rather than holding the whole rotation.
+        """
+        order = rotation["order"]
+        now = dt_util.utcnow()
+        absorption = rotation["absorption"]
+        soonest = None
+        for offset in range(len(order)):
+            index = (rotation["cursor"] + 1 + offset) % len(order)
+            zone_id = order[index]
+            if rotation["remaining"].get(zone_id, 0) <= 0:
+                continue
+            last_finish = rotation["last_finish"].get(zone_id)
+            if absorption > 0 and last_finish is not None:
+                wait = absorption - (now - last_finish).total_seconds()
+                # A second of slack, because the timer that brings us back here
+                # runs on the event loop's clock while the window is measured on
+                # the wall clock. Live, the two disagreed by 2 ms at the boundary,
+                # which without this arms a second, zero-length wait before every
+                # single dispatch. A minutes-long window does not care about the
+                # second; the log line and the extra round trip do.
+                if wait > 1.0:
+                    soonest = wait if soonest is None else min(soonest, wait)
+                    continue
+            return (index, zone_id), None
+        return None, soonest
+
+    async def _os_rotation_advance(self) -> None:
+        """Dispatch the next slot, wait out an absorption window, or finish."""
+        state = self._os_chain_state()
+        rotation = state["rotation"]
+        if rotation is None:
+            return
+        self._os_cancel_absorption()
+        while True:
+            candidate, wait = self._os_rotation_next(rotation)
+            if candidate is None:
+                if wait is None:
+                    break
+                self._os_arm_absorption(wait)
+                return
+            index, zone_id = candidate
+            zone = self.store.get_zone(zone_id) or {}
+            if not is_opensprinkler_zone(zone) or self.zone_run_in_flight(zone_id):
+                # Reconfigured or being run by something else while the rotation
+                # was waiting. Drop its remainder rather than come back to it
+                # every turn for the rest of the cycle.
+                rotation["remaining"][zone_id] = 0.0
+                continue
+            slot = min(rotation["slot"], rotation["remaining"][zone_id])
+            rotation["cursor"] = index
+            # Deducted at dispatch, never on the way back. A slot the controller
+            # cuts short or drops has had its turn: re-queueing it would let a
+            # controller-side rain delay, which drops every run it is given,
+            # rotate for ever.
+            rotation["remaining"][zone_id] -= slot
+            _LOGGER.info(
+                "OpenSprinkler rotation: zone %s slot %.0fs, %.0fs left after it",
+                zone_id,
+                slot,
+                rotation["remaining"][zone_id],
+            )
+            # A copy, so the slot is what this run is dispatched, credited and
+            # measured for while the zone's own stored duration — what the panel
+            # shows and what the next rotation would be built from — is left
+            # alone. Every slot is a run in its own right: its own record, its
+            # own bucket credit, its own flow sampling, its own log line.
+            if await self.async_run_self_closing(
+                dict(zone, **{const.ZONE_DURATION: slot}), trigger=state["trigger"]
+            ):
+                return
+            # Refused (an unresolvable station). Abandon the zone rather than
+            # retry it on every turn until the rotation ends.
+            rotation["remaining"][zone_id] = 0.0
+        await self._os_chain_release()
+
+    def _os_cancel_absorption(self) -> None:
+        """Cancel-and-drop a pending absorption wait (no-op if none is armed)."""
+        state = self._os_chain_state()
+        cancel = state.get("absorb")
+        if cancel is not None:
+            cancel()
+        state["absorb"] = None
+
+    def _os_arm_absorption(self, delay: float) -> None:
+        """Wait ``delay`` before looking for the next slot.
+
+        A timer, not a sleeping task: the rotation holds no coroutine between
+        slots, so there is nothing to cancel at unload except this handle — which
+        ``async_teardown_opensprinkler_watchers`` does.
+        """
+        state = self._os_chain_state()
+        self._os_cancel_absorption()
+
+        async def _absorbed(_now):
+            state["absorb"] = None
+            await self._os_chain_advance()
+
+        _LOGGER.info(
+            "OpenSprinkler rotation: every zone is absorbing, next slot in %.0fs",
+            delay,
+        )
+        state["absorb"] = async_call_later(self.hass, max(0.0, delay), _absorbed)
 
     def _os_arm_timer(self, zone_id, delay: float, reason: str) -> None:
         """(Re)arm the watcher's single timer."""
