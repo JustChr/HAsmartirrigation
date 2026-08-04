@@ -363,6 +363,9 @@
         "data-number-of-data-points": "Aantal datapunten",
         "drainage_rate": "Afwateringssnelheid",
         "linked_entity": "Gekoppelde schakelaar/klep/helper-entiteit",
+        "opensprinkler_station": "OpenSprinkler-station",
+        "opensprinkler_station_help": "De inschakelschakelaar van het station, bijv. switch.front_lawn_station_enabled. HASI zet de cyclus in de wachtrij van de controller en volgt daarna de loopsensor van datzelfde station, zodat een zone die achter andere wacht pas als bewaterend telt zodra hij echt begint. Zet het waterniveau van de controller op 100 % of schakel de weersaanpassing daar uit, anders wordt de weerscorrectie dubbel toegepast.",
+        "opensprinkler_no_stations": "Geen OpenSprinkler-stations gevonden. Controleer of de OpenSprinkler-integratie is ingesteld en de controller bereikbaar is. Een entiteits-id intypen kan nog steeds.",
         "linked_entity_placeholder": "bijv. switch.tuin_klep",
         "irrigate_now": "Nu bewateren",
         "bucket_threshold": "Minimum tekort voor bewatering",
@@ -377,7 +380,8 @@
         "watering_mode_description": "Hoe HASI deze zone aanstuurt. Klassiek: HASI opent de klep en sluit deze zelf met een softwaretimer. Zelfsluitende service: HASI stuurt de looptijd naar een zelfsluitende klep via een script (zie de meegeleverde klep-blueprints) en laat de hardware zichzelf sluiten, zodat een HA-herstart midden in een cyclus geen continue irrigatie kan veroorzaken.",
         "watering_modes": {
           "classic": "Klassiek (HASI opent & sluit de klep)",
-          "service": "Zelfsluitende service (klep sluit zichzelf)"
+          "service": "Zelfsluitende service (klep sluit zichzelf)",
+          "opensprinkler": "OpenSprinkler-station (de controller werkt de wachtrij af)"
         },
         "run_service": "Startservice",
         "run_service_help": "Service die HASI aanroept om de cyclus te starten (bijv. een script.* of een switch/valve-service). Deze ontvangt het onderstaande duurveld plus zone_id en zone_name.",

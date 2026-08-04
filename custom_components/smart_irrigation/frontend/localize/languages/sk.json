@@ -363,6 +363,9 @@
         "data-number-of-data-points": "Počet údajových bodov",
         "drainage_rate": "Miera odvodnenia",
         "linked_entity": "Prepojená entita prepínača/ventilu/pomocníka",
+        "opensprinkler_station": "Stanica OpenSprinkler",
+        "opensprinkler_station_help": "Povoľovací prepínač stanice, napr. switch.front_lawn_station_enabled. HASI zaradí beh do fronty ovládača a potom sleduje senzor behu práve tejto stanice, takže zóna čakajúca za inými sa počíta ako zavlažujúca až vtedy, keď skutočne začne. Nastav úroveň vody ovládača na 100 % alebo vypni jeho poveternostnú úpravu, inak sa poveternostná korekcia uplatní dvakrát.",
+        "opensprinkler_no_stations": "Nenašli sa žiadne stanice OpenSprinkler. Skontroluj, či je integrácia OpenSprinkler nastavená a či je ovládač dostupný. Entitné id sa dá stále zadať ručne.",
         "linked_entity_placeholder": "napr. switch.zahradny_ventil",
         "irrigate_now": "Zavlažiť teraz",
         "bucket_threshold": "Minimálny deficit pre závlahu",
@@ -377,7 +380,8 @@
         "watering_mode_description": "Ako HASI ovláda túto zónu. Klasický: HASI otvorí ventil a sám ho zatvorí softvérovým časovačom. Samozatváracia služba: HASI odošle trvanie behu samozatváraciemu ventilu cez skript (pozri dodané blueprinty ventilov) a nechá hardvér, aby sa zatvoril sám, takže reštart HA počas behu nemôže spôsobiť nepretržité zavlažovanie.",
         "watering_modes": {
           "classic": "Klasický (HASI otvára a zatvára ventil)",
-          "service": "Samozatváracia služba (ventil sa zatvorí sám)"
+          "service": "Samozatváracia služba (ventil sa zatvorí sám)",
+          "opensprinkler": "Stanica OpenSprinkler (ovládač spracúva frontu)"
         },
         "run_service": "Služba spustenia",
         "run_service_help": "Služba, ktorú HASI zavolá na spustenie behu (napr. script.* alebo služba prepínača/ventilu). Dostane pole trvania nižšie plus zone_id a zone_name.",

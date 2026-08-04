@@ -403,6 +403,9 @@
         "data-number-of-data-points": "Numero di dati",
         "drainage_rate": "Tasso di drenaggio",
         "linked_entity": "Entità interruttore/valvola/helper collegata",
+        "opensprinkler_station": "Stazione OpenSprinkler",
+        "opensprinkler_station_help": "L'interruttore di abilitazione della stazione, ad es. switch.front_lawn_station_enabled. HASI accoda l'irrigazione sulla centralina e poi osserva il sensore di funzionamento di quella stessa stazione, così una zona in coda dietro altre risulta in irrigazione solo quando parte davvero. Imposta il livello d'acqua della centralina al 100 % oppure disattiva la sua regolazione meteo, altrimenti la correzione meteo viene applicata due volte.",
+        "opensprinkler_no_stations": "Nessuna stazione OpenSprinkler trovata. Verifica che l'integrazione OpenSprinkler sia configurata e che la centralina sia raggiungibile. Puoi comunque digitare un id di entità.",
         "linked_entity_placeholder": "es. switch.valvola_giardino",
         "irrigate_now": "Irriga ora",
         "bucket_threshold": "Deficit minimo per irrigare",
@@ -417,7 +420,8 @@
         "watering_mode_description": "Come HASI aziona questa zona. Classica: HASI apre la valvola e la chiude autonomamente con un timer software. Servizio autochiudente: HASI invia la durata dell'irrigazione a una valvola autochiudente tramite uno script (vedi i blueprint delle valvole inclusi) e lascia che sia l'hardware a chiudersi, così un riavvio di HA durante l'irrigazione non può causare un'irrigazione continua.",
         "watering_modes": {
           "classic": "Classica (HASI apre e chiude la valvola)",
-          "service": "Servizio autochiudente (la valvola si chiude da sola)"
+          "service": "Servizio autochiudente (la valvola si chiude da sola)",
+          "opensprinkler": "Stazione OpenSprinkler (la centralina smaltisce la coda)"
         },
         "run_service": "Servizio di avvio",
         "run_service_help": "Servizio che HASI chiama per avviare l'irrigazione (ad es. uno script.* o un servizio switch/valve). Riceve il campo durata sottostante più zone_id e zone_name.",

@@ -27,6 +27,7 @@ from homeassistant.util import slugify
 from . import const
 from .distributor_entity import DistributorEntityBase
 from .entity import hub_device_info, zone_device_info
+from .opensprinkler import zone_watch_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -227,10 +228,19 @@ class SmartIrrigationZoneWateringNowSensor(SmartIrrigationZoneBinarySensor):
         # its change-guard, which is skipped when the value stays None, and
         # async_added_to_hass -> _resubscribe reads it on add.
         self._linked_entity = None
+        self._zone = zone
         super().__init__(hass, entity_id, zone)
 
     def _update_from_zone(self, zone: dict) -> None:
-        linked = zone.get(const.ZONE_LINKED_ENTITY) or None
+        # Through the accessor: an OpenSprinkler zone's linked_entity is the
+        # station-ENABLED switch, which is on whenever the station is configured
+        # to be usable. Mirroring it would leave this sensor on permanently. The
+        # accessor returns the station's running sensor for those zones.
+        #
+        # self._hass, not self.hass: HA sets the latter when the entity is added
+        # to the platform, and this runs from __init__ before that.
+        self._zone = zone
+        linked = zone_watch_entity(self._hass, zone) or None
         if linked != getattr(self, "_linked_entity", None):
             self._linked_entity = linked
             self._resubscribe()
@@ -270,6 +280,12 @@ class SmartIrrigationZoneWateringNowSensor(SmartIrrigationZoneBinarySensor):
     async def async_added_to_hass(self):
         """Subscribe to the linked entity once registered."""
         await super().async_added_to_hass()
+        # Re-derive first: an OpenSprinkler station resolves from the state
+        # attributes of an entity another integration owns, which may not have
+        # been set up yet when this sensor was constructed. A dispatch re-signals
+        # _config_updated once it resolves the station, so this is only the
+        # earliest of the retries, not the only one.
+        self._update_from_zone(self._zone)
         self._resubscribe()
 
     async def async_will_remove_from_hass(self):

@@ -523,6 +523,9 @@
         "data-number-of-data-points": "Number of data points",
         "drainage_rate": "Drainage rate",
         "linked_entity": "Linked switch/valve/helper entity",
+        "opensprinkler_station": "OpenSprinkler station",
+        "opensprinkler_station_help": "The station's enabled switch, e.g. switch.front_lawn_station_enabled. HASI queues the run on the controller and then watches that station's own running sensor, so a zone queued behind others is only counted as watering once it really starts. Set the controller's water level to 100% or turn its weather adjustment off, otherwise the weather correction is applied twice.",
+        "opensprinkler_no_stations": "No OpenSprinkler stations found. Check that the OpenSprinkler integration is set up and the controller is reachable. You can still type an entity id.",
         "linked_entity_placeholder": "e.g. switch.garden_valve",
         "flow_sensor": "Flow meter sensor (optional)",
         "flow_sensor_placeholder": "e.g. sensor.zone_flow_rate",
@@ -535,7 +538,8 @@
         "watering_mode_description": "How HASI actuates this zone. Classic: HASI opens the valve and closes it itself with a software timer. Self-closing service: HASI sends the run duration to a self-closing valve via a script (see the shipped valve blueprints) and lets the hardware close itself, so an HA restart mid-run cannot cause continuous irrigation.",
         "watering_modes": {
           "classic": "Classic (HASI opens & closes the valve)",
-          "service": "Self-closing service (valve closes itself)"
+          "service": "Self-closing service (valve closes itself)",
+          "opensprinkler": "OpenSprinkler station (controller runs the queue)"
         },
         "run_service": "Run service",
         "run_service_help": "Service HASI calls to start the run (e.g. a script.* or a switch/valve service). It receives the duration field below plus zone_id and zone_name.",

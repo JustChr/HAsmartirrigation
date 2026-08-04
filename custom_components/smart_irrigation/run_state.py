@@ -34,6 +34,7 @@ import logging
 from homeassistant.util import dt as dt_util
 
 from . import const
+from .opensprinkler import queue_deadline_seconds
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +60,17 @@ class RunStateMixin:
         an overdue record as "running" would let one that outlived its finaliser
         (a crash before ``async_resume_self_closing_runs`` reconciles it) block
         every future run of that zone with no way out.
+
+        Which instant that window is measured from is the whole difficulty for an
+        OpenSprinkler run. ``RUN_STARTED`` is the dispatch, and the controller
+        waters one station at a time, so a zone queued behind three others would
+        stop counting as in flight ``planned_seconds`` after dispatch while its
+        station had not yet opened - dropping the duplicate-dispatch guard and the
+        calculation deferral in the middle of the queue, which is exactly when a
+        second dispatch would re-queue a whole cycle the controller has already
+        accepted. So it measures from ``RUN_OBSERVED_START`` once the station is
+        seen running, and until then treats the run as in flight for as long as it
+        could plausibly still be waiting (:func:`queue_deadline_seconds`).
         """
         config = getattr(self.store, "config", None)
         runs = getattr(config, const.CONF_ACTIVE_VALVE_RUNS, None)
@@ -75,10 +87,18 @@ class RunStateMixin:
             planned = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
             if planned <= 0:
                 return True
-            started = dt_util.parse_datetime(run.get(const.RUN_STARTED) or "")
-            if started is None:
+            observed = run.get(const.RUN_OBSERVED_START)
+            queued = (
+                observed is None
+                and run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER
+            )
+            window = queue_deadline_seconds(runs, run) if queued else planned
+            anchor = dt_util.parse_datetime(
+                (observed or run.get(const.RUN_STARTED)) or ""
+            )
+            if anchor is None:
                 return True
-            return (dt_util.utcnow() - started).total_seconds() < planned
+            return (dt_util.utcnow() - anchor).total_seconds() < window
         return False
 
     def _distributor_run_in_flight(self, zone_id: int) -> bool:

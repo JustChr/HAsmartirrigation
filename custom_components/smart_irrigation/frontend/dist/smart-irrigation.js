@@ -1,37 +1,37 @@
-!function(e){"use strict";function t(e,t,i,s){var a,n=arguments.length,o=n<3?t:null===s?s=Object.getOwnPropertyDescriptor(t,i):s;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)o=Reflect.decorate(e,t,i,s);else for(var r=e.length-1;r>=0;r--)(a=e[r])&&(o=(n<3?a(o):n>3?a(t,i,o):a(t,i))||o);return n>3&&o&&Object.defineProperty(t,i,o),o}"function"==typeof SuppressedError&&SuppressedError;
+!function(e){"use strict";function t(e,t,s,i){var a,n=arguments.length,o=n<3?t:null===i?i=Object.getOwnPropertyDescriptor(t,s):i;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)o=Reflect.decorate(e,t,s,i);else for(var r=e.length-1;r>=0;r--)(a=e[r])&&(o=(n<3?a(o):n>3?a(t,s,o):a(t,s))||o);return n>3&&o&&Object.defineProperty(t,s,o),o}"function"==typeof SuppressedError&&SuppressedError;
 /**
      * @license
      * Copyright 2019 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
      */
-const i=globalThis,s=i.ShadowRoot&&(void 0===i.ShadyCSS||i.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,a=Symbol(),n=new WeakMap;let o=class{constructor(e,t,i){if(this._$cssResult$=!0,i!==a)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=t}get styleSheet(){let e=this.o;const t=this.t;if(s&&void 0===e){const i=void 0!==t&&1===t.length;i&&(e=n.get(t)),void 0===e&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),i&&n.set(t,e))}return e}toString(){return this.cssText}};const r=(e,...t)=>{const i=1===e.length?e[0]:t.reduce((t,i,s)=>t+(e=>{if(!0===e._$cssResult$)return e.cssText;if("number"==typeof e)return e;throw Error("Value passed to 'css' function must be a 'css' function result: "+e+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(i)+e[s+1],e[0]);return new o(i,e,a)},l=s?e=>e:e=>e instanceof CSSStyleSheet?(e=>{let t="";for(const i of e.cssRules)t+=i.cssText;return(e=>new o("string"==typeof e?e:e+"",void 0,a))(t)})(e):e,{is:d,defineProperty:c,getOwnPropertyDescriptor:h,getOwnPropertyNames:u,getOwnPropertySymbols:p,getPrototypeOf:g}=Object,m=globalThis,v=m.trustedTypes,_=v?v.emptyScript:"",f=m.reactiveElementPolyfillSupport,b=(e,t)=>e,y={toAttribute(e,t){switch(t){case Boolean:e=e?_:null;break;case Object:case Array:e=null==e?e:JSON.stringify(e)}return e},fromAttribute(e,t){let i=e;switch(t){case Boolean:i=null!==e;break;case Number:i=null===e?null:Number(e);break;case Object:case Array:try{i=JSON.parse(e)}catch(e){i=null}}return i}},w=(e,t)=>!d(e,t),$={attribute:!0,type:String,converter:y,reflect:!1,useDefault:!1,hasChanged:w};
+const s=globalThis,i=s.ShadowRoot&&(void 0===s.ShadyCSS||s.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,a=Symbol(),n=new WeakMap;let o=class{constructor(e,t,s){if(this._$cssResult$=!0,s!==a)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=t}get styleSheet(){let e=this.o;const t=this.t;if(i&&void 0===e){const s=void 0!==t&&1===t.length;s&&(e=n.get(t)),void 0===e&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),s&&n.set(t,e))}return e}toString(){return this.cssText}};const r=(e,...t)=>{const s=1===e.length?e[0]:t.reduce((t,s,i)=>t+(e=>{if(!0===e._$cssResult$)return e.cssText;if("number"==typeof e)return e;throw Error("Value passed to 'css' function must be a 'css' function result: "+e+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+e[i+1],e[0]);return new o(s,e,a)},l=i?e=>e:e=>e instanceof CSSStyleSheet?(e=>{let t="";for(const s of e.cssRules)t+=s.cssText;return(e=>new o("string"==typeof e?e:e+"",void 0,a))(t)})(e):e,{is:d,defineProperty:c,getOwnPropertyDescriptor:h,getOwnPropertyNames:u,getOwnPropertySymbols:p,getPrototypeOf:g}=Object,m=globalThis,v=m.trustedTypes,_=v?v.emptyScript:"",f=m.reactiveElementPolyfillSupport,b=(e,t)=>e,y={toAttribute(e,t){switch(t){case Boolean:e=e?_:null;break;case Object:case Array:e=null==e?e:JSON.stringify(e)}return e},fromAttribute(e,t){let s=e;switch(t){case Boolean:s=null!==e;break;case Number:s=null===e?null:Number(e);break;case Object:case Array:try{s=JSON.parse(e)}catch(e){s=null}}return s}},w=(e,t)=>!d(e,t),$={attribute:!0,type:String,converter:y,reflect:!1,useDefault:!1,hasChanged:w};
 /**
      * @license
      * Copyright 2017 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */Symbol.metadata??=Symbol("metadata"),m.litPropertyMetadata??=new WeakMap;let x=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??=[]).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,t=$){if(t.state&&(t.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((t=Object.create(t)).wrapped=!0),this.elementProperties.set(e,t),!t.noAccessor){const i=Symbol(),s=this.getPropertyDescriptor(e,i,t);void 0!==s&&c(this.prototype,e,s)}}static getPropertyDescriptor(e,t,i){const{get:s,set:a}=h(this.prototype,e)??{get(){return this[t]},set(e){this[t]=e}};return{get:s,set(t){const n=s?.call(this);a?.call(this,t),this.requestUpdate(e,n,i)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??$}static _$Ei(){if(this.hasOwnProperty(b("elementProperties")))return;const e=g(this);e.finalize(),void 0!==e.l&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(b("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(b("properties"))){const e=this.properties,t=[...u(e),...p(e)];for(const i of t)this.createProperty(i,e[i])}const e=this[Symbol.metadata];if(null!==e){const t=litPropertyMetadata.get(e);if(void 0!==t)for(const[e,i]of t)this.elementProperties.set(e,i)}this._$Eh=new Map;for(const[e,t]of this.elementProperties){const i=this._$Eu(e,t);void 0!==i&&this._$Eh.set(i,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){const t=[];if(Array.isArray(e)){const i=new Set(e.flat(1/0).reverse());for(const e of i)t.unshift(l(e))}else void 0!==e&&t.push(l(e));return t}static _$Eu(e,t){const i=t.attribute;return!1===i?void 0:"string"==typeof i?i:"string"==typeof e?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(e=>this.enableUpdating=e),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(e=>e(this))}addController(e){(this._$EO??=new Set).add(e),void 0!==this.renderRoot&&this.isConnected&&e.hostConnected?.()}removeController(e){this._$EO?.delete(e)}_$E_(){const e=new Map,t=this.constructor.elementProperties;for(const i of t.keys())this.hasOwnProperty(i)&&(e.set(i,this[i]),delete this[i]);e.size>0&&(this._$Ep=e)}createRenderRoot(){const e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return((e,t)=>{if(s)e.adoptedStyleSheets=t.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(const s of t){const t=document.createElement("style"),a=i.litNonce;void 0!==a&&t.setAttribute("nonce",a),t.textContent=s.cssText,e.appendChild(t)}})(e,this.constructor.elementStyles),e}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(e=>e.hostConnected?.())}enableUpdating(e){}disconnectedCallback(){this._$EO?.forEach(e=>e.hostDisconnected?.())}attributeChangedCallback(e,t,i){this._$AK(e,i)}_$ET(e,t){const i=this.constructor.elementProperties.get(e),s=this.constructor._$Eu(e,i);if(void 0!==s&&!0===i.reflect){const a=(void 0!==i.converter?.toAttribute?i.converter:y).toAttribute(t,i.type);this._$Em=e,null==a?this.removeAttribute(s):this.setAttribute(s,a),this._$Em=null}}_$AK(e,t){const i=this.constructor,s=i._$Eh.get(e);if(void 0!==s&&this._$Em!==s){const e=i.getPropertyOptions(s),a="function"==typeof e.converter?{fromAttribute:e.converter}:void 0!==e.converter?.fromAttribute?e.converter:y;this._$Em=s;const n=a.fromAttribute(t,e.type);this[s]=n??this._$Ej?.get(s)??n,this._$Em=null}}requestUpdate(e,t,i,s=!1,a){if(void 0!==e){const n=this.constructor;if(!1===s&&(a=this[e]),i??=n.getPropertyOptions(e),!((i.hasChanged??w)(a,t)||i.useDefault&&i.reflect&&a===this._$Ej?.get(e)&&!this.hasAttribute(n._$Eu(e,i))))return;this.C(e,t,i)}!1===this.isUpdatePending&&(this._$ES=this._$EP())}C(e,t,{useDefault:i,reflect:s,wrapped:a},n){i&&!(this._$Ej??=new Map).has(e)&&(this._$Ej.set(e,n??t??this[e]),!0!==a||void 0!==n)||(this._$AL.has(e)||(this.hasUpdated||i||(t=void 0),this._$AL.set(e,t)),!0===s&&this._$Em!==e&&(this._$Eq??=new Set).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}const e=this.scheduleUpdate();return null!=e&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(const[e,t]of this._$Ep)this[e]=t;this._$Ep=void 0}const e=this.constructor.elementProperties;if(e.size>0)for(const[t,i]of e){const{wrapped:e}=i,s=this[t];!0!==e||this._$AL.has(t)||void 0===s||this.C(t,void 0,i,s)}}let e=!1;const t=this._$AL;try{e=this.shouldUpdate(t),e?(this.willUpdate(t),this._$EO?.forEach(e=>e.hostUpdate?.()),this.update(t)):this._$EM()}catch(t){throw e=!1,this._$EM(),t}e&&this._$AE(t)}willUpdate(e){}_$AE(e){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(e){}firstUpdated(e){}};x.elementStyles=[],x.shadowRootOptions={mode:"open"},x[b("elementProperties")]=new Map,x[b("finalized")]=new Map,f?.({ReactiveElement:x}),(m.reactiveElementVersions??=[]).push("2.1.2");
-/**
-     * @license
-     * Copyright 2017 Google LLC
-     * SPDX-License-Identifier: BSD-3-Clause
-     */
-const k=globalThis,z=e=>e,S=k.trustedTypes,A=S?S.createPolicy("lit-html",{createHTML:e=>e}):void 0,E="$lit$",C=`lit$${Math.random().toFixed(9).slice(2)}$`,T="?"+C,O=`<${T}>`,H=document,D=()=>H.createComment(""),M=e=>null===e||"object"!=typeof e&&"function"!=typeof e,I=Array.isArray,N="[ \t\n\f\r]",L=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,P=/-->/g,R=/>/g,B=RegExp(`>|${N}(?:([^\\s"'>=/]+)(${N}*=${N}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),U=/'/g,j=/"/g,F=/^(?:script|style|textarea|title)$/i,Z=(e=>(t,...i)=>({_$litType$:e,strings:t,values:i}))(1),W=Symbol.for("lit-noChange"),q=Symbol.for("lit-nothing"),G=new WeakMap,K=H.createTreeWalker(H,129);function V(e,t){if(!I(e)||!e.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==A?A.createHTML(t):t}const Y=(e,t)=>{const i=e.length-1,s=[];let a,n=2===t?"<svg>":3===t?"<math>":"",o=L;for(let t=0;t<i;t++){const i=e[t];let r,l,d=-1,c=0;for(;c<i.length&&(o.lastIndex=c,l=o.exec(i),null!==l);)c=o.lastIndex,o===L?"!--"===l[1]?o=P:void 0!==l[1]?o=R:void 0!==l[2]?(F.test(l[2])&&(a=RegExp("</"+l[2],"g")),o=B):void 0!==l[3]&&(o=B):o===B?">"===l[0]?(o=a??L,d=-1):void 0===l[1]?d=-2:(d=o.lastIndex-l[2].length,r=l[1],o=void 0===l[3]?B:'"'===l[3]?j:U):o===j||o===U?o=B:o===P||o===R?o=L:(o=B,a=void 0);const h=o===B&&e[t+1].startsWith("/>")?" ":"";n+=o===L?i+O:d>=0?(s.push(r),i.slice(0,d)+E+i.slice(d)+C+h):i+C+(-2===d?t:h)}return[V(e,n+(e[i]||"<?>")+(2===t?"</svg>":3===t?"</math>":"")),s]};class X{constructor({strings:e,_$litType$:t},i){let s;this.parts=[];let a=0,n=0;const o=e.length-1,r=this.parts,[l,d]=Y(e,t);if(this.el=X.createElement(l,i),K.currentNode=this.el.content,2===t||3===t){const e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;null!==(s=K.nextNode())&&r.length<o;){if(1===s.nodeType){if(s.hasAttributes())for(const e of s.getAttributeNames())if(e.endsWith(E)){const t=d[n++],i=s.getAttribute(e).split(C),o=/([.?@])?(.*)/.exec(t);r.push({type:1,index:a,name:o[2],strings:i,ctor:"."===o[1]?ie:"?"===o[1]?se:"@"===o[1]?ae:te}),s.removeAttribute(e)}else e.startsWith(C)&&(r.push({type:6,index:a}),s.removeAttribute(e));if(F.test(s.tagName)){const e=s.textContent.split(C),t=e.length-1;if(t>0){s.textContent=S?S.emptyScript:"";for(let i=0;i<t;i++)s.append(e[i],D()),K.nextNode(),r.push({type:2,index:++a});s.append(e[t],D())}}}else if(8===s.nodeType)if(s.data===T)r.push({type:2,index:a});else{let e=-1;for(;-1!==(e=s.data.indexOf(C,e+1));)r.push({type:7,index:a}),e+=C.length-1}a++}}static createElement(e,t){const i=H.createElement("template");return i.innerHTML=e,i}}function J(e,t,i=e,s){if(t===W)return t;let a=void 0!==s?i._$Co?.[s]:i._$Cl;const n=M(t)?void 0:t._$litDirective$;return a?.constructor!==n&&(a?._$AO?.(!1),void 0===n?a=void 0:(a=new n(e),a._$AT(e,i,s)),void 0!==s?(i._$Co??=[])[s]=a:i._$Cl=a),void 0!==a&&(t=J(e,a._$AS(e,t.values),a,s)),t}class Q{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:t},parts:i}=this._$AD,s=(e?.creationScope??H).importNode(t,!0);K.currentNode=s;let a=K.nextNode(),n=0,o=0,r=i[0];for(;void 0!==r;){if(n===r.index){let t;2===r.type?t=new ee(a,a.nextSibling,this,e):1===r.type?t=new r.ctor(a,r.name,r.strings,this,e):6===r.type&&(t=new ne(a,this,e)),this._$AV.push(t),r=i[++o]}n!==r?.index&&(a=K.nextNode(),n++)}return K.currentNode=H,s}p(e){let t=0;for(const i of this._$AV)void 0!==i&&(void 0!==i.strings?(i._$AI(e,i,t),t+=i.strings.length-2):i._$AI(e[t])),t++}}class ee{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,i,s){this.type=2,this._$AH=q,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=i,this.options=s,this._$Cv=s?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode;const t=this._$AM;return void 0!==t&&11===e?.nodeType&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=J(this,e,t),M(e)?e===q||null==e||""===e?(this._$AH!==q&&this._$AR(),this._$AH=q):e!==this._$AH&&e!==W&&this._(e):void 0!==e._$litType$?this.$(e):void 0!==e.nodeType?this.T(e):(e=>I(e)||"function"==typeof e?.[Symbol.iterator])(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==q&&M(this._$AH)?this._$AA.nextSibling.data=e:this.T(H.createTextNode(e)),this._$AH=e}$(e){const{values:t,_$litType$:i}=e,s="number"==typeof i?this._$AC(e):(void 0===i.el&&(i.el=X.createElement(V(i.h,i.h[0]),this.options)),i);if(this._$AH?._$AD===s)this._$AH.p(t);else{const e=new Q(s,this),i=e.u(this.options);e.p(t),this.T(i),this._$AH=e}}_$AC(e){let t=G.get(e.strings);return void 0===t&&G.set(e.strings,t=new X(e)),t}k(e){I(this._$AH)||(this._$AH=[],this._$AR());const t=this._$AH;let i,s=0;for(const a of e)s===t.length?t.push(i=new ee(this.O(D()),this.O(D()),this,this.options)):i=t[s],i._$AI(a),s++;s<t.length&&(this._$AR(i&&i._$AB.nextSibling,s),t.length=s)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){const t=z(e).nextSibling;z(e).remove(),e=t}}setConnected(e){void 0===this._$AM&&(this._$Cv=e,this._$AP?.(e))}}class te{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,i,s,a){this.type=1,this._$AH=q,this._$AN=void 0,this.element=e,this.name=t,this._$AM=s,this.options=a,i.length>2||""!==i[0]||""!==i[1]?(this._$AH=Array(i.length-1).fill(new String),this.strings=i):this._$AH=q}_$AI(e,t=this,i,s){const a=this.strings;let n=!1;if(void 0===a)e=J(this,e,t,0),n=!M(e)||e!==this._$AH&&e!==W,n&&(this._$AH=e);else{const s=e;let o,r;for(e=a[0],o=0;o<a.length-1;o++)r=J(this,s[i+o],t,o),r===W&&(r=this._$AH[o]),n||=!M(r)||r!==this._$AH[o],r===q?e=q:e!==q&&(e+=(r??"")+a[o+1]),this._$AH[o]=r}n&&!s&&this.j(e)}j(e){e===q?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class ie extends te{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===q?void 0:e}}class se extends te{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==q)}}class ae extends te{constructor(e,t,i,s,a){super(e,t,i,s,a),this.type=5}_$AI(e,t=this){if((e=J(this,e,t,0)??q)===W)return;const i=this._$AH,s=e===q&&i!==q||e.capture!==i.capture||e.once!==i.once||e.passive!==i.passive,a=e!==q&&(i===q||s);s&&this.element.removeEventListener(this.name,this,i),a&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}}class ne{constructor(e,t,i){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=i}get _$AU(){return this._$AM._$AU}_$AI(e){J(this,e)}}const oe=k.litHtmlPolyfillSupport;oe?.(X,ee),(k.litHtmlVersions??=[]).push("3.3.3");const re=globalThis;
-/**
-     * @license
-     * Copyright 2017 Google LLC
-     * SPDX-License-Identifier: BSD-3-Clause
-     */let le=class extends x{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){const e=super.createRenderRoot();return this.renderOptions.renderBefore??=e.firstChild,e}update(e){const t=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=((e,t,i)=>{const s=i?.renderBefore??t;let a=s._$litPart$;if(void 0===a){const e=i?.renderBefore??null;s._$litPart$=a=new ee(t.insertBefore(D(),e),e,void 0,i??{})}return a._$AI(e),a})(t,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return W}};le._$litElement$=!0,le.finalized=!0,re.litElementHydrateSupport?.({LitElement:le});const de=re.litElementPolyfillSupport;de?.({LitElement:le}),(re.litElementVersions??=[]).push("4.2.2");
+     */Symbol.metadata??=Symbol("metadata"),m.litPropertyMetadata??=new WeakMap;let x=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??=[]).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,t=$){if(t.state&&(t.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((t=Object.create(t)).wrapped=!0),this.elementProperties.set(e,t),!t.noAccessor){const s=Symbol(),i=this.getPropertyDescriptor(e,s,t);void 0!==i&&c(this.prototype,e,i)}}static getPropertyDescriptor(e,t,s){const{get:i,set:a}=h(this.prototype,e)??{get(){return this[t]},set(e){this[t]=e}};return{get:i,set(t){const n=i?.call(this);a?.call(this,t),this.requestUpdate(e,n,s)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??$}static _$Ei(){if(this.hasOwnProperty(b("elementProperties")))return;const e=g(this);e.finalize(),void 0!==e.l&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(b("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(b("properties"))){const e=this.properties,t=[...u(e),...p(e)];for(const s of t)this.createProperty(s,e[s])}const e=this[Symbol.metadata];if(null!==e){const t=litPropertyMetadata.get(e);if(void 0!==t)for(const[e,s]of t)this.elementProperties.set(e,s)}this._$Eh=new Map;for(const[e,t]of this.elementProperties){const s=this._$Eu(e,t);void 0!==s&&this._$Eh.set(s,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){const t=[];if(Array.isArray(e)){const s=new Set(e.flat(1/0).reverse());for(const e of s)t.unshift(l(e))}else void 0!==e&&t.push(l(e));return t}static _$Eu(e,t){const s=t.attribute;return!1===s?void 0:"string"==typeof s?s:"string"==typeof e?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(e=>this.enableUpdating=e),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(e=>e(this))}addController(e){(this._$EO??=new Set).add(e),void 0!==this.renderRoot&&this.isConnected&&e.hostConnected?.()}removeController(e){this._$EO?.delete(e)}_$E_(){const e=new Map,t=this.constructor.elementProperties;for(const s of t.keys())this.hasOwnProperty(s)&&(e.set(s,this[s]),delete this[s]);e.size>0&&(this._$Ep=e)}createRenderRoot(){const e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return((e,t)=>{if(i)e.adoptedStyleSheets=t.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(const i of t){const t=document.createElement("style"),a=s.litNonce;void 0!==a&&t.setAttribute("nonce",a),t.textContent=i.cssText,e.appendChild(t)}})(e,this.constructor.elementStyles),e}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(e=>e.hostConnected?.())}enableUpdating(e){}disconnectedCallback(){this._$EO?.forEach(e=>e.hostDisconnected?.())}attributeChangedCallback(e,t,s){this._$AK(e,s)}_$ET(e,t){const s=this.constructor.elementProperties.get(e),i=this.constructor._$Eu(e,s);if(void 0!==i&&!0===s.reflect){const a=(void 0!==s.converter?.toAttribute?s.converter:y).toAttribute(t,s.type);this._$Em=e,null==a?this.removeAttribute(i):this.setAttribute(i,a),this._$Em=null}}_$AK(e,t){const s=this.constructor,i=s._$Eh.get(e);if(void 0!==i&&this._$Em!==i){const e=s.getPropertyOptions(i),a="function"==typeof e.converter?{fromAttribute:e.converter}:void 0!==e.converter?.fromAttribute?e.converter:y;this._$Em=i;const n=a.fromAttribute(t,e.type);this[i]=n??this._$Ej?.get(i)??n,this._$Em=null}}requestUpdate(e,t,s,i=!1,a){if(void 0!==e){const n=this.constructor;if(!1===i&&(a=this[e]),s??=n.getPropertyOptions(e),!((s.hasChanged??w)(a,t)||s.useDefault&&s.reflect&&a===this._$Ej?.get(e)&&!this.hasAttribute(n._$Eu(e,s))))return;this.C(e,t,s)}!1===this.isUpdatePending&&(this._$ES=this._$EP())}C(e,t,{useDefault:s,reflect:i,wrapped:a},n){s&&!(this._$Ej??=new Map).has(e)&&(this._$Ej.set(e,n??t??this[e]),!0!==a||void 0!==n)||(this._$AL.has(e)||(this.hasUpdated||s||(t=void 0),this._$AL.set(e,t)),!0===i&&this._$Em!==e&&(this._$Eq??=new Set).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}const e=this.scheduleUpdate();return null!=e&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(const[e,t]of this._$Ep)this[e]=t;this._$Ep=void 0}const e=this.constructor.elementProperties;if(e.size>0)for(const[t,s]of e){const{wrapped:e}=s,i=this[t];!0!==e||this._$AL.has(t)||void 0===i||this.C(t,void 0,s,i)}}let e=!1;const t=this._$AL;try{e=this.shouldUpdate(t),e?(this.willUpdate(t),this._$EO?.forEach(e=>e.hostUpdate?.()),this.update(t)):this._$EM()}catch(t){throw e=!1,this._$EM(),t}e&&this._$AE(t)}willUpdate(e){}_$AE(e){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(e){}firstUpdated(e){}};x.elementStyles=[],x.shadowRootOptions={mode:"open"},x[b("elementProperties")]=new Map,x[b("finalized")]=new Map,f?.({ReactiveElement:x}),(m.reactiveElementVersions??=[]).push("2.1.2");
 /**
      * @license
      * Copyright 2017 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
      */
-const ce=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}):customElements.define(e,t)},he={attribute:!0,type:String,converter:y,reflect:!1,hasChanged:w},ue=(e=he,t,i)=>{const{kind:s,metadata:a}=i;let n=globalThis.litPropertyMetadata.get(a);if(void 0===n&&globalThis.litPropertyMetadata.set(a,n=new Map),"setter"===s&&((e=Object.create(e)).wrapped=!0),n.set(i.name,e),"accessor"===s){const{name:s}=i;return{set(i){const a=t.get.call(this);t.set.call(this,i),this.requestUpdate(s,a,e,!0,i)},init(t){return void 0!==t&&this.C(s,void 0,e,t),t}}}if("setter"===s){const{name:s}=i;return function(i){const a=this[s];t.call(this,i),this.requestUpdate(s,a,e,!0,i)}}throw Error("Unsupported decorator location: "+s)};
+const k=globalThis,z=e=>e,S=k.trustedTypes,A=S?S.createPolicy("lit-html",{createHTML:e=>e}):void 0,E="$lit$",C=`lit$${Math.random().toFixed(9).slice(2)}$`,T="?"+C,O=`<${T}>`,H=document,D=()=>H.createComment(""),M=e=>null===e||"object"!=typeof e&&"function"!=typeof e,I=Array.isArray,N="[ \t\n\f\r]",L=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,P=/-->/g,R=/>/g,B=RegExp(`>|${N}(?:([^\\s"'>=/]+)(${N}*=${N}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),U=/'/g,j=/"/g,F=/^(?:script|style|textarea|title)$/i,Z=(e=>(t,...s)=>({_$litType$:e,strings:t,values:s}))(1),W=Symbol.for("lit-noChange"),q=Symbol.for("lit-nothing"),G=new WeakMap,K=H.createTreeWalker(H,129);function V(e,t){if(!I(e)||!e.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==A?A.createHTML(t):t}const Y=(e,t)=>{const s=e.length-1,i=[];let a,n=2===t?"<svg>":3===t?"<math>":"",o=L;for(let t=0;t<s;t++){const s=e[t];let r,l,d=-1,c=0;for(;c<s.length&&(o.lastIndex=c,l=o.exec(s),null!==l);)c=o.lastIndex,o===L?"!--"===l[1]?o=P:void 0!==l[1]?o=R:void 0!==l[2]?(F.test(l[2])&&(a=RegExp("</"+l[2],"g")),o=B):void 0!==l[3]&&(o=B):o===B?">"===l[0]?(o=a??L,d=-1):void 0===l[1]?d=-2:(d=o.lastIndex-l[2].length,r=l[1],o=void 0===l[3]?B:'"'===l[3]?j:U):o===j||o===U?o=B:o===P||o===R?o=L:(o=B,a=void 0);const h=o===B&&e[t+1].startsWith("/>")?" ":"";n+=o===L?s+O:d>=0?(i.push(r),s.slice(0,d)+E+s.slice(d)+C+h):s+C+(-2===d?t:h)}return[V(e,n+(e[s]||"<?>")+(2===t?"</svg>":3===t?"</math>":"")),i]};class X{constructor({strings:e,_$litType$:t},s){let i;this.parts=[];let a=0,n=0;const o=e.length-1,r=this.parts,[l,d]=Y(e,t);if(this.el=X.createElement(l,s),K.currentNode=this.el.content,2===t||3===t){const e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;null!==(i=K.nextNode())&&r.length<o;){if(1===i.nodeType){if(i.hasAttributes())for(const e of i.getAttributeNames())if(e.endsWith(E)){const t=d[n++],s=i.getAttribute(e).split(C),o=/([.?@])?(.*)/.exec(t);r.push({type:1,index:a,name:o[2],strings:s,ctor:"."===o[1]?se:"?"===o[1]?ie:"@"===o[1]?ae:te}),i.removeAttribute(e)}else e.startsWith(C)&&(r.push({type:6,index:a}),i.removeAttribute(e));if(F.test(i.tagName)){const e=i.textContent.split(C),t=e.length-1;if(t>0){i.textContent=S?S.emptyScript:"";for(let s=0;s<t;s++)i.append(e[s],D()),K.nextNode(),r.push({type:2,index:++a});i.append(e[t],D())}}}else if(8===i.nodeType)if(i.data===T)r.push({type:2,index:a});else{let e=-1;for(;-1!==(e=i.data.indexOf(C,e+1));)r.push({type:7,index:a}),e+=C.length-1}a++}}static createElement(e,t){const s=H.createElement("template");return s.innerHTML=e,s}}function J(e,t,s=e,i){if(t===W)return t;let a=void 0!==i?s._$Co?.[i]:s._$Cl;const n=M(t)?void 0:t._$litDirective$;return a?.constructor!==n&&(a?._$AO?.(!1),void 0===n?a=void 0:(a=new n(e),a._$AT(e,s,i)),void 0!==i?(s._$Co??=[])[i]=a:s._$Cl=a),void 0!==a&&(t=J(e,a._$AS(e,t.values),a,i)),t}class Q{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:t},parts:s}=this._$AD,i=(e?.creationScope??H).importNode(t,!0);K.currentNode=i;let a=K.nextNode(),n=0,o=0,r=s[0];for(;void 0!==r;){if(n===r.index){let t;2===r.type?t=new ee(a,a.nextSibling,this,e):1===r.type?t=new r.ctor(a,r.name,r.strings,this,e):6===r.type&&(t=new ne(a,this,e)),this._$AV.push(t),r=s[++o]}n!==r?.index&&(a=K.nextNode(),n++)}return K.currentNode=H,i}p(e){let t=0;for(const s of this._$AV)void 0!==s&&(void 0!==s.strings?(s._$AI(e,s,t),t+=s.strings.length-2):s._$AI(e[t])),t++}}class ee{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,s,i){this.type=2,this._$AH=q,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=s,this.options=i,this._$Cv=i?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode;const t=this._$AM;return void 0!==t&&11===e?.nodeType&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=J(this,e,t),M(e)?e===q||null==e||""===e?(this._$AH!==q&&this._$AR(),this._$AH=q):e!==this._$AH&&e!==W&&this._(e):void 0!==e._$litType$?this.$(e):void 0!==e.nodeType?this.T(e):(e=>I(e)||"function"==typeof e?.[Symbol.iterator])(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==q&&M(this._$AH)?this._$AA.nextSibling.data=e:this.T(H.createTextNode(e)),this._$AH=e}$(e){const{values:t,_$litType$:s}=e,i="number"==typeof s?this._$AC(e):(void 0===s.el&&(s.el=X.createElement(V(s.h,s.h[0]),this.options)),s);if(this._$AH?._$AD===i)this._$AH.p(t);else{const e=new Q(i,this),s=e.u(this.options);e.p(t),this.T(s),this._$AH=e}}_$AC(e){let t=G.get(e.strings);return void 0===t&&G.set(e.strings,t=new X(e)),t}k(e){I(this._$AH)||(this._$AH=[],this._$AR());const t=this._$AH;let s,i=0;for(const a of e)i===t.length?t.push(s=new ee(this.O(D()),this.O(D()),this,this.options)):s=t[i],s._$AI(a),i++;i<t.length&&(this._$AR(s&&s._$AB.nextSibling,i),t.length=i)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){const t=z(e).nextSibling;z(e).remove(),e=t}}setConnected(e){void 0===this._$AM&&(this._$Cv=e,this._$AP?.(e))}}class te{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,s,i,a){this.type=1,this._$AH=q,this._$AN=void 0,this.element=e,this.name=t,this._$AM=i,this.options=a,s.length>2||""!==s[0]||""!==s[1]?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=q}_$AI(e,t=this,s,i){const a=this.strings;let n=!1;if(void 0===a)e=J(this,e,t,0),n=!M(e)||e!==this._$AH&&e!==W,n&&(this._$AH=e);else{const i=e;let o,r;for(e=a[0],o=0;o<a.length-1;o++)r=J(this,i[s+o],t,o),r===W&&(r=this._$AH[o]),n||=!M(r)||r!==this._$AH[o],r===q?e=q:e!==q&&(e+=(r??"")+a[o+1]),this._$AH[o]=r}n&&!i&&this.j(e)}j(e){e===q?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class se extends te{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===q?void 0:e}}class ie extends te{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==q)}}class ae extends te{constructor(e,t,s,i,a){super(e,t,s,i,a),this.type=5}_$AI(e,t=this){if((e=J(this,e,t,0)??q)===W)return;const s=this._$AH,i=e===q&&s!==q||e.capture!==s.capture||e.once!==s.once||e.passive!==s.passive,a=e!==q&&(s===q||i);i&&this.element.removeEventListener(this.name,this,s),a&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}}class ne{constructor(e,t,s){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=s}get _$AU(){return this._$AM._$AU}_$AI(e){J(this,e)}}const oe=k.litHtmlPolyfillSupport;oe?.(X,ee),(k.litHtmlVersions??=[]).push("3.3.3");const re=globalThis;
 /**
      * @license
      * Copyright 2017 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */function pe(e){return(t,i)=>"object"==typeof i?ue(e,t,i):((e,t,i)=>{const s=t.hasOwnProperty(i);return t.constructor.createProperty(i,e),s?Object.getOwnPropertyDescriptor(t,i):void 0})(e,t,i)}
+     */let le=class extends x{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){const e=super.createRenderRoot();return this.renderOptions.renderBefore??=e.firstChild,e}update(e){const t=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=((e,t,s)=>{const i=s?.renderBefore??t;let a=i._$litPart$;if(void 0===a){const e=s?.renderBefore??null;i._$litPart$=a=new ee(t.insertBefore(D(),e),e,void 0,s??{})}return a._$AI(e),a})(t,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return W}};le._$litElement$=!0,le.finalized=!0,re.litElementHydrateSupport?.({LitElement:le});const de=re.litElementPolyfillSupport;de?.({LitElement:le}),(re.litElementVersions??=[]).push("4.2.2");
+/**
+     * @license
+     * Copyright 2017 Google LLC
+     * SPDX-License-Identifier: BSD-3-Clause
+     */
+const ce=e=>(t,s)=>{void 0!==s?s.addInitializer(()=>{customElements.define(e,t)}):customElements.define(e,t)},he={attribute:!0,type:String,converter:y,reflect:!1,hasChanged:w},ue=(e=he,t,s)=>{const{kind:i,metadata:a}=s;let n=globalThis.litPropertyMetadata.get(a);if(void 0===n&&globalThis.litPropertyMetadata.set(a,n=new Map),"setter"===i&&((e=Object.create(e)).wrapped=!0),n.set(s.name,e),"accessor"===i){const{name:i}=s;return{set(s){const a=t.get.call(this);t.set.call(this,s),this.requestUpdate(i,a,e,!0,s)},init(t){return void 0!==t&&this.C(i,void 0,e,t),t}}}if("setter"===i){const{name:i}=s;return function(s){const a=this[i];t.call(this,s),this.requestUpdate(i,a,e,!0,s)}}throw Error("Unsupported decorator location: "+i)};
+/**
+     * @license
+     * Copyright 2017 Google LLC
+     * SPDX-License-Identifier: BSD-3-Clause
+     */function pe(e){return(t,s)=>"object"==typeof s?ue(e,t,s):((e,t,s)=>{const i=t.hasOwnProperty(s);return t.constructor.createProperty(s,e),i?Object.getOwnPropertyDescriptor(t,s):void 0})(e,t,s)}
 /**
      * @license
      * Copyright 2017 Google LLC
@@ -47,19 +47,19 @@ const ce=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
      * Copyright 2017 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
      */
-function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Reflect.decorate&&"object"!=typeof t&&Object.defineProperty(e,t,i),i))(t,i,{get(){return(t=>t.renderRoot?.querySelector(e)??null)(this)}})}const ve=`v${"2026.08.05"}`,_e="smart_irrigation",fe=["de","en","es","fr","it","nl","no","sk"],be="precipitation_threshold_mm",ye="sensor_debounce",we="Open Weather Map",$e="Pirate Weather",xe="Open-Meteo",ke="Met Office",ze="minutes",Se="hours",Ae="days",Ee="imperial",Ce="metric",Te="Dewpoint",Oe="Evapotranspiration",He="Humidity",De="Precipitation",Me="Current Precipitation",Ie="Pressure",Ne="Solar Radiation",Le="Temperature",Pe="Windspeed",Re="weather_service",Be="sensor",Ue="static",je="pressure_type",Fe="absolute",Ze="relative",We="none",qe="source",Ge="sensorentity",Ke="static_value",Ve="unit",Ye="aggregate",Xe=["average","first","last","maximum","median","minimum","riemannsum","sum","delta"],Je="sq ft",Qe="l/minute",et="gal/minute",tt="s",it="mm",st="in",at="inch Hg",nt="mile/h",ot="meter/s",rt="mm/h",lt="in/h",dt="name",ct="size",ht="throughput",ut="state",pt="duration",gt="module",mt="bucket",vt="multiplier",_t="mapping",ft="lead_time",bt="maximum_duration",yt="maximum_bucket",wt="drainage_rate",$t="kc",xt="plant_type",kt="linked_entity",zt="bucket_threshold",St="flow_sensor",At="flow_counter_type",Et="watering_mode",Ct="run_service",Tt="duration_field",Ot="duration_unit",Ht="stop_service",Dt="confirm_entity",Mt="observed_entity",It="soil_moisture_sensor",Nt="soil_moisture_threshold",Lt={lawn:.8,vegetables:1,flowers:.9,shrubs:.5,trees:.7,xeriscape:.3},Pt={sand:35,loam:20,silt:10,clay:5},Rt="zone_sequencing",Bt="sequential",Ut="parallel",jt="rotating",Ft="zone_sequencing_max_consecutive_duration",Zt="zone_sequencing_min_absorption_time",Wt="master_entity",qt="master_settle_seconds",Gt="master_kick_enabled",Kt="master_kick_pause_seconds",Vt="master_off_after",Yt="name",Xt="watering_mode",Jt="inlet_entity",Qt="watch_mode",ei="run_service",ti="stop_service",ii="duration_field",si="duration_unit",ai="confirm_entity",ni="flow_sensor",oi="notify_target",ri="commissioning_confirmed",li=["count","warn","ignore"],di="classic",ci="service",hi="distributor_id",ui="outlet_number",pi=e=>e.callWS({type:_e+"/config"}),gi=(e,t)=>e.callApi("POST",_e+"/config",t),mi=e=>e.callWS({type:_e+"/zones"}),vi=(e,t)=>e.callApi("POST",_e+"/zones",t),_i=e=>e.callWS({type:_e+"/modules"}),fi=e=>e.callWS({type:_e+"/allmodules"}),bi=(e,t)=>e.callApi("POST",_e+"/modules",t),yi=e=>e.callWS({type:_e+"/mappings"}),wi=(e,t)=>e.callApi("POST",_e+"/mappings",t),$i=(e,t)=>e.callWS({type:_e+"/watering_calendar",zone_id:t}),xi=(e,t)=>e.callWS({type:_e+"/schedule_save",schedule:t}),ki=e=>e.callWS({type:_e+"/distributors"}),zi=(e,t)=>e.callApi("POST",_e+"/distributors",t),Si=e=>e.callWS({type:_e+"/weather_config"}),Ai=(e,t,i,s)=>e.callWS({type:_e+"/weather_config_save",use_weather_service:t,weather_service:null!=i?i:null,api_key:null!=s?s:null}),Ei=e=>e.callWS({type:_e+"/coordinates"});let Ci=!1,Ti=null;const Oi=async()=>{if(Ci&&Ti)return Ti;if(customElements.get("ha-checkbox")&&customElements.get("ha-slider")&&customElements.get("ha-panel-config")&&customElements.get("ha-entity-picker"))return Promise.resolve();Ci=!0,Ti=async function(){try{await new Promise(e=>{"requestIdleCallback"in window?requestIdleCallback(()=>e()):setTimeout(()=>e(),0)}),await customElements.whenDefined("partial-panel-resolver");const e=document.createDocumentFragment(),t=document.createElement("partial-panel-resolver");e.appendChild(t),t.hass={panels:[{url_path:"tmp",component_name:"config"}]},await new Promise(e=>queueMicrotask(()=>e())),t._updateRoutes(),await t.routerOptions.routes.tmp.load(),await customElements.whenDefined("ha-panel-config"),await new Promise(e=>queueMicrotask(()=>e()));const i=document.createElement("ha-panel-config");e.appendChild(i),await i.routerOptions.routes.automation.load(),customElements.get("ha-entity-picker")||await Promise.race([customElements.whenDefined("ha-entity-picker"),new Promise(e=>setTimeout(e,3e3))]),e.textContent=""}catch(e){console.error("Failed to load HA form elements:",e)}}
+function me(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Reflect.decorate&&"object"!=typeof t&&Object.defineProperty(e,t,s),s))(t,s,{get(){return(t=>t.renderRoot?.querySelector(e)??null)(this)}})}const ve=`v${"2026.08.05"}`,_e="smart_irrigation",fe=["de","en","es","fr","it","nl","no","sk"],be="precipitation_threshold_mm",ye="sensor_debounce",we="Open Weather Map",$e="Pirate Weather",xe="Open-Meteo",ke="Met Office",ze="minutes",Se="hours",Ae="days",Ee="imperial",Ce="metric",Te="Dewpoint",Oe="Evapotranspiration",He="Humidity",De="Precipitation",Me="Current Precipitation",Ie="Pressure",Ne="Solar Radiation",Le="Temperature",Pe="Windspeed",Re="weather_service",Be="sensor",Ue="static",je="pressure_type",Fe="absolute",Ze="relative",We="none",qe="source",Ge="sensorentity",Ke="static_value",Ve="unit",Ye="aggregate",Xe=["average","first","last","maximum","median","minimum","riemannsum","sum","delta"],Je="sq ft",Qe="l/minute",et="gal/minute",tt="s",st="mm",it="in",at="inch Hg",nt="mile/h",ot="meter/s",rt="mm/h",lt="in/h",dt="name",ct="size",ht="throughput",ut="state",pt="duration",gt="module",mt="bucket",vt="multiplier",_t="mapping",ft="lead_time",bt="maximum_duration",yt="maximum_bucket",wt="drainage_rate",$t="kc",xt="plant_type",kt="linked_entity",zt="bucket_threshold",St="flow_sensor",At="flow_counter_type",Et="watering_mode",Ct="run_service",Tt="duration_field",Ot="duration_unit",Ht="stop_service",Dt="confirm_entity",Mt="observed_entity",It="soil_moisture_sensor",Nt="soil_moisture_threshold",Lt={lawn:.8,vegetables:1,flowers:.9,shrubs:.5,trees:.7,xeriscape:.3},Pt={sand:35,loam:20,silt:10,clay:5},Rt="zone_sequencing",Bt="sequential",Ut="parallel",jt="rotating",Ft="zone_sequencing_max_consecutive_duration",Zt="zone_sequencing_min_absorption_time",Wt="master_entity",qt="master_settle_seconds",Gt="master_kick_enabled",Kt="master_kick_pause_seconds",Vt="master_off_after",Yt="name",Xt="watering_mode",Jt="inlet_entity",Qt="watch_mode",es="run_service",ts="stop_service",ss="duration_field",is="duration_unit",as="confirm_entity",ns="flow_sensor",os="notify_target",rs="commissioning_confirmed",ls=["count","warn","ignore"],ds="classic",cs="service",hs="opensprinkler",us="distributor_id",ps="outlet_number",gs=e=>e.callWS({type:_e+"/config"}),ms=(e,t)=>e.callApi("POST",_e+"/config",t),vs=e=>e.callWS({type:_e+"/zones"}),_s=(e,t)=>e.callApi("POST",_e+"/zones",t),fs=e=>e.callWS({type:_e+"/modules"}),bs=e=>e.callWS({type:_e+"/allmodules"}),ys=(e,t)=>e.callApi("POST",_e+"/modules",t),ws=e=>e.callWS({type:_e+"/mappings"}),$s=(e,t)=>e.callApi("POST",_e+"/mappings",t),xs=(e,t)=>e.callWS({type:_e+"/watering_calendar",zone_id:t}),ks=(e,t)=>e.callWS({type:_e+"/schedule_save",schedule:t}),zs=e=>e.callWS({type:_e+"/distributors"}),Ss=(e,t)=>e.callApi("POST",_e+"/distributors",t),As=e=>e.callWS({type:_e+"/weather_config"}),Es=(e,t,s,i)=>e.callWS({type:_e+"/weather_config_save",use_weather_service:t,weather_service:null!=s?s:null,api_key:null!=i?i:null}),Cs=e=>e.callWS({type:_e+"/coordinates"});let Ts=!1,Os=null;const Hs=async()=>{if(Ts&&Os)return Os;if(customElements.get("ha-checkbox")&&customElements.get("ha-slider")&&customElements.get("ha-panel-config")&&customElements.get("ha-entity-picker"))return Promise.resolve();Ts=!0,Os=async function(){try{await new Promise(e=>{"requestIdleCallback"in window?requestIdleCallback(()=>e()):setTimeout(()=>e(),0)}),await customElements.whenDefined("partial-panel-resolver");const e=document.createDocumentFragment(),t=document.createElement("partial-panel-resolver");e.appendChild(t),t.hass={panels:[{url_path:"tmp",component_name:"config"}]},await new Promise(e=>queueMicrotask(()=>e())),t._updateRoutes(),await t.routerOptions.routes.tmp.load(),await customElements.whenDefined("ha-panel-config"),await new Promise(e=>queueMicrotask(()=>e()));const s=document.createElement("ha-panel-config");e.appendChild(s),await s.routerOptions.routes.automation.load(),customElements.get("ha-entity-picker")||await Promise.race([customElements.whenDefined("ha-entity-picker"),new Promise(e=>setTimeout(e,3e3))]),e.textContent=""}catch(e){console.error("Failed to load HA form elements:",e)}}
 /**
      * @license
      * Copyright 2017 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */();try{await Ti}finally{Ci=!1,Ti=null}};const Hi=1,Di=2,Mi=3,Ii=4,Ni=e=>(...t)=>({_$litDirective$:e,values:t});class Li{constructor(e){}get _$AU(){return this._$AM._$AU}_$AT(e,t,i){this._$Ct=e,this._$AM=t,this._$Ci=i}_$AS(e,t){return this.update(e,t)}update(e,t){return this.render(...t)}}
+     */();try{await Os}finally{Ts=!1,Os=null}};const Ds=1,Ms=2,Is=3,Ns=4,Ls=e=>(...t)=>({_$litDirective$:e,values:t});class Ps{constructor(e){}get _$AU(){return this._$AM._$AU}_$AT(e,t,s){this._$Ct=e,this._$AM=t,this._$Ci=s}_$AS(e,t){return this.update(e,t)}update(e,t){return this.render(...t)}}
 /**
      * @license
      * Copyright 2017 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */class Pi extends Li{constructor(e){if(super(e),this.it=q,e.type!==Di)throw Error(this.constructor.directiveName+"() can only be used in child bindings")}render(e){if(e===q||null==e)return this._t=void 0,this.it=e;if(e===W)return e;if("string"!=typeof e)throw Error(this.constructor.directiveName+"() called with a non-string value");if(e===this.it)return this._t;this.it=e;const t=[e];return t.raw=t,this._t={_$litType$:this.constructor.resultType,strings:t,values:[]}}}Pi.directiveName="unsafeHTML",Pi.resultType=1;const Ri=Ni(Pi);var Bi={title:"Smart Irrigation: check flow rate",message_over:"Zone '{zone}' is consistently over-watering: the measured flow is ~{percent}% above the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",message_under:"Zone '{zone}' is consistently under-watering: the measured flow is ~{percent}% below the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",open_settings:"Open zone settings"},Ui={loading:"Loading",saving:"Saving",actions:{delete:"Delete",edit:"Edit",save:"Save",cancel:"Cancel",confirm_delete:"Confirm Delete",confirm_delete_zone:"Are you sure you want to delete this zone?"},labels:{module:"Module",no:"No",select:"Select",yes:"Yes",enabled:"Enabled",disabled:"Disabled",before:"before",after:"after",settings:"Settings",bulk_actions:"Bulk Actions"},units:{seconds:"seconds"},attributes:{size:"size",throughput:"throughput",state:"state",bucket:"bucket",last_updated:"last updated",last_calculated:"last calculated",number_of_data_points:"number of data points"},"loading-messages":{configuration:"Loading configuration...",modules:"Loading modules...",general:"Loading..."},"saving-messages":{adding:"Adding...",saving:"Saving..."},errors:{load_failed:"Couldn't load data",save_failed:"Couldn't save changes",delete_failed:"Couldn't delete",action_failed:"Action failed"}},ji={"default-zone":"Default zone","default-mapping":"Default sensor group"},Fi={calculation:{explanation:{"module-returned-evapotranspiration-deficiency":"Note: this explanation uses '.' as decimal separator, shows rounded and metric values. Module returned Evapotranspiration deficiency ( = et0 * hour_multiplier + precipitation) of","module-returned-evapotranspiration-deficiency-hourly":"Note: this explanation uses '.' as decimal separator, shows rounded and metric values. Evapotranspiration deficiency ( = sum of hourly FAO-56 et0 over the window + precipitation) of","bucket-was":"Bucket was","new-bucket-values-is":"New bucket value is",bucket:"bucket","old-bucket-variable":"old_bucket","max-bucket-variable":"max_bucket",delta:"delta","bucket-less-than-zero-irrigation-necessary":"Since bucket < 0, irrigation is necessary","steps-taken-to-calculate-duration":"To calculate the exact duration, the following steps were taken","precipitation-rate-defined-as":"The precipitation rate is defined as","duration-is-calculated-as":"The duration is calculated as",drainage:"drainage","drainage-rate":"drainage_rate",hours:"hours","precipitation-rate-variable":"precipitation_rate","multiplier-is-applied":"Now, the multiplier is applied. The multiplier is","duration-after-multiplier-is":"hence the duration is","maximum-duration-is-applied":"Then, the maximum duration is applied. The maximum duration is","duration-after-maximum-duration-is":"hence the duration is","lead-time-is-applied":"Finally, the lead time is applied. The lead time is","duration-after-lead-time-is":"hence the final duration is","bucket-larger-than-or-equal-to-zero-no-irrigation-necessary":"Since bucket >= 0, no irrigation is necessary and duration is set to","maximum-bucket-is":"Maximum bucket size is","drainage-rate-is":"Drainage rate when saturated (bucket at max) is","current-drainage-is":"Current drainage is calculated as","drainage-integrated":"the surplus above field capacity drains continuously over the window (Brooks–Corey), so the rate falls as it drains","no-drainage":"Current drainage is 0 because","water-balance-substepped":"The water balance was replayed across the window, so rain, drainage and the maximum bucket clamp were applied at the times they occurred rather than all at the start of the window. Number of steps:","runoff-is":"Water above the maximum bucket that was lost to runoff:","runoff-variable":"runoff","forecast-weighting-applied":"Forecast weighting reduced the deficit for the expected rain","crop-coefficient-applied":"Scaled by the crop coefficient"}}},Zi={pyeto:{description:"Calculate duration based on the FAO56 calculation from the PyETO library"},static:{description:"'Dummy' module with a static configurable delta"},passthrough:{description:"Passthrough module that returns the value of an Evapotranspiration sensor as delta"}},Wi={general:{cards:{"automatic-duration-calculation":{header:"Automatic duration calculation",description:"Calculation takes collected weather data up to that point and updates the bucket for each automatic zone. Then, the duration is adjusted based on the new bucket value and the collected weather data is removed.",labels:{"auto-calc-enabled":"Automatically calculate irrigation durations","calc-time":"Calculate at"}},"run-history-logging":{header:"Run history logging",description:"When on, a scheduled run that skips a zone because it currently has no water demand is recorded in that zone's history. Off by default; existing history is unaffected.",labels:{"log-no-demand":'Log "no demand" skips in the run history'}},"automatic-update":{errors:{"warning-update-time-on-or-after-calc-time":"Warning: weather data update time on or after calculation time"},header:"Automatic weather data update",description:"Collect and store weather data automatically. Weather data is required to calculate zone buckets and durations.",labels:{"auto-update-enabled":"Automatically update weather data","auto-update-schedule":"Update schedule","auto-update-time":"Update at","auto-update-interval":"Update sensor data every","auto-update-delay":"Update delay"},options:{minutes:"minutes",hours:"hours",days:"days"}},"automatic-clear":{header:"Automatic weather data pruning",description:"Automatically remove collected weather data at a configured time. Use this to make sure that there is no left over weather data from previous days. Don't remove the weather data before you calculate and only use this option if you expect the automatic update to collect weather data after you calculated for the day. Ideally, you want to prune as late in the day as possible.",labels:{"automatic-clear-enabled":"Automatically clear collected weather data","automatic-clear-time":"Clear weather data at"}},continuousupdates:{header:"Continuous updates for sensors (experimental)",description:"This experimental feature will continuously update the sensor data. This is useful for sensor groups that use sources that provide continuous data, such as weather stations. This feature cannot be used for sensor groups that at least partly rely on weather services as continous polling of APIs will incur costs. Keep in mind that this is experimental and may not work as expected. Use at your own risk.",labels:{continuousupdates:"Enable continuous updates",sensor_debounce:"Sensor debounce"}}},description:"This page provides global settings.",title:"General",sections:{weather:"Weather",automation:"Automation",location:"Location",watering:"Watering behavior"}},schedules:{title:"Schedules",description:"Create recurring schedules to automatically irrigate your zones at specific times. No automations needed.",add:"Add Schedule",no_items:"No schedules configured yet. Click 'Add Schedule' to get started.",zones_all:"All zones",zones_specific:"Specific zones",hours:"hours",minutes:"min",types:{daily:"Daily",weekly:"Weekly",monthly:"Monthly",interval:"Every N hours",sunrise:"Sunrise",sunset:"Sunset",solar_azimuth:"Solar azimuth"},actions:{calculate:"Calculate (update irrigation duration)",update:"Update (collect weather data)",irrigate:"Irrigate (run valves directly)"},days:{monday:"Mon",tuesday:"Tue",wednesday:"Wed",thursday:"Thu",friday:"Fri",saturday:"Sat",sunday:"Sun"},fields:{name:"Name",type:"Schedule type",enabled:"Enabled",time:"Time (HH:MM)",days_of_week:"Days of week",day_of_month:"Day of month",interval_hours:"Interval",action:"Action",zones:"Zones",start_time:"Start time (optional)",start_date:"Start date (optional)",end_date:"End date (optional)",offset_minutes:"Offset from sunrise/sunset",account_for_duration:"Start early so irrigation finishes at trigger time",azimuth_angle:"Solar azimuth angle",time_anchor:"Time marks the"},dialog:{add_title:"Add Schedule",edit_title:"Edit Schedule"},time_anchor:{start:"Start of irrigation",finish:"End of irrigation"}},setup:{title:"Setup",tabs:{weather_location:"Weather & Location",my_zones:"My Zones",when_to_water:"When to Water",advanced:"Advanced",experimental:"Experimental",distributors:"Distributors"},weather_data:{forecast_title:"Forecast",forecast_none:"Forecast is available when a weather service is enabled.",seasonal_title:"Seasonal outlook"},advanced:{used_by_zones:"Used by {count, plural, one {# zone} other {# zones}}",not_used:"Not used"}},experimental:{title:"Experimental features",warning:"These features are opt-in and still being refined. They change how each zone's bucket is filled, so turn them on one at a time and keep an eye on your zones — you can switch them back off at any time.",forecast_weighting:{title:"Forecast-weighted durations",description:"Instead of skipping a whole run when rain is forecast, water less. The upcoming precipitation (over the look-ahead window set under When to Water) is subtracted from the deficit used to compute the run duration, while the true deficit stays in the bucket so the real rain fills the rest. If the forecast rain misses, the next run makes up the difference. Requires a weather service.",label:"Reduce durations when rain is forecast",note:"Uses the precipitation look-ahead from When to Water. Works alongside the rain-skip guard (a skip still wins over a reduced run)."},observed_watering:{title:"Credit bucket from observed watering",description:"When a zone's linked valve runs outside Smart Irrigation — a manual tap, an automation, your own schedule — its bucket is credited for the water applied, estimated from the run time and the zone's throughput. This keeps the soil-moisture model honest when you water by other means. Smart Irrigation's own runs are already accounted for and are never double-counted.",label:"Credit the bucket when a linked valve runs externally",note:"Requires a linked valve and a throughput on the zone. Volume is estimated (run time × throughput), not metered."},live_estimate:{title:"Live-estimate watering",description:"By default a zone waters once a day, from the deficit the daily calculation produced (for example at 23:00). With this on, each scheduled run instead decides — and sizes itself — from the live intra-day deficit (the drainage-aware ET and rainfall since the last calculation). This lets a zone water more than once a day on real intra-day demand (for example pots on an every-12-hours schedule that the once-daily bucket would otherwise leave dry), and it shrinks or cancels a run that intra-day rain has already covered. The daily ledger is unchanged: after the run the bucket is credited with the water actually delivered, so the next daily calculation never double-counts. Requires a weather service.",label:"Trigger and size each run from the live deficit",note:"Affects scheduled runs only, and can start a run the daily calculation didn't approve. For frequent watering keep a sensible minimum deficit and a maximum bucket of at least a day's ET."},continuous_updates:{title:"Continuous sensor updates",description:"By default, sensor-based weather values are read once per scheduled update (hourly by default), so anything that happened in between is never recorded — the daily minimum and maximum temperature come from those spot readings, and solar radiation is integrated coarsely. With this on, a reading is recorded the moment the sensor changes, which makes the daily aggregates and the resulting evapotranspiration considerably more accurate. Sensor groups that also use a weather service keep their scheduled update for the weather-service values; only the sensor values become continuous. Small changes are ignored, so a noisy sensor does not fill the buffer.",label:"Record sensor readings when they change",debounce_label:"Group changes arriving within (milliseconds)",note:"Applies to sensor groups whose values come from Home Assistant sensors. The grouping delay only postpones the follow-up bookkeeping — no reading is ever dropped by it. Set it to 0 to disable grouping."},hourly_calculation:{title:"Hourly evapotranspiration",description:"By default the FAO-56 equation is run once, over the window's average weather, which cloud cover biases systematically: fed one identical hourly series across 362 days it returns 1.14 times the reference on overcast days and 0.93 times on clear ones. With this on, the equation is run for each hour and the hours are summed, which removes that bias, and the water balance is replayed hour by hour so rain and drainage are booked when they happened instead of all at the start of the window. Expect the daily figure to move by up to 12 percent, in either direction depending on the sky. Needs a Solar Radiation source that is measured rather than estimated, and it is not used on days where a forecast is blended in.",label:"Sum evapotranspiration hour by hour",note:"Independent of continuous sensor updates: scheduled hourly updates carry this too, and a denser buffer makes it more accurate without being required. Any window that cannot be reduced to hourly rows keeps the daily equation, so no series is ever invented."},distributors:{title:"Mechanical water distributors",description:"Drive a mechanical pressure-distributor — for example a Gardena Water Distributor — that splits one supply into several outlets and advances on water on/off pulses. Assign zones to a distributor's outlets and Smart Irrigation waters them in sequence, tracks the position, and coordinates a master valve or pump. This is a new feature that could not be fully hardware-tested, so treat it as a beta.",label:"Enable mechanical water distributors",note:"Watch the first days of use closely and keep the device's manual override handy. You can switch it back off at any time — existing zone watering is unaffected."}},help:{title:"Help",cards:{"how-to-get-help":{title:"How to get help","first-read-the":"First, read the",wiki:"Documentation","if-you-still-need-help":"If you still need help reach out on the","community-forum":"Community forum","or-open-a":"or open a","github-issue":"Github Issue","english-only":"English only"}}},info:{title:"Info",description:"View information about next irrigation and system status.","configuration-not-available":"Configuration not available.",cards:{"zone-bucket-values":{title:"Zone Bucket Values & Duration",labels:{bucket:"Bucket",duration:"Duration"},"no-zones":"No zones configured"},"next-irrigation":{title:"Next Irrigation",labels:{"next-start":"Next start",duration:"Duration",zones:"Zones"},"no-data":"No data available"},"irrigation-reason":{title:"Irrigation Reason",labels:{reason:"Reason",sunrise:"Sunrise","total-duration":"Total duration",explanation:"Explanation"},"no-data":"No data available"},irrigate_now:{title:"Irrigate Now",description:"Immediately start irrigation for all zones that have a linked entity. Skip conditions are ignored.",button_all:"Run all zones now",no_linked_zones:"No zones have a linked switch/valve entity with a calculated duration."}}},mappings:{cards:{"add-mapping":{actions:{add:"Add sensor group"},header:"Add sensor groups"},mapping:{aggregates:{average:"Average",first:"First",last:"Last",maximum:"Maximum",median:"Median",minimum:"Minimum",riemannsum:"Riemann sum",sum:"Sum",delta:"Delta"},errors:{"cannot-delete-mapping-because-zones-use-it":"You cannot delete this sensor group because there is at least one zone using it.",invalid_source:"Invalid source",source_does_not_exist:"Source does not exist. Please enter a valid source, such as 'sensor.mysensor'."},items:{dewpoint:"Dewpoint",evapotranspiration:"Evapotranspiration",humidity:"Humidity","maximum temperature":"Maximum temperature","minimum temperature":"Minimum temperature",precipitation:"Total precipitation","current precipitation":"Current precipitation",pressure:"Pressure","solar radiation":"Solar radiation",temperature:"Temperature",windspeed:"Wind speed"},pressure_types:{absolute:"absolute",relative:"relative"},"pressure-type":"Pressure is","sensor-aggregate-of-sensor-values-to-calculate":"of sensor values to calculate duration","sensor-aggregate-use-the":"Use the","sensor-entity":"Sensor entity",static_value:"Value","input-units":"Input provides values in",source:"Source",sources:{none:"None",weather_service:"Weather service",sensor:"Sensor",static:"Static value"}}},description:"Add one or more sensor groups that retrieve weather data from Weather service, from sensors or a combination of these. You can map each sensor group to one or more zones",labels:{"mapping-name":"Name"},no_items:"There are no sensor group defined yet.",title:"Sensor Groups","weather-records":{title:"Weather Records",timestamp:"Time",temperature:"Temp",humidity:"Hum",dewpoint:"Dew",wind:"Wind",pressure:"Press",precipitation:"Precip","retrieval-time":"Retrieved","no-data":"No weather data available for this sensor group"}},modules:{cards:{"add-module":{actions:{add:"Add module"},header:"Add module"},module:{errors:{"cannot-delete-module-because-zones-use-it":"You cannot delete this module because there is at least one zone using it."},labels:{configuration:"Configuration",required:"indicates a required field"},"translated-options":{DontEstimate:"Do not estimate",EstimateFromSunHours:"Estimate from sun hours",EstimateFromTemp:"Estimate from temperature",EstimateFromSunHoursAndTemperature:"Estimate from average of sun hours and temperature"},fields:{coastal:{name:"Coastal",description:"Enable if the weather station is located near a coast or large body of water. Affects how atmospheric humidity is estimated."},solrad_behavior:{name:"Solar radiation estimation",description:"How solar radiation is estimated when it is not directly measured by a sensor."},forecast_days:{name:"Forecast days",description:"Number of future days to include in the ET calculation. 0 = current weather only (recommended — no extra API calls). Values > 0 average today's ET with forecasted ET for upcoming days (up to 4 days via the OWM free tier)."},delta:{name:"Delta",description:"Static evapotranspiration delta (mm) used directly without any weather-based calculation."}}}},description:"Add one or more modules that calculate irrigation duration. Each module comes with its own configuration and can be used to calculate duration for one or more zones.",no_items:"There are no modules defined yet.",title:"Modules"},zones:{actions:{add:"Add",calculate:"Calculate",information:"Information",update:"Update","reset-bucket":"Reset bucket","view-weather-info":"View weather data","view-weather-info-message":"Weather data available for","view-watering-calendar":"View watering calendar",irrigate_all:"Water all zones now",open_settings:"Edit settings"},cards:{"add-zone":{actions:{add:"Add zone"},header:"Add zone"},"zone-actions":{actions:{"calculate-all":"Recalculate durations","update-all":"Refresh weather data","reset-all-buckets":"Reset all buckets","clear-all-weatherdata":"Clear all weather data"},header:"Actions on all zones"}},description:"Specify one or more irrigation zones here. The irrigation duration is calculated per zone, depending on size, throughput, state, module and sensor group.",labels:{bucket:"Bucket",duration:"Duration","lead-time":"Lead time",mapping:"Sensor Group","maximum-duration":"Maximum duration",multiplier:"Multiplier",name:"Name",size:"Size",state:"State",states:{automatic:"Automatic",disabled:"Disabled",manual:"Manual"},throughput:"Throughput","maximum-bucket":"Maximum bucket",last_calculated:"Last calculated","data-last-updated":"Data last updated","data-number-of-data-points":"Number of data points",drainage_rate:"Drainage rate",linked_entity:"Linked switch/valve/helper entity",linked_entity_placeholder:"e.g. switch.garden_valve",flow_sensor:"Flow meter sensor (optional)",flow_sensor_placeholder:"e.g. sensor.zone_flow_rate",flow_counter_type:"Counter type",flow_counter_type_help:"How this cumulative flow sensor is read. Auto learns across runs whether the sensor resets each run. Per run: the sensor resets to ~0 each run and shows that run's total (e.g. Sonoff/Zigbee valves). Lifetime: a meter that only ever counts up across all runs (delta per run).",flow_counter_type_auto:"Auto (learn)",flow_counter_type_per_run:"Per run (resets each run)",flow_counter_type_lifetime:"Lifetime total (delta)",watering_mode:"Watering mode",watering_mode_description:"How HASI actuates this zone. Classic: HASI opens the valve and closes it itself with a software timer. Self-closing service: HASI sends the run duration to a self-closing valve via a script (see the shipped valve blueprints) and lets the hardware close itself, so an HA restart mid-run cannot cause continuous irrigation.",watering_modes:{classic:"Classic (HASI opens & closes the valve)",service:"Self-closing service (valve closes itself)"},run_service:"Run service",run_service_help:"Service HASI calls to start the run (e.g. a script.* or a switch/valve service). It receives the duration field below plus zone_id and zone_name.",duration_field:"Duration field",duration_field_placeholder:"e.g. dauer",duration_field_help:"Name of the parameter that carries the run length in the call to your run service. The shipped valve blueprints use 'duration' (the default); a custom script may use another name (e.g. 'dauer').",duration_unit:"Duration unit",duration_units:{seconds:"Seconds",minutes:"Minutes"},duration_unit_help:"Unit your hardware expects for the run length. Check the device: many Zigbee/Tuya valves count in MINUTES. The wrong unit over- or under-waters by 60x. In Minutes mode HASI rounds up to whole minutes (minimum 1).",stop_service:"Stop service (optional)",stop_service_help:"Optional. Service HASI calls to close the valve when you stop the zone early, before its own timer expires. Leave empty if the valve cannot be stopped manually.",confirm_entity:"Confirm entity (optional)",confirm_entity_help:"Optional. The real valve/switch entity the run service drives (e.g. a valve or switch) — it holds a steady on-state while watering. If set, HASI verifies the open against it (poll only, it never re-actuates) and flags a problem plus skips the bucket credit if it never turns on. Leave empty to treat the run as write-only and credit optimistically (the hardware owns the close). When in doubt, leave it empty: it only helps with an entity that reports its on-state reliably — a valve that reports late (e.g. a sleepy Zigbee valve) could be read as 'off' and wrongly skip the credit, so the zone would water again next run. Do NOT point this at the run script itself — a fire-and-forget script is not a valid state signal.",observed_entity:"Observed valve/switch (optional)",observed_entity_help:"If Observed watering is on, external runs of this valve/switch (a manual tap, an automation) credit this zone's water storage. Leave empty to not observe this zone.",soil_moisture_sensor:"Soil-moisture sensor (optional)",soil_moisture_sensor_help:"Optional. A sensor reporting this zone's soil moisture in percent (higher = wetter). With a skip threshold set below, an automatic run skips this zone whenever the reading is above the threshold and resets the zone's bucket. Leave empty to disable. An unavailable or non-numeric reading never blocks watering (fail-open).",soil_moisture_threshold:"Skip above soil moisture (%)",soil_moisture_threshold_help:"On an automatic run, skip this zone (and reset its bucket to 0) when the soil-moisture sensor reads strictly above this percentage. Needs a soil-moisture sensor set above. Only affects scheduled runs; manual runs always water.",irrigate_now:"Irrigate Now",bucket_threshold:"Minimum deficit to irrigate",plant_type:"Plant type",kc:"Crop coefficient (Kc)",plant_types:{custom:"Custom (set Kc manually)",lawn:"Lawn / turf",vegetables:"Vegetable garden",flowers:"Flower bed",shrubs:"Shrubs",trees:"Trees",xeriscape:"Xeriscape / drought-tolerant"},soil_type:"Soil type",soil_types:{custom:"Custom (set rate manually)",sand:"Sandy (fast draining)",loam:"Loam (balanced)",silt:"Silt (slow draining)",clay:"Clay (very slow draining)"},distributor:"Water distributor",distributor_help:"Assign this zone to an outlet of a mechanical water distributor. The distributor's inlet valve and its pulse-advance sequence then water this zone, so the zone's own valve and schedule below are managed by the distributor.",distributor_none:"None (own valve)",outlet_number:"Outlet number",distributor_managed_note:"This zone is watered through a distributor (outlet above). Its valve, inlet control and flow sensor are managed by the distributor and hidden here — only the calculation and soil-moisture veto settings remain. To give the zone its own valve again, set the distributor above to “None (own valve)”.",outlet_number_readonly_help:"Which outlet of the distributor feeds this zone. Set on the distributor page — open it with the button.",configure_on_distributor:"Configure on distributor"},no_items:"There are no zones defined yet.",title:"Zones",status:{decision_disabled:"Turned off — this zone won't be watered automatically.",decision_water:"Watering needed: about {duration} on the next scheduled run.",decision_water_at:"Will water about {duration} at {time}.",decision_water_skip:"Deficit ~{duration}, but the next run will likely be skipped ({reason}).",decision_water_no_schedule:"Deficit ~{duration} — no schedule waters this zone; trigger it manually.",decision_no_water:"No watering needed right now — the soil has enough moisture.",decision_unknown:"Not calculated yet — press Update, then Calculate to check.",last_checked:"Last checked",never:"never",saved:"Saved",estimate_now:"Now",estimate_tag:"est.",estimate_method:{hourly:"Live estimate from hourly weather since the last calculation",proxy:"Estimate distributed from today's forecast since the last calculation"}},fault:{title:"Last run failed",valve_no_response:"The valve didn't respond — no water was delivered, so the bucket was left unchanged.",flow_never_started:"No flow was detected — no water was delivered, so the bucket was left unchanged.",generic:"The last irrigation run failed."},skip:{title:"Skipped",soil_moisture:"Soil moisture {observed} % > {threshold} %"},help:{bucket:"Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",calculate:"Works out how long to water from the latest data. Run this after Update.",update:"Fetches the latest weather/sensor data for this zone.",irrigate_link_entity:"Link a switch/valve in this zone's settings to enable manual watering.",irrigate_all:"Opens the linked valves now for every zone with a deficit. Skip conditions (rain, wind, temperature) are ignored.",update_all:"Collects the latest weather/sensor data for all zones. Does not change durations on its own.",calculate_all:"Recomputes each automatic zone's watering duration from the data collected so far."},outlook:{next_run:"Next run",no_schedule:"No automatic schedule — zones water only when you trigger them.",setup_schedule:"Set up a schedule",targets_all:"all zones",targets_zones:"{count} zones",will_skip:"Next run will likely be skipped",will_run:"Conditions look clear for the next run.",why_skipped:"Why?",provisional:"forecast — may change",active_guards:"Active guards",last_run:"Last run",last_run_skipped:"skipped",last_run_ran:"ran",today:"today",tomorrow:"tomorrow",actions:{irrigate:"Water",calculate:"Recalculate",update:"Refresh data"},checks:{precipitation:"Rain forecast",days_between:"Days between watering",temperature:"Low temperature",wind:"High wind",rain_sensor:"Rain sensor",freeze:"Frost",paused:"Paused (rain delay)",soil_moisture:"Soil moisture",no_demand:"No water demand"},check_detail:{precipitation:"{observed} mm (≥ {threshold} mm)",days_between:"{observed}/{threshold} days",temperature:"{observed}° (below {threshold}°)",wind:"{observed} (above {threshold})",rain_sensor:"{observed}",freeze:"{observed}° (below {threshold}°)"}},calendar:{no_data:"No watering calendar data available for this zone.",error_prefix:"Error generating calendar:",month:"Month",et:"ET (mm)",precipitation:"Precipitation (mm)",watering:"Watering (L)",avg_temp:"Avg Temp (°C)",method_prefix:"Method:"},confirm_action:{reset_bucket_title:"Reset this zone's bucket?",reset_bucket_body:"This sets the bucket back to 0, discarding the accumulated moisture balance for this zone.",reset_all_buckets_title:"Reset all buckets?",reset_all_buckets_body:"This sets every zone's bucket back to 0, discarding the accumulated moisture balance. Watering calculations start fresh from the next update.",clear_weather_title:"Clear all weather data?",clear_weather_body:"This deletes all collected weather and sensor records for every zone. Zones will need fresh data before they can calculate again."},confirm_irrigate:{title:"Start irrigation?",body:"This opens the linked valve(s) now and bypasses all skip conditions (rain, temperature, minimum days between watering).",all_linked_zones:"All linked zones",toast_started:"Irrigation started",toast_failed:"Irrigation failed"},history:{title:"Run history",total_used:"Total water used",empty:"No runs recorded yet.",when:"When",result:"Result",volume:"Volume",detail:"Detail",results:{completed:"Completed",partial:"Partial",failed:"Failed",skipped:"Skipped",observed:"Observed"}},rain_delay:{title:"Pause watering",paused:"Paused",until:"until",delay_24h:"Delay 24 h",delay_48h:"Delay 48 h",resume:"Resume"},run_zone:{run:"Run",minutes:"min",help:"Water this zone for a custom time, ignoring the calculation",toast_started:"Started run",busy_hint:"Distributor is running — you can start again once it is back in its home position."},stop_zone:{stop:"Stop",watering:"Watering…",toast_stopped:"Stopped run"}},distributors:{title:"Distributors",description:"Mechanical water distributors split one supply into several outlets, advanced by pulsing the water on and off.",no_items:"No distributors configured yet.",add:{header:"Add distributor",name_placeholder:"Distributor name",actions:{add:"Add"}},status:{saved:"Saved"},confirm_delete:"Delete this distributor? Zones assigned to it keep their outlet numbers but lose their distributor link.",labels:{name:"Name",watering_mode_help:"How the distributor's inlet valve is opened and closed.",inlet_entity:"Inlet valve / switch (optional)",inlet_entity_help:"The switch or valve entity that opens the water supply into the distributor. It is also watched for foreign pulses; once a valve is selected, a setting appears below to control the reaction.",watch_inlet:"Watch inlet valve for manual pulses",watch_inlet_help:"Only detects valve switches Home Assistant can see — purely mechanical pulses at the device stay invisible.",inlet_entity_help_service:"The ring valve Home Assistant watches for foreign pulses to keep the outlet position in sync (e.g. when the valve is opened manually or by an automation outside a HASI run). Once a valve is selected, a setting appears below to control the reaction. Actuation is via the run/stop service; this field is only read, and is NOT the flow/confirm sensor. Leave empty to disable inlet watching.",watch_mode:"On a manual inlet pulse",watch_mode_help:"How to react when the inlet valve is opened outside a Home Assistant run (only pulses Home Assistant can see).",watch_mode_count:"Count it (advance the position)",watch_mode_warn:"Warn (mark position uncertain)",watch_mode_ignore:"Ignore",run_service:"Run script",run_service_help:"Script called to open the inlet. It receives the pulse duration.",stop_service:"Stop script (optional)",stop_service_help:"Script called to close the inlet.",duration_field:"Duration field",duration_field_help:"Name of the field the run script expects the duration in.",duration_field_placeholder:"duration",duration_unit:"Duration unit",duration_units:{seconds:"Seconds",minutes:"Minutes"},confirm_entity:"Confirmation sensor (optional)",confirm_entity_help:"Optional sensor on the distributor inlet confirming water actually flows (e.g. a flow or valve-position sensor). If it reports no flow when an outlet opens, the cycle halts safely and marks the distributor uncertain — this is the low-flow / fault detection.",flow_sensor:"Flow sensor (optional)",flow_sensor_help:"The shared inlet flow-rate meter (e.g. L/min, m³/h). When set, the actual delivered volume per outlet is measured and credited instead of the time estimate. Optional. Where the valve can be stopped (a classic inlet, or a self-closing stop-service), the outlet also stops early once its target volume is reached. Both an instantaneous rate meter (e.g. L/min) and a cumulative totalizer counter (e.g. m³, or state_class: total_increasing) are supported and detected automatically from the unit.",pause_seconds:"Advance pause",skip_pulse_seconds:"Skip pulse",notify_target:"Notification target (optional)",notify_target_help:"Optional additional channel. Halts always appear in the Home Assistant notifications panel; set a notify service here (e.g. notify.mobile_app_phone) to also push them there.",notify_target_placeholder:"notify.mobile_app_phone"},notify:{halted:"Distributor '{name}' halted ({reason}). Re-sync and re-confirm required.",reason:{valve_did_not_open:"valve did not open",restart_mid_advance:"restarted mid-advance",foreign_inlet_pulse:"manual inlet pulse"}},commissioning:{title:"Commissioning",outlet:"Outlet",states:{synced:"Synced",uncertain:"Uncertain"},test_run:"Test run",test_run_help:"Waters each mapped outlet for about 30 seconds in order, so you can watch the device advance and note the pause it needs.",set_outlet:"Set current outlet",set_outlet_help:"Read the outlet number shown in the device window and set it here to re-sync the tracked position.",resync_home:"Reset to outlet 1",confirm_resync:{title:"Reset to outlet 1?",body:"This sets the tracked position to outlet 1. Only confirm if the device is physically at outlet 1 — otherwise the distributor will water the wrong outlets (an undetected desync)."},confirm_set_outlet:{title:"Set current outlet?",body:"This marks the distributor as synced at the outlet you entered. Only confirm if the device's window physically shows that outlet right now — a wrong value silently waters the wrong outlets."},confirmed:"Commissioning confirmed",confirmed_help:"Arms the distributor for automatic and manual cycles. Can only be set while the position is synced, and drops to off automatically if the position ever becomes uncertain.",needs_sync:"Set the position to synced before you can arm this distributor.",run_now:"Run now",run_now_help:"Runs one full manual cycle over all mapped outlets.",run_now_active:"A cycle is already running.",confirm_dialog:{title:"Arm this distributor?",body:"Confirm the device is physically at outlet 1 and every outlet is mapped to the right zone. Automatic and manual cycles will start pulsing the inlet.",confirm:"Confirm & arm"}},hints:{pressure:"Give the distributor at least 1 bar of water pressure and 20 l/h of flow. Mechanical distributors need a firm pulse to advance reliably.",below_floor_pause:"Very short pause. The advance pulse must be long enough for the distributor to actually step; the backend enforces a minimum of 10 seconds.",below_floor_skip:"Very short skip pulse. The backend enforces a minimum of 10 seconds.",undetectable:"The device's manual selector button cannot be read back. If you turn it by hand, use “Set current outlet” afterwards so the tracked position matches.",outlet_change:"Changing an outlet mapping moves the device off its known position. Re-sync and re-confirm commissioning before the next cycle.",parallel_draw:"Parallel sequencing opens several zones at once, but a distributor feeds one outlet at a time, so its mapped zones still water in sequence. Plan the supply draw accordingly.",master_off_after:"With sequential or rotating sequencing and “master off after each zone”, the pump is switched per outlet, so expect it to cycle between every outlet of the distributor.",experimental:"Experimental feature — still being refined and not fully hardware-tested. Watch the first days of use closely and keep the device's manual override within reach."},outlets:{title:"Outlets / zones",help:"Set how many outlets the distributor has, then assign a zone to each. Only zones without their own valve or script can be assigned — a zone is either on a distributor or has its own valve. The number of outlets equals the number of assigned zones, numbered contiguously from 1.",count:"Number of outlets",none:"— none",no_zones:"No zones yet. Create zones first (Setup → Zones), then assign them here.",gap_warning:"Outlets must be filled contiguously from 1 — assign a zone to every outlet up to the highest used one."}}},qi="Smart Irrigation",Gi={title:"Weather Service",description:"Configure which weather service to use for ET calculations and skip conditions.",enabled_label:"Enable weather service",service_label:"Weather service",api_key_label:"API key",api_key_placeholder:"Leave blank to keep existing key",api_key_configured:"API key is configured",api_key_not_configured:"No API key configured",api_key_help:"An API key from your chosen weather service provider. Open-Meteo does not require a key. OpenWeatherMap, Pirate Weather and the Met Office (Weather DataHub) all offer free tiers.",no_api_key_needed:"Open-Meteo is a free service and requires no API key.",save_button:"Save weather settings",saved:"Weather settings saved",owm:"OpenWeatherMap",pw:"Pirate Weather",openmeteo:"Open-Meteo (free, no key needed)",met:"Met Office (UK)",test_button:"Test Connection",test_button_testing:"Testing…",test_success:"✓ Connection successful",test_error_invalid_auth:"✗ Invalid API key — check that it is correct and active",test_error_cannot_connect:"✗ Cannot connect — check your internet connection",test_error_no_service:"✗ Select a weather service first",test_error_unknown:"✗ Test failed — unknown error"},Ki={title:"Irrigation Start Triggers",description:"Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",add_trigger:"Add Trigger",edit_trigger:"Edit Trigger",delete_trigger:"Delete Trigger",trigger_types:{sunrise:"Sunrise",sunset:"Sunset",solar_azimuth:"Solar Azimuth"},fields:{name:{name:"Trigger Name",description:"A descriptive name to identify this trigger"},type:{name:"Trigger Type",description:"The type of solar event to trigger on"},enabled:{name:"Enabled",description:"Whether this trigger is currently active"},offset_minutes:{name:"Offset (minutes)",description:"Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."},azimuth_angle:{name:"Azimuth Angle (degrees)",description:"Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"},account_for_duration:{name:"Account for Duration",description:"When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."}},dialog:{add_title:"Add Irrigation Start Trigger",edit_title:"Edit Irrigation Start Trigger",cancel:"Cancel",save:"Save",delete:"Delete"},no_triggers:"No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",offset_auto:"Auto (calculated from total zone duration)",confirm_delete:"Are you sure you want to delete the trigger '{name}'?",validation:{name_required:"Trigger name is required",azimuth_invalid:"Azimuth angle must be a valid number"},help:{sunrise_offset:"For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",sunset_offset:"For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",azimuth_explanation:"Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",multiple_triggers:"You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."}},Vi={title:"Skip Conditions",description:"Automatically skip irrigation when conditions are unfavorable. Precipitation check requires a weather service. Temperature and wind checks also require a weather service.",threshold_label:"Precipitation Threshold",threshold_description:"Minimum total precipitation (in mm) forecast across the look-ahead window to skip irrigation.",lookahead_label:"Forecast look-ahead (days)",lookahead_help:"How many upcoming forecast days to add up when checking for rain. The forecast starts at tomorrow (today is excluded), so 1 = just the next day, 2 = the next two days, and so on.",temp_section_title:"Skip on low temperature",temp_threshold_label:"Skip if temperature is below",wind_section_title:"Skip on high wind speed",wind_threshold_label:"Skip if wind speed is above",rain_sensor_section_title:"Skip on rain sensor",rain_sensor_label:"Rain sensor entity (optional)",rain_sensor_placeholder:"e.g. binary_sensor.rain",freeze_section_title:"Skip on frost",freeze_threshold_label:"Skip if minimum temperature is below",freeze_help:"Compares the current temperature and the coming night's forecast low; skips watering when frost is expected, to protect pipes and plants.",forecast_rain_label:"When rain is forecast",forecast_rain_options:{ignore:"Ignore it",water_less:"Water less",skip:"Skip watering"},forecast_rain_help:{ignore:"Forecast rain is ignored; runs use the calculated duration.",water_less:"Upcoming forecast rain trims the run duration (the deficit stays in the bucket for the real rain to fill).",skip:"Skip the run entirely when enough rain is forecast within the look-ahead window."}},Yi={title:"Location Coordinates",description:"Configure location coordinates for weather data retrieval. You can use manual coordinates different from your Home Assistant location if needed.",manual_enabled:"Use manual coordinates",use_ha_location:"Use Home Assistant location",latitude:"Latitude (decimal degrees)",longitude:"Longitude (decimal degrees)",elevation:"Elevation (meters above sea level)",current_ha_coords:"Current Home Assistant coordinates"},Xi={title:"Days Between Irrigation",description:"Configure the minimum number of days that must pass between irrigation events. This helps control watering frequency for water conservation and plant health management.\n\nTypical real-world use cases:\n• Lawn care: 1-2 day intervals prevent overwatering\n• Drought restrictions: 6+ day intervals for weekly watering\n• Deep-rooted plants: 3-7 day intervals for less frequent watering\n• Water conservation: Customizable based on climate and soil conditions",label:"Minimum days between irrigation",help_text:"Set to 0 to disable this feature. Values from 1-365 days are supported. This setting works alongside existing precipitation forecasting logic."},Ji={title:"Zone Sequencing",description:"When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next. Rotating mode cycles through zones, giving each one a limited consecutive run before moving to the next.",parallel:"Parallel (all zones at once)",sequential:"Sequential (one zone at a time)",rotating:"Rotating (zones take turns)",max_consecutive_duration_label:"Max consecutive run time per zone",max_consecutive_duration_unit:"minutes",min_absorption_time_label:"Min. absorption time between slots",min_absorption_time_unit:"minutes (0 = disabled)"},Qi={title:"Pump / master switch",description:"Optional. Powers a shared master — a pump or main valve — on before the first zone of a watering cycle, then optionally off after the last zone. Leave the entity empty to never touch a master (e.g. a pressure-controlled waterworks that starts on its own).",entity:"Master entity (switch/valve)",kick_enabled:"Kicker: pulse off then on to force a pump start",kick_pause:"Kick pause (off before on)",settle:"Settle delay before the first zone",off_after:"Turn the master off after irrigation",seconds_unit:"seconds"},es={zone_size:"The total irrigated area of this zone. Used with throughput to calculate how much water is applied per run.",zone_throughput:"Total water flow of your irrigation system for this zone (litres/min in metric, gal/min in imperial). Check your sprinkler datasheet or measure by timing how long it takes to fill a known container.",zone_drainage_rate:"How fast saturated soil drains excess water. ~20 mm/h suits medium/loam soil; lower (2–10) for heavy clay, higher for sandy soil.",zone_bucket:"Current water deficit (negative) or surplus (positive) for this zone. Irrigation triggers when bucket drops below the threshold.",zone_maximum_bucket:"Maximum moisture surplus the zone can hold. Water above this level is treated as runoff. Typical value: 50 mm.",zone_bucket_threshold:"Irrigation triggers when the bucket drops below this value. Must be 0 or negative. 0 means irrigate whenever there is any deficit.",zone_multiplier:"Scale factor applied to the calculated duration. Use above 1.0 to increase, below 1.0 to decrease. Useful for fine-tuning without changing physical measurements.",zone_lead_time:"Extra seconds added before irrigation starts. Use for pump warm-up or system pressurisation.",zone_maximum_duration:"Hard cap on any single irrigation run in seconds. Prevents runaway watering. Default: 3600 s (1 hour).",zone_linked_entity:"The HA switch, valve or input_boolean (helper) entity controlling water flow for this zone. This entity is turned on when irrigation runs.",zone_flow_sensor:"Optional sensor measuring actual water flow rate. Used for reporting only — does not affect duration calculations.",general_autoupdatedelay:"Seconds to wait after HA starts before the first weather data fetch. Allows other integrations to initialise first.",general_sensor_debounce:"Minimum gap in milliseconds between sensor readings to filter noise from rapidly changing sensors.",general_calctime:"Time of day when irrigation durations are recalculated from collected weather data. Format: HH:MM (24-hour).",general_cleardatatime:"Time of day when old weather data is purged. Must be set later than the calculation time.",general_days_between:"Minimum days between irrigation events for the same zone. Set to 0 to disable (irrigate whenever deficit exists).",general_autoupdateinterval:"How often weather data is collected. Choose a value that balances fresh data against API rate limits.",general_precipitation_threshold:"Irrigation is skipped if total forecast precipitation across the look-ahead window exceeds this amount.",general_temp_threshold:"Irrigation is skipped if the current temperature is below this value (e.g. to prevent frost damage).",general_wind_threshold:"Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift).",zone_plant_type:"Pick a plant type to set a typical crop coefficient, or choose Custom to enter Kc yourself.",zone_kc:"Scales reference (grass) ET to this zone's plants. 1.0 = reference grass; lower for drought-tolerant planting, higher for thirsty crops. Only the ET term is scaled — rain is not.",zone_soil_type:"Pick a soil type to set a typical drainage rate, or leave Custom to enter it by hand below.",distributor_pause_seconds:"Off-time between outlets. This is the pulse that advances the distributor to the next outlet; set it from what you saw during the test run. Minimum 10 seconds.",distributor_skip_pulse_seconds:"Short on/off pulse used to step past an outlet that has no zone mapped, without watering it. Minimum 10 seconds."},ts={title:"Setup Wizard",open_button:"Setup Wizard",close:"Close",next:"Next",back:"Back",finish:"Finish",skip_step:"Skip this step",step_indicator:"Step {current} of {total}",stepper:{weather:"Weather",module:"Module",mapping:"Sensor Group",zone:"Zone"},setup_complete_banner:"Setup not complete. Run the wizard to get started.",open_wizard:"Open Wizard",steps:{welcome:{title:"Welcome to Smart Irrigation",intro:"This wizard guides you through the four steps needed to get your first zone irrigating automatically.",step1_label:"Weather Service — where to get weather data",step2_label:"Calculation Module — how irrigation duration is computed",step3_label:"Sensor Group — which data sources to use",step4_label:"Zone — your first irrigation zone",tip:"You can skip any step and configure it later from the Setup tab."},weather:{title:"Weather Service",description:"Choose how to get weather data. Open-Meteo is free and requires no API key — it is the easiest choice for most users."},module:{title:"Calculation Module",description:"A module calculates how long to irrigate based on evapotranspiration (ET). The PyETO module (FAO-56 method) is recommended for most users.",pick_label:"Select module type",no_modules:"No module types available."},mapping:{title:"Sensor Group",description:"A sensor group links each weather variable to a data source. Set the key variables below — you can refine individual sensor mappings later from the Setup → Sensor Groups tab.",name_label:"Sensor group name",source_label:"Data source for",use_weather_service:"Weather service",use_sensor:"Sensor",use_static:"Static value",use_none:"None / not used"},zone:{title:"First Zone",description:"A zone is one irrigation area (e.g. lawn, garden bed). Set the physical properties so the system can calculate the correct irrigation duration.",name_label:"Zone name",size_label:"Area",throughput_label:"Sprinkler throughput",entity_label:"Linked switch, valve or helper",entity_placeholder:"e.g. switch.garden_valve",module_label:"Calculation module",mapping_label:"Sensor group"},done:{title:"Setup Complete!",description:"Your first zone is ready. Smart Irrigation will now calculate irrigation durations automatically based on weather data.",next_steps:"What you can do next:",tip1:"Go to Zones to view calculated durations and bucket values.",tip2:"Add more zones from the Zones tab.",tip3:"Refine all settings from the Setup tab.",go_zones:"Go to Zones",go_setup:"Go to Setup",schedule_name:"Daily",schedule_title:"Create a watering schedule",schedule_desc:"Your system is configured, but it won't water until a schedule exists. Create a daily schedule for all zones now (you can change or remove it later under Setup → When to Water).",schedule_create:"Create daily schedule",schedule_created:"Daily schedule created."}},confirm_close:{body:"Close the setup wizard? Your progress so far is saved.",keep:"Keep editing",close:"Close"}},is={flow_calibration:Bi,common:Ui,defaults:ji,module:Fi,calcmodules:Zi,panels:Wi,title:qi,weather_service_config:Gi,irrigation_start_triggers:Ki,weather_skip:Vi,coordinate_config:Yi,days_between_irrigation:Xi,zone_sequencing:Ji,master:Qi,field_help:es,wizard:ts},ss=Object.freeze({__proto__:null,calcmodules:Zi,common:Ui,coordinate_config:Yi,days_between_irrigation:Xi,default:is,defaults:ji,field_help:es,flow_calibration:Bi,irrigation_start_triggers:Ki,master:Qi,module:Fi,panels:Wi,title:qi,weather_service_config:Gi,weather_skip:Vi,wizard:ts,zone_sequencing:Ji});function as(e,t){const i=t&&t.cache?t.cache:hs,s=t&&t.serializer?t.serializer:ds;return(t&&t.strategy?t.strategy:ls)(e,{cache:i,serializer:s})}function ns(e,t,i,s){const a=null==(n=s)||"number"==typeof n||"boolean"==typeof n?s:i(s);var n;let o=t.get(a);return void 0===o&&(o=e.call(this,s),t.set(a,o)),o}function os(e,t,i){const s=Array.prototype.slice.call(arguments,3),a=i(s);let n=t.get(a);return void 0===n&&(n=e.apply(this,s),t.set(a,n)),n}function rs(e,t,i,s,a){return i.bind(t,e,s,a)}function ls(e,t){return rs(e,this,1===e.length?ns:os,t.cache.create(),t.serializer)}const ds=function(){return JSON.stringify(arguments)};var cs=class{constructor(){this.cache=Object.create(null)}get(e){return this.cache[e]}set(e,t){this.cache[e]=t}};const hs={create:function(){return new cs}},us={variadic:function(e,t){return rs(e,this,os,t.cache.create(),t.serializer)}},ps=/(?:[Eec]{1,6}|G{1,5}|[Qq]{1,5}|(?:[yYur]+|U{1,5})|[ML]{1,5}|d{1,2}|D{1,3}|F{1}|[abB]{1,5}|[hkHK]{1,2}|w{1,2}|W{1}|m{1,2}|s{1,2}|[zZOvVxX]{1,4})(?=([^']*'[^']*')*[^']*$)/g;function gs(e){const t={};return e.replace(ps,e=>{const i=e.length;switch(e[0]){case"G":t.era=4===i?"long":5===i?"narrow":"short";break;case"y":t.year=2===i?"2-digit":"numeric";break;case"Y":case"u":case"U":case"r":throw new RangeError("`Y/u/U/r` (year) patterns are not supported, use `y` instead");case"q":case"Q":throw new RangeError("`q/Q` (quarter) patterns are not supported");case"M":case"L":t.month=["numeric","2-digit","short","long","narrow"][i-1];break;case"w":case"W":throw new RangeError("`w/W` (week) patterns are not supported");case"d":t.day=["numeric","2-digit"][i-1];break;case"D":case"F":case"g":throw new RangeError("`D/F/g` (day) patterns are not supported, use `d` instead");case"E":t.weekday=4===i?"long":5===i?"narrow":"short";break;case"e":if(i<4)throw new RangeError("`e..eee` (weekday) patterns are not supported");t.weekday=["short","long","narrow","short"][i-4];break;case"c":if(i<4)throw new RangeError("`c..ccc` (weekday) patterns are not supported");t.weekday=["short","long","narrow","short"][i-4];break;case"a":t.hour12=!0;break;case"b":case"B":throw new RangeError("`b/B` (period) patterns are not supported, use `a` instead");case"h":t.hourCycle="h12",t.hour=["numeric","2-digit"][i-1];break;case"H":t.hourCycle="h23",t.hour=["numeric","2-digit"][i-1];break;case"K":t.hourCycle="h11",t.hour=["numeric","2-digit"][i-1];break;case"k":t.hourCycle="h24",t.hour=["numeric","2-digit"][i-1];break;case"j":case"J":case"C":throw new RangeError("`j/J/C` (hour) patterns are not supported, use `h/H/K/k` instead");case"m":t.minute=["numeric","2-digit"][i-1];break;case"s":t.second=["numeric","2-digit"][i-1];break;case"S":case"A":throw new RangeError("`S/A` (second) patterns are not supported, use `s` instead");case"z":t.timeZoneName=i<4?"short":"long";break;case"Z":case"O":case"v":case"V":case"X":case"x":throw new RangeError("`Z/O/v/V/X/x` (timeZone) patterns are not supported, use `z` instead")}return""}),t}const ms=/[\t-\r \x85\u200E\u200F\u2028\u2029]/i;function vs(e){return e.replace(/^(.*?)-/,"")}const _s=/^\.(?:(0+)(\*)?|(#+)|(0+)(#+))$/g,fs=/^(@+)?(\+|#+)?[rs]?$/g,bs=/(\*)(0+)|(#+)(0+)|(0+)/g,ys=/^(0+)$/;function ws(e){const t={};return"r"===e[e.length-1]?t.roundingPriority="morePrecision":"s"===e[e.length-1]&&(t.roundingPriority="lessPrecision"),e.replace(fs,function(e,i,s){return"string"!=typeof s?(t.minimumSignificantDigits=i.length,t.maximumSignificantDigits=i.length):"+"===s?t.minimumSignificantDigits=i.length:"#"===i[0]?t.maximumSignificantDigits=i.length:(t.minimumSignificantDigits=i.length,t.maximumSignificantDigits=i.length+("string"==typeof s?s.length:0)),""}),t}function $s(e){switch(e){case"sign-auto":return{signDisplay:"auto"};case"sign-accounting":case"()":return{currencySign:"accounting"};case"sign-always":case"+!":return{signDisplay:"always"};case"sign-accounting-always":case"()!":return{signDisplay:"always",currencySign:"accounting"};case"sign-except-zero":case"+?":return{signDisplay:"exceptZero"};case"sign-accounting-except-zero":case"()?":return{signDisplay:"exceptZero",currencySign:"accounting"};case"sign-never":case"+_":return{signDisplay:"never"}}}function xs(e){let t;if("E"===e[0]&&"E"===e[1]?(t={notation:"engineering"},e=e.slice(2)):"E"===e[0]&&(t={notation:"scientific"},e=e.slice(1)),t){const i=e.slice(0,2);if("+!"===i?(t.signDisplay="always",e=e.slice(2)):"+?"===i&&(t.signDisplay="exceptZero",e=e.slice(2)),!ys.test(e))throw new Error("Malformed concise eng/scientific notation");t.minimumIntegerDigits=e.length}return t}function ks(e){const t=$s(e);return t||{}}function zs(e){let t={};for(const i of e){switch(i.stem){case"percent":case"%":t.style="percent";continue;case"%x100":t.style="percent",t.scale=100;continue;case"currency":t.style="currency",t.currency=i.options[0];continue;case"group-off":case",_":t.useGrouping=!1;continue;case"precision-integer":case".":t.maximumFractionDigits=0;continue;case"measure-unit":case"unit":t.style="unit",t.unit=vs(i.options[0]);continue;case"compact-short":case"K":t.notation="compact",t.compactDisplay="short";continue;case"compact-long":case"KK":t.notation="compact",t.compactDisplay="long";continue;case"scientific":t={...t,notation:"scientific",...i.options.reduce((e,t)=>({...e,...ks(t)}),{})};continue;case"engineering":t={...t,notation:"engineering",...i.options.reduce((e,t)=>({...e,...ks(t)}),{})};continue;case"notation-simple":t.notation="standard";continue;case"unit-width-narrow":t.currencyDisplay="narrowSymbol",t.unitDisplay="narrow";continue;case"unit-width-short":t.currencyDisplay="code",t.unitDisplay="short";continue;case"unit-width-full-name":t.currencyDisplay="name",t.unitDisplay="long";continue;case"unit-width-iso-code":t.currencyDisplay="symbol";continue;case"scale":t.scale=parseFloat(i.options[0]);continue;case"rounding-mode-floor":t.roundingMode="floor";continue;case"rounding-mode-ceiling":t.roundingMode="ceil";continue;case"rounding-mode-down":t.roundingMode="trunc";continue;case"rounding-mode-up":t.roundingMode="expand";continue;case"rounding-mode-half-even":t.roundingMode="halfEven";continue;case"rounding-mode-half-down":t.roundingMode="halfTrunc";continue;case"rounding-mode-half-up":t.roundingMode="halfExpand";continue;case"integer-width":if(i.options.length>1)throw new RangeError("integer-width stems only accept a single optional option");i.options[0].replace(bs,function(e,i,s,a,n,o){if(i)t.minimumIntegerDigits=s.length;else{if(a&&n)throw new Error("We currently do not support maximum integer digits");if(o)throw new Error("We currently do not support exact integer digits")}return""});continue}if(ys.test(i.stem)){t.minimumIntegerDigits=i.stem.length;continue}if(_s.test(i.stem)){if(i.options.length>1)throw new RangeError("Fraction-precision stems only accept a single optional option");i.stem.replace(_s,function(e,i,s,a,n,o){return"*"===s?t.minimumFractionDigits=i.length:a&&"#"===a[0]?t.maximumFractionDigits=a.length:n&&o?(t.minimumFractionDigits=n.length,t.maximumFractionDigits=n.length+o.length):(t.minimumFractionDigits=i.length,t.maximumFractionDigits=i.length),""});const e=i.options[0];"w"===e?t={...t,trailingZeroDisplay:"stripIfInteger"}:e&&(t={...t,...ws(e)});continue}if(fs.test(i.stem)){t={...t,...ws(i.stem)};continue}const e=$s(i.stem);e&&(t={...t,...e});const s=xs(i.stem);s&&(t={...t,...s})}return t}let Ss=function(e){return e[e.EXPECT_ARGUMENT_CLOSING_BRACE=1]="EXPECT_ARGUMENT_CLOSING_BRACE",e[e.EMPTY_ARGUMENT=2]="EMPTY_ARGUMENT",e[e.MALFORMED_ARGUMENT=3]="MALFORMED_ARGUMENT",e[e.EXPECT_ARGUMENT_TYPE=4]="EXPECT_ARGUMENT_TYPE",e[e.INVALID_ARGUMENT_TYPE=5]="INVALID_ARGUMENT_TYPE",e[e.EXPECT_ARGUMENT_STYLE=6]="EXPECT_ARGUMENT_STYLE",e[e.INVALID_NUMBER_SKELETON=7]="INVALID_NUMBER_SKELETON",e[e.INVALID_DATE_TIME_SKELETON=8]="INVALID_DATE_TIME_SKELETON",e[e.EXPECT_NUMBER_SKELETON=9]="EXPECT_NUMBER_SKELETON",e[e.EXPECT_DATE_TIME_SKELETON=10]="EXPECT_DATE_TIME_SKELETON",e[e.UNCLOSED_QUOTE_IN_ARGUMENT_STYLE=11]="UNCLOSED_QUOTE_IN_ARGUMENT_STYLE",e[e.EXPECT_SELECT_ARGUMENT_OPTIONS=12]="EXPECT_SELECT_ARGUMENT_OPTIONS",e[e.EXPECT_PLURAL_ARGUMENT_OFFSET_VALUE=13]="EXPECT_PLURAL_ARGUMENT_OFFSET_VALUE",e[e.INVALID_PLURAL_ARGUMENT_OFFSET_VALUE=14]="INVALID_PLURAL_ARGUMENT_OFFSET_VALUE",e[e.EXPECT_SELECT_ARGUMENT_SELECTOR=15]="EXPECT_SELECT_ARGUMENT_SELECTOR",e[e.EXPECT_PLURAL_ARGUMENT_SELECTOR=16]="EXPECT_PLURAL_ARGUMENT_SELECTOR",e[e.EXPECT_SELECT_ARGUMENT_SELECTOR_FRAGMENT=17]="EXPECT_SELECT_ARGUMENT_SELECTOR_FRAGMENT",e[e.EXPECT_PLURAL_ARGUMENT_SELECTOR_FRAGMENT=18]="EXPECT_PLURAL_ARGUMENT_SELECTOR_FRAGMENT",e[e.INVALID_PLURAL_ARGUMENT_SELECTOR=19]="INVALID_PLURAL_ARGUMENT_SELECTOR",e[e.DUPLICATE_PLURAL_ARGUMENT_SELECTOR=20]="DUPLICATE_PLURAL_ARGUMENT_SELECTOR",e[e.DUPLICATE_SELECT_ARGUMENT_SELECTOR=21]="DUPLICATE_SELECT_ARGUMENT_SELECTOR",e[e.MISSING_OTHER_CLAUSE=22]="MISSING_OTHER_CLAUSE",e[e.INVALID_TAG=23]="INVALID_TAG",e[e.INVALID_TAG_NAME=25]="INVALID_TAG_NAME",e[e.UNMATCHED_CLOSING_TAG=26]="UNMATCHED_CLOSING_TAG",e[e.UNCLOSED_TAG=27]="UNCLOSED_TAG",e}({});function As(e){return 0===e.type}function Es(e){return 1===e.type}function Cs(e){return 2===e.type}function Ts(e){return 3===e.type}function Os(e){return 4===e.type}function Hs(e){return 5===e.type}function Ds(e){return 6===e.type}function Ms(e){return 7===e.type}function Is(e){return 8===e.type}function Ns(e){return!(!e||"object"!=typeof e||0!==e.type)}function Ls(e){return!(!e||"object"!=typeof e||1!==e.type)}const Ps=/[ \xA0\u1680\u2000-\u200A\u202F\u205F\u3000]/,Rs={"001":["H","h"],419:["h","H","hB","hb"],AC:["H","h","hb","hB"],AD:["H","hB"],AE:["h","hB","hb","H"],AF:["H","hb","hB","h"],AG:["h","hb","H","hB"],AI:["H","h","hb","hB"],AL:["h","H","hB"],AM:["H","hB"],AO:["H","hB"],AR:["h","H","hB","hb"],AS:["h","H"],AT:["H","hB"],AU:["h","hb","H","hB"],AW:["H","hB"],AX:["H"],AZ:["H","hB","h"],BA:["H","hB","h"],BB:["h","hb","H","hB"],BD:["h","hB","H"],BE:["H","hB"],BF:["H","hB"],BG:["H","hB","h"],BH:["h","hB","hb","H"],BI:["H","h"],BJ:["H","hB"],BL:["H","hB"],BM:["h","hb","H","hB"],BN:["hb","hB","h","H"],BO:["h","H","hB","hb"],BQ:["H"],BR:["H","hB"],BS:["h","hb","H","hB"],BT:["h","H"],BW:["H","h","hb","hB"],BY:["H","h"],BZ:["H","h","hb","hB"],CA:["h","hb","H","hB"],CC:["H","h","hb","hB"],CD:["hB","H"],CF:["H","h","hB"],CG:["H","hB"],CH:["H","hB","h"],CI:["H","hB"],CK:["H","h","hb","hB"],CL:["h","H","hB","hb"],CM:["H","h","hB"],CN:["H","hB","hb","h"],CO:["h","H","hB","hb"],CP:["H"],CR:["h","H","hB","hb"],CU:["h","H","hB","hb"],CV:["H","hB"],CW:["H","hB"],CX:["H","h","hb","hB"],CY:["h","H","hb","hB"],CZ:["H"],DE:["H","hB"],DG:["H","h","hb","hB"],DJ:["h","H"],DK:["H"],DM:["h","hb","H","hB"],DO:["h","H","hB","hb"],DZ:["h","hB","hb","H"],EA:["H","h","hB","hb"],EC:["h","H","hB","hb"],EE:["H","hB"],EG:["h","hB","hb","H"],EH:["h","hB","hb","H"],ER:["h","H"],ES:["H","hB","h","hb"],ET:["hB","hb","h","H"],FI:["H"],FJ:["h","hb","H","hB"],FK:["H","h","hb","hB"],FM:["h","hb","H","hB"],FO:["H","h"],FR:["H","hB"],GA:["H","hB"],GB:["H","h","hb","hB"],GD:["h","hb","H","hB"],GE:["H","hB","h"],GF:["H","hB"],GG:["H","h","hb","hB"],GH:["h","H"],GI:["H","h","hb","hB"],GL:["H","h"],GM:["h","hb","H","hB"],GN:["H","hB"],GP:["H","hB"],GQ:["H","hB","h","hb"],GR:["h","H","hb","hB"],GS:["H","h","hb","hB"],GT:["h","H","hB","hb"],GU:["h","hb","H","hB"],GW:["H","hB"],GY:["h","hb","H","hB"],HK:["h","hB","hb","H"],HN:["h","H","hB","hb"],HR:["H","hB"],HU:["H","h"],IC:["H","h","hB","hb"],ID:["H"],IE:["H","h","hb","hB"],IL:["H","hB"],IM:["H","h","hb","hB"],IN:["h","H"],IO:["H","h","hb","hB"],IQ:["h","hB","hb","H"],IR:["hB","H"],IS:["H"],IT:["H","hB"],JE:["H","h","hb","hB"],JM:["h","hb","H","hB"],JO:["h","hB","hb","H"],JP:["H","K","h"],KE:["hB","hb","H","h"],KG:["H","h","hB","hb"],KH:["hB","h","H","hb"],KI:["h","hb","H","hB"],KM:["H","h","hB","hb"],KN:["h","hb","H","hB"],KP:["h","H","hB","hb"],KR:["h","H","hB","hb"],KW:["h","hB","hb","H"],KY:["h","hb","H","hB"],KZ:["H","hB"],LA:["H","hb","hB","h"],LB:["h","hB","hb","H"],LC:["h","hb","H","hB"],LI:["H","hB","h"],LK:["H","h","hB","hb"],LR:["h","hb","H","hB"],LS:["h","H"],LT:["H","h","hb","hB"],LU:["H","h","hB"],LV:["H","hB","hb","h"],LY:["h","hB","hb","H"],MA:["H","h","hB","hb"],MC:["H","hB"],MD:["H","hB"],ME:["H","hB","h"],MF:["H","hB"],MG:["H","h"],MH:["h","hb","H","hB"],MK:["H","h","hb","hB"],ML:["H"],MM:["hB","hb","H","h"],MN:["H","h","hb","hB"],MO:["h","hB","hb","H"],MP:["h","hb","H","hB"],MQ:["H","hB"],MR:["h","hB","hb","H"],MS:["H","h","hb","hB"],MT:["H","h"],MU:["H","h"],MV:["H","h"],MW:["h","hb","H","hB"],MX:["h","H","hB","hb"],MY:["hb","hB","h","H"],MZ:["H","hB"],NA:["h","H","hB","hb"],NC:["H","hB"],NE:["H"],NF:["H","h","hb","hB"],NG:["H","h","hb","hB"],NI:["h","H","hB","hb"],NL:["H","hB"],NO:["H","h"],NP:["H","h","hB"],NR:["H","h","hb","hB"],NU:["H","h","hb","hB"],NZ:["h","hb","H","hB"],OM:["h","hB","hb","H"],PA:["h","H","hB","hb"],PE:["h","H","hB","hb"],PF:["H","h","hB"],PG:["h","H"],PH:["h","hB","hb","H"],PK:["h","hB","H"],PL:["H","h"],PM:["H","hB"],PN:["H","h","hb","hB"],PR:["h","H","hB","hb"],PS:["h","hB","hb","H"],PT:["H","hB"],PW:["h","H"],PY:["h","H","hB","hb"],QA:["h","hB","hb","H"],RE:["H","hB"],RO:["H","hB"],RS:["H","hB","h"],RU:["H"],RW:["H","h"],SA:["h","hB","hb","H"],SB:["h","hb","H","hB"],SC:["H","h","hB"],SD:["h","hB","hb","H"],SE:["H"],SG:["h","hb","H","hB"],SH:["H","h","hb","hB"],SI:["H","hB"],SJ:["H"],SK:["H"],SL:["h","hb","H","hB"],SM:["H","h","hB"],SN:["H","h","hB"],SO:["h","H"],SR:["H","hB"],SS:["h","hb","H","hB"],ST:["H","hB"],SV:["h","H","hB","hb"],SX:["H","h","hb","hB"],SY:["h","hB","hb","H"],SZ:["h","hb","H","hB"],TA:["H","h","hb","hB"],TC:["h","hb","H","hB"],TD:["h","H","hB"],TF:["H","h","hB"],TG:["H","hB"],TH:["H","h"],TJ:["H","h"],TL:["H","hB","hb","h"],TM:["H","h"],TN:["h","hB","hb","H"],TO:["h","H"],TR:["H","hB"],TT:["h","hb","H","hB"],TW:["hB","hb","h","H"],TZ:["hB","hb","H","h"],UA:["H","hB","h"],UG:["hB","hb","H","h"],UM:["h","hb","H","hB"],US:["h","hb","H","hB"],UY:["h","H","hB","hb"],UZ:["H","hB","h"],VA:["H","h","hB"],VC:["h","hb","H","hB"],VE:["h","H","hB","hb"],VG:["h","hb","H","hB"],VI:["h","hb","H","hB"],VN:["H","h"],VU:["h","H"],WF:["H","hB"],WS:["h","H"],XK:["H","hB","h"],YE:["h","hB","hb","H"],YT:["H","hB"],ZA:["H","h","hb","hB"],ZM:["h","hb","H","hB"],ZW:["H","h"],"af-ZA":["H","h","hB","hb"],"ar-001":["h","hB","hb","H"],"ca-ES":["H","h","hB"],"en-001":["h","hb","H","hB"],"en-HK":["h","hb","H","hB"],"en-IL":["H","h","hb","hB"],"en-MY":["h","hb","H","hB"],"es-BR":["H","h","hB","hb"],"es-ES":["H","h","hB","hb"],"es-GQ":["H","h","hB","hb"],"fr-CA":["H","h","hB"],"gl-ES":["H","h","hB"],"gu-IN":["hB","hb","h","H"],"hi-IN":["hB","h","H"],"it-CH":["H","h","hB"],"it-IT":["H","h","hB"],"kn-IN":["hB","h","H"],"ku-SY":["H","hB"],"ml-IN":["hB","h","H"],"mr-IN":["hB","hb","h","H"],"pa-IN":["hB","hb","h","H"],"ta-IN":["hB","h","hb","H"],"te-IN":["hB","h","H"],"zu-ZA":["H","hB","hb","h"]};function Bs(e){let t=e.hourCycle;if(void 0===t&&e.hourCycles&&e.hourCycles.length&&(t=e.hourCycles[0]),t)switch(t){case"h24":return"k";case"h23":return"H";case"h12":return"h";case"h11":return"K";default:throw new Error("Invalid hourCycle")}const i=e.language;let s;return"root"!==i&&(s=e.maximize().region),(Rs[s||""]||Rs[i||""]||Rs[`${i}-001`]||Rs["001"])[0]}const Us=new RegExp(`^${Ps.source}*`),js=new RegExp(`${Ps.source}*$`);function Fs(e,t){return{start:e,end:t}}const Zs=!!Object.fromEntries,Ws=!!String.prototype.trimStart,qs=!!String.prototype.trimEnd,Gs=Zs?Object.fromEntries:function(e){const t={};for(const[i,s]of e)t[i]=s;return t},Ks=Ws?function(e){return e.trimStart()}:function(e){return e.replace(Us,"")},Vs=qs?function(e){return e.trimEnd()}:function(e){return e.replace(js,"")},Ys=new RegExp("([^\\p{White_Space}\\p{Pattern_Syntax}]*)","yu");var Xs=class{constructor(e,t={}){this.message=e,this.position={offset:0,line:1,column:1},this.ignoreTag=!!t.ignoreTag,this.locale=t.locale,this.requiresOtherClause=!!t.requiresOtherClause,this.shouldParseSkeletons=!!t.shouldParseSkeletons}parse(){if(0!==this.offset())throw Error("parser can only be used once");if(this.message.length>0){const e=this.message.charCodeAt(0);if(35!==e&&39!==e&&60!==e&&123!==e&&125!==e){const e=function(e){if(0===e.length)return null;let t=1,i=1;for(let s=0;s<e.length;){const a=e.charCodeAt(s);switch(a){case 35:case 39:case 60:case 123:case 125:return null}if(10===a)t++,i=1,s++;else if(i++,a>=55296&&a<=56319&&s+1<e.length){const t=e.charCodeAt(s+1);s+=t>=56320&&t<=57343?2:1}else s++}return{offset:e.length,line:t,column:i}}(this.message);if(e){const t=this.clonePosition();return this.position=e,{val:[{type:0,value:this.message,location:Fs(t,this.clonePosition())}],err:null}}}}return this.parseMessage(0,"",!1)}parseMessage(e,t,i){let s=[];for(;!this.isEOF();){const a=this.char();if(123===a){const t=this.parseArgument(e,i);if(t.err)return t;s.push(t.val)}else{if(125===a&&e>0)break;if(35!==a||"plural"!==t&&"selectordinal"!==t){if(60===a&&!this.ignoreTag&&47===this.peek()){if(i)break;return this.error(26,Fs(this.clonePosition(),this.clonePosition()))}if(60===a&&!this.ignoreTag&&Js(this.peek()||0)){const i=this.parseTag(e,t);if(i.err)return i;s.push(i.val)}else{const i=this.parseLiteral(e,t);if(i.err)return i;s.push(i.val)}}else{const e=this.clonePosition();this.bump(),s.push({type:7,location:Fs(e,this.clonePosition())})}}}return{val:s,err:null}}parseTag(e,t){const i=this.clonePosition();this.bump();const s=this.parseTagName();if(this.bumpSpace(),this.bumpIf("/>"))return{val:{type:0,value:`<${s}/>`,location:Fs(i,this.clonePosition())},err:null};if(this.bumpIf(">")){const a=this.parseMessage(e+1,t,!0);if(a.err)return a;const n=a.val,o=this.clonePosition();if(this.bumpIf("</")){if(this.isEOF()||!Js(this.char()))return this.error(23,Fs(o,this.clonePosition()));const e=this.clonePosition();return s!==this.parseTagName()?this.error(26,Fs(e,this.clonePosition())):(this.bumpSpace(),this.bumpIf(">")?{val:{type:8,value:s,children:n,location:Fs(i,this.clonePosition())},err:null}:this.error(23,Fs(o,this.clonePosition())))}return this.error(27,Fs(i,this.clonePosition()))}return this.error(23,Fs(i,this.clonePosition()))}parseTagName(){const e=this.offset();for(this.bump();!this.isEOF()&&Qs(this.char());)this.bump();return this.message.slice(e,this.offset())}parseLiteral(e,t){const i=this.clonePosition();let s="";for(;;){const i=this.tryParseQuote(t);if(i){s+=i;continue}const a=this.tryParseUnquoted(e,t);if(a){s+=a;continue}const n=this.tryParseLeftAngleBracket();if(!n)break;s+=n}return{val:{type:0,value:s,location:Fs(i,this.clonePosition())},err:null}}tryParseLeftAngleBracket(){return this.isEOF()||60!==this.char()||!this.ignoreTag&&(Js(e=this.peek()||0)||47===e)?null:(this.bump(),"<");var e}tryParseQuote(e){if(this.isEOF()||39!==this.char())return null;switch(this.peek()){case 39:return this.bump(),this.bump(),"'";case 123:case 60:case 62:case 125:break;case 35:if("plural"===e||"selectordinal"===e)break;return null;default:return null}this.bump();const t=[this.char()];for(this.bump();!this.isEOF();){const e=this.char();if(39===e){if(39!==this.peek()){this.bump();break}t.push(39),this.bump()}else t.push(e);this.bump()}return String.fromCodePoint(...t)}tryParseUnquoted(e,t){if(this.isEOF())return null;const i=this.char();return 60===i||123===i||35===i&&("plural"===t||"selectordinal"===t)||125===i&&e>0?null:(this.bump(),String.fromCodePoint(i))}parseArgument(e,t){const i=this.clonePosition();if(this.bump(),this.bumpSpace(),this.isEOF())return this.error(1,Fs(i,this.clonePosition()));if(125===this.char())return this.bump(),this.error(2,Fs(i,this.clonePosition()));let s=this.parseIdentifierIfPossible().value;if(!s)return this.error(3,Fs(i,this.clonePosition()));if(this.bumpSpace(),this.isEOF())return this.error(1,Fs(i,this.clonePosition()));switch(this.char()){case 125:return this.bump(),{val:{type:1,value:s,location:Fs(i,this.clonePosition())},err:null};case 44:return this.bump(),this.bumpSpace(),this.isEOF()?this.error(1,Fs(i,this.clonePosition())):this.parseArgumentOptions(e,t,s,i);default:return this.error(3,Fs(i,this.clonePosition()))}}parseIdentifierIfPossible(){const e=this.clonePosition(),t=this.offset(),i=function(e,t){return Ys.lastIndex=t,Ys.exec(e)[1]??""}(this.message,t),s=t+i.length;return this.bumpTo(s),{value:i,location:Fs(e,this.clonePosition())}}parseArgumentOptions(e,t,i,s){let a=this.clonePosition(),n=this.parseIdentifierIfPossible().value,o=this.clonePosition();switch(n){case"":return this.error(4,Fs(a,o));case"number":case"date":case"time":{this.bumpSpace();let e=null;if(this.bumpIf(",")){this.bumpSpace();const t=this.clonePosition(),i=this.parseSimpleArgStyleIfPossible();if(i.err)return i;const s=Vs(i.val);if(0===s.length)return this.error(6,Fs(this.clonePosition(),this.clonePosition()));e={style:s,styleLocation:Fs(t,this.clonePosition())}}const t=this.tryParseArgumentClose(s);if(t.err)return t;const a=Fs(s,this.clonePosition());if(e&&e.style.startsWith("::")){let t=Ks(e.style.slice(2));if("number"===n){const s=this.parseNumberSkeletonFromString(t,e.styleLocation);return s.err?s:{val:{type:2,value:i,location:a,style:s.val},err:null}}{if(0===t.length)return this.error(10,a);let s=t;this.locale&&(s=function(e,t){let i="";for(let s=0;s<e.length;s++){const a=e.charAt(s);if("j"===a){let n=0;for(;s+1<e.length&&e.charAt(s+1)===a;)n++,s++;let o=1+(1&n),r=n<2?1:3+(n>>1),l="a",d=Bs(t);for("H"!=d&&"k"!=d||(r=0);r-- >0;)i+=l;for(;o-- >0;)i=d+i}else i+="J"===a?"H":a}return i}(t,this.locale));return{val:{type:"date"===n?3:4,value:i,location:a,style:{type:1,pattern:s,location:e.styleLocation,parsedOptions:this.shouldParseSkeletons?gs(s):{}}},err:null}}}return{val:{type:"number"===n?2:"date"===n?3:4,value:i,location:a,style:e?.style??null},err:null}}case"plural":case"selectordinal":case"select":{const a=this.clonePosition();if(this.bumpSpace(),!this.bumpIf(","))return this.error(12,Fs(a,{...a}));this.bumpSpace();let o=this.parseIdentifierIfPossible(),r=0;if("select"!==n&&"offset"===o.value){if(!this.bumpIf(":"))return this.error(13,Fs(this.clonePosition(),this.clonePosition()));this.bumpSpace();const e=this.tryParseDecimalInteger(13,14);if(e.err)return e;this.bumpSpace(),o=this.parseIdentifierIfPossible(),r=e.val}const l=this.tryParsePluralOrSelectOptions(e,n,t,o);if(l.err)return l;const d=this.tryParseArgumentClose(s);if(d.err)return d;const c=Fs(s,this.clonePosition());return"select"===n?{val:{type:5,value:i,options:Gs(l.val),location:c},err:null}:{val:{type:6,value:i,options:Gs(l.val),offset:r,pluralType:"plural"===n?"cardinal":"ordinal",location:c},err:null}}default:return this.error(5,Fs(a,o))}}tryParseArgumentClose(e){return this.isEOF()||125!==this.char()?this.error(1,Fs(e,this.clonePosition())):(this.bump(),{val:!0,err:null})}parseSimpleArgStyleIfPossible(){let e=0;const t=this.clonePosition();for(;!this.isEOF();)switch(this.char()){case 39:{this.bump();let e=this.clonePosition();if(!this.bumpUntil("'"))return this.error(11,Fs(e,this.clonePosition()));this.bump();break}case 123:e+=1,this.bump();break;case 125:if(!(e>0))return{val:this.message.slice(t.offset,this.offset()),err:null};e-=1;break;default:this.bump()}return{val:this.message.slice(t.offset,this.offset()),err:null}}parseNumberSkeletonFromString(e,t){let i=[];try{i=function(e){if(0===e.length)throw new Error("Number skeleton cannot be empty");const t=e.split(ms).filter(e=>e.length>0),i=[];for(const e of t){let t=e.split("/");if(0===t.length)throw new Error("Invalid number skeleton");const[s,...a]=t;for(const e of a)if(0===e.length)throw new Error("Invalid number skeleton");i.push({stem:s,options:a})}return i}(e)}catch{return this.error(7,t)}return{val:{type:0,tokens:i,location:t,parsedOptions:this.shouldParseSkeletons?zs(i):{}},err:null}}tryParsePluralOrSelectOptions(e,t,i,s){let a=!1;const n=[],o=new Set;let{value:r,location:l}=s;for(;;){if(0===r.length){const e=this.clonePosition();if("select"===t||!this.bumpIf("="))break;{const t=this.tryParseDecimalInteger(16,19);if(t.err)return t;l=Fs(e,this.clonePosition()),r=this.message.slice(e.offset,this.offset())}}if(o.has(r))return this.error("select"===t?21:20,l);"other"===r&&(a=!0),this.bumpSpace();const s=this.clonePosition();if(!this.bumpIf("{"))return this.error("select"===t?17:18,Fs(this.clonePosition(),this.clonePosition()));const d=this.parseMessage(e+1,t,i);if(d.err)return d;const c=this.tryParseArgumentClose(s);if(c.err)return c;n.push([r,{value:d.val,location:Fs(s,this.clonePosition())}]),o.add(r),this.bumpSpace(),({value:r,location:l}=this.parseIdentifierIfPossible())}return 0===n.length?this.error("select"===t?15:16,Fs(this.clonePosition(),this.clonePosition())):this.requiresOtherClause&&!a?this.error(22,Fs(this.clonePosition(),this.clonePosition())):{val:n,err:null}}tryParseDecimalInteger(e,t){let i=1;const s=this.clonePosition();this.bumpIf("+")||this.bumpIf("-")&&(i=-1);let a=!1,n=0;for(;!this.isEOF();){const e=this.char();if(!(e>=48&&e<=57))break;a=!0,n=10*n+(e-48),this.bump()}const o=Fs(s,this.clonePosition());return a?(n*=i,Number.isSafeInteger(n)?{val:n,err:null}:this.error(t,o)):this.error(e,o)}offset(){return this.position.offset}isEOF(){return this.offset()===this.message.length}clonePosition(){return{offset:this.position.offset,line:this.position.line,column:this.position.column}}char(){const e=this.position.offset;if(e>=this.message.length)throw Error("out of bound");const t=this.message.codePointAt(e);if(void 0===t)throw Error(`Offset ${e} is at invalid UTF-16 code unit boundary`);return t}error(e,t){return{val:null,err:{kind:e,message:this.message,location:t}}}bump(){if(this.isEOF())return;const e=this.char();10===e?(this.position.line+=1,this.position.column=1,this.position.offset+=1):(this.position.column+=1,this.position.offset+=e<65536?1:2)}bumpIf(e){if(this.message.startsWith(e,this.offset())){for(let t=0;t<e.length;t++)this.bump();return!0}return!1}bumpUntil(e){const t=this.offset(),i=this.message.indexOf(e,t);return i>=0?(this.bumpTo(i),!0):(this.bumpTo(this.message.length),!1)}bumpTo(e){if(this.offset()>e)throw Error(`targetOffset ${e} must be greater than or equal to the current offset ${this.offset()}`);for(e=Math.min(e,this.message.length);;){const t=this.offset();if(t===e)break;if(t>e)throw Error(`targetOffset ${e} is at invalid UTF-16 code unit boundary`);if(this.bump(),this.isEOF())break}}bumpSpace(){for(;!this.isEOF()&&ea(this.char());)this.bump()}peek(){if(this.isEOF())return null;const e=this.char(),t=this.offset();return this.message.charCodeAt(t+(e>=65536?2:1))??null}};function Js(e){return e>=97&&e<=122||e>=65&&e<=90}function Qs(e){return 45===e||46===e||e>=48&&e<=57||95===e||e>=97&&e<=122||e>=65&&e<=90||183==e||e>=192&&e<=214||e>=216&&e<=246||e>=248&&e<=893||e>=895&&e<=8191||e>=8204&&e<=8205||e>=8255&&e<=8256||e>=8304&&e<=8591||e>=11264&&e<=12271||e>=12289&&e<=55295||e>=63744&&e<=64975||e>=65008&&e<=65533||e>=65536&&e<=983039}function ea(e){return e>=9&&e<=13||32===e||133===e||e>=8206&&e<=8207||8232===e||8233===e}function ta(e){e.forEach(e=>{if(delete e.location,Hs(e)||Ds(e))for(const t in e.options)delete e.options[t].location,ta(e.options[t].value);else Cs(e)&&Ns(e.style)||(Ts(e)||Os(e))&&Ls(e.style)?delete e.style.location:Is(e)&&ta(e.children)})}function ia(e,t={}){t={shouldParseSkeletons:!0,requiresOtherClause:!0,...t};const i=new Xs(e,t).parse();if(i.err){const e=SyntaxError(Ss[i.err.kind]);throw e.location=i.err.location,e.originalMessage=i.err.message,e}return t?.captureLocation||ta(i.val),i.val}var sa=class extends Error{constructor(e,t,i){super(e),this.code=t,this.originalMessage=i}toString(){return`[formatjs Error: ${this.code}] ${this.message}`}},aa=class extends sa{constructor(e,t,i,s){super(`Invalid values for "${e}": "${t}". Options are "${Object.keys(i).join('", "')}"`,"INVALID_VALUE",s)}},na=class extends sa{constructor(e,t,i){super(`Value for "${e}" must be of type ${t}`,"INVALID_VALUE",i)}},oa=class extends sa{constructor(e,t){super(`The intl string context variable "${e}" was not provided to the string "${t}"`,"MISSING_VALUE",t)}};function ra(e){return"function"==typeof e}function la(e,t,i,s,a,n,o){if(1===e.length&&As(e[0]))return[{type:0,value:e[0].value}];const r=[];for(const l of e){if(As(l)){r.push({type:0,value:l.value});continue}if(Ms(l)){"number"==typeof n&&r.push({type:0,value:i.getNumberFormat(t).format(n)});continue}const{value:e}=l;if(!a||!(e in a))throw new oa(e,o);let d=a[e];if(Es(l))d&&"string"!=typeof d&&"number"!=typeof d&&"bigint"!=typeof d||(d="string"==typeof d||"number"==typeof d||"bigint"==typeof d?String(d):""),r.push({type:"string"==typeof d?0:1,value:d});else{if(Ts(l)){const e="string"==typeof l.style?s.date[l.style]:Ls(l.style)?l.style.parsedOptions:void 0;r.push({type:0,value:i.getDateTimeFormat(t,e).format(d)});continue}if(Os(l)){const e="string"==typeof l.style?s.time[l.style]:Ls(l.style)?l.style.parsedOptions:s.time.medium;r.push({type:0,value:i.getDateTimeFormat(t,e).format(d)});continue}if(Cs(l)){const e="string"==typeof l.style?s.number[l.style]:Ns(l.style)?l.style.parsedOptions:void 0;if(e&&e.scale){const t=e.scale||1;if("bigint"==typeof d){if(!Number.isInteger(t))throw new TypeError(`Cannot apply fractional scale ${t} to bigint value. Scale must be an integer when formatting bigint.`);d*=BigInt(t)}else d*=t}r.push({type:0,value:i.getNumberFormat(t,e).format(d)});continue}if(Is(l)){const{children:e,value:d}=l,c=a[d];if(!ra(c))throw new na(d,"function",o);let h=c(la(e,t,i,s,a,n).map(e=>e.value));Array.isArray(h)||(h=[h]),r.push(...h.map(e=>({type:"string"==typeof e?0:1,value:e})))}if(Hs(l)){const e=d,n=(Object.prototype.hasOwnProperty.call(l.options,e)?l.options[e]:void 0)||l.options.other;if(!n)throw new aa(l.value,d,Object.keys(l.options),o);r.push(...la(n.value,t,i,s,a));continue}if(Ds(l)){const e=`=${d}`;let n=Object.prototype.hasOwnProperty.call(l.options,e)?l.options[e]:void 0;if(!n){if(!Intl.PluralRules)throw new sa('Intl.PluralRules is not available in this environment.\nTry polyfilling it using "@formatjs/intl-pluralrules"\n',"MISSING_INTL_API",o);const e="bigint"==typeof d?Number(d):d,s=i.getPluralRules(t,{type:l.pluralType}).select(e-(l.offset||0));n=(Object.prototype.hasOwnProperty.call(l.options,s)?l.options[s]:void 0)||l.options.other}if(!n)throw new aa(l.value,d,Object.keys(l.options),o);const c="bigint"==typeof d?Number(d):d;r.push(...la(n.value,t,i,s,a,c-(l.offset||0)));continue}}}return(l=r).length<2?l:l.reduce((e,t)=>{const i=e[e.length-1];return i&&0===i.type&&0===t.type?i.value+=t.value:e.push(t),e},[]);var l}function da(e,t){return t?Object.keys(e).reduce((i,s)=>{var a,n;return i[s]=(a=e[s],(n=t[s])?{...a,...n,...Object.keys(a).reduce((e,t)=>(e[t]={...a[t],...n[t]},e),{})}:a),i},{...e}):e}function ca(e){return{create:()=>({get:t=>e[t],set(t,i){e[t]=i}})}}var ha=class e{constructor(t,i=e.defaultLocale,s,a){if(this.formatterCache={number:{},dateTime:{},pluralRules:{}},this.format=e=>{const t=this.formatToParts(e);if(1===t.length)return t[0].value;const i=t.reduce((e,t)=>(e.length&&0===t.type&&"string"==typeof e[e.length-1]?e[e.length-1]+=t.value:e.push(t.value),e),[]);return i.length<=1?i[0]||"":i},this.formatToParts=e=>la(this.ast,this.locales,this.formatters,this.formats,e,void 0,this.message),this.resolvedOptions=()=>({locale:this.resolvedLocale?.toString()||Intl.NumberFormat.supportedLocalesOf(this.locales)[0]}),this.getAst=()=>this.ast,this.locales=i,this.resolvedLocale=e.resolveLocale(i),"string"==typeof t){if(this.message=t,!e.__parse)throw new TypeError("IntlMessageFormat.__parse must be set to process `message` of type `string`");const{...i}=a||{};this.ast=e.__parse(t,{...i,locale:this.resolvedLocale})}else this.ast=t;if(!Array.isArray(this.ast))throw new TypeError("A message must be provided as a String or AST.");this.formats=da(e.formats,s),this.formatters=a&&a.formatters||function(e={number:{},dateTime:{},pluralRules:{}}){return{getNumberFormat:as((...e)=>new Intl.NumberFormat(...e),{cache:ca(e.number),strategy:us.variadic}),getDateTimeFormat:as((...e)=>new Intl.DateTimeFormat(...e),{cache:ca(e.dateTime),strategy:us.variadic}),getPluralRules:as((...e)=>new Intl.PluralRules(...e),{cache:ca(e.pluralRules),strategy:us.variadic})}}(this.formatterCache)}static{this.memoizedDefaultLocale=null}static get defaultLocale(){return e.memoizedDefaultLocale||(e.memoizedDefaultLocale=(new Intl.NumberFormat).resolvedOptions().locale),e.memoizedDefaultLocale}static{this.resolveLocale=e=>{if(void 0===Intl.Locale)return;const t=Intl.NumberFormat.supportedLocalesOf(e);return t.length>0?new Intl.Locale(t[0]):new Intl.Locale("string"==typeof e?e:e[0])}}static{this.__parse=ia}static{this.formats={number:{integer:{maximumFractionDigits:0},currency:{style:"currency"},percent:{style:"percent"}},date:{short:{month:"numeric",day:"numeric",year:"2-digit"},medium:{month:"short",day:"numeric",year:"numeric"},long:{month:"long",day:"numeric",year:"numeric"},full:{weekday:"long",month:"long",day:"numeric",year:"numeric"}},time:{short:{hour:"numeric",minute:"numeric"},medium:{hour:"numeric",minute:"numeric",second:"numeric"},long:{hour:"numeric",minute:"numeric",second:"numeric",timeZoneName:"short"},full:{hour:"numeric",minute:"numeric",second:"numeric",timeZoneName:"short"}}}}};const ua={en:ss},pa={};function ga(e){return e.replace(/['"]+/g,"").split(/[-_]/)[0].toLowerCase()}function ma(e){const t=ga(e);return t in ua||!fe.includes(t)}function va(e,t,...i){const s=ga(t);let a;try{a=e.split(".").reduce((e,t)=>e[t],ua[s])}catch(t){a=e.split(".").reduce((e,t)=>e[t],ua.en)}if(void 0===a&&(a=e.split(".").reduce((e,t)=>e[t],ua.en)),!i.length)return a;const n={};for(let e=0;e<i.length;e+=2){let t=i[e];t=t.replace(/^{([^}]+)?}$/,"$1"),n[t]=i[e+1]}try{return new ha(a,t).format(n)}catch(e){return"Translation "+e}}function _a(e,t,i){e.dispatchEvent(new CustomEvent(t,{detail:i,bubbles:!0,composed:!0,cancelable:!1}))}function fa(e,t){return(e=e.toString()).split(",")[t]}function ba(e,t){switch(t){case wt:return e.units==Ce?Z`${Ri(rt)}`:Z`${Ri(lt)}`;case be:case mt:return e.units==Ce?Z`${Ri(it)}`:Z`${Ri(st)}`;case ct:return e.units==Ce?Z`${Ri("m<sup>2</sup>")}`:Z`${Ri(Je)}`;case ht:return e.units==Ce?Z`${Ri(Qe)}`:Z`${Ri(et)}`;default:return Z``}}function ya(e,t){!function(e,t){_a(e,"show-dialog",{dialogTag:"error-dialog",dialogImport:()=>Promise.resolve().then(function(){return pn}),dialogParams:{error:t}})}(t,Z`
+     */class Rs extends Ps{constructor(e){if(super(e),this.it=q,e.type!==Ms)throw Error(this.constructor.directiveName+"() can only be used in child bindings")}render(e){if(e===q||null==e)return this._t=void 0,this.it=e;if(e===W)return e;if("string"!=typeof e)throw Error(this.constructor.directiveName+"() called with a non-string value");if(e===this.it)return this._t;this.it=e;const t=[e];return t.raw=t,this._t={_$litType$:this.constructor.resultType,strings:t,values:[]}}}Rs.directiveName="unsafeHTML",Rs.resultType=1;const Bs=Ls(Rs);var Us={title:"Smart Irrigation: check flow rate",message_over:"Zone '{zone}' is consistently over-watering: the measured flow is ~{percent}% above the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",message_under:"Zone '{zone}' is consistently under-watering: the measured flow is ~{percent}% below the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",open_settings:"Open zone settings"},js={loading:"Loading",saving:"Saving",actions:{delete:"Delete",edit:"Edit",save:"Save",cancel:"Cancel",confirm_delete:"Confirm Delete",confirm_delete_zone:"Are you sure you want to delete this zone?"},labels:{module:"Module",no:"No",select:"Select",yes:"Yes",enabled:"Enabled",disabled:"Disabled",before:"before",after:"after",settings:"Settings",bulk_actions:"Bulk Actions"},units:{seconds:"seconds"},attributes:{size:"size",throughput:"throughput",state:"state",bucket:"bucket",last_updated:"last updated",last_calculated:"last calculated",number_of_data_points:"number of data points"},"loading-messages":{configuration:"Loading configuration...",modules:"Loading modules...",general:"Loading..."},"saving-messages":{adding:"Adding...",saving:"Saving..."},errors:{load_failed:"Couldn't load data",save_failed:"Couldn't save changes",delete_failed:"Couldn't delete",action_failed:"Action failed"}},Fs={"default-zone":"Default zone","default-mapping":"Default sensor group"},Zs={calculation:{explanation:{"module-returned-evapotranspiration-deficiency":"Note: this explanation uses '.' as decimal separator, shows rounded and metric values. Module returned Evapotranspiration deficiency ( = et0 * hour_multiplier + precipitation) of","module-returned-evapotranspiration-deficiency-hourly":"Note: this explanation uses '.' as decimal separator, shows rounded and metric values. Evapotranspiration deficiency ( = sum of hourly FAO-56 et0 over the window + precipitation) of","bucket-was":"Bucket was","new-bucket-values-is":"New bucket value is",bucket:"bucket","old-bucket-variable":"old_bucket","max-bucket-variable":"max_bucket",delta:"delta","bucket-less-than-zero-irrigation-necessary":"Since bucket < 0, irrigation is necessary","steps-taken-to-calculate-duration":"To calculate the exact duration, the following steps were taken","precipitation-rate-defined-as":"The precipitation rate is defined as","duration-is-calculated-as":"The duration is calculated as",drainage:"drainage","drainage-rate":"drainage_rate",hours:"hours","precipitation-rate-variable":"precipitation_rate","multiplier-is-applied":"Now, the multiplier is applied. The multiplier is","duration-after-multiplier-is":"hence the duration is","maximum-duration-is-applied":"Then, the maximum duration is applied. The maximum duration is","duration-after-maximum-duration-is":"hence the duration is","lead-time-is-applied":"Finally, the lead time is applied. The lead time is","duration-after-lead-time-is":"hence the final duration is","bucket-larger-than-or-equal-to-zero-no-irrigation-necessary":"Since bucket >= 0, no irrigation is necessary and duration is set to","maximum-bucket-is":"Maximum bucket size is","drainage-rate-is":"Drainage rate when saturated (bucket at max) is","current-drainage-is":"Current drainage is calculated as","drainage-integrated":"the surplus above field capacity drains continuously over the window (Brooks–Corey), so the rate falls as it drains","no-drainage":"Current drainage is 0 because","water-balance-substepped":"The water balance was replayed across the window, so rain, drainage and the maximum bucket clamp were applied at the times they occurred rather than all at the start of the window. Number of steps:","runoff-is":"Water above the maximum bucket that was lost to runoff:","runoff-variable":"runoff","forecast-weighting-applied":"Forecast weighting reduced the deficit for the expected rain","crop-coefficient-applied":"Scaled by the crop coefficient"}}},Ws={pyeto:{description:"Calculate duration based on the FAO56 calculation from the PyETO library"},static:{description:"'Dummy' module with a static configurable delta"},passthrough:{description:"Passthrough module that returns the value of an Evapotranspiration sensor as delta"}},qs={general:{cards:{"automatic-duration-calculation":{header:"Automatic duration calculation",description:"Calculation takes collected weather data up to that point and updates the bucket for each automatic zone. Then, the duration is adjusted based on the new bucket value and the collected weather data is removed.",labels:{"auto-calc-enabled":"Automatically calculate irrigation durations","calc-time":"Calculate at"}},"run-history-logging":{header:"Run history logging",description:"When on, a scheduled run that skips a zone because it currently has no water demand is recorded in that zone's history. Off by default; existing history is unaffected.",labels:{"log-no-demand":'Log "no demand" skips in the run history'}},"automatic-update":{errors:{"warning-update-time-on-or-after-calc-time":"Warning: weather data update time on or after calculation time"},header:"Automatic weather data update",description:"Collect and store weather data automatically. Weather data is required to calculate zone buckets and durations.",labels:{"auto-update-enabled":"Automatically update weather data","auto-update-schedule":"Update schedule","auto-update-time":"Update at","auto-update-interval":"Update sensor data every","auto-update-delay":"Update delay"},options:{minutes:"minutes",hours:"hours",days:"days"}},"automatic-clear":{header:"Automatic weather data pruning",description:"Automatically remove collected weather data at a configured time. Use this to make sure that there is no left over weather data from previous days. Don't remove the weather data before you calculate and only use this option if you expect the automatic update to collect weather data after you calculated for the day. Ideally, you want to prune as late in the day as possible.",labels:{"automatic-clear-enabled":"Automatically clear collected weather data","automatic-clear-time":"Clear weather data at"}},continuousupdates:{header:"Continuous updates for sensors (experimental)",description:"This experimental feature will continuously update the sensor data. This is useful for sensor groups that use sources that provide continuous data, such as weather stations. This feature cannot be used for sensor groups that at least partly rely on weather services as continous polling of APIs will incur costs. Keep in mind that this is experimental and may not work as expected. Use at your own risk.",labels:{continuousupdates:"Enable continuous updates",sensor_debounce:"Sensor debounce"}}},description:"This page provides global settings.",title:"General",sections:{weather:"Weather",automation:"Automation",location:"Location",watering:"Watering behavior"}},schedules:{title:"Schedules",description:"Create recurring schedules to automatically irrigate your zones at specific times. No automations needed.",add:"Add Schedule",no_items:"No schedules configured yet. Click 'Add Schedule' to get started.",zones_all:"All zones",zones_specific:"Specific zones",hours:"hours",minutes:"min",types:{daily:"Daily",weekly:"Weekly",monthly:"Monthly",interval:"Every N hours",sunrise:"Sunrise",sunset:"Sunset",solar_azimuth:"Solar azimuth"},actions:{calculate:"Calculate (update irrigation duration)",update:"Update (collect weather data)",irrigate:"Irrigate (run valves directly)"},days:{monday:"Mon",tuesday:"Tue",wednesday:"Wed",thursday:"Thu",friday:"Fri",saturday:"Sat",sunday:"Sun"},fields:{name:"Name",type:"Schedule type",enabled:"Enabled",time:"Time (HH:MM)",days_of_week:"Days of week",day_of_month:"Day of month",interval_hours:"Interval",action:"Action",zones:"Zones",start_time:"Start time (optional)",start_date:"Start date (optional)",end_date:"End date (optional)",offset_minutes:"Offset from sunrise/sunset",account_for_duration:"Start early so irrigation finishes at trigger time",azimuth_angle:"Solar azimuth angle",time_anchor:"Time marks the"},dialog:{add_title:"Add Schedule",edit_title:"Edit Schedule"},time_anchor:{start:"Start of irrigation",finish:"End of irrigation"}},setup:{title:"Setup",tabs:{weather_location:"Weather & Location",my_zones:"My Zones",when_to_water:"When to Water",advanced:"Advanced",experimental:"Experimental",distributors:"Distributors"},weather_data:{forecast_title:"Forecast",forecast_none:"Forecast is available when a weather service is enabled.",seasonal_title:"Seasonal outlook"},advanced:{used_by_zones:"Used by {count, plural, one {# zone} other {# zones}}",not_used:"Not used"}},experimental:{title:"Experimental features",warning:"These features are opt-in and still being refined. They change how each zone's bucket is filled, so turn them on one at a time and keep an eye on your zones — you can switch them back off at any time.",forecast_weighting:{title:"Forecast-weighted durations",description:"Instead of skipping a whole run when rain is forecast, water less. The upcoming precipitation (over the look-ahead window set under When to Water) is subtracted from the deficit used to compute the run duration, while the true deficit stays in the bucket so the real rain fills the rest. If the forecast rain misses, the next run makes up the difference. Requires a weather service.",label:"Reduce durations when rain is forecast",note:"Uses the precipitation look-ahead from When to Water. Works alongside the rain-skip guard (a skip still wins over a reduced run)."},observed_watering:{title:"Credit bucket from observed watering",description:"When a zone's linked valve runs outside Smart Irrigation — a manual tap, an automation, your own schedule — its bucket is credited for the water applied, estimated from the run time and the zone's throughput. This keeps the soil-moisture model honest when you water by other means. Smart Irrigation's own runs are already accounted for and are never double-counted.",label:"Credit the bucket when a linked valve runs externally",note:"Requires a linked valve and a throughput on the zone. Volume is estimated (run time × throughput), not metered."},live_estimate:{title:"Live-estimate watering",description:"By default a zone waters once a day, from the deficit the daily calculation produced (for example at 23:00). With this on, each scheduled run instead decides — and sizes itself — from the live intra-day deficit (the drainage-aware ET and rainfall since the last calculation). This lets a zone water more than once a day on real intra-day demand (for example pots on an every-12-hours schedule that the once-daily bucket would otherwise leave dry), and it shrinks or cancels a run that intra-day rain has already covered. The daily ledger is unchanged: after the run the bucket is credited with the water actually delivered, so the next daily calculation never double-counts. Requires a weather service.",label:"Trigger and size each run from the live deficit",note:"Affects scheduled runs only, and can start a run the daily calculation didn't approve. For frequent watering keep a sensible minimum deficit and a maximum bucket of at least a day's ET."},continuous_updates:{title:"Continuous sensor updates",description:"By default, sensor-based weather values are read once per scheduled update (hourly by default), so anything that happened in between is never recorded — the daily minimum and maximum temperature come from those spot readings, and solar radiation is integrated coarsely. With this on, a reading is recorded the moment the sensor changes, which makes the daily aggregates and the resulting evapotranspiration considerably more accurate. Sensor groups that also use a weather service keep their scheduled update for the weather-service values; only the sensor values become continuous. Small changes are ignored, so a noisy sensor does not fill the buffer.",label:"Record sensor readings when they change",debounce_label:"Group changes arriving within (milliseconds)",note:"Applies to sensor groups whose values come from Home Assistant sensors. The grouping delay only postpones the follow-up bookkeeping — no reading is ever dropped by it. Set it to 0 to disable grouping."},hourly_calculation:{title:"Hourly evapotranspiration",description:"By default the FAO-56 equation is run once, over the window's average weather, which cloud cover biases systematically: fed one identical hourly series across 362 days it returns 1.14 times the reference on overcast days and 0.93 times on clear ones. With this on, the equation is run for each hour and the hours are summed, which removes that bias, and the water balance is replayed hour by hour so rain and drainage are booked when they happened instead of all at the start of the window. Expect the daily figure to move by up to 12 percent, in either direction depending on the sky. Needs a Solar Radiation source that is measured rather than estimated, and it is not used on days where a forecast is blended in.",label:"Sum evapotranspiration hour by hour",note:"Independent of continuous sensor updates: scheduled hourly updates carry this too, and a denser buffer makes it more accurate without being required. Any window that cannot be reduced to hourly rows keeps the daily equation, so no series is ever invented."},distributors:{title:"Mechanical water distributors",description:"Drive a mechanical pressure-distributor — for example a Gardena Water Distributor — that splits one supply into several outlets and advances on water on/off pulses. Assign zones to a distributor's outlets and Smart Irrigation waters them in sequence, tracks the position, and coordinates a master valve or pump. This is a new feature that could not be fully hardware-tested, so treat it as a beta.",label:"Enable mechanical water distributors",note:"Watch the first days of use closely and keep the device's manual override handy. You can switch it back off at any time — existing zone watering is unaffected."}},help:{title:"Help",cards:{"how-to-get-help":{title:"How to get help","first-read-the":"First, read the",wiki:"Documentation","if-you-still-need-help":"If you still need help reach out on the","community-forum":"Community forum","or-open-a":"or open a","github-issue":"Github Issue","english-only":"English only"}}},info:{title:"Info",description:"View information about next irrigation and system status.","configuration-not-available":"Configuration not available.",cards:{"zone-bucket-values":{title:"Zone Bucket Values & Duration",labels:{bucket:"Bucket",duration:"Duration"},"no-zones":"No zones configured"},"next-irrigation":{title:"Next Irrigation",labels:{"next-start":"Next start",duration:"Duration",zones:"Zones"},"no-data":"No data available"},"irrigation-reason":{title:"Irrigation Reason",labels:{reason:"Reason",sunrise:"Sunrise","total-duration":"Total duration",explanation:"Explanation"},"no-data":"No data available"},irrigate_now:{title:"Irrigate Now",description:"Immediately start irrigation for all zones that have a linked entity. Skip conditions are ignored.",button_all:"Run all zones now",no_linked_zones:"No zones have a linked switch/valve entity with a calculated duration."}}},mappings:{cards:{"add-mapping":{actions:{add:"Add sensor group"},header:"Add sensor groups"},mapping:{aggregates:{average:"Average",first:"First",last:"Last",maximum:"Maximum",median:"Median",minimum:"Minimum",riemannsum:"Riemann sum",sum:"Sum",delta:"Delta"},errors:{"cannot-delete-mapping-because-zones-use-it":"You cannot delete this sensor group because there is at least one zone using it.",invalid_source:"Invalid source",source_does_not_exist:"Source does not exist. Please enter a valid source, such as 'sensor.mysensor'."},items:{dewpoint:"Dewpoint",evapotranspiration:"Evapotranspiration",humidity:"Humidity","maximum temperature":"Maximum temperature","minimum temperature":"Minimum temperature",precipitation:"Total precipitation","current precipitation":"Current precipitation",pressure:"Pressure","solar radiation":"Solar radiation",temperature:"Temperature",windspeed:"Wind speed"},pressure_types:{absolute:"absolute",relative:"relative"},"pressure-type":"Pressure is","sensor-aggregate-of-sensor-values-to-calculate":"of sensor values to calculate duration","sensor-aggregate-use-the":"Use the","sensor-entity":"Sensor entity",static_value:"Value","input-units":"Input provides values in",source:"Source",sources:{none:"None",weather_service:"Weather service",sensor:"Sensor",static:"Static value"}}},description:"Add one or more sensor groups that retrieve weather data from Weather service, from sensors or a combination of these. You can map each sensor group to one or more zones",labels:{"mapping-name":"Name"},no_items:"There are no sensor group defined yet.",title:"Sensor Groups","weather-records":{title:"Weather Records",timestamp:"Time",temperature:"Temp",humidity:"Hum",dewpoint:"Dew",wind:"Wind",pressure:"Press",precipitation:"Precip","retrieval-time":"Retrieved","no-data":"No weather data available for this sensor group"}},modules:{cards:{"add-module":{actions:{add:"Add module"},header:"Add module"},module:{errors:{"cannot-delete-module-because-zones-use-it":"You cannot delete this module because there is at least one zone using it."},labels:{configuration:"Configuration",required:"indicates a required field"},"translated-options":{DontEstimate:"Do not estimate",EstimateFromSunHours:"Estimate from sun hours",EstimateFromTemp:"Estimate from temperature",EstimateFromSunHoursAndTemperature:"Estimate from average of sun hours and temperature"},fields:{coastal:{name:"Coastal",description:"Enable if the weather station is located near a coast or large body of water. Affects how atmospheric humidity is estimated."},solrad_behavior:{name:"Solar radiation estimation",description:"How solar radiation is estimated when it is not directly measured by a sensor."},forecast_days:{name:"Forecast days",description:"Number of future days to include in the ET calculation. 0 = current weather only (recommended — no extra API calls). Values > 0 average today's ET with forecasted ET for upcoming days (up to 4 days via the OWM free tier)."},delta:{name:"Delta",description:"Static evapotranspiration delta (mm) used directly without any weather-based calculation."}}}},description:"Add one or more modules that calculate irrigation duration. Each module comes with its own configuration and can be used to calculate duration for one or more zones.",no_items:"There are no modules defined yet.",title:"Modules"},zones:{actions:{add:"Add",calculate:"Calculate",information:"Information",update:"Update","reset-bucket":"Reset bucket","view-weather-info":"View weather data","view-weather-info-message":"Weather data available for","view-watering-calendar":"View watering calendar",irrigate_all:"Water all zones now",open_settings:"Edit settings"},cards:{"add-zone":{actions:{add:"Add zone"},header:"Add zone"},"zone-actions":{actions:{"calculate-all":"Recalculate durations","update-all":"Refresh weather data","reset-all-buckets":"Reset all buckets","clear-all-weatherdata":"Clear all weather data"},header:"Actions on all zones"}},description:"Specify one or more irrigation zones here. The irrigation duration is calculated per zone, depending on size, throughput, state, module and sensor group.",labels:{bucket:"Bucket",duration:"Duration","lead-time":"Lead time",mapping:"Sensor Group","maximum-duration":"Maximum duration",multiplier:"Multiplier",name:"Name",size:"Size",state:"State",states:{automatic:"Automatic",disabled:"Disabled",manual:"Manual"},throughput:"Throughput","maximum-bucket":"Maximum bucket",last_calculated:"Last calculated","data-last-updated":"Data last updated","data-number-of-data-points":"Number of data points",drainage_rate:"Drainage rate",linked_entity:"Linked switch/valve/helper entity",opensprinkler_station:"OpenSprinkler station",opensprinkler_station_help:"The station's enabled switch, e.g. switch.front_lawn_station_enabled. HASI queues the run on the controller and then watches that station's own running sensor, so a zone queued behind others is only counted as watering once it really starts. Set the controller's water level to 100% or turn its weather adjustment off, otherwise the weather correction is applied twice.",opensprinkler_no_stations:"No OpenSprinkler stations found. Check that the OpenSprinkler integration is set up and the controller is reachable. You can still type an entity id.",linked_entity_placeholder:"e.g. switch.garden_valve",flow_sensor:"Flow meter sensor (optional)",flow_sensor_placeholder:"e.g. sensor.zone_flow_rate",flow_counter_type:"Counter type",flow_counter_type_help:"How this cumulative flow sensor is read. Auto learns across runs whether the sensor resets each run. Per run: the sensor resets to ~0 each run and shows that run's total (e.g. Sonoff/Zigbee valves). Lifetime: a meter that only ever counts up across all runs (delta per run).",flow_counter_type_auto:"Auto (learn)",flow_counter_type_per_run:"Per run (resets each run)",flow_counter_type_lifetime:"Lifetime total (delta)",watering_mode:"Watering mode",watering_mode_description:"How HASI actuates this zone. Classic: HASI opens the valve and closes it itself with a software timer. Self-closing service: HASI sends the run duration to a self-closing valve via a script (see the shipped valve blueprints) and lets the hardware close itself, so an HA restart mid-run cannot cause continuous irrigation.",watering_modes:{classic:"Classic (HASI opens & closes the valve)",service:"Self-closing service (valve closes itself)",opensprinkler:"OpenSprinkler station (controller runs the queue)"},run_service:"Run service",run_service_help:"Service HASI calls to start the run (e.g. a script.* or a switch/valve service). It receives the duration field below plus zone_id and zone_name.",duration_field:"Duration field",duration_field_placeholder:"e.g. dauer",duration_field_help:"Name of the parameter that carries the run length in the call to your run service. The shipped valve blueprints use 'duration' (the default); a custom script may use another name (e.g. 'dauer').",duration_unit:"Duration unit",duration_units:{seconds:"Seconds",minutes:"Minutes"},duration_unit_help:"Unit your hardware expects for the run length. Check the device: many Zigbee/Tuya valves count in MINUTES. The wrong unit over- or under-waters by 60x. In Minutes mode HASI rounds up to whole minutes (minimum 1).",stop_service:"Stop service (optional)",stop_service_help:"Optional. Service HASI calls to close the valve when you stop the zone early, before its own timer expires. Leave empty if the valve cannot be stopped manually.",confirm_entity:"Confirm entity (optional)",confirm_entity_help:"Optional. The real valve/switch entity the run service drives (e.g. a valve or switch) — it holds a steady on-state while watering. If set, HASI verifies the open against it (poll only, it never re-actuates) and flags a problem plus skips the bucket credit if it never turns on. Leave empty to treat the run as write-only and credit optimistically (the hardware owns the close). When in doubt, leave it empty: it only helps with an entity that reports its on-state reliably — a valve that reports late (e.g. a sleepy Zigbee valve) could be read as 'off' and wrongly skip the credit, so the zone would water again next run. Do NOT point this at the run script itself — a fire-and-forget script is not a valid state signal.",observed_entity:"Observed valve/switch (optional)",observed_entity_help:"If Observed watering is on, external runs of this valve/switch (a manual tap, an automation) credit this zone's water storage. Leave empty to not observe this zone.",soil_moisture_sensor:"Soil-moisture sensor (optional)",soil_moisture_sensor_help:"Optional. A sensor reporting this zone's soil moisture in percent (higher = wetter). With a skip threshold set below, an automatic run skips this zone whenever the reading is above the threshold and resets the zone's bucket. Leave empty to disable. An unavailable or non-numeric reading never blocks watering (fail-open).",soil_moisture_threshold:"Skip above soil moisture (%)",soil_moisture_threshold_help:"On an automatic run, skip this zone (and reset its bucket to 0) when the soil-moisture sensor reads strictly above this percentage. Needs a soil-moisture sensor set above. Only affects scheduled runs; manual runs always water.",irrigate_now:"Irrigate Now",bucket_threshold:"Minimum deficit to irrigate",plant_type:"Plant type",kc:"Crop coefficient (Kc)",plant_types:{custom:"Custom (set Kc manually)",lawn:"Lawn / turf",vegetables:"Vegetable garden",flowers:"Flower bed",shrubs:"Shrubs",trees:"Trees",xeriscape:"Xeriscape / drought-tolerant"},soil_type:"Soil type",soil_types:{custom:"Custom (set rate manually)",sand:"Sandy (fast draining)",loam:"Loam (balanced)",silt:"Silt (slow draining)",clay:"Clay (very slow draining)"},distributor:"Water distributor",distributor_help:"Assign this zone to an outlet of a mechanical water distributor. The distributor's inlet valve and its pulse-advance sequence then water this zone, so the zone's own valve and schedule below are managed by the distributor.",distributor_none:"None (own valve)",outlet_number:"Outlet number",distributor_managed_note:"This zone is watered through a distributor (outlet above). Its valve, inlet control and flow sensor are managed by the distributor and hidden here — only the calculation and soil-moisture veto settings remain. To give the zone its own valve again, set the distributor above to “None (own valve)”.",outlet_number_readonly_help:"Which outlet of the distributor feeds this zone. Set on the distributor page — open it with the button.",configure_on_distributor:"Configure on distributor"},no_items:"There are no zones defined yet.",title:"Zones",status:{decision_disabled:"Turned off — this zone won't be watered automatically.",decision_water:"Watering needed: about {duration} on the next scheduled run.",decision_water_at:"Will water about {duration} at {time}.",decision_water_skip:"Deficit ~{duration}, but the next run will likely be skipped ({reason}).",decision_water_no_schedule:"Deficit ~{duration} — no schedule waters this zone; trigger it manually.",decision_no_water:"No watering needed right now — the soil has enough moisture.",decision_unknown:"Not calculated yet — press Update, then Calculate to check.",last_checked:"Last checked",never:"never",saved:"Saved",estimate_now:"Now",estimate_tag:"est.",estimate_method:{hourly:"Live estimate from hourly weather since the last calculation",proxy:"Estimate distributed from today's forecast since the last calculation"}},fault:{title:"Last run failed",valve_no_response:"The valve didn't respond — no water was delivered, so the bucket was left unchanged.",flow_never_started:"No flow was detected — no water was delivered, so the bucket was left unchanged.",generic:"The last irrigation run failed."},skip:{title:"Skipped",soil_moisture:"Soil moisture {observed} % > {threshold} %"},help:{bucket:"Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",calculate:"Works out how long to water from the latest data. Run this after Update.",update:"Fetches the latest weather/sensor data for this zone.",irrigate_link_entity:"Link a switch/valve in this zone's settings to enable manual watering.",irrigate_all:"Opens the linked valves now for every zone with a deficit. Skip conditions (rain, wind, temperature) are ignored.",update_all:"Collects the latest weather/sensor data for all zones. Does not change durations on its own.",calculate_all:"Recomputes each automatic zone's watering duration from the data collected so far."},outlook:{next_run:"Next run",no_schedule:"No automatic schedule — zones water only when you trigger them.",setup_schedule:"Set up a schedule",targets_all:"all zones",targets_zones:"{count} zones",will_skip:"Next run will likely be skipped",will_run:"Conditions look clear for the next run.",why_skipped:"Why?",provisional:"forecast — may change",active_guards:"Active guards",last_run:"Last run",last_run_skipped:"skipped",last_run_ran:"ran",today:"today",tomorrow:"tomorrow",actions:{irrigate:"Water",calculate:"Recalculate",update:"Refresh data"},checks:{precipitation:"Rain forecast",days_between:"Days between watering",temperature:"Low temperature",wind:"High wind",rain_sensor:"Rain sensor",freeze:"Frost",paused:"Paused (rain delay)",soil_moisture:"Soil moisture",no_demand:"No water demand"},check_detail:{precipitation:"{observed} mm (≥ {threshold} mm)",days_between:"{observed}/{threshold} days",temperature:"{observed}° (below {threshold}°)",wind:"{observed} (above {threshold})",rain_sensor:"{observed}",freeze:"{observed}° (below {threshold}°)"}},calendar:{no_data:"No watering calendar data available for this zone.",error_prefix:"Error generating calendar:",month:"Month",et:"ET (mm)",precipitation:"Precipitation (mm)",watering:"Watering (L)",avg_temp:"Avg Temp (°C)",method_prefix:"Method:"},confirm_action:{reset_bucket_title:"Reset this zone's bucket?",reset_bucket_body:"This sets the bucket back to 0, discarding the accumulated moisture balance for this zone.",reset_all_buckets_title:"Reset all buckets?",reset_all_buckets_body:"This sets every zone's bucket back to 0, discarding the accumulated moisture balance. Watering calculations start fresh from the next update.",clear_weather_title:"Clear all weather data?",clear_weather_body:"This deletes all collected weather and sensor records for every zone. Zones will need fresh data before they can calculate again."},confirm_irrigate:{title:"Start irrigation?",body:"This opens the linked valve(s) now and bypasses all skip conditions (rain, temperature, minimum days between watering).",all_linked_zones:"All linked zones",toast_started:"Irrigation started",toast_failed:"Irrigation failed"},history:{title:"Run history",total_used:"Total water used",empty:"No runs recorded yet.",when:"When",result:"Result",volume:"Volume",detail:"Detail",results:{completed:"Completed",partial:"Partial",failed:"Failed",skipped:"Skipped",observed:"Observed"}},rain_delay:{title:"Pause watering",paused:"Paused",until:"until",delay_24h:"Delay 24 h",delay_48h:"Delay 48 h",resume:"Resume"},run_zone:{run:"Run",minutes:"min",help:"Water this zone for a custom time, ignoring the calculation",toast_started:"Started run",busy_hint:"Distributor is running — you can start again once it is back in its home position."},stop_zone:{stop:"Stop",watering:"Watering…",toast_stopped:"Stopped run"}},distributors:{title:"Distributors",description:"Mechanical water distributors split one supply into several outlets, advanced by pulsing the water on and off.",no_items:"No distributors configured yet.",add:{header:"Add distributor",name_placeholder:"Distributor name",actions:{add:"Add"}},status:{saved:"Saved"},confirm_delete:"Delete this distributor? Zones assigned to it keep their outlet numbers but lose their distributor link.",labels:{name:"Name",watering_mode_help:"How the distributor's inlet valve is opened and closed.",inlet_entity:"Inlet valve / switch (optional)",inlet_entity_help:"The switch or valve entity that opens the water supply into the distributor. It is also watched for foreign pulses; once a valve is selected, a setting appears below to control the reaction.",watch_inlet:"Watch inlet valve for manual pulses",watch_inlet_help:"Only detects valve switches Home Assistant can see — purely mechanical pulses at the device stay invisible.",inlet_entity_help_service:"The ring valve Home Assistant watches for foreign pulses to keep the outlet position in sync (e.g. when the valve is opened manually or by an automation outside a HASI run). Once a valve is selected, a setting appears below to control the reaction. Actuation is via the run/stop service; this field is only read, and is NOT the flow/confirm sensor. Leave empty to disable inlet watching.",watch_mode:"On a manual inlet pulse",watch_mode_help:"How to react when the inlet valve is opened outside a Home Assistant run (only pulses Home Assistant can see).",watch_mode_count:"Count it (advance the position)",watch_mode_warn:"Warn (mark position uncertain)",watch_mode_ignore:"Ignore",run_service:"Run script",run_service_help:"Script called to open the inlet. It receives the pulse duration.",stop_service:"Stop script (optional)",stop_service_help:"Script called to close the inlet.",duration_field:"Duration field",duration_field_help:"Name of the field the run script expects the duration in.",duration_field_placeholder:"duration",duration_unit:"Duration unit",duration_units:{seconds:"Seconds",minutes:"Minutes"},confirm_entity:"Confirmation sensor (optional)",confirm_entity_help:"Optional sensor on the distributor inlet confirming water actually flows (e.g. a flow or valve-position sensor). If it reports no flow when an outlet opens, the cycle halts safely and marks the distributor uncertain — this is the low-flow / fault detection.",flow_sensor:"Flow sensor (optional)",flow_sensor_help:"The shared inlet flow-rate meter (e.g. L/min, m³/h). When set, the actual delivered volume per outlet is measured and credited instead of the time estimate. Optional. Where the valve can be stopped (a classic inlet, or a self-closing stop-service), the outlet also stops early once its target volume is reached. Both an instantaneous rate meter (e.g. L/min) and a cumulative totalizer counter (e.g. m³, or state_class: total_increasing) are supported and detected automatically from the unit.",pause_seconds:"Advance pause",skip_pulse_seconds:"Skip pulse",notify_target:"Notification target (optional)",notify_target_help:"Optional additional channel. Halts always appear in the Home Assistant notifications panel; set a notify service here (e.g. notify.mobile_app_phone) to also push them there.",notify_target_placeholder:"notify.mobile_app_phone"},notify:{halted:"Distributor '{name}' halted ({reason}). Re-sync and re-confirm required.",reason:{valve_did_not_open:"valve did not open",restart_mid_advance:"restarted mid-advance",foreign_inlet_pulse:"manual inlet pulse"}},commissioning:{title:"Commissioning",outlet:"Outlet",states:{synced:"Synced",uncertain:"Uncertain"},test_run:"Test run",test_run_help:"Waters each mapped outlet for about 30 seconds in order, so you can watch the device advance and note the pause it needs.",set_outlet:"Set current outlet",set_outlet_help:"Read the outlet number shown in the device window and set it here to re-sync the tracked position.",resync_home:"Reset to outlet 1",confirm_resync:{title:"Reset to outlet 1?",body:"This sets the tracked position to outlet 1. Only confirm if the device is physically at outlet 1 — otherwise the distributor will water the wrong outlets (an undetected desync)."},confirm_set_outlet:{title:"Set current outlet?",body:"This marks the distributor as synced at the outlet you entered. Only confirm if the device's window physically shows that outlet right now — a wrong value silently waters the wrong outlets."},confirmed:"Commissioning confirmed",confirmed_help:"Arms the distributor for automatic and manual cycles. Can only be set while the position is synced, and drops to off automatically if the position ever becomes uncertain.",needs_sync:"Set the position to synced before you can arm this distributor.",run_now:"Run now",run_now_help:"Runs one full manual cycle over all mapped outlets.",run_now_active:"A cycle is already running.",confirm_dialog:{title:"Arm this distributor?",body:"Confirm the device is physically at outlet 1 and every outlet is mapped to the right zone. Automatic and manual cycles will start pulsing the inlet.",confirm:"Confirm & arm"}},hints:{pressure:"Give the distributor at least 1 bar of water pressure and 20 l/h of flow. Mechanical distributors need a firm pulse to advance reliably.",below_floor_pause:"Very short pause. The advance pulse must be long enough for the distributor to actually step; the backend enforces a minimum of 10 seconds.",below_floor_skip:"Very short skip pulse. The backend enforces a minimum of 10 seconds.",undetectable:"The device's manual selector button cannot be read back. If you turn it by hand, use “Set current outlet” afterwards so the tracked position matches.",outlet_change:"Changing an outlet mapping moves the device off its known position. Re-sync and re-confirm commissioning before the next cycle.",parallel_draw:"Parallel sequencing opens several zones at once, but a distributor feeds one outlet at a time, so its mapped zones still water in sequence. Plan the supply draw accordingly.",master_off_after:"With sequential or rotating sequencing and “master off after each zone”, the pump is switched per outlet, so expect it to cycle between every outlet of the distributor.",experimental:"Experimental feature — still being refined and not fully hardware-tested. Watch the first days of use closely and keep the device's manual override within reach."},outlets:{title:"Outlets / zones",help:"Set how many outlets the distributor has, then assign a zone to each. Only zones without their own valve or script can be assigned — a zone is either on a distributor or has its own valve. The number of outlets equals the number of assigned zones, numbered contiguously from 1.",count:"Number of outlets",none:"— none",no_zones:"No zones yet. Create zones first (Setup → Zones), then assign them here.",gap_warning:"Outlets must be filled contiguously from 1 — assign a zone to every outlet up to the highest used one."}}},Gs="Smart Irrigation",Ks={title:"Weather Service",description:"Configure which weather service to use for ET calculations and skip conditions.",enabled_label:"Enable weather service",service_label:"Weather service",api_key_label:"API key",api_key_placeholder:"Leave blank to keep existing key",api_key_configured:"API key is configured",api_key_not_configured:"No API key configured",api_key_help:"An API key from your chosen weather service provider. Open-Meteo does not require a key. OpenWeatherMap, Pirate Weather and the Met Office (Weather DataHub) all offer free tiers.",no_api_key_needed:"Open-Meteo is a free service and requires no API key.",save_button:"Save weather settings",saved:"Weather settings saved",owm:"OpenWeatherMap",pw:"Pirate Weather",openmeteo:"Open-Meteo (free, no key needed)",met:"Met Office (UK)",test_button:"Test Connection",test_button_testing:"Testing…",test_success:"✓ Connection successful",test_error_invalid_auth:"✗ Invalid API key — check that it is correct and active",test_error_cannot_connect:"✗ Cannot connect — check your internet connection",test_error_no_service:"✗ Select a weather service first",test_error_unknown:"✗ Test failed — unknown error"},Vs={title:"Irrigation Start Triggers",description:"Configure when irrigation should start based on solar events. You can add multiple triggers for different schedules. For sunrise triggers, leaving offset at 0 will automatically use the total duration of all enabled zones.",add_trigger:"Add Trigger",edit_trigger:"Edit Trigger",delete_trigger:"Delete Trigger",trigger_types:{sunrise:"Sunrise",sunset:"Sunset",solar_azimuth:"Solar Azimuth"},fields:{name:{name:"Trigger Name",description:"A descriptive name to identify this trigger"},type:{name:"Trigger Type",description:"The type of solar event to trigger on"},enabled:{name:"Enabled",description:"Whether this trigger is currently active"},offset_minutes:{name:"Offset (minutes)",description:"Minutes before (-) or after (+) the solar event. For sunrise triggers, use 0 for automatic timing based on total zone duration."},azimuth_angle:{name:"Azimuth Angle (degrees)",description:"Solar azimuth angle in degrees where 0=North, 90=East, 180=South, 270=West"},account_for_duration:{name:"Account for Duration",description:"When enabled, irrigation will start early enough to finish at the specified time. When disabled, irrigation will start exactly at the specified time."}},dialog:{add_title:"Add Irrigation Start Trigger",edit_title:"Edit Irrigation Start Trigger",cancel:"Cancel",save:"Save",delete:"Delete"},no_triggers:"No irrigation start triggers configured. The system will use the default behavior (sunrise with total zone duration). Add triggers to customize when irrigation starts.",offset_auto:"Auto (calculated from total zone duration)",confirm_delete:"Are you sure you want to delete the trigger '{name}'?",validation:{name_required:"Trigger name is required",azimuth_invalid:"Azimuth angle must be a valid number"},help:{sunrise_offset:"For sunrise triggers: Use negative values to start before sunrise, positive to start after. Set to 0 to automatically start early enough to complete all zones before sunrise.",sunset_offset:"For sunset triggers: Use negative values to start before sunset, positive to start after sunset.",azimuth_explanation:"Solar azimuth is the compass direction of the sun. 0°=North, 90°=East, 180°=South, 270°=West. You can enter any angle value (e.g., 450° = 90°, -30° = 330°). Use this to trigger irrigation when the sun reaches a specific position.",multiple_triggers:"You can configure multiple triggers. Each enabled trigger will independently schedule irrigation starts."}},Ys={title:"Skip Conditions",description:"Automatically skip irrigation when conditions are unfavorable. Precipitation check requires a weather service. Temperature and wind checks also require a weather service.",threshold_label:"Precipitation Threshold",threshold_description:"Minimum total precipitation (in mm) forecast across the look-ahead window to skip irrigation.",lookahead_label:"Forecast look-ahead (days)",lookahead_help:"How many upcoming forecast days to add up when checking for rain. The forecast starts at tomorrow (today is excluded), so 1 = just the next day, 2 = the next two days, and so on.",temp_section_title:"Skip on low temperature",temp_threshold_label:"Skip if temperature is below",wind_section_title:"Skip on high wind speed",wind_threshold_label:"Skip if wind speed is above",rain_sensor_section_title:"Skip on rain sensor",rain_sensor_label:"Rain sensor entity (optional)",rain_sensor_placeholder:"e.g. binary_sensor.rain",freeze_section_title:"Skip on frost",freeze_threshold_label:"Skip if minimum temperature is below",freeze_help:"Compares the current temperature and the coming night's forecast low; skips watering when frost is expected, to protect pipes and plants.",forecast_rain_label:"When rain is forecast",forecast_rain_options:{ignore:"Ignore it",water_less:"Water less",skip:"Skip watering"},forecast_rain_help:{ignore:"Forecast rain is ignored; runs use the calculated duration.",water_less:"Upcoming forecast rain trims the run duration (the deficit stays in the bucket for the real rain to fill).",skip:"Skip the run entirely when enough rain is forecast within the look-ahead window."}},Xs={title:"Location Coordinates",description:"Configure location coordinates for weather data retrieval. You can use manual coordinates different from your Home Assistant location if needed.",manual_enabled:"Use manual coordinates",use_ha_location:"Use Home Assistant location",latitude:"Latitude (decimal degrees)",longitude:"Longitude (decimal degrees)",elevation:"Elevation (meters above sea level)",current_ha_coords:"Current Home Assistant coordinates"},Js={title:"Days Between Irrigation",description:"Configure the minimum number of days that must pass between irrigation events. This helps control watering frequency for water conservation and plant health management.\n\nTypical real-world use cases:\n• Lawn care: 1-2 day intervals prevent overwatering\n• Drought restrictions: 6+ day intervals for weekly watering\n• Deep-rooted plants: 3-7 day intervals for less frequent watering\n• Water conservation: Customizable based on climate and soil conditions",label:"Minimum days between irrigation",help_text:"Set to 0 to disable this feature. Values from 1-365 days are supported. This setting works alongside existing precipitation forecasting logic."},Qs={title:"Zone Sequencing",description:"When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next. Rotating mode cycles through zones, giving each one a limited consecutive run before moving to the next.",parallel:"Parallel (all zones at once)",sequential:"Sequential (one zone at a time)",rotating:"Rotating (zones take turns)",max_consecutive_duration_label:"Max consecutive run time per zone",max_consecutive_duration_unit:"minutes",min_absorption_time_label:"Min. absorption time between slots",min_absorption_time_unit:"minutes (0 = disabled)"},ei={title:"Pump / master switch",description:"Optional. Powers a shared master — a pump or main valve — on before the first zone of a watering cycle, then optionally off after the last zone. Leave the entity empty to never touch a master (e.g. a pressure-controlled waterworks that starts on its own).",entity:"Master entity (switch/valve)",kick_enabled:"Kicker: pulse off then on to force a pump start",kick_pause:"Kick pause (off before on)",settle:"Settle delay before the first zone",off_after:"Turn the master off after irrigation",seconds_unit:"seconds"},ti={zone_size:"The total irrigated area of this zone. Used with throughput to calculate how much water is applied per run.",zone_throughput:"Total water flow of your irrigation system for this zone (litres/min in metric, gal/min in imperial). Check your sprinkler datasheet or measure by timing how long it takes to fill a known container.",zone_drainage_rate:"How fast saturated soil drains excess water. ~20 mm/h suits medium/loam soil; lower (2–10) for heavy clay, higher for sandy soil.",zone_bucket:"Current water deficit (negative) or surplus (positive) for this zone. Irrigation triggers when bucket drops below the threshold.",zone_maximum_bucket:"Maximum moisture surplus the zone can hold. Water above this level is treated as runoff. Typical value: 50 mm.",zone_bucket_threshold:"Irrigation triggers when the bucket drops below this value. Must be 0 or negative. 0 means irrigate whenever there is any deficit.",zone_multiplier:"Scale factor applied to the calculated duration. Use above 1.0 to increase, below 1.0 to decrease. Useful for fine-tuning without changing physical measurements.",zone_lead_time:"Extra seconds added before irrigation starts. Use for pump warm-up or system pressurisation.",zone_maximum_duration:"Hard cap on any single irrigation run in seconds. Prevents runaway watering. Default: 3600 s (1 hour).",zone_linked_entity:"The HA switch, valve or input_boolean (helper) entity controlling water flow for this zone. This entity is turned on when irrigation runs.",zone_flow_sensor:"Optional sensor measuring actual water flow rate. Used for reporting only — does not affect duration calculations.",general_autoupdatedelay:"Seconds to wait after HA starts before the first weather data fetch. Allows other integrations to initialise first.",general_sensor_debounce:"Minimum gap in milliseconds between sensor readings to filter noise from rapidly changing sensors.",general_calctime:"Time of day when irrigation durations are recalculated from collected weather data. Format: HH:MM (24-hour).",general_cleardatatime:"Time of day when old weather data is purged. Must be set later than the calculation time.",general_days_between:"Minimum days between irrigation events for the same zone. Set to 0 to disable (irrigate whenever deficit exists).",general_autoupdateinterval:"How often weather data is collected. Choose a value that balances fresh data against API rate limits.",general_precipitation_threshold:"Irrigation is skipped if total forecast precipitation across the look-ahead window exceeds this amount.",general_temp_threshold:"Irrigation is skipped if the current temperature is below this value (e.g. to prevent frost damage).",general_wind_threshold:"Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift).",zone_plant_type:"Pick a plant type to set a typical crop coefficient, or choose Custom to enter Kc yourself.",zone_kc:"Scales reference (grass) ET to this zone's plants. 1.0 = reference grass; lower for drought-tolerant planting, higher for thirsty crops. Only the ET term is scaled — rain is not.",zone_soil_type:"Pick a soil type to set a typical drainage rate, or leave Custom to enter it by hand below.",distributor_pause_seconds:"Off-time between outlets. This is the pulse that advances the distributor to the next outlet; set it from what you saw during the test run. Minimum 10 seconds.",distributor_skip_pulse_seconds:"Short on/off pulse used to step past an outlet that has no zone mapped, without watering it. Minimum 10 seconds."},si={title:"Setup Wizard",open_button:"Setup Wizard",close:"Close",next:"Next",back:"Back",finish:"Finish",skip_step:"Skip this step",step_indicator:"Step {current} of {total}",stepper:{weather:"Weather",module:"Module",mapping:"Sensor Group",zone:"Zone"},setup_complete_banner:"Setup not complete. Run the wizard to get started.",open_wizard:"Open Wizard",steps:{welcome:{title:"Welcome to Smart Irrigation",intro:"This wizard guides you through the four steps needed to get your first zone irrigating automatically.",step1_label:"Weather Service — where to get weather data",step2_label:"Calculation Module — how irrigation duration is computed",step3_label:"Sensor Group — which data sources to use",step4_label:"Zone — your first irrigation zone",tip:"You can skip any step and configure it later from the Setup tab."},weather:{title:"Weather Service",description:"Choose how to get weather data. Open-Meteo is free and requires no API key — it is the easiest choice for most users."},module:{title:"Calculation Module",description:"A module calculates how long to irrigate based on evapotranspiration (ET). The PyETO module (FAO-56 method) is recommended for most users.",pick_label:"Select module type",no_modules:"No module types available."},mapping:{title:"Sensor Group",description:"A sensor group links each weather variable to a data source. Set the key variables below — you can refine individual sensor mappings later from the Setup → Sensor Groups tab.",name_label:"Sensor group name",source_label:"Data source for",use_weather_service:"Weather service",use_sensor:"Sensor",use_static:"Static value",use_none:"None / not used"},zone:{title:"First Zone",description:"A zone is one irrigation area (e.g. lawn, garden bed). Set the physical properties so the system can calculate the correct irrigation duration.",name_label:"Zone name",size_label:"Area",throughput_label:"Sprinkler throughput",entity_label:"Linked switch, valve or helper",entity_placeholder:"e.g. switch.garden_valve",module_label:"Calculation module",mapping_label:"Sensor group"},done:{title:"Setup Complete!",description:"Your first zone is ready. Smart Irrigation will now calculate irrigation durations automatically based on weather data.",next_steps:"What you can do next:",tip1:"Go to Zones to view calculated durations and bucket values.",tip2:"Add more zones from the Zones tab.",tip3:"Refine all settings from the Setup tab.",go_zones:"Go to Zones",go_setup:"Go to Setup",schedule_name:"Daily",schedule_title:"Create a watering schedule",schedule_desc:"Your system is configured, but it won't water until a schedule exists. Create a daily schedule for all zones now (you can change or remove it later under Setup → When to Water).",schedule_create:"Create daily schedule",schedule_created:"Daily schedule created."}},confirm_close:{body:"Close the setup wizard? Your progress so far is saved.",keep:"Keep editing",close:"Close"}},ii={flow_calibration:Us,common:js,defaults:Fs,module:Zs,calcmodules:Ws,panels:qs,title:Gs,weather_service_config:Ks,irrigation_start_triggers:Vs,weather_skip:Ys,coordinate_config:Xs,days_between_irrigation:Js,zone_sequencing:Qs,master:ei,field_help:ti,wizard:si},ai=Object.freeze({__proto__:null,calcmodules:Ws,common:js,coordinate_config:Xs,days_between_irrigation:Js,default:ii,defaults:Fs,field_help:ti,flow_calibration:Us,irrigation_start_triggers:Vs,master:ei,module:Zs,panels:qs,title:Gs,weather_service_config:Ks,weather_skip:Ys,wizard:si,zone_sequencing:Qs});function ni(e,t){const s=t&&t.cache?t.cache:ui,i=t&&t.serializer?t.serializer:ci;return(t&&t.strategy?t.strategy:di)(e,{cache:s,serializer:i})}function oi(e,t,s,i){const a=null==(n=i)||"number"==typeof n||"boolean"==typeof n?i:s(i);var n;let o=t.get(a);return void 0===o&&(o=e.call(this,i),t.set(a,o)),o}function ri(e,t,s){const i=Array.prototype.slice.call(arguments,3),a=s(i);let n=t.get(a);return void 0===n&&(n=e.apply(this,i),t.set(a,n)),n}function li(e,t,s,i,a){return s.bind(t,e,i,a)}function di(e,t){return li(e,this,1===e.length?oi:ri,t.cache.create(),t.serializer)}const ci=function(){return JSON.stringify(arguments)};var hi=class{constructor(){this.cache=Object.create(null)}get(e){return this.cache[e]}set(e,t){this.cache[e]=t}};const ui={create:function(){return new hi}},pi={variadic:function(e,t){return li(e,this,ri,t.cache.create(),t.serializer)}},gi=/(?:[Eec]{1,6}|G{1,5}|[Qq]{1,5}|(?:[yYur]+|U{1,5})|[ML]{1,5}|d{1,2}|D{1,3}|F{1}|[abB]{1,5}|[hkHK]{1,2}|w{1,2}|W{1}|m{1,2}|s{1,2}|[zZOvVxX]{1,4})(?=([^']*'[^']*')*[^']*$)/g;function mi(e){const t={};return e.replace(gi,e=>{const s=e.length;switch(e[0]){case"G":t.era=4===s?"long":5===s?"narrow":"short";break;case"y":t.year=2===s?"2-digit":"numeric";break;case"Y":case"u":case"U":case"r":throw new RangeError("`Y/u/U/r` (year) patterns are not supported, use `y` instead");case"q":case"Q":throw new RangeError("`q/Q` (quarter) patterns are not supported");case"M":case"L":t.month=["numeric","2-digit","short","long","narrow"][s-1];break;case"w":case"W":throw new RangeError("`w/W` (week) patterns are not supported");case"d":t.day=["numeric","2-digit"][s-1];break;case"D":case"F":case"g":throw new RangeError("`D/F/g` (day) patterns are not supported, use `d` instead");case"E":t.weekday=4===s?"long":5===s?"narrow":"short";break;case"e":if(s<4)throw new RangeError("`e..eee` (weekday) patterns are not supported");t.weekday=["short","long","narrow","short"][s-4];break;case"c":if(s<4)throw new RangeError("`c..ccc` (weekday) patterns are not supported");t.weekday=["short","long","narrow","short"][s-4];break;case"a":t.hour12=!0;break;case"b":case"B":throw new RangeError("`b/B` (period) patterns are not supported, use `a` instead");case"h":t.hourCycle="h12",t.hour=["numeric","2-digit"][s-1];break;case"H":t.hourCycle="h23",t.hour=["numeric","2-digit"][s-1];break;case"K":t.hourCycle="h11",t.hour=["numeric","2-digit"][s-1];break;case"k":t.hourCycle="h24",t.hour=["numeric","2-digit"][s-1];break;case"j":case"J":case"C":throw new RangeError("`j/J/C` (hour) patterns are not supported, use `h/H/K/k` instead");case"m":t.minute=["numeric","2-digit"][s-1];break;case"s":t.second=["numeric","2-digit"][s-1];break;case"S":case"A":throw new RangeError("`S/A` (second) patterns are not supported, use `s` instead");case"z":t.timeZoneName=s<4?"short":"long";break;case"Z":case"O":case"v":case"V":case"X":case"x":throw new RangeError("`Z/O/v/V/X/x` (timeZone) patterns are not supported, use `z` instead")}return""}),t}const vi=/[\t-\r \x85\u200E\u200F\u2028\u2029]/i;function _i(e){return e.replace(/^(.*?)-/,"")}const fi=/^\.(?:(0+)(\*)?|(#+)|(0+)(#+))$/g,bi=/^(@+)?(\+|#+)?[rs]?$/g,yi=/(\*)(0+)|(#+)(0+)|(0+)/g,wi=/^(0+)$/;function $i(e){const t={};return"r"===e[e.length-1]?t.roundingPriority="morePrecision":"s"===e[e.length-1]&&(t.roundingPriority="lessPrecision"),e.replace(bi,function(e,s,i){return"string"!=typeof i?(t.minimumSignificantDigits=s.length,t.maximumSignificantDigits=s.length):"+"===i?t.minimumSignificantDigits=s.length:"#"===s[0]?t.maximumSignificantDigits=s.length:(t.minimumSignificantDigits=s.length,t.maximumSignificantDigits=s.length+("string"==typeof i?i.length:0)),""}),t}function xi(e){switch(e){case"sign-auto":return{signDisplay:"auto"};case"sign-accounting":case"()":return{currencySign:"accounting"};case"sign-always":case"+!":return{signDisplay:"always"};case"sign-accounting-always":case"()!":return{signDisplay:"always",currencySign:"accounting"};case"sign-except-zero":case"+?":return{signDisplay:"exceptZero"};case"sign-accounting-except-zero":case"()?":return{signDisplay:"exceptZero",currencySign:"accounting"};case"sign-never":case"+_":return{signDisplay:"never"}}}function ki(e){let t;if("E"===e[0]&&"E"===e[1]?(t={notation:"engineering"},e=e.slice(2)):"E"===e[0]&&(t={notation:"scientific"},e=e.slice(1)),t){const s=e.slice(0,2);if("+!"===s?(t.signDisplay="always",e=e.slice(2)):"+?"===s&&(t.signDisplay="exceptZero",e=e.slice(2)),!wi.test(e))throw new Error("Malformed concise eng/scientific notation");t.minimumIntegerDigits=e.length}return t}function zi(e){const t=xi(e);return t||{}}function Si(e){let t={};for(const s of e){switch(s.stem){case"percent":case"%":t.style="percent";continue;case"%x100":t.style="percent",t.scale=100;continue;case"currency":t.style="currency",t.currency=s.options[0];continue;case"group-off":case",_":t.useGrouping=!1;continue;case"precision-integer":case".":t.maximumFractionDigits=0;continue;case"measure-unit":case"unit":t.style="unit",t.unit=_i(s.options[0]);continue;case"compact-short":case"K":t.notation="compact",t.compactDisplay="short";continue;case"compact-long":case"KK":t.notation="compact",t.compactDisplay="long";continue;case"scientific":t={...t,notation:"scientific",...s.options.reduce((e,t)=>({...e,...zi(t)}),{})};continue;case"engineering":t={...t,notation:"engineering",...s.options.reduce((e,t)=>({...e,...zi(t)}),{})};continue;case"notation-simple":t.notation="standard";continue;case"unit-width-narrow":t.currencyDisplay="narrowSymbol",t.unitDisplay="narrow";continue;case"unit-width-short":t.currencyDisplay="code",t.unitDisplay="short";continue;case"unit-width-full-name":t.currencyDisplay="name",t.unitDisplay="long";continue;case"unit-width-iso-code":t.currencyDisplay="symbol";continue;case"scale":t.scale=parseFloat(s.options[0]);continue;case"rounding-mode-floor":t.roundingMode="floor";continue;case"rounding-mode-ceiling":t.roundingMode="ceil";continue;case"rounding-mode-down":t.roundingMode="trunc";continue;case"rounding-mode-up":t.roundingMode="expand";continue;case"rounding-mode-half-even":t.roundingMode="halfEven";continue;case"rounding-mode-half-down":t.roundingMode="halfTrunc";continue;case"rounding-mode-half-up":t.roundingMode="halfExpand";continue;case"integer-width":if(s.options.length>1)throw new RangeError("integer-width stems only accept a single optional option");s.options[0].replace(yi,function(e,s,i,a,n,o){if(s)t.minimumIntegerDigits=i.length;else{if(a&&n)throw new Error("We currently do not support maximum integer digits");if(o)throw new Error("We currently do not support exact integer digits")}return""});continue}if(wi.test(s.stem)){t.minimumIntegerDigits=s.stem.length;continue}if(fi.test(s.stem)){if(s.options.length>1)throw new RangeError("Fraction-precision stems only accept a single optional option");s.stem.replace(fi,function(e,s,i,a,n,o){return"*"===i?t.minimumFractionDigits=s.length:a&&"#"===a[0]?t.maximumFractionDigits=a.length:n&&o?(t.minimumFractionDigits=n.length,t.maximumFractionDigits=n.length+o.length):(t.minimumFractionDigits=s.length,t.maximumFractionDigits=s.length),""});const e=s.options[0];"w"===e?t={...t,trailingZeroDisplay:"stripIfInteger"}:e&&(t={...t,...$i(e)});continue}if(bi.test(s.stem)){t={...t,...$i(s.stem)};continue}const e=xi(s.stem);e&&(t={...t,...e});const i=ki(s.stem);i&&(t={...t,...i})}return t}let Ai=function(e){return e[e.EXPECT_ARGUMENT_CLOSING_BRACE=1]="EXPECT_ARGUMENT_CLOSING_BRACE",e[e.EMPTY_ARGUMENT=2]="EMPTY_ARGUMENT",e[e.MALFORMED_ARGUMENT=3]="MALFORMED_ARGUMENT",e[e.EXPECT_ARGUMENT_TYPE=4]="EXPECT_ARGUMENT_TYPE",e[e.INVALID_ARGUMENT_TYPE=5]="INVALID_ARGUMENT_TYPE",e[e.EXPECT_ARGUMENT_STYLE=6]="EXPECT_ARGUMENT_STYLE",e[e.INVALID_NUMBER_SKELETON=7]="INVALID_NUMBER_SKELETON",e[e.INVALID_DATE_TIME_SKELETON=8]="INVALID_DATE_TIME_SKELETON",e[e.EXPECT_NUMBER_SKELETON=9]="EXPECT_NUMBER_SKELETON",e[e.EXPECT_DATE_TIME_SKELETON=10]="EXPECT_DATE_TIME_SKELETON",e[e.UNCLOSED_QUOTE_IN_ARGUMENT_STYLE=11]="UNCLOSED_QUOTE_IN_ARGUMENT_STYLE",e[e.EXPECT_SELECT_ARGUMENT_OPTIONS=12]="EXPECT_SELECT_ARGUMENT_OPTIONS",e[e.EXPECT_PLURAL_ARGUMENT_OFFSET_VALUE=13]="EXPECT_PLURAL_ARGUMENT_OFFSET_VALUE",e[e.INVALID_PLURAL_ARGUMENT_OFFSET_VALUE=14]="INVALID_PLURAL_ARGUMENT_OFFSET_VALUE",e[e.EXPECT_SELECT_ARGUMENT_SELECTOR=15]="EXPECT_SELECT_ARGUMENT_SELECTOR",e[e.EXPECT_PLURAL_ARGUMENT_SELECTOR=16]="EXPECT_PLURAL_ARGUMENT_SELECTOR",e[e.EXPECT_SELECT_ARGUMENT_SELECTOR_FRAGMENT=17]="EXPECT_SELECT_ARGUMENT_SELECTOR_FRAGMENT",e[e.EXPECT_PLURAL_ARGUMENT_SELECTOR_FRAGMENT=18]="EXPECT_PLURAL_ARGUMENT_SELECTOR_FRAGMENT",e[e.INVALID_PLURAL_ARGUMENT_SELECTOR=19]="INVALID_PLURAL_ARGUMENT_SELECTOR",e[e.DUPLICATE_PLURAL_ARGUMENT_SELECTOR=20]="DUPLICATE_PLURAL_ARGUMENT_SELECTOR",e[e.DUPLICATE_SELECT_ARGUMENT_SELECTOR=21]="DUPLICATE_SELECT_ARGUMENT_SELECTOR",e[e.MISSING_OTHER_CLAUSE=22]="MISSING_OTHER_CLAUSE",e[e.INVALID_TAG=23]="INVALID_TAG",e[e.INVALID_TAG_NAME=25]="INVALID_TAG_NAME",e[e.UNMATCHED_CLOSING_TAG=26]="UNMATCHED_CLOSING_TAG",e[e.UNCLOSED_TAG=27]="UNCLOSED_TAG",e}({});function Ei(e){return 0===e.type}function Ci(e){return 1===e.type}function Ti(e){return 2===e.type}function Oi(e){return 3===e.type}function Hi(e){return 4===e.type}function Di(e){return 5===e.type}function Mi(e){return 6===e.type}function Ii(e){return 7===e.type}function Ni(e){return 8===e.type}function Li(e){return!(!e||"object"!=typeof e||0!==e.type)}function Pi(e){return!(!e||"object"!=typeof e||1!==e.type)}const Ri=/[ \xA0\u1680\u2000-\u200A\u202F\u205F\u3000]/,Bi={"001":["H","h"],419:["h","H","hB","hb"],AC:["H","h","hb","hB"],AD:["H","hB"],AE:["h","hB","hb","H"],AF:["H","hb","hB","h"],AG:["h","hb","H","hB"],AI:["H","h","hb","hB"],AL:["h","H","hB"],AM:["H","hB"],AO:["H","hB"],AR:["h","H","hB","hb"],AS:["h","H"],AT:["H","hB"],AU:["h","hb","H","hB"],AW:["H","hB"],AX:["H"],AZ:["H","hB","h"],BA:["H","hB","h"],BB:["h","hb","H","hB"],BD:["h","hB","H"],BE:["H","hB"],BF:["H","hB"],BG:["H","hB","h"],BH:["h","hB","hb","H"],BI:["H","h"],BJ:["H","hB"],BL:["H","hB"],BM:["h","hb","H","hB"],BN:["hb","hB","h","H"],BO:["h","H","hB","hb"],BQ:["H"],BR:["H","hB"],BS:["h","hb","H","hB"],BT:["h","H"],BW:["H","h","hb","hB"],BY:["H","h"],BZ:["H","h","hb","hB"],CA:["h","hb","H","hB"],CC:["H","h","hb","hB"],CD:["hB","H"],CF:["H","h","hB"],CG:["H","hB"],CH:["H","hB","h"],CI:["H","hB"],CK:["H","h","hb","hB"],CL:["h","H","hB","hb"],CM:["H","h","hB"],CN:["H","hB","hb","h"],CO:["h","H","hB","hb"],CP:["H"],CR:["h","H","hB","hb"],CU:["h","H","hB","hb"],CV:["H","hB"],CW:["H","hB"],CX:["H","h","hb","hB"],CY:["h","H","hb","hB"],CZ:["H"],DE:["H","hB"],DG:["H","h","hb","hB"],DJ:["h","H"],DK:["H"],DM:["h","hb","H","hB"],DO:["h","H","hB","hb"],DZ:["h","hB","hb","H"],EA:["H","h","hB","hb"],EC:["h","H","hB","hb"],EE:["H","hB"],EG:["h","hB","hb","H"],EH:["h","hB","hb","H"],ER:["h","H"],ES:["H","hB","h","hb"],ET:["hB","hb","h","H"],FI:["H"],FJ:["h","hb","H","hB"],FK:["H","h","hb","hB"],FM:["h","hb","H","hB"],FO:["H","h"],FR:["H","hB"],GA:["H","hB"],GB:["H","h","hb","hB"],GD:["h","hb","H","hB"],GE:["H","hB","h"],GF:["H","hB"],GG:["H","h","hb","hB"],GH:["h","H"],GI:["H","h","hb","hB"],GL:["H","h"],GM:["h","hb","H","hB"],GN:["H","hB"],GP:["H","hB"],GQ:["H","hB","h","hb"],GR:["h","H","hb","hB"],GS:["H","h","hb","hB"],GT:["h","H","hB","hb"],GU:["h","hb","H","hB"],GW:["H","hB"],GY:["h","hb","H","hB"],HK:["h","hB","hb","H"],HN:["h","H","hB","hb"],HR:["H","hB"],HU:["H","h"],IC:["H","h","hB","hb"],ID:["H"],IE:["H","h","hb","hB"],IL:["H","hB"],IM:["H","h","hb","hB"],IN:["h","H"],IO:["H","h","hb","hB"],IQ:["h","hB","hb","H"],IR:["hB","H"],IS:["H"],IT:["H","hB"],JE:["H","h","hb","hB"],JM:["h","hb","H","hB"],JO:["h","hB","hb","H"],JP:["H","K","h"],KE:["hB","hb","H","h"],KG:["H","h","hB","hb"],KH:["hB","h","H","hb"],KI:["h","hb","H","hB"],KM:["H","h","hB","hb"],KN:["h","hb","H","hB"],KP:["h","H","hB","hb"],KR:["h","H","hB","hb"],KW:["h","hB","hb","H"],KY:["h","hb","H","hB"],KZ:["H","hB"],LA:["H","hb","hB","h"],LB:["h","hB","hb","H"],LC:["h","hb","H","hB"],LI:["H","hB","h"],LK:["H","h","hB","hb"],LR:["h","hb","H","hB"],LS:["h","H"],LT:["H","h","hb","hB"],LU:["H","h","hB"],LV:["H","hB","hb","h"],LY:["h","hB","hb","H"],MA:["H","h","hB","hb"],MC:["H","hB"],MD:["H","hB"],ME:["H","hB","h"],MF:["H","hB"],MG:["H","h"],MH:["h","hb","H","hB"],MK:["H","h","hb","hB"],ML:["H"],MM:["hB","hb","H","h"],MN:["H","h","hb","hB"],MO:["h","hB","hb","H"],MP:["h","hb","H","hB"],MQ:["H","hB"],MR:["h","hB","hb","H"],MS:["H","h","hb","hB"],MT:["H","h"],MU:["H","h"],MV:["H","h"],MW:["h","hb","H","hB"],MX:["h","H","hB","hb"],MY:["hb","hB","h","H"],MZ:["H","hB"],NA:["h","H","hB","hb"],NC:["H","hB"],NE:["H"],NF:["H","h","hb","hB"],NG:["H","h","hb","hB"],NI:["h","H","hB","hb"],NL:["H","hB"],NO:["H","h"],NP:["H","h","hB"],NR:["H","h","hb","hB"],NU:["H","h","hb","hB"],NZ:["h","hb","H","hB"],OM:["h","hB","hb","H"],PA:["h","H","hB","hb"],PE:["h","H","hB","hb"],PF:["H","h","hB"],PG:["h","H"],PH:["h","hB","hb","H"],PK:["h","hB","H"],PL:["H","h"],PM:["H","hB"],PN:["H","h","hb","hB"],PR:["h","H","hB","hb"],PS:["h","hB","hb","H"],PT:["H","hB"],PW:["h","H"],PY:["h","H","hB","hb"],QA:["h","hB","hb","H"],RE:["H","hB"],RO:["H","hB"],RS:["H","hB","h"],RU:["H"],RW:["H","h"],SA:["h","hB","hb","H"],SB:["h","hb","H","hB"],SC:["H","h","hB"],SD:["h","hB","hb","H"],SE:["H"],SG:["h","hb","H","hB"],SH:["H","h","hb","hB"],SI:["H","hB"],SJ:["H"],SK:["H"],SL:["h","hb","H","hB"],SM:["H","h","hB"],SN:["H","h","hB"],SO:["h","H"],SR:["H","hB"],SS:["h","hb","H","hB"],ST:["H","hB"],SV:["h","H","hB","hb"],SX:["H","h","hb","hB"],SY:["h","hB","hb","H"],SZ:["h","hb","H","hB"],TA:["H","h","hb","hB"],TC:["h","hb","H","hB"],TD:["h","H","hB"],TF:["H","h","hB"],TG:["H","hB"],TH:["H","h"],TJ:["H","h"],TL:["H","hB","hb","h"],TM:["H","h"],TN:["h","hB","hb","H"],TO:["h","H"],TR:["H","hB"],TT:["h","hb","H","hB"],TW:["hB","hb","h","H"],TZ:["hB","hb","H","h"],UA:["H","hB","h"],UG:["hB","hb","H","h"],UM:["h","hb","H","hB"],US:["h","hb","H","hB"],UY:["h","H","hB","hb"],UZ:["H","hB","h"],VA:["H","h","hB"],VC:["h","hb","H","hB"],VE:["h","H","hB","hb"],VG:["h","hb","H","hB"],VI:["h","hb","H","hB"],VN:["H","h"],VU:["h","H"],WF:["H","hB"],WS:["h","H"],XK:["H","hB","h"],YE:["h","hB","hb","H"],YT:["H","hB"],ZA:["H","h","hb","hB"],ZM:["h","hb","H","hB"],ZW:["H","h"],"af-ZA":["H","h","hB","hb"],"ar-001":["h","hB","hb","H"],"ca-ES":["H","h","hB"],"en-001":["h","hb","H","hB"],"en-HK":["h","hb","H","hB"],"en-IL":["H","h","hb","hB"],"en-MY":["h","hb","H","hB"],"es-BR":["H","h","hB","hb"],"es-ES":["H","h","hB","hb"],"es-GQ":["H","h","hB","hb"],"fr-CA":["H","h","hB"],"gl-ES":["H","h","hB"],"gu-IN":["hB","hb","h","H"],"hi-IN":["hB","h","H"],"it-CH":["H","h","hB"],"it-IT":["H","h","hB"],"kn-IN":["hB","h","H"],"ku-SY":["H","hB"],"ml-IN":["hB","h","H"],"mr-IN":["hB","hb","h","H"],"pa-IN":["hB","hb","h","H"],"ta-IN":["hB","h","hb","H"],"te-IN":["hB","h","H"],"zu-ZA":["H","hB","hb","h"]};function Ui(e){let t=e.hourCycle;if(void 0===t&&e.hourCycles&&e.hourCycles.length&&(t=e.hourCycles[0]),t)switch(t){case"h24":return"k";case"h23":return"H";case"h12":return"h";case"h11":return"K";default:throw new Error("Invalid hourCycle")}const s=e.language;let i;return"root"!==s&&(i=e.maximize().region),(Bi[i||""]||Bi[s||""]||Bi[`${s}-001`]||Bi["001"])[0]}const ji=new RegExp(`^${Ri.source}*`),Fi=new RegExp(`${Ri.source}*$`);function Zi(e,t){return{start:e,end:t}}const Wi=!!Object.fromEntries,qi=!!String.prototype.trimStart,Gi=!!String.prototype.trimEnd,Ki=Wi?Object.fromEntries:function(e){const t={};for(const[s,i]of e)t[s]=i;return t},Vi=qi?function(e){return e.trimStart()}:function(e){return e.replace(ji,"")},Yi=Gi?function(e){return e.trimEnd()}:function(e){return e.replace(Fi,"")},Xi=new RegExp("([^\\p{White_Space}\\p{Pattern_Syntax}]*)","yu");var Ji=class{constructor(e,t={}){this.message=e,this.position={offset:0,line:1,column:1},this.ignoreTag=!!t.ignoreTag,this.locale=t.locale,this.requiresOtherClause=!!t.requiresOtherClause,this.shouldParseSkeletons=!!t.shouldParseSkeletons}parse(){if(0!==this.offset())throw Error("parser can only be used once");if(this.message.length>0){const e=this.message.charCodeAt(0);if(35!==e&&39!==e&&60!==e&&123!==e&&125!==e){const e=function(e){if(0===e.length)return null;let t=1,s=1;for(let i=0;i<e.length;){const a=e.charCodeAt(i);switch(a){case 35:case 39:case 60:case 123:case 125:return null}if(10===a)t++,s=1,i++;else if(s++,a>=55296&&a<=56319&&i+1<e.length){const t=e.charCodeAt(i+1);i+=t>=56320&&t<=57343?2:1}else i++}return{offset:e.length,line:t,column:s}}(this.message);if(e){const t=this.clonePosition();return this.position=e,{val:[{type:0,value:this.message,location:Zi(t,this.clonePosition())}],err:null}}}}return this.parseMessage(0,"",!1)}parseMessage(e,t,s){let i=[];for(;!this.isEOF();){const a=this.char();if(123===a){const t=this.parseArgument(e,s);if(t.err)return t;i.push(t.val)}else{if(125===a&&e>0)break;if(35!==a||"plural"!==t&&"selectordinal"!==t){if(60===a&&!this.ignoreTag&&47===this.peek()){if(s)break;return this.error(26,Zi(this.clonePosition(),this.clonePosition()))}if(60===a&&!this.ignoreTag&&Qi(this.peek()||0)){const s=this.parseTag(e,t);if(s.err)return s;i.push(s.val)}else{const s=this.parseLiteral(e,t);if(s.err)return s;i.push(s.val)}}else{const e=this.clonePosition();this.bump(),i.push({type:7,location:Zi(e,this.clonePosition())})}}}return{val:i,err:null}}parseTag(e,t){const s=this.clonePosition();this.bump();const i=this.parseTagName();if(this.bumpSpace(),this.bumpIf("/>"))return{val:{type:0,value:`<${i}/>`,location:Zi(s,this.clonePosition())},err:null};if(this.bumpIf(">")){const a=this.parseMessage(e+1,t,!0);if(a.err)return a;const n=a.val,o=this.clonePosition();if(this.bumpIf("</")){if(this.isEOF()||!Qi(this.char()))return this.error(23,Zi(o,this.clonePosition()));const e=this.clonePosition();return i!==this.parseTagName()?this.error(26,Zi(e,this.clonePosition())):(this.bumpSpace(),this.bumpIf(">")?{val:{type:8,value:i,children:n,location:Zi(s,this.clonePosition())},err:null}:this.error(23,Zi(o,this.clonePosition())))}return this.error(27,Zi(s,this.clonePosition()))}return this.error(23,Zi(s,this.clonePosition()))}parseTagName(){const e=this.offset();for(this.bump();!this.isEOF()&&ea(this.char());)this.bump();return this.message.slice(e,this.offset())}parseLiteral(e,t){const s=this.clonePosition();let i="";for(;;){const s=this.tryParseQuote(t);if(s){i+=s;continue}const a=this.tryParseUnquoted(e,t);if(a){i+=a;continue}const n=this.tryParseLeftAngleBracket();if(!n)break;i+=n}return{val:{type:0,value:i,location:Zi(s,this.clonePosition())},err:null}}tryParseLeftAngleBracket(){return this.isEOF()||60!==this.char()||!this.ignoreTag&&(Qi(e=this.peek()||0)||47===e)?null:(this.bump(),"<");var e}tryParseQuote(e){if(this.isEOF()||39!==this.char())return null;switch(this.peek()){case 39:return this.bump(),this.bump(),"'";case 123:case 60:case 62:case 125:break;case 35:if("plural"===e||"selectordinal"===e)break;return null;default:return null}this.bump();const t=[this.char()];for(this.bump();!this.isEOF();){const e=this.char();if(39===e){if(39!==this.peek()){this.bump();break}t.push(39),this.bump()}else t.push(e);this.bump()}return String.fromCodePoint(...t)}tryParseUnquoted(e,t){if(this.isEOF())return null;const s=this.char();return 60===s||123===s||35===s&&("plural"===t||"selectordinal"===t)||125===s&&e>0?null:(this.bump(),String.fromCodePoint(s))}parseArgument(e,t){const s=this.clonePosition();if(this.bump(),this.bumpSpace(),this.isEOF())return this.error(1,Zi(s,this.clonePosition()));if(125===this.char())return this.bump(),this.error(2,Zi(s,this.clonePosition()));let i=this.parseIdentifierIfPossible().value;if(!i)return this.error(3,Zi(s,this.clonePosition()));if(this.bumpSpace(),this.isEOF())return this.error(1,Zi(s,this.clonePosition()));switch(this.char()){case 125:return this.bump(),{val:{type:1,value:i,location:Zi(s,this.clonePosition())},err:null};case 44:return this.bump(),this.bumpSpace(),this.isEOF()?this.error(1,Zi(s,this.clonePosition())):this.parseArgumentOptions(e,t,i,s);default:return this.error(3,Zi(s,this.clonePosition()))}}parseIdentifierIfPossible(){const e=this.clonePosition(),t=this.offset(),s=function(e,t){return Xi.lastIndex=t,Xi.exec(e)[1]??""}(this.message,t),i=t+s.length;return this.bumpTo(i),{value:s,location:Zi(e,this.clonePosition())}}parseArgumentOptions(e,t,s,i){let a=this.clonePosition(),n=this.parseIdentifierIfPossible().value,o=this.clonePosition();switch(n){case"":return this.error(4,Zi(a,o));case"number":case"date":case"time":{this.bumpSpace();let e=null;if(this.bumpIf(",")){this.bumpSpace();const t=this.clonePosition(),s=this.parseSimpleArgStyleIfPossible();if(s.err)return s;const i=Yi(s.val);if(0===i.length)return this.error(6,Zi(this.clonePosition(),this.clonePosition()));e={style:i,styleLocation:Zi(t,this.clonePosition())}}const t=this.tryParseArgumentClose(i);if(t.err)return t;const a=Zi(i,this.clonePosition());if(e&&e.style.startsWith("::")){let t=Vi(e.style.slice(2));if("number"===n){const i=this.parseNumberSkeletonFromString(t,e.styleLocation);return i.err?i:{val:{type:2,value:s,location:a,style:i.val},err:null}}{if(0===t.length)return this.error(10,a);let i=t;this.locale&&(i=function(e,t){let s="";for(let i=0;i<e.length;i++){const a=e.charAt(i);if("j"===a){let n=0;for(;i+1<e.length&&e.charAt(i+1)===a;)n++,i++;let o=1+(1&n),r=n<2?1:3+(n>>1),l="a",d=Ui(t);for("H"!=d&&"k"!=d||(r=0);r-- >0;)s+=l;for(;o-- >0;)s=d+s}else s+="J"===a?"H":a}return s}(t,this.locale));return{val:{type:"date"===n?3:4,value:s,location:a,style:{type:1,pattern:i,location:e.styleLocation,parsedOptions:this.shouldParseSkeletons?mi(i):{}}},err:null}}}return{val:{type:"number"===n?2:"date"===n?3:4,value:s,location:a,style:e?.style??null},err:null}}case"plural":case"selectordinal":case"select":{const a=this.clonePosition();if(this.bumpSpace(),!this.bumpIf(","))return this.error(12,Zi(a,{...a}));this.bumpSpace();let o=this.parseIdentifierIfPossible(),r=0;if("select"!==n&&"offset"===o.value){if(!this.bumpIf(":"))return this.error(13,Zi(this.clonePosition(),this.clonePosition()));this.bumpSpace();const e=this.tryParseDecimalInteger(13,14);if(e.err)return e;this.bumpSpace(),o=this.parseIdentifierIfPossible(),r=e.val}const l=this.tryParsePluralOrSelectOptions(e,n,t,o);if(l.err)return l;const d=this.tryParseArgumentClose(i);if(d.err)return d;const c=Zi(i,this.clonePosition());return"select"===n?{val:{type:5,value:s,options:Ki(l.val),location:c},err:null}:{val:{type:6,value:s,options:Ki(l.val),offset:r,pluralType:"plural"===n?"cardinal":"ordinal",location:c},err:null}}default:return this.error(5,Zi(a,o))}}tryParseArgumentClose(e){return this.isEOF()||125!==this.char()?this.error(1,Zi(e,this.clonePosition())):(this.bump(),{val:!0,err:null})}parseSimpleArgStyleIfPossible(){let e=0;const t=this.clonePosition();for(;!this.isEOF();)switch(this.char()){case 39:{this.bump();let e=this.clonePosition();if(!this.bumpUntil("'"))return this.error(11,Zi(e,this.clonePosition()));this.bump();break}case 123:e+=1,this.bump();break;case 125:if(!(e>0))return{val:this.message.slice(t.offset,this.offset()),err:null};e-=1;break;default:this.bump()}return{val:this.message.slice(t.offset,this.offset()),err:null}}parseNumberSkeletonFromString(e,t){let s=[];try{s=function(e){if(0===e.length)throw new Error("Number skeleton cannot be empty");const t=e.split(vi).filter(e=>e.length>0),s=[];for(const e of t){let t=e.split("/");if(0===t.length)throw new Error("Invalid number skeleton");const[i,...a]=t;for(const e of a)if(0===e.length)throw new Error("Invalid number skeleton");s.push({stem:i,options:a})}return s}(e)}catch{return this.error(7,t)}return{val:{type:0,tokens:s,location:t,parsedOptions:this.shouldParseSkeletons?Si(s):{}},err:null}}tryParsePluralOrSelectOptions(e,t,s,i){let a=!1;const n=[],o=new Set;let{value:r,location:l}=i;for(;;){if(0===r.length){const e=this.clonePosition();if("select"===t||!this.bumpIf("="))break;{const t=this.tryParseDecimalInteger(16,19);if(t.err)return t;l=Zi(e,this.clonePosition()),r=this.message.slice(e.offset,this.offset())}}if(o.has(r))return this.error("select"===t?21:20,l);"other"===r&&(a=!0),this.bumpSpace();const i=this.clonePosition();if(!this.bumpIf("{"))return this.error("select"===t?17:18,Zi(this.clonePosition(),this.clonePosition()));const d=this.parseMessage(e+1,t,s);if(d.err)return d;const c=this.tryParseArgumentClose(i);if(c.err)return c;n.push([r,{value:d.val,location:Zi(i,this.clonePosition())}]),o.add(r),this.bumpSpace(),({value:r,location:l}=this.parseIdentifierIfPossible())}return 0===n.length?this.error("select"===t?15:16,Zi(this.clonePosition(),this.clonePosition())):this.requiresOtherClause&&!a?this.error(22,Zi(this.clonePosition(),this.clonePosition())):{val:n,err:null}}tryParseDecimalInteger(e,t){let s=1;const i=this.clonePosition();this.bumpIf("+")||this.bumpIf("-")&&(s=-1);let a=!1,n=0;for(;!this.isEOF();){const e=this.char();if(!(e>=48&&e<=57))break;a=!0,n=10*n+(e-48),this.bump()}const o=Zi(i,this.clonePosition());return a?(n*=s,Number.isSafeInteger(n)?{val:n,err:null}:this.error(t,o)):this.error(e,o)}offset(){return this.position.offset}isEOF(){return this.offset()===this.message.length}clonePosition(){return{offset:this.position.offset,line:this.position.line,column:this.position.column}}char(){const e=this.position.offset;if(e>=this.message.length)throw Error("out of bound");const t=this.message.codePointAt(e);if(void 0===t)throw Error(`Offset ${e} is at invalid UTF-16 code unit boundary`);return t}error(e,t){return{val:null,err:{kind:e,message:this.message,location:t}}}bump(){if(this.isEOF())return;const e=this.char();10===e?(this.position.line+=1,this.position.column=1,this.position.offset+=1):(this.position.column+=1,this.position.offset+=e<65536?1:2)}bumpIf(e){if(this.message.startsWith(e,this.offset())){for(let t=0;t<e.length;t++)this.bump();return!0}return!1}bumpUntil(e){const t=this.offset(),s=this.message.indexOf(e,t);return s>=0?(this.bumpTo(s),!0):(this.bumpTo(this.message.length),!1)}bumpTo(e){if(this.offset()>e)throw Error(`targetOffset ${e} must be greater than or equal to the current offset ${this.offset()}`);for(e=Math.min(e,this.message.length);;){const t=this.offset();if(t===e)break;if(t>e)throw Error(`targetOffset ${e} is at invalid UTF-16 code unit boundary`);if(this.bump(),this.isEOF())break}}bumpSpace(){for(;!this.isEOF()&&ta(this.char());)this.bump()}peek(){if(this.isEOF())return null;const e=this.char(),t=this.offset();return this.message.charCodeAt(t+(e>=65536?2:1))??null}};function Qi(e){return e>=97&&e<=122||e>=65&&e<=90}function ea(e){return 45===e||46===e||e>=48&&e<=57||95===e||e>=97&&e<=122||e>=65&&e<=90||183==e||e>=192&&e<=214||e>=216&&e<=246||e>=248&&e<=893||e>=895&&e<=8191||e>=8204&&e<=8205||e>=8255&&e<=8256||e>=8304&&e<=8591||e>=11264&&e<=12271||e>=12289&&e<=55295||e>=63744&&e<=64975||e>=65008&&e<=65533||e>=65536&&e<=983039}function ta(e){return e>=9&&e<=13||32===e||133===e||e>=8206&&e<=8207||8232===e||8233===e}function sa(e){e.forEach(e=>{if(delete e.location,Di(e)||Mi(e))for(const t in e.options)delete e.options[t].location,sa(e.options[t].value);else Ti(e)&&Li(e.style)||(Oi(e)||Hi(e))&&Pi(e.style)?delete e.style.location:Ni(e)&&sa(e.children)})}function ia(e,t={}){t={shouldParseSkeletons:!0,requiresOtherClause:!0,...t};const s=new Ji(e,t).parse();if(s.err){const e=SyntaxError(Ai[s.err.kind]);throw e.location=s.err.location,e.originalMessage=s.err.message,e}return t?.captureLocation||sa(s.val),s.val}var aa=class extends Error{constructor(e,t,s){super(e),this.code=t,this.originalMessage=s}toString(){return`[formatjs Error: ${this.code}] ${this.message}`}},na=class extends aa{constructor(e,t,s,i){super(`Invalid values for "${e}": "${t}". Options are "${Object.keys(s).join('", "')}"`,"INVALID_VALUE",i)}},oa=class extends aa{constructor(e,t,s){super(`Value for "${e}" must be of type ${t}`,"INVALID_VALUE",s)}},ra=class extends aa{constructor(e,t){super(`The intl string context variable "${e}" was not provided to the string "${t}"`,"MISSING_VALUE",t)}};function la(e){return"function"==typeof e}function da(e,t,s,i,a,n,o){if(1===e.length&&Ei(e[0]))return[{type:0,value:e[0].value}];const r=[];for(const l of e){if(Ei(l)){r.push({type:0,value:l.value});continue}if(Ii(l)){"number"==typeof n&&r.push({type:0,value:s.getNumberFormat(t).format(n)});continue}const{value:e}=l;if(!a||!(e in a))throw new ra(e,o);let d=a[e];if(Ci(l))d&&"string"!=typeof d&&"number"!=typeof d&&"bigint"!=typeof d||(d="string"==typeof d||"number"==typeof d||"bigint"==typeof d?String(d):""),r.push({type:"string"==typeof d?0:1,value:d});else{if(Oi(l)){const e="string"==typeof l.style?i.date[l.style]:Pi(l.style)?l.style.parsedOptions:void 0;r.push({type:0,value:s.getDateTimeFormat(t,e).format(d)});continue}if(Hi(l)){const e="string"==typeof l.style?i.time[l.style]:Pi(l.style)?l.style.parsedOptions:i.time.medium;r.push({type:0,value:s.getDateTimeFormat(t,e).format(d)});continue}if(Ti(l)){const e="string"==typeof l.style?i.number[l.style]:Li(l.style)?l.style.parsedOptions:void 0;if(e&&e.scale){const t=e.scale||1;if("bigint"==typeof d){if(!Number.isInteger(t))throw new TypeError(`Cannot apply fractional scale ${t} to bigint value. Scale must be an integer when formatting bigint.`);d*=BigInt(t)}else d*=t}r.push({type:0,value:s.getNumberFormat(t,e).format(d)});continue}if(Ni(l)){const{children:e,value:d}=l,c=a[d];if(!la(c))throw new oa(d,"function",o);let h=c(da(e,t,s,i,a,n).map(e=>e.value));Array.isArray(h)||(h=[h]),r.push(...h.map(e=>({type:"string"==typeof e?0:1,value:e})))}if(Di(l)){const e=d,n=(Object.prototype.hasOwnProperty.call(l.options,e)?l.options[e]:void 0)||l.options.other;if(!n)throw new na(l.value,d,Object.keys(l.options),o);r.push(...da(n.value,t,s,i,a));continue}if(Mi(l)){const e=`=${d}`;let n=Object.prototype.hasOwnProperty.call(l.options,e)?l.options[e]:void 0;if(!n){if(!Intl.PluralRules)throw new aa('Intl.PluralRules is not available in this environment.\nTry polyfilling it using "@formatjs/intl-pluralrules"\n',"MISSING_INTL_API",o);const e="bigint"==typeof d?Number(d):d,i=s.getPluralRules(t,{type:l.pluralType}).select(e-(l.offset||0));n=(Object.prototype.hasOwnProperty.call(l.options,i)?l.options[i]:void 0)||l.options.other}if(!n)throw new na(l.value,d,Object.keys(l.options),o);const c="bigint"==typeof d?Number(d):d;r.push(...da(n.value,t,s,i,a,c-(l.offset||0)));continue}}}return(l=r).length<2?l:l.reduce((e,t)=>{const s=e[e.length-1];return s&&0===s.type&&0===t.type?s.value+=t.value:e.push(t),e},[]);var l}function ca(e,t){return t?Object.keys(e).reduce((s,i)=>{var a,n;return s[i]=(a=e[i],(n=t[i])?{...a,...n,...Object.keys(a).reduce((e,t)=>(e[t]={...a[t],...n[t]},e),{})}:a),s},{...e}):e}function ha(e){return{create:()=>({get:t=>e[t],set(t,s){e[t]=s}})}}var ua=class e{constructor(t,s=e.defaultLocale,i,a){if(this.formatterCache={number:{},dateTime:{},pluralRules:{}},this.format=e=>{const t=this.formatToParts(e);if(1===t.length)return t[0].value;const s=t.reduce((e,t)=>(e.length&&0===t.type&&"string"==typeof e[e.length-1]?e[e.length-1]+=t.value:e.push(t.value),e),[]);return s.length<=1?s[0]||"":s},this.formatToParts=e=>da(this.ast,this.locales,this.formatters,this.formats,e,void 0,this.message),this.resolvedOptions=()=>({locale:this.resolvedLocale?.toString()||Intl.NumberFormat.supportedLocalesOf(this.locales)[0]}),this.getAst=()=>this.ast,this.locales=s,this.resolvedLocale=e.resolveLocale(s),"string"==typeof t){if(this.message=t,!e.__parse)throw new TypeError("IntlMessageFormat.__parse must be set to process `message` of type `string`");const{...s}=a||{};this.ast=e.__parse(t,{...s,locale:this.resolvedLocale})}else this.ast=t;if(!Array.isArray(this.ast))throw new TypeError("A message must be provided as a String or AST.");this.formats=ca(e.formats,i),this.formatters=a&&a.formatters||function(e={number:{},dateTime:{},pluralRules:{}}){return{getNumberFormat:ni((...e)=>new Intl.NumberFormat(...e),{cache:ha(e.number),strategy:pi.variadic}),getDateTimeFormat:ni((...e)=>new Intl.DateTimeFormat(...e),{cache:ha(e.dateTime),strategy:pi.variadic}),getPluralRules:ni((...e)=>new Intl.PluralRules(...e),{cache:ha(e.pluralRules),strategy:pi.variadic})}}(this.formatterCache)}static{this.memoizedDefaultLocale=null}static get defaultLocale(){return e.memoizedDefaultLocale||(e.memoizedDefaultLocale=(new Intl.NumberFormat).resolvedOptions().locale),e.memoizedDefaultLocale}static{this.resolveLocale=e=>{if(void 0===Intl.Locale)return;const t=Intl.NumberFormat.supportedLocalesOf(e);return t.length>0?new Intl.Locale(t[0]):new Intl.Locale("string"==typeof e?e:e[0])}}static{this.__parse=ia}static{this.formats={number:{integer:{maximumFractionDigits:0},currency:{style:"currency"},percent:{style:"percent"}},date:{short:{month:"numeric",day:"numeric",year:"2-digit"},medium:{month:"short",day:"numeric",year:"numeric"},long:{month:"long",day:"numeric",year:"numeric"},full:{weekday:"long",month:"long",day:"numeric",year:"numeric"}},time:{short:{hour:"numeric",minute:"numeric"},medium:{hour:"numeric",minute:"numeric",second:"numeric"},long:{hour:"numeric",minute:"numeric",second:"numeric",timeZoneName:"short"},full:{hour:"numeric",minute:"numeric",second:"numeric",timeZoneName:"short"}}}}};const pa={en:ai},ga={};function ma(e){return e.replace(/['"]+/g,"").split(/[-_]/)[0].toLowerCase()}function va(e){const t=ma(e);return t in pa||!fe.includes(t)}function _a(e,t,...s){const i=ma(t);let a;try{a=e.split(".").reduce((e,t)=>e[t],pa[i])}catch(t){a=e.split(".").reduce((e,t)=>e[t],pa.en)}if(void 0===a&&(a=e.split(".").reduce((e,t)=>e[t],pa.en)),!s.length)return a;const n={};for(let e=0;e<s.length;e+=2){let t=s[e];t=t.replace(/^{([^}]+)?}$/,"$1"),n[t]=s[e+1]}try{return new ua(a,t).format(n)}catch(e){return"Translation "+e}}function fa(e,t,s){e.dispatchEvent(new CustomEvent(t,{detail:s,bubbles:!0,composed:!0,cancelable:!1}))}function ba(e,t){return(e=e.toString()).split(",")[t]}function ya(e,t){switch(t){case wt:return e.units==Ce?Z`${Bs(rt)}`:Z`${Bs(lt)}`;case be:case mt:return e.units==Ce?Z`${Bs(st)}`:Z`${Bs(it)}`;case ct:return e.units==Ce?Z`${Bs("m<sup>2</sup>")}`:Z`${Bs(Je)}`;case ht:return e.units==Ce?Z`${Bs(Qe)}`:Z`${Bs(et)}`;default:return Z``}}function wa(e,t){!function(e,t){fa(e,"show-dialog",{dialogTag:"error-dialog",dialogImport:()=>Promise.resolve().then(function(){return gn}),dialogParams:{error:t}})}(t,Z`
     ${e.error}:${e.body.message?Z` ${e.body.message} `:""}
-  `)}const wa=(e,t,i=!1)=>{i?history.replaceState(null,"",t):history.pushState(null,"",t),_a(window,"location-changed",{replace:i})};function $a(e){var t;if(!e)return"Unknown error";if("string"==typeof e)return e;const i=e;return(null===(t=null==i?void 0:i.body)||void 0===t?void 0:t.message)||(null==i?void 0:i.message)||(null==i?void 0:i.error)||JSON.stringify(e)}function xa(e,t){e.dispatchEvent(new CustomEvent("hass-notification",{detail:{message:t},bubbles:!0,composed:!0}))}function ka(e,t,i,s){var a;xa(e,`${va(i,null!==(a=null==t?void 0:t.language)&&void 0!==a?a:"en")}: ${$a(s)}`)}var za="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",Sa="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z";const Aa=e=>{class i extends e{connectedCallback(){super.connectedCallback(),this.__checkSubscribed()}disconnectedCallback(){if(super.disconnectedCallback(),this.__unsubs){for(;this.__unsubs.length;){const e=this.__unsubs.pop();e instanceof Promise?e.then(e=>e()):e()}this.__unsubs=void 0}}updated(e){super.updated(e),e.has("hass")&&this.__checkSubscribed()}hassSubscribe(){return[]}__checkSubscribed(){void 0===this.__unsubs&&this.isConnected&&void 0!==this.hass&&(this.__unsubs=this.hassSubscribe())}}return t([pe({attribute:!1})],i.prototype,"hass",void 0),i};var Ea,Ca;!function(e){e.Sunrise="sunrise",e.Sunset="sunset",e.SolarAzimuth="solar_azimuth"}(Ea||(Ea={})),function(e){e.Disabled="disabled",e.Manual="manual",e.Automatic="automatic"}(Ca||(Ca={}));const Ta=()=>{const e=e=>{let t={};for(let i=0;i<e.length;i+=2){const s=e[i],a=i<e.length?e[i+1]:void 0;t=Object.assign(Object.assign({},t),{[s]:a})}return t},t=window.location.pathname.split("/");let i={page:t[2]||"general",params:{}};if(t.length>3){let s=t.slice(3);if(t.includes("filter")){const t=s.findIndex(e=>"filter"==e),a=s.slice(t+1);s=s.slice(0,t),i=Object.assign(Object.assign({},i),{filter:e(a)})}s.length&&(s.length%2&&(i=Object.assign(Object.assign({},i),{subpage:s.shift()})),s.length&&(i=Object.assign(Object.assign({},i),{params:e(s)})))}return i},Oa=(e,...t)=>{let i={page:e,params:{}};t.forEach(e=>{"string"==typeof e?i=Object.assign(Object.assign({},i),{subpage:e}):"params"in e?i=Object.assign(Object.assign({},i),{params:e.params}):"filter"in e&&(i=Object.assign(Object.assign({},i),{filter:e.filter}))});const s=e=>{let t=Object.keys(e);t=t.filter(t=>e[t]),t.sort();let i="";return t.forEach(t=>{const s=e[t];i=i.length?`${i}/${t}/${s}`:`${t}/${s}`}),i};let a=`/${_e}/${i.page}`;return i.subpage&&(a=`${a}/${i.subpage}`),s(i.params).length&&(a=`${a}/${s(i.params)}`),i.filter&&(a=`${a}/filter/${s(i.filter)}`),a},Ha=r`
+  `)}const $a=(e,t,s=!1)=>{s?history.replaceState(null,"",t):history.pushState(null,"",t),fa(window,"location-changed",{replace:s})};function xa(e){var t;if(!e)return"Unknown error";if("string"==typeof e)return e;const s=e;return(null===(t=null==s?void 0:s.body)||void 0===t?void 0:t.message)||(null==s?void 0:s.message)||(null==s?void 0:s.error)||JSON.stringify(e)}function ka(e,t){e.dispatchEvent(new CustomEvent("hass-notification",{detail:{message:t},bubbles:!0,composed:!0}))}function za(e,t,s,i){var a;ka(e,`${_a(s,null!==(a=null==t?void 0:t.language)&&void 0!==a?a:"en")}: ${xa(i)}`)}var Sa="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",Aa="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z";const Ea=e=>{class s extends e{connectedCallback(){super.connectedCallback(),this.__checkSubscribed()}disconnectedCallback(){if(super.disconnectedCallback(),this.__unsubs){for(;this.__unsubs.length;){const e=this.__unsubs.pop();e instanceof Promise?e.then(e=>e()):e()}this.__unsubs=void 0}}updated(e){super.updated(e),e.has("hass")&&this.__checkSubscribed()}hassSubscribe(){return[]}__checkSubscribed(){void 0===this.__unsubs&&this.isConnected&&void 0!==this.hass&&(this.__unsubs=this.hassSubscribe())}}return t([pe({attribute:!1})],s.prototype,"hass",void 0),s};var Ca,Ta;!function(e){e.Sunrise="sunrise",e.Sunset="sunset",e.SolarAzimuth="solar_azimuth"}(Ca||(Ca={})),function(e){e.Disabled="disabled",e.Manual="manual",e.Automatic="automatic"}(Ta||(Ta={}));const Oa=()=>{const e=e=>{let t={};for(let s=0;s<e.length;s+=2){const i=e[s],a=s<e.length?e[s+1]:void 0;t=Object.assign(Object.assign({},t),{[i]:a})}return t},t=window.location.pathname.split("/");let s={page:t[2]||"general",params:{}};if(t.length>3){let i=t.slice(3);if(t.includes("filter")){const t=i.findIndex(e=>"filter"==e),a=i.slice(t+1);i=i.slice(0,t),s=Object.assign(Object.assign({},s),{filter:e(a)})}i.length&&(i.length%2&&(s=Object.assign(Object.assign({},s),{subpage:i.shift()})),i.length&&(s=Object.assign(Object.assign({},s),{params:e(i)})))}return s},Ha=(e,...t)=>{let s={page:e,params:{}};t.forEach(e=>{"string"==typeof e?s=Object.assign(Object.assign({},s),{subpage:e}):"params"in e?s=Object.assign(Object.assign({},s),{params:e.params}):"filter"in e&&(s=Object.assign(Object.assign({},s),{filter:e.filter}))});const i=e=>{let t=Object.keys(e);t=t.filter(t=>e[t]),t.sort();let s="";return t.forEach(t=>{const i=e[t];s=s.length?`${s}/${t}/${i}`:`${t}/${i}`}),s};let a=`/${_e}/${s.page}`;return s.subpage&&(a=`${a}/${s.subpage}`),i(s.params).length&&(a=`${a}/${i(s.params)}`),s.filter&&(a=`${a}/filter/${i(s.filter)}`),a},Da=r`
   /* Existing common styles */
   ha-card {
     display: flex;
@@ -769,7 +769,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
   ha-dialog div.description {
     margin-bottom: 10px;
   }
-`;const Da=e=>String(e).padStart(2,"0");function Ma(e){return e instanceof Date?e:new Date(e)}function Ia(e){const t=Ma(e);return`${Da(t.getHours())}:${Da(t.getMinutes())}`}function Na(e){const t=Ma(e);return`${t.getFullYear()}-${Da(t.getMonth()+1)}-${Da(t.getDate())} ${Da(t.getHours())}:${Da(t.getMinutes())}`}function La(e,t){return e.getFullYear()===t.getFullYear()&&e.getMonth()===t.getMonth()&&e.getDate()===t.getDate()}class Pa extends(Aa(le)){constructor(){super(...arguments),this.hideSettingsLinks=!1,this.actionsMode="full",this.zones=[],this._distributors=[],this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this._operationError=null,this._confirmIrrigate=null,this._skipDetailsOpen=!1,this._runMinutes={},this._now=Date.now(),this._countdownTimer=null,this._updateScheduled=!1}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}firstUpdated(){Oi().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}disconnectedCallback(){super.disconnectedCallback(),this._stopCountdownTicker()}_syncCountdownTicker(){var e,t;const i=Object.keys(null!==(t=null===(e=this._outlook)||void 0===e?void 0:e.active_runs)&&void 0!==t?t:{}).length>0;i&&null===this._countdownTimer?this._countdownTimer=window.setInterval(()=>{this._now=Date.now()},1e3):i||this._stopCountdownTicker()}_stopCountdownTicker(){null!==this._countdownTimer&&(window.clearInterval(this._countdownTimer),this._countdownTimer=null)}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[i,s,a,n]=await Promise.all([pi(this.hass),mi(this.hass),(t=this.hass,t.callWS({type:_e+"/irrigation_outlook"})).catch(e=>{console.error("Failed to fetch irrigation outlook:",e)}),ki(this.hass).catch(e=>(console.error("Failed to fetch distributors:",e),[]))]);this.config=i,this.zones=s,this._outlook=a,this._distributors=n,this._initialLoadDone=!0,this._syncCountdownTicker()}catch(e){console.error("Error fetching data:",e),ka(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}var t}handleCalculateAllZones(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{calculate_all:!0})).catch(e=>{console.error("Failed to calculate all zones:",e),ka(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after calc-all:",e))}))}handleUpdateAllZones(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{update_all:!0})).catch(e=>{console.error("Failed to update all zones:",e),ka(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after update-all:",e))}))}_canActuate(e){return!!(e.linked_entity||"service"===e.watering_mode&&e.run_service||null!=e.distributor_id)}get _linkedZoneCount(){return this.zones.filter(e=>{var t;return this._canActuate(e)&&(null!==(t=e.duration)&&void 0!==t?t:0)>0}).length}async _doIrrigate(){var e;const t=this._confirmIrrigate;if(this._confirmIrrigate=null,null===t||!this.hass)return;const i="all"===t,s=i?void 0:this.zones.find(e=>{var i;return(null===(i=e.id)||void 0===i?void 0:i.toString())===t}),a=i?`(${this._linkedZoneCount})`:`: ${null!==(e=null==s?void 0:s.name)&&void 0!==e?e:t}`;try{await(n=this.hass,o=i?void 0:t,n.callWS(Object.assign({type:_e+"/irrigate_now"},void 0!==o?{zone_id:o}:{}))),xa(this,`${va("panels.zones.confirm_irrigate.toast_started",this.hass.language)} ${a}`)}catch(e){const t=$a(e);console.error("irrigate_now failed",e),xa(this,`${va("panels.zones.confirm_irrigate.toast_failed",this.hass.language)}: ${t}`)}var n,o}get _rainDelayUntil(){var e;const t=null===(e=this._outlook)||void 0===e?void 0:e.rain_delay_until;if(!t)return null;const i=new Date(t);return i.getTime()>Date.now()?i:null}async _setRainDelay(e){if(this.hass)try{await((e,t)=>e.callWS({type:_e+"/set_rain_delay",hours:t}))(this.hass,e),await this._fetchData()}catch(e){console.error("set_rain_delay failed",e),ka(this,this.hass,"common.errors.action_failed",e)}}async _clearRainDelay(){var e;if(this.hass)try{await(e=this.hass,e.callWS({type:_e+"/clear_rain_delay"})),await this._fetchData()}catch(e){console.error("clear_rain_delay failed",e),ka(this,this.hass,"common.errors.action_failed",e)}}_zoneRunMinutes(e){var t,i;const s=String(null!==(t=e.id)&&void 0!==t?t:"");return null!==(i=this._runMinutes[s])&&void 0!==i?i:10}_zoneDistributor(e){if(null!=e.distributor_id)return this._distributors.find(t=>t.id===e.distributor_id)}_distributorBusy(e){var t;const i=this._zoneDistributor(e);return!!i&&Object.keys(null!==(t=i.active_cycle)&&void 0!==t?t:{}).length>0}async _runZoneFor(e){if(!this.hass||!this._canActuate(e)||void 0===e.id)return;if(this._distributorBusy(e))return;const t=this._zoneRunMinutes(e);var i,s,a;if(t>0)try{await(i=this.hass,s=e.id.toString(),a=t,i.callWS({type:_e+"/run_zone",zone_id:s,duration:a})),xa(this,`${va("panels.zones.run_zone.toast_started",this.hass.language)}: ${e.name} (${t} min)`)}catch(e){const t=$a(e);console.error("run_zone failed",e),xa(this,`${va("panels.zones.confirm_irrigate.toast_failed",this.hass.language)}: ${t}`)}}_activeRun(e){var t,i;if(void 0!==e.id)return null===(i=null===(t=this._outlook)||void 0===t?void 0:t.active_runs)||void 0===i?void 0:i[String(e.id)]}_runSecondsLeft(e){if(!e.ends_at)return null;const t=Math.round((new Date(e.ends_at).getTime()-this._now)/1e3);return t>0?t:0}async _stopZone(e){var t,i;if(this.hass&&void 0!==e.id)try{await(t=this.hass,i=e.id.toString(),t.callWS({type:_e+"/stop_zone",zone_id:i})),xa(this,`${va("panels.zones.stop_zone.toast_stopped",this.hass.language)}: ${e.name}`),await this._fetchData()}catch(e){const t=$a(e);console.error("stop_zone failed",e),xa(this,`${va("panels.zones.confirm_irrigate.toast_failed",this.hass.language)}: ${t}`)}}handleCalculateZone(e){const t=this.zones[e];var i,s;t&&null!=t.id&&this.hass&&(this._operationError=null,this.isSaving=!0,this._scheduleUpdate(),(i=this.hass,s=t.id.toString(),i.callApi("POST",_e+"/zones",{id:s,calculate:!0,override_cache:!0})).catch(e=>{const t=$a(e);console.error("calculateZone failed:",e),this._operationError=t}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after calc:",e))}))}handleUpdateZone(e){const t=this.zones[e];var i,s;t&&null!=t.id&&this.hass&&(this._operationError=null,this.isSaving=!0,this._scheduleUpdate(),(i=this.hass,s=t.id.toString(),i.callApi("POST",_e+"/zones",{id:s,update:!0})).catch(e=>{const t=$a(e);console.error("updateZone failed:",e),this._operationError=t}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after update:",e))}))}_openZoneSettings(e){const t=void 0!==e.id?{params:{zone:String(e.id)}}:void 0;wa(0,t?Oa("setup","zones",t):Oa("setup","zones"))}_runTargetsZone(e,t){return"all"===e.zones||!(!Array.isArray(e.zones)||void 0===t.id)&&e.zones.map(e=>Number(e)).includes(Number(t.id))}get _nextIrrigateRun(){var e;return null===(e=this._outlook)||void 0===e?void 0:e.upcoming_runs.find(e=>"irrigate"===e.action&&e.next_run_utc)}_nextIrrigateRunForZone(e){var t;return null===(t=this._outlook)||void 0===t?void 0:t.upcoming_runs.find(t=>"irrigate"===t.action&&t.next_run_utc&&this._runTargetsZone(t,e))}get _activeGuards(){var e,t;return null!==(t=null===(e=this._outlook)||void 0===e?void 0:e.skip_preview.checks.filter(e=>e.enabled))&&void 0!==t?t:[]}get _triggeredGuards(){return this._activeGuards.filter(e=>e.would_skip)}_zoneHasDeficit(e){var t,i,s;const a=null!==(t=e.duration)&&void 0!==t?t:0,n=Number(null!==(i=e.bucket_threshold)&&void 0!==i?i:0),o=this._zoneEstimate(e),r=o&&o.available&&null!=o.live_deficit?o.live_deficit:Number(null!==(s=e.bucket)&&void 0!==s?s:0);return a>0&&r<n}_formatRunTime(e){if(!this.hass)return"";const t=this.hass.language,i=new Date(e),s=Ia(i),a=new Date;return La(i,a)?`${va("panels.zones.outlook.today",t)} ${s}`:La(i,function(e,t){const i=new Date(e.getTime());return i.setDate(i.getDate()+t),i}(a,1))?`${va("panels.zones.outlook.tomorrow",t)} ${s}`:function(e,t){const i=Ma(e);return`${new Intl.DateTimeFormat(t,{weekday:"short"}).format(i)} ${Ia(i)}`}(i,t)}_guardLabel(e){return va(`panels.zones.outlook.checks.${e.id}`,this.hass.language)}_guardDetail(e){var t;return e.available&&null!==e.observed?va(`panels.zones.outlook.check_detail.${e.id}`,this.hass.language,"{observed}",String(e.observed),"{threshold}",String(null!==(t=e.threshold)&&void 0!==t?t:"")):""}_renderSkipReasons(){const e=this.hass.language;return Z`
+`;const Ma=e=>String(e).padStart(2,"0");function Ia(e){return e instanceof Date?e:new Date(e)}function Na(e){const t=Ia(e);return`${Ma(t.getHours())}:${Ma(t.getMinutes())}`}function La(e){const t=Ia(e);return`${t.getFullYear()}-${Ma(t.getMonth()+1)}-${Ma(t.getDate())} ${Ma(t.getHours())}:${Ma(t.getMinutes())}`}function Pa(e,t){return e.getFullYear()===t.getFullYear()&&e.getMonth()===t.getMonth()&&e.getDate()===t.getDate()}class Ra extends(Ea(le)){constructor(){super(...arguments),this.hideSettingsLinks=!1,this.actionsMode="full",this.zones=[],this._distributors=[],this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this._operationError=null,this._confirmIrrigate=null,this._skipDetailsOpen=!1,this._runMinutes={},this._now=Date.now(),this._countdownTimer=null,this._updateScheduled=!1}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}firstUpdated(){Hs().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}disconnectedCallback(){super.disconnectedCallback(),this._stopCountdownTicker()}_syncCountdownTicker(){var e,t;const s=Object.keys(null!==(t=null===(e=this._outlook)||void 0===e?void 0:e.active_runs)&&void 0!==t?t:{}).length>0;s&&null===this._countdownTimer?this._countdownTimer=window.setInterval(()=>{this._now=Date.now()},1e3):s||this._stopCountdownTicker()}_stopCountdownTicker(){null!==this._countdownTimer&&(window.clearInterval(this._countdownTimer),this._countdownTimer=null)}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[s,i,a,n]=await Promise.all([gs(this.hass),vs(this.hass),(t=this.hass,t.callWS({type:_e+"/irrigation_outlook"})).catch(e=>{console.error("Failed to fetch irrigation outlook:",e)}),zs(this.hass).catch(e=>(console.error("Failed to fetch distributors:",e),[]))]);this.config=s,this.zones=i,this._outlook=a,this._distributors=n,this._initialLoadDone=!0,this._syncCountdownTicker()}catch(e){console.error("Error fetching data:",e),za(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}var t}handleCalculateAllZones(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{calculate_all:!0})).catch(e=>{console.error("Failed to calculate all zones:",e),za(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after calc-all:",e))}))}handleUpdateAllZones(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{update_all:!0})).catch(e=>{console.error("Failed to update all zones:",e),za(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after update-all:",e))}))}_canActuate(e){return!!(e.linked_entity||"service"===e.watering_mode&&e.run_service||null!=e.distributor_id)}get _linkedZoneCount(){return this.zones.filter(e=>{var t;return this._canActuate(e)&&(null!==(t=e.duration)&&void 0!==t?t:0)>0}).length}async _doIrrigate(){var e;const t=this._confirmIrrigate;if(this._confirmIrrigate=null,null===t||!this.hass)return;const s="all"===t,i=s?void 0:this.zones.find(e=>{var s;return(null===(s=e.id)||void 0===s?void 0:s.toString())===t}),a=s?`(${this._linkedZoneCount})`:`: ${null!==(e=null==i?void 0:i.name)&&void 0!==e?e:t}`;try{await(n=this.hass,o=s?void 0:t,n.callWS(Object.assign({type:_e+"/irrigate_now"},void 0!==o?{zone_id:o}:{}))),ka(this,`${_a("panels.zones.confirm_irrigate.toast_started",this.hass.language)} ${a}`)}catch(e){const t=xa(e);console.error("irrigate_now failed",e),ka(this,`${_a("panels.zones.confirm_irrigate.toast_failed",this.hass.language)}: ${t}`)}var n,o}get _rainDelayUntil(){var e;const t=null===(e=this._outlook)||void 0===e?void 0:e.rain_delay_until;if(!t)return null;const s=new Date(t);return s.getTime()>Date.now()?s:null}async _setRainDelay(e){if(this.hass)try{await((e,t)=>e.callWS({type:_e+"/set_rain_delay",hours:t}))(this.hass,e),await this._fetchData()}catch(e){console.error("set_rain_delay failed",e),za(this,this.hass,"common.errors.action_failed",e)}}async _clearRainDelay(){var e;if(this.hass)try{await(e=this.hass,e.callWS({type:_e+"/clear_rain_delay"})),await this._fetchData()}catch(e){console.error("clear_rain_delay failed",e),za(this,this.hass,"common.errors.action_failed",e)}}_zoneRunMinutes(e){var t,s;const i=String(null!==(t=e.id)&&void 0!==t?t:"");return null!==(s=this._runMinutes[i])&&void 0!==s?s:10}_zoneDistributor(e){if(null!=e.distributor_id)return this._distributors.find(t=>t.id===e.distributor_id)}_distributorBusy(e){var t;const s=this._zoneDistributor(e);return!!s&&Object.keys(null!==(t=s.active_cycle)&&void 0!==t?t:{}).length>0}async _runZoneFor(e){if(!this.hass||!this._canActuate(e)||void 0===e.id)return;if(this._distributorBusy(e))return;const t=this._zoneRunMinutes(e);var s,i,a;if(t>0)try{await(s=this.hass,i=e.id.toString(),a=t,s.callWS({type:_e+"/run_zone",zone_id:i,duration:a})),ka(this,`${_a("panels.zones.run_zone.toast_started",this.hass.language)}: ${e.name} (${t} min)`)}catch(e){const t=xa(e);console.error("run_zone failed",e),ka(this,`${_a("panels.zones.confirm_irrigate.toast_failed",this.hass.language)}: ${t}`)}}_activeRun(e){var t,s;if(void 0!==e.id)return null===(s=null===(t=this._outlook)||void 0===t?void 0:t.active_runs)||void 0===s?void 0:s[String(e.id)]}_runSecondsLeft(e){if(!e.ends_at)return null;const t=Math.round((new Date(e.ends_at).getTime()-this._now)/1e3);return t>0?t:0}async _stopZone(e){var t,s;if(this.hass&&void 0!==e.id)try{await(t=this.hass,s=e.id.toString(),t.callWS({type:_e+"/stop_zone",zone_id:s})),ka(this,`${_a("panels.zones.stop_zone.toast_stopped",this.hass.language)}: ${e.name}`),await this._fetchData()}catch(e){const t=xa(e);console.error("stop_zone failed",e),ka(this,`${_a("panels.zones.confirm_irrigate.toast_failed",this.hass.language)}: ${t}`)}}handleCalculateZone(e){const t=this.zones[e];var s,i;t&&null!=t.id&&this.hass&&(this._operationError=null,this.isSaving=!0,this._scheduleUpdate(),(s=this.hass,i=t.id.toString(),s.callApi("POST",_e+"/zones",{id:i,calculate:!0,override_cache:!0})).catch(e=>{const t=xa(e);console.error("calculateZone failed:",e),this._operationError=t}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after calc:",e))}))}handleUpdateZone(e){const t=this.zones[e];var s,i;t&&null!=t.id&&this.hass&&(this._operationError=null,this.isSaving=!0,this._scheduleUpdate(),(s=this.hass,i=t.id.toString(),s.callApi("POST",_e+"/zones",{id:i,update:!0})).catch(e=>{const t=xa(e);console.error("updateZone failed:",e),this._operationError=t}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after update:",e))}))}_openZoneSettings(e){const t=void 0!==e.id?{params:{zone:String(e.id)}}:void 0;$a(0,t?Ha("setup","zones",t):Ha("setup","zones"))}_runTargetsZone(e,t){return"all"===e.zones||!(!Array.isArray(e.zones)||void 0===t.id)&&e.zones.map(e=>Number(e)).includes(Number(t.id))}get _nextIrrigateRun(){var e;return null===(e=this._outlook)||void 0===e?void 0:e.upcoming_runs.find(e=>"irrigate"===e.action&&e.next_run_utc)}_nextIrrigateRunForZone(e){var t;return null===(t=this._outlook)||void 0===t?void 0:t.upcoming_runs.find(t=>"irrigate"===t.action&&t.next_run_utc&&this._runTargetsZone(t,e))}get _activeGuards(){var e,t;return null!==(t=null===(e=this._outlook)||void 0===e?void 0:e.skip_preview.checks.filter(e=>e.enabled))&&void 0!==t?t:[]}get _triggeredGuards(){return this._activeGuards.filter(e=>e.would_skip)}_zoneHasDeficit(e){var t,s,i;const a=null!==(t=e.duration)&&void 0!==t?t:0,n=Number(null!==(s=e.bucket_threshold)&&void 0!==s?s:0),o=this._zoneEstimate(e),r=o&&o.available&&null!=o.live_deficit?o.live_deficit:Number(null!==(i=e.bucket)&&void 0!==i?i:0);return a>0&&r<n}_formatRunTime(e){if(!this.hass)return"";const t=this.hass.language,s=new Date(e),i=Na(s),a=new Date;return Pa(s,a)?`${_a("panels.zones.outlook.today",t)} ${i}`:Pa(s,function(e,t){const s=new Date(e.getTime());return s.setDate(s.getDate()+t),s}(a,1))?`${_a("panels.zones.outlook.tomorrow",t)} ${i}`:function(e,t){const s=Ia(e);return`${new Intl.DateTimeFormat(t,{weekday:"short"}).format(s)} ${Na(s)}`}(s,t)}_guardLabel(e){return _a(`panels.zones.outlook.checks.${e.id}`,this.hass.language)}_guardDetail(e){var t;return e.available&&null!==e.observed?_a(`panels.zones.outlook.check_detail.${e.id}`,this.hass.language,"{observed}",String(e.observed),"{threshold}",String(null!==(t=e.threshold)&&void 0!==t?t:"")):""}_renderSkipReasons(){const e=this.hass.language;return Z`
       <div class="outlook-line outlook-skip-reasons">
         <ul class="skip-reasons">
           ${this._triggeredGuards.map(e=>{const t=this._guardDetail(e);return Z`<li>
@@ -778,16 +778,16 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         </ul>
       </div>
       <div class="outlook-line outlook-dim skip-reasons-note">
-        ${va("panels.zones.outlook.provisional",e)}
+        ${_a("panels.zones.outlook.provisional",e)}
       </div>
-    `}_openSchedules(){wa(0,Oa("setup","when-to-water"))}_runActionLabel(e){return va(`panels.zones.outlook.actions.${e.action}`,this.hass.language)}_runTargetsLabel(e){const t=this.hass.language;if("all"===e.zones)return va("panels.zones.outlook.targets_all",t);const i=Array.isArray(e.zones)?e.zones.length:0;return va("panels.zones.outlook.targets_zones",t,"{count}",String(i))}_renderOutlookBanner(){if(!this.hass||!this._outlook)return Z``;const e=this.hass.language,t=this._nextIrrigateRun,i=this._triggeredGuards,s=this._outlook.last_skip_evaluation;return t&&t.next_run_utc?Z`
+    `}_openSchedules(){$a(0,Ha("setup","when-to-water"))}_runActionLabel(e){return _a(`panels.zones.outlook.actions.${e.action}`,this.hass.language)}_runTargetsLabel(e){const t=this.hass.language;if("all"===e.zones)return _a("panels.zones.outlook.targets_all",t);const s=Array.isArray(e.zones)?e.zones.length:0;return _a("panels.zones.outlook.targets_zones",t,"{count}",String(s))}_renderOutlookBanner(){if(!this.hass||!this._outlook)return Z``;const e=this.hass.language,t=this._nextIrrigateRun,s=this._triggeredGuards,i=this._outlook.last_skip_evaluation;return t&&t.next_run_utc?Z`
       <ha-card class="outlook-card">
         <div class="outlook">
           <div class="outlook-line outlook-headline">
             <ha-icon icon="mdi:calendar-clock"></ha-icon>
             <span>
               <strong
-                >${va("panels.zones.outlook.next_run",e)}:</strong
+                >${_a("panels.zones.outlook.next_run",e)}:</strong
               >
               ${this._runActionLabel(t)}
               ${this._formatRunTime(t.next_run_utc)}
@@ -797,23 +797,23 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             </span>
           </div>
 
-          ${i.length>0?Z`
+          ${s.length>0?Z`
                 <div class="outlook-line outlook-skip">
                   <ha-icon icon="mdi:alert"></ha-icon>
                   <span
-                    >${va("panels.zones.outlook.will_skip",e)}</span
+                    >${_a("panels.zones.outlook.will_skip",e)}</span
                   >
                   <button
                     class="outlook-info-btn"
                     aria-expanded="${this._skipDetailsOpen}"
-                    title="${va("panels.zones.outlook.why_skipped",e)}"
+                    title="${_a("panels.zones.outlook.why_skipped",e)}"
                     @click="${()=>{this._skipDetailsOpen=!this._skipDetailsOpen}}"
                   >
                     <ha-icon
                       icon="${this._skipDetailsOpen?"mdi:chevron-up":"mdi:information-outline"}"
                     ></ha-icon>
                     <span class="outlook-info-label"
-                      >${va("panels.zones.outlook.why_skipped",e)}</span
+                      >${_a("panels.zones.outlook.why_skipped",e)}</span
                     >
                   </button>
                 </div>
@@ -822,11 +822,11 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 <div class="outlook-line outlook-clear">
                   <ha-icon icon="mdi:check-circle-outline"></ha-icon>
                   <span
-                    >${va("panels.zones.outlook.will_run",e)}</span
+                    >${_a("panels.zones.outlook.will_run",e)}</span
                   >
                 </div>
               `}
-          ${s?this._renderLastRunLine(s):""}
+          ${i?this._renderLastRunLine(i):""}
         </div>
       </ha-card>
     `:Z`
@@ -834,17 +834,17 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           <div class="outlook">
             <div class="outlook-line outlook-headline">
               <ha-icon icon="mdi:calendar-alert"></ha-icon>
-              <span>${va("panels.zones.outlook.no_schedule",e)}</span>
+              <span>${_a("panels.zones.outlook.no_schedule",e)}</span>
               ${this.hideSettingsLinks?"":Z`
                     <button
                       class="outlook-link"
                       @click="${this._openSchedules}"
                     >
-                      ${va("panels.zones.outlook.setup_schedule",e)}
+                      ${_a("panels.zones.outlook.setup_schedule",e)}
                     </button>
                   `}
             </div>
-            ${s?this._renderLastRunLine(s):""}
+            ${i?this._renderLastRunLine(i):""}
           </div>
         </ha-card>
       `}_renderRainDelay(){if(!this.hass||"none"===this.actionsMode)return Z``;const e=this.hass.language,t=this._rainDelayUntil;return t?Z`
@@ -853,14 +853,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             <ha-icon icon="mdi:pause-circle"></ha-icon>
             <span class="rain-delay-msg">
               <strong
-                >${va("panels.zones.rain_delay.paused",e)}</strong
+                >${_a("panels.zones.rain_delay.paused",e)}</strong
               >
-              ${va("panels.zones.rain_delay.until",e)}
-              ${Na(t.toISOString())}
+              ${_a("panels.zones.rain_delay.until",e)}
+              ${La(t.toISOString())}
             </span>
             <button class="action-btn" @click="${()=>this._clearRainDelay()}">
               <ha-icon icon="mdi:play"></ha-icon>
-              ${va("panels.zones.rain_delay.resume",e)}
+              ${_a("panels.zones.rain_delay.resume",e)}
             </button>
           </div>
         </ha-card>
@@ -868,71 +868,71 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       <div class="rain-delay-row">
         <span class="rain-delay-label">
           <ha-icon icon="mdi:weather-rainy"></ha-icon>
-          ${va("panels.zones.rain_delay.title",e)}
+          ${_a("panels.zones.rain_delay.title",e)}
         </span>
         <button class="action-btn" @click="${()=>this._setRainDelay(24)}">
-          ${va("panels.zones.rain_delay.delay_24h",e)}
+          ${_a("panels.zones.rain_delay.delay_24h",e)}
         </button>
         <button class="action-btn" @click="${()=>this._setRainDelay(48)}">
-          ${va("panels.zones.rain_delay.delay_48h",e)}
+          ${_a("panels.zones.rain_delay.delay_48h",e)}
         </button>
       </div>
-    `}_renderLastRunLine(e){const t=this.hass.language,i=function(e,t){const i=Ma(e).getTime()-Date.now(),s=new Intl.RelativeTimeFormat(t,{numeric:"auto"}),a=Math.round(i/1e3);if(Math.abs(a)<60)return s.format(a,"second");const n=Math.round(a/60);if(Math.abs(n)<60)return s.format(n,"minute");const o=Math.round(n/60);if(Math.abs(o)<24)return s.format(o,"hour");const r=Math.round(o/24);if(Math.abs(r)<30)return s.format(r,"day");const l=Math.round(r/30);return Math.abs(l)<12?s.format(l,"month"):s.format(Math.round(l/12),"year")}(e.timestamp,t),s=e.checks.filter(e=>e.enabled&&e.would_skip).map(e=>this._guardLabel(e).toLowerCase()).join(", "),a=e.would_skip?`${va("panels.zones.outlook.last_run_skipped",t)}${s?` (${s})`:""}`:va("panels.zones.outlook.last_run_ran",t);return Z`
+    `}_renderLastRunLine(e){const t=this.hass.language,s=function(e,t){const s=Ia(e).getTime()-Date.now(),i=new Intl.RelativeTimeFormat(t,{numeric:"auto"}),a=Math.round(s/1e3);if(Math.abs(a)<60)return i.format(a,"second");const n=Math.round(a/60);if(Math.abs(n)<60)return i.format(n,"minute");const o=Math.round(n/60);if(Math.abs(o)<24)return i.format(o,"hour");const r=Math.round(o/24);if(Math.abs(r)<30)return i.format(r,"day");const l=Math.round(r/30);return Math.abs(l)<12?i.format(l,"month"):i.format(Math.round(l/12),"year")}(e.timestamp,t),i=e.checks.filter(e=>e.enabled&&e.would_skip).map(e=>this._guardLabel(e).toLowerCase()).join(", "),a=e.would_skip?`${_a("panels.zones.outlook.last_run_skipped",t)}${i?` (${i})`:""}`:_a("panels.zones.outlook.last_run_ran",t);return Z`
       <div class="outlook-line outlook-last">
         <span class="outlook-dim"
-          >${va("panels.zones.outlook.last_run",t)}:</span
+          >${_a("panels.zones.outlook.last_run",t)}:</span
         >
-        <span>${a} · ${i}</span>
+        <span>${a} · ${s}</span>
       </div>
-    `}_renderZoneDecision(e){var t;if(!this.hass)return Z``;const i=this.hass.language,s=null!==(t=e.duration)&&void 0!==t?t:0;let a,n,o;if(e.state===Ca.Disabled)a=va("panels.zones.status.decision_disabled",i),n="neutral",o="mdi:power-off";else if(e.last_calculated)if(this._zoneHasDeficit(e)){const t=function(e){const t=Math.round(e);if(t<60)return`${t} s`;const i=Math.floor(t/60),s=t%60;return s?`${i} min ${s} s`:`${i} min`}(s),r=this._triggeredGuards,l=this._nextIrrigateRunForZone(e);r.length>0?(a=va("panels.zones.status.decision_water_skip",i,"{duration}",t,"{reason}",this._guardLabel(r[0]).toLowerCase()),n="skip",o="mdi:weather-rainy"):l&&l.next_run_utc?(a=va("panels.zones.status.decision_water_at",i,"{duration}",t,"{time}",this._formatRunTime(l.next_run_utc)),n="water",o="mdi:water"):(a=va("panels.zones.status.decision_water_no_schedule",i,"{duration}",t),n="water",o="mdi:water-alert")}else a=va("panels.zones.status.decision_no_water",i),n="ok",o="mdi:check-circle-outline";else a=va("panels.zones.status.decision_unknown",i),n="unknown",o="mdi:help-circle-outline";return Z`
+    `}_renderZoneDecision(e){var t;if(!this.hass)return Z``;const s=this.hass.language,i=null!==(t=e.duration)&&void 0!==t?t:0;let a,n,o;if(e.state===Ta.Disabled)a=_a("panels.zones.status.decision_disabled",s),n="neutral",o="mdi:power-off";else if(e.last_calculated)if(this._zoneHasDeficit(e)){const t=function(e){const t=Math.round(e);if(t<60)return`${t} s`;const s=Math.floor(t/60),i=t%60;return i?`${s} min ${i} s`:`${s} min`}(i),r=this._triggeredGuards,l=this._nextIrrigateRunForZone(e);r.length>0?(a=_a("panels.zones.status.decision_water_skip",s,"{duration}",t,"{reason}",this._guardLabel(r[0]).toLowerCase()),n="skip",o="mdi:weather-rainy"):l&&l.next_run_utc?(a=_a("panels.zones.status.decision_water_at",s,"{duration}",t,"{time}",this._formatRunTime(l.next_run_utc)),n="water",o="mdi:water"):(a=_a("panels.zones.status.decision_water_no_schedule",s,"{duration}",t),n="water",o="mdi:water-alert")}else a=_a("panels.zones.status.decision_no_water",s),n="ok",o="mdi:check-circle-outline";else a=_a("panels.zones.status.decision_unknown",s),n="unknown",o="mdi:help-circle-outline";return Z`
       <div class="zone-decision ${n}">
         <ha-icon icon="${o}"></ha-icon>
         <span>${a}</span>
       </div>
-    `}_zoneEstimate(e){var t,i;if(void 0!==e.id)return null===(i=null===(t=this._outlook)||void 0===t?void 0:t.zone_estimates)||void 0===i?void 0:i[String(e.id)]}_zoneFault(e){var t,i;if(void 0!==e.id)return null===(i=null===(t=this._outlook)||void 0===t?void 0:t.zone_faults)||void 0===i?void 0:i[String(e.id)]}_renderZoneFault(e){if(!this.hass)return Z``;const t=this._zoneFault(e);if(!t)return Z``;const i=this.hass.language,s=va(`panels.zones.fault.${t.reason}`,i)||va("panels.zones.fault.generic",i),a=t.timestamp?Na(t.timestamp):"";return Z`
+    `}_zoneEstimate(e){var t,s;if(void 0!==e.id)return null===(s=null===(t=this._outlook)||void 0===t?void 0:t.zone_estimates)||void 0===s?void 0:s[String(e.id)]}_zoneFault(e){var t,s;if(void 0!==e.id)return null===(s=null===(t=this._outlook)||void 0===t?void 0:t.zone_faults)||void 0===s?void 0:s[String(e.id)]}_renderZoneFault(e){if(!this.hass)return Z``;const t=this._zoneFault(e);if(!t)return Z``;const s=this.hass.language,i=_a(`panels.zones.fault.${t.reason}`,s)||_a("panels.zones.fault.generic",s),a=t.timestamp?La(t.timestamp):"";return Z`
       <div class="zone-fault" title="${a}">
         <ha-icon icon="mdi:alert-circle"></ha-icon>
         <span>
-          <strong>${va("panels.zones.fault.title",i)}</strong>
-          — ${s}
+          <strong>${_a("panels.zones.fault.title",s)}</strong>
+          — ${i}
         </span>
       </div>
-    `}_zoneSkip(e){var t,i;if(void 0!==e.id)return null===(i=null===(t=this._outlook)||void 0===t?void 0:t.zone_skips)||void 0===i?void 0:i[String(e.id)]}_renderZoneSkip(e){if(!this.hass)return Z``;const t=this._zoneSkip(e);if(!t)return Z``;const i=this.hass.language,s=va("panels.zones.skip.soil_moisture",i,"{observed}",String(t.observed),"{threshold}",String(t.threshold)),a=t.timestamp?Na(t.timestamp):"";return Z`
+    `}_zoneSkip(e){var t,s;if(void 0!==e.id)return null===(s=null===(t=this._outlook)||void 0===t?void 0:t.zone_skips)||void 0===s?void 0:s[String(e.id)]}_renderZoneSkip(e){if(!this.hass)return Z``;const t=this._zoneSkip(e);if(!t)return Z``;const s=this.hass.language,i=_a("panels.zones.skip.soil_moisture",s,"{observed}",String(t.observed),"{threshold}",String(t.threshold)),a=t.timestamp?La(t.timestamp):"";return Z`
       <div class="zone-skip" title="${a}">
         <ha-icon icon="mdi:water-off"></ha-icon>
         <span>
-          <strong>${va("panels.zones.skip.title",i)}</strong>
-          — ${s}
+          <strong>${_a("panels.zones.skip.title",s)}</strong>
+          — ${i}
         </span>
       </div>
-    `}_renderZoneEstimate(e){if(!this.hass)return Z``;const t=this._zoneEstimate(e);if(!t||!t.available||null==t.live_deficit)return Z``;const i=this.hass.language,s=ba(this.config,mt),a=t.live_deficit<0?"var(--warning-color)":"var(--success-color)",n=va(`panels.zones.status.estimate_method.${"proxy"===t.method?"proxy":"hourly"}`,i)+(t.as_of?` · ${Ia(t.as_of)}`:"");return Z`
+    `}_renderZoneEstimate(e){if(!this.hass)return Z``;const t=this._zoneEstimate(e);if(!t||!t.available||null==t.live_deficit)return Z``;const s=this.hass.language,i=ya(this.config,mt),a=t.live_deficit<0?"var(--warning-color)":"var(--success-color)",n=_a(`panels.zones.status.estimate_method.${"proxy"===t.method?"proxy":"hourly"}`,s)+(t.as_of?` · ${Na(t.as_of)}`:"");return Z`
       <span class="status-sep">·</span>
       <span class="zone-estimate" title="${n}">
-        ${va("panels.zones.status.estimate_now",i)}
+        ${_a("panels.zones.status.estimate_now",s)}
         <strong style="color: ${a}"
-          >≈ ${t.live_deficit.toFixed(2)} ${s}</strong
+          >≈ ${t.live_deficit.toFixed(2)} ${i}</strong
         >
         <span class="estimate-tag"
-          >${va("panels.zones.status.estimate_tag",i)}</span
+          >${_a("panels.zones.status.estimate_tag",s)}</span
         >
       </span>
-    `}_renderZoneNextRun(e){if(!this.hass)return Z``;const t=this._nextIrrigateRunForZone(e);if(!t||!t.next_run_utc)return Z``;return e.state!==Ca.Disabled&&e.last_calculated&&this._zoneHasDeficit(e)&&0===this._triggeredGuards.length?Z``:Z`
+    `}_renderZoneNextRun(e){if(!this.hass)return Z``;const t=this._nextIrrigateRunForZone(e);if(!t||!t.next_run_utc)return Z``;return e.state!==Ta.Disabled&&e.last_calculated&&this._zoneHasDeficit(e)&&0===this._triggeredGuards.length?Z``:Z`
       <span class="status-sep">·</span>
       <span>
-        ${va("panels.zones.outlook.next_run",this.hass.language)}:
+        ${_a("panels.zones.outlook.next_run",this.hass.language)}:
         <strong>${this._formatRunTime(t.next_run_utc)}</strong>
       </span>
-    `}renderZone(e,t){var i;if(!this.hass)return Z``;const s=Number(null!==(i=e.bucket)&&void 0!==i?i:0),a=s<0?"var(--warning-color)":"var(--success-color)",n=e.state===Ca.Automatic?"state-automatic":e.state===Ca.Manual?"state-manual":"state-disabled",o=e.last_calculated?Na(e.last_calculated):va("panels.zones.status.never",this.hass.language);return Z`
+    `}renderZone(e,t){var s;if(!this.hass)return Z``;const i=Number(null!==(s=e.bucket)&&void 0!==s?s:0),a=i<0?"var(--warning-color)":"var(--success-color)",n=e.state===Ta.Automatic?"state-automatic":e.state===Ta.Manual?"state-manual":"state-disabled",o=e.last_calculated?La(e.last_calculated):_a("panels.zones.status.never",this.hass.language);return Z`
       <ha-card>
         <div class="card-header">
           <div class="name">${e.name}</div>
           <span class="zone-state-badge ${n}">
-            ${va(`panels.zones.labels.states.${e.state}`,this.hass.language)}
+            ${_a(`panels.zones.labels.states.${e.state}`,this.hass.language)}
           </span>
           ${this.hideSettingsLinks?"":Z`
                 <ha-icon-button
                   .path="${"M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"}"
-                  title="${va("panels.zones.actions.open_settings",this.hass.language)}"
+                  title="${_a("panels.zones.actions.open_settings",this.hass.language)}"
                   @click="${()=>this._openZoneSettings(e)}"
                 ></ha-icon-button>
               `}
@@ -951,17 +951,17 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         <div class="card-content">
           <div class="zone-status-line">
             <span
-              title="${va("panels.zones.help.bucket",this.hass.language)}"
+              title="${_a("panels.zones.help.bucket",this.hass.language)}"
             >
-              ${va("panels.zones.labels.bucket",this.hass.language)}:
+              ${_a("panels.zones.labels.bucket",this.hass.language)}:
               <strong style="color: ${a}"
-                >${s.toFixed(2)}
-                ${ba(this.config,mt)}</strong
+                >${i.toFixed(2)}
+                ${ya(this.config,mt)}</strong
               >
             </span>
             <span class="status-sep">·</span>
             <span>
-              ${va("panels.zones.status.last_checked",this.hass.language)}:
+              ${_a("panels.zones.status.last_checked",this.hass.language)}:
               <strong>${o}</strong>
             </span>
             ${this._renderZoneEstimate(e)} ${this._renderZoneNextRun(e)}
@@ -970,24 +970,24 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
         <!-- ACTION BUTTONS -->
         <div class="card-content zone-action-bar">
-          ${"full"===this.actionsMode&&e.state===Ca.Automatic?Z`
+          ${"full"===this.actionsMode&&e.state===Ta.Automatic?Z`
                 <button
                   class="action-btn"
-                  title="${va("panels.zones.help.update",this.hass.language)}"
+                  title="${_a("panels.zones.help.update",this.hass.language)}"
                   @click="${()=>this.handleUpdateZone(t)}"
                   ?disabled="${this.isSaving}"
                 >
                   <ha-icon icon="mdi:update"></ha-icon>
-                  ${va("panels.zones.actions.update",this.hass.language)}
+                  ${_a("panels.zones.actions.update",this.hass.language)}
                 </button>
                 <button
                   class="action-btn"
-                  title="${va("panels.zones.help.calculate",this.hass.language)}"
+                  title="${_a("panels.zones.help.calculate",this.hass.language)}"
                   @click="${()=>this.handleCalculateZone(t)}"
                   ?disabled="${this.isSaving}"
                 >
                   <ha-icon icon="mdi:calculator"></ha-icon>
-                  ${va("panels.zones.actions.calculate",this.hass.language)}
+                  ${_a("panels.zones.actions.calculate",this.hass.language)}
                 </button>
               `:""}
           ${"none"!==this.actionsMode&&this._canActuate(e)&&this._zoneHasDeficit(e)?Z`
@@ -998,43 +998,43 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   ?disabled="${this.isSaving||this._distributorBusy(e)}"
                 >
                   <ha-icon icon="mdi:water"></ha-icon>
-                  ${va("panels.zones.labels.irrigate_now",this.hass.language)}
+                  ${_a("panels.zones.labels.irrigate_now",this.hass.language)}
                 </button>
               `:this._canActuate(e)?"":Z`
                   <button
                     class="action-btn"
                     disabled
-                    title="${va("panels.zones.help.irrigate_link_entity",this.hass.language)}"
+                    title="${_a("panels.zones.help.irrigate_link_entity",this.hass.language)}"
                   >
                     <ha-icon icon="mdi:water"></ha-icon>
-                    ${va("panels.zones.labels.irrigate_now",this.hass.language)}
+                    ${_a("panels.zones.labels.irrigate_now",this.hass.language)}
                   </button>
                   <span class="zones-top-note">
-                    ${va("panels.zones.help.irrigate_link_entity",this.hass.language)}
+                    ${_a("panels.zones.help.irrigate_link_entity",this.hass.language)}
                   </span>
                 `}
           ${this._renderRunZoneControl(e)}
         </div>
       </ha-card>
-    `}_renderRunZoneControl(e){if(!this.hass||"none"===this.actionsMode||!this._canActuate(e)||void 0===e.id)return Z``;const t=this.hass.language,i=String(e.id),s=this._activeRun(e);if(s){const i=this._runSecondsLeft(s);return Z`
+    `}_renderRunZoneControl(e){if(!this.hass||"none"===this.actionsMode||!this._canActuate(e)||void 0===e.id)return Z``;const t=this.hass.language,s=String(e.id),i=this._activeRun(e);if(i){const s=this._runSecondsLeft(i);return Z`
         <div class="run-zone-control running">
           <span class="run-zone-countdown">
             <ha-icon icon="mdi:water-pump"></ha-icon>
-            ${null===i?va("panels.zones.stop_zone.watering",t):this._formatCountdown(i)}
+            ${null===s?_a("panels.zones.stop_zone.watering",t):this._formatCountdown(s)}
           </span>
           <button
             class="action-btn stop-btn"
             @click="${()=>this._stopZone(e)}"
           >
             <ha-icon icon="mdi:stop"></ha-icon>
-            ${va("panels.zones.stop_zone.stop",t)}
+            ${_a("panels.zones.stop_zone.stop",t)}
           </button>
         </div>
       `}const a=this._distributorBusy(e);return Z`
       <div class="run-zone-control-wrap">
         <div
           class="run-zone-control"
-          title="${va("panels.zones.run_zone.help",t)}"
+          title="${_a("panels.zones.run_zone.help",t)}"
         >
           <input
             class="run-zone-input"
@@ -1043,10 +1043,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             max="600"
             .value="${String(this._zoneRunMinutes(e))}"
             ?disabled="${a}"
-            @input="${e=>{const t=Number(e.target.value);this._runMinutes=Object.assign(Object.assign({},this._runMinutes),{[i]:t})}}"
+            @input="${e=>{const t=Number(e.target.value);this._runMinutes=Object.assign(Object.assign({},this._runMinutes),{[s]:t})}}"
           />
           <span class="run-zone-unit"
-            >${va("panels.zones.run_zone.minutes",t)}</span
+            >${_a("panels.zones.run_zone.minutes",t)}</span
           >
           <button
             class="action-btn"
@@ -1054,26 +1054,26 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             ?disabled="${this.isSaving||a}"
           >
             <ha-icon icon="mdi:timer-play-outline"></ha-icon>
-            ${va("panels.zones.run_zone.run",t)}
+            ${_a("panels.zones.run_zone.run",t)}
           </button>
         </div>
         ${a?Z`<span class="run-zone-busy-hint">
-              ${va("panels.zones.run_zone.busy_hint",t)}
+              ${_a("panels.zones.run_zone.busy_hint",t)}
             </span>`:""}
       </div>
-    `}_formatCountdown(e){const t=Math.max(0,e),i=Math.floor(t/3600),s=Math.floor(t%3600/60),a=t%60,n=e=>String(e).padStart(2,"0");return i>0?`${i}:${n(s)}:${n(a)}`:`${s}:${n(a)}`}render(){var e,t;if(!this.hass)return Z``;if(this.isLoading)return Z`
-        <ha-card header="${va("panels.zones.title",this.hass.language)}">
+    `}_formatCountdown(e){const t=Math.max(0,e),s=Math.floor(t/3600),i=Math.floor(t%3600/60),a=t%60,n=e=>String(e).padStart(2,"0");return s>0?`${s}:${n(i)}:${n(a)}`:`${i}:${n(a)}`}render(){var e,t;if(!this.hass)return Z``;if(this.isLoading)return Z`
+        <ha-card header="${_a("panels.zones.title",this.hass.language)}">
           <div class="card-content">
             <div class="loading-indicator">
-              ${va("common.loading-messages.general",this.hass.language)}
+              ${_a("common.loading-messages.general",this.hass.language)}
             </div>
           </div>
         </ha-card>
-      `;const i=this.zones.some(e=>{var t;return this._canActuate(e)&&(null!==(t=e.duration)&&void 0!==t?t:0)>0}),s=0===this.zones.length;return Z`
-      ${s?this.hideSettingsLinks?Z`
+      `;const s=this.zones.some(e=>{var t;return this._canActuate(e)&&(null!==(t=e.duration)&&void 0!==t?t:0)>0}),i=0===this.zones.length;return Z`
+      ${i?this.hideSettingsLinks?Z`
               <ha-card>
                 <div class="card-content description-text">
-                  ${va("panels.zones.no_items",this.hass.language)}
+                  ${_a("panels.zones.no_items",this.hass.language)}
                 </div>
               </ha-card>
             `:Z`
@@ -1082,66 +1082,66 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   <div class="setup-banner-icon">🌱</div>
                   <div class="setup-banner-content">
                     <div class="setup-banner-title">
-                      ${va("wizard.title",this.hass.language)}
+                      ${_a("wizard.title",this.hass.language)}
                     </div>
                     <div class="setup-banner-desc">
-                      ${va("wizard.setup_complete_banner",this.hass.language)}
+                      ${_a("wizard.setup_complete_banner",this.hass.language)}
                     </div>
                   </div>
                   <button
                     class="action-btn setup-banner-btn"
                     @click="${()=>{this.dispatchEvent(new CustomEvent("open-wizard",{bubbles:!0,composed:!0}))}}"
                   >
-                    ${va("wizard.open_wizard",this.hass.language)}
+                    ${_a("wizard.open_wizard",this.hass.language)}
                   </button>
                 </div>
               </ha-card>
             `:""}
-      ${s?"":this._renderOutlookBanner()}
-      ${s?"":this._renderRainDelay()}
+      ${i?"":this._renderOutlookBanner()}
+      ${i?"":this._renderRainDelay()}
 
       <!-- Zones header card: run-all operational actions -->
       <ha-card>
         <div class="card-header">
           <div class="name">
-            ${va("panels.zones.title",this.hass.language)}
+            ${_a("panels.zones.title",this.hass.language)}
           </div>
         </div>
         <div class="card-content zones-top-actions">
           ${"full"===this.actionsMode?Z`
                 <button
                   class="action-btn"
-                  title="${va("panels.zones.help.update_all",this.hass.language)}"
+                  title="${_a("panels.zones.help.update_all",this.hass.language)}"
                   @click="${this.handleUpdateAllZones}"
                   ?disabled="${this.isSaving}"
                 >
                   <ha-icon icon="mdi:update"></ha-icon>
-                  ${va("panels.zones.cards.zone-actions.actions.update-all",this.hass.language)}
+                  ${_a("panels.zones.cards.zone-actions.actions.update-all",this.hass.language)}
                 </button>
                 <button
                   class="action-btn"
-                  title="${va("panels.zones.help.calculate_all",this.hass.language)}"
+                  title="${_a("panels.zones.help.calculate_all",this.hass.language)}"
                   @click="${this.handleCalculateAllZones}"
                   ?disabled="${this.isSaving}"
                 >
                   <ha-icon icon="mdi:calculator"></ha-icon>
-                  ${va("panels.zones.cards.zone-actions.actions.calculate-all",this.hass.language)}
+                  ${_a("panels.zones.cards.zone-actions.actions.calculate-all",this.hass.language)}
                 </button>
               `:""}
           ${"none"!==this.actionsMode?Z`
                 <button
                   class="action-btn"
                   raised
-                  title="${va("panels.zones.help.irrigate_all",this.hass.language)}"
+                  title="${_a("panels.zones.help.irrigate_all",this.hass.language)}"
                   @click="${()=>{this._confirmIrrigate="all"}}"
-                  ?disabled="${!i||this.isSaving}"
+                  ?disabled="${!s||this.isSaving}"
                 >
                   <ha-icon icon="mdi:water"></ha-icon>
-                  ${va("panels.zones.actions.irrigate_all",this.hass.language)}
+                  ${_a("panels.zones.actions.irrigate_all",this.hass.language)}
                 </button>
               `:""}
-          ${i?"":Z`<span class="zones-top-note"
-                >${va("panels.info.cards.irrigate_now.no_linked_zones",this.hass.language)}</span
+          ${s?"":Z`<span class="zones-top-note"
+                >${_a("panels.info.cards.irrigate_now.no_linked_zones",this.hass.language)}</span
               >`}
         </div>
       </ha-card>
@@ -1151,14 +1151,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             <ha-dialog
               open
               @closed="${()=>{this._confirmIrrigate=null}}"
-              heading="${va("panels.zones.confirm_irrigate.title",this.hass.language)}"
+              heading="${_a("panels.zones.confirm_irrigate.title",this.hass.language)}"
             >
               <p>
-                ${va("panels.zones.confirm_irrigate.body",this.hass.language)}
+                ${_a("panels.zones.confirm_irrigate.body",this.hass.language)}
               </p>
               <p>
                 <strong>
-                  ${"all"===this._confirmIrrigate?`${va("panels.zones.confirm_irrigate.all_linked_zones",this.hass.language)} (${this._linkedZoneCount})`:null!==(t=null===(e=this.zones.find(e=>{var t;return(null===(t=e.id)||void 0===t?void 0:t.toString())===this._confirmIrrigate}))||void 0===e?void 0:e.name)&&void 0!==t?t:this._confirmIrrigate}
+                  ${"all"===this._confirmIrrigate?`${_a("panels.zones.confirm_irrigate.all_linked_zones",this.hass.language)} (${this._linkedZoneCount})`:null!==(t=null===(e=this.zones.find(e=>{var t;return(null===(t=e.id)||void 0===t?void 0:t.toString())===this._confirmIrrigate}))||void 0===e?void 0:e.name)&&void 0!==t?t:this._confirmIrrigate}
                 </strong>
               </p>
               <div class="dialog-footer">
@@ -1166,13 +1166,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   class="dialog-btn"
                   @click="${()=>{this._confirmIrrigate=null}}"
                 >
-                  ${va("common.actions.cancel",this.hass.language)}
+                  ${_a("common.actions.cancel",this.hass.language)}
                 </button>
                 <button
                   class="dialog-btn dialog-btn-primary"
                   @click="${this._doIrrigate}"
                 >
-                  ${va("panels.zones.labels.irrigate_now",this.hass.language)}
+                  ${_a("panels.zones.labels.irrigate_now",this.hass.language)}
                 </button>
               </div>
             </ha-dialog>
@@ -1188,9 +1188,9 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 ></ha-icon>
                 <span class="error-banner-msg">${this._operationError}</span>
                 <ha-icon-button
-                  .path="${za}"
+                  .path="${Sa}"
                   @click="${()=>{this._operationError=null}}"
-                  aria-label="${va("common.actions.cancel",this.hass.language)}"
+                  aria-label="${_a("common.actions.cancel",this.hass.language)}"
                 ></ha-icon-button>
               </div>
             </ha-card>
@@ -1199,7 +1199,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       <!-- Zone cards -->
       ${this.zones.map((e,t)=>this.renderZone(e,t))}
     `}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       /* At-a-glance decision line */
       .zone-decision {
@@ -1686,17 +1686,17 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         font-size: 0.9rem;
         line-height: 1.4;
       }
-    `}}t([pe()],Pa.prototype,"config",void 0),t([pe({type:Boolean})],Pa.prototype,"hideSettingsLinks",void 0),t([pe({attribute:!1})],Pa.prototype,"actionsMode",void 0),t([pe({type:Array})],Pa.prototype,"zones",void 0),t([ge()],Pa.prototype,"_outlook",void 0),t([ge()],Pa.prototype,"_distributors",void 0),t([pe({type:Boolean})],Pa.prototype,"isLoading",void 0),t([pe({type:Boolean})],Pa.prototype,"isSaving",void 0),t([ge()],Pa.prototype,"_operationError",void 0),t([ge()],Pa.prototype,"_confirmIrrigate",void 0),t([ge()],Pa.prototype,"_skipDetailsOpen",void 0),t([ge()],Pa.prototype,"_runMinutes",void 0),t([ge()],Pa.prototype,"_now",void 0),customElements.get("smart-irrigation-view-zones")||customElements.define("smart-irrigation-view-zones",Pa)
+    `}}t([pe()],Ra.prototype,"config",void 0),t([pe({type:Boolean})],Ra.prototype,"hideSettingsLinks",void 0),t([pe({attribute:!1})],Ra.prototype,"actionsMode",void 0),t([pe({type:Array})],Ra.prototype,"zones",void 0),t([ge()],Ra.prototype,"_outlook",void 0),t([ge()],Ra.prototype,"_distributors",void 0),t([pe({type:Boolean})],Ra.prototype,"isLoading",void 0),t([pe({type:Boolean})],Ra.prototype,"isSaving",void 0),t([ge()],Ra.prototype,"_operationError",void 0),t([ge()],Ra.prototype,"_confirmIrrigate",void 0),t([ge()],Ra.prototype,"_skipDetailsOpen",void 0),t([ge()],Ra.prototype,"_runMinutes",void 0),t([ge()],Ra.prototype,"_now",void 0),customElements.get("smart-irrigation-view-zones")||customElements.define("smart-irrigation-view-zones",Ra)
 /**
      * @license
      * Copyright 2020 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */;const Ra={},Ba=Ni(class extends Li{constructor(e){if(super(e),e.type!==Mi&&e.type!==Hi&&e.type!==Ii)throw Error("The `live` directive is not allowed on child or event bindings");if(!(e=>void 0===e.strings)(e))throw Error("`live` bindings can only contain a single expression")}render(e){return e}update(e,[t]){if(t===W||t===q)return t;const i=e.element,s=e.name;if(e.type===Mi){if(t===i[s])return W}else if(e.type===Ii){if(!!t===i.hasAttribute(s))return W}else if(e.type===Hi&&i.getAttribute(s)===t+"")return W;return((e,t=Ra)=>{e._$AH=t;
+     */;const Ba={},Ua=Ls(class extends Ps{constructor(e){if(super(e),e.type!==Is&&e.type!==Ds&&e.type!==Ns)throw Error("The `live` directive is not allowed on child or event bindings");if(!(e=>void 0===e.strings)(e))throw Error("`live` bindings can only contain a single expression")}render(e){return e}update(e,[t]){if(t===W||t===q)return t;const s=e.element,i=e.name;if(e.type===Is){if(t===s[i])return W}else if(e.type===Ns){if(!!t===s.hasAttribute(i))return W}else if(e.type===Ds&&s.getAttribute(i)===t+"")return W;return((e,t=Ba)=>{e._$AH=t;
 /**
      * @license
      * Copyright 2020 Google LLC
      * SPDX-License-Identifier: BSD-3-Clause
-     */})(e),t}});let Ua=class extends le{constructor(){super(...arguments),this.label="",this.unit="",this.help="",this.required=!1,this._helpOpen=!1}_toggleHelp(){this._helpOpen=!this._helpOpen}render(){return Z`
+     */})(e),t}});let ja=class extends le{constructor(){super(...arguments),this.label="",this.unit="",this.help="",this.required=!1,this._helpOpen=!1}_toggleHelp(){this._helpOpen=!this._helpOpen}render(){return Z`
       <div class="si-field">
         <div class="si-field-header">
           <span class="si-field-label">
@@ -1796,9 +1796,9 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         line-height: 1.45;
         margin-top: 2px;
       }
-    `}};t([pe()],Ua.prototype,"label",void 0),t([pe()],Ua.prototype,"unit",void 0),t([pe()],Ua.prototype,"help",void 0),t([pe({type:Boolean})],Ua.prototype,"required",void 0),t([ge()],Ua.prototype,"_helpOpen",void 0),Ua=t([ce("si-field")],Ua);let ja=class extends le{constructor(){super(...arguments),this.useWeather=!1,this.service=xe,this.apiKey="",this.weatherConfig=null,this._testing=!1,this._testResult=null,this._testResultTimer=null}disconnectedCallback(){super.disconnectedCallback(),this._testResultTimer&&(clearTimeout(this._testResultTimer),this._testResultTimer=null)}_emit(e,t){this.dispatchEvent(new CustomEvent(e,{detail:{value:t},bubbles:!0,composed:!0}))}get _noApiKeyServices(){var e,t;return null!==(t=null===(e=this.weatherConfig)||void 0===e?void 0:e.no_api_key_services)&&void 0!==t?t:[xe]}get _needsKey(){return this.useWeather&&!!this.service&&!this._noApiKeyServices.includes(this.service)}get _hasStoredKey(){const e=this.weatherConfig;return this.service===we?!!(null==e?void 0:e.has_owm_api_key):this.service===$e?!!(null==e?void 0:e.has_pw_api_key):this.service===ke&&!!(null==e?void 0:e.has_met_api_key)}async _testApiKey(){if(this.hass&&!this._testing){this._testing=!0,this._testResult=null,this._testResultTimer&&(clearTimeout(this._testResultTimer),this._testResultTimer=null);try{this._testResult=await(e=this.hass,t=this.service,i=this.apiKey||null,e.callWS({type:_e+"/weather_config_test",weather_service:null!=t?t:null,api_key:null!=i?i:null})),this._testResultTimer=window.setTimeout(()=>{this._testResult=null,this._testResultTimer=null},12e3)}catch(e){this._testResult={success:!1,error:"unknown"}}finally{this._testing=!1}var e,t,i}}render(){var e,t;const i=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en";return Z`
+    `}};t([pe()],ja.prototype,"label",void 0),t([pe()],ja.prototype,"unit",void 0),t([pe()],ja.prototype,"help",void 0),t([pe({type:Boolean})],ja.prototype,"required",void 0),t([ge()],ja.prototype,"_helpOpen",void 0),ja=t([ce("si-field")],ja);let Fa=class extends le{constructor(){super(...arguments),this.useWeather=!1,this.service=xe,this.apiKey="",this.weatherConfig=null,this._testing=!1,this._testResult=null,this._testResultTimer=null}disconnectedCallback(){super.disconnectedCallback(),this._testResultTimer&&(clearTimeout(this._testResultTimer),this._testResultTimer=null)}_emit(e,t){this.dispatchEvent(new CustomEvent(e,{detail:{value:t},bubbles:!0,composed:!0}))}get _noApiKeyServices(){var e,t;return null!==(t=null===(e=this.weatherConfig)||void 0===e?void 0:e.no_api_key_services)&&void 0!==t?t:[xe]}get _needsKey(){return this.useWeather&&!!this.service&&!this._noApiKeyServices.includes(this.service)}get _hasStoredKey(){const e=this.weatherConfig;return this.service===we?!!(null==e?void 0:e.has_owm_api_key):this.service===$e?!!(null==e?void 0:e.has_pw_api_key):this.service===ke&&!!(null==e?void 0:e.has_met_api_key)}async _testApiKey(){if(this.hass&&!this._testing){this._testing=!0,this._testResult=null,this._testResultTimer&&(clearTimeout(this._testResultTimer),this._testResultTimer=null);try{this._testResult=await(e=this.hass,t=this.service,s=this.apiKey||null,e.callWS({type:_e+"/weather_config_test",weather_service:null!=t?t:null,api_key:null!=s?s:null})),this._testResultTimer=window.setTimeout(()=>{this._testResult=null,this._testResultTimer=null},12e3)}catch(e){this._testResult={success:!1,error:"unknown"}}finally{this._testing=!1}var e,t,s}}render(){var e,t;const s=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en";return Z`
       <si-field
-        label="${va("weather_service_config.enabled_label",i)}"
+        label="${_a("weather_service_config.enabled_label",s)}"
       >
         <ha-switch
           .checked="${this.useWeather}"
@@ -1806,75 +1806,75 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         ></ha-switch>
       </si-field>
 
-      ${this.useWeather?this._renderServiceAndKey(i):""}
+      ${this.useWeather?this._renderServiceAndKey(s):""}
     `}_renderServiceAndKey(e){return Z`
       <si-field
-        label="${va("weather_service_config.service_label",e)}"
+        label="${_a("weather_service_config.service_label",e)}"
       >
         <select
           class="si-input"
-          .value="${Ba(this.service||xe)}"
+          .value="${Ua(this.service||xe)}"
           @change="${e=>{this._testResult=null,this._emit("service-changed",e.target.value)}}"
         >
           <option
             value="${xe}"
             ?selected="${(this.service||xe)===xe}"
           >
-            ${va("weather_service_config.openmeteo",e)}
+            ${_a("weather_service_config.openmeteo",e)}
           </option>
           <option
             value="${we}"
             ?selected="${this.service===we}"
           >
-            ${va("weather_service_config.owm",e)}
+            ${_a("weather_service_config.owm",e)}
           </option>
           <option
             value="${$e}"
             ?selected="${this.service===$e}"
           >
-            ${va("weather_service_config.pw",e)}
+            ${_a("weather_service_config.pw",e)}
           </option>
           <option
             value="${ke}"
             ?selected="${this.service===ke}"
           >
-            ${va("weather_service_config.met",e)}
+            ${_a("weather_service_config.met",e)}
           </option>
         </select>
       </si-field>
 
       ${this._needsKey?this._renderKeyField(e):Z`<div class="info-note">
-            ${va("weather_service_config.no_api_key_needed",e)}
+            ${_a("weather_service_config.no_api_key_needed",e)}
           </div>`}
-    `}_renderKeyField(e){var t;const i=this._hasStoredKey;return Z`
+    `}_renderKeyField(e){var t;const s=this._hasStoredKey;return Z`
       <si-field
-        label="${va("weather_service_config.api_key_label",e)}"
-        help="${va("weather_service_config.api_key_help",e)}"
+        label="${_a("weather_service_config.api_key_label",e)}"
+        help="${_a("weather_service_config.api_key_help",e)}"
       >
-        <span class="api-badge ${i?"configured":"missing"}"
-          >${va(i?"weather_service_config.api_key_configured":"weather_service_config.api_key_not_configured",e)}</span
+        <span class="api-badge ${s?"configured":"missing"}"
+          >${_a(s?"weather_service_config.api_key_configured":"weather_service_config.api_key_not_configured",e)}</span
         >
         <div class="api-row">
           <input
             type="password"
             class="si-input flex1"
-            placeholder="${va("weather_service_config.api_key_placeholder",e)}"
+            placeholder="${_a("weather_service_config.api_key_placeholder",e)}"
             .value="${this.apiKey}"
             @input="${e=>{this._testResult=null,this._emit("apikey-changed",e.target.value)}}"
           />
           <button
             class="test-btn"
             type="button"
-            ?disabled="${this._testing||!this.apiKey&&!i}"
+            ?disabled="${this._testing||!this.apiKey&&!s}"
             @click="${this._testApiKey}"
           >
-            ${this._testing?va("weather_service_config.test_button_testing",e):va("weather_service_config.test_button",e)}
+            ${this._testing?_a("weather_service_config.test_button_testing",e):_a("weather_service_config.test_button",e)}
           </button>
         </div>
         ${null!==this._testResult?Z`<div
               class="test-result ${this._testResult.success?"success":"error"}"
             >
-              ${this._testResult.success?va("weather_service_config.test_success",e):va("weather_service_config.test_error_"+(null!==(t=this._testResult.error)&&void 0!==t?t:"unknown"),e)}
+              ${this._testResult.success?_a("weather_service_config.test_success",e):_a("weather_service_config.test_error_"+(null!==(t=this._testResult.error)&&void 0!==t?t:"unknown"),e)}
             </div>`:""}
       </si-field>
     `}static get styles(){return r`
@@ -1984,10 +1984,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         padding: 8px 12px;
         margin-top: 8px;
       }
-    `}};t([pe({attribute:!1})],ja.prototype,"hass",void 0),t([pe({type:Boolean})],ja.prototype,"useWeather",void 0),t([pe()],ja.prototype,"service",void 0),t([pe()],ja.prototype,"apiKey",void 0),t([pe({attribute:!1})],ja.prototype,"weatherConfig",void 0),t([ge()],ja.prototype,"_testing",void 0),t([ge()],ja.prototype,"_testResult",void 0),ja=t([ce("si-weather-source-config")],ja);let Fa=class extends(Aa(le)){constructor(){super(...arguments),this.section="all",this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this._weatherConfig=null,this._weatherService=null,this._useWeatherService=!1,this._newApiKey="",this._weatherSaving=!1,this._coords=null,this._coordsEnabled=!1,this._coordsLat="",this._coordsLon="",this._coordsElev="",this._coordsSaving=!1,this._saveStatus="idle",this._savedResetTimer=null,this._updateScheduled=!1,this.debouncedSave=(()=>{let e=null,t={};return i=>{t=Object.assign(Object.assign({},t),i),e&&clearTimeout(e),e=window.setTimeout(()=>{const i=t;t={},e=null,this.saveData(i)},500)}})()}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){var e;if(!this.hass)return;const t=!this._initialLoadDone;t&&(this.isLoading=!0,this._scheduleUpdate());try{const[t,a,n]=await Promise.all([pi(this.hass),Si(this.hass),Ei(this.hass)]);this.config=t,this._weatherConfig=a,this._useWeatherService=a.use_weather_service,this._weatherService=null!==(e=a.weather_service)&&void 0!==e?e:xe,this._applyCoordinates(n),this.data=(i=this.config,s=["calctime","autocalcenabled","autoupdateenabled","autoupdateschedule","autoupdatefirsttime","autoupdateinterval","days_between_irrigation"],i?Object.entries(i).filter(([e])=>s.includes(e)).reduce((e,[t,i])=>Object.assign(e,{[t]:i}),{}):{}),this._initialLoadDone=!0}catch(e){console.error("Error fetching data:",e),ka(this,this.hass,"common.errors.load_failed",e)}finally{t&&(this.isLoading=!1),this._scheduleUpdate()}var i,s}firstUpdated(){Oi().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}render(){var e,t;return this.hass&&this.config&&this.data?this.isLoading?Z`<div class="loading-indicator">
-        ${va("common.loading-messages.general",this.hass.language)}
+    `}};t([pe({attribute:!1})],Fa.prototype,"hass",void 0),t([pe({type:Boolean})],Fa.prototype,"useWeather",void 0),t([pe()],Fa.prototype,"service",void 0),t([pe()],Fa.prototype,"apiKey",void 0),t([pe({attribute:!1})],Fa.prototype,"weatherConfig",void 0),t([ge()],Fa.prototype,"_testing",void 0),t([ge()],Fa.prototype,"_testResult",void 0),Fa=t([ce("si-weather-source-config")],Fa);let Za=class extends(Ea(le)){constructor(){super(...arguments),this.section="all",this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this._weatherConfig=null,this._weatherService=null,this._useWeatherService=!1,this._newApiKey="",this._weatherSaving=!1,this._coords=null,this._coordsEnabled=!1,this._coordsLat="",this._coordsLon="",this._coordsElev="",this._coordsSaving=!1,this._saveStatus="idle",this._savedResetTimer=null,this._updateScheduled=!1,this.debouncedSave=(()=>{let e=null,t={};return s=>{t=Object.assign(Object.assign({},t),s),e&&clearTimeout(e),e=window.setTimeout(()=>{const s=t;t={},e=null,this.saveData(s)},500)}})()}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){var e;if(!this.hass)return;const t=!this._initialLoadDone;t&&(this.isLoading=!0,this._scheduleUpdate());try{const[t,a,n]=await Promise.all([gs(this.hass),As(this.hass),Cs(this.hass)]);this.config=t,this._weatherConfig=a,this._useWeatherService=a.use_weather_service,this._weatherService=null!==(e=a.weather_service)&&void 0!==e?e:xe,this._applyCoordinates(n),this.data=(s=this.config,i=["calctime","autocalcenabled","autoupdateenabled","autoupdateschedule","autoupdatefirsttime","autoupdateinterval","days_between_irrigation"],s?Object.entries(s).filter(([e])=>i.includes(e)).reduce((e,[t,s])=>Object.assign(e,{[t]:s}),{}):{}),this._initialLoadDone=!0}catch(e){console.error("Error fetching data:",e),za(this,this.hass,"common.errors.load_failed",e)}finally{t&&(this.isLoading=!1),this._scheduleUpdate()}var s,i}firstUpdated(){Hs().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}render(){var e,t;return this.hass&&this.config&&this.data?this.isLoading?Z`<div class="loading-indicator">
+        ${_a("common.loading-messages.general",this.hass.language)}
       </div>`:Z`${this._renderSaveStatus()} ${this._renderCards()}`:Z`<div class="loading-indicator">
-        ${va("common.loading-messages.configuration",null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en")}
+        ${_a("common.loading-messages.configuration",null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en")}
       </div>`}_renderCards(){switch(this.section){case"weather-location":return Z`
           ${this._renderSection("weather")} ${this._renderWeatherServiceCard()}
           ${this._renderSection("location")} ${this._renderCoordinateCard()}
@@ -2008,14 +2008,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this._renderZoneSequencingCard()} ${this._renderMasterSwitchCard()}
         `}}_renderSection(e){return this.hass?Z`
       <div class="settings-section-header">
-        ${va(`panels.general.sections.${e}`,this.hass.language)}
+        ${_a(`panels.general.sections.${e}`,this.hass.language)}
       </div>
-    `:Z``}async _saveWeatherConfig(){if(this.hass){this._weatherSaving=!0,this._scheduleUpdate();try{await Ai(this.hass,this._useWeatherService,this._useWeatherService?this._weatherService:null,this._newApiKey||null),this._newApiKey="",await this._fetchData()}catch(e){console.error("Failed to save weather config:",e),ka(this,this.hass,"common.errors.save_failed",e)}finally{this._weatherSaving=!1,this._scheduleUpdate()}}}_renderWeatherServiceCard(){var e;return this.hass?Z`
+    `:Z``}async _saveWeatherConfig(){if(this.hass){this._weatherSaving=!0,this._scheduleUpdate();try{await Es(this.hass,this._useWeatherService,this._useWeatherService?this._weatherService:null,this._newApiKey||null),this._newApiKey="",await this._fetchData()}catch(e){console.error("Failed to save weather config:",e),za(this,this.hass,"common.errors.save_failed",e)}finally{this._weatherSaving=!1,this._scheduleUpdate()}}}_renderWeatherServiceCard(){var e;return this.hass?Z`
       <ha-card
-        header="${va("weather_service_config.title",this.hass.language)}"
+        header="${_a("weather_service_config.title",this.hass.language)}"
       >
         <div class="card-content description-text">
-          ${va("weather_service_config.description",this.hass.language)}
+          ${_a("weather_service_config.description",this.hass.language)}
         </div>
         <div class="card-content">
           <si-weather-source-config
@@ -2035,22 +2035,22 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               ?disabled="${this._weatherSaving}"
               @click="${this._saveWeatherConfig}"
             >
-              ${this._weatherSaving?va("common.saving-messages.saving",this.hass.language):va("weather_service_config.save_button",this.hass.language)}
+              ${this._weatherSaving?_a("common.saving-messages.saving",this.hass.language):_a("weather_service_config.save_button",this.hass.language)}
             </button>
           </div>
         </div>
       </ha-card>
     `:Z``}_renderAutoUpdateCard(){var e,t;return this.hass&&this.config&&this.data?Z`
       <ha-card
-        header="${va("panels.general.cards.automatic-update.header",this.hass.language)}"
+        header="${_a("panels.general.cards.automatic-update.header",this.hass.language)}"
       >
         <div class="card-content description-text">
-          ${va("panels.general.cards.automatic-update.description",this.hass.language)}
+          ${_a("panels.general.cards.automatic-update.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${va("panels.general.cards.automatic-update.labels.auto-update-enabled",this.hass.language)}
+              ${_a("panels.general.cards.automatic-update.labels.auto-update-enabled",this.hass.language)}
             </label>
             <ha-switch
               .checked="${this.config.autoupdateenabled}"
@@ -2060,7 +2060,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this.data.autoupdateenabled?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("panels.general.cards.automatic-update.labels.auto-update-interval",this.hass.language)}
+                    ${_a("panels.general.cards.automatic-update.labels.auto-update-interval",this.hass.language)}
                   </label>
                   <div class="inline-row">
                     <input
@@ -2074,33 +2074,33 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     />
                     <select
                       class="settings-input"
-                      .value="${Ba(this.data.autoupdateschedule||Se)}"
+                      .value="${Ua(this.data.autoupdateschedule||Se)}"
                       @change="${e=>this.handleConfigChange({autoupdateschedule:e.target.value})}"
                     >
                       <option
                         value="${ze}"
                         ?selected="${(this.data.autoupdateschedule||Se)===ze}"
                       >
-                        ${va("panels.general.cards.automatic-update.options.minutes",this.hass.language)}
+                        ${_a("panels.general.cards.automatic-update.options.minutes",this.hass.language)}
                       </option>
                       <option
                         value="${Se}"
                         ?selected="${(this.data.autoupdateschedule||Se)===Se}"
                       >
-                        ${va("panels.general.cards.automatic-update.options.hours",this.hass.language)}
+                        ${_a("panels.general.cards.automatic-update.options.hours",this.hass.language)}
                       </option>
                       <option
                         value="${Ae}"
                         ?selected="${this.data.autoupdateschedule===Ae}"
                       >
-                        ${va("panels.general.cards.automatic-update.options.days",this.hass.language)}
+                        ${_a("panels.general.cards.automatic-update.options.days",this.hass.language)}
                       </option>
                     </select>
                   </div>
                 </div>
                 <div class="setting-row">
                   <label>
-                    ${va("panels.general.cards.automatic-update.labels.auto-update-delay",this.hass.language)}
+                    ${_a("panels.general.cards.automatic-update.labels.auto-update-delay",this.hass.language)}
                     (s)
                   </label>
                   <input
@@ -2118,15 +2118,15 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       </ha-card>
     `:Z``}_renderAutoCalcCard(){return this.hass&&this.config&&this.data?Z`
       <ha-card
-        header="${va("panels.general.cards.automatic-duration-calculation.header",this.hass.language)}"
+        header="${_a("panels.general.cards.automatic-duration-calculation.header",this.hass.language)}"
       >
         <div class="card-content description-text">
-          ${va("panels.general.cards.automatic-duration-calculation.description",this.hass.language)}
+          ${_a("panels.general.cards.automatic-duration-calculation.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${va("panels.general.cards.automatic-duration-calculation.labels.auto-calc-enabled",this.hass.language)}
+              ${_a("panels.general.cards.automatic-duration-calculation.labels.auto-calc-enabled",this.hass.language)}
             </label>
             <ha-switch
               .checked="${this.config.autocalcenabled}"
@@ -2136,7 +2136,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this.data.autocalcenabled?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("panels.general.cards.automatic-duration-calculation.labels.calc-time",this.hass.language)}
+                    ${_a("panels.general.cards.automatic-duration-calculation.labels.calc-time",this.hass.language)}
                   </label>
                   <input
                     type="text"
@@ -2150,15 +2150,15 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       </ha-card>
     `:Z``}_renderRunHistoryLoggingCard(){return this.hass&&this.config?Z`
       <ha-card
-        header="${va("panels.general.cards.run-history-logging.header",this.hass.language)}"
+        header="${_a("panels.general.cards.run-history-logging.header",this.hass.language)}"
       >
         <div class="card-content description-text">
-          ${va("panels.general.cards.run-history-logging.description",this.hass.language)}
+          ${_a("panels.general.cards.run-history-logging.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${va("panels.general.cards.run-history-logging.labels.log-no-demand",this.hass.language)}
+              ${_a("panels.general.cards.run-history-logging.labels.log-no-demand",this.hass.language)}
             </label>
             <ha-switch
               .checked="${this.config.log_no_demand}"
@@ -2167,35 +2167,35 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           </div>
         </div>
       </ha-card>
-    `:Z``}_renderWeatherSkipCard(){var e,t,i,s,a;if(!this.hass||!this.config||!this.data)return Z``;const n=this.hass.language,o=this.config.skip_irrigation_on_precipitation?"skip":this.config.forecast_weighting_enabled?"water_less":"ignore";return Z`
-      <ha-card header="${va("weather_skip.title",this.hass.language)}">
+    `:Z``}_renderWeatherSkipCard(){var e,t,s,i,a;if(!this.hass||!this.config||!this.data)return Z``;const n=this.hass.language,o=this.config.skip_irrigation_on_precipitation?"skip":this.config.forecast_weighting_enabled?"water_less":"ignore";return Z`
+      <ha-card header="${_a("weather_skip.title",this.hass.language)}">
         <div class="card-content description-text">
-          ${va("weather_skip.description",this.hass.language)}
+          ${_a("weather_skip.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${va("weather_skip.forecast_rain_label",n)}
+              ${_a("weather_skip.forecast_rain_label",n)}
             </label>
             <select
               class="settings-input"
-              .value="${Ba(o)}"
+              .value="${Ua(o)}"
               @change="${e=>{const t=e.target.value;this.handleConfigChange({skip_irrigation_on_precipitation:"skip"===t,forecast_weighting_enabled:"water_less"===t})}}"
             >
               ${["ignore","water_less","skip"].map(e=>Z`
                   <option value="${e}" ?selected="${o===e}">
-                    ${va(`weather_skip.forecast_rain_options.${e}`,n)}
+                    ${_a(`weather_skip.forecast_rain_options.${e}`,n)}
                   </option>
                 `)}
             </select>
           </div>
           <div class="description-text">
-            ${va(`weather_skip.forecast_rain_help.${o}`,n)}
+            ${_a(`weather_skip.forecast_rain_help.${o}`,n)}
           </div>
           ${"ignore"!==o?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("weather_skip.lookahead_label",n)}
+                    ${_a("weather_skip.lookahead_label",n)}
                   </label>
                   <input
                     type="number"
@@ -2209,14 +2209,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   />
                 </div>
                 <div class="description-text">
-                  ${va("weather_skip.lookahead_help",n)}
+                  ${_a("weather_skip.lookahead_help",n)}
                 </div>
               `:""}
           ${"skip"===o?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("weather_skip.threshold_label",n)}
-                    (${ba(this.config,be)})
+                    ${_a("weather_skip.threshold_label",n)}
+                    (${ya(this.config,be)})
                   </label>
                   <input
                     type="number"
@@ -2231,11 +2231,11 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               `:""}
 
           <div class="section-divider">
-            ${va("weather_skip.temp_section_title",this.hass.language)}
+            ${_a("weather_skip.temp_section_title",this.hass.language)}
           </div>
           <div class="setting-row">
             <label>
-              ${va("weather_skip.temp_section_title",this.hass.language)}
+              ${_a("weather_skip.temp_section_title",this.hass.language)}
             </label>
             <ha-switch
               .checked="${this.config.skip_on_temp_enabled}"
@@ -2245,25 +2245,25 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this.config.skip_on_temp_enabled?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("weather_skip.temp_threshold_label",this.hass.language)}
+                    ${_a("weather_skip.temp_threshold_label",this.hass.language)}
                     (°C)
                   </label>
                   <input
                     type="number"
                     class="settings-input shortfield"
                     step="0.5"
-                    .value="${null!==(i=this.config.temp_threshold)&&void 0!==i?i:5}"
+                    .value="${null!==(s=this.config.temp_threshold)&&void 0!==s?s:5}"
                     @input="${e=>{const t=parseFloat(e.target.value);isNaN(t)||this.handleConfigChange({temp_threshold:t})}}"
                   />
                 </div>
               `:""}
 
           <div class="section-divider">
-            ${va("weather_skip.wind_section_title",this.hass.language)}
+            ${_a("weather_skip.wind_section_title",this.hass.language)}
           </div>
           <div class="setting-row">
             <label>
-              ${va("weather_skip.wind_section_title",this.hass.language)}
+              ${_a("weather_skip.wind_section_title",this.hass.language)}
             </label>
             <ha-switch
               .checked="${this.config.skip_on_wind_enabled}"
@@ -2273,7 +2273,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this.config.skip_on_wind_enabled?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("weather_skip.wind_threshold_label",this.hass.language)}
+                    ${_a("weather_skip.wind_threshold_label",this.hass.language)}
                     (m/s)
                   </label>
                   <input
@@ -2282,18 +2282,18 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     step="0.1"
                     inputmode="decimal"
-                    .value="${null!==(s=this.config.wind_threshold)&&void 0!==s?s:6.9}"
+                    .value="${null!==(i=this.config.wind_threshold)&&void 0!==i?i:6.9}"
                     @input="${e=>{const t=parseFloat(e.target.value);isNaN(t)||this.handleConfigChange({wind_threshold:t})}}"
                   />
                 </div>
               `:""}
 
           <div class="section-divider">
-            ${va("weather_skip.freeze_section_title",this.hass.language)}
+            ${_a("weather_skip.freeze_section_title",this.hass.language)}
           </div>
           <div class="setting-row">
             <label>
-              ${va("weather_skip.freeze_section_title",this.hass.language)}
+              ${_a("weather_skip.freeze_section_title",this.hass.language)}
             </label>
             <ha-switch
               .checked="${this.config.skip_on_freeze_enabled}"
@@ -2303,7 +2303,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this.config.skip_on_freeze_enabled?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("weather_skip.freeze_threshold_label",this.hass.language)}
+                    ${_a("weather_skip.freeze_threshold_label",this.hass.language)}
                     (°C)
                   </label>
                   <input
@@ -2315,16 +2315,16 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   />
                 </div>
                 <div class="description-text">
-                  ${va("weather_skip.freeze_help",this.hass.language)}
+                  ${_a("weather_skip.freeze_help",this.hass.language)}
                 </div>
               `:""}
 
           <div class="section-divider">
-            ${va("weather_skip.rain_sensor_section_title",this.hass.language)}
+            ${_a("weather_skip.rain_sensor_section_title",this.hass.language)}
           </div>
           <div class="setting-row">
             <label>
-              ${va("weather_skip.rain_sensor_label",this.hass.language)}
+              ${_a("weather_skip.rain_sensor_label",this.hass.language)}
             </label>
             <ha-entity-picker
               .hass="${this.hass}"
@@ -2336,17 +2336,17 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           </div>
         </div>
       </ha-card>
-    `}_applyCoordinates(e){this._coords=e,this._coordsEnabled=e.manual_coordinates_enabled;const t=(e,t)=>null!=e?String(e):null!=t?String(t):"";this._coordsLat=t(e.manual_latitude,e.ha_latitude),this._coordsLon=t(e.manual_longitude,e.ha_longitude),this._coordsElev=t(e.manual_elevation,e.ha_elevation)}async _saveCoordinates(){if(this.hass){this._coordsSaving=!0,this._scheduleUpdate();try{await(e=this.hass,t=this._coordsEnabled,i=this._coordsEnabled?parseFloat(this._coordsLat):null,s=this._coordsEnabled?parseFloat(this._coordsLon):null,a=this._coordsEnabled?parseFloat(this._coordsElev):null,e.callWS({type:_e+"/coordinates_save",manual_coordinates_enabled:t,manual_latitude:null!=i?i:null,manual_longitude:null!=s?s:null,manual_elevation:null!=a?a:null})),this._applyCoordinates(await Ei(this.hass))}catch(e){console.error("Failed to save coordinates:",e),ka(this,this.hass,"common.errors.save_failed",e)}finally{this._coordsSaving=!1,this._scheduleUpdate()}var e,t,i,s,a}}_renderCoordinateCard(){var e,t,i;if(!this.hass||!this._coords)return Z``;const s=this._coords;return Z`
+    `}_applyCoordinates(e){this._coords=e,this._coordsEnabled=e.manual_coordinates_enabled;const t=(e,t)=>null!=e?String(e):null!=t?String(t):"";this._coordsLat=t(e.manual_latitude,e.ha_latitude),this._coordsLon=t(e.manual_longitude,e.ha_longitude),this._coordsElev=t(e.manual_elevation,e.ha_elevation)}async _saveCoordinates(){if(this.hass){this._coordsSaving=!0,this._scheduleUpdate();try{await(e=this.hass,t=this._coordsEnabled,s=this._coordsEnabled?parseFloat(this._coordsLat):null,i=this._coordsEnabled?parseFloat(this._coordsLon):null,a=this._coordsEnabled?parseFloat(this._coordsElev):null,e.callWS({type:_e+"/coordinates_save",manual_coordinates_enabled:t,manual_latitude:null!=s?s:null,manual_longitude:null!=i?i:null,manual_elevation:null!=a?a:null})),this._applyCoordinates(await Cs(this.hass))}catch(e){console.error("Failed to save coordinates:",e),za(this,this.hass,"common.errors.save_failed",e)}finally{this._coordsSaving=!1,this._scheduleUpdate()}var e,t,s,i,a}}_renderCoordinateCard(){var e,t,s;if(!this.hass||!this._coords)return Z``;const i=this._coords;return Z`
       <ha-card
-        header="${va("coordinate_config.title",this.hass.language)}"
+        header="${_a("coordinate_config.title",this.hass.language)}"
       >
         <div class="card-content description-text">
-          ${va("coordinate_config.description",this.hass.language)}
+          ${_a("coordinate_config.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${va("coordinate_config.manual_enabled",this.hass.language)}
+              ${_a("coordinate_config.manual_enabled",this.hass.language)}
             </label>
             <ha-switch
               .checked="${this._coordsEnabled}"
@@ -2356,7 +2356,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this._coordsEnabled?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("coordinate_config.latitude",this.hass.language)}
+                    ${_a("coordinate_config.latitude",this.hass.language)}
                   </label>
                   <input
                     type="number"
@@ -2371,7 +2371,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 </div>
                 <div class="setting-row">
                   <label>
-                    ${va("coordinate_config.longitude",this.hass.language)}
+                    ${_a("coordinate_config.longitude",this.hass.language)}
                   </label>
                   <input
                     type="number"
@@ -2386,7 +2386,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 </div>
                 <div class="setting-row">
                   <label>
-                    ${va("coordinate_config.elevation",this.hass.language)}
+                    ${_a("coordinate_config.elevation",this.hass.language)}
                   </label>
                   <input
                     type="number"
@@ -2404,13 +2404,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   class="card-content"
                   style="color: var(--secondary-text-color); font-style: italic;"
                 >
-                  ${va("coordinate_config.current_ha_coords",this.hass.language)}:
-                  ${va("coordinate_config.latitude",this.hass.language)}:
-                  ${null!==(e=s.ha_latitude)&&void 0!==e?e:0},
-                  ${va("coordinate_config.longitude",this.hass.language)}:
-                  ${null!==(t=s.ha_longitude)&&void 0!==t?t:0},
-                  ${va("coordinate_config.elevation",this.hass.language)}:
-                  ${null!==(i=s.ha_elevation)&&void 0!==i?i:0}m
+                  ${_a("coordinate_config.current_ha_coords",this.hass.language)}:
+                  ${_a("coordinate_config.latitude",this.hass.language)}:
+                  ${null!==(e=i.ha_latitude)&&void 0!==e?e:0},
+                  ${_a("coordinate_config.longitude",this.hass.language)}:
+                  ${null!==(t=i.ha_longitude)&&void 0!==t?t:0},
+                  ${_a("coordinate_config.elevation",this.hass.language)}:
+                  ${null!==(s=i.ha_elevation)&&void 0!==s?s:0}m
                 </div>
               `}
           <div style="margin-top: 12px;">
@@ -2420,24 +2420,24 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               ?disabled="${this._coordsSaving}"
               @click="${this._saveCoordinates}"
             >
-              ${this._coordsSaving?va("common.saving-messages.saving",this.hass.language):va("common.actions.save",this.hass.language)}
+              ${this._coordsSaving?_a("common.saving-messages.saving",this.hass.language):_a("common.actions.save",this.hass.language)}
             </button>
           </div>
         </div>
       </ha-card>
     `}_renderDaysBetweenIrrigationCard(){var e;return this.hass&&this.config&&this.data?Z`
       <ha-card
-        header="${va("days_between_irrigation.title",this.hass.language)}"
+        header="${_a("days_between_irrigation.title",this.hass.language)}"
       >
         <div class="card-content description-text">
-          ${va("days_between_irrigation.description",this.hass.language)}
+          ${_a("days_between_irrigation.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${va("days_between_irrigation.label",this.hass.language)}
+              ${_a("days_between_irrigation.label",this.hass.language)}
               <div class="setting-description">
-                ${va("days_between_irrigation.help_text",this.hass.language)}
+                ${_a("days_between_irrigation.help_text",this.hass.language)}
               </div>
             </label>
             <input
@@ -2453,47 +2453,47 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           </div>
         </div>
       </ha-card>
-    `:Z``}_renderZoneSequencingCard(){var e,t;if(!this.hass||!this.config||!this.data)return Z``;const i=(this.config.zone_sequencing||Ut)===jt;return Z`
+    `:Z``}_renderZoneSequencingCard(){var e,t;if(!this.hass||!this.config||!this.data)return Z``;const s=(this.config.zone_sequencing||Ut)===jt;return Z`
       <ha-card
-        header="${va("zone_sequencing.title",this.hass.language)}"
+        header="${_a("zone_sequencing.title",this.hass.language)}"
       >
         <div class="card-content description-text">
-          ${va("zone_sequencing.description",this.hass.language)}
+          ${_a("zone_sequencing.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
             <label>
-              ${va("zone_sequencing.title",this.hass.language)}
+              ${_a("zone_sequencing.title",this.hass.language)}
             </label>
             <select
               class="settings-input"
-              .value="${Ba(this.config.zone_sequencing||Ut)}"
+              .value="${Ua(this.config.zone_sequencing||Ut)}"
               @change="${e=>this.handleConfigChange({[Rt]:e.target.value})}"
             >
               <option
                 value="${Ut}"
                 ?selected="${(this.config.zone_sequencing||Ut)===Ut}"
               >
-                ${va("zone_sequencing.parallel",this.hass.language)}
+                ${_a("zone_sequencing.parallel",this.hass.language)}
               </option>
               <option
                 value="${Bt}"
                 ?selected="${this.config.zone_sequencing===Bt}"
               >
-                ${va("zone_sequencing.sequential",this.hass.language)}
+                ${_a("zone_sequencing.sequential",this.hass.language)}
               </option>
               <option
                 value="${jt}"
                 ?selected="${this.config.zone_sequencing===jt}"
               >
-                ${va("zone_sequencing.rotating",this.hass.language)}
+                ${_a("zone_sequencing.rotating",this.hass.language)}
               </option>
             </select>
           </div>
-          ${i?Z`
+          ${s?Z`
                 <div class="setting-row">
                   <label>
-                    ${va("zone_sequencing.max_consecutive_duration_label",this.hass.language)}
+                    ${_a("zone_sequencing.max_consecutive_duration_label",this.hass.language)}
                   </label>
                   <input
                     type="number"
@@ -2503,12 +2503,12 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     @input="${e=>{const t=parseInt(e.target.value,10);isNaN(t)||this.handleConfigChange({[Ft]:t})}}"
                   />
                   <span class="unit-label">
-                    ${va("zone_sequencing.max_consecutive_duration_unit",this.hass.language)}
+                    ${_a("zone_sequencing.max_consecutive_duration_unit",this.hass.language)}
                   </span>
                 </div>
                 <div class="setting-row">
                   <label>
-                    ${va("zone_sequencing.min_absorption_time_label",this.hass.language)}
+                    ${_a("zone_sequencing.min_absorption_time_label",this.hass.language)}
                   </label>
                   <input
                     type="number"
@@ -2518,20 +2518,20 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     @input="${e=>{const t=parseInt(e.target.value,10);isNaN(t)||this.handleConfigChange({[Zt]:t})}}"
                   />
                   <span class="unit-label">
-                    ${va("zone_sequencing.min_absorption_time_unit",this.hass.language)}
+                    ${_a("zone_sequencing.min_absorption_time_unit",this.hass.language)}
                   </span>
                 </div>
               `:""}
         </div>
       </ha-card>
-    `}_renderMasterSwitchCard(){var e,t;if(!this.hass||!this.config)return Z``;const i=!!this.config.master_kick_enabled;return Z`
-      <ha-card header="${va("master.title",this.hass.language)}">
+    `}_renderMasterSwitchCard(){var e,t;if(!this.hass||!this.config)return Z``;const s=!!this.config.master_kick_enabled;return Z`
+      <ha-card header="${_a("master.title",this.hass.language)}">
         <div class="card-content description-text">
-          ${va("master.description",this.hass.language)}
+          ${_a("master.description",this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
-            <label>${va("master.entity",this.hass.language)}</label>
+            <label>${_a("master.entity",this.hass.language)}</label>
             <ha-entity-picker
               .hass="${this.hass}"
               .value="${this.config.master_entity||""}"
@@ -2543,17 +2543,17 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           ${this.config.master_entity?Z`
                 <div class="setting-row">
                   <label
-                    >${va("master.kick_enabled",this.hass.language)}</label
+                    >${_a("master.kick_enabled",this.hass.language)}</label
                   >
                   <ha-switch
-                    .checked="${i}"
+                    .checked="${s}"
                     @change="${e=>this.handleConfigChange({[Gt]:e.target.checked})}"
                   ></ha-switch>
                 </div>
-                ${i?Z`
+                ${s?Z`
                       <div class="setting-row">
                         <label>
-                          ${va("master.kick_pause",this.hass.language)}
+                          ${_a("master.kick_pause",this.hass.language)}
                         </label>
                         <input
                           type="number"
@@ -2564,13 +2564,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                           @input="${e=>{const t=parseFloat(e.target.value);isNaN(t)||this.handleConfigChange({[Kt]:t})}}"
                         />
                         <span class="unit-label">
-                          ${va("master.seconds_unit",this.hass.language)}
+                          ${_a("master.seconds_unit",this.hass.language)}
                         </span>
                       </div>
                     `:""}
                 <div class="setting-row">
                   <label
-                    >${va("master.settle",this.hass.language)}</label
+                    >${_a("master.settle",this.hass.language)}</label
                   >
                   <input
                     type="number"
@@ -2580,12 +2580,12 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     @input="${e=>{const t=parseInt(e.target.value,10);isNaN(t)||this.handleConfigChange({[qt]:t})}}"
                   />
                   <span class="unit-label">
-                    ${va("master.seconds_unit",this.hass.language)}
+                    ${_a("master.seconds_unit",this.hass.language)}
                   </span>
                 </div>
                 <div class="setting-row">
                   <label
-                    >${va("master.off_after",this.hass.language)}</label
+                    >${_a("master.off_after",this.hass.language)}</label
                   >
                   <ha-switch
                     .checked="${!!this.config.master_off_after}"
@@ -2595,15 +2595,15 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               `:""}
         </div>
       </ha-card>
-    `}async saveData(e){if(this.hass&&this.data){this.isSaving=!0,this._saveStatus="saving",this._scheduleUpdate();try{this.data=Object.assign(Object.assign({},this.data),e),this._scheduleUpdate(),await gi(this.hass,this.data),this._markSaved()}catch(e){console.error("Error saving config:",e),this._saveStatus="idle",ka(this,this.hass,"common.errors.save_failed",e),await this._fetchData()}finally{this.isSaving=!1,this._scheduleUpdate()}}}_markSaved(){this._saveStatus="saved",this._savedResetTimer&&clearTimeout(this._savedResetTimer),this._savedResetTimer=window.setTimeout(()=>{this._saveStatus="idle",this._scheduleUpdate()},2e3)}_renderSaveStatus(){if(!this.hass||"idle"===this._saveStatus)return Z``;const e="saving"===this._saveStatus;return Z`
+    `}async saveData(e){if(this.hass&&this.data){this.isSaving=!0,this._saveStatus="saving",this._scheduleUpdate();try{this.data=Object.assign(Object.assign({},this.data),e),this._scheduleUpdate(),await ms(this.hass,this.data),this._markSaved()}catch(e){console.error("Error saving config:",e),this._saveStatus="idle",za(this,this.hass,"common.errors.save_failed",e),await this._fetchData()}finally{this.isSaving=!1,this._scheduleUpdate()}}}_markSaved(){this._saveStatus="saved",this._savedResetTimer&&clearTimeout(this._savedResetTimer),this._savedResetTimer=window.setTimeout(()=>{this._saveStatus="idle",this._scheduleUpdate()},2e3)}_renderSaveStatus(){if(!this.hass||"idle"===this._saveStatus)return Z``;const e="saving"===this._saveStatus;return Z`
       <div class="save-status-float ${this._saveStatus}">
         <ha-icon
           icon="${e?"mdi:content-save-outline":"mdi:check-circle"}"
         ></ha-icon>
-        ${va(e?"common.saving-messages.saving":"panels.zones.status.saved",this.hass.language)}
+        ${_a(e?"common.saving-messages.saving":"panels.zones.status.saved",this.hass.language)}
       </div>
     `}handleConfigChange(e){this.config&&(this.config=Object.assign(Object.assign({},this.config),e)),this.debouncedSave(e)}disconnectedCallback(){super.disconnectedCallback(),this._savedResetTimer&&(clearTimeout(this._savedResetTimer),this._savedResetTimer=null)}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       /* Floating auto-save status chip (UX H3) */
       .save-status-float {
@@ -2781,8 +2781,8 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         background: rgba(var(--rgb-error-color, 176, 0, 32), 0.1);
         color: var(--error-color, #b00020);
       }
-    `}};t([pe()],Fa.prototype,"narrow",void 0),t([pe()],Fa.prototype,"path",void 0),t([pe()],Fa.prototype,"section",void 0),t([pe()],Fa.prototype,"data",void 0),t([pe()],Fa.prototype,"config",void 0),t([pe({type:Boolean})],Fa.prototype,"isLoading",void 0),t([pe({type:Boolean})],Fa.prototype,"isSaving",void 0),t([pe()],Fa.prototype,"_weatherConfig",void 0),t([pe()],Fa.prototype,"_weatherService",void 0),t([pe({type:Boolean})],Fa.prototype,"_useWeatherService",void 0),t([pe()],Fa.prototype,"_newApiKey",void 0),t([pe({type:Boolean})],Fa.prototype,"_weatherSaving",void 0),t([ge()],Fa.prototype,"_coords",void 0),t([ge()],Fa.prototype,"_coordsEnabled",void 0),t([ge()],Fa.prototype,"_coordsLat",void 0),t([ge()],Fa.prototype,"_coordsLon",void 0),t([ge()],Fa.prototype,"_coordsElev",void 0),t([ge()],Fa.prototype,"_coordsSaving",void 0),t([ge()],Fa.prototype,"_saveStatus",void 0),Fa=t([ce("smart-irrigation-view-general")],Fa);const Za=e=>9*e/5+32;function Wa(e,t,i){if(null==e||Number.isNaN(e))return null;switch(t){case"temperature":return i?{value:e,unit:"°C"}:{value:Za(e),unit:"°F"};case"precipitation":return i?{value:e,unit:it}:{value:(n=e,n/25.4),unit:st};case"windspeed":return i?{value:e,unit:ot}:{value:(a=e,2.2369362920544*a),unit:nt};case"pressure":return i?{value:e,unit:"hPa"}:{value:(s=e,.0295299830714*s),unit:at}}var s,a,n}function qa(e,t,i,s){const a=Wa(e,t,i);if(!a)return"-";const n=function(e,t){return"pressure"===e?t?0:2:"precipitation"===e?t?1:2:1}(t,i);return`${a.value.toFixed(n)} ${a.unit}`}function Ga(e,t){return null==e||Number.isNaN(e)?"-":t?`${e.toFixed(0)} L`:`${(e=>.264172052*e)(e).toFixed(1)} gal`}let Ka=class extends le{constructor(){super(...arguments),this.metric=!0,this.name="",this.size="",this.throughput="",this.linkedEntity="",this.showEntity=!1}_emit(e,t){this.dispatchEvent(new CustomEvent(e,{detail:{value:t},bubbles:!0,composed:!0}))}render(){var e,t;const i=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en",s=this.metric?"m²":Je,a=this.metric?Qe:et;return Z`
-      <si-field label="${va("panels.zones.labels.name",i)}" required>
+    `}};t([pe()],Za.prototype,"narrow",void 0),t([pe()],Za.prototype,"path",void 0),t([pe()],Za.prototype,"section",void 0),t([pe()],Za.prototype,"data",void 0),t([pe()],Za.prototype,"config",void 0),t([pe({type:Boolean})],Za.prototype,"isLoading",void 0),t([pe({type:Boolean})],Za.prototype,"isSaving",void 0),t([pe()],Za.prototype,"_weatherConfig",void 0),t([pe()],Za.prototype,"_weatherService",void 0),t([pe({type:Boolean})],Za.prototype,"_useWeatherService",void 0),t([pe()],Za.prototype,"_newApiKey",void 0),t([pe({type:Boolean})],Za.prototype,"_weatherSaving",void 0),t([ge()],Za.prototype,"_coords",void 0),t([ge()],Za.prototype,"_coordsEnabled",void 0),t([ge()],Za.prototype,"_coordsLat",void 0),t([ge()],Za.prototype,"_coordsLon",void 0),t([ge()],Za.prototype,"_coordsElev",void 0),t([ge()],Za.prototype,"_coordsSaving",void 0),t([ge()],Za.prototype,"_saveStatus",void 0),Za=t([ce("smart-irrigation-view-general")],Za);const Wa=e=>9*e/5+32;function qa(e,t,s){if(null==e||Number.isNaN(e))return null;switch(t){case"temperature":return s?{value:e,unit:"°C"}:{value:Wa(e),unit:"°F"};case"precipitation":return s?{value:e,unit:st}:{value:(n=e,n/25.4),unit:it};case"windspeed":return s?{value:e,unit:ot}:{value:(a=e,2.2369362920544*a),unit:nt};case"pressure":return s?{value:e,unit:"hPa"}:{value:(i=e,.0295299830714*i),unit:at}}var i,a,n}function Ga(e,t,s,i){const a=qa(e,t,s);if(!a)return"-";const n=function(e,t){return"pressure"===e?t?0:2:"precipitation"===e?t?1:2:1}(t,s);return`${a.value.toFixed(n)} ${a.unit}`}function Ka(e,t){return null==e||Number.isNaN(e)?"-":t?`${e.toFixed(0)} L`:`${(e=>.264172052*e)(e).toFixed(1)} gal`}let Va=class extends le{constructor(){super(...arguments),this.metric=!0,this.name="",this.size="",this.throughput="",this.linkedEntity="",this.showEntity=!1}_emit(e,t){this.dispatchEvent(new CustomEvent(e,{detail:{value:t},bubbles:!0,composed:!0}))}render(){var e,t;const s=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en",i=this.metric?"m²":Je,a=this.metric?Qe:et;return Z`
+      <si-field label="${_a("panels.zones.labels.name",s)}" required>
         <input
           type="text"
           class="si-input"
@@ -2792,9 +2792,9 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       </si-field>
 
       <si-field
-        label="${va("panels.zones.labels.size",i)}"
-        unit="${s}"
-        help="${va("field_help.zone_size",i)}"
+        label="${_a("panels.zones.labels.size",s)}"
+        unit="${i}"
+        help="${_a("field_help.zone_size",s)}"
       >
         <input
           type="number"
@@ -2808,9 +2808,9 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       </si-field>
 
       <si-field
-        label="${va("panels.zones.labels.throughput",i)}"
+        label="${_a("panels.zones.labels.throughput",s)}"
         unit="${a}"
-        help="${va("field_help.zone_throughput",i)}"
+        help="${_a("field_help.zone_throughput",s)}"
       >
         <input
           type="number"
@@ -2825,8 +2825,8 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
       ${this.showEntity?Z`
             <si-field
-              label="${va("panels.zones.labels.linked_entity",i)}"
-              help="${va("field_help.zone_linked_entity",i)}"
+              label="${_a("panels.zones.labels.linked_entity",s)}"
+              help="${_a("field_help.zone_linked_entity",s)}"
             >
               <ha-entity-picker
                 .hass="${this.hass}"
@@ -2859,16 +2859,16 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         border-color: var(--primary-color);
         outline: none;
       }
-    `}};t([pe({attribute:!1})],Ka.prototype,"hass",void 0),t([pe({type:Boolean})],Ka.prototype,"metric",void 0),t([pe()],Ka.prototype,"name",void 0),t([pe()],Ka.prototype,"size",void 0),t([pe()],Ka.prototype,"throughput",void 0),t([pe()],Ka.prototype,"linkedEntity",void 0),t([pe({type:Boolean})],Ka.prototype,"showEntity",void 0),Ka=t([ce("si-zone-form")],Ka);let Va=class extends(Aa(le)){constructor(){super(...arguments),this.zones=[],this.modules=[],this.mappings=[],this.distributors=[],this.isLoading=!0,this._initialLoadDone=!1,this._scrolledTo=null,this._expanded=new Set,this.isSaving=!1,this._showAddZone=!1,this._pendingConfirm=null,this._saveStatus="idle",this._savedResetTimer=null,this._confirmDeleteZoneId=null,this._newZoneName="",this._newZoneSize="",this._newZoneThroughput="",this._newZoneEntity="",this._updateScheduled=!1,this.globalDebounceTimer=null}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}get _targetZoneId(){var e,t;const i=null===(t=null===(e=this.path)||void 0===e?void 0:e.params)||void 0===t?void 0:t.zone;return null!=i&&""!==i?Number(i):null}_isExpanded(e){return void 0!==e.id&&this._expanded.has(e.id)}_toggleZone(e){const t=new Set(this._expanded);t.has(e)?t.delete(e):t.add(e),this._expanded=t}_flowSensorIsTotalizer(e){var t,i;const s=e.flow_sensor;if(!s)return!1;if(!this.hass)return!1;const a=this.hass.states[s];if(!a)return!1;const n=((null===(t=a.attributes)||void 0===t?void 0:t.unit_of_measurement)||"").trim();return"total_increasing"===(null===(i=a.attributes)||void 0===i?void 0:i.state_class)||!(!n||n.includes("/"))&&!["gpm","lpm","gph","lph"].includes(n.toLowerCase())}firstUpdated(){Oi().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}updated(){var e;const t=this._targetZoneId;if(null===t||this.isLoading)return;if(this._scrolledTo===t)return;if(!this._expanded.has(t))return void(this._expanded=new Set(this._expanded).add(t));const i=null===(e=this.shadowRoot)||void 0===e?void 0:e.querySelector(`#zone-${t}`);i&&(this._scrolledTo=t,requestAnimationFrame(()=>i.scrollIntoView({behavior:"smooth",block:"start"})))}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[t,i,s,a,n]=await Promise.all([pi(this.hass),mi(this.hass),_i(this.hass),yi(this.hass),ki(this.hass)]);this.config=t,this.zones=i,this.modules=s,this.mappings=a,this.distributors=n,this._initialLoadDone=!0}catch(e){console.error("Error fetching data:",e),ka(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}handleResetAllBuckets(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{reset_all_buckets:!0})).catch(e=>{console.error("Failed to reset all buckets:",e),ka(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after reset:",e))}))}handleClearAllWeatherdata(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{clear_all_weatherdata:!0})).catch(e=>{console.error("Failed to clear all weather data:",e),ka(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after clear-weather:",e))}))}handleAddZone(){var e;if(!this._newZoneName.trim())return;const t=null!==(e=this.modules.find(e=>"PyETO"===e.name))&&void 0!==e?e:this.modules[0],i=this.mappings[0],s={name:this._newZoneName.trim(),size:Math.round(100*(parseFloat(this._newZoneSize)||0))/100,throughput:Math.round(100*(parseFloat(this._newZoneThroughput)||0))/100,state:Ca.Automatic,duration:0,bucket:0,module:null==t?void 0:t.id,delta:0,explanation:"",multiplier:1,mapping:null==i?void 0:i.id,lead_time:0,maximum_duration:void 0,maximum_bucket:void 0,drainage_rate:void 0,current_drainage:0,linked_entity:this._newZoneEntity||void 0};this.zones=[...this.zones,s],this.isSaving=!0,this._showAddZone=!1,this.saveToHA(s).then(()=>(this._newZoneName="",this._newZoneSize="",this._newZoneThroughput="",this._newZoneEntity="",this._fetchData())).catch(e=>{console.error("Failed to add zone:",e),this.zones=this.zones.slice(0,-1),ka(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()})}handleEditZone(e,t){this.hass&&(this.zones=this.zones.map((i,s)=>s===e?t:i),this.globalDebounceTimer&&clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=window.setTimeout(()=>{this.isSaving=!0,this._saveStatus="saving",this.saveToHA(t).then(()=>this._markSaved()).catch(e=>{console.error("Failed to save zone:",e),this._saveStatus="idle",ka(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}),this.globalDebounceTimer=null},500),this._scheduleUpdate())}handleRemoveZone(e){this._confirmDeleteZoneId=e}_confirmDelete(){const e=this._confirmDeleteZoneId;if(null===e||!this.hass)return;const t=this.zones.findIndex(t=>t.id===e);if(-1===t)return;const i=[...this.zones];var s,a;this.zones=this.zones.filter(t=>t.id!==e),this._confirmDeleteZoneId=null,this.isSaving=!0,(s=this.hass,a=e.toString(),s.callApi("POST",_e+"/zones",{id:a,remove:!0})).catch(e=>{console.error("Failed to delete zone:",e),ka(this,this.hass,"common.errors.delete_failed",e),this.zones=i,this._fetchData().catch(e=>console.error("Failed to refresh data after delete error:",e))}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()})}_runPendingConfirm(){const e=this._pendingConfirm;this._pendingConfirm=null,null==e||e.onConfirm()}_markSaved(){this._saveStatus="saved",this._savedResetTimer&&clearTimeout(this._savedResetTimer),this._savedResetTimer=window.setTimeout(()=>{this._saveStatus="idle",this._scheduleUpdate()},2e3),this._scheduleUpdate()}_renderSaveStatus(){if(!this.hass||"idle"===this._saveStatus)return Z``;const e="saving"===this._saveStatus;return Z`
+    `}};t([pe({attribute:!1})],Va.prototype,"hass",void 0),t([pe({type:Boolean})],Va.prototype,"metric",void 0),t([pe()],Va.prototype,"name",void 0),t([pe()],Va.prototype,"size",void 0),t([pe()],Va.prototype,"throughput",void 0),t([pe()],Va.prototype,"linkedEntity",void 0),t([pe({type:Boolean})],Va.prototype,"showEntity",void 0),Va=t([ce("si-zone-form")],Va);let Ya=class extends(Ea(le)){constructor(){super(...arguments),this.zones=[],this.modules=[],this.mappings=[],this.distributors=[],this.isLoading=!0,this._initialLoadDone=!1,this._scrolledTo=null,this._osStationFilter=e=>"station"===e.attributes.opensprinkler_type&&!e.attributes.is_master,this._expanded=new Set,this.isSaving=!1,this._showAddZone=!1,this._pendingConfirm=null,this._saveStatus="idle",this._savedResetTimer=null,this._confirmDeleteZoneId=null,this._newZoneName="",this._newZoneSize="",this._newZoneThroughput="",this._newZoneEntity="",this._updateScheduled=!1,this.globalDebounceTimer=null}_hasOpenSprinklerStations(){var e,t;const s=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.states)&&void 0!==t?t:{};return Object.keys(s).some(e=>e.startsWith("switch.")&&this._osStationFilter(s[e]))}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}get _targetZoneId(){var e,t;const s=null===(t=null===(e=this.path)||void 0===e?void 0:e.params)||void 0===t?void 0:t.zone;return null!=s&&""!==s?Number(s):null}_isExpanded(e){return void 0!==e.id&&this._expanded.has(e.id)}_toggleZone(e){const t=new Set(this._expanded);t.has(e)?t.delete(e):t.add(e),this._expanded=t}_flowSensorIsTotalizer(e){var t,s;const i=e.flow_sensor;if(!i)return!1;if(!this.hass)return!1;const a=this.hass.states[i];if(!a)return!1;const n=((null===(t=a.attributes)||void 0===t?void 0:t.unit_of_measurement)||"").trim();return"total_increasing"===(null===(s=a.attributes)||void 0===s?void 0:s.state_class)||!(!n||n.includes("/"))&&!["gpm","lpm","gph","lph"].includes(n.toLowerCase())}firstUpdated(){Hs().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}updated(){var e;const t=this._targetZoneId;if(null===t||this.isLoading)return;if(this._scrolledTo===t)return;if(!this._expanded.has(t))return void(this._expanded=new Set(this._expanded).add(t));const s=null===(e=this.shadowRoot)||void 0===e?void 0:e.querySelector(`#zone-${t}`);s&&(this._scrolledTo=t,requestAnimationFrame(()=>s.scrollIntoView({behavior:"smooth",block:"start"})))}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[t,s,i,a,n]=await Promise.all([gs(this.hass),vs(this.hass),fs(this.hass),ws(this.hass),zs(this.hass)]);this.config=t,this.zones=s,this.modules=i,this.mappings=a,this.distributors=n,this._initialLoadDone=!0}catch(e){console.error("Error fetching data:",e),za(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}handleResetAllBuckets(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{reset_all_buckets:!0})).catch(e=>{console.error("Failed to reset all buckets:",e),za(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after reset:",e))}))}handleClearAllWeatherdata(){var e;this.hass&&(this.isSaving=!0,this._scheduleUpdate(),(e=this.hass,e.callApi("POST",_e+"/zones",{clear_all_weatherdata:!0})).catch(e=>{console.error("Failed to clear all weather data:",e),za(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(e=>console.error("fetchData after clear-weather:",e))}))}handleAddZone(){var e;if(!this._newZoneName.trim())return;const t=null!==(e=this.modules.find(e=>"PyETO"===e.name))&&void 0!==e?e:this.modules[0],s=this.mappings[0],i={name:this._newZoneName.trim(),size:Math.round(100*(parseFloat(this._newZoneSize)||0))/100,throughput:Math.round(100*(parseFloat(this._newZoneThroughput)||0))/100,state:Ta.Automatic,duration:0,bucket:0,module:null==t?void 0:t.id,delta:0,explanation:"",multiplier:1,mapping:null==s?void 0:s.id,lead_time:0,maximum_duration:void 0,maximum_bucket:void 0,drainage_rate:void 0,current_drainage:0,linked_entity:this._newZoneEntity||void 0};this.zones=[...this.zones,i],this.isSaving=!0,this._showAddZone=!1,this.saveToHA(i).then(()=>(this._newZoneName="",this._newZoneSize="",this._newZoneThroughput="",this._newZoneEntity="",this._fetchData())).catch(e=>{console.error("Failed to add zone:",e),this.zones=this.zones.slice(0,-1),za(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()})}handleEditZone(e,t){this.hass&&(this.zones=this.zones.map((s,i)=>i===e?t:s),this.globalDebounceTimer&&clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=window.setTimeout(()=>{this.isSaving=!0,this._saveStatus="saving",this.saveToHA(t).then(()=>this._markSaved()).catch(e=>{console.error("Failed to save zone:",e),this._saveStatus="idle",za(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}),this.globalDebounceTimer=null},500),this._scheduleUpdate())}handleRemoveZone(e){this._confirmDeleteZoneId=e}_confirmDelete(){const e=this._confirmDeleteZoneId;if(null===e||!this.hass)return;const t=this.zones.findIndex(t=>t.id===e);if(-1===t)return;const s=[...this.zones];var i,a;this.zones=this.zones.filter(t=>t.id!==e),this._confirmDeleteZoneId=null,this.isSaving=!0,(i=this.hass,a=e.toString(),i.callApi("POST",_e+"/zones",{id:a,remove:!0})).catch(e=>{console.error("Failed to delete zone:",e),za(this,this.hass,"common.errors.delete_failed",e),this.zones=s,this._fetchData().catch(e=>console.error("Failed to refresh data after delete error:",e))}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()})}_runPendingConfirm(){const e=this._pendingConfirm;this._pendingConfirm=null,null==e||e.onConfirm()}_markSaved(){this._saveStatus="saved",this._savedResetTimer&&clearTimeout(this._savedResetTimer),this._savedResetTimer=window.setTimeout(()=>{this._saveStatus="idle",this._scheduleUpdate()},2e3),this._scheduleUpdate()}_renderSaveStatus(){if(!this.hass||"idle"===this._saveStatus)return Z``;const e="saving"===this._saveStatus;return Z`
       <span class="save-status ${this._saveStatus}">
         <ha-icon
           icon="${e?"mdi:content-save-outline":"mdi:check-circle"}"
         ></ha-icon>
-        ${va(e?"common.saving-messages.saving":"panels.zones.status.saved",this.hass.language)}
+        ${_a(e?"common.saving-messages.saving":"panels.zones.status.saved",this.hass.language)}
       </span>
-    `}async saveToHA(e){if(!this.hass)throw new Error("Home Assistant connection not available");await vi(this.hass,e)}_renderModuleOptions(e){if(!this.hass)return Z``;const t=null!=e?String(e):"";return Z`
+    `}async saveToHA(e){if(!this.hass)throw new Error("Home Assistant connection not available");await _s(this.hass,e)}_renderModuleOptions(e){if(!this.hass)return Z``;const t=null!=e?String(e):"";return Z`
       <option value="" ?selected="${""===t}">
-        ---${va("common.labels.select",this.hass.language)}---
+        ---${_a("common.labels.select",this.hass.language)}---
       </option>
       ${this.modules.map(e=>Z`
           <option value="${e.id}" ?selected="${t===String(e.id)}">
@@ -2877,28 +2877,28 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         `)}
     `}_renderMappingOptions(e){if(!this.hass)return Z``;const t=null!=e?String(e):"";return Z`
       <option value="" ?selected="${""===t}">
-        ---${va("common.labels.select",this.hass.language)}---
+        ---${_a("common.labels.select",this.hass.language)}---
       </option>
       ${this.mappings.map(e=>Z`
           <option value="${e.id}" ?selected="${t===String(e.id)}">
             ${e.id}: ${e.name}
           </option>
         `)}
-    `}_renderDistributorSelector(e,t){var i,s;if(!this.hass)return Z``;if(!(null===(i=this.config)||void 0===i?void 0:i.distributors_enabled))return Z``;const a=this.hass.language,n=null!=e.distributor_id;return Z`
+    `}_renderDistributorSelector(e,t){var s,i;if(!this.hass)return Z``;if(!(null===(s=this.config)||void 0===s?void 0:s.distributors_enabled))return Z``;const a=this.hass.language,n=null!=e.distributor_id;return Z`
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.zones.labels.distributor",a)}</span
+          >${_a("panels.zones.labels.distributor",a)}</span
         >
         <span slot="description"
-          >${va("panels.zones.labels.distributor_help",a)}</span
+          >${_a("panels.zones.labels.distributor_help",a)}</span
         >
         <select
           class="settings-input"
-          .value="${Ba(n?String(e.distributor_id):"")}"
-          @change="${i=>this._onZoneDistributorChange(t,e,i)}"
+          .value="${Ua(n?String(e.distributor_id):"")}"
+          @change="${s=>this._onZoneDistributorChange(t,e,s)}"
         >
           <option value="" ?selected="${!n}">
-            ${va("panels.zones.labels.distributor_none",a)}
+            ${_a("panels.zones.labels.distributor_none",a)}
           </option>
           ${this.distributors.map(t=>Z`
               <option
@@ -2913,27 +2913,27 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       ${n?Z`
             <ha-settings-row>
               <span slot="heading"
-                >${va("panels.zones.labels.outlet_number",a)}</span
+                >${_a("panels.zones.labels.outlet_number",a)}</span
               >
               <span slot="description"
-                >${va("panels.zones.labels.outlet_number_readonly_help",a)}</span
+                >${_a("panels.zones.labels.outlet_number_readonly_help",a)}</span
               >
               <div class="outlet-readonly">
                 <span class="outlet-readonly-value"
-                  >${null!==(s=e.outlet_number)&&void 0!==s?s:"—"}</span
+                  >${null!==(i=e.outlet_number)&&void 0!==i?i:"—"}</span
                 >
                 <button
                   class="action-btn secondary"
                   @click="${()=>this._gotoDistributor(e.distributor_id)}"
                 >
                   <ha-icon icon="mdi:open-in-new"></ha-icon>
-                  ${va("panels.zones.labels.configure_on_distributor",a)}
+                  ${_a("panels.zones.labels.configure_on_distributor",a)}
                 </button>
               </div>
             </ha-settings-row>
           `:""}
-    `}_onZoneDistributorChange(e,t,i){var s;const a=i.target.value;if(!a)return void this.handleEditZone(e,Object.assign(Object.assign({},t),{[hi]:null,[ui]:null}));const n=parseInt(a);let o=null!==(s=t.outlet_number)&&void 0!==s?s:null;if(t.distributor_id!==n||null==o){const e=this.zones.filter(e=>e.distributor_id===n&&e.id!==t.id&&null!=e.outlet_number).map(e=>e.outlet_number),i=e.length?Math.max(...e):0;o=Math.min(i+1,6)}this.handleEditZone(e,Object.assign(Object.assign({},t),{[hi]:n,[ui]:o}))}_gotoDistributor(e){wa(0,Oa("setup","distributors",{params:{distributor:String(e)}}))}renderZone(e,t){var i,s,a,n,o,r,l,d,c,h,u,p,g,m,v,_,f;if(!this.hass)return Z``;const b=this._isExpanded(e);return Z`
-      <ha-card id="zone-${null!==(i=e.id)&&void 0!==i?i:"new"}">
+    `}_onZoneDistributorChange(e,t,s){var i;const a=s.target.value;if(!a)return void this.handleEditZone(e,Object.assign(Object.assign({},t),{[us]:null,[ps]:null}));const n=parseInt(a);let o=null!==(i=t.outlet_number)&&void 0!==i?i:null;if(t.distributor_id!==n||null==o){const e=this.zones.filter(e=>e.distributor_id===n&&e.id!==t.id&&null!=e.outlet_number).map(e=>e.outlet_number),s=e.length?Math.max(...e):0;o=Math.min(s+1,6)}this.handleEditZone(e,Object.assign(Object.assign({},t),{[us]:n,[ps]:o}))}_gotoDistributor(e){$a(0,Ha("setup","distributors",{params:{distributor:String(e)}}))}renderZone(e,t){var s,i,a,n,o,r,l,d,c,h,u,p,g,m,v,_,f;if(!this.hass)return Z``;const b=this._isExpanded(e);return Z`
+      <ha-card id="zone-${null!==(s=e.id)&&void 0!==s?s:"new"}">
         <div
           class="card-header zone-toggle"
           role="button"
@@ -2954,20 +2954,20 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               <div class="card-content zone-settings">
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.name",this.hass.language)}</span
+                    >${_a("panels.zones.labels.name",this.hass.language)}</span
                   >
                   <input
                     type="text"
                     class="settings-input"
                     .value="${e.name}"
-                    @input="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[dt]:i.target.value}))}"
+                    @input="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[dt]:s.target.value}))}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.size",this.hass.language)}
-                    (${ba(this.config,ct)})</span
+                    >${_a("panels.zones.labels.size",this.hass.language)}
+                    (${ya(this.config,ct)})</span
                   >
                   <input
                     type="number"
@@ -2976,14 +2976,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="decimal"
                     .value="${parseFloat(e.size.toFixed(2))}"
-                    @input="${i=>{const s=Math.round(100*i.target.valueAsNumber)/100;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[ct]:s}))}}"
+                    @input="${s=>{const i=Math.round(100*s.target.valueAsNumber)/100;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[ct]:i}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.throughput",this.hass.language)}
-                    (${ba(this.config,ht)})</span
+                    >${_a("panels.zones.labels.throughput",this.hass.language)}
+                    (${ya(this.config,ht)})</span
                   >
                   <input
                     type="number"
@@ -2992,34 +2992,34 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="decimal"
                     .value="${parseFloat(e.throughput.toFixed(2))}"
-                    @input="${i=>{const s=Math.round(100*i.target.valueAsNumber)/100;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[ht]:s}))}}"
+                    @input="${s=>{const i=Math.round(100*s.target.valueAsNumber)/100;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[ht]:i}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.soil_type",this.hass.language)}</span
+                    >${_a("panels.zones.labels.soil_type",this.hass.language)}</span
                   >
                   <span slot="description"
-                    >${va("field_help.zone_soil_type",this.hass.language)}</span
+                    >${_a("field_help.zone_soil_type",this.hass.language)}</span
                   >
                   <select
                     class="settings-input"
-                    .value="${Ba(null!==(s=Object.keys(Pt).find(t=>Pt[t]===e.drainage_rate))&&void 0!==s?s:"custom")}"
-                    @change="${i=>{const s=i.target.value;"custom"!==s&&void 0!==Pt[s]&&this.handleEditZone(t,Object.assign(Object.assign({},e),{[wt]:Pt[s]}))}}"
+                    .value="${Ua(null!==(i=Object.keys(Pt).find(t=>Pt[t]===e.drainage_rate))&&void 0!==i?i:"custom")}"
+                    @change="${s=>{const i=s.target.value;"custom"!==i&&void 0!==Pt[i]&&this.handleEditZone(t,Object.assign(Object.assign({},e),{[wt]:Pt[i]}))}}"
                   >
                     <option
                       value="custom"
                       ?selected="${!Object.values(Pt).includes(null!==(a=e.drainage_rate)&&void 0!==a?a:-1)}"
                     >
-                      ${va("panels.zones.labels.soil_types.custom",this.hass.language)}
+                      ${_a("panels.zones.labels.soil_types.custom",this.hass.language)}
                     </option>
                     ${Object.keys(Pt).map(t=>Z`
                         <option
                           value="${t}"
                           ?selected="${Pt[t]===e.drainage_rate}"
                         >
-                          ${va(`panels.zones.labels.soil_types.${t}`,this.hass.language)}
+                          ${_a(`panels.zones.labels.soil_types.${t}`,this.hass.language)}
                         </option>
                       `)}
                   </select>
@@ -3027,11 +3027,11 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.drainage_rate",this.hass.language)}
-                    (${ba(this.config,wt)})</span
+                    >${_a("panels.zones.labels.drainage_rate",this.hass.language)}
+                    (${ya(this.config,wt)})</span
                   >
                   <span slot="description"
-                    >${va("field_help.zone_drainage_rate",this.hass.language)}</span
+                    >${_a("field_help.zone_drainage_rate",this.hass.language)}</span
                   >
                   <input
                     type="number"
@@ -3040,34 +3040,34 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="decimal"
                     .value="${parseFloat((null!==(n=e.drainage_rate)&&void 0!==n?n:0).toFixed(2))}"
-                    @input="${i=>{const s=Math.round(100*i.target.valueAsNumber)/100;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[wt]:s}))}}"
+                    @input="${s=>{const i=Math.round(100*s.target.valueAsNumber)/100;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[wt]:i}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.plant_type",this.hass.language)}</span
+                    >${_a("panels.zones.labels.plant_type",this.hass.language)}</span
                   >
                   <span slot="description"
-                    >${va("field_help.zone_plant_type",this.hass.language)}</span
+                    >${_a("field_help.zone_plant_type",this.hass.language)}</span
                   >
                   <select
                     class="settings-input"
-                    .value="${Ba(null!==(o=e.plant_type)&&void 0!==o?o:"custom")}"
-                    @change="${i=>{const s=i.target.value,a={[xt]:s};"custom"!==s&&void 0!==Lt[s]&&(a.kc=Lt[s]),this.handleEditZone(t,Object.assign(Object.assign({},e),a))}}"
+                    .value="${Ua(null!==(o=e.plant_type)&&void 0!==o?o:"custom")}"
+                    @change="${s=>{const i=s.target.value,a={[xt]:i};"custom"!==i&&void 0!==Lt[i]&&(a.kc=Lt[i]),this.handleEditZone(t,Object.assign(Object.assign({},e),a))}}"
                   >
                     <option
                       value="custom"
                       ?selected="${"custom"===(null!==(r=e.plant_type)&&void 0!==r?r:"custom")}"
                     >
-                      ${va("panels.zones.labels.plant_types.custom",this.hass.language)}
+                      ${_a("panels.zones.labels.plant_types.custom",this.hass.language)}
                     </option>
                     ${Object.keys(Lt).map(t=>Z`
                         <option
                           value="${t}"
                           ?selected="${e.plant_type===t}"
                         >
-                          ${va(`panels.zones.labels.plant_types.${t}`,this.hass.language)}
+                          ${_a(`panels.zones.labels.plant_types.${t}`,this.hass.language)}
                         </option>
                       `)}
                   </select>
@@ -3075,10 +3075,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.kc",this.hass.language)}</span
+                    >${_a("panels.zones.labels.kc",this.hass.language)}</span
                   >
                   <span slot="description"
-                    >${va("field_help.zone_kc",this.hass.language)}</span
+                    >${_a("field_help.zone_kc",this.hass.language)}</span
                   >
                   <input
                     type="number"
@@ -3087,48 +3087,48 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="decimal"
                     .value="${parseFloat((null!==(l=e.kc)&&void 0!==l?l:1).toFixed(2))}"
-                    @input="${i=>{const s=Math.round(100*i.target.valueAsNumber)/100;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[$t]:s,[xt]:"custom"}))}}"
+                    @input="${s=>{const i=Math.round(100*s.target.valueAsNumber)/100;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[$t]:i,[xt]:"custom"}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.state",this.hass.language)}</span
+                    >${_a("panels.zones.labels.state",this.hass.language)}</span
                   >
                   <select
                     class="settings-input"
-                    .value="${Ba(e.state)}"
-                    @change="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[ut]:i.target.value,[pt]:0}))}"
+                    .value="${Ua(e.state)}"
+                    @change="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[ut]:s.target.value,[pt]:0}))}"
                   >
                     <option
-                      value="${Ca.Automatic}"
-                      ?selected="${e.state===Ca.Automatic}"
+                      value="${Ta.Automatic}"
+                      ?selected="${e.state===Ta.Automatic}"
                     >
-                      ${va("panels.zones.labels.states.automatic",this.hass.language)}
+                      ${_a("panels.zones.labels.states.automatic",this.hass.language)}
                     </option>
                     <option
-                      value="${Ca.Manual}"
-                      ?selected="${e.state===Ca.Manual}"
+                      value="${Ta.Manual}"
+                      ?selected="${e.state===Ta.Manual}"
                     >
-                      ${va("panels.zones.labels.states.manual",this.hass.language)}
+                      ${_a("panels.zones.labels.states.manual",this.hass.language)}
                     </option>
                     <option
-                      value="${Ca.Disabled}"
-                      ?selected="${e.state===Ca.Disabled}"
+                      value="${Ta.Disabled}"
+                      ?selected="${e.state===Ta.Disabled}"
                     >
-                      ${va("panels.zones.labels.states.disabled",this.hass.language)}
+                      ${_a("panels.zones.labels.states.disabled",this.hass.language)}
                     </option>
                   </select>
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("common.labels.module",this.hass.language)}</span
+                    >${_a("common.labels.module",this.hass.language)}</span
                   >
                   <select
                     class="settings-input"
-                    .value="${Ba(void 0!==e.module?String(e.module):"")}"
-                    @change="${i=>{const s=i.target.value;this.handleEditZone(t,Object.assign(Object.assign({},e),{[gt]:s?parseInt(s):void 0}))}}"
+                    .value="${Ua(void 0!==e.module?String(e.module):"")}"
+                    @change="${s=>{const i=s.target.value;this.handleEditZone(t,Object.assign(Object.assign({},e),{[gt]:i?parseInt(i):void 0}))}}"
                   >
                     ${this._renderModuleOptions(e.module)}
                   </select>
@@ -3136,12 +3136,12 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.mapping",this.hass.language)}</span
+                    >${_a("panels.zones.labels.mapping",this.hass.language)}</span
                   >
                   <select
                     class="settings-input"
-                    .value="${Ba(void 0!==e.mapping?String(e.mapping):"")}"
-                    @change="${i=>{const s=i.target.value;this.handleEditZone(t,Object.assign(Object.assign({},e),{[_t]:s?parseInt(s):void 0}))}}"
+                    .value="${Ua(void 0!==e.mapping?String(e.mapping):"")}"
+                    @change="${s=>{const i=s.target.value;this.handleEditZone(t,Object.assign(Object.assign({},e),{[_t]:i?parseInt(i):void 0}))}}"
                   >
                     ${this._renderMappingOptions(e.mapping)}
                   </select>
@@ -3149,31 +3149,37 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
                 ${this._renderDistributorSelector(e,t)}
                 ${null!=e.distributor_id?Z`<div class="distributor-managed">
-                      ${va("panels.zones.labels.distributor_managed_note",this.hass.language)}
+                      ${_a("panels.zones.labels.distributor_managed_note",this.hass.language)}
                     </div>`:Z`
                       <ha-settings-row>
                         <span slot="heading"
-                          >${va("panels.zones.labels.watering_mode",this.hass.language)}</span
+                          >${_a("panels.zones.labels.watering_mode",this.hass.language)}</span
                         >
                         <span slot="description"
-                          >${va("panels.zones.labels.watering_mode_description",this.hass.language)}</span
+                          >${_a("panels.zones.labels.watering_mode_description",this.hass.language)}</span
                         >
                         <select
                           class="settings-input"
-                          .value="${Ba(null!==(d=e.watering_mode)&&void 0!==d?d:"classic")}"
-                          @change="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Et]:i.target.value}))}"
+                          .value="${Ua(null!==(d=e.watering_mode)&&void 0!==d?d:"classic")}"
+                          @change="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Et]:s.target.value}))}"
                         >
                           <option
                             value="classic"
                             ?selected="${"classic"===(null!==(c=e.watering_mode)&&void 0!==c?c:"classic")}"
                           >
-                            ${va("panels.zones.labels.watering_modes.classic",this.hass.language)}
+                            ${_a("panels.zones.labels.watering_modes.classic",this.hass.language)}
                           </option>
                           <option
                             value="service"
                             ?selected="${"service"===e.watering_mode}"
                           >
-                            ${va("panels.zones.labels.watering_modes.service",this.hass.language)}
+                            ${_a("panels.zones.labels.watering_modes.service",this.hass.language)}
+                          </option>
+                          <option
+                            value="${hs}"
+                            ?selected="${e.watering_mode===hs}"
+                          >
+                            ${_a("panels.zones.labels.watering_modes.opensprinkler",this.hass.language)}
                           </option>
                         </select>
                       </ha-settings-row>
@@ -3181,130 +3187,150 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                       ${"service"===e.watering_mode?Z`
                             <ha-settings-row>
                               <span slot="heading"
-                                >${va("panels.zones.labels.run_service",this.hass.language)}</span
+                                >${_a("panels.zones.labels.run_service",this.hass.language)}</span
                               >
                               <span slot="description"
-                                >${va("panels.zones.labels.run_service_help",this.hass.language)}</span
+                                >${_a("panels.zones.labels.run_service_help",this.hass.language)}</span
                               >
                               <ha-entity-picker
                                 .hass="${this.hass}"
                                 .value="${e.run_service||""}"
                                 .includeDomains="${["script"]}"
                                 allow-custom-entity
-                                @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Ct]:i.detail.value||null}))}"
+                                @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Ct]:s.detail.value||null}))}"
                               ></ha-entity-picker>
                             </ha-settings-row>
                             <ha-settings-row>
                               <span slot="heading"
-                                >${va("panels.zones.labels.duration_field",this.hass.language)}</span
+                                >${_a("panels.zones.labels.duration_field",this.hass.language)}</span
                               >
                               <span slot="description"
-                                >${va("panels.zones.labels.duration_field_help",this.hass.language)}</span
+                                >${_a("panels.zones.labels.duration_field_help",this.hass.language)}</span
                               >
                               <input
                                 type="text"
                                 class="settings-input"
-                                placeholder="${va("panels.zones.labels.duration_field_placeholder",this.hass.language)}"
+                                placeholder="${_a("panels.zones.labels.duration_field_placeholder",this.hass.language)}"
                                 .value="${e.duration_field||"duration"}"
-                                @input="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Tt]:i.target.value||void 0}))}"
+                                @input="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Tt]:s.target.value||void 0}))}"
                               />
                             </ha-settings-row>
                             <ha-settings-row>
                               <span slot="heading"
-                                >${va("panels.zones.labels.duration_unit",this.hass.language)}</span
+                                >${_a("panels.zones.labels.duration_unit",this.hass.language)}</span
                               >
                               <span slot="description"
-                                >${va("panels.zones.labels.duration_unit_help",this.hass.language)}</span
+                                >${_a("panels.zones.labels.duration_unit_help",this.hass.language)}</span
                               >
                               <select
                                 class="settings-input"
-                                .value="${Ba(null!==(h=e.duration_unit)&&void 0!==h?h:"seconds")}"
-                                @change="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Ot]:i.target.value}))}"
+                                .value="${Ua(null!==(h=e.duration_unit)&&void 0!==h?h:"seconds")}"
+                                @change="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Ot]:s.target.value}))}"
                               >
                                 <option
                                   value="seconds"
                                   ?selected="${"seconds"===(null!==(u=e.duration_unit)&&void 0!==u?u:"seconds")}"
                                 >
-                                  ${va("panels.zones.labels.duration_units.seconds",this.hass.language)}
+                                  ${_a("panels.zones.labels.duration_units.seconds",this.hass.language)}
                                 </option>
                                 <option
                                   value="minutes"
                                   ?selected="${"minutes"===e.duration_unit}"
                                 >
-                                  ${va("panels.zones.labels.duration_units.minutes",this.hass.language)}
+                                  ${_a("panels.zones.labels.duration_units.minutes",this.hass.language)}
                                 </option>
                               </select>
                             </ha-settings-row>
                             <ha-settings-row>
                               <span slot="heading"
-                                >${va("panels.zones.labels.stop_service",this.hass.language)}</span
+                                >${_a("panels.zones.labels.stop_service",this.hass.language)}</span
                               >
                               <span slot="description"
-                                >${va("panels.zones.labels.stop_service_help",this.hass.language)}</span
+                                >${_a("panels.zones.labels.stop_service_help",this.hass.language)}</span
                               >
                               <ha-entity-picker
                                 .hass="${this.hass}"
                                 .value="${e.stop_service||""}"
                                 .includeDomains="${["script"]}"
                                 allow-custom-entity
-                                @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Ht]:i.detail.value||null}))}"
+                                @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Ht]:s.detail.value||null}))}"
                               ></ha-entity-picker>
                             </ha-settings-row>
                             <ha-settings-row>
                               <span slot="heading"
-                                >${va("panels.zones.labels.confirm_entity",this.hass.language)}</span
+                                >${_a("panels.zones.labels.confirm_entity",this.hass.language)}</span
                               >
                               <span slot="description"
-                                >${va("panels.zones.labels.confirm_entity_help",this.hass.language)}</span
+                                >${_a("panels.zones.labels.confirm_entity_help",this.hass.language)}</span
                               >
                               <ha-entity-picker
                                 .hass="${this.hass}"
                                 .value="${e.confirm_entity||""}"
                                 .includeDomains="${["valve","switch","input_boolean","number","binary_sensor"]}"
                                 allow-custom-entity
-                                @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Dt]:i.detail.value||null}))}"
+                                @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Dt]:s.detail.value||null}))}"
                               ></ha-entity-picker>
                             </ha-settings-row>
                             ${(null===(p=this.config)||void 0===p?void 0:p.observed_watering_enabled)?Z`
                                   <ha-settings-row>
                                     <span slot="heading"
-                                      >${va("panels.zones.labels.observed_entity",this.hass.language)}</span
+                                      >${_a("panels.zones.labels.observed_entity",this.hass.language)}</span
                                     >
                                     <span slot="description"
-                                      >${va("panels.zones.labels.observed_entity_help",this.hass.language)}</span
+                                      >${_a("panels.zones.labels.observed_entity_help",this.hass.language)}</span
                                     >
                                     <ha-entity-picker
                                       .hass="${this.hass}"
                                       .value="${e.observed_entity||""}"
                                       .includeDomains="${["valve","switch","input_boolean"]}"
                                       allow-custom-entity
-                                      @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Mt]:i.detail.value||null}))}"
+                                      @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[Mt]:s.detail.value||null}))}"
                                     ></ha-entity-picker>
                                   </ha-settings-row>
                                 `:""}
                           `:""}
-                      ${"service"!==e.watering_mode?Z`
+                      ${e.watering_mode===hs?Z`
                             <ha-settings-row>
                               <span slot="heading"
-                                >${va("panels.zones.labels.linked_entity",this.hass.language)}</span
+                                >${_a("panels.zones.labels.opensprinkler_station",this.hass.language)}</span
+                              >
+                              <span slot="description"
+                                >${_a("panels.zones.labels.opensprinkler_station_help",this.hass.language)}</span
                               >
                               <ha-entity-picker
                                 .hass="${this.hass}"
                                 .value="${e.linked_entity||""}"
-                                .includeDomains="${["switch","valve","input_boolean"]}"
+                                .includeDomains="${["switch"]}"
+                                .entityFilter="${this._osStationFilter}"
                                 allow-custom-entity
-                                @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[kt]:i.detail.value||null}))}"
+                                @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[kt]:s.detail.value||null}))}"
                               ></ha-entity-picker>
                             </ha-settings-row>
-                          `:""}
+                            ${this._hasOpenSprinklerStations()?"":Z`<div class="distributor-managed">
+                                  ${_a("panels.zones.labels.opensprinkler_no_stations",this.hass.language)}
+                                </div>`}
+                          `:"service"!==e.watering_mode?Z`
+                              <ha-settings-row>
+                                <span slot="heading"
+                                  >${_a("panels.zones.labels.linked_entity",this.hass.language)}</span
+                                >
+                                <ha-entity-picker
+                                  .hass="${this.hass}"
+                                  .value="${e.linked_entity||""}"
+                                  .includeDomains="${["switch","valve","input_boolean"]}"
+                                  allow-custom-entity
+                                  @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[kt]:s.detail.value||null}))}"
+                                ></ha-entity-picker>
+                              </ha-settings-row>
+                            `:""}
                     `}
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.soil_moisture_sensor",this.hass.language)}</span
+                    >${_a("panels.zones.labels.soil_moisture_sensor",this.hass.language)}</span
                   >
                   <span slot="description"
-                    >${va("panels.zones.labels.soil_moisture_sensor_help",this.hass.language)}</span
+                    >${_a("panels.zones.labels.soil_moisture_sensor_help",this.hass.language)}</span
                   >
                   <ha-entity-picker
                     .hass="${this.hass}"
@@ -3312,16 +3338,16 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     .includeDomains="${["sensor"]}"
                     .includeDeviceClasses="${["moisture"]}"
                     allow-custom-entity
-                    @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[It]:i.detail.value||null}))}"
+                    @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[It]:s.detail.value||null}))}"
                   ></ha-entity-picker>
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.soil_moisture_threshold",this.hass.language)}</span
+                    >${_a("panels.zones.labels.soil_moisture_threshold",this.hass.language)}</span
                   >
                   <span slot="description"
-                    >${va("panels.zones.labels.soil_moisture_threshold_help",this.hass.language)}</span
+                    >${_a("panels.zones.labels.soil_moisture_threshold_help",this.hass.language)}</span
                   >
                   <input
                     type="number"
@@ -3331,43 +3357,43 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     max="100"
                     inputmode="decimal"
                     .value="${null!==(g=e.soil_moisture_threshold)&&void 0!==g?g:""}"
-                    @input="${i=>{const s=i.target.value,a=""===s?null:Number(s);this.handleEditZone(t,Object.assign(Object.assign({},e),{[Nt]:null===a||isNaN(a)?null:a}))}}"
+                    @input="${s=>{const i=s.target.value,a=""===i?null:Number(i);this.handleEditZone(t,Object.assign(Object.assign({},e),{[Nt]:null===a||isNaN(a)?null:a}))}}"
                   />
                 </ha-settings-row>
 
                 ${null==e.distributor_id?Z`
                       <ha-settings-row>
                         <span slot="heading"
-                          >${va("panels.zones.labels.flow_sensor",this.hass.language)}</span
+                          >${_a("panels.zones.labels.flow_sensor",this.hass.language)}</span
                         >
                         <ha-entity-picker
                           .hass="${this.hass}"
                           .value="${e.flow_sensor||""}"
                           .includeDomains="${["sensor"]}"
                           allow-custom-entity
-                          @value-changed="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[St]:i.detail.value||null}))}"
+                          @value-changed="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[St]:s.detail.value||null}))}"
                         ></ha-entity-picker>
                       </ha-settings-row>
 
                       ${this._flowSensorIsTotalizer(e)?Z`
                             <ha-settings-row>
                               <span slot="heading"
-                                >${va("panels.zones.labels.flow_counter_type",this.hass.language)}</span
+                                >${_a("panels.zones.labels.flow_counter_type",this.hass.language)}</span
                               >
                               <span slot="description"
-                                >${va("panels.zones.labels.flow_counter_type_help",this.hass.language)}</span
+                                >${_a("panels.zones.labels.flow_counter_type_help",this.hass.language)}</span
                               >
                               <select
                                 class="settings-input"
-                                .value="${Ba(e.flow_counter_type||"auto")}"
-                                @change="${i=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[At]:i.target.value||"auto"}))}"
+                                .value="${Ua(e.flow_counter_type||"auto")}"
+                                @change="${s=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[At]:s.target.value||"auto"}))}"
                               >
                                 ${["auto","per_run","lifetime"].map(t=>Z`
                                     <option
                                       value="${t}"
                                       ?selected="${(e.flow_counter_type||"auto")===t}"
                                     >
-                                      ${va(`panels.zones.labels.flow_counter_type_${t}`,this.hass.language)}
+                                      ${_a(`panels.zones.labels.flow_counter_type_${t}`,this.hass.language)}
                                     </option>
                                   `)}
                               </select>
@@ -3377,8 +3403,8 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.bucket",this.hass.language)}
-                    (${ba(this.config,mt)})</span
+                    >${_a("panels.zones.labels.bucket",this.hass.language)}
+                    (${ya(this.config,mt)})</span
                   >
                   <input
                     type="number"
@@ -3386,14 +3412,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     step="0.1"
                     inputmode="decimal"
                     .value="${parseFloat(Number(e.bucket).toFixed(2))}"
-                    @input="${i=>{const s=Math.round(100*i.target.valueAsNumber)/100;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[mt]:s}))}}"
+                    @input="${s=>{const i=Math.round(100*s.target.valueAsNumber)/100;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[mt]:i}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.maximum-bucket",this.hass.language)}
-                    (${ba(this.config,mt)})</span
+                    >${_a("panels.zones.labels.maximum-bucket",this.hass.language)}
+                    (${ya(this.config,mt)})</span
                   >
                   <input
                     type="number"
@@ -3402,13 +3428,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="decimal"
                     .value="${parseFloat(Number(e.maximum_bucket).toFixed(2))}"
-                    @input="${i=>{const s=Math.round(100*i.target.valueAsNumber)/100;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[yt]:s}))}}"
+                    @input="${s=>{const i=Math.round(100*s.target.valueAsNumber)/100;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[yt]:i}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.multiplier",this.hass.language)}</span
+                    >${_a("panels.zones.labels.multiplier",this.hass.language)}</span
                   >
                   <input
                     type="number"
@@ -3417,13 +3443,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="decimal"
                     .value="${parseFloat(e.multiplier.toFixed(2))}"
-                    @input="${i=>{const s=Math.round(100*i.target.valueAsNumber)/100;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[vt]:s}))}}"
+                    @input="${s=>{const i=Math.round(100*s.target.valueAsNumber)/100;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[vt]:i}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.lead-time",this.hass.language)}
+                    >${_a("panels.zones.labels.lead-time",this.hass.language)}
                     (${tt})</span
                   >
                   <input
@@ -3433,13 +3459,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="numeric"
                     .value="${null!==(m=e.lead_time)&&void 0!==m?m:0}"
-                    @input="${i=>{const s=i.target.valueAsNumber;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[ft]:Math.round(s)}))}}"
+                    @input="${s=>{const i=s.target.valueAsNumber;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[ft]:Math.round(i)}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.maximum-duration",this.hass.language)}
+                    >${_a("panels.zones.labels.maximum-duration",this.hass.language)}
                     (${tt})</span
                   >
                   <input
@@ -3449,14 +3475,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     min="0"
                     inputmode="numeric"
                     .value="${null!==(v=e.maximum_duration)&&void 0!==v?v:""}"
-                    @input="${i=>{const s=i.target.valueAsNumber;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[bt]:Math.round(s)}))}}"
+                    @input="${s=>{const i=s.target.valueAsNumber;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[bt]:Math.round(i)}))}}"
                   />
                 </ha-settings-row>
 
                 <ha-settings-row>
                   <span slot="heading"
-                    >${va("panels.zones.labels.bucket_threshold",this.hass.language)}
-                    (${ba(this.config,mt)})</span
+                    >${_a("panels.zones.labels.bucket_threshold",this.hass.language)}
+                    (${ya(this.config,mt)})</span
                   >
                   <input
                     type="number"
@@ -3465,14 +3491,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     max="0"
                     inputmode="decimal"
                     .value="${parseFloat((null!==(_=e.bucket_threshold)&&void 0!==_?_:0).toFixed(1))}"
-                    @input="${i=>{const s=Math.round(10*i.target.valueAsNumber)/10;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[zt]:Math.min(s,0)}))}}"
+                    @input="${s=>{const i=Math.round(10*s.target.valueAsNumber)/10;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[zt]:Math.min(i,0)}))}}"
                   />
                 </ha-settings-row>
 
-                ${e.state===Ca.Manual?Z`
+                ${e.state===Ta.Manual?Z`
                       <ha-settings-row>
                         <span slot="heading"
-                          >${va("panels.zones.labels.duration",this.hass.language)}
+                          >${_a("panels.zones.labels.duration",this.hass.language)}
                           (${tt})</span
                         >
                         <input
@@ -3482,7 +3508,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                           min="0"
                           inputmode="numeric"
                           .value="${null!==(f=e.duration)&&void 0!==f?f:0}"
-                          @input="${i=>{const s=i.target.valueAsNumber;isNaN(s)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[pt]:Math.round(s)}))}}"
+                          @input="${s=>{const i=s.target.valueAsNumber;isNaN(i)||this.handleEditZone(t,Object.assign(Object.assign({},e),{[pt]:Math.round(i)}))}}"
                         />
                       </ha-settings-row>
                     `:""}
@@ -3491,10 +3517,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 <div class="settings-danger-row">
                   <button
                     class="action-btn"
-                    @click="${()=>{this._pendingConfirm={title:va("panels.zones.confirm_action.reset_bucket_title",this.hass.language),body:va("panels.zones.confirm_action.reset_bucket_body",this.hass.language),confirmLabel:va("panels.zones.actions.reset-bucket",this.hass.language),onConfirm:()=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[mt]:0}))}}}"
+                    @click="${()=>{this._pendingConfirm={title:_a("panels.zones.confirm_action.reset_bucket_title",this.hass.language),body:_a("panels.zones.confirm_action.reset_bucket_body",this.hass.language),confirmLabel:_a("panels.zones.actions.reset-bucket",this.hass.language),onConfirm:()=>this.handleEditZone(t,Object.assign(Object.assign({},e),{[mt]:0}))}}}"
                     ?disabled="${this.isSaving}"
                   >
-                    ${va("panels.zones.actions.reset-bucket",this.hass.language)}
+                    ${_a("panels.zones.actions.reset-bucket",this.hass.language)}
                   </button>
                   <button
                     class="action-btn danger-button"
@@ -3502,7 +3528,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     ?disabled="${this.isSaving||void 0===e.id}"
                   >
                     <ha-icon slot="icon" icon="mdi:delete"></ha-icon>
-                    ${va("common.actions.delete",this.hass.language)}
+                    ${_a("common.actions.delete",this.hass.language)}
                   </button>
                 </div>
               </div>
@@ -3510,10 +3536,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               <!-- EXPLANATION EXPANSION -->
               ${e.explanation&&e.explanation.length>0?Z`
                     <ha-expansion-panel
-                      .header="${va("panels.zones.actions.information",this.hass.language)}"
+                      .header="${_a("panels.zones.actions.information",this.hass.language)}"
                     >
                       <div class="card-content">
-                        ${Ri(e.explanation)}
+                        ${Bs(e.explanation)}
                       </div>
                     </ha-expansion-panel>
                   `:""}
@@ -3525,31 +3551,31 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
              Weather & Location tab (climate is the same for every zone). -->
             `:""}
       </ha-card>
-    `}_renderRunHistory(e){var t,i,s;if(!this.hass)return Z``;const a=(null===(t=this.config)||void 0===t?void 0:t.units)===Ce,n=null!==(i=e.run_log)&&void 0!==i?i:[],o=this.hass.language;return Z`
+    `}_renderRunHistory(e){var t,s,i;if(!this.hass)return Z``;const a=(null===(t=this.config)||void 0===t?void 0:t.units)===Ce,n=null!==(s=e.run_log)&&void 0!==s?s:[],o=this.hass.language;return Z`
       <ha-expansion-panel
-        .header="${va("panels.zones.history.title",o)}"
+        .header="${_a("panels.zones.history.title",o)}"
       >
         <div class="card-content">
           <div class="history-usage">
             <span class="history-usage-label"
-              >${va("panels.zones.history.total_used",o)}</span
+              >${_a("panels.zones.history.total_used",o)}</span
             >
             <span class="history-usage-value"
-              >${Ga(null!==(s=e.water_used_total)&&void 0!==s?s:0,a)}</span
+              >${Ka(null!==(i=e.water_used_total)&&void 0!==i?i:0,a)}</span
             >
           </div>
           ${0===n.length?Z`<div class="weather-note">
-                ${va("panels.zones.history.empty",o)}
+                ${_a("panels.zones.history.empty",o)}
               </div>`:Z`
                 <table class="history-table">
                   <thead>
                     <tr>
-                      <th>${va("panels.zones.history.when",o)}</th>
-                      <th>${va("panels.zones.history.result",o)}</th>
+                      <th>${_a("panels.zones.history.when",o)}</th>
+                      <th>${_a("panels.zones.history.result",o)}</th>
                       <th class="num">
-                        ${va("panels.zones.history.volume",o)}
+                        ${_a("panels.zones.history.volume",o)}
                       </th>
-                      <th>${va("panels.zones.history.detail",o)}</th>
+                      <th>${_a("panels.zones.history.detail",o)}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3559,24 +3585,24 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               `}
         </div>
       </ha-expansion-panel>
-    `}_renderRunLogRow(e,t){const i=this.hass.language,s=va(`panels.zones.history.results.${e.result}`,i);let a="";return e.detail&&(a="skipped"===e.result?e.detail.split(",").map(e=>va(`panels.zones.outlook.checks.${e}`,i)||e).join(", "):"failed"===e.result&&va(`panels.zones.fault.${e.detail}`,i)||e.detail),Z`
+    `}_renderRunLogRow(e,t){const s=this.hass.language,i=_a(`panels.zones.history.results.${e.result}`,s);let a="";return e.detail&&(a="skipped"===e.result?e.detail.split(",").map(e=>_a(`panels.zones.outlook.checks.${e}`,s)||e).join(", "):"failed"===e.result&&_a(`panels.zones.fault.${e.detail}`,s)||e.detail),Z`
       <tr>
-        <td>${Na(e.ts)}</td>
+        <td>${La(e.ts)}</td>
         <td>
           <span class="history-chip history-${e.result}"
-            >${s||e.result}</span
+            >${i||e.result}</span
           >
         </td>
         <td class="num">
-          ${e.volume_l>0?Ga(e.volume_l,t):"-"}
+          ${e.volume_l>0?Ka(e.volume_l,t):"-"}
         </td>
-        <td class="history-detail">${Ri(a)}</td>
+        <td class="history-detail">${Bs(a)}</td>
       </tr>
     `}render(){var e;if(!this.hass)return Z``;if(this.isLoading)return Z`
-        <ha-card header="${va("panels.zones.title",this.hass.language)}">
+        <ha-card header="${_a("panels.zones.title",this.hass.language)}">
           <div class="card-content">
             <div class="loading-indicator">
-              ${va("common.loading-messages.general",this.hass.language)}
+              ${_a("common.loading-messages.general",this.hass.language)}
             </div>
           </div>
         </ha-card>
@@ -3585,18 +3611,18 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       <ha-card>
         <div class="card-header">
           <div class="name">
-            ${va("panels.zones.title",this.hass.language)}
+            ${_a("panels.zones.title",this.hass.language)}
           </div>
           ${this._renderSaveStatus()}
           <ha-icon-button
-            .path="${Sa}"
-            title="${va("panels.zones.cards.add-zone.header",this.hass.language)}"
+            .path="${Aa}"
+            title="${_a("panels.zones.cards.add-zone.header",this.hass.language)}"
             @click="${()=>{this._showAddZone=!0}}"
           ></ha-icon-button>
         </div>
         ${0===this.zones.length?Z`<div class="card-content">
               <div class="weather-note">
-                ${va("panels.zones.no_items",this.hass.language)}
+                ${_a("panels.zones.no_items",this.hass.language)}
               </div>
             </div>`:""}
       </ha-card>
@@ -3605,7 +3631,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       <ha-dialog
         .open="${this._showAddZone}"
         @closed="${()=>{this._showAddZone=!1}}"
-        heading="${va("panels.zones.cards.add-zone.header",this.hass.language)}"
+        heading="${_a("panels.zones.cards.add-zone.header",this.hass.language)}"
       >
         <div class="add-zone-form">
           <si-zone-form
@@ -3627,14 +3653,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             class="dialog-btn"
             @click="${()=>{this._showAddZone=!1}}"
           >
-            ${va("common.actions.cancel",this.hass.language)}
+            ${_a("common.actions.cancel",this.hass.language)}
           </button>
           <button
             class="dialog-btn dialog-btn-primary"
             @click="${this.handleAddZone}"
             ?disabled="${!this._newZoneName.trim()||this.isSaving}"
           >
-            ${this.isSaving?va("common.saving-messages.adding",this.hass.language):va("panels.zones.cards.add-zone.actions.add",this.hass.language)}
+            ${this.isSaving?_a("common.saving-messages.adding",this.hass.language):_a("panels.zones.cards.add-zone.actions.add",this.hass.language)}
           </button>
         </div>
       </ha-dialog>
@@ -3644,10 +3670,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             <ha-dialog
               open
               @closed="${()=>{this._confirmDeleteZoneId=null}}"
-              heading="${va("common.actions.confirm_delete",this.hass.language)}"
+              heading="${_a("common.actions.confirm_delete",this.hass.language)}"
             >
               <p>
-                ${va("common.actions.confirm_delete_zone",this.hass.language)}
+                ${_a("common.actions.confirm_delete_zone",this.hass.language)}
               </p>
               <p><strong>${t.name}</strong></p>
               <div class="dialog-footer">
@@ -3655,13 +3681,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   class="dialog-btn"
                   @click="${()=>{this._confirmDeleteZoneId=null}}"
                 >
-                  ${va("common.actions.cancel",this.hass.language)}
+                  ${_a("common.actions.cancel",this.hass.language)}
                 </button>
                 <button
                   class="dialog-btn dialog-btn-danger"
                   @click="${this._confirmDelete}"
                 >
-                  ${va("common.actions.delete",this.hass.language)}
+                  ${_a("common.actions.delete",this.hass.language)}
                 </button>
               </div>
             </ha-dialog>
@@ -3680,7 +3706,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   class="dialog-btn"
                   @click="${()=>{this._pendingConfirm=null}}"
                 >
-                  ${va("common.actions.cancel",this.hass.language)}
+                  ${_a("common.actions.cancel",this.hass.language)}
                 </button>
                 <button
                   class="dialog-btn dialog-btn-danger"
@@ -3699,28 +3725,28 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       <ha-card>
         <div class="card-header">
           <div class="name">
-            ${va("common.labels.bulk_actions",this.hass.language)}
+            ${_a("common.labels.bulk_actions",this.hass.language)}
           </div>
         </div>
         <div class="card-content bulk-actions">
           <button
             class="action-btn danger-button"
-            @click="${()=>{this._pendingConfirm={title:va("panels.zones.confirm_action.reset_all_buckets_title",this.hass.language),body:va("panels.zones.confirm_action.reset_all_buckets_body",this.hass.language),confirmLabel:va("panels.zones.cards.zone-actions.actions.reset-all-buckets",this.hass.language),onConfirm:()=>this.handleResetAllBuckets()}}}"
+            @click="${()=>{this._pendingConfirm={title:_a("panels.zones.confirm_action.reset_all_buckets_title",this.hass.language),body:_a("panels.zones.confirm_action.reset_all_buckets_body",this.hass.language),confirmLabel:_a("panels.zones.cards.zone-actions.actions.reset-all-buckets",this.hass.language),onConfirm:()=>this.handleResetAllBuckets()}}}"
             ?disabled="${this.isSaving}"
           >
-            ${va("panels.zones.cards.zone-actions.actions.reset-all-buckets",this.hass.language)}
+            ${_a("panels.zones.cards.zone-actions.actions.reset-all-buckets",this.hass.language)}
           </button>
           <button
             class="action-btn danger-button"
-            @click="${()=>{this._pendingConfirm={title:va("panels.zones.confirm_action.clear_weather_title",this.hass.language),body:va("panels.zones.confirm_action.clear_weather_body",this.hass.language),confirmLabel:va("panels.zones.cards.zone-actions.actions.clear-all-weatherdata",this.hass.language),onConfirm:()=>this.handleClearAllWeatherdata()}}}"
+            @click="${()=>{this._pendingConfirm={title:_a("panels.zones.confirm_action.clear_weather_title",this.hass.language),body:_a("panels.zones.confirm_action.clear_weather_body",this.hass.language),confirmLabel:_a("panels.zones.cards.zone-actions.actions.clear-all-weatherdata",this.hass.language),onConfirm:()=>this.handleClearAllWeatherdata()}}}"
             ?disabled="${this.isSaving}"
           >
-            ${va("panels.zones.cards.zone-actions.actions.clear-all-weatherdata",this.hass.language)}
+            ${_a("panels.zones.cards.zone-actions.actions.clear-all-weatherdata",this.hass.language)}
           </button>
         </div>
       </ha-card>
     `}disconnectedCallback(){super.disconnectedCallback(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this._savedResetTimer&&(clearTimeout(this._savedResetTimer),this._savedResetTimer=null)}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       .card-header.zone-toggle {
         display: flex;
@@ -3974,10 +4000,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         flex-wrap: wrap;
         gap: 8px;
       }
-    `}};t([pe()],Va.prototype,"config",void 0),t([pe({attribute:!1})],Va.prototype,"path",void 0),t([pe({type:Array})],Va.prototype,"zones",void 0),t([pe({type:Array})],Va.prototype,"modules",void 0),t([pe({type:Array})],Va.prototype,"mappings",void 0),t([pe({type:Array})],Va.prototype,"distributors",void 0),t([pe({type:Boolean})],Va.prototype,"isLoading",void 0),t([ge()],Va.prototype,"_expanded",void 0),t([pe({type:Boolean})],Va.prototype,"isSaving",void 0),t([pe({type:Boolean})],Va.prototype,"_showAddZone",void 0),t([ge()],Va.prototype,"_pendingConfirm",void 0),t([ge()],Va.prototype,"_saveStatus",void 0),t([pe()],Va.prototype,"_confirmDeleteZoneId",void 0),t([pe()],Va.prototype,"_newZoneName",void 0),t([pe()],Va.prototype,"_newZoneSize",void 0),t([pe()],Va.prototype,"_newZoneThroughput",void 0),t([pe()],Va.prototype,"_newZoneEntity",void 0),Va=t([ce("smart-irrigation-view-zone-settings")],Va);let Ya=class extends le{_emit(e){this.dispatchEvent(new CustomEvent("distributor-changed",{detail:{value:Object.assign(Object.assign({},this.distributor),e)},bubbles:!0,composed:!0}))}_onNumber(e,t){const i=t.target.valueAsNumber;isNaN(i)||this._emit({[e]:Math.max(0,Math.round(i))})}render(){var e,t,i,s;if(!this.hass||!this.distributor)return Z``;const a=this.hass.language,n=this.distributor,o=n.watering_mode===ci;return Z`
+    `}};t([pe()],Ya.prototype,"config",void 0),t([pe({attribute:!1})],Ya.prototype,"path",void 0),t([pe({type:Array})],Ya.prototype,"zones",void 0),t([pe({type:Array})],Ya.prototype,"modules",void 0),t([pe({type:Array})],Ya.prototype,"mappings",void 0),t([pe({type:Array})],Ya.prototype,"distributors",void 0),t([pe({type:Boolean})],Ya.prototype,"isLoading",void 0),t([ge()],Ya.prototype,"_expanded",void 0),t([pe({type:Boolean})],Ya.prototype,"isSaving",void 0),t([pe({type:Boolean})],Ya.prototype,"_showAddZone",void 0),t([ge()],Ya.prototype,"_pendingConfirm",void 0),t([ge()],Ya.prototype,"_saveStatus",void 0),t([pe()],Ya.prototype,"_confirmDeleteZoneId",void 0),t([pe()],Ya.prototype,"_newZoneName",void 0),t([pe()],Ya.prototype,"_newZoneSize",void 0),t([pe()],Ya.prototype,"_newZoneThroughput",void 0),t([pe()],Ya.prototype,"_newZoneEntity",void 0),Ya=t([ce("smart-irrigation-view-zone-settings")],Ya);let Xa=class extends le{_emit(e){this.dispatchEvent(new CustomEvent("distributor-changed",{detail:{value:Object.assign(Object.assign({},this.distributor),e)},bubbles:!0,composed:!0}))}_onNumber(e,t){const s=t.target.valueAsNumber;isNaN(s)||this._emit({[e]:Math.max(0,Math.round(s))})}render(){var e,t,s,i;if(!this.hass||!this.distributor)return Z``;const a=this.hass.language,n=this.distributor,o=n.watering_mode===cs;return Z`
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.name",a)}</span
+          >${_a("panels.distributors.labels.name",a)}</span
         >
         <input
           type="text"
@@ -3989,27 +4015,27 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.zones.labels.watering_mode",a)}</span
+          >${_a("panels.zones.labels.watering_mode",a)}</span
         >
         <span slot="description"
-          >${va("panels.distributors.labels.watering_mode_help",a)}</span
+          >${_a("panels.distributors.labels.watering_mode_help",a)}</span
         >
         <select
           class="settings-input"
-          .value="${Ba(null!==(t=n.watering_mode)&&void 0!==t?t:di)}"
+          .value="${Ua(null!==(t=n.watering_mode)&&void 0!==t?t:ds)}"
           @change="${e=>this._emit({[Xt]:e.target.value})}"
         >
           <option
-            value="${di}"
-            ?selected="${(null!==(i=n.watering_mode)&&void 0!==i?i:di)===di}"
+            value="${ds}"
+            ?selected="${(null!==(s=n.watering_mode)&&void 0!==s?s:ds)===ds}"
           >
-            ${va("panels.zones.labels.watering_modes.classic",a)}
+            ${_a("panels.zones.labels.watering_modes.classic",a)}
           </option>
           <option
-            value="${ci}"
-            ?selected="${n.watering_mode===ci}"
+            value="${cs}"
+            ?selected="${n.watering_mode===cs}"
           >
-            ${va("panels.zones.labels.watering_modes.service",a)}
+            ${_a("panels.zones.labels.watering_modes.service",a)}
           </option>
         </select>
       </ha-settings-row>
@@ -4020,28 +4046,28 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.notify_target",a)}</span
+          >${_a("panels.distributors.labels.notify_target",a)}</span
         >
         <span slot="description"
-          >${va("panels.distributors.labels.notify_target_help",a)}</span
+          >${_a("panels.distributors.labels.notify_target_help",a)}</span
         >
         <input
           type="text"
           class="settings-input"
-          placeholder="${va("panels.distributors.labels.notify_target_placeholder",a)}"
-          .value="${null!==(s=n.notify_target)&&void 0!==s?s:""}"
-          @input="${e=>this._emit({[oi]:e.target.value||null})}"
+          placeholder="${_a("panels.distributors.labels.notify_target_placeholder",a)}"
+          .value="${null!==(i=n.notify_target)&&void 0!==i?i:""}"
+          @input="${e=>this._emit({[os]:e.target.value||null})}"
         />
       </ha-settings-row>
-    `}_renderInletWatchRows(e){var t;const i=this.distributor,s=i.watering_mode===ci?"panels.distributors.labels.inlet_entity_help_service":"panels.distributors.labels.inlet_entity_help",a=null!==(t=i.watch_mode)&&void 0!==t?t:"ignore";return Z`
+    `}_renderInletWatchRows(e){var t;const s=this.distributor,i=s.watering_mode===cs?"panels.distributors.labels.inlet_entity_help_service":"panels.distributors.labels.inlet_entity_help",a=null!==(t=s.watch_mode)&&void 0!==t?t:"ignore";return Z`
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.inlet_entity",e)}</span
+          >${_a("panels.distributors.labels.inlet_entity",e)}</span
         >
-        <span slot="description">${va(s,e)}</span>
+        <span slot="description">${_a(i,e)}</span>
         <ha-entity-picker
           .hass="${this.hass}"
-          .value="${i.inlet_entity||""}"
+          .value="${s.inlet_entity||""}"
           .includeDomains="${["switch","valve","input_boolean"]}"
           allow-custom-entity
           @value-changed="${e=>this._emit({[Jt]:e.detail.value||null})}"
@@ -4049,136 +4075,136 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       </ha-settings-row>
 
       <!-- No inlet_entity => nothing to watch => the watch_mode row is hidden. -->
-      ${i.inlet_entity?Z`
+      ${s.inlet_entity?Z`
             <ha-settings-row>
               <span slot="heading"
-                >${va("panels.distributors.labels.watch_mode",e)}</span
+                >${_a("panels.distributors.labels.watch_mode",e)}</span
               >
               <span slot="description"
-                >${va("panels.distributors.labels.watch_mode_help",e)}</span
+                >${_a("panels.distributors.labels.watch_mode_help",e)}</span
               >
               <select
                 class="settings-input"
-                .value="${Ba(a)}"
+                .value="${Ua(a)}"
                 @change="${e=>this._emit({[Qt]:e.target.value})}"
               >
-                ${li.map(t=>Z`
+                ${ls.map(t=>Z`
                     <option value="${t}" ?selected="${a===t}">
-                      ${va(`panels.distributors.labels.watch_mode_${t}`,e)}
+                      ${_a(`panels.distributors.labels.watch_mode_${t}`,e)}
                     </option>
                   `)}
               </select>
             </ha-settings-row>
           `:""}
-    `}_renderServiceRows(e){var t,i;const s=this.distributor;return Z`
+    `}_renderServiceRows(e){var t,s;const i=this.distributor;return Z`
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.run_service",e)}</span
+          >${_a("panels.distributors.labels.run_service",e)}</span
         >
         <span slot="description"
-          >${va("panels.distributors.labels.run_service_help",e)}</span
+          >${_a("panels.distributors.labels.run_service_help",e)}</span
         >
         <ha-entity-picker
           .hass="${this.hass}"
-          .value="${s.run_service||""}"
+          .value="${i.run_service||""}"
           .includeDomains="${["script"]}"
           allow-custom-entity
-          @value-changed="${e=>this._emit({[ei]:e.detail.value||null})}"
+          @value-changed="${e=>this._emit({[es]:e.detail.value||null})}"
         ></ha-entity-picker>
       </ha-settings-row>
 
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.duration_field",e)}</span
+          >${_a("panels.distributors.labels.duration_field",e)}</span
         >
         <span slot="description"
-          >${va("panels.distributors.labels.duration_field_help",e)}</span
+          >${_a("panels.distributors.labels.duration_field_help",e)}</span
         >
         <input
           type="text"
           class="settings-input"
-          placeholder="${va("panels.distributors.labels.duration_field_placeholder",e)}"
-          .value="${s.duration_field||"duration"}"
-          @input="${e=>this._emit({[ii]:e.target.value||"duration"})}"
+          placeholder="${_a("panels.distributors.labels.duration_field_placeholder",e)}"
+          .value="${i.duration_field||"duration"}"
+          @input="${e=>this._emit({[ss]:e.target.value||"duration"})}"
         />
       </ha-settings-row>
 
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.duration_unit",e)}</span
+          >${_a("panels.distributors.labels.duration_unit",e)}</span
         >
         <select
           class="settings-input"
-          .value="${Ba(null!==(t=s.duration_unit)&&void 0!==t?t:"seconds")}"
-          @change="${e=>this._emit({[si]:e.target.value})}"
+          .value="${Ua(null!==(t=i.duration_unit)&&void 0!==t?t:"seconds")}"
+          @change="${e=>this._emit({[is]:e.target.value})}"
         >
           <option
             value="seconds"
-            ?selected="${"seconds"===(null!==(i=s.duration_unit)&&void 0!==i?i:"seconds")}"
+            ?selected="${"seconds"===(null!==(s=i.duration_unit)&&void 0!==s?s:"seconds")}"
           >
-            ${va("panels.distributors.labels.duration_units.seconds",e)}
+            ${_a("panels.distributors.labels.duration_units.seconds",e)}
           </option>
-          <option value="minutes" ?selected="${"minutes"===s.duration_unit}">
-            ${va("panels.distributors.labels.duration_units.minutes",e)}
+          <option value="minutes" ?selected="${"minutes"===i.duration_unit}">
+            ${_a("panels.distributors.labels.duration_units.minutes",e)}
           </option>
         </select>
       </ha-settings-row>
 
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.stop_service",e)}</span
+          >${_a("panels.distributors.labels.stop_service",e)}</span
         >
         <span slot="description"
-          >${va("panels.distributors.labels.stop_service_help",e)}</span
+          >${_a("panels.distributors.labels.stop_service_help",e)}</span
         >
         <ha-entity-picker
           .hass="${this.hass}"
-          .value="${s.stop_service||""}"
+          .value="${i.stop_service||""}"
           .includeDomains="${["script"]}"
           allow-custom-entity
-          @value-changed="${e=>this._emit({[ti]:e.detail.value||null})}"
+          @value-changed="${e=>this._emit({[ts]:e.detail.value||null})}"
         ></ha-entity-picker>
       </ha-settings-row>
     `}_renderSensorRows(e){const t=this.distributor;return Z`
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.confirm_entity",e)}</span
+          >${_a("panels.distributors.labels.confirm_entity",e)}</span
         >
         <span slot="description"
-          >${va("panels.distributors.labels.confirm_entity_help",e)}</span
+          >${_a("panels.distributors.labels.confirm_entity_help",e)}</span
         >
         <ha-entity-picker
           .hass="${this.hass}"
           .value="${t.confirm_entity||""}"
           .includeDomains="${["binary_sensor","sensor","switch","valve","input_boolean"]}"
           allow-custom-entity
-          @value-changed="${e=>this._emit({[ai]:e.detail.value||null})}"
+          @value-changed="${e=>this._emit({[as]:e.detail.value||null})}"
         ></ha-entity-picker>
       </ha-settings-row>
 
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.flow_sensor",e)}</span
+          >${_a("panels.distributors.labels.flow_sensor",e)}</span
         >
         <span slot="description"
-          >${va("panels.distributors.labels.flow_sensor_help",e)}</span
+          >${_a("panels.distributors.labels.flow_sensor_help",e)}</span
         >
         <ha-entity-picker
           .hass="${this.hass}"
           .value="${t.flow_sensor||""}"
           .includeDomains="${["sensor"]}"
           allow-custom-entity
-          @value-changed="${e=>this._emit({[ni]:e.detail.value||null})}"
+          @value-changed="${e=>this._emit({[ns]:e.detail.value||null})}"
         ></ha-entity-picker>
       </ha-settings-row>
-    `}_renderTimingRows(e){var t,i,s,a;const n=this.distributor,o=(null!==(t=n.pause_seconds)&&void 0!==t?t:0)<10,r=(null!==(i=n.skip_pulse_seconds)&&void 0!==i?i:0)<10;return Z`
+    `}_renderTimingRows(e){var t,s,i,a;const n=this.distributor,o=(null!==(t=n.pause_seconds)&&void 0!==t?t:0)<10,r=(null!==(s=n.skip_pulse_seconds)&&void 0!==s?s:0)<10;return Z`
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.pause_seconds",e)}
+          >${_a("panels.distributors.labels.pause_seconds",e)}
           (${tt})</span
         >
         <span slot="description"
-          >${va("field_help.distributor_pause_seconds",e)}</span
+          >${_a("field_help.distributor_pause_seconds",e)}</span
         >
         <input
           type="number"
@@ -4186,21 +4212,21 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           step="1"
           min="${10}"
           inputmode="numeric"
-          .value="${null!==(s=n.pause_seconds)&&void 0!==s?s:""}"
+          .value="${null!==(i=n.pause_seconds)&&void 0!==i?i:""}"
           @input="${e=>this._onNumber("pause_seconds",e)}"
         />
       </ha-settings-row>
       ${o?Z`<div class="timing-warning">
-            ${va("panels.distributors.hints.below_floor_pause",e)}
+            ${_a("panels.distributors.hints.below_floor_pause",e)}
           </div>`:""}
 
       <ha-settings-row>
         <span slot="heading"
-          >${va("panels.distributors.labels.skip_pulse_seconds",e)}
+          >${_a("panels.distributors.labels.skip_pulse_seconds",e)}
           (${tt})</span
         >
         <span slot="description"
-          >${va("field_help.distributor_skip_pulse_seconds",e)}</span
+          >${_a("field_help.distributor_skip_pulse_seconds",e)}</span
         >
         <input
           type="number"
@@ -4213,10 +4239,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         />
       </ha-settings-row>
       ${r?Z`<div class="timing-warning">
-            ${va("panels.distributors.hints.below_floor_skip",e)}
+            ${_a("panels.distributors.hints.below_floor_skip",e)}
           </div>`:""}
     `}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       :host {
         display: block;
@@ -4260,30 +4286,30 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         margin: 0 16px 6px;
         padding: 6px 10px;
       }
-    `}};t([pe({attribute:!1})],Ya.prototype,"hass",void 0),t([pe({attribute:!1})],Ya.prototype,"distributor",void 0),Ya=t([ce("si-distributor-form")],Ya);let Xa=class extends(Aa(le)){constructor(){super(...arguments),this.distributors=[],this.zones=[],this.isLoading=!0,this.isSaving=!1,this._initialLoadDone=!1,this._scrolledToDist=null,this._expanded=new Set,this._showAdd=!1,this._newName="",this._confirmDeleteId=null,this._armConfirmId=null,this._confirmResyncHomeId=null,this._confirmSetOutletId=null,this._outletDraft={},this._outletRows={},this._saveStatus="idle",this._savedResetTimer=null,this.globalDebounceTimer=null,this._updateScheduled=!1}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}_isExpanded(e){return void 0!==e.id&&this._expanded.has(e.id)}_toggle(e){const t=new Set(this._expanded);t.has(e)?t.delete(e):t.add(e),this._expanded=t}firstUpdated(){Oi().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}updated(){var e,t,i;const s=null===(t=null===(e=this.path)||void 0===e?void 0:e.params)||void 0===t?void 0:t.distributor;if(null==s||""===s||this.isLoading)return;const a=Number(s);if(Number.isNaN(a)||this._scrolledToDist===a)return;if(!this._expanded.has(a))return void(this._expanded=new Set(this._expanded).add(a));const n=null===(i=this.shadowRoot)||void 0===i?void 0:i.querySelector(`#distributor-${a}`);n&&(this._scrolledToDist=a,requestAnimationFrame(()=>n.scrollIntoView({behavior:"smooth",block:"start"})))}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial distributor data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to refetch on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[t,i,s]=await Promise.all([pi(this.hass),ki(this.hass),mi(this.hass)]);this.config=t,this.distributors=i,this.zones=s,this._initialLoadDone=!0}catch(e){console.error("Error fetching distributor data:",e),ka(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}handleAdd(){this.hass&&this._newName.trim()&&(this.isSaving=!0,this._showAdd=!1,zi(this.hass,{name:this._newName.trim()}).then(()=>(this._newName="",this._fetchData())).catch(e=>{console.error("Failed to add distributor:",e),ka(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}))}_configPayload(e){var t,i,s,a,n,o,r;return{id:e.id,name:e.name,watering_mode:e.watering_mode,inlet_entity:null!==(t=e.inlet_entity)&&void 0!==t?t:null,watch_mode:null!==(i=e.watch_mode)&&void 0!==i?i:"ignore",run_service:null!==(s=e.run_service)&&void 0!==s?s:null,stop_service:null!==(a=e.stop_service)&&void 0!==a?a:null,duration_field:e.duration_field,duration_unit:e.duration_unit,confirm_entity:null!==(n=e.confirm_entity)&&void 0!==n?n:null,flow_sensor:null!==(o=e.flow_sensor)&&void 0!==o?o:null,pause_seconds:e.pause_seconds,skip_pulse_seconds:e.skip_pulse_seconds,notify_target:null!==(r=e.notify_target)&&void 0!==r?r:null,use_master:e.use_master}}handleEditDistributor(e,t){this.hass&&(this.distributors=this.distributors.map((i,s)=>s===e?t:i),this.globalDebounceTimer&&clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=window.setTimeout(()=>{this.isSaving=!0,this._saveStatus="saving",zi(this.hass,this._configPayload(t)).then(()=>this._markSaved()).catch(e=>{console.error("Failed to save distributor:",e),this._saveStatus="idle",ka(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}),this.globalDebounceTimer=null},500),this._scheduleUpdate())}_confirmDelete(){const e=this._confirmDeleteId;if(null===e||!this.hass)return;const t=[...this.distributors];var i,s;this.distributors=this.distributors.filter(t=>t.id!==e),this._confirmDeleteId=null,this.isSaving=!0,(i=this.hass,s=e,i.callApi("POST",_e+"/distributors",{id:s,remove:!0})).catch(e=>{console.error("Failed to delete distributor:",e),ka(this,this.hass,"common.errors.delete_failed",e),this.distributors=t}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})})}_callAction(e){this.hass&&(this.isSaving=!0,this._scheduleUpdate(),e.catch(e=>{console.error("Distributor action failed:",e),ka(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})}))}_testRun(e){var t,i;this._callAction((t=this.hass,i=e,t.callService(_e,"distributor_test_run",{distributor_id:i})))}_setOutlet(e,t){var i;const s=null!==(i=this._outletDraft[e])&&void 0!==i?i:t;this._callAction(((e,t,i)=>e.callService(_e,"distributor_set_outlet",{distributor_id:t,outlet:i}))(this.hass,e,s))}_confirmSetOutlet(){const e=this._confirmSetOutletId;if(this._confirmSetOutletId=null,null===e)return;const t=this.distributors.find(t=>t.id===e);t&&this._setOutlet(e,t.current_outlet)}_resyncHome(e){var t,i;this._callAction((t=this.hass,i=e,t.callService(_e,"distributor_resync_home",{distributor_id:i})))}_confirmResyncHome(){const e=this._confirmResyncHomeId;this._confirmResyncHomeId=null,null!==e&&this._resyncHome(e)}_runNow(e){var t,i;this._callAction((t=this.hass,i=e,t.callService(_e,"distributor_run_now",{distributor_id:i})))}_setArmed(e,t){this.hass&&(this._armConfirmId=null,this.distributors=this.distributors.map(i=>i.id===e?Object.assign(Object.assign({},i),{commissioning_confirmed:t}):i),this.isSaving=!0,zi(this.hass,{id:e,[ri]:t}).catch(e=>{console.error("Failed to set commissioning state:",e),ka(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})}))}_onArmToggle(e,t){void 0!==e.id&&(t?this._armConfirmId=e.id:this._setArmed(e.id,!1))}_markSaved(){this._saveStatus="saved",this._savedResetTimer&&clearTimeout(this._savedResetTimer),this._savedResetTimer=window.setTimeout(()=>{this._saveStatus="idle",this._scheduleUpdate()},2e3),this._scheduleUpdate()}_renderSaveStatus(){if(!this.hass||"idle"===this._saveStatus)return Z``;const e="saving"===this._saveStatus;return Z`
+    `}};t([pe({attribute:!1})],Xa.prototype,"hass",void 0),t([pe({attribute:!1})],Xa.prototype,"distributor",void 0),Xa=t([ce("si-distributor-form")],Xa);let Ja=class extends(Ea(le)){constructor(){super(...arguments),this.distributors=[],this.zones=[],this.isLoading=!0,this.isSaving=!1,this._initialLoadDone=!1,this._scrolledToDist=null,this._expanded=new Set,this._showAdd=!1,this._newName="",this._confirmDeleteId=null,this._armConfirmId=null,this._confirmResyncHomeId=null,this._confirmSetOutletId=null,this._outletDraft={},this._outletRows={},this._saveStatus="idle",this._savedResetTimer=null,this.globalDebounceTimer=null,this._updateScheduled=!1}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}_isExpanded(e){return void 0!==e.id&&this._expanded.has(e.id)}_toggle(e){const t=new Set(this._expanded);t.has(e)?t.delete(e):t.add(e),this._expanded=t}firstUpdated(){Hs().then(()=>this._scheduleUpdate()).catch(e=>{console.error("Failed to load HA form:",e),this._scheduleUpdate()})}updated(){var e,t,s;const i=null===(t=null===(e=this.path)||void 0===e?void 0:e.params)||void 0===t?void 0:t.distributor;if(null==i||""===i||this.isLoading)return;const a=Number(i);if(Number.isNaN(a)||this._scrolledToDist===a)return;if(!this._expanded.has(a))return void(this._expanded=new Set(this._expanded).add(a));const n=null===(s=this.shadowRoot)||void 0===s?void 0:s.querySelector(`#distributor-${a}`);n&&(this._scrolledToDist=a,requestAnimationFrame(()=>n.scrollIntoView({behavior:"smooth",block:"start"})))}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial distributor data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to refetch on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[t,s,i]=await Promise.all([gs(this.hass),zs(this.hass),vs(this.hass)]);this.config=t,this.distributors=s,this.zones=i,this._initialLoadDone=!0}catch(e){console.error("Error fetching distributor data:",e),za(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}handleAdd(){this.hass&&this._newName.trim()&&(this.isSaving=!0,this._showAdd=!1,Ss(this.hass,{name:this._newName.trim()}).then(()=>(this._newName="",this._fetchData())).catch(e=>{console.error("Failed to add distributor:",e),za(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}))}_configPayload(e){var t,s,i,a,n,o,r;return{id:e.id,name:e.name,watering_mode:e.watering_mode,inlet_entity:null!==(t=e.inlet_entity)&&void 0!==t?t:null,watch_mode:null!==(s=e.watch_mode)&&void 0!==s?s:"ignore",run_service:null!==(i=e.run_service)&&void 0!==i?i:null,stop_service:null!==(a=e.stop_service)&&void 0!==a?a:null,duration_field:e.duration_field,duration_unit:e.duration_unit,confirm_entity:null!==(n=e.confirm_entity)&&void 0!==n?n:null,flow_sensor:null!==(o=e.flow_sensor)&&void 0!==o?o:null,pause_seconds:e.pause_seconds,skip_pulse_seconds:e.skip_pulse_seconds,notify_target:null!==(r=e.notify_target)&&void 0!==r?r:null,use_master:e.use_master}}handleEditDistributor(e,t){this.hass&&(this.distributors=this.distributors.map((s,i)=>i===e?t:s),this.globalDebounceTimer&&clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=window.setTimeout(()=>{this.isSaving=!0,this._saveStatus="saving",Ss(this.hass,this._configPayload(t)).then(()=>this._markSaved()).catch(e=>{console.error("Failed to save distributor:",e),this._saveStatus="idle",za(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}),this.globalDebounceTimer=null},500),this._scheduleUpdate())}_confirmDelete(){const e=this._confirmDeleteId;if(null===e||!this.hass)return;const t=[...this.distributors];var s,i;this.distributors=this.distributors.filter(t=>t.id!==e),this._confirmDeleteId=null,this.isSaving=!0,(s=this.hass,i=e,s.callApi("POST",_e+"/distributors",{id:i,remove:!0})).catch(e=>{console.error("Failed to delete distributor:",e),za(this,this.hass,"common.errors.delete_failed",e),this.distributors=t}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})})}_callAction(e){this.hass&&(this.isSaving=!0,this._scheduleUpdate(),e.catch(e=>{console.error("Distributor action failed:",e),za(this,this.hass,"common.errors.action_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})}))}_testRun(e){var t,s;this._callAction((t=this.hass,s=e,t.callService(_e,"distributor_test_run",{distributor_id:s})))}_setOutlet(e,t){var s;const i=null!==(s=this._outletDraft[e])&&void 0!==s?s:t;this._callAction(((e,t,s)=>e.callService(_e,"distributor_set_outlet",{distributor_id:t,outlet:s}))(this.hass,e,i))}_confirmSetOutlet(){const e=this._confirmSetOutletId;if(this._confirmSetOutletId=null,null===e)return;const t=this.distributors.find(t=>t.id===e);t&&this._setOutlet(e,t.current_outlet)}_resyncHome(e){var t,s;this._callAction((t=this.hass,s=e,t.callService(_e,"distributor_resync_home",{distributor_id:s})))}_confirmResyncHome(){const e=this._confirmResyncHomeId;this._confirmResyncHomeId=null,null!==e&&this._resyncHome(e)}_runNow(e){var t,s;this._callAction((t=this.hass,s=e,t.callService(_e,"distributor_run_now",{distributor_id:s})))}_setArmed(e,t){this.hass&&(this._armConfirmId=null,this.distributors=this.distributors.map(s=>s.id===e?Object.assign(Object.assign({},s),{commissioning_confirmed:t}):s),this.isSaving=!0,Ss(this.hass,{id:e,[rs]:t}).catch(e=>{console.error("Failed to set commissioning state:",e),za(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})}))}_onArmToggle(e,t){void 0!==e.id&&(t?this._armConfirmId=e.id:this._setArmed(e.id,!1))}_markSaved(){this._saveStatus="saved",this._savedResetTimer&&clearTimeout(this._savedResetTimer),this._savedResetTimer=window.setTimeout(()=>{this._saveStatus="idle",this._scheduleUpdate()},2e3),this._scheduleUpdate()}_renderSaveStatus(){if(!this.hass||"idle"===this._saveStatus)return Z``;const e="saving"===this._saveStatus;return Z`
       <span class="save-status ${this._saveStatus}">
         <ha-icon
           icon="${e?"mdi:content-save-outline":"mdi:check-circle"}"
         ></ha-icon>
-        ${va(e?"common.saving-messages.saving":"panels.distributors.status.saved",this.hass.language)}
+        ${_a(e?"common.saving-messages.saving":"panels.distributors.status.saved",this.hass.language)}
       </span>
-    `}_hasOwnActuation(e){return!!(e.linked_entity||e.run_service||e.stop_service)}_membersByOutlet(e){const t=new Map;if(void 0===e)return t;for(const i of this.zones)i.distributor_id===e&&null!=i.outlet_number&&void 0!==i.id&&t.set(i.outlet_number,i);return t}_outletCount(e){const t=this._membersByOutlet(e.id),i=t.size?Math.max(...t.keys()):0,s=Math.max(2,i),a=void 0!==e.id?this._outletRows[e.id]:void 0;return Math.min(6,Math.max(s,null!=a?a:s))}_assignZone(e,t,i){return vi(this.hass,{id:e.id,[hi]:t,[ui]:i})}_optimisticZone(e,t,i){void 0!==e&&(this.zones=this.zones.map(s=>s.id===e?Object.assign(Object.assign({},s),{distributor_id:t,outlet_number:i}):s))}_runAssign(e){e.length&&(this.isSaving=!0,this._saveStatus="saving",this._scheduleUpdate(),Promise.all(e).then(()=>this._markSaved()).catch(e=>{console.error("Failed to assign zone to outlet:",e),this._saveStatus="idle",ka(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})}))}_setOutletCount(e,t){if(void 0===e.id)return;const i=this._membersByOutlet(e.id),s=[];for(const[e,a]of i)e>t&&s.push(a);this._outletRows=Object.assign(Object.assign({},this._outletRows),{[e.id]:t}),s.length?(s.forEach(e=>this._optimisticZone(e.id,null,null)),this._runAssign(s.map(e=>this._assignZone(e,null,null)))):this._scheduleUpdate()}_onOutletZoneChange(e,t,i){const s=i.target.value,a=s?parseInt(s):null,n=this._membersByOutlet(e.id).get(t),o=null!==a?this.zones.find(e=>e.id===a):null,r=[];n&&n.id!==a&&(r.push(this._assignZone(n,null,null)),this._optimisticZone(n.id,null,null)),o&&(r.push(this._assignZone(o,e.id,t)),this._optimisticZone(o.id,e.id,t)),this._runAssign(r)}_renderOutletConfig(e){if(!this.hass)return Z``;const t=this.hass.language,i=this._membersByOutlet(e.id),s=this._outletCount(e),a=this.zones.filter(e=>void 0!==e.id&&null==e.distributor_id&&!this._hasOwnActuation(e)),n=[...i.keys()].sort((e,t)=>e-t),o=n.some((e,t)=>e!==t+1),r=[];for(let n=1;n<=s;n++){const s=i.get(n),o=s?[...a,s]:[...a];o.sort((e,t)=>(e.name||"").localeCompare(t.name||"")),r.push(Z`
+    `}_hasOwnActuation(e){return!!(e.linked_entity||e.run_service||e.stop_service)}_membersByOutlet(e){const t=new Map;if(void 0===e)return t;for(const s of this.zones)s.distributor_id===e&&null!=s.outlet_number&&void 0!==s.id&&t.set(s.outlet_number,s);return t}_outletCount(e){const t=this._membersByOutlet(e.id),s=t.size?Math.max(...t.keys()):0,i=Math.max(2,s),a=void 0!==e.id?this._outletRows[e.id]:void 0;return Math.min(6,Math.max(i,null!=a?a:i))}_assignZone(e,t,s){return _s(this.hass,{id:e.id,[us]:t,[ps]:s})}_optimisticZone(e,t,s){void 0!==e&&(this.zones=this.zones.map(i=>i.id===e?Object.assign(Object.assign({},i),{distributor_id:t,outlet_number:s}):i))}_runAssign(e){e.length&&(this.isSaving=!0,this._saveStatus="saving",this._scheduleUpdate(),Promise.all(e).then(()=>this._markSaved()).catch(e=>{console.error("Failed to assign zone to outlet:",e),this._saveStatus="idle",za(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._fetchData().catch(()=>{})}))}_setOutletCount(e,t){if(void 0===e.id)return;const s=this._membersByOutlet(e.id),i=[];for(const[e,a]of s)e>t&&i.push(a);this._outletRows=Object.assign(Object.assign({},this._outletRows),{[e.id]:t}),i.length?(i.forEach(e=>this._optimisticZone(e.id,null,null)),this._runAssign(i.map(e=>this._assignZone(e,null,null)))):this._scheduleUpdate()}_onOutletZoneChange(e,t,s){const i=s.target.value,a=i?parseInt(i):null,n=this._membersByOutlet(e.id).get(t),o=null!==a?this.zones.find(e=>e.id===a):null,r=[];n&&n.id!==a&&(r.push(this._assignZone(n,null,null)),this._optimisticZone(n.id,null,null)),o&&(r.push(this._assignZone(o,e.id,t)),this._optimisticZone(o.id,e.id,t)),this._runAssign(r)}_renderOutletConfig(e){if(!this.hass)return Z``;const t=this.hass.language,s=this._membersByOutlet(e.id),i=this._outletCount(e),a=this.zones.filter(e=>void 0!==e.id&&null==e.distributor_id&&!this._hasOwnActuation(e)),n=[...s.keys()].sort((e,t)=>e-t),o=n.some((e,t)=>e!==t+1),r=[];for(let n=1;n<=i;n++){const i=s.get(n),o=i?[...a,i]:[...a];o.sort((e,t)=>(e.name||"").localeCompare(t.name||"")),r.push(Z`
         <div class="outlet-row">
           <span class="outlet-label"
-            >${va("panels.distributors.commissioning.outlet",t)}
+            >${_a("panels.distributors.commissioning.outlet",t)}
             ${n}</span
           >
           <select
             class="settings-input"
-            .value="${Ba(null!=(null==s?void 0:s.id)?String(s.id):"")}"
+            .value="${Ua(null!=(null==i?void 0:i.id)?String(i.id):"")}"
             @change="${t=>this._onOutletZoneChange(e,n,t)}"
             ?disabled="${this.isSaving}"
           >
-            <option value="" ?selected="${!s}">
-              ${va("panels.distributors.outlets.none",t)}
+            <option value="" ?selected="${!i}">
+              ${_a("panels.distributors.outlets.none",t)}
             </option>
             ${o.map(e=>Z`
-                <option value="${e.id}" ?selected="${(null==s?void 0:s.id)===e.id}">
+                <option value="${e.id}" ?selected="${(null==i?void 0:i.id)===e.id}">
                   ${e.name}
                 </option>
               `)}
@@ -4293,84 +4319,84 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       <div class="outlet-config">
         <div class="commissioning-head">
           <span class="section-title"
-            >${va("panels.distributors.outlets.title",t)}</span
+            >${_a("panels.distributors.outlets.title",t)}</span
           >
         </div>
         <div class="item-description">
-          ${va("panels.distributors.outlets.help",t)}
+          ${_a("panels.distributors.outlets.help",t)}
         </div>
         ${0===this.zones.length?Z`<div class="weather-note">
-              ${va("panels.distributors.outlets.no_zones",t)}
+              ${_a("panels.distributors.outlets.no_zones",t)}
             </div>`:Z`
               <ha-settings-row>
                 <span slot="heading"
-                  >${va("panels.distributors.outlets.count",t)}</span
+                  >${_a("panels.distributors.outlets.count",t)}</span
                 >
                 <select
                   class="settings-input shortfield"
-                  .value="${Ba(String(s))}"
+                  .value="${Ua(String(i))}"
                   @change="${t=>this._setOutletCount(e,parseInt(t.target.value))}"
                   ?disabled="${this.isSaving}"
                 >
-                  ${Array.from({length:5},(e,t)=>2+t).map(e=>Z`<option value="${e}" ?selected="${e===s}">
+                  ${Array.from({length:5},(e,t)=>2+t).map(e=>Z`<option value="${e}" ?selected="${e===i}">
                         ${e}
                       </option>`)}
                 </select>
               </ha-settings-row>
               <div class="outlet-rows">${r}</div>
               ${o?Z`<div class="timing-warning">
-                    ${va("panels.distributors.outlets.gap_warning",t)}
+                    ${_a("panels.distributors.outlets.gap_warning",t)}
                   </div>`:""}
               <div class="commissioning-note">
-                ${va("panels.distributors.hints.outlet_change",t)}
+                ${_a("panels.distributors.hints.outlet_change",t)}
               </div>
             `}
       </div>
-    `}_renderAdvisories(){var e,t;if(!this.hass)return Z``;const i=this.hass.language,s=null===(e=this.config)||void 0===e?void 0:e.zone_sequencing,a=s===Ut,n=s===Bt||s===jt,o=!!(null===(t=this.config)||void 0===t?void 0:t.master_off_after);return Z`
+    `}_renderAdvisories(){var e,t;if(!this.hass)return Z``;const s=this.hass.language,i=null===(e=this.config)||void 0===e?void 0:e.zone_sequencing,a=i===Ut,n=i===Bt||i===jt,o=!!(null===(t=this.config)||void 0===t?void 0:t.master_off_after);return Z`
       <div class="advisories">
         <div class="advisory">
           <ha-icon icon="mdi:flask-outline"></ha-icon>
           <span
-            >${va("panels.distributors.hints.experimental",i)}</span
+            >${_a("panels.distributors.hints.experimental",s)}</span
           >
         </div>
         <div class="advisory">
           <ha-icon icon="mdi:water-alert-outline"></ha-icon>
-          <span>${va("panels.distributors.hints.pressure",i)}</span>
+          <span>${_a("panels.distributors.hints.pressure",s)}</span>
         </div>
         ${a?Z`<div class="advisory">
               <ha-icon icon="mdi:information-outline"></ha-icon>
               <span
-                >${va("panels.distributors.hints.parallel_draw",i)}</span
+                >${_a("panels.distributors.hints.parallel_draw",s)}</span
               >
             </div>`:""}
         ${n&&o?Z`<div class="advisory">
               <ha-icon icon="mdi:information-outline"></ha-icon>
               <span
-                >${va("panels.distributors.hints.master_off_after",i)}</span
+                >${_a("panels.distributors.hints.master_off_after",s)}</span
               >
             </div>`:""}
       </div>
-    `}_renderCommissioning(e){var t;if(!this.hass)return Z``;const i=this.hass.language,s="synced"===e.position_state,a=!!e.commissioning_confirmed,n=!!e.active_cycle&&Object.keys(e.active_cycle).length>0,o=e.id;return Z`
+    `}_renderCommissioning(e){var t;if(!this.hass)return Z``;const s=this.hass.language,i="synced"===e.position_state,a=!!e.commissioning_confirmed,n=!!e.active_cycle&&Object.keys(e.active_cycle).length>0,o=e.id;return Z`
       <div class="commissioning">
         <div class="commissioning-head">
           <span class="section-title"
-            >${va("panels.distributors.commissioning.title",i)}</span
+            >${_a("panels.distributors.commissioning.title",s)}</span
           >
           <span class="pos-badge pos-${e.position_state}">
-            ${va("panels.distributors.commissioning.outlet",i)}
+            ${_a("panels.distributors.commissioning.outlet",s)}
             ${e.current_outlet} ·
-            ${va(`panels.distributors.commissioning.states.${e.position_state}`,i)}
+            ${_a(`panels.distributors.commissioning.states.${e.position_state}`,s)}
           </span>
         </div>
 
         <!-- Re-sync controls -->
         <ha-settings-row>
           <span slot="heading"
-            >${va("panels.distributors.commissioning.set_outlet",i)}</span
+            >${_a("panels.distributors.commissioning.set_outlet",s)}</span
           >
           <span slot="description"
-            >${va("panels.distributors.commissioning.set_outlet_help",i)}</span
+            >${_a("panels.distributors.commissioning.set_outlet_help",s)}</span
           >
           <div class="inline-controls">
             <input
@@ -4379,7 +4405,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               min="1"
               max="${6}"
               step="1"
-              .value="${Ba(String(null!==(t=this._outletDraft[o])&&void 0!==t?t:e.current_outlet))}"
+              .value="${Ua(String(null!==(t=this._outletDraft[o])&&void 0!==t?t:e.current_outlet))}"
               @input="${e=>{const t=e.target.valueAsNumber;isNaN(t)||(this._outletDraft=Object.assign(Object.assign({},this._outletDraft),{[o]:t}))}}"
             />
             <button
@@ -4387,50 +4413,50 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               ?disabled="${this.isSaving}"
               @click="${()=>{this._confirmSetOutletId=o}}"
             >
-              ${va("panels.distributors.commissioning.set_outlet",i)}
+              ${_a("panels.distributors.commissioning.set_outlet",s)}
             </button>
             <button
               class="action-btn secondary"
               ?disabled="${this.isSaving}"
               @click="${()=>{this._confirmResyncHomeId=o}}"
             >
-              ${va("panels.distributors.commissioning.resync_home",i)}
+              ${_a("panels.distributors.commissioning.resync_home",s)}
             </button>
           </div>
         </ha-settings-row>
         <div class="commissioning-note">
-          ${va("panels.distributors.hints.undetectable",i)}
+          ${_a("panels.distributors.hints.undetectable",s)}
         </div>
 
         <!-- Test run -->
         <ha-settings-row>
           <span slot="heading"
-            >${va("panels.distributors.commissioning.test_run",i)}</span
+            >${_a("panels.distributors.commissioning.test_run",s)}</span
           >
           <span slot="description"
-            >${va("panels.distributors.commissioning.test_run_help",i)}</span
+            >${_a("panels.distributors.commissioning.test_run_help",s)}</span
           >
           <button
             class="action-btn secondary"
-            ?disabled="${this.isSaving||!s}"
+            ?disabled="${this.isSaving||!i}"
             @click="${()=>this._testRun(o)}"
           >
             <ha-icon icon="mdi:play-circle-outline"></ha-icon>
-            ${va("panels.distributors.commissioning.test_run",i)}
+            ${_a("panels.distributors.commissioning.test_run",s)}
           </button>
         </ha-settings-row>
 
         <!-- Arm switch -->
         <ha-settings-row>
           <span slot="heading"
-            >${va("panels.distributors.commissioning.confirmed",i)}</span
+            >${_a("panels.distributors.commissioning.confirmed",s)}</span
           >
           <span slot="description"
-            >${va(s?"panels.distributors.commissioning.confirmed_help":"panels.distributors.commissioning.needs_sync",i)}</span
+            >${_a(i?"panels.distributors.commissioning.confirmed_help":"panels.distributors.commissioning.needs_sync",s)}</span
           >
           <ha-switch
-            .checked="${Ba(a)}"
-            .disabled="${this.isSaving||!s&&!a}"
+            .checked="${Ua(a)}"
+            .disabled="${this.isSaving||!i&&!a}"
             @change="${t=>this._onArmToggle(e,t.target.checked)}"
           ></ha-switch>
         </ha-settings-row>
@@ -4439,37 +4465,37 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         <div class="run-now-row">
           <button
             class="action-btn"
-            ?disabled="${this.isSaving||!s||!a||n}"
+            ?disabled="${this.isSaving||!i||!a||n}"
             @click="${()=>this._runNow(o)}"
           >
             <ha-icon icon="mdi:play"></ha-icon>
-            ${va("panels.distributors.commissioning.run_now",i)}
+            ${_a("panels.distributors.commissioning.run_now",s)}
           </button>
           <span class="run-now-hint">
-            ${va(n?"panels.distributors.commissioning.run_now_active":"panels.distributors.commissioning.run_now_help",i)}
+            ${_a(n?"panels.distributors.commissioning.run_now_active":"panels.distributors.commissioning.run_now_help",s)}
           </span>
         </div>
       </div>
-    `}renderDistributor(e,t){var i;if(!this.hass)return Z``;const s=this._isExpanded(e),a=this.hass.language;return Z`
-      <ha-card id="distributor-${null!==(i=e.id)&&void 0!==i?i:"new"}">
+    `}renderDistributor(e,t){var s;if(!this.hass)return Z``;const i=this._isExpanded(e),a=this.hass.language;return Z`
+      <ha-card id="distributor-${null!==(s=e.id)&&void 0!==s?s:"new"}">
         <div
           class="card-header dist-toggle"
           role="button"
           tabindex="0"
-          aria-expanded="${s?"true":"false"}"
+          aria-expanded="${i?"true":"false"}"
           @click="${()=>void 0!==e.id&&this._toggle(e.id)}"
           @keydown="${t=>{"Enter"!==t.key&&" "!==t.key||void 0===e.id||(t.preventDefault(),this._toggle(e.id))}}"
         >
           <div class="name">${e.name}</div>
           <span class="pos-badge pos-${e.position_state}">
-            ${va(`panels.distributors.commissioning.states.${e.position_state}`,a)}
+            ${_a(`panels.distributors.commissioning.states.${e.position_state}`,a)}
           </span>
           <ha-icon
             class="dist-chevron"
-            icon="${s?"mdi:chevron-up":"mdi:chevron-down"}"
+            icon="${i?"mdi:chevron-up":"mdi:chevron-down"}"
           ></ha-icon>
         </div>
-        ${s?Z`
+        ${i?Z`
               <div class="card-content">
                 <si-distributor-form
                   .hass="${this.hass}"
@@ -4486,38 +4512,38 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     @click="${()=>{var t;this._confirmDeleteId=null!==(t=e.id)&&void 0!==t?t:null}}"
                   >
                     <ha-icon icon="mdi:delete"></ha-icon>
-                    ${va("common.actions.delete",a)}
+                    ${_a("common.actions.delete",a)}
                   </button>
                 </div>
               </div>
             `:""}
       </ha-card>
     `}render(){var e;if(!this.hass)return Z``;const t=this.hass.language;if(this.isLoading)return Z`
-        <ha-card header="${va("panels.distributors.title",t)}">
+        <ha-card header="${_a("panels.distributors.title",t)}">
           <div class="card-content">
             <div class="loading-indicator">
-              ${va("common.loading-messages.general",t)}
+              ${_a("common.loading-messages.general",t)}
             </div>
           </div>
         </ha-card>
-      `;const i=null!==this._confirmDeleteId?this.distributors.find(e=>e.id===this._confirmDeleteId):null,s=null!==this._armConfirmId?this.distributors.find(e=>e.id===this._armConfirmId):null,a=null!==this._confirmResyncHomeId?this.distributors.find(e=>e.id===this._confirmResyncHomeId):null,n=null!==this._confirmSetOutletId?this.distributors.find(e=>e.id===this._confirmSetOutletId):null,o=n&&void 0!==n.id?null!==(e=this._outletDraft[n.id])&&void 0!==e?e:n.current_outlet:null;return Z`
+      `;const s=null!==this._confirmDeleteId?this.distributors.find(e=>e.id===this._confirmDeleteId):null,i=null!==this._armConfirmId?this.distributors.find(e=>e.id===this._armConfirmId):null,a=null!==this._confirmResyncHomeId?this.distributors.find(e=>e.id===this._confirmResyncHomeId):null,n=null!==this._confirmSetOutletId?this.distributors.find(e=>e.id===this._confirmSetOutletId):null,o=n&&void 0!==n.id?null!==(e=this._outletDraft[n.id])&&void 0!==e?e:n.current_outlet:null;return Z`
       <ha-card>
         <div class="card-header">
-          <div class="name">${va("panels.distributors.title",t)}</div>
+          <div class="name">${_a("panels.distributors.title",t)}</div>
           ${this._renderSaveStatus()}
           <ha-icon-button
-            .path="${Sa}"
-            title="${va("panels.distributors.add.header",t)}"
+            .path="${Aa}"
+            title="${_a("panels.distributors.add.header",t)}"
             @click="${()=>{this._showAdd=!0}}"
           ></ha-icon-button>
         </div>
         <div class="card-content">
           <div class="item-description">
-            ${va("panels.distributors.description",t)}
+            ${_a("panels.distributors.description",t)}
           </div>
           ${this._renderAdvisories()}
           ${0===this.distributors.length?Z`<div class="weather-note">
-                ${va("panels.distributors.no_items",t)}
+                ${_a("panels.distributors.no_items",t)}
               </div>`:""}
         </div>
       </ha-card>
@@ -4526,17 +4552,17 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       <ha-dialog
         .open="${this._showAdd}"
         @closed="${()=>{this._showAdd=!1}}"
-        heading="${va("panels.distributors.add.header",t)}"
+        heading="${_a("panels.distributors.add.header",t)}"
       >
         <div class="add-form">
           <si-field
-            label="${va("panels.distributors.labels.name",t)}"
+            label="${_a("panels.distributors.labels.name",t)}"
             required
           >
             <input
               type="text"
               class="settings-input"
-              placeholder="${va("panels.distributors.add.name_placeholder",t)}"
+              placeholder="${_a("panels.distributors.add.name_placeholder",t)}"
               .value="${this._newName}"
               @input="${e=>{this._newName=e.target.value}}"
             />
@@ -4547,67 +4573,67 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             class="dialog-btn"
             @click="${()=>{this._showAdd=!1}}"
           >
-            ${va("common.actions.cancel",t)}
+            ${_a("common.actions.cancel",t)}
           </button>
           <button
             class="dialog-btn dialog-btn-primary"
             ?disabled="${!this._newName.trim()||this.isSaving}"
             @click="${this.handleAdd}"
           >
-            ${this.isSaving?va("common.saving-messages.adding",t):va("panels.distributors.add.actions.add",t)}
+            ${this.isSaving?_a("common.saving-messages.adding",t):_a("panels.distributors.add.actions.add",t)}
           </button>
         </div>
       </ha-dialog>
 
       <!-- Delete confirm -->
-      ${i?Z`
+      ${s?Z`
             <ha-dialog
               open
               @closed="${()=>{this._confirmDeleteId=null}}"
-              heading="${va("common.actions.confirm_delete",t)}"
+              heading="${_a("common.actions.confirm_delete",t)}"
             >
-              <p>${va("panels.distributors.confirm_delete",t)}</p>
-              <p><strong>${i.name}</strong></p>
+              <p>${_a("panels.distributors.confirm_delete",t)}</p>
+              <p><strong>${s.name}</strong></p>
               <div class="dialog-footer">
                 <button
                   class="dialog-btn"
                   @click="${()=>{this._confirmDeleteId=null}}"
                 >
-                  ${va("common.actions.cancel",t)}
+                  ${_a("common.actions.cancel",t)}
                 </button>
                 <button
                   class="dialog-btn dialog-btn-danger"
                   @click="${this._confirmDelete}"
                 >
-                  ${va("common.actions.delete",t)}
+                  ${_a("common.actions.delete",t)}
                 </button>
               </div>
             </ha-dialog>
           `:""}
 
       <!-- Arm confirm -->
-      ${s?Z`
+      ${i?Z`
             <ha-dialog
               open
               @closed="${()=>{this._armConfirmId=null}}"
-              heading="${va("panels.distributors.commissioning.confirm_dialog.title",t)}"
+              heading="${_a("panels.distributors.commissioning.confirm_dialog.title",t)}"
             >
               <p>
-                ${va("panels.distributors.commissioning.confirm_dialog.body",t)}
+                ${_a("panels.distributors.commissioning.confirm_dialog.body",t)}
               </p>
-              <p><strong>${s.name}</strong></p>
+              <p><strong>${i.name}</strong></p>
               <div class="dialog-footer">
                 <button
                   class="dialog-btn"
                   @click="${()=>{this._armConfirmId=null}}"
                 >
-                  ${va("common.actions.cancel",t)}
+                  ${_a("common.actions.cancel",t)}
                 </button>
                 <button
                   class="dialog-btn dialog-btn-primary"
-                  @click="${()=>void 0!==s.id&&this._setArmed(s.id,!0)}"
+                  @click="${()=>void 0!==i.id&&this._setArmed(i.id,!0)}"
                 >
-                  ${va("panels.distributors.commissioning.confirm_dialog.confirm",t)}
+                  ${_a("panels.distributors.commissioning.confirm_dialog.confirm",t)}
                 </button>
               </div>
             </ha-dialog>
@@ -4618,10 +4644,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             <ha-dialog
               open
               @closed="${()=>{this._confirmResyncHomeId=null}}"
-              heading="${va("panels.distributors.commissioning.confirm_resync.title",t)}"
+              heading="${_a("panels.distributors.commissioning.confirm_resync.title",t)}"
             >
               <p>
-                ${va("panels.distributors.commissioning.confirm_resync.body",t)}
+                ${_a("panels.distributors.commissioning.confirm_resync.body",t)}
               </p>
               <p><strong>${a.name}</strong></p>
               <div class="dialog-footer">
@@ -4629,13 +4655,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   class="dialog-btn"
                   @click="${()=>{this._confirmResyncHomeId=null}}"
                 >
-                  ${va("common.actions.cancel",t)}
+                  ${_a("common.actions.cancel",t)}
                 </button>
                 <button
                   class="dialog-btn dialog-btn-primary"
                   @click="${this._confirmResyncHome}"
                 >
-                  ${va("panels.distributors.commissioning.resync_home",t)}
+                  ${_a("panels.distributors.commissioning.resync_home",t)}
                 </button>
               </div>
             </ha-dialog>
@@ -4646,15 +4672,15 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             <ha-dialog
               open
               @closed="${()=>{this._confirmSetOutletId=null}}"
-              heading="${va("panels.distributors.commissioning.confirm_set_outlet.title",t)}"
+              heading="${_a("panels.distributors.commissioning.confirm_set_outlet.title",t)}"
             >
               <p>
-                ${va("panels.distributors.commissioning.confirm_set_outlet.body",t)}
+                ${_a("panels.distributors.commissioning.confirm_set_outlet.body",t)}
               </p>
               <p>
                 <strong
                   >${n.name} ·
-                  ${va("panels.distributors.commissioning.outlet",t)}
+                  ${_a("panels.distributors.commissioning.outlet",t)}
                   ${o}</strong
                 >
               </p>
@@ -4663,20 +4689,20 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   class="dialog-btn"
                   @click="${()=>{this._confirmSetOutletId=null}}"
                 >
-                  ${va("common.actions.cancel",t)}
+                  ${_a("common.actions.cancel",t)}
                 </button>
                 <button
                   class="dialog-btn dialog-btn-primary"
                   @click="${this._confirmSetOutlet}"
                 >
-                  ${va("panels.distributors.commissioning.set_outlet",t)}
+                  ${_a("panels.distributors.commissioning.set_outlet",t)}
                 </button>
               </div>
             </ha-dialog>
           `:""}
       ${this.distributors.map((e,t)=>this.renderDistributor(e,t))}
     `}disconnectedCallback(){super.disconnectedCallback(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this._savedResetTimer&&(clearTimeout(this._savedResetTimer),this._savedResetTimer=null)}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       .card-header.dist-toggle {
         display: flex;
@@ -4861,40 +4887,40 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         width: 100%;
         height: 36px;
       }
-    `}};t([pe()],Xa.prototype,"config",void 0),t([pe({attribute:!1})],Xa.prototype,"path",void 0),t([pe({type:Array})],Xa.prototype,"distributors",void 0),t([pe({type:Array})],Xa.prototype,"zones",void 0),t([pe({type:Boolean})],Xa.prototype,"isLoading",void 0),t([pe({type:Boolean})],Xa.prototype,"isSaving",void 0),t([ge()],Xa.prototype,"_expanded",void 0),t([pe({type:Boolean})],Xa.prototype,"_showAdd",void 0),t([pe()],Xa.prototype,"_newName",void 0),t([pe()],Xa.prototype,"_confirmDeleteId",void 0),t([ge()],Xa.prototype,"_armConfirmId",void 0),t([ge()],Xa.prototype,"_confirmResyncHomeId",void 0),t([ge()],Xa.prototype,"_confirmSetOutletId",void 0),t([ge()],Xa.prototype,"_outletDraft",void 0),t([ge()],Xa.prototype,"_outletRows",void 0),t([ge()],Xa.prototype,"_saveStatus",void 0),Xa=t([ce("smart-irrigation-view-distributor-settings")],Xa);let Ja=class extends(Aa(le)){constructor(){super(...arguments),this.zones=[],this.modules=[],this.allmodules=[],this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this._updateScheduled=!1,this.globalDebounceTimer=null,this.moduleCache=new Map,this.debouncedSave=(()=>{let e=null;return t=>{e&&clearTimeout(e),e=window.setTimeout(()=>{this.saveToHA(t),e=null},500)}})()}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}firstUpdated(){Oi().catch(e=>{console.error("Failed to load HA form:",e)})}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;e&&(this.isLoading=!0,this._scheduleUpdate());try{const[e,t,i,s]=await Promise.all([pi(this.hass),mi(this.hass),_i(this.hass),fi(this.hass)]);this.config=e,this.zones=t,this.modules=i,this.allmodules=s,this._initialLoadDone=!0,this.moduleCache.clear()}catch(e){console.error("Error fetching data:",e),ka(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}async handleAddModule(){var e,t;if((null===(t=null===(e=this.moduleInput)||void 0===e?void 0:e.selectedOptions)||void 0===t?void 0:t[0])&&!this.isSaving){this.isSaving=!0,this._scheduleUpdate();try{const e=this.moduleInput.selectedOptions[0].text,t=this.allmodules.find(t=>t.name===e);if(!t)return;const i={name:e,description:t.description,config:t.config,schema:t.schema};this.modules=[...this.modules,i],this.moduleCache.clear(),this._scheduleUpdate(),await this.saveToHA(i),await this._fetchData()}catch(e){console.error("Error adding module:",e),await this._fetchData()}finally{this.isSaving=!1,this._scheduleUpdate()}}}async handleRemoveModule(e,t){if(!this.isSaving){this.isSaving=!0,this._scheduleUpdate();try{const e=this.modules[t],a=null==e?void 0:e.id;this.modules;this.modules=this.modules.filter((e,i)=>i!==t),this.moduleCache.clear(),this._scheduleUpdate(),this.hass&&void 0!==a&&await(i=this.hass,s=a.toString(),i.callApi("POST",_e+"/modules",{id:s,remove:!0}))}catch(e){console.error("Error removing module:",e),ka(this,this.hass,"common.errors.delete_failed",e),await this._fetchData()}finally{this.isSaving=!1,this._scheduleUpdate()}var i,s}}async saveToHA(e){if(this.hass)try{await bi(this.hass,e)}catch(e){throw console.error("Error saving module:",e),ka(this,this.hass,"common.errors.save_failed",e),e}}renderModule(e,t){if(!this.hass)return Z``;const i=this.zones.filter(t=>t.module===e.id).length,s=`module-${e.id||t}-${i}-${JSON.stringify(e)}`;if(this.moduleCache.has(s))return this.moduleCache.get(s);const a=Z`
+    `}};t([pe()],Ja.prototype,"config",void 0),t([pe({attribute:!1})],Ja.prototype,"path",void 0),t([pe({type:Array})],Ja.prototype,"distributors",void 0),t([pe({type:Array})],Ja.prototype,"zones",void 0),t([pe({type:Boolean})],Ja.prototype,"isLoading",void 0),t([pe({type:Boolean})],Ja.prototype,"isSaving",void 0),t([ge()],Ja.prototype,"_expanded",void 0),t([pe({type:Boolean})],Ja.prototype,"_showAdd",void 0),t([pe()],Ja.prototype,"_newName",void 0),t([pe()],Ja.prototype,"_confirmDeleteId",void 0),t([ge()],Ja.prototype,"_armConfirmId",void 0),t([ge()],Ja.prototype,"_confirmResyncHomeId",void 0),t([ge()],Ja.prototype,"_confirmSetOutletId",void 0),t([ge()],Ja.prototype,"_outletDraft",void 0),t([ge()],Ja.prototype,"_outletRows",void 0),t([ge()],Ja.prototype,"_saveStatus",void 0),Ja=t([ce("smart-irrigation-view-distributor-settings")],Ja);let Qa=class extends(Ea(le)){constructor(){super(...arguments),this.zones=[],this.modules=[],this.allmodules=[],this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this._updateScheduled=!1,this.globalDebounceTimer=null,this.moduleCache=new Map,this.debouncedSave=(()=>{let e=null;return t=>{e&&clearTimeout(e),e=window.setTimeout(()=>{this.saveToHA(t),e=null},500)}})()}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}firstUpdated(){Hs().catch(e=>{console.error("Failed to load HA form:",e)})}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;e&&(this.isLoading=!0,this._scheduleUpdate());try{const[e,t,s,i]=await Promise.all([gs(this.hass),vs(this.hass),fs(this.hass),bs(this.hass)]);this.config=e,this.zones=t,this.modules=s,this.allmodules=i,this._initialLoadDone=!0,this.moduleCache.clear()}catch(e){console.error("Error fetching data:",e),za(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}async handleAddModule(){var e,t;if((null===(t=null===(e=this.moduleInput)||void 0===e?void 0:e.selectedOptions)||void 0===t?void 0:t[0])&&!this.isSaving){this.isSaving=!0,this._scheduleUpdate();try{const e=this.moduleInput.selectedOptions[0].text,t=this.allmodules.find(t=>t.name===e);if(!t)return;const s={name:e,description:t.description,config:t.config,schema:t.schema};this.modules=[...this.modules,s],this.moduleCache.clear(),this._scheduleUpdate(),await this.saveToHA(s),await this._fetchData()}catch(e){console.error("Error adding module:",e),await this._fetchData()}finally{this.isSaving=!1,this._scheduleUpdate()}}}async handleRemoveModule(e,t){if(!this.isSaving){this.isSaving=!0,this._scheduleUpdate();try{const e=this.modules[t],a=null==e?void 0:e.id;this.modules;this.modules=this.modules.filter((e,s)=>s!==t),this.moduleCache.clear(),this._scheduleUpdate(),this.hass&&void 0!==a&&await(s=this.hass,i=a.toString(),s.callApi("POST",_e+"/modules",{id:i,remove:!0}))}catch(e){console.error("Error removing module:",e),za(this,this.hass,"common.errors.delete_failed",e),await this._fetchData()}finally{this.isSaving=!1,this._scheduleUpdate()}var s,i}}async saveToHA(e){if(this.hass)try{await ys(this.hass,e)}catch(e){throw console.error("Error saving module:",e),za(this,this.hass,"common.errors.save_failed",e),e}}renderModule(e,t){if(!this.hass)return Z``;const s=this.zones.filter(t=>t.module===e.id).length,i=`module-${e.id||t}-${s}-${JSON.stringify(e)}`;if(this.moduleCache.has(i))return this.moduleCache.get(i);const a=Z`
       <ha-card>
         <div class="card-header">
           <div class="name">${e.name}</div>
-          ${this.renderUsageChip(i)}
+          ${this.renderUsageChip(s)}
         </div>
         <div class="card-content">
           <div class="item-description">${e.description}</div>
           <div class="moduleconfig">
             <label class="subheader"
-              >${va("panels.modules.cards.module.labels.configuration",this.hass.language)}
+              >${_a("panels.modules.cards.module.labels.configuration",this.hass.language)}
               (*
-              ${va("panels.modules.cards.module.labels.required",this.hass.language)})</label
+              ${_a("panels.modules.cards.module.labels.required",this.hass.language)})</label
             >
             ${e.schema?Object.entries(e.schema).map(([e])=>this.renderConfig(t,e)):null}
           </div>
           <div class="card-footer">
-            ${i?Z`<div class="weather-note">
-                  ${va("panels.modules.cards.module.errors.cannot-delete-module-because-zones-use-it",this.hass.language)}
+            ${s?Z`<div class="weather-note">
+                  ${_a("panels.modules.cards.module.errors.cannot-delete-module-because-zones-use-it",this.hass.language)}
                 </div>`:Z`<button
                   class="action-btn danger"
                   @click="${e=>this.handleRemoveModule(e,t)}"
                 >
                   <ha-icon icon="mdi:delete"></ha-icon>
-                  ${va("common.actions.delete",this.hass.language)}
+                  ${_a("common.actions.delete",this.hass.language)}
                 </button>`}
           </div>
         </div>
       </ha-card>
-    `;return this.moduleCache.set(s,a),a}renderUsageChip(e){return this.hass?e?Z`<span class="usage-chip"
-          >${va("panels.setup.advanced.used_by_zones",this.hass.language,"{count}",e)}</span
+    `;return this.moduleCache.set(i,a),a}renderUsageChip(e){return this.hass?e?Z`<span class="usage-chip"
+          >${_a("panels.setup.advanced.used_by_zones",this.hass.language,"{count}",e)}</span
         >`:Z`<span class="usage-chip unused"
-          >${va("panels.setup.advanced.not_used",this.hass.language)}</span
-        >`:Z``}renderConfig(e,t){var i,s;const a=Object.values(this.modules).at(e);if(!a||!this.hass)return;const n=a.schema[t],o=n.name,r=e=>{try{const t=va(e,this.hass.language);return null==t?void 0:t}catch(e){return}},l="panels.modules.cards.module.fields."+o,d=null!==(i=r(l+".name"))&&void 0!==i?i:function(e){if(e)return(e=e.replace("_"," ")).charAt(0).toUpperCase()+e.slice(1)}(o),c=null!==(s=r(l+".description"))&&void 0!==s?s:n.description;let h="";null==a.config&&(a.config=[]),o in a.config&&(h=a.config[o]);let u=Z``;if("boolean"==n.type)u=Z`<input
+          >${_a("panels.setup.advanced.not_used",this.hass.language)}</span
+        >`:Z``}renderConfig(e,t){var s,i;const a=Object.values(this.modules).at(e);if(!a||!this.hass)return;const n=a.schema[t],o=n.name,r=e=>{try{const t=_a(e,this.hass.language);return null==t?void 0:t}catch(e){return}},l="panels.modules.cards.module.fields."+o,d=null!==(s=r(l+".name"))&&void 0!==s?s:function(e){if(e)return(e=e.replace("_"," ")).charAt(0).toUpperCase()+e.slice(1)}(o),c=null!==(i=r(l+".description"))&&void 0!==i?i:n.description;let h="";null==a.config&&(a.config=[]),o in a.config&&(h=a.config[o]);let u=Z``;if("boolean"==n.type)u=Z`<input
         type="checkbox"
         id="${o+e}"
         .checked=${h}
@@ -4914,14 +4940,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       />`;else if("select"==n.type){const t=this.hass.language;u=Z`<select
         class="settings-input"
         id="${o+e}"
-        .value="${Ba(h)}"
+        .value="${Ua(h)}"
         @change="${t=>this.handleEditConfig(e,Object.assign(Object.assign({},a),{config:Object.assign(Object.assign({},a.config),{[o]:t.target.value})}))}"
       >
-        ${Object.entries(n.options).map(([e,i])=>Z`<option
-              value="${fa(i,0)}"
-              ?selected="${h===fa(i,0)}"
+        ${Object.entries(n.options).map(([e,s])=>Z`<option
+              value="${ba(s,0)}"
+              ?selected="${h===ba(s,0)}"
             >
-              ${va("panels.modules.cards.module.translated-options."+fa(i,1),t)}
+              ${_a("panels.modules.cards.module.translated-options."+ba(s,1),t)}
             </option>`)}
       </select>`}return Z`<ha-settings-row>
       <span slot="heading"
@@ -4929,18 +4955,18 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       >
       ${c?Z`<span slot="description">${c}</span>`:""}
       ${u}
-    </ha-settings-row>`}handleEditConfig(e,t){this.modules=Object.values(this.modules).map((i,s)=>s===e?t:i),this.moduleCache.clear(),this._scheduleUpdate(),this.debouncedSave(t)}render(){return this.hass?Z`
-      <ha-card header="${va("panels.modules.title",this.hass.language)}">
+    </ha-settings-row>`}handleEditConfig(e,t){this.modules=Object.values(this.modules).map((s,i)=>i===e?t:s),this.moduleCache.clear(),this._scheduleUpdate(),this.debouncedSave(t)}render(){return this.hass?Z`
+      <ha-card header="${_a("panels.modules.title",this.hass.language)}">
         <div class="card-content">
-          ${va("panels.modules.description",this.hass.language)}
+          ${_a("panels.modules.description",this.hass.language)}
           ${this.isLoading?Z`<div class="loading-indicator">
-                ${va("common.loading-messages.general",this.hass.language)}
+                ${_a("common.loading-messages.general",this.hass.language)}
               </div>`:Z`
                 <div class="add-row">
                   <select
                     id="moduleInput"
                     class="settings-input"
-                    aria-label="${va("common.labels.module",this.hass.language)}"
+                    aria-label="${_a("common.labels.module",this.hass.language)}"
                     ?disabled="${this.isSaving}"
                   >
                     ${Object.entries(this.allmodules).map(([e,t])=>Z`<option value="${t.id}">
@@ -4953,7 +4979,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     class="action-btn ${this.isSaving?"saving":""}"
                   >
                     <ha-icon icon="mdi:plus"></ha-icon>
-                    ${this.isSaving?va("common.saving-messages.adding",this.hass.language):va("panels.modules.cards.add-module.actions.add",this.hass.language)}
+                    ${this.isSaving?_a("common.saving-messages.adding",this.hass.language):_a("panels.modules.cards.add-module.actions.add",this.hass.language)}
                   </button>
                 </div>
               `}
@@ -4962,7 +4988,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
       ${this.isLoading?Z``:Object.entries(this.modules).map(([e,t])=>this.renderModule(t,parseInt(e)))}
     `:Z``}disconnectedCallback(){super.disconnectedCallback(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this.moduleCache.clear()}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       .field-hint {
         font-size: 0.8rem;
@@ -4971,46 +4997,46 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         margin-top: 3px;
         padding-left: 2px;
       }
-    `}};t([pe()],Ja.prototype,"config",void 0),t([pe({type:Array})],Ja.prototype,"zones",void 0),t([pe({type:Array})],Ja.prototype,"modules",void 0),t([pe({type:Array})],Ja.prototype,"allmodules",void 0),t([pe({type:Boolean})],Ja.prototype,"isLoading",void 0),t([pe({type:Boolean})],Ja.prototype,"isSaving",void 0),t([me("#moduleInput")],Ja.prototype,"moduleInput",void 0),Ja=t([ce("smart-irrigation-view-modules")],Ja);let Qa=class extends(Aa(le)){constructor(){super(...arguments),this.zones=[],this.mappings=[],this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this.debounceTimers=new Map,this.globalDebounceTimer=null,this.mappingCache=new Map,this._updateScheduled=!1,this._lastUpdateTime=0,this._updateThrottleDelay=16}_scheduleUpdate(){if(this._updateScheduled)return;const e=performance.now()-this._lastUpdateTime;e<this._updateThrottleDelay?setTimeout(()=>{this._updateScheduled=!1,this._lastUpdateTime=performance.now(),this.requestUpdate()},this._updateThrottleDelay-e):(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this._lastUpdateTime=performance.now(),this.requestUpdate()}))}firstUpdated(){Oi().catch(e=>{console.error("Failed to load HA form:",e)})}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[t,i,s]=await Promise.all([pi(this.hass),mi(this.hass),yi(this.hass)]);this.config=t,this.zones=i,this.mappings=s,this._initialLoadDone=!0,this.mappingCache.clear()}catch(e){console.error("Error fetching data:",e),ka(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}handleAddMapping(){if(!this.mappingNameInput.value.trim())return;const e={[Te]:"",[Oe]:"",[He]:"",[De]:"",[Me]:"",[Ie]:"",[Ne]:"",[Le]:"",[Pe]:""},t={name:this.mappingNameInput.value.trim(),mappings:e};this.mappings=[...this.mappings,t],this.isSaving=!0,this.saveToHA(t).then(()=>(this.mappingNameInput.value="",this._fetchData())).catch(e=>{console.error("Failed to add mapping:",e),ka(this,this.hass,"common.errors.save_failed",e),this.mappings=this.mappings.slice(0,-1)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()})}handleRemoveMapping(e,t){const i=this.mappings[t].id;if(null==i)return;const s=[...this.mappings];var a,n;(this.mappings=this.mappings.filter((e,i)=>i!==t),this.mappingCache.delete(i.toString()),this.hass)&&(this.isSaving=!0,(a=this.hass,n=i.toString(),a.callApi("POST",_e+"/mappings",{id:n,remove:!0})).catch(e=>{console.error("Failed to delete mapping:",e),ka(this,this.hass,"common.errors.delete_failed",e),this.mappings=s,this._fetchData().catch(e=>{console.error("Failed to refresh data after delete error:",e)})}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}))}handleEditMapping(e,t){this.mappings[e]=t,t.id&&this.mappingCache.delete(t.id.toString()),this.globalDebounceTimer&&clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=window.setTimeout(()=>{this.isSaving=!0,this.saveToHA(t).catch(e=>{console.error("Failed to save mapping:",e),ka(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}),this.globalDebounceTimer=null},500),this._scheduleUpdate()}async saveToHA(e){var t;if(!this.hass)throw new Error("Home Assistant connection not available");const i=[],s=this.hass.states;for(const t in e.mappings){const a=e.mappings[t].sensorentity;if(a&&""!==a.trim()){const n=a.trim();e.mappings[t].sensorentity=n,n in s||i.push(n)}}if(i.length>0){const e=null===(t=this.shadowRoot)||void 0===t?void 0:t.querySelector("ha-card");throw e&&ya({body:{message:va("panels.mappings.cards.mapping.errors.source_does_not_exist",this.hass.language)+": "+i.join(", ")},error:va("panels.mappings.cards.mapping.errors.invalid_source",this.hass.language)},e),new Error("Invalid sensor entities found")}const{id:a,name:n,mappings:o}=e;await wi(this.hass,{id:a,name:n,mappings:o})}renderMappingSetting(e,t){const i=this.mappings[e];if(!i||!this.hass)return Z``;const s=i.mappings[t];return Z`
+    `}};t([pe()],Qa.prototype,"config",void 0),t([pe({type:Array})],Qa.prototype,"zones",void 0),t([pe({type:Array})],Qa.prototype,"modules",void 0),t([pe({type:Array})],Qa.prototype,"allmodules",void 0),t([pe({type:Boolean})],Qa.prototype,"isLoading",void 0),t([pe({type:Boolean})],Qa.prototype,"isSaving",void 0),t([me("#moduleInput")],Qa.prototype,"moduleInput",void 0),Qa=t([ce("smart-irrigation-view-modules")],Qa);let en=class extends(Ea(le)){constructor(){super(...arguments),this.zones=[],this.mappings=[],this.isLoading=!0,this._initialLoadDone=!1,this.isSaving=!1,this.debounceTimers=new Map,this.globalDebounceTimer=null,this.mappingCache=new Map,this._updateScheduled=!1,this._lastUpdateTime=0,this._updateThrottleDelay=16}_scheduleUpdate(){if(this._updateScheduled)return;const e=performance.now()-this._lastUpdateTime;e<this._updateThrottleDelay?setTimeout(()=>{this._updateScheduled=!1,this._lastUpdateTime=performance.now(),this.requestUpdate()},this._updateThrottleDelay-e):(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this._lastUpdateTime=performance.now(),this.requestUpdate()}))}firstUpdated(){Hs().catch(e=>{console.error("Failed to load HA form:",e)})}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch initial data:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to fetch data on config update:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(!this.hass)return;const e=!this._initialLoadDone;try{e&&(this.isLoading=!0);const[t,s,i]=await Promise.all([gs(this.hass),vs(this.hass),ws(this.hass)]);this.config=t,this.zones=s,this.mappings=i,this._initialLoadDone=!0,this.mappingCache.clear()}catch(e){console.error("Error fetching data:",e),za(this,this.hass,"common.errors.load_failed",e)}finally{e&&(this.isLoading=!1),this._scheduleUpdate()}}handleAddMapping(){if(!this.mappingNameInput.value.trim())return;const e={[Te]:"",[Oe]:"",[He]:"",[De]:"",[Me]:"",[Ie]:"",[Ne]:"",[Le]:"",[Pe]:""},t={name:this.mappingNameInput.value.trim(),mappings:e};this.mappings=[...this.mappings,t],this.isSaving=!0,this.saveToHA(t).then(()=>(this.mappingNameInput.value="",this._fetchData())).catch(e=>{console.error("Failed to add mapping:",e),za(this,this.hass,"common.errors.save_failed",e),this.mappings=this.mappings.slice(0,-1)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()})}handleRemoveMapping(e,t){const s=this.mappings[t].id;if(null==s)return;const i=[...this.mappings];var a,n;(this.mappings=this.mappings.filter((e,s)=>s!==t),this.mappingCache.delete(s.toString()),this.hass)&&(this.isSaving=!0,(a=this.hass,n=s.toString(),a.callApi("POST",_e+"/mappings",{id:n,remove:!0})).catch(e=>{console.error("Failed to delete mapping:",e),za(this,this.hass,"common.errors.delete_failed",e),this.mappings=i,this._fetchData().catch(e=>{console.error("Failed to refresh data after delete error:",e)})}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}))}handleEditMapping(e,t){this.mappings[e]=t,t.id&&this.mappingCache.delete(t.id.toString()),this.globalDebounceTimer&&clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=window.setTimeout(()=>{this.isSaving=!0,this.saveToHA(t).catch(e=>{console.error("Failed to save mapping:",e),za(this,this.hass,"common.errors.save_failed",e)}).finally(()=>{this.isSaving=!1,this._scheduleUpdate()}),this.globalDebounceTimer=null},500),this._scheduleUpdate()}async saveToHA(e){var t;if(!this.hass)throw new Error("Home Assistant connection not available");const s=[],i=this.hass.states;for(const t in e.mappings){const a=e.mappings[t].sensorentity;if(a&&""!==a.trim()){const n=a.trim();e.mappings[t].sensorentity=n,n in i||s.push(n)}}if(s.length>0){const e=null===(t=this.shadowRoot)||void 0===t?void 0:t.querySelector("ha-card");throw e&&wa({body:{message:_a("panels.mappings.cards.mapping.errors.source_does_not_exist",this.hass.language)+": "+s.join(", ")},error:_a("panels.mappings.cards.mapping.errors.invalid_source",this.hass.language)},e),new Error("Invalid sensor entities found")}const{id:a,name:n,mappings:o}=e;await $s(this.hass,{id:a,name:n,mappings:o})}renderMappingSetting(e,t){const s=this.mappings[e];if(!s||!this.hass)return Z``;const i=s.mappings[t];return Z`
       <div class="mappingline">
         <div class="mappingsettingname">
           <label for="${`${t}_${e}`}">
-            ${va(`panels.mappings.cards.mapping.items.${t.toLowerCase()}`,this.hass.language)}
+            ${_a(`panels.mappings.cards.mapping.items.${t.toLowerCase()}`,this.hass.language)}
           </label>
         </div>
         <div class="mappingsettingline">
           <label
-            >${va("panels.mappings.cards.mapping.source",this.hass.language)}:</label
+            >${_a("panels.mappings.cards.mapping.source",this.hass.language)}:</label
           >
           <div class="radio-group">
-            ${this.renderSimpleRadioOptions(e,t,s)}
+            ${this.renderSimpleRadioOptions(e,t,i)}
           </div>
         </div>
-        ${this.renderMappingInputs(e,t,s)}
+        ${this.renderMappingInputs(e,t,i)}
       </div>
-    `}renderSimpleRadioOptions(e,t,i){if(!this.hass||!this.config)return Z``;const s=t===Oe||t===Ne,a=i[qe];return Z`
-      ${!s&&this.config.use_weather_service?Z`
+    `}renderSimpleRadioOptions(e,t,s){if(!this.hass||!this.config)return Z``;const i=t===Oe||t===Ne,a=s[qe];return Z`
+      ${!i&&this.config.use_weather_service?Z`
             <label>
               <input
                 type="radio"
                 name="${t}_${e}_source"
                 value="${Re}"
                 ?checked="${a===Re}"
-                @change="${i=>this.handleSimpleSourceChange(e,t,i)}"
+                @change="${s=>this.handleSimpleSourceChange(e,t,s)}"
               />
-              ${va("panels.mappings.cards.mapping.sources.weather_service",this.hass.language)}
+              ${_a("panels.mappings.cards.mapping.sources.weather_service",this.hass.language)}
             </label>
           `:""}
-      ${s?Z`
+      ${i?Z`
             <label>
               <input
                 type="radio"
                 name="${t}_${e}_source"
                 value="${We}"
                 ?checked="${a===We}"
-                @change="${i=>this.handleSimpleSourceChange(e,t,i)}"
+                @change="${s=>this.handleSimpleSourceChange(e,t,s)}"
               />
-              ${va("panels.mappings.cards.mapping.sources.none",this.hass.language)}
+              ${_a("panels.mappings.cards.mapping.sources.none",this.hass.language)}
             </label>
           `:""}
 
@@ -5020,9 +5046,9 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           name="${t}_${e}_source"
           value="${Be}"
           ?checked="${a===Be}"
-          @change="${i=>this.handleSimpleSourceChange(e,t,i)}"
+          @change="${s=>this.handleSimpleSourceChange(e,t,s)}"
         />
-        ${va("panels.mappings.cards.mapping.sources.sensor",this.hass.language)}
+        ${_a("panels.mappings.cards.mapping.sources.sensor",this.hass.language)}
       </label>
 
       <label>
@@ -5031,128 +5057,128 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           name="${t}_${e}_source"
           value="${Ue}"
           ?checked="${a===Ue}"
-          @change="${i=>this.handleSimpleSourceChange(e,t,i)}"
+          @change="${s=>this.handleSimpleSourceChange(e,t,s)}"
         />
-        ${va("panels.mappings.cards.mapping.sources.static",this.hass.language)}
+        ${_a("panels.mappings.cards.mapping.sources.static",this.hass.language)}
       </label>
-    `}handleSimpleSourceChange(e,t,i){const s=this.mappings[e],a=i.target.value;this.handleEditMapping(e,Object.assign(Object.assign({},s),{mappings:Object.assign(Object.assign({},s.mappings),{[t]:Object.assign(Object.assign({},s.mappings[t]),{[qe]:a,[Ge]:""})})}))}handleSimpleInputChange(e,t,i,s){const a=this.mappings[e],n=s.target.value;this.handleEditMapping(e,Object.assign(Object.assign({},a),{mappings:Object.assign(Object.assign({},a.mappings),{[t]:Object.assign(Object.assign({},a.mappings[t]),{[i]:n})})}))}renderMappingInputs(e,t,i){if(!this.hass)return Z``;const s=i[qe];return Z`
-      ${s===Be?this.renderSensorInput(e,t,i):""}
-      ${s===Ue?this.renderStaticValueInput(e,t,i):""}
-      ${s===Be||s===Ue?this.renderUnitSelect(e,t,i):""}
-      ${t!==Ie||s!==Be&&s!==Ue?"":this.renderPressureTypeSelect(e,t,i)}
-      ${s===Be?this.renderAggregateSelect(e,t,i):""}
-    `}renderSensorInput(e,t,i){if(!this.hass)return Z``;const s=`${t}_${e}`;return Z`
+    `}handleSimpleSourceChange(e,t,s){const i=this.mappings[e],a=s.target.value;this.handleEditMapping(e,Object.assign(Object.assign({},i),{mappings:Object.assign(Object.assign({},i.mappings),{[t]:Object.assign(Object.assign({},i.mappings[t]),{[qe]:a,[Ge]:""})})}))}handleSimpleInputChange(e,t,s,i){const a=this.mappings[e],n=i.target.value;this.handleEditMapping(e,Object.assign(Object.assign({},a),{mappings:Object.assign(Object.assign({},a.mappings),{[t]:Object.assign(Object.assign({},a.mappings[t]),{[s]:n})})}))}renderMappingInputs(e,t,s){if(!this.hass)return Z``;const i=s[qe];return Z`
+      ${i===Be?this.renderSensorInput(e,t,s):""}
+      ${i===Ue?this.renderStaticValueInput(e,t,s):""}
+      ${i===Be||i===Ue?this.renderUnitSelect(e,t,s):""}
+      ${t!==Ie||i!==Be&&i!==Ue?"":this.renderPressureTypeSelect(e,t,s)}
+      ${i===Be?this.renderAggregateSelect(e,t,s):""}
+    `}renderSensorInput(e,t,s){if(!this.hass)return Z``;const i=`${t}_${e}`;return Z`
       <div class="mappingsettingline">
-        <label for="${s}_sensor_entity">
-          ${va("panels.mappings.cards.mapping.sensor-entity",this.hass.language)}:
+        <label for="${i}_sensor_entity">
+          ${_a("panels.mappings.cards.mapping.sensor-entity",this.hass.language)}:
         </label>
         <input
           type="text"
           class="settings-input"
-          id="${s}_sensor_entity"
-          .value="${i[Ge]||""}"
-          @change="${i=>this.handleSensorChange(e,t,i)}"
+          id="${i}_sensor_entity"
+          .value="${s[Ge]||""}"
+          @change="${s=>this.handleSensorChange(e,t,s)}"
         />
       </div>
-    `}renderStaticValueInput(e,t,i){if(!this.hass)return Z``;const s=`${t}_${e}`;return Z`
+    `}renderStaticValueInput(e,t,s){if(!this.hass)return Z``;const i=`${t}_${e}`;return Z`
       <div class="mappingsettingline">
-        <label for="${s}_static_value">
-          ${va("panels.mappings.cards.mapping.static_value",this.hass.language)}:
+        <label for="${i}_static_value">
+          ${_a("panels.mappings.cards.mapping.static_value",this.hass.language)}:
         </label>
         <input
           type="text"
           class="settings-input"
-          id="${s}_static_value"
-          .value="${i[Ke]||""}"
-          @input="${i=>this.handleStaticValueChange(e,t,i)}"
+          id="${i}_static_value"
+          .value="${s[Ke]||""}"
+          @input="${s=>this.handleStaticValueChange(e,t,s)}"
         />
       </div>
-    `}renderUnitSelect(e,t,i){if(!this.hass||!this.config)return Z``;const s=`${t}_${e}`;return Z`
+    `}renderUnitSelect(e,t,s){if(!this.hass||!this.config)return Z``;const i=`${t}_${e}`;return Z`
       <div class="mappingsettingline">
-        <label for="${s}_unit">
-          ${va("panels.mappings.cards.mapping.input-units",this.hass.language)}:
+        <label for="${i}_unit">
+          ${_a("panels.mappings.cards.mapping.input-units",this.hass.language)}:
         </label>
         <select
-          id="${s}_unit"
+          id="${i}_unit"
           class="settings-input"
-          @change="${i=>this.handleUnitChange(e,t,i)}"
+          @change="${s=>this.handleUnitChange(e,t,s)}"
         >
-          ${this.renderUnitOptionsForMapping(t,i)}
+          ${this.renderUnitOptionsForMapping(t,s)}
         </select>
       </div>
-    `}renderPressureTypeSelect(e,t,i){if(!this.hass)return Z``;const s=`${t}_${e}`;return Z`
+    `}renderPressureTypeSelect(e,t,s){if(!this.hass)return Z``;const i=`${t}_${e}`;return Z`
       <div class="mappingsettingline">
-        <label for="${s}_pressure_type">
-          ${va("panels.mappings.cards.mapping.pressure-type",this.hass.language)}:
+        <label for="${i}_pressure_type">
+          ${_a("panels.mappings.cards.mapping.pressure-type",this.hass.language)}:
         </label>
         <select
-          id="${s}_pressure_type"
+          id="${i}_pressure_type"
           class="settings-input"
-          @change="${i=>this.handlePressureTypeChange(e,t,i)}"
+          @change="${s=>this.handlePressureTypeChange(e,t,s)}"
         >
-          ${this.renderPressureTypes(t,i)}
+          ${this.renderPressureTypes(t,s)}
         </select>
       </div>
-    `}renderAggregateSelect(e,t,i){if(!this.hass)return Z``;const s=`${t}_${e}`;return Z`
+    `}renderAggregateSelect(e,t,s){if(!this.hass)return Z``;const i=`${t}_${e}`;return Z`
       <div class="mappingsettingline">
-        <label for="${s}_aggregate">
-          ${va("panels.mappings.cards.mapping.sensor-aggregate-use-the",this.hass.language)}
+        <label for="${i}_aggregate">
+          ${_a("panels.mappings.cards.mapping.sensor-aggregate-use-the",this.hass.language)}
         </label>
         <select
-          id="${s}_aggregate"
+          id="${i}_aggregate"
           class="settings-input"
-          @change="${i=>this.handleAggregateChange(e,t,i)}"
+          @change="${s=>this.handleAggregateChange(e,t,s)}"
         >
-          ${this.renderAggregateOptionsForMapping(t,i)}
+          ${this.renderAggregateOptionsForMapping(t,s)}
         </select>
-        <label for="${s}_aggregate">
-          ${va("panels.mappings.cards.mapping.sensor-aggregate-of-sensor-values-to-calculate",this.hass.language)}
+        <label for="${i}_aggregate">
+          ${_a("panels.mappings.cards.mapping.sensor-aggregate-of-sensor-values-to-calculate",this.hass.language)}
         </label>
       </div>
-    `}handleSensorChange(e,t,i){const s=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},s),{mappings:Object.assign(Object.assign({},s.mappings),{[t]:Object.assign(Object.assign({},s.mappings[t]),{[Ge]:i.target.value})})}))}handleStaticValueChange(e,t,i){const s=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},s),{mappings:Object.assign(Object.assign({},s.mappings),{[t]:Object.assign(Object.assign({},s.mappings[t]),{[Ke]:i.target.value})})}))}handleUnitChange(e,t,i){const s=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},s),{mappings:Object.assign(Object.assign({},s.mappings),{[t]:Object.assign(Object.assign({},s.mappings[t]),{[Ve]:i.target.value})})}))}handlePressureTypeChange(e,t,i){const s=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},s),{mappings:Object.assign(Object.assign({},s.mappings),{[t]:Object.assign(Object.assign({},s.mappings[t]),{[je]:i.target.value})})}))}handleAggregateChange(e,t,i){const s=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},s),{mappings:Object.assign(Object.assign({},s.mappings),{[t]:Object.assign(Object.assign({},s.mappings[t]),{[Ye]:i.target.value})})}))}renderAggregateOptionsForMapping(e,t){if(!this.hass||!this.config)return Z``;let i="average";return e===De&&(i="delta"),e===Me&&(i="average"),t[Ye]&&(i=t[Ye]),Z`
-      ${Xe.map(e=>this.renderAggregateOption(e,i))}
+    `}handleSensorChange(e,t,s){const i=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},i),{mappings:Object.assign(Object.assign({},i.mappings),{[t]:Object.assign(Object.assign({},i.mappings[t]),{[Ge]:s.target.value})})}))}handleStaticValueChange(e,t,s){const i=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},i),{mappings:Object.assign(Object.assign({},i.mappings),{[t]:Object.assign(Object.assign({},i.mappings[t]),{[Ke]:s.target.value})})}))}handleUnitChange(e,t,s){const i=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},i),{mappings:Object.assign(Object.assign({},i.mappings),{[t]:Object.assign(Object.assign({},i.mappings[t]),{[Ve]:s.target.value})})}))}handlePressureTypeChange(e,t,s){const i=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},i),{mappings:Object.assign(Object.assign({},i.mappings),{[t]:Object.assign(Object.assign({},i.mappings[t]),{[je]:s.target.value})})}))}handleAggregateChange(e,t,s){const i=this.mappings[e];this.handleEditMapping(e,Object.assign(Object.assign({},i),{mappings:Object.assign(Object.assign({},i.mappings),{[t]:Object.assign(Object.assign({},i.mappings[t]),{[Ye]:s.target.value})})}))}renderAggregateOptionsForMapping(e,t){if(!this.hass||!this.config)return Z``;let s="average";return e===De&&(s="delta"),e===Me&&(s="average"),t[Ye]&&(s=t[Ye]),Z`
+      ${Xe.map(e=>this.renderAggregateOption(e,s))}
     `}renderAggregateOption(e,t){if(this.hass&&this.config){return Z`<option value="${e}" ?selected="${e===t}">
-        ${va("panels.mappings.cards.mapping.aggregates."+e,this.hass.language)}
-      </option>`}return Z``}renderPressureTypes(e,t){if(this.hass&&this.config){let e=Z``;const i=t[je];return e=Z`${e}
+        ${_a("panels.mappings.cards.mapping.aggregates."+e,this.hass.language)}
+      </option>`}return Z``}renderPressureTypes(e,t){if(this.hass&&this.config){let e=Z``;const s=t[je];return e=Z`${e}
         <option
           value="${Fe}"
-          ?selected="${i===Fe}"
+          ?selected="${s===Fe}"
         >
-          ${va("panels.mappings.cards.mapping.pressure_types."+Fe,this.hass.language)}
+          ${_a("panels.mappings.cards.mapping.pressure_types."+Fe,this.hass.language)}
         </option>
         <option
           value="${Ze}"
-          ?selected="${i===Ze}"
+          ?selected="${s===Ze}"
         >
-          ${va("panels.mappings.cards.mapping.pressure_types."+Ze,this.hass.language)}
-        </option>`,e}return Z``}renderUnitOptionsForMapping(e,t){if(!this.hass||!this.config)return Z``;const i=function(e){switch(e){case Te:case Le:return[{unit:"°C",system:Ce},{unit:"°F",system:Ee}];case De:case Oe:return[{unit:it,system:Ce},{unit:st,system:Ee}];case Me:return[{unit:rt,system:Ce},{unit:lt,system:Ee}];case He:return[{unit:"%",system:[Ce,Ee]}];case Ie:return[{unit:"millibar",system:Ce},{unit:"hPa",system:Ce},{unit:"psi",system:Ee},{unit:at,system:Ee}];case Pe:return[{unit:"km/h",system:Ce},{unit:ot,system:Ce},{unit:nt,system:Ee}];case Ne:return[{unit:"W/m2",system:Ce},{unit:"MJ/day/m2",system:Ce},{unit:"W/sq ft",system:Ee},{unit:"MJ/day/sq ft",system:Ee}];default:return[]}}(e);let s=t[Ve];const a=this.config.units;if(!t[Ve])for(const e of i)if("string"==typeof e.system){if(a===e.system){s=e.unit;break}}else{for(const t of e.system)if(a===t.system){s=e.unit;break}if(s===e.unit)break}return Z`
-      ${i.map(e=>Z`
-          <option value="${e.unit}" ?selected="${s===e.unit}">
+          ${_a("panels.mappings.cards.mapping.pressure_types."+Ze,this.hass.language)}
+        </option>`,e}return Z``}renderUnitOptionsForMapping(e,t){if(!this.hass||!this.config)return Z``;const s=function(e){switch(e){case Te:case Le:return[{unit:"°C",system:Ce},{unit:"°F",system:Ee}];case De:case Oe:return[{unit:st,system:Ce},{unit:it,system:Ee}];case Me:return[{unit:rt,system:Ce},{unit:lt,system:Ee}];case He:return[{unit:"%",system:[Ce,Ee]}];case Ie:return[{unit:"millibar",system:Ce},{unit:"hPa",system:Ce},{unit:"psi",system:Ee},{unit:at,system:Ee}];case Pe:return[{unit:"km/h",system:Ce},{unit:ot,system:Ce},{unit:nt,system:Ee}];case Ne:return[{unit:"W/m2",system:Ce},{unit:"MJ/day/m2",system:Ce},{unit:"W/sq ft",system:Ee},{unit:"MJ/day/sq ft",system:Ee}];default:return[]}}(e);let i=t[Ve];const a=this.config.units;if(!t[Ve])for(const e of s)if("string"==typeof e.system){if(a===e.system){i=e.unit;break}}else{for(const t of e.system)if(a===t.system){i=e.unit;break}if(i===e.unit)break}return Z`
+      ${s.map(e=>Z`
+          <option value="${e.unit}" ?selected="${i===e.unit}">
             ${e.unit}
           </option>
         `)}
     `}render(){return this.hass?this.isLoading?Z`
         <ha-card
-          header="${va("panels.mappings.title",this.hass.language)}"
+          header="${_a("panels.mappings.title",this.hass.language)}"
         >
           <div class="card-content">
             <div class="loading-indicator">
-              ${va("common.loading-messages.general",this.hass.language)}
+              ${_a("common.loading-messages.general",this.hass.language)}
             </div>
           </div>
         </ha-card>
       `:Z`
       <ha-card
-        header="${va("panels.mappings.title",this.hass.language)}"
+        header="${_a("panels.mappings.title",this.hass.language)}"
       >
         <div class="card-content">
-          ${va("panels.mappings.description",this.hass.language)}
+          ${_a("panels.mappings.description",this.hass.language)}
           <div class="add-row">
             <input
               id="mappingNameInput"
               class="settings-input"
               type="text"
-              placeholder="${va("panels.mappings.labels.mapping-name",this.hass.language)}"
+              placeholder="${_a("panels.mappings.labels.mapping-name",this.hass.language)}"
             />
             <button
               class="action-btn ${this.isSaving?"saving":""}"
@@ -5160,7 +5186,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               @click="${this.handleAddMapping}"
             >
               <ha-icon icon="mdi:plus"></ha-icon>
-              ${va("panels.mappings.cards.add-mapping.actions.add",this.hass.language)}
+              ${_a("panels.mappings.cards.add-mapping.actions.add",this.hass.language)}
             </button>
           </div>
         </div>
@@ -5168,9 +5194,9 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
       ${this.renderMappingsList()}
     `:Z``}renderUsageChip(e){return this.hass?e?Z`<span class="usage-chip"
-          >${va("panels.setup.advanced.used_by_zones",this.hass.language,"{count}",e)}</span
+          >${_a("panels.setup.advanced.used_by_zones",this.hass.language,"{count}",e)}</span
         >`:Z`<span class="usage-chip unused"
-          >${va("panels.setup.advanced.not_used",this.hass.language)}</span
+          >${_a("panels.setup.advanced.not_used",this.hass.language)}</span
         >`:Z``}renderMappingsList(){const e=this.mappings.slice(0,Math.min(this.mappings.length,10)),t=this.mappings.slice(10);return Z`
       ${e.map((e,t)=>this.renderMappingCard(e,t))}
       ${t.length>0?Z`
@@ -5180,43 +5206,43 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               </button>
             </div>
           `:""}
-    `}renderMappingCard(e,t){if(!this.hass)return Z``;const i=this.zones.filter(t=>t.mapping===e.id).length;return Z`
+    `}renderMappingCard(e,t){if(!this.hass)return Z``;const s=this.zones.filter(t=>t.mapping===e.id).length;return Z`
       <ha-card>
         <div class="card-header">
           <div class="name">${e.name}</div>
-          ${this.renderUsageChip(i)}
+          ${this.renderUsageChip(s)}
         </div>
         <div class="card-content">
           <ha-settings-row>
             <span slot="heading"
-              >${va("panels.mappings.labels.mapping-name",this.hass.language)}</span
+              >${_a("panels.mappings.labels.mapping-name",this.hass.language)}</span
             >
             <input
               id="name${e.id}"
               class="settings-input"
               type="text"
               .value="${e.name}"
-              @input="${i=>this.handleEditMapping(t,Object.assign(Object.assign({},e),{name:i.target.value}))}"
+              @input="${s=>this.handleEditMapping(t,Object.assign(Object.assign({},e),{name:s.target.value}))}"
             />
           </ha-settings-row>
           ${this.renderMappingSettings(e,t)}
           <div class="card-footer">
-            ${i?Z`<div class="weather-note">
-                  ${va("panels.mappings.cards.mapping.errors.cannot-delete-mapping-because-zones-use-it",this.hass.language)}
+            ${s?Z`<div class="weather-note">
+                  ${_a("panels.mappings.cards.mapping.errors.cannot-delete-mapping-because-zones-use-it",this.hass.language)}
                 </div>`:Z`<button
                   class="action-btn danger"
                   @click="${e=>this.handleRemoveMapping(e,t)}"
                 >
                   <ha-icon icon="mdi:delete"></ha-icon>
-                  ${va("common.actions.delete",this.hass.language)}
+                  ${_a("common.actions.delete",this.hass.language)}
                 </button>`}
           </div>
         </div>
       </ha-card>
-    `}renderMappingSettings(e,t){const i=Object.entries(e.mappings);return Z`
-      ${i.map(([e])=>this.renderMappingSetting(t,e))}
+    `}renderMappingSettings(e,t){const s=Object.entries(e.mappings);return Z`
+      ${s.map(([e])=>this.renderMappingSetting(t,e))}
     `}loadMoreMappings(){this._scheduleUpdate()}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       /* Parameter section header inside a sensor-group card */
       .mappingsettingname {
@@ -5227,10 +5253,10 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         margin-bottom: 4px;
         border-bottom: 1px solid var(--divider-color);
       }
-    `}disconnectedCallback(){super.disconnectedCallback(),this.debounceTimers.forEach(e=>{clearTimeout(e)}),this.debounceTimers.clear(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this.mappingCache.clear()}};t([pe()],Qa.prototype,"config",void 0),t([pe({type:Array})],Qa.prototype,"zones",void 0),t([pe({type:Array})],Qa.prototype,"mappings",void 0),t([pe({type:Boolean})],Qa.prototype,"isLoading",void 0),t([pe({type:Boolean})],Qa.prototype,"isSaving",void 0),t([me("#mappingNameInput")],Qa.prototype,"mappingNameInput",void 0),Qa=t([ce("smart-irrigation-view-mappings")],Qa);const en=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];let tn=class extends(Aa(le)){constructor(){super(...arguments),this._schedules=[],this._zones=[],this._isLoading=!0,this._showDialog=!1,this._editingSchedule={name:"",type:"daily",enabled:!0,time:"06:00",action:"irrigate",zones:"all"},this._editingId=null}hassSubscribe(){return this._load(),[this.hass.connection.subscribeMessage(()=>this._load(),{type:_e+"_config_updated"})]}async _load(){var e;if(this.hass)try{const[t,i]=await Promise.all([(e=this.hass,e.callWS({type:_e+"/schedules"})),mi(this.hass)]);this._schedules=t||[],this._zones=i||[]}catch(e){console.error("Failed to load schedules",e),ka(this,this.hass,"common.errors.load_failed",e)}finally{this._isLoading=!1}}_openAdd(){this._editingSchedule={name:"",type:"daily",enabled:!0,time:"06:00",action:"irrigate",zones:"all"},this._editingId=null,this._showDialog=!0}_openEdit(e){var t;this._editingSchedule=Object.assign({},e),this._editingId=null!==(t=e.id)&&void 0!==t?t:null,this._showDialog=!0}_closeDialog(){this._showDialog=!1}async _save(){const e=Object.assign({},this._editingSchedule);this._editingId&&(e.id=this._editingId);try{await xi(this.hass,e),this._closeDialog(),await this._load()}catch(e){console.error("Failed to save schedule",e),ka(this,this.hass,"common.errors.save_failed",e)}}async _delete(e){try{await(t=this.hass,i=e,t.callWS({type:_e+"/schedule_delete",schedule_id:i})),await this._load()}catch(e){console.error("Failed to delete schedule",e),ka(this,this.hass,"common.errors.delete_failed",e)}var t,i}_update(e){this._editingSchedule=Object.assign(Object.assign({},this._editingSchedule),e)}_typeLabel(e){return va(`panels.schedules.types.${e}`,this.hass.language)||e}_zonesLabel(e){if("all"===e)return va("panels.schedules.zones_all",this.hass.language);if(Array.isArray(e)){const t=e.map(e=>{const t=this._zones.find(t=>String(t.id)===String(e));return t?t.name:e}).join(", ");return t||e.join(", ")}return String(e)}_renderZonePicker(){const e="all"===this._editingSchedule.zones||!Array.isArray(this._editingSchedule.zones),t=e?[]:this._editingSchedule.zones.map(String);return Z`
+    `}disconnectedCallback(){super.disconnectedCallback(),this.debounceTimers.forEach(e=>{clearTimeout(e)}),this.debounceTimers.clear(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this.mappingCache.clear()}};t([pe()],en.prototype,"config",void 0),t([pe({type:Array})],en.prototype,"zones",void 0),t([pe({type:Array})],en.prototype,"mappings",void 0),t([pe({type:Boolean})],en.prototype,"isLoading",void 0),t([pe({type:Boolean})],en.prototype,"isSaving",void 0),t([me("#mappingNameInput")],en.prototype,"mappingNameInput",void 0),en=t([ce("smart-irrigation-view-mappings")],en);const tn=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];let sn=class extends(Ea(le)){constructor(){super(...arguments),this._schedules=[],this._zones=[],this._isLoading=!0,this._showDialog=!1,this._editingSchedule={name:"",type:"daily",enabled:!0,time:"06:00",action:"irrigate",zones:"all"},this._editingId=null}hassSubscribe(){return this._load(),[this.hass.connection.subscribeMessage(()=>this._load(),{type:_e+"_config_updated"})]}async _load(){var e;if(this.hass)try{const[t,s]=await Promise.all([(e=this.hass,e.callWS({type:_e+"/schedules"})),vs(this.hass)]);this._schedules=t||[],this._zones=s||[]}catch(e){console.error("Failed to load schedules",e),za(this,this.hass,"common.errors.load_failed",e)}finally{this._isLoading=!1}}_openAdd(){this._editingSchedule={name:"",type:"daily",enabled:!0,time:"06:00",action:"irrigate",zones:"all"},this._editingId=null,this._showDialog=!0}_openEdit(e){var t;this._editingSchedule=Object.assign({},e),this._editingId=null!==(t=e.id)&&void 0!==t?t:null,this._showDialog=!0}_closeDialog(){this._showDialog=!1}async _save(){const e=Object.assign({},this._editingSchedule);this._editingId&&(e.id=this._editingId);try{await ks(this.hass,e),this._closeDialog(),await this._load()}catch(e){console.error("Failed to save schedule",e),za(this,this.hass,"common.errors.save_failed",e)}}async _delete(e){try{await(t=this.hass,s=e,t.callWS({type:_e+"/schedule_delete",schedule_id:s})),await this._load()}catch(e){console.error("Failed to delete schedule",e),za(this,this.hass,"common.errors.delete_failed",e)}var t,s}_update(e){this._editingSchedule=Object.assign(Object.assign({},this._editingSchedule),e)}_typeLabel(e){return _a(`panels.schedules.types.${e}`,this.hass.language)||e}_zonesLabel(e){if("all"===e)return _a("panels.schedules.zones_all",this.hass.language);if(Array.isArray(e)){const t=e.map(e=>{const t=this._zones.find(t=>String(t.id)===String(e));return t?t.name:e}).join(", ");return t||e.join(", ")}return String(e)}_renderZonePicker(){const e="all"===this._editingSchedule.zones||!Array.isArray(this._editingSchedule.zones),t=e?[]:this._editingSchedule.zones.map(String);return Z`
       <div class="field">
         <label
-          >${va("panels.schedules.fields.zones",this.hass.language)}</label
+          >${_a("panels.schedules.fields.zones",this.hass.language)}</label
         >
         <div class="switch-container">
           <input
@@ -5241,7 +5267,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             @change=${()=>this._update({zones:"all"})}
           />
           <label for="zones_all"
-            >${va("panels.schedules.zones_all",this.hass.language)}</label
+            >${_a("panels.schedules.zones_all",this.hass.language)}</label
           >
           <input
             type="radio"
@@ -5251,7 +5277,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             @change=${()=>this._update({zones:[]})}
           />
           <label for="zones_specific"
-            >${va("panels.schedules.zones_specific",this.hass.language)}</label
+            >${_a("panels.schedules.zones_specific",this.hass.language)}</label
           >
         </div>
         ${e?"":Z`
@@ -5261,7 +5287,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                       <input
                         type="checkbox"
                         ?checked="${t.includes(String(e.id))}"
-                        @change=${t=>{const i=t.target.checked,s=String(e.id),a=Array.isArray(this._editingSchedule.zones)?[...this._editingSchedule.zones]:[],n=i?[...a,s]:a.filter(e=>e!==s);this._update({zones:n})}}
+                        @change=${t=>{const s=t.target.checked,i=String(e.id),a=Array.isArray(this._editingSchedule.zones)?[...this._editingSchedule.zones]:[],n=s?[...a,i]:a.filter(e=>e!==i);this._update({zones:n})}}
                       />
                       ${e.name}
                     </label>
@@ -5272,7 +5298,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
     `}_renderTypeFields(){var e;const t=this._editingSchedule;switch(t.type){case"daily":return Z`
           <div class="field">
             <label
-              >${va("panels.schedules.fields.time",this.hass.language)}</label
+              >${_a("panels.schedules.fields.time",this.hass.language)}</label
             >
             <input
               type="time"
@@ -5283,7 +5309,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         `;case"weekly":return Z`
           <div class="field">
             <label
-              >${va("panels.schedules.fields.time",this.hass.language)}</label
+              >${_a("panels.schedules.fields.time",this.hass.language)}</label
             >
             <input
               type="time"
@@ -5293,17 +5319,17 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           </div>
           <div class="field">
             <label
-              >${va("panels.schedules.fields.days_of_week",this.hass.language)}</label
+              >${_a("panels.schedules.fields.days_of_week",this.hass.language)}</label
             >
             <div class="day-checkboxes">
-              ${en.map(e=>Z`
+              ${tn.map(e=>Z`
                   <label class="day-check">
                     <input
                       type="checkbox"
                       ?checked="${(t.days_of_week||[]).includes(e)}"
-                      @change=${i=>{const s=i.target.checked,a=t.days_of_week||[],n=s?[...a,e]:a.filter(t=>t!==e);this._update({days_of_week:n})}}
+                      @change=${s=>{const i=s.target.checked,a=t.days_of_week||[],n=i?[...a,e]:a.filter(t=>t!==e);this._update({days_of_week:n})}}
                     />
-                    ${va(`panels.schedules.days.${e}`,this.hass.language)}
+                    ${_a(`panels.schedules.days.${e}`,this.hass.language)}
                   </label>
                 `)}
             </div>
@@ -5311,7 +5337,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         `;case"monthly":return Z`
           <div class="field">
             <label
-              >${va("panels.schedules.fields.time",this.hass.language)}</label
+              >${_a("panels.schedules.fields.time",this.hass.language)}</label
             >
             <input
               type="time"
@@ -5321,7 +5347,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           </div>
           <div class="field">
             <label
-              >${va("panels.schedules.fields.day_of_month",this.hass.language)}</label
+              >${_a("panels.schedules.fields.day_of_month",this.hass.language)}</label
             >
             <input
               type="number"
@@ -5334,7 +5360,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         `;case"interval":return Z`
           <div class="field">
             <label
-              >${va("panels.schedules.fields.interval_hours",this.hass.language)}</label
+              >${_a("panels.schedules.fields.interval_hours",this.hass.language)}</label
             >
             <div class="input-suffix-row">
               <input
@@ -5344,13 +5370,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 @input=${e=>this._update({interval_hours:parseInt(e.target.value)})}
               />
               <span class="suffix"
-                >${va("panels.schedules.hours",this.hass.language)}</span
+                >${_a("panels.schedules.hours",this.hass.language)}</span
               >
             </div>
           </div>
           <div class="field">
             <label
-              >${va("panels.schedules.fields.start_time",this.hass.language)}</label
+              >${_a("panels.schedules.fields.start_time",this.hass.language)}</label
             >
             <input
               type="time"
@@ -5361,7 +5387,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         `;case"sunrise":case"sunset":return Z`${this._renderSunOffsetFields()}`;case"solar_azimuth":return Z`
           <div class="field">
             <label
-              >${va("panels.schedules.fields.azimuth_angle",this.hass.language)}</label
+              >${_a("panels.schedules.fields.azimuth_angle",this.hass.language)}</label
             >
             <div class="input-suffix-row">
               <input
@@ -5379,7 +5405,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         `;default:return Z``}}_renderSunOffsetFields(){var e;const t=this._editingSchedule;return Z`
       <div class="field">
         <label
-          >${va("panels.schedules.fields.offset_minutes",this.hass.language)}</label
+          >${_a("panels.schedules.fields.offset_minutes",this.hass.language)}</label
         >
         <div class="input-suffix-row">
           <input
@@ -5389,26 +5415,26 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             @input=${e=>this._update({offset_minutes:parseInt(e.target.value)})}
           />
           <span class="suffix"
-            >${va("panels.schedules.minutes",this.hass.language)}</span
+            >${_a("panels.schedules.minutes",this.hass.language)}</span
           >
         </div>
       </div>
-    `}_renderTimeAnchorField(){var e;const t=this._editingSchedule;if("irrigate"!==t.action||"interval"===t.type)return Z``;const i=["sunrise","sunset","solar_azimuth"].includes(t.type)&&!1!==t.account_for_duration,s=null!==(e=t.time_anchor)&&void 0!==e?e:i?"finish":"start";return Z`
+    `}_renderTimeAnchorField(){var e;const t=this._editingSchedule;if("irrigate"!==t.action||"interval"===t.type)return Z``;const s=["sunrise","sunset","solar_azimuth"].includes(t.type)&&!1!==t.account_for_duration,i=null!==(e=t.time_anchor)&&void 0!==e?e:s?"finish":"start";return Z`
       <div class="field">
         <label
-          >${va("panels.schedules.fields.time_anchor",this.hass.language)}</label
+          >${_a("panels.schedules.fields.time_anchor",this.hass.language)}</label
         >
         <select
           @change=${e=>this._update({time_anchor:e.target.value})}
         >
           ${["start","finish"].map(e=>Z`
-              <option value="${e}" ?selected="${s===e}">
-                ${va(`panels.schedules.time_anchor.${e}`,this.hass.language)}
+              <option value="${e}" ?selected="${i===e}">
+                ${_a(`panels.schedules.time_anchor.${e}`,this.hass.language)}
               </option>
             `)}
         </select>
       </div>
-    `}_renderDialog(){if(!this._showDialog)return Z``;const e=this._editingSchedule,t=this._editingId?va("panels.schedules.dialog.edit_title",this.hass.language):va("panels.schedules.dialog.add_title",this.hass.language);return Z`
+    `}_renderDialog(){if(!this._showDialog)return Z``;const e=this._editingSchedule,t=this._editingId?_a("panels.schedules.dialog.edit_title",this.hass.language):_a("panels.schedules.dialog.add_title",this.hass.language);return Z`
       <ha-dialog open .heading=${!0} @closed=${this._closeDialog}>
         <div slot="heading">
           <ha-header-bar>
@@ -5423,7 +5449,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         <div class="dialog-content">
           <div class="field">
             <label
-              >${va("panels.schedules.fields.name",this.hass.language)}</label
+              >${_a("panels.schedules.fields.name",this.hass.language)}</label
             >
             <input
               type="text"
@@ -5435,7 +5461,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
           <div class="field">
             <label
-              >${va("panels.schedules.fields.type",this.hass.language)}</label
+              >${_a("panels.schedules.fields.type",this.hass.language)}</label
             >
             <select
               @change=${e=>this._update({type:e.target.value})}
@@ -5453,7 +5479,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
           <div class="field-row">
             <label
-              >${va("panels.schedules.fields.enabled",this.hass.language)}</label
+              >${_a("panels.schedules.fields.enabled",this.hass.language)}</label
             >
             <input
               type="checkbox"
@@ -5464,7 +5490,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
           <div class="field">
             <label
-              >${va("panels.schedules.fields.start_date",this.hass.language)}</label
+              >${_a("panels.schedules.fields.start_date",this.hass.language)}</label
             >
             <input
               type="date"
@@ -5475,7 +5501,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
           <div class="field">
             <label
-              >${va("panels.schedules.fields.end_date",this.hass.language)}</label
+              >${_a("panels.schedules.fields.end_date",this.hass.language)}</label
             >
             <input
               type="date"
@@ -5487,36 +5513,36 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
 
         <div class="dialog-footer">
           <button class="dialog-btn" @click=${this._closeDialog}>
-            ${va("common.actions.cancel",this.hass.language)}
+            ${_a("common.actions.cancel",this.hass.language)}
           </button>
           <button class="dialog-btn dialog-btn-primary" @click=${this._save}>
-            ${va("common.actions.save",this.hass.language)}
+            ${_a("common.actions.save",this.hass.language)}
           </button>
         </div>
       </ha-dialog>
     `}render(){return this.hass?this._isLoading?Z`
         <ha-card
-          header="${va("panels.schedules.title",this.hass.language)}"
+          header="${_a("panels.schedules.title",this.hass.language)}"
         >
           <div class="card-content">
-            ${va("common.loading",this.hass.language)}...
+            ${_a("common.loading",this.hass.language)}...
           </div>
         </ha-card>
       `:Z`
       ${this._renderDialog()}
 
       <ha-card
-        header="${va("panels.schedules.title",this.hass.language)}"
+        header="${_a("panels.schedules.title",this.hass.language)}"
       >
         <div class="card-content">
-          ${va("panels.schedules.description",this.hass.language)}
+          ${_a("panels.schedules.description",this.hass.language)}
         </div>
         <div class="card-content">
           <button class="add-btn" @click=${this._openAdd}>
             <svg style="width:20px;height:20px" viewBox="0 0 24 24">
-              <path fill="currentColor" d="${Sa}" />
+              <path fill="currentColor" d="${Aa}" />
             </svg>
-            ${va("panels.schedules.add",this.hass.language)}
+            ${_a("panels.schedules.add",this.hass.language)}
           </button>
         </div>
       </ha-card>
@@ -5524,7 +5550,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       ${0===this._schedules.length?Z`
             <ha-card>
               <div class="card-content">
-                ${va("panels.schedules.no_items",this.hass.language)}
+                ${_a("panels.schedules.no_items",this.hass.language)}
               </div>
             </ha-card>
           `:this._schedules.map(e=>Z`
@@ -5532,14 +5558,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 <div class="card-content">
                   <div class="info-row">
                     <span class="info-label"
-                      >${va("panels.schedules.fields.type",this.hass.language)}:</span
+                      >${_a("panels.schedules.fields.type",this.hass.language)}:</span
                     >
                     <span>${this._typeLabel(e.type)}</span>
                   </div>
                   ${e.time&&["daily","weekly","monthly"].includes(e.type)?Z`
                         <div class="info-row">
                           <span class="info-label"
-                            >${va("panels.schedules.fields.time",this.hass.language)}:</span
+                            >${_a("panels.schedules.fields.time",this.hass.language)}:</span
                           >
                           <span>${e.time}</span>
                         </div>
@@ -5547,34 +5573,34 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   ${e.interval_hours?Z`
                         <div class="info-row">
                           <span class="info-label"
-                            >${va("panels.schedules.fields.interval_hours",this.hass.language)}:</span
+                            >${_a("panels.schedules.fields.interval_hours",this.hass.language)}:</span
                           >
                           <span
                             >${e.interval_hours}
-                            ${va("panels.schedules.hours",this.hass.language)}</span
+                            ${_a("panels.schedules.hours",this.hass.language)}</span
                           >
                         </div>
                       `:""}
                   ${"interval"===e.type&&e.start_time?Z`
                         <div class="info-row">
                           <span class="info-label"
-                            >${va("panels.schedules.fields.start_time",this.hass.language)}:</span
+                            >${_a("panels.schedules.fields.start_time",this.hass.language)}:</span
                           >
                           <span>${e.start_time}</span>
                         </div>
                       `:""}
                   <div class="info-row">
                     <span class="info-label"
-                      >${va("panels.schedules.fields.zones",this.hass.language)}:</span
+                      >${_a("panels.schedules.fields.zones",this.hass.language)}:</span
                     >
                     <span>${this._zonesLabel(e.zones)}</span>
                   </div>
                   <div class="info-row">
                     <span class="info-label"
-                      >${va("panels.schedules.fields.enabled",this.hass.language)}:</span
+                      >${_a("panels.schedules.fields.enabled",this.hass.language)}:</span
                     >
                     <span
-                      >${e.enabled?va("common.labels.yes",this.hass.language):va("common.labels.no",this.hass.language)}</span
+                      >${e.enabled?_a("common.labels.yes",this.hass.language):_a("common.labels.no",this.hass.language)}</span
                     >
                   </div>
                 </div>
@@ -5588,7 +5614,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                         <path fill="#404040" d="${"M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"}" />
                       </svg>
                       <span class="action-button-label"
-                        >${va("common.actions.edit",this.hass.language)}</span
+                        >${_a("common.actions.edit",this.hass.language)}</span
                       >
                     </div>
                   </div>
@@ -5598,7 +5624,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                       @click=${()=>e.id&&this._delete(e.id)}
                     >
                       <span class="action-button-label"
-                        >${va("common.actions.delete",this.hass.language)}</span
+                        >${_a("common.actions.delete",this.hass.language)}</span
                       >
                       <svg style="width:20px;height:20px" viewBox="0 0 24 24">
                         <path fill="#404040" d="${"M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"}" />
@@ -5608,7 +5634,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 </div>
               </ha-card>
             `)}
-    `:Z``}static get styles(){return[Ha,r`
+    `:Z``}static get styles(){return[Da,r`
         .dialog-content {
           display: flex;
           flex-direction: column;
@@ -5709,26 +5735,26 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           font-size: 0.95rem;
           cursor: pointer;
         }
-      `]}};t([pe({attribute:!1})],tn.prototype,"hass",void 0),t([ge()],tn.prototype,"_schedules",void 0),t([ge()],tn.prototype,"_zones",void 0),t([ge()],tn.prototype,"_isLoading",void 0),t([ge()],tn.prototype,"_showDialog",void 0),t([ge()],tn.prototype,"_editingSchedule",void 0),t([ge()],tn.prototype,"_editingId",void 0),tn=t([ce("smart-irrigation-view-schedules")],tn);let sn=class extends(Aa(le)){constructor(){super(...arguments),this._forecast=null,this._mappings=[],this._records=new Map,this._loading=!0,this._metric=!0,this._climate=[]}hassSubscribe(){return this._fetch(),[this.hass.connection.subscribeMessage(()=>this._fetch(),{type:_e+"_config_updated"})]}async _fetch(){var e,t;if(this.hass)try{const[i,s,a,n]=await Promise.all([(t=this.hass,t.callWS({type:_e+"/weather_forecast"})),yi(this.hass),pi(this.hass),$i(this.hass)]);this._forecast=i,this._mappings=s||[],this._metric=(null==a?void 0:a.units)!==Ee;const o=n?Object.values(n):[];this._climate=o.length>0&&(null===(e=o[0])||void 0===e?void 0:e.monthly_estimates)||[];const r=new Map;await Promise.all(this._mappings.map(async e=>{if(void 0!==e.id)try{r.set(e.id,await((e,t,i=10)=>e.callWS({type:_e+"/weather_records",mapping_id:t,limit:i}))(this.hass,e.id.toString(),0)||[])}catch(e){}})),this._records=r}catch(e){console.error("Failed to fetch weather data",e)}finally{this._loading=!1}}render(){return this.hass?Z`${this._renderForecast()} ${this._renderRecords()}
+      `]}};t([pe({attribute:!1})],sn.prototype,"hass",void 0),t([ge()],sn.prototype,"_schedules",void 0),t([ge()],sn.prototype,"_zones",void 0),t([ge()],sn.prototype,"_isLoading",void 0),t([ge()],sn.prototype,"_showDialog",void 0),t([ge()],sn.prototype,"_editingSchedule",void 0),t([ge()],sn.prototype,"_editingId",void 0),sn=t([ce("smart-irrigation-view-schedules")],sn);let an=class extends(Ea(le)){constructor(){super(...arguments),this._forecast=null,this._mappings=[],this._records=new Map,this._loading=!0,this._metric=!0,this._climate=[]}hassSubscribe(){return this._fetch(),[this.hass.connection.subscribeMessage(()=>this._fetch(),{type:_e+"_config_updated"})]}async _fetch(){var e,t;if(this.hass)try{const[s,i,a,n]=await Promise.all([(t=this.hass,t.callWS({type:_e+"/weather_forecast"})),ws(this.hass),gs(this.hass),xs(this.hass)]);this._forecast=s,this._mappings=i||[],this._metric=(null==a?void 0:a.units)!==Ee;const o=n?Object.values(n):[];this._climate=o.length>0&&(null===(e=o[0])||void 0===e?void 0:e.monthly_estimates)||[];const r=new Map;await Promise.all(this._mappings.map(async e=>{if(void 0!==e.id)try{r.set(e.id,await((e,t,s=10)=>e.callWS({type:_e+"/weather_records",mapping_id:t,limit:s}))(this.hass,e.id.toString(),0)||[])}catch(e){}})),this._records=r}catch(e){console.error("Failed to fetch weather data",e)}finally{this._loading=!1}}render(){return this.hass?Z`${this._renderForecast()} ${this._renderRecords()}
     ${this._renderSeasonal()}`:Z``}_renderSeasonal(){if(!this.hass)return Z``;const e=this.hass.language;return Z`
       <ha-card
-        header="${va("panels.setup.weather_data.seasonal_title",e)}"
+        header="${_a("panels.setup.weather_data.seasonal_title",e)}"
       >
         <div class="card-content">
           ${0===this._climate.length?Z`<div class="weather-note">
-                ${va("panels.zones.calendar.no_data",e)}
+                ${_a("panels.zones.calendar.no_data",e)}
               </div>`:Z`
                 <div class="seasonal-table">
                   <div class="weather-header">
                     <span
-                      >${va("panels.zones.calendar.month",e)}</span
+                      >${_a("panels.zones.calendar.month",e)}</span
                     >
-                    <span>${va("panels.zones.calendar.et",e)}</span>
+                    <span>${_a("panels.zones.calendar.et",e)}</span>
                     <span
-                      >${va("panels.zones.calendar.precipitation",e)}</span
+                      >${_a("panels.zones.calendar.precipitation",e)}</span
                     >
                     <span
-                      >${va("panels.zones.calendar.avg_temp",e)}</span
+                      >${_a("panels.zones.calendar.avg_temp",e)}</span
                     >
                   </div>
                   ${this._climate.map(e=>Z`
@@ -5737,13 +5763,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                           >${e.month_name||`Month ${e.month}`||"-"}</span
                         >
                         <span
-                          >${qa(e.estimated_et_mm,"precipitation",this._metric)}</span
+                          >${Ga(e.estimated_et_mm,"precipitation",this._metric)}</span
                         >
                         <span
-                          >${qa(e.average_precipitation_mm,"precipitation",this._metric)}</span
+                          >${Ga(e.average_precipitation_mm,"precipitation",this._metric)}</span
                         >
                         <span
-                          >${qa(e.average_temperature_c,"temperature",this._metric)}</span
+                          >${Ga(e.average_temperature_c,"temperature",this._metric)}</span
                         >
                       </div>
                     `)}
@@ -5753,7 +5779,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       </ha-card>
     `}_renderForecast(){if(!this.hass)return Z``;const e=this.hass.language,t=this._forecast;return Z`
       <ha-card
-        header="${va("panels.setup.weather_data.forecast_title",e)}"
+        header="${_a("panels.setup.weather_data.forecast_title",e)}"
       >
         <div class="card-content">
           ${t&&t.available&&0!==t.days.length?Z`
@@ -5761,91 +5787,91 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                   ${t.days.map(t=>this._renderForecastDay(t,e))}
                 </div>
               `:Z`<div class="weather-note">
-                ${va("panels.setup.weather_data.forecast_none",e)}
+                ${_a("panels.setup.weather_data.forecast_none",e)}
               </div>`}
         </div>
       </ha-card>
-    `}_renderForecastDay(e,t){const i=(()=>{try{return new Intl.DateTimeFormat(t,{weekday:"short",month:"short",day:"numeric"}).format(new Date(e.date+"T00:00:00"))}catch(t){return e.date}})(),s=e=>{const t=Wa(e,"temperature",this._metric);return t?`${Math.round(t.value)}°`:"-"};return Z`
+    `}_renderForecastDay(e,t){const s=(()=>{try{return new Intl.DateTimeFormat(t,{weekday:"short",month:"short",day:"numeric"}).format(new Date(e.date+"T00:00:00"))}catch(t){return e.date}})(),i=e=>{const t=qa(e,"temperature",this._metric);return t?`${Math.round(t.value)}°`:"-"};return Z`
       <div class="forecast-day">
-        <div class="forecast-date">${i}</div>
+        <div class="forecast-date">${s}</div>
         <div class="forecast-temps">
-          <span class="hi">${s(e.temp_max)}</span>
-          <span class="lo">${s(e.temp_min)}</span>
+          <span class="hi">${i(e.temp_max)}</span>
+          <span class="lo">${i(e.temp_min)}</span>
         </div>
         <div class="forecast-meta">
-          <ha-icon icon="mdi:weather-rainy"></ha-icon>${qa(e.precipitation,"precipitation",this._metric)}
+          <ha-icon icon="mdi:weather-rainy"></ha-icon>${Ga(e.precipitation,"precipitation",this._metric)}
         </div>
         <div class="forecast-meta">
-          <ha-icon icon="mdi:weather-windy"></ha-icon>${qa(e.windspeed,"windspeed",this._metric)}
+          <ha-icon icon="mdi:weather-windy"></ha-icon>${Ga(e.windspeed,"windspeed",this._metric)}
         </div>
       </div>
     `}_renderRecords(){if(!this.hass)return Z``;const e=this.hass.language;return this._loading&&0===this._mappings.length?Z`<ha-card
-        header="${va("panels.mappings.weather-records.title",e)}"
+        header="${_a("panels.mappings.weather-records.title",e)}"
       >
         <div class="card-content">
           <div class="loading-indicator">
-            ${va("common.loading-messages.general",e)}
+            ${_a("common.loading-messages.general",e)}
           </div>
         </div>
       </ha-card>`:0===this._mappings.length?Z`<ha-card
-        header="${va("panels.mappings.weather-records.title",e)}"
+        header="${_a("panels.mappings.weather-records.title",e)}"
       >
         <div class="card-content">
           <div class="weather-note">
-            ${va("panels.mappings.no_items",e)}
+            ${_a("panels.mappings.no_items",e)}
           </div>
         </div>
-      </ha-card>`:Z`${this._mappings.map(t=>this._renderMappingRecords(t,e))}`}_renderMappingRecords(e,t){const i=void 0!==e.id&&this._records.get(e.id)||[],s=`${va("panels.mappings.weather-records.title",t)} — ${e.name}`,a=e=>{try{return t=e,Number.isNaN(Ma(t).getTime())?"-":function(e){const t=Ma(e);return`${Da(t.getMonth()+1)}-${Da(t.getDate())} ${Da(t.getHours())}:${Da(t.getMinutes())}`}(e)}catch(e){return"-"}var t};return Z`
-      <ha-card header="${s}">
+      </ha-card>`:Z`${this._mappings.map(t=>this._renderMappingRecords(t,e))}`}_renderMappingRecords(e,t){const s=void 0!==e.id&&this._records.get(e.id)||[],i=`${_a("panels.mappings.weather-records.title",t)} — ${e.name}`,a=e=>{try{return t=e,Number.isNaN(Ia(t).getTime())?"-":function(e){const t=Ia(e);return`${Ma(t.getMonth()+1)}-${Ma(t.getDate())} ${Ma(t.getHours())}:${Ma(t.getMinutes())}`}(e)}catch(e){return"-"}var t};return Z`
+      <ha-card header="${i}">
         <div class="card-content">
-          ${0===i.length?Z`<div class="weather-note">
-                ${va("panels.mappings.weather-records.no-data",t)}
+          ${0===s.length?Z`<div class="weather-note">
+                ${_a("panels.mappings.weather-records.no-data",t)}
               </div>`:Z`
                 <div class="weather-table">
                   <div class="weather-header">
                     <span
-                      >${va("panels.mappings.weather-records.timestamp",t)}</span
+                      >${_a("panels.mappings.weather-records.timestamp",t)}</span
                     >
                     <span
-                      >${va("panels.mappings.weather-records.temperature",t)}</span
+                      >${_a("panels.mappings.weather-records.temperature",t)}</span
                     >
                     <span
-                      >${va("panels.mappings.weather-records.humidity",t)}</span
+                      >${_a("panels.mappings.weather-records.humidity",t)}</span
                     >
                     <span
-                      >${va("panels.mappings.weather-records.dewpoint",t)}</span
+                      >${_a("panels.mappings.weather-records.dewpoint",t)}</span
                     >
                     <span
-                      >${va("panels.mappings.weather-records.wind",t)}</span
+                      >${_a("panels.mappings.weather-records.wind",t)}</span
                     >
                     <span
-                      >${va("panels.mappings.weather-records.pressure",t)}</span
+                      >${_a("panels.mappings.weather-records.pressure",t)}</span
                     >
                     <span
-                      >${va("panels.mappings.weather-records.precipitation",t)}</span
+                      >${_a("panels.mappings.weather-records.precipitation",t)}</span
                     >
                     <span
-                      >${va("panels.mappings.weather-records.retrieval-time",t)}</span
+                      >${_a("panels.mappings.weather-records.retrieval-time",t)}</span
                     >
                   </div>
-                  ${i.map(e=>Z`
+                  ${s.map(e=>Z`
                       <div class="weather-row">
                         <span>${a(e.timestamp)}</span>
                         <span
-                          >${qa(e.temperature,"temperature",this._metric)}</span
+                          >${Ga(e.temperature,"temperature",this._metric)}</span
                         >
                         <span>${(e=>null!=e?e.toFixed(1)+" %":"-")(e.humidity)}</span>
                         <span
-                          >${qa(e.dewpoint,"temperature",this._metric)}</span
+                          >${Ga(e.dewpoint,"temperature",this._metric)}</span
                         >
                         <span
-                          >${qa(e.wind_speed,"windspeed",this._metric)}</span
+                          >${Ga(e.wind_speed,"windspeed",this._metric)}</span
                         >
                         <span
-                          >${qa(e.pressure,"pressure",this._metric)}</span
+                          >${Ga(e.pressure,"pressure",this._metric)}</span
                         >
                         <span
-                          >${qa(e.precipitation,"precipitation",this._metric)}</span
+                          >${Ga(e.precipitation,"precipitation",this._metric)}</span
                         >
                         <span>${a(e.retrieval_time)}</span>
                       </div>
@@ -5855,7 +5881,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         </div>
       </ha-card>
     `}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       :host {
         display: block;
@@ -5925,7 +5951,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         gap: 8px;
         font-size: 0.85em;
       }
-    `}};t([pe()],sn.prototype,"narrow",void 0),t([ge()],sn.prototype,"_forecast",void 0),t([ge()],sn.prototype,"_mappings",void 0),t([ge()],sn.prototype,"_records",void 0),t([ge()],sn.prototype,"_loading",void 0),t([ge()],sn.prototype,"_metric",void 0),t([ge()],sn.prototype,"_climate",void 0),sn=t([ce("smart-irrigation-view-weather-data")],sn);let an=class extends(Aa(le)){constructor(){super(...arguments),this._saving=!1}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch experimental config:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to refresh experimental config:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(this.hass)try{this.config=await pi(this.hass)}catch(e){console.error("Error fetching config:",e),ka(this,this.hass,"common.errors.load_failed",e)}}async _toggle(e,t){if(this.hass&&this.config){this.config=Object.assign(Object.assign({},this.config),{[e]:t}),this._saving=!0;try{await gi(this.hass,{[e]:t})}catch(e){console.error("Error saving experimental config:",e),ka(this,this.hass,"common.errors.save_failed",e),await this._fetchData()}finally{this._saving=!1}}}render(){var e,t;return this.hass&&this.config?Z`
+    `}};t([pe()],an.prototype,"narrow",void 0),t([ge()],an.prototype,"_forecast",void 0),t([ge()],an.prototype,"_mappings",void 0),t([ge()],an.prototype,"_records",void 0),t([ge()],an.prototype,"_loading",void 0),t([ge()],an.prototype,"_metric",void 0),t([ge()],an.prototype,"_climate",void 0),an=t([ce("smart-irrigation-view-weather-data")],an);let nn=class extends(Ea(le)){constructor(){super(...arguments),this._saving=!1}hassSubscribe(){return this._fetchData().catch(e=>{console.error("Failed to fetch experimental config:",e)}),[this.hass.connection.subscribeMessage(()=>{this._fetchData().catch(e=>{console.error("Failed to refresh experimental config:",e)})},{type:_e+"_config_updated"})]}async _fetchData(){if(this.hass)try{this.config=await gs(this.hass)}catch(e){console.error("Error fetching config:",e),za(this,this.hass,"common.errors.load_failed",e)}}async _toggle(e,t){if(this.hass&&this.config){this.config=Object.assign(Object.assign({},this.config),{[e]:t}),this._saving=!0;try{await ms(this.hass,{[e]:t})}catch(e){console.error("Error saving experimental config:",e),za(this,this.hass,"common.errors.save_failed",e),await this._fetchData()}finally{this._saving=!1}}}render(){var e,t;return this.hass&&this.config?Z`
       ${this._renderIntro()}
       ${this._renderToggleCard("observed_watering","observed_watering_enabled",this.config.observed_watering_enabled)}
       ${this._renderToggleCard("live_estimate","live_estimate_enabled",this.config.live_estimate_enabled)}
@@ -5933,15 +5959,15 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       ${this._renderContinuousUpdatesCard()}
       ${this._renderToggleCard("hourly_calculation","hourlycalculation",this.config.hourlycalculation)}
     `:Z`<div class="loading-indicator">
-        ${va("common.loading-messages.configuration",null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en")}
+        ${_a("common.loading-messages.configuration",null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en")}
       </div>`}_renderContinuousUpdatesCard(){if(!this.hass||!this.config)return Z``;const e="panels.experimental.continuous_updates",t=this.config.continuousupdates;return Z`
-      <ha-card header="${va(`${e}.title`,this.hass.language)}">
+      <ha-card header="${_a(`${e}.title`,this.hass.language)}">
         <div class="card-content description-text">
-          ${va(`${e}.description`,this.hass.language)}
+          ${_a(`${e}.description`,this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
-            <label>${va(`${e}.label`,this.hass.language)}</label>
+            <label>${_a(`${e}.label`,this.hass.language)}</label>
             <ha-switch
               .checked="${t}"
               ?disabled="${this._saving}"
@@ -5950,7 +5976,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           </div>
           ${t?Z`<div class="setting-row">
                 <label>
-                  ${va(`${e}.debounce_label`,this.hass.language)}
+                  ${_a(`${e}.debounce_label`,this.hass.language)}
                 </label>
                 <input
                   type="number"
@@ -5964,43 +5990,43 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 />
               </div>`:""}
           <div class="setting-note">
-            ${va(`${e}.note`,this.hass.language)}
+            ${_a(`${e}.note`,this.hass.language)}
           </div>
         </div>
       </ha-card>
-    `}async _saveDebounce(e){if(!this.hass||!this.config)return;const t=Number.parseInt(e,10);if(Number.isNaN(t)||t<0)await this._fetchData();else{this.config=Object.assign(Object.assign({},this.config),{[ye]:t}),this._saving=!0;try{await gi(this.hass,{[ye]:t})}catch(e){console.error("Error saving sensor debounce:",e),ka(this,this.hass,"common.errors.save_failed",e),await this._fetchData()}finally{this._saving=!1}}}_renderIntro(){return this.hass?Z`
+    `}async _saveDebounce(e){if(!this.hass||!this.config)return;const t=Number.parseInt(e,10);if(Number.isNaN(t)||t<0)await this._fetchData();else{this.config=Object.assign(Object.assign({},this.config),{[ye]:t}),this._saving=!0;try{await ms(this.hass,{[ye]:t})}catch(e){console.error("Error saving sensor debounce:",e),za(this,this.hass,"common.errors.save_failed",e),await this._fetchData()}finally{this._saving=!1}}}_renderIntro(){return this.hass?Z`
       <div class="experimental-banner">
         <ha-icon icon="mdi:flask-outline"></ha-icon>
         <div>
           <div class="experimental-banner-title">
-            ${va("panels.experimental.title",this.hass.language)}
+            ${_a("panels.experimental.title",this.hass.language)}
           </div>
           <div class="experimental-banner-text">
-            ${va("panels.experimental.warning",this.hass.language)}
+            ${_a("panels.experimental.warning",this.hass.language)}
           </div>
         </div>
       </div>
-    `:Z``}_renderToggleCard(e,t,i){if(!this.hass)return Z``;const s=`panels.experimental.${e}`;return Z`
-      <ha-card header="${va(`${s}.title`,this.hass.language)}">
+    `:Z``}_renderToggleCard(e,t,s){if(!this.hass)return Z``;const i=`panels.experimental.${e}`;return Z`
+      <ha-card header="${_a(`${i}.title`,this.hass.language)}">
         <div class="card-content description-text">
-          ${va(`${s}.description`,this.hass.language)}
+          ${_a(`${i}.description`,this.hass.language)}
         </div>
         <div class="card-content">
           <div class="setting-row">
-            <label>${va(`${s}.label`,this.hass.language)}</label>
+            <label>${_a(`${i}.label`,this.hass.language)}</label>
             <ha-switch
-              .checked="${i}"
+              .checked="${s}"
               ?disabled="${this._saving}"
               @change="${e=>this._toggle(t,e.target.checked)}"
             ></ha-switch>
           </div>
           <div class="setting-note">
-            ${va(`${s}.note`,this.hass.language)}
+            ${_a(`${i}.note`,this.hass.language)}
           </div>
         </div>
       </ha-card>
     `}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       .experimental-banner {
         display: flex;
@@ -6056,29 +6082,29 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         padding-top: 4px;
         border-top: 1px solid var(--divider-color);
       }
-    `}};t([pe()],an.prototype,"narrow",void 0),t([ge()],an.prototype,"config",void 0),t([ge()],an.prototype,"_saving",void 0),an=t([ce("smart-irrigation-view-experimental")],an);var nn;!function(e){e.WeatherLocation="weather-location",e.Zones="zones",e.Distributors="distributors",e.WhenToWater="when-to-water",e.Advanced="advanced",e.Experimental="experimental",e.Help="help"}(nn||(nn={}));const on={[nn.WeatherLocation]:"panels.setup.tabs.weather_location",[nn.Zones]:"panels.setup.tabs.my_zones",[nn.Distributors]:"panels.setup.tabs.distributors",[nn.WhenToWater]:"panels.setup.tabs.when_to_water",[nn.Advanced]:"panels.setup.tabs.advanced",[nn.Experimental]:"panels.setup.tabs.experimental",[nn.Help]:"panels.help.title"};let rn=class extends(Aa(le)){hassSubscribe(){return this._fetchConfig(),[this.hass.connection.subscribeMessage(()=>this._fetchConfig(),{type:_e+"_config_updated"})]}async _fetchConfig(){if(this.hass)try{this.config=await pi(this.hass)}catch(e){console.error("Failed to fetch setup config:",e)}}get _distributorsEnabled(){var e,t;return null!==(t=null===(e=this.config)||void 0===e?void 0:e.distributors_enabled)&&void 0!==t&&t}get _activeTab(){var e;const t=null===(e=this.path)||void 0===e?void 0:e.subpage;return Object.values(nn).includes(null!=t?t:"")?t:nn.WeatherLocation}_selectTab(e){wa(0,Oa("setup",e))}_openWizard(){this.dispatchEvent(new CustomEvent("open-wizard",{bubbles:!0,composed:!0}))}render(){if(!this.hass)return Z``;const e=this._distributorsEnabled,t=Object.values(nn).filter(t=>t!==nn.Distributors||e);let i=this._activeTab;return i!==nn.Distributors||e||(i=nn.WeatherLocation),Z`
+    `}};t([pe()],nn.prototype,"narrow",void 0),t([ge()],nn.prototype,"config",void 0),t([ge()],nn.prototype,"_saving",void 0),nn=t([ce("smart-irrigation-view-experimental")],nn);var on;!function(e){e.WeatherLocation="weather-location",e.Zones="zones",e.Distributors="distributors",e.WhenToWater="when-to-water",e.Advanced="advanced",e.Experimental="experimental",e.Help="help"}(on||(on={}));const rn={[on.WeatherLocation]:"panels.setup.tabs.weather_location",[on.Zones]:"panels.setup.tabs.my_zones",[on.Distributors]:"panels.setup.tabs.distributors",[on.WhenToWater]:"panels.setup.tabs.when_to_water",[on.Advanced]:"panels.setup.tabs.advanced",[on.Experimental]:"panels.setup.tabs.experimental",[on.Help]:"panels.help.title"};let ln=class extends(Ea(le)){hassSubscribe(){return this._fetchConfig(),[this.hass.connection.subscribeMessage(()=>this._fetchConfig(),{type:_e+"_config_updated"})]}async _fetchConfig(){if(this.hass)try{this.config=await gs(this.hass)}catch(e){console.error("Failed to fetch setup config:",e)}}get _distributorsEnabled(){var e,t;return null!==(t=null===(e=this.config)||void 0===e?void 0:e.distributors_enabled)&&void 0!==t&&t}get _activeTab(){var e;const t=null===(e=this.path)||void 0===e?void 0:e.subpage;return Object.values(on).includes(null!=t?t:"")?t:on.WeatherLocation}_selectTab(e){$a(0,Ha("setup",e))}_openWizard(){this.dispatchEvent(new CustomEvent("open-wizard",{bubbles:!0,composed:!0}))}render(){if(!this.hass)return Z``;const e=this._distributorsEnabled,t=Object.values(on).filter(t=>t!==on.Distributors||e);let s=this._activeTab;return s!==on.Distributors||e||(s=on.WeatherLocation),Z`
       <div class="setup-container">
         <nav class="setup-nav">
           ${t.map(e=>Z`
               <button
-                class="setup-nav-btn ${i===e?"active":""}"
+                class="setup-nav-btn ${s===e?"active":""}"
                 @click="${()=>this._selectTab(e)}"
               >
-                ${va(on[e],this.hass.language)}
+                ${_a(rn[e],this.hass.language)}
               </button>
             `)}
           <button
             class="setup-nav-btn wizard-btn"
             @click="${this._openWizard}"
-            title="${va("wizard.title",this.hass.language)}"
+            title="${_a("wizard.title",this.hass.language)}"
           >
             <ha-icon icon="mdi:creation"></ha-icon>
-            ${va("wizard.open_button",this.hass.language)}
+            ${_a("wizard.open_button",this.hass.language)}
           </button>
         </nav>
-        <div class="setup-content">${this._renderContent(i)}</div>
+        <div class="setup-content">${this._renderContent(s)}</div>
       </div>
-    `}_renderContent(e){if(!this.hass)return Z``;switch(e){case nn.WeatherLocation:return Z`
+    `}_renderContent(e){if(!this.hass)return Z``;switch(e){case on.WeatherLocation:return Z`
           <smart-irrigation-view-general
             .hass="${this.hass}"
             .narrow="${this.narrow}"
@@ -6088,15 +6114,15 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             .hass="${this.hass}"
             .narrow="${this.narrow}"
           ></smart-irrigation-view-weather-data>
-        `;case nn.Zones:return Z`<smart-irrigation-view-zone-settings
+        `;case on.Zones:return Z`<smart-irrigation-view-zone-settings
           .hass="${this.hass}"
           .narrow="${this.narrow}"
           .path="${this.path}"
-        ></smart-irrigation-view-zone-settings>`;case nn.Distributors:return Z`<smart-irrigation-view-distributor-settings
+        ></smart-irrigation-view-zone-settings>`;case on.Distributors:return Z`<smart-irrigation-view-distributor-settings
           .hass="${this.hass}"
           .narrow="${this.narrow}"
           .path="${this.path}"
-        ></smart-irrigation-view-distributor-settings>`;case nn.WhenToWater:return Z`
+        ></smart-irrigation-view-distributor-settings>`;case on.WhenToWater:return Z`
           <smart-irrigation-view-general
             .hass="${this.hass}"
             .narrow="${this.narrow}"
@@ -6106,7 +6132,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             .hass="${this.hass}"
             .narrow="${this.narrow}"
           ></smart-irrigation-view-schedules>
-        `;case nn.Advanced:return Z`
+        `;case on.Advanced:return Z`
           <smart-irrigation-view-modules
             .hass="${this.hass}"
             .narrow="${this.narrow}"
@@ -6115,34 +6141,34 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             .hass="${this.hass}"
             .narrow="${this.narrow}"
           ></smart-irrigation-view-mappings>
-        `;case nn.Experimental:return Z`<smart-irrigation-view-experimental
+        `;case on.Experimental:return Z`<smart-irrigation-view-experimental
           .hass="${this.hass}"
           .narrow="${this.narrow}"
-        ></smart-irrigation-view-experimental>`;case nn.Help:return this._renderHelp()}}_renderHelp(){return this.hass?Z`
+        ></smart-irrigation-view-experimental>`;case on.Help:return this._renderHelp()}}_renderHelp(){return this.hass?Z`
       <ha-card
-        header="${va("panels.help.cards.how-to-get-help.title",this.hass.language)}"
+        header="${_a("panels.help.cards.how-to-get-help.title",this.hass.language)}"
       >
         <div class="card-content">
-          ${va("panels.help.cards.how-to-get-help.first-read-the",this.hass.language)}
+          ${_a("panels.help.cards.how-to-get-help.first-read-the",this.hass.language)}
           <a href="${"https://justchr.github.io/HAsmartirrigation/"}" target="_blank" rel="noopener noreferrer"
-            >${va("panels.help.cards.how-to-get-help.wiki",this.hass.language)}</a
+            >${_a("panels.help.cards.how-to-get-help.wiki",this.hass.language)}</a
           >.
-          ${va("panels.help.cards.how-to-get-help.if-you-still-need-help",this.hass.language)}
+          ${_a("panels.help.cards.how-to-get-help.if-you-still-need-help",this.hass.language)}
           <a
             href="https://community.home-assistant.io/t/smart-irrigation-save-water-by-precisely-watering-your-lawn-garden"
             target="_blank"
             rel="noopener noreferrer"
-            >${va("panels.help.cards.how-to-get-help.community-forum",this.hass.language)}</a
+            >${_a("panels.help.cards.how-to-get-help.community-forum",this.hass.language)}</a
           >
-          ${va("panels.help.cards.how-to-get-help.or-open-a",this.hass.language)}
+          ${_a("panels.help.cards.how-to-get-help.or-open-a",this.hass.language)}
           <a href="${"https://github.com/JustChr/HAsmartirrigation/issues"}" target="_blank" rel="noopener noreferrer"
-            >${va("panels.help.cards.how-to-get-help.github-issue",this.hass.language)}</a
+            >${_a("panels.help.cards.how-to-get-help.github-issue",this.hass.language)}</a
           >
-          (${va("panels.help.cards.how-to-get-help.english-only",this.hass.language)}).
+          (${_a("panels.help.cards.how-to-get-help.english-only",this.hass.language)}).
         </div>
       </ha-card>
     `:Z``}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       :host {
         display: block;
@@ -6219,45 +6245,45 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         display: block;
         width: 100%;
       }
-    `}};var ln;t([pe({attribute:!1})],rn.prototype,"hass",void 0),t([pe({type:Boolean})],rn.prototype,"narrow",void 0),t([pe({attribute:!1})],rn.prototype,"path",void 0),t([ge()],rn.prototype,"config",void 0),rn=t([ce("smart-irrigation-view-setup")],rn),function(e){e[e.Welcome=0]="Welcome",e[e.Weather=1]="Weather",e[e.Module=2]="Module",e[e.Mapping=3]="Mapping",e[e.Zone=4]="Zone",e[e.Done=5]="Done"}(ln||(ln={}));let dn=class extends le{constructor(){super(...arguments),this._step=ln.Welcome,this._saving=!1,this._error="",this._confirmClose=!1,this._siConfig=null,this._useWeather=!1,this._weatherService=xe,this._apiKey="",this._weatherConfig=null,this._availableModules=[],this._selectedModuleIndex=0,this._moduleConfig={},this._mappingName="My Sensor Group",this._tempSource=Re,this._humiditySource=Re,this._precipSource=Re,this._zoneName="My Zone",this._zoneSize="",this._zoneThroughput="",this._zoneEntity="",this._scheduleTime="06:00",this._scheduleCreated=!1,this._creatingSchedule=!1}async connectedCallback(){super.connectedCallback(),await this._loadInitialData()}async _loadInitialData(){var e;if(this.hass){try{const[t,i,s]=await Promise.all([fi(this.hass),Si(this.hass),pi(this.hass)]);this._availableModules=t,this._weatherConfig=i,this._siConfig=s,this._useWeather=i.use_weather_service,this._weatherService=null!==(e=i.weather_service)&&void 0!==e?e:xe}catch(e){console.error("Wizard: failed to load initial data",e),this._error=$a(e)}this.requestUpdate()}}_close(){this.dispatchEvent(new CustomEvent("wizard-close",{bubbles:!0,composed:!0}))}_navigate(e){this.dispatchEvent(new CustomEvent("wizard-navigate",{detail:{page:e},bubbles:!0,composed:!0}))}async _next(){this._error="";try{switch(this._saving=!0,this._step){case ln.Welcome:this._step=ln.Weather;break;case ln.Weather:await this._saveWeather(),this._step=ln.Module;break;case ln.Module:await this._saveModule(),this._step=ln.Mapping;break;case ln.Mapping:await this._saveMapping(),this._step=ln.Zone;break;case ln.Zone:await this._saveZone(),this._step=ln.Done;break;case ln.Done:this._close()}}catch(e){this._error=e instanceof Error?e.message:String(e)}finally{this._saving=!1,this.requestUpdate()}}_back(){this._step>ln.Welcome&&(this._step=this._step-1,this._error="")}get _canSkipCurrentStep(){return this._step===ln.Weather}_skipStep(){this._canSkipCurrentStep&&this._step<ln.Done&&(this._step=this._step+1,this._error="")}async _saveWeather(){await Ai(this.hass,this._useWeather,this._useWeather?this._weatherService:null,this._apiKey||null)}async _resolveSavedId(e,t){if("number"==typeof(null==e?void 0:e.id))return e.id;try{const e=(await t()).map(e=>e.id).filter(e=>"number"==typeof e);return e.length?Math.max(...e):void 0}catch(e){return}}async _saveModule(){if(0===this._availableModules.length)throw new Error("No calculation module is available to configure. Cannot continue.");const e=this._availableModules[this._selectedModuleIndex],t=await bi(this.hass,{name:e.name,description:e.description,config:Object.assign(Object.assign({},e.config),this._moduleConfig),schema:e.schema});if(this._savedModuleId=await this._resolveSavedId(t,()=>_i(this.hass)),void 0===this._savedModuleId)throw new Error("The calculation module was saved but could not be linked. Please try again.")}async _saveMapping(){const e=this._useWeather?Re:We,t={[Le]:{[qe]:this._tempSource},[He]:{[qe]:this._humiditySource},[De]:{[qe]:this._precipSource}},i=["Dewpoint","Evapotranspiration","Maximum Temperature","Minimum Temperature","Current Precipitation","Pressure","Solar Radiation","Windspeed"];for(const s of i)t[s]={[qe]:e};const s=await wi(this.hass,{name:this._mappingName,mappings:t});if(this._savedMappingId=await this._resolveSavedId(s,()=>yi(this.hass)),void 0===this._savedMappingId)throw new Error("The sensor group was saved but could not be linked. Please try again.")}async _saveZone(){if(!this._zoneName.trim())throw new Error("Zone name is required");const e=parseFloat(this._zoneSize),t=parseFloat(this._zoneThroughput);if(!(e>0))throw new Error("Zone size must be greater than 0.");if(!(t>0))throw new Error("Throughput must be greater than 0 (zones can't water otherwise).");await vi(this.hass,{name:this._zoneName.trim(),size:e,throughput:t,state:Ca.Automatic,duration:0,bucket:0,delta:0,explanation:"",multiplier:1,module:this._savedModuleId,mapping:this._savedMappingId,lead_time:0,linked_entity:this._zoneEntity||void 0})}async _createDefaultSchedule(){var e,t;if(!this._scheduleCreated&&!this._creatingSchedule){this._error="",this._creatingSchedule=!0;try{const i=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en";await xi(this.hass,{name:va("wizard.steps.done.schedule_name",i)||"Daily",type:"daily",enabled:!0,time:this._scheduleTime||"06:00",action:"irrigate",zones:"all"}),this._scheduleCreated=!0}catch(e){this._error=e instanceof Error?e.message:String(e)}finally{this._creatingSchedule=!1,this.requestUpdate()}}}render(){var e,t;const i=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en";return Z`
+    `}};var dn;t([pe({attribute:!1})],ln.prototype,"hass",void 0),t([pe({type:Boolean})],ln.prototype,"narrow",void 0),t([pe({attribute:!1})],ln.prototype,"path",void 0),t([ge()],ln.prototype,"config",void 0),ln=t([ce("smart-irrigation-view-setup")],ln),function(e){e[e.Welcome=0]="Welcome",e[e.Weather=1]="Weather",e[e.Module=2]="Module",e[e.Mapping=3]="Mapping",e[e.Zone=4]="Zone",e[e.Done=5]="Done"}(dn||(dn={}));let cn=class extends le{constructor(){super(...arguments),this._step=dn.Welcome,this._saving=!1,this._error="",this._confirmClose=!1,this._siConfig=null,this._useWeather=!1,this._weatherService=xe,this._apiKey="",this._weatherConfig=null,this._availableModules=[],this._selectedModuleIndex=0,this._moduleConfig={},this._mappingName="My Sensor Group",this._tempSource=Re,this._humiditySource=Re,this._precipSource=Re,this._zoneName="My Zone",this._zoneSize="",this._zoneThroughput="",this._zoneEntity="",this._scheduleTime="06:00",this._scheduleCreated=!1,this._creatingSchedule=!1}async connectedCallback(){super.connectedCallback(),await this._loadInitialData()}async _loadInitialData(){var e;if(this.hass){try{const[t,s,i]=await Promise.all([bs(this.hass),As(this.hass),gs(this.hass)]);this._availableModules=t,this._weatherConfig=s,this._siConfig=i,this._useWeather=s.use_weather_service,this._weatherService=null!==(e=s.weather_service)&&void 0!==e?e:xe}catch(e){console.error("Wizard: failed to load initial data",e),this._error=xa(e)}this.requestUpdate()}}_close(){this.dispatchEvent(new CustomEvent("wizard-close",{bubbles:!0,composed:!0}))}_navigate(e){this.dispatchEvent(new CustomEvent("wizard-navigate",{detail:{page:e},bubbles:!0,composed:!0}))}async _next(){this._error="";try{switch(this._saving=!0,this._step){case dn.Welcome:this._step=dn.Weather;break;case dn.Weather:await this._saveWeather(),this._step=dn.Module;break;case dn.Module:await this._saveModule(),this._step=dn.Mapping;break;case dn.Mapping:await this._saveMapping(),this._step=dn.Zone;break;case dn.Zone:await this._saveZone(),this._step=dn.Done;break;case dn.Done:this._close()}}catch(e){this._error=e instanceof Error?e.message:String(e)}finally{this._saving=!1,this.requestUpdate()}}_back(){this._step>dn.Welcome&&(this._step=this._step-1,this._error="")}get _canSkipCurrentStep(){return this._step===dn.Weather}_skipStep(){this._canSkipCurrentStep&&this._step<dn.Done&&(this._step=this._step+1,this._error="")}async _saveWeather(){await Es(this.hass,this._useWeather,this._useWeather?this._weatherService:null,this._apiKey||null)}async _resolveSavedId(e,t){if("number"==typeof(null==e?void 0:e.id))return e.id;try{const e=(await t()).map(e=>e.id).filter(e=>"number"==typeof e);return e.length?Math.max(...e):void 0}catch(e){return}}async _saveModule(){if(0===this._availableModules.length)throw new Error("No calculation module is available to configure. Cannot continue.");const e=this._availableModules[this._selectedModuleIndex],t=await ys(this.hass,{name:e.name,description:e.description,config:Object.assign(Object.assign({},e.config),this._moduleConfig),schema:e.schema});if(this._savedModuleId=await this._resolveSavedId(t,()=>fs(this.hass)),void 0===this._savedModuleId)throw new Error("The calculation module was saved but could not be linked. Please try again.")}async _saveMapping(){const e=this._useWeather?Re:We,t={[Le]:{[qe]:this._tempSource},[He]:{[qe]:this._humiditySource},[De]:{[qe]:this._precipSource}},s=["Dewpoint","Evapotranspiration","Maximum Temperature","Minimum Temperature","Current Precipitation","Pressure","Solar Radiation","Windspeed"];for(const i of s)t[i]={[qe]:e};const i=await $s(this.hass,{name:this._mappingName,mappings:t});if(this._savedMappingId=await this._resolveSavedId(i,()=>ws(this.hass)),void 0===this._savedMappingId)throw new Error("The sensor group was saved but could not be linked. Please try again.")}async _saveZone(){if(!this._zoneName.trim())throw new Error("Zone name is required");const e=parseFloat(this._zoneSize),t=parseFloat(this._zoneThroughput);if(!(e>0))throw new Error("Zone size must be greater than 0.");if(!(t>0))throw new Error("Throughput must be greater than 0 (zones can't water otherwise).");await _s(this.hass,{name:this._zoneName.trim(),size:e,throughput:t,state:Ta.Automatic,duration:0,bucket:0,delta:0,explanation:"",multiplier:1,module:this._savedModuleId,mapping:this._savedMappingId,lead_time:0,linked_entity:this._zoneEntity||void 0})}async _createDefaultSchedule(){var e,t;if(!this._scheduleCreated&&!this._creatingSchedule){this._error="",this._creatingSchedule=!0;try{const s=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en";await ks(this.hass,{name:_a("wizard.steps.done.schedule_name",s)||"Daily",type:"daily",enabled:!0,time:this._scheduleTime||"06:00",action:"irrigate",zones:"all"}),this._scheduleCreated=!0}catch(e){this._error=e instanceof Error?e.message:String(e)}finally{this._creatingSchedule=!1,this.requestUpdate()}}}render(){var e,t;const s=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en";return Z`
       <div class="wizard-overlay" @click="${this._onOverlayClick}">
         <div
           class="wizard-dialog"
           @click="${e=>e.stopPropagation()}"
         >
           <div class="wizard-header">
-            <span class="wizard-title">${va("wizard.title",i)}</span>
+            <span class="wizard-title">${_a("wizard.title",s)}</span>
             <button
               class="wizard-close-btn"
               @click="${this._close}"
-              title="${va("wizard.close",i)}"
-              aria-label="${va("wizard.close",i)}"
+              title="${_a("wizard.close",s)}"
+              aria-label="${_a("wizard.close",s)}"
             >
               <ha-icon icon="mdi:close"></ha-icon>
             </button>
           </div>
-          ${this._step!==ln.Welcome&&this._step!==ln.Done?Z`<div class="wizard-stepper">${this._renderStepper()}</div>`:""}
+          ${this._step!==dn.Welcome&&this._step!==dn.Done?Z`<div class="wizard-stepper">${this._renderStepper()}</div>`:""}
           <div class="wizard-body">
-            ${this._renderStep(i)}
+            ${this._renderStep(s)}
             ${this._error?Z`<div class="wizard-error">${this._error}</div>`:""}
           </div>
-          <div class="wizard-footer">${this._renderFooter(i)}</div>
+          <div class="wizard-footer">${this._renderFooter(s)}</div>
           ${this._confirmClose?Z`
                 <div class="wizard-confirm-close">
                   <div class="wizard-confirm-box">
-                    <p>${va("wizard.confirm_close.body",i)}</p>
+                    <p>${_a("wizard.confirm_close.body",s)}</p>
                     <div class="wizard-confirm-actions">
                       <button
                         class="wizard-btn secondary"
                         @click="${()=>{this._confirmClose=!1}}"
                       >
-                        ${va("wizard.confirm_close.keep",i)}
+                        ${_a("wizard.confirm_close.keep",s)}
                       </button>
                       <button
                         class="wizard-btn primary"
                         @click="${()=>{this._confirmClose=!1,this._close()}}"
                       >
-                        ${va("wizard.confirm_close.close",i)}
+                        ${_a("wizard.confirm_close.close",s)}
                       </button>
                     </div>
                   </div>
@@ -6265,31 +6291,31 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               `:""}
         </div>
       </div>
-    `}_onOverlayClick(e){e.target===e.currentTarget&&(this._step>ln.Welcome&&this._step<ln.Done?this._confirmClose=!0:this._close())}_renderStepper(){var e,t;const i=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en",s=[va("wizard.stepper.weather",i),va("wizard.stepper.module",i),va("wizard.stepper.mapping",i),va("wizard.stepper.zone",i)];return Z`
-      ${s.map((e,t)=>{const i=t+1,a=this._step===i,n=this._step>i;return Z`
+    `}_onOverlayClick(e){e.target===e.currentTarget&&(this._step>dn.Welcome&&this._step<dn.Done?this._confirmClose=!0:this._close())}_renderStepper(){var e,t;const s=null!==(t=null===(e=this.hass)||void 0===e?void 0:e.language)&&void 0!==t?t:"en",i=[_a("wizard.stepper.weather",s),_a("wizard.stepper.module",s),_a("wizard.stepper.mapping",s),_a("wizard.stepper.zone",s)];return Z`
+      ${i.map((e,t)=>{const s=t+1,a=this._step===s,n=this._step>s;return Z`
           <div
             class="stepper-step ${a?"active":""} ${n?"done":""}"
           >
-            <div class="stepper-circle">${n?"✓":i}</div>
+            <div class="stepper-circle">${n?"✓":s}</div>
             <span class="stepper-label">${e}</span>
           </div>
-          ${t<s.length-1?Z`<div class="stepper-line ${n?"done":""}"></div>`:""}
+          ${t<i.length-1?Z`<div class="stepper-line ${n?"done":""}"></div>`:""}
         `})}
-    `}_renderStep(e){switch(this._step){case ln.Welcome:return this._renderWelcome(e);case ln.Weather:return this._renderWeather(e);case ln.Module:return this._renderModule(e);case ln.Mapping:return this._renderMapping(e);case ln.Zone:return this._renderZone(e);case ln.Done:return this._renderDone(e);default:return Z``}}_renderFooter(e){return this._step===ln.Done?Z``:Z`
+    `}_renderStep(e){switch(this._step){case dn.Welcome:return this._renderWelcome(e);case dn.Weather:return this._renderWeather(e);case dn.Module:return this._renderModule(e);case dn.Mapping:return this._renderMapping(e);case dn.Zone:return this._renderZone(e);case dn.Done:return this._renderDone(e);default:return Z``}}_renderFooter(e){return this._step===dn.Done?Z``:Z`
       <div class="footer-left">
-        ${this._step>ln.Welcome?Z`<button
+        ${this._step>dn.Welcome?Z`<button
               class="wizard-btn secondary"
               @click="${this._back}"
               ?disabled="${this._saving}"
             >
-              ${va("wizard.back",e)}
+              ${_a("wizard.back",e)}
             </button>`:""}
         ${this._canSkipCurrentStep?Z`<button
               class="wizard-btn ghost"
               @click="${this._skipStep}"
               ?disabled="${this._saving}"
             >
-              ${va("wizard.skip_step",e)}
+              ${_a("wizard.skip_step",e)}
             </button>`:""}
       </div>
       <button
@@ -6297,26 +6323,26 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         @click="${this._next}"
         ?disabled="${this._saving}"
       >
-        ${this._saving?va("common.saving-messages.saving",e):this._step===ln.Welcome||this._step<ln.Zone?va("wizard.next",e):va("wizard.finish",e)}
+        ${this._saving?_a("common.saving-messages.saving",e):this._step===dn.Welcome||this._step<dn.Zone?_a("wizard.next",e):_a("wizard.finish",e)}
       </button>
     `}_renderWelcome(e){return Z`
       <h2 class="step-title">
-        ${va("wizard.steps.welcome.title",e)}
+        ${_a("wizard.steps.welcome.title",e)}
       </h2>
-      <p class="step-desc">${va("wizard.steps.welcome.intro",e)}</p>
+      <p class="step-desc">${_a("wizard.steps.welcome.intro",e)}</p>
       <ul class="step-list">
-        <li>① ${va("wizard.steps.welcome.step1_label",e)}</li>
-        <li>② ${va("wizard.steps.welcome.step2_label",e)}</li>
-        <li>③ ${va("wizard.steps.welcome.step3_label",e)}</li>
-        <li>④ ${va("wizard.steps.welcome.step4_label",e)}</li>
+        <li>① ${_a("wizard.steps.welcome.step1_label",e)}</li>
+        <li>② ${_a("wizard.steps.welcome.step2_label",e)}</li>
+        <li>③ ${_a("wizard.steps.welcome.step3_label",e)}</li>
+        <li>④ ${_a("wizard.steps.welcome.step4_label",e)}</li>
       </ul>
-      <p class="step-tip">${va("wizard.steps.welcome.tip",e)}</p>
+      <p class="step-tip">${_a("wizard.steps.welcome.tip",e)}</p>
     `}_renderWeather(e){return Z`
       <h2 class="step-title">
-        ${va("wizard.steps.weather.title",e)}
+        ${_a("wizard.steps.weather.title",e)}
       </h2>
       <p class="step-desc">
-        ${va("wizard.steps.weather.description",e)}
+        ${_a("wizard.steps.weather.description",e)}
       </p>
 
       <si-weather-source-config
@@ -6331,19 +6357,19 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
       ></si-weather-source-config>
     `}_renderModule(e){if(0===this._availableModules.length)return Z`
         <h2 class="step-title">
-          ${va("wizard.steps.module.title",e)}
+          ${_a("wizard.steps.module.title",e)}
         </h2>
         <p class="step-desc">
-          ${va("wizard.steps.module.no_modules",e)}
+          ${_a("wizard.steps.module.no_modules",e)}
         </p>
       `;const t=this._availableModules[this._selectedModuleIndex];return Z`
-      <h2 class="step-title">${va("wizard.steps.module.title",e)}</h2>
+      <h2 class="step-title">${_a("wizard.steps.module.title",e)}</h2>
       <p class="step-desc">
-        ${va("wizard.steps.module.description",e)}
+        ${_a("wizard.steps.module.description",e)}
       </p>
 
       <si-field
-        label="${va("wizard.steps.module.pick_label",e)}"
+        label="${_a("wizard.steps.module.pick_label",e)}"
         required
       >
         <select
@@ -6367,7 +6393,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
               ${t.schema.map(e=>this._renderModuleField(e.name,e))}
             </div>
           `:""}
-    `}_renderModuleField(e,t){var i,s;const a=e.replace(/_/g," ").replace(/\b\w/g,e=>e.toUpperCase()),n=null!==(s=null!==(i=this._moduleConfig[e])&&void 0!==i?i:t.default)&&void 0!==s?s:"",o=t.description;return"boolean"===t.type?Z`
+    `}_renderModuleField(e,t){var s,i;const a=e.replace(/_/g," ").replace(/\b\w/g,e=>e.toUpperCase()),n=null!==(i=null!==(s=this._moduleConfig[e])&&void 0!==s?s:t.default)&&void 0!==i?i:"",o=t.description;return"boolean"===t.type?Z`
         <si-field label="${a}" help="${null!=o?o:""}">
           <ha-switch
             .checked="${Boolean(n)}"
@@ -6395,32 +6421,32 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           class="wizard-input"
           step="${"float"===t.type?"0.01":"1"}"
           .value="${String(n)}"
-          @input="${i=>{const s=i.target.value,a="float"===t.type?parseFloat(s):"integer"===t.type?parseInt(s):s;this._moduleConfig=Object.assign(Object.assign({},this._moduleConfig),{[e]:a})}}"
+          @input="${s=>{const i=s.target.value,a="float"===t.type?parseFloat(i):"integer"===t.type?parseInt(i):i;this._moduleConfig=Object.assign(Object.assign({},this._moduleConfig),{[e]:a})}}"
         />
       </si-field>
-    `}_renderMapping(e){const t=[{value:Re,label:va("wizard.steps.mapping.use_weather_service",e)},{value:"sensor",label:va("wizard.steps.mapping.use_sensor",e)},{value:"static",label:va("wizard.steps.mapping.use_static",e)},{value:We,label:va("wizard.steps.mapping.use_none",e)}],i=(i,s,a)=>Z`
+    `}_renderMapping(e){const t=[{value:Re,label:_a("wizard.steps.mapping.use_weather_service",e)},{value:"sensor",label:_a("wizard.steps.mapping.use_sensor",e)},{value:"static",label:_a("wizard.steps.mapping.use_static",e)},{value:We,label:_a("wizard.steps.mapping.use_none",e)}],s=(s,i,a)=>Z`
       <si-field
-        label="${va("wizard.steps.mapping.source_label",e)} ${i}"
+        label="${_a("wizard.steps.mapping.source_label",e)} ${s}"
       >
         <select
           class="wizard-input"
           @change="${e=>a(e.target.value)}"
         >
-          ${t.map(e=>Z`<option value="${e.value}" ?selected="${e.value===s}">
+          ${t.map(e=>Z`<option value="${e.value}" ?selected="${e.value===i}">
                 ${e.label}
               </option>`)}
         </select>
       </si-field>
     `;return Z`
       <h2 class="step-title">
-        ${va("wizard.steps.mapping.title",e)}
+        ${_a("wizard.steps.mapping.title",e)}
       </h2>
       <p class="step-desc">
-        ${va("wizard.steps.mapping.description",e)}
+        ${_a("wizard.steps.mapping.description",e)}
       </p>
 
       <si-field
-        label="${va("wizard.steps.mapping.name_label",e)}"
+        label="${_a("wizard.steps.mapping.name_label",e)}"
         required
       >
         <input
@@ -6431,22 +6457,22 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         />
       </si-field>
 
-      ${i(va("panels.mappings.cards.mapping.items.temperature",e)||"Temperature",this._tempSource,e=>{this._tempSource=e,this.requestUpdate()})}
-      ${i(va("panels.mappings.cards.mapping.items.humidity",e)||"Humidity",this._humiditySource,e=>{this._humiditySource=e,this.requestUpdate()})}
-      ${i(va("panels.mappings.cards.mapping.items.precipitation",e)||"Precipitation",this._precipSource,e=>{this._precipSource=e,this.requestUpdate()})}
+      ${s(_a("panels.mappings.cards.mapping.items.temperature",e)||"Temperature",this._tempSource,e=>{this._tempSource=e,this.requestUpdate()})}
+      ${s(_a("panels.mappings.cards.mapping.items.humidity",e)||"Humidity",this._humiditySource,e=>{this._humiditySource=e,this.requestUpdate()})}
+      ${s(_a("panels.mappings.cards.mapping.items.precipitation",e)||"Precipitation",this._precipSource,e=>{this._precipSource=e,this.requestUpdate()})}
 
       <p class="step-tip">
-        ${va("wizard.steps.mapping.description",e)}
+        ${_a("wizard.steps.mapping.description",e)}
       </p>
-    `}_renderZone(e){var t;const i="imperial"!==(null===(t=this._siConfig)||void 0===t?void 0:t.units);return Z`
-      <h2 class="step-title">${va("wizard.steps.zone.title",e)}</h2>
+    `}_renderZone(e){var t;const s="imperial"!==(null===(t=this._siConfig)||void 0===t?void 0:t.units);return Z`
+      <h2 class="step-title">${_a("wizard.steps.zone.title",e)}</h2>
       <p class="step-desc">
-        ${va("wizard.steps.zone.description",e)}
+        ${_a("wizard.steps.zone.description",e)}
       </p>
 
       <si-zone-form
         .hass="${this.hass}"
-        .metric="${i}"
+        .metric="${s}"
         .name="${this._zoneName}"
         .size="${this._zoneSize}"
         .throughput="${this._zoneThroughput}"
@@ -6462,14 +6488,14 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         <div class="done-icon">
           <ha-icon icon="mdi:check-circle"></ha-icon>
         </div>
-        <h2 class="step-title">${va("wizard.steps.done.title",e)}</h2>
+        <h2 class="step-title">${_a("wizard.steps.done.title",e)}</h2>
         <p class="step-desc">
-          ${va("wizard.steps.done.description",e)}
+          ${_a("wizard.steps.done.description",e)}
         </p>
         <ul class="step-list">
-          <li>${va("wizard.steps.done.tip1",e)}</li>
-          <li>${va("wizard.steps.done.tip2",e)}</li>
-          <li>${va("wizard.steps.done.tip3",e)}</li>
+          <li>${_a("wizard.steps.done.tip1",e)}</li>
+          <li>${_a("wizard.steps.done.tip2",e)}</li>
+          <li>${_a("wizard.steps.done.tip3",e)}</li>
         </ul>
 
         <div class="schedule-offer">
@@ -6477,15 +6503,15 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                 <div class="schedule-created">
                   <ha-icon icon="mdi:calendar-check"></ha-icon>
                   <span
-                    >${va("wizard.steps.done.schedule_created",e)}</span
+                    >${_a("wizard.steps.done.schedule_created",e)}</span
                   >
                 </div>
               `:Z`
                 <p class="schedule-offer-title">
-                  ${va("wizard.steps.done.schedule_title",e)}
+                  ${_a("wizard.steps.done.schedule_title",e)}
                 </p>
                 <p class="schedule-offer-desc">
-                  ${va("wizard.steps.done.schedule_desc",e)}
+                  ${_a("wizard.steps.done.schedule_desc",e)}
                 </p>
                 <div class="schedule-offer-row">
                   <input
@@ -6499,7 +6525,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
                     @click="${this._createDefaultSchedule}"
                     ?disabled="${this._creatingSchedule}"
                   >
-                    ${this._creatingSchedule?va("common.saving-messages.saving",e):va("wizard.steps.done.schedule_create",e)}
+                    ${this._creatingSchedule?_a("common.saving-messages.saving",e):_a("wizard.steps.done.schedule_create",e)}
                   </button>
                 </div>
               `}
@@ -6510,18 +6536,18 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             class="wizard-btn primary"
             @click="${()=>{this._close(),this._navigate("zones")}}"
           >
-            ${va("wizard.steps.done.go_zones",e)}
+            ${_a("wizard.steps.done.go_zones",e)}
           </button>
           <button
             class="wizard-btn secondary"
             @click="${()=>{this._close(),this._navigate("setup")}}"
           >
-            ${va("wizard.steps.done.go_setup",e)}
+            ${_a("wizard.steps.done.go_setup",e)}
           </button>
         </div>
       </div>
     `}static get styles(){return r`
-      ${Ha}
+      ${Da}
 
       :host {
         display: block;
@@ -6964,48 +6990,48 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         background: var(--secondary-background-color);
         opacity: 1;
       }
-    `}};t([pe({attribute:!1})],dn.prototype,"hass",void 0),t([ge()],dn.prototype,"_step",void 0),t([ge()],dn.prototype,"_saving",void 0),t([ge()],dn.prototype,"_error",void 0),t([ge()],dn.prototype,"_confirmClose",void 0),t([ge()],dn.prototype,"_siConfig",void 0),t([ge()],dn.prototype,"_useWeather",void 0),t([ge()],dn.prototype,"_weatherService",void 0),t([ge()],dn.prototype,"_apiKey",void 0),t([ge()],dn.prototype,"_weatherConfig",void 0),t([ge()],dn.prototype,"_availableModules",void 0),t([ge()],dn.prototype,"_selectedModuleIndex",void 0),t([ge()],dn.prototype,"_moduleConfig",void 0),t([ge()],dn.prototype,"_mappingName",void 0),t([ge()],dn.prototype,"_tempSource",void 0),t([ge()],dn.prototype,"_humiditySource",void 0),t([ge()],dn.prototype,"_precipSource",void 0),t([ge()],dn.prototype,"_zoneName",void 0),t([ge()],dn.prototype,"_zoneSize",void 0),t([ge()],dn.prototype,"_zoneThroughput",void 0),t([ge()],dn.prototype,"_zoneEntity",void 0),t([ge()],dn.prototype,"_scheduleTime",void 0),t([ge()],dn.prototype,"_scheduleCreated",void 0),t([ge()],dn.prototype,"_creatingSchedule",void 0),dn=t([ce("si-setup-wizard")],dn);const cn=Ha;var hn;!function(e){e.Zones="zones",e.Setup="setup"}(hn||(hn={})),e.SmartIrrigationPanel=class extends le{constructor(){super(...arguments),this._wizardOpen=!1,this._updateScheduled=!1,this._lastNavigationTime=0,this._navigationThrottleDelay=100}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}async firstUpdated(){const e=Ta().page;Object.values(hn).includes(e)||wa(0,Oa(hn.Zones)),window.addEventListener("location-changed",()=>{if(!window.location.pathname.includes("smart-irrigation"))return;const e=performance.now();e-this._lastNavigationTime<this._navigationThrottleDelay||(this._lastNavigationTime=e,this._scheduleUpdate())}),Oi().then(()=>{this._scheduleUpdate()}).catch(e=>{console.error("Failed to load HA form elements:",e),this._scheduleUpdate()}),this.hass&&pi(this.hass).then(e=>{this._config=e,this._scheduleUpdate()}).catch(e=>{console.error("Failed to fetch config for version display:",e)})}_ensureLanguage(){this.hass&&!ma(this.hass.language)&&function(e){const t=ga(e);return ma(e)?Promise.resolve():(pa[t]||(pa[t]=fetch(`/smart_irrigation_static/languages/${t}.json?v=${ve}`).then(e=>e.ok?e.json():Promise.reject(e.status)).then(e=>{ua[t]=e}).catch(()=>{ua[t]=ua.en})),pa[t])}(this.hass.language).then(()=>this.requestUpdate())}render(){var e,t;if(this.hass&&!ma(this.hass.language))return this._ensureLanguage(),Z``;const i=Ta(),s=!!customElements.get("ha-tab-group"),a=!!customElements.get("ha-tab-group-tab");return Z`
+    `}};t([pe({attribute:!1})],cn.prototype,"hass",void 0),t([ge()],cn.prototype,"_step",void 0),t([ge()],cn.prototype,"_saving",void 0),t([ge()],cn.prototype,"_error",void 0),t([ge()],cn.prototype,"_confirmClose",void 0),t([ge()],cn.prototype,"_siConfig",void 0),t([ge()],cn.prototype,"_useWeather",void 0),t([ge()],cn.prototype,"_weatherService",void 0),t([ge()],cn.prototype,"_apiKey",void 0),t([ge()],cn.prototype,"_weatherConfig",void 0),t([ge()],cn.prototype,"_availableModules",void 0),t([ge()],cn.prototype,"_selectedModuleIndex",void 0),t([ge()],cn.prototype,"_moduleConfig",void 0),t([ge()],cn.prototype,"_mappingName",void 0),t([ge()],cn.prototype,"_tempSource",void 0),t([ge()],cn.prototype,"_humiditySource",void 0),t([ge()],cn.prototype,"_precipSource",void 0),t([ge()],cn.prototype,"_zoneName",void 0),t([ge()],cn.prototype,"_zoneSize",void 0),t([ge()],cn.prototype,"_zoneThroughput",void 0),t([ge()],cn.prototype,"_zoneEntity",void 0),t([ge()],cn.prototype,"_scheduleTime",void 0),t([ge()],cn.prototype,"_scheduleCreated",void 0),t([ge()],cn.prototype,"_creatingSchedule",void 0),cn=t([ce("si-setup-wizard")],cn);const hn=Da;var un;!function(e){e.Zones="zones",e.Setup="setup"}(un||(un={})),e.SmartIrrigationPanel=class extends le{constructor(){super(...arguments),this._wizardOpen=!1,this._updateScheduled=!1,this._lastNavigationTime=0,this._navigationThrottleDelay=100}_scheduleUpdate(){this._updateScheduled||(this._updateScheduled=!0,requestAnimationFrame(()=>{this._updateScheduled=!1,this.requestUpdate()}))}async firstUpdated(){const e=Oa().page;Object.values(un).includes(e)||$a(0,Ha(un.Zones)),window.addEventListener("location-changed",()=>{if(!window.location.pathname.includes("smart-irrigation"))return;const e=performance.now();e-this._lastNavigationTime<this._navigationThrottleDelay||(this._lastNavigationTime=e,this._scheduleUpdate())}),Hs().then(()=>{this._scheduleUpdate()}).catch(e=>{console.error("Failed to load HA form elements:",e),this._scheduleUpdate()}),this.hass&&gs(this.hass).then(e=>{this._config=e,this._scheduleUpdate()}).catch(e=>{console.error("Failed to fetch config for version display:",e)})}_ensureLanguage(){this.hass&&!va(this.hass.language)&&function(e){const t=ma(e);return va(e)?Promise.resolve():(ga[t]||(ga[t]=fetch(`/smart_irrigation_static/languages/${t}.json?v=${ve}`).then(e=>e.ok?e.json():Promise.reject(e.status)).then(e=>{pa[t]=e}).catch(()=>{pa[t]=pa.en})),ga[t])}(this.hass.language).then(()=>this.requestUpdate())}render(){var e,t;if(this.hass&&!va(this.hass.language))return this._ensureLanguage(),Z``;const s=Oa(),i=!!customElements.get("ha-tab-group"),a=!!customElements.get("ha-tab-group-tab");return Z`
       <div class="header">
         <div class="toolbar">
           <ha-menu-button
             .hass=${this.hass}
             .narrow=${this.narrow}
           ></ha-menu-button>
-          <div class="main-title">${va("title",this.hass.language)}</div>
+          <div class="main-title">${_a("title",this.hass.language)}</div>
           <div class="version">${null!==(t=null===(e=this._config)||void 0===e?void 0:e.version)&&void 0!==t?t:ve}</div>
         </div>
 
-        ${s&&a?Z`
+        ${i&&a?Z`
               <ha-tab-group @wa-tab-show=${this.handlePageSelected}>
-                ${Object.values(hn).map(e=>Z`
+                ${Object.values(un).map(e=>Z`
                     <ha-tab-group-tab
                       slot="nav"
                       panel="${e}"
-                      .active=${i.page===e}
+                      .active=${s.page===e}
                     >
-                      ${va(`panels.${e}.title`,this.hass.language)}
+                      ${_a(`panels.${e}.title`,this.hass.language)}
                     </ha-tab-group-tab>
                   `)}
               </ha-tab-group>
             `:Z`
               <div class="custom-tabs">
-                ${Object.values(hn).map(e=>Z`
+                ${Object.values(un).map(e=>Z`
                     <button
-                      class="custom-tab ${i.page===e?"active":""}"
+                      class="custom-tab ${s.page===e?"active":""}"
                       @click=${()=>this.navigateToPage(e)}
                     >
-                      ${va(`panels.${e}.title`,this.hass.language)}
+                      ${_a(`panels.${e}.title`,this.hass.language)}
                     </button>
                   `)}
               </div>
             `}
       </div>
-      <div class="view">${this.getView(i)}</div>
+      <div class="view">${this.getView(s)}</div>
       ${this._wizardOpen?Z`
             <si-setup-wizard
               .hass="${this.hass}"
               @wizard-close="${()=>{this._wizardOpen=!1}}"
-              @wizard-navigate="${e=>{var t,i;const s=null!==(i=null===(t=e.detail)||void 0===t?void 0:t.page)&&void 0!==i?i:"zones";this._wizardOpen=!1,this.navigateToPage(s)}}"
+              @wizard-navigate="${e=>{var t,s;const i=null!==(s=null===(t=e.detail)||void 0===t?void 0:t.page)&&void 0!==s?s:"zones";this._wizardOpen=!1,this.navigateToPage(i)}}"
             ></si-setup-wizard>
           `:""}
     `}getView(e){switch(e.page){case"zones":default:return Z`
@@ -7022,7 +7048,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             .path=${e}
             @open-wizard="${()=>{this._wizardOpen=!0}}"
           ></smart-irrigation-view-setup>
-        `}}navigateToPage(e){if(e!==Ta().page){const t=Oa(e);wa(0,t),this.requestUpdate()}else scrollTo(0,0)}handlePageSelected(e){const t=e.detail.name;if(t!==Ta().page){const e=Oa(t);wa(0,e),this.requestUpdate()}else scrollTo(0,0)}static get styles(){return[cn,r`
+        `}}navigateToPage(e){if(e!==Oa().page){const t=Ha(e);$a(0,t),this.requestUpdate()}else scrollTo(0,0)}handlePageSelected(e){const t=e.detail.name;if(t!==Oa().page){const e=Ha(t);$a(0,e),this.requestUpdate()}else scrollTo(0,0)}static get styles(){return[hn,r`
         :host {
           color: var(--primary-text-color);
           --paper-card-header-color: var(--primary-text-color);
@@ -7134,7 +7160,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
           font-weight: 500;
           color: rgba(var(--rgb-text-primary-color), 0.9);
         }
-      `]}},t([pe({attribute:!1})],e.SmartIrrigationPanel.prototype,"hass",void 0),t([pe({type:Boolean,reflect:!0})],e.SmartIrrigationPanel.prototype,"narrow",void 0),t([ge()],e.SmartIrrigationPanel.prototype,"_wizardOpen",void 0),t([ge()],e.SmartIrrigationPanel.prototype,"_config",void 0),e.SmartIrrigationPanel=t([ce("smart-irrigation")],e.SmartIrrigationPanel);let un=class extends le{async showDialog(e){this._params=e,await this.updateComplete}async closeDialog(){this._params=void 0}render(){return this._params?Z`
+      `]}},t([pe({attribute:!1})],e.SmartIrrigationPanel.prototype,"hass",void 0),t([pe({type:Boolean,reflect:!0})],e.SmartIrrigationPanel.prototype,"narrow",void 0),t([ge()],e.SmartIrrigationPanel.prototype,"_wizardOpen",void 0),t([ge()],e.SmartIrrigationPanel.prototype,"_config",void 0),e.SmartIrrigationPanel=t([ce("smart-irrigation")],e.SmartIrrigationPanel);let pn=class extends le{async showDialog(e){this._params=e,await this.updateComplete}async closeDialog(){this._params=void 0}render(){return this._params?Z`
       <ha-dialog
         open
         .heading=${!0}
@@ -7146,7 +7172,7 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             <ha-icon-button
               slot="navigationIcon"
               dialogAction="cancel"
-              .path=${za}
+              .path=${Sa}
             ></ha-icon-button>
             <span class="errortitle" slot="title">
               ${this.hass.localize("state_badge.default.error")}
@@ -7175,4 +7201,4 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
         font-weight: bold;
         vertical-align: bottom;
       }
-    `}};t([pe({attribute:!1})],un.prototype,"hass",void 0),t([ge()],un.prototype,"_params",void 0),un=t([ce("error-dialog")],un);var pn=Object.freeze({__proto__:null,get ErrorDialog(){return un}})}({});
+    `}};t([pe({attribute:!1})],pn.prototype,"hass",void 0),t([ge()],pn.prototype,"_params",void 0),pn=t([ce("error-dialog")],pn);var gn=Object.freeze({__proto__:null,get ErrorDialog(){return pn}})}({});

@@ -56,6 +56,10 @@ import {
   ZONE_STATE,
   ZONE_THROUGHPUT,
   ZONE_LINKED_ENTITY,
+  WATERING_MODE_OPENSPRINKLER,
+  OPENSPRINKLER_ATTR_TYPE,
+  OPENSPRINKLER_ATTR_IS_MASTER,
+  OPENSPRINKLER_TYPE_STATION,
   ZONE_BUCKET_THRESHOLD,
   ZONE_FLOW_SENSOR,
   ZONE_FLOW_COUNTER_TYPE,
@@ -101,6 +105,29 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
 
   private _initialLoadDone = false;
   private _scrolledTo: number | null = null;
+
+  // Restricts the OpenSprinkler picker to irrigable stations. Declared as a
+  // CLASS FIELD, not an inline arrow in the template: ha-entity-picker memoizes
+  // its option list with memoizeOne keyed partly on this function's identity, so
+  // a fresh closure per render busts that memo on every keystroke. HA's own
+  // panels use exactly this shape.
+  //
+  // Master/pump stations are real stations but not irrigable zones, so they are
+  // excluded. Matching on the integration's own attributes rather than the
+  // switch's device_class, which reports "station" — not a value HA's switch
+  // device-class enum defines, so it must not be depended on.
+  private _osStationFilter = (entity: {
+    attributes: Record<string, unknown>;
+  }): boolean =>
+    entity.attributes[OPENSPRINKLER_ATTR_TYPE] === OPENSPRINKLER_TYPE_STATION &&
+    !entity.attributes[OPENSPRINKLER_ATTR_IS_MASTER];
+
+  private _hasOpenSprinklerStations(): boolean {
+    const states = this.hass?.states ?? {};
+    return Object.keys(states).some(
+      (id) => id.startsWith("switch.") && this._osStationFilter(states[id]),
+    );
+  }
 
   // Zone ids whose settings are expanded. Empty = all collapsed (default) so a
   // long list stays scannable; a deep link from the dashboard gear expands its
@@ -1057,6 +1084,16 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                               this.hass.language,
                             )}
                           </option>
+                          <option
+                            value="${WATERING_MODE_OPENSPRINKLER}"
+                            ?selected="${zone.watering_mode ===
+                            WATERING_MODE_OPENSPRINKLER}"
+                          >
+                            ${localize(
+                              "panels.zones.labels.watering_modes.opensprinkler",
+                              this.hass.language,
+                            )}
+                          </option>
                         </select>
                       </ha-settings-row>
 
@@ -1258,23 +1295,26 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                               : ""}
                           `
                         : ""}
-                      ${zone.watering_mode !== "service"
+                      ${zone.watering_mode === WATERING_MODE_OPENSPRINKLER
                         ? html`
                             <ha-settings-row>
                               <span slot="heading"
                                 >${localize(
-                                  "panels.zones.labels.linked_entity",
+                                  "panels.zones.labels.opensprinkler_station",
+                                  this.hass.language,
+                                )}</span
+                              >
+                              <span slot="description"
+                                >${localize(
+                                  "panels.zones.labels.opensprinkler_station_help",
                                   this.hass.language,
                                 )}</span
                               >
                               <ha-entity-picker
                                 .hass="${this.hass}"
                                 .value="${zone.linked_entity || ""}"
-                                .includeDomains="${[
-                                  "switch",
-                                  "valve",
-                                  "input_boolean",
-                                ]}"
+                                .includeDomains="${["switch"]}"
+                                .entityFilter="${this._osStationFilter}"
                                 allow-custom-entity
                                 @value-changed="${(e: CustomEvent) =>
                                   this.handleEditZone(index, {
@@ -1284,8 +1324,43 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                                   })}"
                               ></ha-entity-picker>
                             </ha-settings-row>
+                            ${this._hasOpenSprinklerStations()
+                              ? ""
+                              : html`<div class="distributor-managed">
+                                  ${localize(
+                                    "panels.zones.labels.opensprinkler_no_stations",
+                                    this.hass.language,
+                                  )}
+                                </div>`}
                           `
-                        : ""}
+                        : zone.watering_mode !== "service"
+                          ? html`
+                              <ha-settings-row>
+                                <span slot="heading"
+                                  >${localize(
+                                    "panels.zones.labels.linked_entity",
+                                    this.hass.language,
+                                  )}</span
+                                >
+                                <ha-entity-picker
+                                  .hass="${this.hass}"
+                                  .value="${zone.linked_entity || ""}"
+                                  .includeDomains="${[
+                                    "switch",
+                                    "valve",
+                                    "input_boolean",
+                                  ]}"
+                                  allow-custom-entity
+                                  @value-changed="${(e: CustomEvent) =>
+                                    this.handleEditZone(index, {
+                                      ...zone,
+                                      [ZONE_LINKED_ENTITY]:
+                                        e.detail.value || null,
+                                    })}"
+                                ></ha-entity-picker>
+                              </ha-settings-row>
+                            `
+                          : ""}
                     `}
 
                 <ha-settings-row>

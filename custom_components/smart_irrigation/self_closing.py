@@ -39,6 +39,11 @@ class SelfClosingMixin:
     async def _sc_dispatch_open(self, zone: dict) -> None:
         """Open the valve for its run by firing the run_service."""
         seconds = float(zone.get(const.ZONE_DURATION) or 0)
+        if self._os_is_opensprinkler(zone):
+            # run_station takes whole seconds and nothing else; the duration unit
+            # is a property of a user's own run_service script, not of this API.
+            await self._os_dispatch_open(zone, max(1, math.ceil(seconds)))
+            return
         unit = zone.get(const.ZONE_DURATION_UNIT, const.DURATION_UNIT_SECONDS)
         duration = self._sc_convert(seconds, unit)
         await self._sc_service_open(zone, duration)
@@ -215,6 +220,9 @@ class SelfClosingMixin:
         # review finding D: pop this run's cleanup handle as it finalizes so a stale
         # timer can't linger (the firing timer itself lands here; cancel is a safe no-op).
         self._sc_cancel_cleanup(zone_id)
+        # Same for the station subscription, which reaches here via the +planned
+        # backstop when a station's "off" transition is missed.
+        self._os_cancel_watch(zone_id)
         # The hardware has closed the valve — drop the master hold taken at open.
         await self.async_master_release(self._sc_master_token(zone_id))
         zone = self.store.get_zone(zone_id) or {}
@@ -298,6 +306,35 @@ class SelfClosingMixin:
         if planned_seconds <= 0:
             return False
 
+        # OpenSprinkler: resolve the station's running sensor BEFORE anything is
+        # actuated. It is the only thing that can end this run — the controller
+        # queues the station, so there is no window measurable from here — and a
+        # run dispatched without it would credit the bucket and never finalise.
+        # Resolution is deliberately at dispatch, not at config time, so a
+        # controller that was offline when the zone was set up still works.
+        is_opensprinkler = self._os_is_opensprinkler(zone)
+        watch_entity = None
+        if is_opensprinkler:
+            station, watch_entity = self._os_resolve(zone)
+            if not station or not watch_entity:
+                _LOGGER.warning(
+                    "Zone %s: cannot resolve the running sensor for OpenSprinkler "
+                    "station '%s' (is the controller reachable?); not dispatching",
+                    zone_id,
+                    station or zone.get(const.ZONE_LINKED_ENTITY),
+                )
+                self._set_zone_fault(zone_id, const.PROBLEM_STATION_UNRESOLVED)
+                self._sc_fire(
+                    const.EVENT_ZONE_PROBLEM,
+                    {
+                        "zone_id": zone_id,
+                        "zone": zone.get(const.ZONE_NAME),
+                        "entity_id": zone.get(const.ZONE_LINKED_ENTITY),
+                        "reason": const.PROBLEM_STATION_UNRESOLVED,
+                    },
+                )
+                return False
+
         # Single-flight backstop. Every caller filters in-flight zones out first,
         # but _sc_add_run silently REPLACES an existing record for the same zone
         # rather than rejecting — so a second dispatch that reached here would
@@ -330,7 +367,12 @@ class SelfClosingMixin:
         # self-closing window via NON-blocking interval sampling — the run stays
         # fire-and-forget (the hardware owns the close); finalized in _sc_finish_run /
         # async_stop_self_closing. See test_self_closing.
-        await self._sc_start_flow_sampling(zone)
+        #
+        # NOT for a queued OpenSprinkler run: the meter is seeded at open, and a
+        # station behind three others opens hours later, so the sampled window
+        # would mostly precede the water. _os_observed_start starts it instead.
+        if not is_opensprinkler:
+            await self._sc_start_flow_sampling(zone)
         # M-1: sampling is now live (an interval is registered). Wrap the remaining
         # fire-and-forget setup so an unexpected exception can't leak the interval —
         # finalize the meter and re-raise. The confirm-fail branch below finalizes on
@@ -346,7 +388,17 @@ class SelfClosingMixin:
             # confirm_entity the run is write-only (confirmed = None) and credited
             # optimistically — the hardware owns the close. The confirm is poll-only
             # (retry=False): HA must never re-actuate a self-closing valve mid-run.
-            confirm_target = zone.get(const.ZONE_CONFIRM_ENTITY)
+            #
+            # Never on the OpenSprinkler path. _confirm_valve_running polls for
+            # VALVE_CONFIRM_TIMEOUT seconds and self-closing mode treats False as
+            # fatal, but a queued station is not running at +30s — so every zone
+            # behind the first would abort here, after the controller had already
+            # accepted its run: Smart Irrigation would believe it watered nothing
+            # while the controller watered everything. The station subscription
+            # replaces both the poll and its abort branch.
+            confirm_target = (
+                None if is_opensprinkler else zone.get(const.ZONE_CONFIRM_ENTITY)
+            )
             confirmed = (
                 await self._confirm_valve_running(zone_id, confirm_target, retry=False)
                 if confirm_target
@@ -387,19 +439,28 @@ class SelfClosingMixin:
             # delivered volume, so an early stop can't over-report usage. The bucket,
             # however, IS credited optimistically above (the crash-safe model state).
 
-            # Persist the in-flight run for restart reconciliation.
-            await self._sc_add_run(
-                {
-                    const.RUN_ZONE_ID: zone_id,
-                    const.RUN_ENTITY_ID: zone.get(const.ZONE_RUN_SERVICE),
-                    const.RUN_STARTED: dt_util.utcnow().isoformat(),
-                    const.RUN_PLANNED_SECONDS: planned_seconds,
-                    const.RUN_PLANNED_MM: depth,
-                    const.RUN_PRE_BUCKET: pre_bucket,
-                    const.RUN_MODE: zone.get(const.ZONE_WATERING_MODE),
-                    const.RUN_CREDITED: True,
-                }
-            )
+            # Persist the in-flight run for restart reconciliation. RUN_STARTED is
+            # the DISPATCH time; for an OpenSprinkler run that is when the station
+            # joined the controller's queue, not when it waters, so the watch
+            # entity is persisted alongside it and RUN_OBSERVED_START stays absent
+            # until the station is seen running.
+            record = {
+                const.RUN_ZONE_ID: zone_id,
+                const.RUN_ENTITY_ID: (
+                    zone.get(const.ZONE_LINKED_ENTITY)
+                    if is_opensprinkler
+                    else zone.get(const.ZONE_RUN_SERVICE)
+                ),
+                const.RUN_STARTED: dt_util.utcnow().isoformat(),
+                const.RUN_PLANNED_SECONDS: planned_seconds,
+                const.RUN_PLANNED_MM: depth,
+                const.RUN_PRE_BUCKET: pre_bucket,
+                const.RUN_MODE: zone.get(const.ZONE_WATERING_MODE),
+                const.RUN_CREDITED: True,
+            }
+            if is_opensprinkler:
+                record[const.RUN_WATCH_ENTITY] = watch_entity
+            await self._sc_add_run(record)
 
             self._sc_fire(
                 const.EVENT_IRRIGATE_STARTED,
@@ -413,20 +474,44 @@ class SelfClosingMixin:
                     ],
                 },
             )
-            self._sc_schedule_cleanup(zone_id, planned_seconds)
+            if is_opensprinkler:
+                # The station's own sensor drives the rest of the lifecycle: the
+                # observed start, the finish, and giving up on a run the
+                # controller never ran. A timer from here would measure the queue.
+                await self._os_start_watch(
+                    zone_id, watch_entity, planned_seconds, accepted=False
+                )
+            else:
+                self._sc_schedule_cleanup(zone_id, planned_seconds)
             return True
         except Exception:
+            self._os_cancel_watch(zone_id)  # nor the station subscription
             self._sc_finish_flow(zone_id)  # don't leak the interval on a setup failure
             # Nor the master hold — otherwise the pump stays on with no run behind it.
             await self.async_master_release(self._sc_master_token(zone_id))
             raise
 
-    def _sc_elapsed(self, started_iso: str) -> float:
+    def _sc_elapsed(self, started_iso: str | None) -> float:
         """Wall-clock seconds since the run started (includes downtime)."""
-        started = dt_util.parse_datetime(started_iso)
+        started = dt_util.parse_datetime(started_iso or "")
         if started is None:
             return 0.0
         return max(0.0, (dt_util.utcnow() - started).total_seconds())
+
+    def _sc_run_elapsed(self, run: dict) -> float:
+        """Seconds this run has been WATERING, which is not always since dispatch.
+
+        An OpenSprinkler run sits in the controller's queue between the two, so
+        for it RUN_STARTED bounds nothing: before the station is observed running
+        the delivered volume is zero, however long ago the run was dispatched.
+        Every other mode opens its valve at dispatch, so the two coincide.
+        """
+        observed = run.get(const.RUN_OBSERVED_START)
+        if observed:
+            return self._sc_elapsed(observed)
+        if run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER:
+            return 0.0
+        return self._sc_elapsed(run.get(const.RUN_STARTED))
 
     async def _sc_find_run(self, zone_id):
         for r in await self._sc_active_runs():
@@ -434,34 +519,51 @@ class SelfClosingMixin:
                 return r
         return None
 
-    async def async_stop_self_closing(self, zone_id) -> bool:
-        """Stop a self-closing run early: close the valve + correct the bucket."""
+    async def async_stop_self_closing(
+        self, zone_id, *, close_valve: bool = True, detail: str | None = None
+    ) -> bool:
+        """Stop a self-closing run early: close the valve + correct the bucket.
+
+        ``close_valve=False`` settles the accounting without touching the
+        hardware, for the case where the hardware has already ended the run
+        itself — an OpenSprinkler station that stopped short of its window, or
+        one that never opened at all. ``detail`` overrides the run-log marker.
+        """
         run = await self._sc_find_run(zone_id)
         if run is None:
             return False
         zone = self.store.get_zone(zone_id) or {}
+        # Whatever ends the run, the station subscription has nothing left to
+        # observe — and left armed it would fire against the NEXT run.
+        self._os_cancel_watch(zone_id)
         # The run is ending here regardless of how the close goes — release the
         # master hold taken at open so the pump is not stranded on.
         await self.async_master_release(self._sc_master_token(zone_id))
 
-        # Close the valve (best-effort): call the configured stop_service.
-        stop_svc = zone.get(const.ZONE_STOP_SERVICE)
-        if stop_svc:
-            domain, service = self._sc_split_service(stop_svc)
-            data = {}
-            data["zone_id"] = zone_id
-            await self.hass.services.async_call(domain, service, data)
-        else:
-            _LOGGER.warning(
-                "Zone %s stopped in self-closing mode without a stop_service; "
-                "cannot close the valve, correcting accounting only",
-                zone_id,
-            )
+        # Close the valve (best-effort). Skipped entirely when the hardware has
+        # already ended the run itself, which is every OpenSprinkler finish
+        # except a user-initiated stop.
+        if close_valve:
+            if self._os_is_opensprinkler(zone):
+                # opensprinkler.stop is entity-targeted; the stop_service adapter
+                # below sends a zone_id that its schema rejects.
+                await self._os_dispatch_stop(zone)
+            elif stop_svc := zone.get(const.ZONE_STOP_SERVICE):
+                domain, service = self._sc_split_service(stop_svc)
+                data = {}
+                data["zone_id"] = zone_id
+                await self.hass.services.async_call(domain, service, data)
+            else:
+                _LOGGER.warning(
+                    "Zone %s stopped in self-closing mode without a stop_service; "
+                    "cannot close the valve, correcting accounting only",
+                    zone_id,
+                )
 
         # Correct the bucket for the undelivered portion of the optimistic open credit.
         planned = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
         planned_mm = float(run.get(const.RUN_PLANNED_MM) or 0)
-        elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
+        elapsed = self._sc_run_elapsed(run)
         delivered_frac = min(elapsed / planned, 1.0) if planned > 0 else 1.0
         # Iter FM-5: finalize the flow sampler UP FRONT — the measured litres both refine
         # the recorded usage below AND (review finding F) reconcile the bucket. Cancels the
@@ -518,7 +620,7 @@ class SelfClosingMixin:
             volume_l=delivered_l,
             planned_s=planned,
             actual_s=elapsed,
-            detail=const.RUN_DETAIL_SELF_CLOSING_STOPPED,
+            detail=detail or const.RUN_DETAIL_SELF_CLOSING_STOPPED,
             trigger=const.RUN_TRIGGER_SELF_CLOSING,
             add_to_total=True,
         )
@@ -539,6 +641,14 @@ class SelfClosingMixin:
         for run in await self._sc_active_runs():
             zone_id = run.get(const.RUN_ZONE_ID)
             planned = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
+            # An OpenSprinkler run measured from RUN_STARTED would finalise early
+            # whenever the restart caught it in the controller's queue: elapsed
+            # there is queue time, not watering time. It reconciles against the
+            # station's own state instead — and, like every branch here, never
+            # re-opens anything.
+            if run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER:
+                await self._os_resume_run(run)
+                continue
             elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
             if elapsed >= planned:
                 await self._sc_finish_run(zone_id)
@@ -551,8 +661,18 @@ class SelfClosingMixin:
 
     @staticmethod
     def _sc_is_self_closing(zone: dict) -> bool:
-        """True if the zone delegates its run to a self-closing target."""
-        return zone.get(const.ZONE_WATERING_MODE) == const.WATERING_MODE_SERVICE
+        """True if the zone delegates its run to a self-closing target.
+
+        Covers OpenSprinkler too, and that is what keeps a station switch away
+        from every path that would drive linked_entity directly — the metered
+        runner, the rotating/sequential/parallel dispatch, and async_stop_zone's
+        turn_off. Turning a station switch on rewrites controller configuration
+        and does not water; see opensprinkler.py.
+        """
+        return zone.get(const.ZONE_WATERING_MODE) in (
+            const.WATERING_MODE_SERVICE,
+            const.WATERING_MODE_OPENSPRINKLER,
+        )
 
     async def _sc_maybe_stop(self, zone_id) -> bool:
         """Stop a self-closing zone here; return True if it was handled."""

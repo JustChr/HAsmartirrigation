@@ -63,6 +63,7 @@ from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin
 from .observed_watering import ObservedWateringMixin
+from .opensprinkler import OpenSprinklerMixin
 from .panel import async_register_panel, async_remove_card_resource, remove_panel
 from .run_state import RunStateMixin
 from .scheduler import RecurringScheduleManager
@@ -382,6 +383,7 @@ class SmartIrrigationCoordinator(
     ObservedWateringMixin,
     ContinuousUpdateMixin,
     SelfClosingMixin,
+    OpenSprinklerMixin,
     MasterMixin,
     DistributorMixin,
     RunStateMixin,
@@ -1709,6 +1711,11 @@ class SmartIrrigationCoordinator(
 
         # Cancel the experimental observed-watering valve subscription.
         self.async_teardown_observed_watering()
+
+        # Cancel every OpenSprinkler station subscription and its deadline timer.
+        # A surviving one would observe a station against this dead coordinator
+        # and finalise a run in the store the new one is also reconciling.
+        self.async_teardown_opensprinkler_watchers()
 
         # Cancel the continuous-update sensor subscription AND its pending
         # debounce timers — a surviving async_call_later would fire against this

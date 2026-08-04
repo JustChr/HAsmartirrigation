@@ -363,6 +363,9 @@
         "data-number-of-data-points": "Nombre de points de données",
         "drainage_rate": "Taux de drainage",
         "linked_entity": "Entité interrupteur/vanne/assistant liée",
+        "opensprinkler_station": "Station OpenSprinkler",
+        "opensprinkler_station_help": "L'interrupteur d'activation de la station, p. ex. switch.front_lawn_station_enabled. HASI place l'exécution dans la file du contrôleur puis surveille le capteur de fonctionnement de cette station, de sorte qu'une zone en attente derrière d'autres n'est comptée comme arrosant qu'au moment où elle démarre réellement. Réglez le niveau d'eau du contrôleur sur 100 % ou désactivez son ajustement météo, sinon la correction météo est appliquée deux fois.",
+        "opensprinkler_no_stations": "Aucune station OpenSprinkler trouvée. Vérifiez que l'intégration OpenSprinkler est configurée et que le contrôleur est joignable. Vous pouvez tout de même saisir un identifiant d'entité.",
         "linked_entity_placeholder": "ex. switch.vanne_jardin",
         "irrigate_now": "Irriguer maintenant",
         "bucket_threshold": "Déficit minimum pour irriguer",
@@ -377,7 +380,8 @@
         "watering_mode_description": "Comment HASI actionne cette zone. Classique : HASI ouvre la vanne et la referme lui-même à l'aide d'une minuterie logicielle. Service auto-fermant : HASI envoie la durée d'exécution à une vanne auto-fermante via un script (voir les blueprints de vanne fournis) et laisse le matériel se refermer de lui-même, de sorte qu'un redémarrage de HA en cours d'exécution ne peut pas provoquer une irrigation continue.",
         "watering_modes": {
           "classic": "Classique (HASI ouvre et ferme la vanne)",
-          "service": "Service auto-fermant (la vanne se ferme d'elle-même)"
+          "service": "Service auto-fermant (la vanne se ferme d'elle-même)",
+          "opensprinkler": "Station OpenSprinkler (le contrôleur traite la file)"
         },
         "run_service": "Service de démarrage",
         "run_service_help": "Service appelé par HASI pour démarrer l'exécution (p. ex. un script.* ou un service switch/valve). Il reçoit le champ de durée ci-dessous ainsi que zone_id et zone_name.",

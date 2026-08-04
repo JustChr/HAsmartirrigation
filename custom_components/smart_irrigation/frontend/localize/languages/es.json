@@ -363,6 +363,9 @@
         "data-number-of-data-points": "Número de puntos de datos",
         "drainage_rate": "Tasa de drenaje",
         "linked_entity": "Entidad de interruptor/válvula/ayudante vinculada",
+        "opensprinkler_station": "Estación OpenSprinkler",
+        "opensprinkler_station_help": "El interruptor de habilitación de la estación, p. ej. switch.front_lawn_station_enabled. HASI pone el riego en la cola del controlador y luego observa el sensor de funcionamiento de esa misma estación, de modo que una zona en cola detrás de otras solo cuenta como regando cuando arranca de verdad. Ajusta el nivel de agua del controlador al 100 % o desactiva su ajuste meteorológico; de lo contrario la corrección meteorológica se aplica dos veces.",
+        "opensprinkler_no_stations": "No se han encontrado estaciones OpenSprinkler. Comprueba que la integración OpenSprinkler está configurada y que el controlador es accesible. Aun así puedes escribir un id de entidad.",
         "linked_entity_placeholder": "p.ej. switch.valvula_jardin",
         "irrigate_now": "Regar ahora",
         "bucket_threshold": "Déficit mínimo para regar",
@@ -377,7 +380,8 @@
         "watering_mode_description": "Cómo acciona HASI esta zona. Clásico: HASI abre la válvula y la cierra él mismo mediante un temporizador de software. Servicio autocerrable: HASI envía la duración del riego a una válvula autocerrable a través de un script (consulta los blueprints de válvula incluidos) y deja que el hardware se cierre solo, de modo que un reinicio de HA a mitad del riego no pueda provocar un riego continuo.",
         "watering_modes": {
           "classic": "Clásico (HASI abre y cierra la válvula)",
-          "service": "Servicio autocerrable (la válvula se cierra sola)"
+          "service": "Servicio autocerrable (la válvula se cierra sola)",
+          "opensprinkler": "Estación OpenSprinkler (el controlador gestiona la cola)"
         },
         "run_service": "Servicio de inicio",
         "run_service_help": "Servicio que HASI llama para iniciar el riego (p. ej. un script.* o un servicio de interruptor/válvula). Recibe el campo de duración de abajo junto con zone_id y zone_name.",

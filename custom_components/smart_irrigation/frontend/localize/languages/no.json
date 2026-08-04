@@ -363,6 +363,9 @@
         "data-number-of-data-points": "Antall datapunkter",
         "drainage_rate": "Dreneringsrate",
         "linked_entity": "Tilknyttet bryter/ventil/hjelper-enhet",
+        "opensprinkler_station": "OpenSprinkler-stasjon",
+        "opensprinkler_station_help": "Aktiveringsbryteren til stasjonen, f.eks. switch.front_lawn_station_enabled. HASI legger kjøringen i køen til styringen og følger deretter kjøresensoren til nettopp den stasjonen, slik at en sone som står bak andre i køen først regnes som vannende når den faktisk starter. Sett vannivået i styringen til 100 % eller slå av værjusteringen der, ellers blir værkorreksjonen brukt to ganger.",
+        "opensprinkler_no_stations": "Fant ingen OpenSprinkler-stasjoner. Sjekk at OpenSprinkler-integrasjonen er satt opp og at styringen er tilgjengelig. Du kan fortsatt skrive inn en enhets-id.",
         "linked_entity_placeholder": "f.eks. switch.hage_ventil",
         "irrigate_now": "Vann nå",
         "bucket_threshold": "Minimum underskudd for vanning",
@@ -377,7 +380,8 @@
         "watering_mode_description": "Hvordan HASI styrer denne sonen. Klassisk: HASI åpner ventilen og lukker den selv med en programvaretidtaker. Selvlukkende tjeneste: HASI sender kjørevarigheten til en selvlukkende ventil via et script (se de medfølgende ventil-blueprintene) og lar maskinvaren lukke seg selv, slik at en HA-omstart midt i en kjøring ikke kan forårsake kontinuerlig vanning.",
         "watering_modes": {
           "classic": "Klassisk (HASI åpner og lukker ventilen)",
-          "service": "Selvlukkende tjeneste (ventilen lukker seg selv)"
+          "service": "Selvlukkende tjeneste (ventilen lukker seg selv)",
+          "opensprinkler": "OpenSprinkler-stasjon (styringen tar køen i tur)"
         },
         "run_service": "Kjøretjeneste",
         "run_service_help": "Tjenesten HASI kaller for å starte kjøringen (f.eks. en script.* eller en switch/valve-tjeneste). Den mottar varighetsfeltet nedenfor pluss zone_id og zone_name.",

@@ -363,6 +363,9 @@
         "data-number-of-data-points": "Anzahl der Messungen",
         "drainage_rate": "Drainagerate",
         "linked_entity": "Verknüpfte Schalter/Ventil/Hilfsentität",
+        "opensprinkler_station": "OpenSprinkler-Station",
+        "opensprinkler_station_help": "Der Freigabe-Schalter der Station, z. B. switch.front_lawn_station_enabled. HASI stellt den Lauf in die Warteschlange der Steuerung und beobachtet dann den Laufsensor genau dieser Station, damit eine hinter anderen wartende Zone erst als bewässernd gilt, wenn sie wirklich startet. Stelle den Wasserstand der Steuerung auf 100 % oder schalte deren Wetteranpassung ab, sonst wird die Wetterkorrektur doppelt angewendet.",
+        "opensprinkler_no_stations": "Keine OpenSprinkler-Stationen gefunden. Prüfe, ob die OpenSprinkler-Integration eingerichtet und die Steuerung erreichbar ist. Eine Entitäts-ID kann weiterhin von Hand eingetragen werden.",
         "linked_entity_placeholder": "z.B. switch.garten_ventil",
         "irrigate_now": "Jetzt bewässern",
         "bucket_threshold": "Mindestdefizit für Bewässerung",
@@ -377,7 +380,8 @@
         "watering_mode_description": "Wie HASI diese Zone ansteuert. Klassisch: HASI öffnet das Ventil und schließt es selbst per Software-Timer. Selbstschließend per Service: HASI übergibt die Laufzeit über ein Skript an ein selbstschließendes Ventil (siehe die mitgelieferten Ventil-Blueprints) und überlässt dem Ventil das Schließen — ein HA-Neustart mitten im Lauf kann so keine Dauerbewässerung auslösen.",
         "watering_modes": {
           "classic": "Klassisch (HASI öffnet & schließt das Ventil)",
-          "service": "Selbstschließend per Service (Ventil schließt selbst)"
+          "service": "Selbstschließend per Service (Ventil schließt selbst)",
+          "opensprinkler": "OpenSprinkler-Station (Steuerung arbeitet die Warteschlange ab)"
         },
         "run_service": "Start-Service",
         "run_service_help": "Service, den HASI zum Starten des Laufs aufruft (z. B. ein script.* oder ein Schalter-/Ventil-Service). Er erhält das Dauer-Feld unten sowie zone_id und zone_name.",

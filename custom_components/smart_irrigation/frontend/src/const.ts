@@ -232,6 +232,15 @@ export const DISTRIBUTOR_WATCH_MODES = ["count", "warn", "ignore"] as const;
 // watering_mode / position_state enum values (match const.py)
 export const WATERING_MODE_CLASSIC = "classic";
 export const WATERING_MODE_SERVICE = "service";
+export const WATERING_MODE_OPENSPRINKLER = "opensprinkler";
+
+// OpenSprinkler station entities carry these in their state attributes; the
+// station picker filters on them rather than on the switch's device_class,
+// which reports "station" but is not a value HA's switch device-class enum
+// defines. Attributes the integration invents cannot collide.
+export const OPENSPRINKLER_ATTR_TYPE = "opensprinkler_type";
+export const OPENSPRINKLER_ATTR_IS_MASTER = "is_master";
+export const OPENSPRINKLER_TYPE_STATION = "station";
 export const POSITION_STATE_SYNCED = "synced";
 export const POSITION_STATE_UNCERTAIN = "uncertain";
 

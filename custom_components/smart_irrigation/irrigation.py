@@ -28,6 +28,7 @@ from .flow_metering import (
 )
 from .helpers import convert_between
 from .localize import localize
+from .opensprinkler import entity_is_station
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -614,6 +615,44 @@ class IrrigationRunnerMixin:
             out.append(z)
         return out
 
+    def _zone_links_a_station(self, zone: dict) -> bool:
+        """This zone would drive an OpenSprinkler station from the classic path.
+
+        ``turn_on`` on a station switch calls ``station.enable()``: it rewrites
+        the station's enabled flag on the controller and opens nothing. The run
+        would therefore rewrite configuration, deliver no water, and still
+        confirm itself as running, because the switch does go on — silent
+        wrong-watering. The watering-mode predicate keeps a zone configured for
+        OpenSprinkler off this path entirely; the remaining way in is a zone left
+        in classic mode with a station in its ``linked_entity``, which is the one
+        new mistake sharing the field permits. Refuse the run and say so.
+        """
+        entity_id = zone.get(const.ZONE_LINKED_ENTITY)
+        if not entity_is_station(self.hass, entity_id):
+            return False
+        zone_id = zone.get(const.ZONE_ID)
+        _LOGGER.error(
+            "Zone %s is in '%s' mode with OpenSprinkler station '%s' as its "
+            "linked entity. Turning that switch on would rewrite the "
+            "controller's configuration without watering, so the run is "
+            "refused; set the zone's watering mode to '%s'",
+            zone_id,
+            zone.get(const.ZONE_WATERING_MODE) or const.WATERING_MODE_CLASSIC,
+            entity_id,
+            const.WATERING_MODE_OPENSPRINKLER,
+        )
+        self._set_zone_fault(zone_id, const.PROBLEM_STATION_WRONG_MODE)
+        self.hass.bus.async_fire(
+            f"{const.DOMAIN}_{const.EVENT_ZONE_PROBLEM}",
+            {
+                "zone_id": zone_id,
+                "zone": zone.get(const.ZONE_NAME),
+                "entity_id": entity_id,
+                "reason": const.PROBLEM_STATION_WRONG_MODE,
+            },
+        )
+        return True
+
     async def _dispatch_sequencing(self, zones: list) -> None:
         """Start the linked-entity zones under the configured sequencing.
 
@@ -627,6 +666,12 @@ class IrrigationRunnerMixin:
         cancelled on shutdown and has its exceptions logged.
         See tests/test_run_lifecycle_safety.py.
         """
+        # Every classic run reaches a valve through here, so this is where a zone
+        # pointing at an OpenSprinkler station is refused (async_run_zone reaches
+        # _irrigate_zones_parallel directly and checks for itself).
+        zones = [z for z in zones if not self._zone_links_a_station(z)]
+        if not zones:
+            return
         sequencing = self.store.config.zone_sequencing
         if sequencing == const.CONF_ZONE_SEQUENCING_SEQUENTIAL:
             token = f"seq:{uuid.uuid4().hex[:8]}"
@@ -2093,6 +2138,8 @@ class IrrigationRunnerMixin:
             return
         if not zone.get(const.ZONE_LINKED_ENTITY):
             _LOGGER.warning("run_zone: zone %s has no linked entity", zone_id)
+            return
+        if self._zone_links_a_station(zone):
             return
 
         # Master (pump): _irrigate_zones_parallel below acquires the hold before it
