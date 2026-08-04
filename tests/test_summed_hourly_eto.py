@@ -369,9 +369,12 @@ async def coordinator(hass):
     c._effective_latitude = LAT
     c._effective_longitude = LON
     c._effective_elevation = ELEV
-    # The hourly form is gated on continuous updates, so the ingestion mode that
-    # produces a buffer dense enough for it has to be on for these to exercise it.
-    await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: True})
+    # hourlycalculation is the gate; continuousupdates is on as well because it
+    # still selects the time-weighted window aggregate these numbers were taken
+    # against. The two axes are pinned apart in TestTheGateIsItsOwnAxis.
+    await store.async_update_config(
+        {const.CONF_CONTINUOUS_UPDATES: True, const.CONF_HOURLY_CALCULATION: True}
+    )
     return c, store
 
 
@@ -453,17 +456,17 @@ class TestThroughCalculateModule:
         scaled = await self._run(c, store.get_zone(zone[const.ZONE_ID]), now)
         assert scaled[const.ZONE_DELTA] == pytest.approx(plain[const.ZONE_DELTA] * 0.75)
 
-    async def test_polling_keeps_the_daily_form(self, coordinator):
-        """Gated on continuous updates, and the gate is a blast-radius decision.
+    async def test_the_flag_off_keeps_the_daily_form(self, coordinator):
+        """The gate is a blast-radius decision, not a technical limit.
 
         Measured against dense truth on real recorded days the hourly form runs
-        within 8.4% on an hourly-polled install with no systematic bias, so this
-        is not a technical limit. It is gated because the form moves the daily
-        number by up to 12% structured by cloudiness, and an install that opted
-        into nothing should not have its watering change underneath it.
+        within 8.4% on an hourly-polled install with no systematic bias, so it
+        is not withheld from polling. It is gated because the form moves the
+        daily number by up to 12% structured by cloudiness, and an install that
+        opted into nothing should not have its watering change underneath it.
         """
         c, store = coordinator
-        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: False})
+        await store.async_update_config({const.CONF_HOURLY_CALCULATION: False})
         now = T0 + timedelta(hours=12)
         zone = await self._zone(c, store, _dense(_bell(), hours=12))
         data = await self._run(c, zone, now)
@@ -506,3 +509,63 @@ class TestThroughCalculateModule:
         data = await self._run(c, zone, now)
         assert data[const.ZONE_DELTA] == pytest.approx(-2.5)
         assert "hour_multiplier" in data[const.ZONE_EXPLANATION]
+
+
+class TestTheGateIsItsOwnAxis:
+    """hourlycalculation and continuousupdates are independent switches.
+
+    They were one switch, which was wrong in both directions: an install that
+    had enabled continuous ingestion would have received a 12%-scale change to
+    its ET with no further opt-in, and a poll-only install could not have the
+    hourly form at all despite running it within 8.4% of dense truth with no
+    systematic bias. The four combinations are asserted together because a
+    regression here is a silent change to how much water a zone gets.
+    """
+
+    async def _delta(self, c, store, *, continuous, hourly):
+        await store.async_update_config(
+            {
+                const.CONF_CONTINUOUS_UPDATES: continuous,
+                const.CONF_HOURLY_CALCULATION: hourly,
+            }
+        )
+        now = T0 + timedelta(hours=12)
+        zone = await TestThroughCalculateModule()._zone(
+            c, store, _dense(_bell(), hours=12)
+        )
+        data = await TestThroughCalculateModule()._run(c, zone, now)
+        return data[const.ZONE_DELTA], data[const.ZONE_EXPLANATION]
+
+    # The daily form's answer with this fixture: the stubbed -5.0 mm/day scaled
+    # by an hour_multiplier of 0.5 over the half-day window.
+    DAILY = -2.5
+
+    async def test_neither_flag_runs_the_daily_form(self, coordinator):
+        c, store = coordinator
+        delta, explanation = await self._delta(c, store, continuous=False, hourly=False)
+        assert delta == pytest.approx(self.DAILY)
+        assert "hour_multiplier" in explanation
+
+    async def test_continuous_updates_alone_still_runs_the_daily_form(
+        self, coordinator
+    ):
+        """The case that decided the split: denser ingestion is not consent."""
+        c, store = coordinator
+        delta, explanation = await self._delta(c, store, continuous=True, hourly=False)
+        assert delta == pytest.approx(self.DAILY)
+        assert "hour_multiplier" in explanation
+
+    async def test_the_flag_alone_runs_the_hourly_form_on_a_polled_buffer(
+        self, coordinator
+    ):
+        """The case the split unlocks: no event-driven ingestion anywhere here."""
+        c, store = coordinator
+        delta, explanation = await self._delta(c, store, continuous=False, hourly=True)
+        assert delta != pytest.approx(self.DAILY)
+        assert "sum of hourly FAO-56 et0" in explanation
+
+    async def test_both_flags_run_the_hourly_form(self, coordinator):
+        c, store = coordinator
+        delta, explanation = await self._delta(c, store, continuous=True, hourly=True)
+        assert delta != pytest.approx(self.DAILY)
+        assert "sum of hourly FAO-56 et0" in explanation

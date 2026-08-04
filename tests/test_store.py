@@ -80,6 +80,43 @@ class TestSmartIrrigationStore:
             == const.CONF_DEFAULT_SENSOR_DEBOUNCE
         )
 
+    async def test_hourly_calculation_config_roundtrip(self, hass) -> None:
+        """The hourly-calculation flag survives a config round-trip.
+
+        Same half-wiring trap as the two above: a Config attribute without a
+        migration setdefault is stripped by the allowlist on every load, and the
+        toggle silently reverts to off with nothing logged about it.
+        """
+        reg = await async_get_registry(hass)
+        cfg = await reg.async_get_config()
+        assert cfg.get(const.CONF_HOURLY_CALCULATION) is False
+
+        updated = await reg.async_update_config({const.CONF_HOURLY_CALCULATION: True})
+        assert updated[const.CONF_HOURLY_CALCULATION] is True
+        # Independent of the ingestion flag, which is the whole point of it
+        # being its own key.
+        assert updated[const.CONF_CONTINUOUS_UPDATES] is False
+
+    async def test_migration_defaults_hourly_calculation_off(self, hass) -> None:
+        """A stored config predating the key gains it rather than losing it."""
+        from custom_components.smart_irrigation.store import MigratableStore
+
+        store = MigratableStore(hass, 11, "test.storage")
+        migrated = await store._async_migrate_func(
+            5, {"config": {const.CONF_CONTINUOUS_UPDATES: True}}
+        )
+        assert migrated["config"][const.CONF_HOURLY_CALCULATION] is False
+
+    async def test_migration_keeps_a_stored_hourly_calculation(self, hass) -> None:
+        """And an install that turned it on keeps it across the allowlist strip."""
+        from custom_components.smart_irrigation.store import MigratableStore
+
+        store = MigratableStore(hass, 11, "test.storage")
+        migrated = await store._async_migrate_func(
+            11, {"config": {const.CONF_HOURLY_CALCULATION: True}}
+        )
+        assert migrated["config"][const.CONF_HOURLY_CALCULATION] is True
+
     async def test_zone_crud(self, hass) -> None:
         reg = await async_get_registry(hass)
         created = await reg.async_create_zone(

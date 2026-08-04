@@ -66,6 +66,7 @@ export class SmartIrrigationConfig {
   autoclearenabled: boolean;
   continuousupdates: boolean;
   sensor_debounce: number;
+  hourlycalculation: boolean;
   skip_irrigation_on_precipitation: boolean;
   precipitation_threshold_mm: number;
   precipitation_forecast_days: number;
@@ -115,6 +116,9 @@ export class SmartIrrigationConfig {
     // was short enough to be no debounce at all for a chatty sensor).
     this.continuousupdates = false;
     this.sensor_debounce = 5000;
+    // Its own opt-in: the hourly form moves the daily ET by up to 12%, so it
+    // must not arrive on the back of any other switch.
+    this.hourlycalculation = false;
     this.skip_irrigation_on_precipitation = false;
     this.precipitation_threshold_mm = 2.0;
     this.precipitation_forecast_days = 1;

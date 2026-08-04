@@ -716,6 +716,12 @@
         "debounce_label": "Zoskupiť zmeny prichádzajúce v rámci (milisekundy)",
         "note": "Týka sa skupín senzorov, ktorých hodnoty pochádzajú zo senzorov Home Assistant. Zoskupovacie oneskorenie len odloží následnú evidenciu — nezahodí sa ním žiadne meranie. Nastavením na 0 zoskupovanie vypnete."
       },
+      "hourly_calculation": {
+        "title": "Hodinová evapotranspirácia",
+        "description": "Štandardne sa rovnica FAO-56 počíta raz z priemerného počasia okna, čo oblačnosť systematicky skresľuje: pri jednej a tej istej hodinovej sérii za 362 dní vracia v zamračených dňoch 1,14-násobok referencie a v jasných 0,93-násobok. Pri zapnutí sa rovnica počíta pre každú hodinu a hodiny sa spočítajú, čím sa toto skreslenie odstráni, a vodná bilancia sa prehrá hodinu po hodine, takže dážď a drenáž sa zaúčtujú vtedy, keď nastali, a nie naraz na začiatku okna. Denná hodnota sa tým môže posunúť až o 12 percent, podľa oblohy oboma smermi. Vyžaduje merané, nie odhadované slnečné žiarenie a nepoužije sa v dňoch, do ktorých sa započítava predpoveď.",
+        "label": "Sčítavať evapotranspiráciu hodinu po hodine",
+        "note": "Nezávisí od priebežných aktualizácií senzorov: podporujú ju aj naplánované hodinové aktualizácie a hustejšia vyrovnávacia pamäť ju spresní, no nie je podmienkou. Každé okno, ktoré sa nedá rozložiť na hodinové riadky, si ponechá dennú rovnicu, takže sa nikdy nevymyslí žiadna séria."
+      },
       "distributors": {
         "title": "Mechanické rozvádzače vody",
         "description": "Ovládajte mechanický tlakový rozvádzač — napríklad rozvádzač vody Gardena — ktorý rozdeľuje jeden prívod na niekoľko výstupov a posúva sa impulzmi zapnutia a vypnutia vody. Priraďte zóny k výstupom rozvádzača a Smart Irrigation ich zavlažuje postupne, sleduje polohu a koordinuje hlavný ventil alebo čerpadlo. Ide o novú funkciu, ktorú nebolo možné úplne otestovať na hardvéri, preto ju berte ako beta verziu.",

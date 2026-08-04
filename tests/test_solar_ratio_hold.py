@@ -292,7 +292,9 @@ async def coordinator(hass):
     c._effective_latitude = LAT
     c._effective_longitude = LON
     c._effective_elevation = ELEV
-    await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: True})
+    await store.async_update_config(
+        {const.CONF_CONTINUOUS_UPDATES: True, const.CONF_HOURLY_CALCULATION: True}
+    )
     return c, store
 
 

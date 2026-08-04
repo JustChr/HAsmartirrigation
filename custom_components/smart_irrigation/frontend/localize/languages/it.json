@@ -716,6 +716,12 @@
         "debounce_label": "Raggruppa le variazioni ricevute entro (millisecondi)",
         "note": "Si applica ai gruppi di sensori i cui valori provengono da sensori di Home Assistant. Il ritardo di raggruppamento posticipa soltanto la contabilizzazione successiva — nessuna lettura viene mai scartata a causa sua. Imposta 0 per disattivare il raggruppamento."
       },
+      "hourly_calculation": {
+        "title": "Evapotraspirazione oraria",
+        "description": "Per impostazione predefinita l'equazione FAO-56 viene calcolata una sola volta sulla media meteo della finestra, cosa che la nuvolosità distorce in modo sistematico: alimentata con un'unica serie oraria su 362 giorni restituisce 1,14 volte il riferimento nei giorni coperti e 0,93 volte in quelli sereni. Con questa opzione attiva l'equazione viene calcolata per ogni ora e le ore vengono sommate, il che elimina quella distorsione, e il bilancio idrico viene ricalcolato ora per ora, così pioggia e drenaggio vengono contabilizzati quando si sono verificati anziché tutti all'inizio della finestra. Il valore giornaliero può spostarsi fino al 12 per cento, in entrambe le direzioni a seconda del cielo. Richiede un irradiamento solare misurato anziché stimato e non viene usata nei giorni in cui viene combinata una previsione.",
+        "label": "Somma l'evapotraspirazione ora per ora",
+        "note": "Indipendente dagli aggiornamenti continui dei sensori: anche gli aggiornamenti pianificati ogni ora la supportano, e un buffer più fitto la rende più accurata senza esserne un requisito. Ogni finestra che non può essere ridotta a righe orarie mantiene l'equazione giornaliera, così nessuna serie viene mai inventata."
+      },
       "distributors": {
         "title": "Distributori d'acqua meccanici",
         "description": "Comanda un distributore a pressione meccanico — ad esempio un Distributore d'acqua Gardena — che suddivide un'alimentazione in più uscite e avanza tramite impulsi di apertura e chiusura dell'acqua. Assegna le zone alle uscite di un distributore e Smart Irrigation le irriga in sequenza, traccia la posizione e coordina una valvola master o una pompa. È una funzione nuova che non è stato possibile testare completamente sull'hardware, quindi trattala come una beta.",

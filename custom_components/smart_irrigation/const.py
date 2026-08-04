@@ -89,6 +89,16 @@ CONF_DEFAULT_DISTRIBUTORS_ENABLED = False
 # storage file). Off by default.
 CONF_CONTINUOUS_UPDATES = "continuousupdates"
 CONF_DEFAULT_CONTINUOUS_UPDATES = False
+# Hourly calculation: sum FAO-56 hourly ETo over the window and replay the water
+# balance hour by hour, instead of running the daily equation on window-mean
+# weather. Its own switch rather than riding on continuousupdates, for two
+# reasons pulling the same way: an install that enabled continuous updates asked
+# for denser ingestion and would otherwise get a change of up to 12% in its ET,
+# structured by cloudiness, with no further opt-in; and an hourly-POLLED install
+# runs this form within 8.4% of dense truth with no systematic bias, so there is
+# no technical reason to withhold it there. Off by default.
+CONF_HOURLY_CALCULATION = "hourlycalculation"
+CONF_DEFAULT_HOURLY_CALCULATION = False
 # Debounce (milliseconds) coalescing a burst of sensor changes into one
 # post-append update per sensor group. altmenorg defaulted to 100 ms, which is
 # effectively no debounce for a chatty sensor; 5 s costs nothing in ET accuracy

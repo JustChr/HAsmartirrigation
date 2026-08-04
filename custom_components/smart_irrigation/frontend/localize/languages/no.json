@@ -716,6 +716,12 @@
         "debounce_label": "Grupper endringer som kommer innen (millisekunder)",
         "note": "Gjelder sensorgrupper der verdiene kommer fra Home Assistant-sensorer. Grupperingsforsinkelsen utsetter bare den påfølgende bokføringen — ingen avlesning forkastes av den. Sett den til 0 for å slå av gruppering."
       },
+      "hourly_calculation": {
+        "title": "Timesvis evapotranspirasjon",
+        "description": "Som standard beregnes FAO-56-ligningen én gang over gjennomsnittsværet i vinduet, noe skydekket forskyver systematisk: matet med én og samme timesserie over 362 dager gir den 1,14 ganger referansen på overskyede dager og 0,93 ganger på klare. Med dette på beregnes ligningen for hver time og timene summeres, noe som fjerner den forskyvningen, og vannbalansen kjøres om time for time, slik at regn og drenering bokføres da de skjedde i stedet for samlet ved starten av vinduet. Dagstallet kan flytte seg opptil 12 prosent, i begge retninger avhengig av himmelen. Krever målt og ikke estimert solstråling, og brukes ikke på dager der en værmelding blandes inn.",
+        "label": "Summer evapotranspirasjonen time for time",
+        "note": "Uavhengig av kontinuerlige sensoroppdateringer: planlagte oppdateringer hver time støtter dette også, og en tettere buffer gjør det mer nøyaktig uten å være et krav. Ethvert vindu som ikke kan reduseres til timesrader, beholder den daglige ligningen, så ingen serie blir noen gang oppdiktet."
+      },
       "distributors": {
         "title": "Mekaniske vannfordelere",
         "description": "Styr en mekanisk trykkfordeler — for eksempel en Gardena vannfordeler — som deler én tilførsel i flere uttak og rykker fram ved å pulse vannet av og på. Tilordne soner til uttakene på en fordeler, så vanner Smart Irrigation dem etter tur, sporer posisjonen og koordinerer en masterventil eller pumpe. Dette er en ny funksjon som ikke kunne testes fullt ut på maskinvare, så behandle den som en beta.",

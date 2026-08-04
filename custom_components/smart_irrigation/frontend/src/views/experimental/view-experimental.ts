@@ -15,6 +15,7 @@ import {
   CONF_DISTRIBUTORS_ENABLED,
   CONF_CONTINUOUS_UPDATES,
   CONF_SENSOR_DEBOUNCE,
+  CONF_HOURLY_CALCULATION,
   DOMAIN,
 } from "../../const";
 
@@ -25,7 +26,8 @@ type ExperimentalFlag =
   | typeof CONF_OBSERVED_WATERING_ENABLED
   | typeof CONF_LIVE_ESTIMATE_ENABLED
   | typeof CONF_DISTRIBUTORS_ENABLED
-  | typeof CONF_CONTINUOUS_UPDATES;
+  | typeof CONF_CONTINUOUS_UPDATES
+  | typeof CONF_HOURLY_CALCULATION;
 
 /**
  * Setup → Experimental: opt-in features that change how the bucket is filled.
@@ -116,6 +118,11 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         this.config.distributors_enabled,
       )}
       ${this._renderContinuousUpdatesCard()}
+      ${this._renderToggleCard(
+        "hourly_calculation",
+        CONF_HOURLY_CALCULATION,
+        this.config.hourlycalculation,
+      )}
     `;
   }
 

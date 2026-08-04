@@ -716,6 +716,12 @@
         "debounce_label": "Agrupar los cambios que llegan dentro de (milisegundos)",
         "note": "Se aplica a los grupos de sensores cuyos valores provienen de sensores de Home Assistant. El retardo de agrupación solo pospone el registro posterior — nunca descarta ninguna lectura. Ponlo a 0 para desactivar la agrupación."
       },
+      "hourly_calculation": {
+        "title": "Evapotranspiración horaria",
+        "description": "De forma predeterminada, la ecuación FAO-56 se calcula una sola vez sobre la media meteorológica de la ventana, lo que la nubosidad sesga de forma sistemática: alimentada con una misma serie horaria a lo largo de 362 días, devuelve 1,14 veces la referencia en días cubiertos y 0,93 veces en días despejados. Con esta opción activada, la ecuación se calcula para cada hora y las horas se suman, lo que elimina ese sesgo, y el balance de agua se recalcula hora a hora, de modo que la lluvia y el drenaje se registran cuando ocurrieron y no todos al principio de la ventana. Espere que la cifra diaria se mueva hasta un 12 por ciento, en cualquiera de los dos sentidos según el cielo. Requiere una radiación solar medida en lugar de estimada, y no se usa en los días en los que se mezcla una previsión.",
+        "label": "Sumar la evapotranspiración hora a hora",
+        "note": "Independiente de las actualizaciones continuas de sensores: las actualizaciones programadas cada hora también la admiten, y un búfer más denso la hace más precisa sin ser imprescindible. Toda ventana que no pueda reducirse a filas horarias conserva la ecuación diaria, de modo que nunca se inventa una serie."
+      },
       "distributors": {
         "title": "Distribuidores de agua mecánicos",
         "description": "Controla un distribuidor de presión mecánico —por ejemplo un Distribuidor de agua Gardena— que reparte un suministro en varias salidas y avanza con impulsos de encendido y apagado del agua. Asigna zonas a las salidas de un distribuidor y Smart Irrigation las riega en secuencia, sigue la posición y coordina una válvula maestra o una bomba. Es una función nueva que no pudo probarse por completo en hardware, así que trátala como una beta.",

@@ -309,10 +309,13 @@ async def coordinator(hass):
     hass.config.language = "en"
     store = SmartIrrigationStorage(hass)
     await store.async_load()
-    # The replay is gated behind continuous updates, so the tests that exercise
-    # it have to opt in the way a user does. TestTheContinuousUpdatesGate below
-    # pins what happens without it.
-    await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: True})
+    # The replay is gated behind hourlycalculation, so the tests that exercise it
+    # have to opt in the way a user does. TestTheHourlyCalculationGate below pins
+    # what happens without it. continuousupdates is on as well because it still
+    # selects the time-weighted window aggregate these numbers were taken against.
+    await store.async_update_config(
+        {const.CONF_CONTINUOUS_UPDATES: True, const.CONF_HOURLY_CALCULATION: True}
+    )
     entry = Mock()
     entry.unique_id = "t"
     entry.data = {}
@@ -417,7 +420,7 @@ class TestThroughCalculateModule:
         assert "replayed across the window" not in data[const.ZONE_EXPLANATION]
 
 
-class TestTheContinuousUpdatesGate:
+class TestTheHourlyCalculationGate:
     """Polling keeps the single-shot balance, byte for byte.
 
     The replay is a better number on the same data, but it moves the stored
@@ -426,9 +429,9 @@ class TestTheContinuousUpdatesGate:
     already had.
     """
 
-    async def test_polling_keeps_the_single_shot_balance(self, coordinator):
+    async def test_the_flag_off_keeps_the_single_shot_balance(self, coordinator):
         c, store = coordinator
-        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: False})
+        await store.async_update_config({const.CONF_HOURLY_CALCULATION: False})
         zone = await TestThroughCalculateModule()._zone_with_a_rain_day(
             c, store, {h: 38.10 / 6 for h in range(16, 22)}, 2.97, et=3.0
         )
@@ -444,7 +447,7 @@ class TestTheContinuousUpdatesGate:
     async def test_the_same_window_replays_once_the_flag_is_on(self, coordinator):
         """The gate is the only difference, so the same day must move the bucket."""
         c, store = coordinator
-        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: False})
+        await store.async_update_config({const.CONF_HOURLY_CALCULATION: False})
         zone = await TestThroughCalculateModule()._zone_with_a_rain_day(
             c, store, {h: 38.10 / 6 for h in range(16, 22)}, 2.97, et=3.0
         )
@@ -452,7 +455,7 @@ class TestTheContinuousUpdatesGate:
         weatherdata, _ = await c._aggregate_for_zone(zone, now=now)
         polled = await c.calculate_module(zone, weatherdata, None, now=now)
 
-        await store.async_update_config({const.CONF_CONTINUOUS_UPDATES: True})
+        await store.async_update_config({const.CONF_HOURLY_CALCULATION: True})
         zone = store.get_zone(zone[const.ZONE_ID])
         zone[const.ZONE_BUCKET] = 2.97
         zone[const.ZONE_LAST_CONSUMED] = T0

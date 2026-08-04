@@ -434,20 +434,27 @@ class CalculationMixin:
                 modinst._elevation = eff_elev
         return modinst
 
-    def _continuous_updates_enabled(self) -> bool:
-        """Whether this install has opted into event-driven ingestion.
+    def _hourly_calculation_enabled(self) -> bool:
+        """Whether this install has opted into the hourly form of the calculation.
 
-        The single gate for both halves of this feature, so they cannot drift
+        The single gate for both halves of the feature, so they cannot drift
         apart: the summed-hourly ET form and the replayed water balance each
         move the numbers an existing install already sees, and neither should
-        arrive without the user turning something on. Strict identity check so a
-        test double or an absent attribute reads as off, matching the poll-skip
-        guard and the mixin's own setup.
+        arrive without the user turning something on.
+
+        Deliberately its OWN switch and not ``continuousupdates``. Reading the
+        ingestion flag would have handed a 12%-scale ET change to every install
+        that had opted into denser ingestion and nothing else, while withholding
+        it from hourly-polled installs, which measure within 8.4% of dense truth
+        on this form with no systematic bias. The two axes are independent.
+
+        Strict identity check so a test double or an absent attribute reads as
+        off, matching the poll-skip guard and the mixin's own setup.
         """
         return (
             getattr(
                 getattr(self.store, "config", None),
-                const.CONF_CONTINUOUS_UPDATES,
+                const.CONF_HOURLY_CALCULATION,
                 False,
             )
             is True
@@ -468,13 +475,13 @@ class CalculationMixin:
         sub-steps can charge each hour its own ET rather than shaping one daily
         number. Returns None whenever the hourly form cannot be applied honestly:
 
-        * continuous updates are off. This one is a blast-radius decision rather
-          than a technical limit: measured against dense truth on real recorded
-          days, an hourly-polled install runs this form within 8.4% and with no
-          systematic bias, so it would work there too. It is gated because the
-          hourly form moves the daily number by up to 12% structured by
-          cloudiness, and an install that has opted into nothing should not have
-          its watering change under it. Polling keeps the daily equation;
+        * ``hourlycalculation`` is off. This one is a blast-radius decision
+          rather than a technical limit: the hourly form moves the daily number
+          by up to 12% structured by cloudiness, and an install that has opted
+          into nothing should not have its watering change under it. It is NOT
+          gated on ingestion density -- measured against dense truth on real
+          recorded days, an hourly-polled install runs this form within 8.4% and
+          with no systematic bias, so a poll-only install may turn it on;
         * the module estimates solar radiation rather than measuring it, so the
           measured series is not what it would have used;
         * forecast days are configured, which averages today with days that have
@@ -485,7 +492,7 @@ class CalculationMixin:
         In every case the caller keeps the daily path, so the fallback is today's
         behaviour rather than a fabricated series.
         """
-        if not self._continuous_updates_enabled():
+        if not self._hourly_calculation_enabled():
             return None
         if str(getattr(modinst, "_solrad_behavior", "")) != str(
             SOLRAD_behavior.DontEstimate.value
@@ -559,7 +566,7 @@ class CalculationMixin:
         an assumption has broken. Falling back then costs the sub-stepping but
         keeps the ledger self-consistent, which is the more important property.
 
-        Gated behind continuous updates for the same reason as the hourly ET
+        Gated behind ``hourlycalculation`` for the same reason as the hourly ET
         form: replaying the window changes the stored bucket on any install that
         maps precipitation, because rain that used to be booked at the window
         start (clamped against maximum_bucket there, and over-drained for the
@@ -567,7 +574,7 @@ class CalculationMixin:
         number, but it is still a change to what an install that opted into
         nothing sees, so it travels with the same switch.
         """
-        if not self._continuous_updates_enabled():
+        if not self._hourly_calculation_enabled():
             return None
         mapping_id = zone.get(const.ZONE_MAPPING)
         if mapping_id is None:

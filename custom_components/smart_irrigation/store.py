@@ -40,6 +40,7 @@ from .const import (
     CONF_DEFAULT_DRAINAGE_RATE,
     CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
     CONF_DEFAULT_FREEZE_THRESHOLD,
+    CONF_DEFAULT_HOURLY_CALCULATION,
     CONF_DEFAULT_KC,
     CONF_DEFAULT_LIVE_ESTIMATE_ENABLED,
     CONF_DEFAULT_LOG_NO_DEMAND,
@@ -68,6 +69,7 @@ from .const import (
     CONF_DISTRIBUTORS_ENABLED,
     CONF_FORECAST_WEIGHTING_ENABLED,
     CONF_FREEZE_THRESHOLD,
+    CONF_HOURLY_CALCULATION,
     CONF_IMPERIAL,
     CONF_LEGACY_FRESH_DURATION_ENABLED,
     CONF_LEGACY_LIVE_DURATION_ENABLED,
@@ -390,6 +392,9 @@ class Config:
     # simply absent (and a stored value for a key with no attribute is dropped).
     continuousupdates = attr.ib(type=bool, default=CONF_DEFAULT_CONTINUOUS_UPDATES)
     sensor_debounce = attr.ib(type=int, default=CONF_DEFAULT_SENSOR_DEBOUNCE)
+    # Summed-hourly ETo + the replayed water balance. Same migration obligation
+    # as the two above.
+    hourlycalculation = attr.ib(type=bool, default=CONF_DEFAULT_HOURLY_CALCULATION)
     # The unit system the stored zone values were written under. Seeded by the
     # v13 migration and rewritten whenever the coordinator reconciles a flip;
     # None only on a store that predates the key. See unit_system.py, issue #67.
@@ -659,6 +664,12 @@ class MigratableStore(Store):
                 ] = CONF_DEFAULT_CONTINUOUS_UPDATES
             if CONF_SENSOR_DEBOUNCE not in data["config"]:
                 data["config"][CONF_SENSOR_DEBOUNCE] = CONF_DEFAULT_SENSOR_DEBOUNCE
+            # Same obligation as the two above: no setdefault here and the
+            # hourly-calculation toggle is stripped on every load.
+            if CONF_HOURLY_CALCULATION not in data["config"]:
+                data["config"][
+                    CONF_HOURLY_CALCULATION
+                ] = CONF_DEFAULT_HOURLY_CALCULATION
 
             # Get valid field names from Config class to filter out unrecognized keys
             valid_fields = set(attr.fields_dict(Config).keys())
@@ -864,6 +875,10 @@ class SmartIrrigationStorage:
                 continuousupdates=data["config"].get(
                     CONF_CONTINUOUS_UPDATES,
                     CONF_DEFAULT_CONTINUOUS_UPDATES,
+                ),
+                hourlycalculation=data["config"].get(
+                    CONF_HOURLY_CALCULATION,
+                    CONF_DEFAULT_HOURLY_CALCULATION,
                 ),
                 # Coerced: altmenorg's frontend could store this as a string, and
                 # a str would reach timedelta(milliseconds=...) unconverted.

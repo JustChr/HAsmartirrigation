@@ -48,6 +48,11 @@ export const CONF_DISTRIBUTORS_ENABLED = "distributors_enabled";
 // storage key, hence the lower-case run-together spelling.
 export const CONF_CONTINUOUS_UPDATES = "continuousupdates";
 export const CONF_SENSOR_DEBOUNCE = "sensor_debounce";
+// Summed-hourly ETo + the hour-by-hour water balance. Independent of
+// continuousupdates: an hourly-polled buffer supports this form too, and an
+// install that enabled denser ingestion did not thereby ask for a different
+// ET equation. Same run-together spelling for the same reason.
+export const CONF_HOURLY_CALCULATION = "hourlycalculation";
 export const CONF_LOG_NO_DEMAND = "log_no_demand";
 
 // Days between irrigation configuration

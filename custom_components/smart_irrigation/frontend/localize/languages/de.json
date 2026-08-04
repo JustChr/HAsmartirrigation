@@ -716,6 +716,12 @@
         "debounce_label": "Änderungen gruppieren, die innerhalb von (Millisekunden) eintreffen",
         "note": "Gilt für Sensorgruppen, deren Werte von Home-Assistant-Sensoren stammen. Die Gruppierungs-Verzögerung verschiebt nur die nachgelagerte Verbuchung — kein Messwert geht dadurch je verloren. Auf 0 setzen, um die Gruppierung zu deaktivieren."
       },
+      "hourly_calculation": {
+        "title": "Stündliche Verdunstung",
+        "description": "Standardmäßig wird die FAO-56-Gleichung einmal über das Mittel des Zeitfensters gerechnet, was die Bewölkung systematisch verzerrt: mit einer identischen stündlichen Reihe über 362 Tage ergibt sie an bedeckten Tagen das 1,14-Fache und an klaren Tagen das 0,93-Fache der Referenz. Ist diese Option aktiv, wird die Gleichung für jede Stunde gerechnet und die Stunden werden summiert, was diese Verzerrung beseitigt, und die Wasserbilanz wird Stunde für Stunde nachgerechnet, sodass Regen und Drainage dann verbucht werden, wenn sie eingetreten sind, statt gesammelt zu Beginn des Zeitfensters. Der Tageswert kann sich dadurch um bis zu 12 Prozent verschieben, je nach Himmel in beide Richtungen. Erfordert eine gemessene statt geschätzte Solarstrahlung und wird an Tagen mit eingerechneter Vorhersage nicht verwendet.",
+        "label": "Verdunstung stundenweise summieren",
+        "note": "Unabhängig von kontinuierlichen Sensoraktualisierungen: auch geplante stündliche Aktualisierungen tragen dieses Verfahren, ein dichterer Puffer macht es genauer, ist aber keine Voraussetzung. Jedes Zeitfenster, das sich nicht in Stundenzeilen zerlegen lässt, behält die tägliche Gleichung, sodass nie eine Reihe erfunden wird."
+      },
       "distributors": {
         "title": "Mechanische Wasserverteiler",
         "description": "Steuert einen mechanischen Druck-Verteiler — z. B. einen Gardena Wasserverteiler — der eine Zuleitung auf mehrere Abgänge aufteilt und durch An-/Aus-Impulse des Wassers weiterschaltet. Ordne Zonen den Abgängen eines Verteilers zu; Smart Irrigation bewässert sie der Reihe nach, verfolgt die Position und koordiniert ein Master-Ventil bzw. eine Pumpe. Das ist eine neue Funktion, die nicht vollständig an Hardware getestet werden konnte — behandle sie als Beta.",
