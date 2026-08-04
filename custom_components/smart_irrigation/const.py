@@ -741,7 +741,20 @@ OPENSPRINKLER_ATTR_IS_MASTER = "is_master"
 # "If a station is not running (sbit is 0) but has a non-zero pid, that means the
 # station is in the queue waiting to run."
 OPENSPRINKLER_ATTR_PROGRAM_ID = "running_program_id"
+# ISO-8601 UTC instant the CONTROLLER says the station started watering, which is
+# not the instant Home Assistant noticed: the integration polls, so the "on" and
+# the "off" transitions are each seen up to one poll late. Measuring a run between
+# the two sightings gives a window that is short as often as it is long, and a
+# short one records a run the controller completed in full as an early stop. The
+# controller's own start removes half of that error and all of its bias.
+OPENSPRINKLER_ATTR_START_TIME = "start_time"
 OPENSPRINKLER_TYPE_STATION = "station"
+# How far the controller's reported start may sit outside the window the run
+# could plausibly occupy before it is discarded for dt_util.utcnow(). It is
+# derived from the controller's clock and its configured timezone offset, so a
+# mis-set clock must not be able to invent a run that began in the future or
+# hours ago; falling back only costs the accuracy this constant exists to gain.
+OPENSPRINKLER_START_TIME_SLACK_SECONDS = 60
 
 # How long after dispatch the controller has to acknowledge the run by putting a
 # non-zero program id on the station. The integration refreshes immediately after

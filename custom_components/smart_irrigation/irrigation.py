@@ -584,8 +584,16 @@ class IrrigationRunnerMixin:
             # Self-closing zones delegate the run to their own service (the valve
             # owns the close); they bypass the linked-entity sequencing below.
             # Each takes its own hold, released when its run finalises.
-            for z in [z for z in zones_to_irrigate if self._sc_is_self_closing(z)]:
+            self_closing = [z for z in zones_to_irrigate if self._sc_is_self_closing(z)]
+            for z in [z for z in self_closing if not self._os_is_opensprinkler(z)]:
                 await self.async_run_self_closing(z, trigger="schedule")
+            # Stations go through their own dispatcher: one controller can run
+            # several at once, so zone_sequencing has to be applied here rather
+            # than left to the hardware.
+            await self.async_dispatch_opensprinkler_zones(
+                [z for z in self_closing if self._os_is_opensprinkler(z)],
+                trigger="schedule",
+            )
             linked = [z for z in zones_to_irrigate if not self._sc_is_self_closing(z)]
             if linked:
                 await self._dispatch_sequencing(linked)
@@ -2065,8 +2073,15 @@ class IrrigationRunnerMixin:
             cycle_token = f"cycle:{uuid.uuid4().hex[:8]}"
             await self.async_master_acquire(cycle_token)
             try:
-                for z in [z for z in zones_to_irrigate if self._sc_is_self_closing(z)]:
+                self_closing = [
+                    z for z in zones_to_irrigate if self._sc_is_self_closing(z)
+                ]
+                for z in [z for z in self_closing if not self._os_is_opensprinkler(z)]:
                     await self.async_run_self_closing(z, trigger="manual")
+                await self.async_dispatch_opensprinkler_zones(
+                    [z for z in self_closing if self._os_is_opensprinkler(z)],
+                    trigger="manual",
+                )
                 remaining = [
                     z for z in zones_to_irrigate if not self._sc_is_self_closing(z)
                 ]

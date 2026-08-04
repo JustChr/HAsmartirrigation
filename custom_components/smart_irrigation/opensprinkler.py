@@ -7,12 +7,20 @@ that was offline when the zone was configured still works later.
 
 Why this is not just self-closing mode with a different service
 ---------------------------------------------------------------
-An OpenSprinkler controller runs ONE station at a time. Dispatching four zones
-with ``queue_option: append`` leaves one station running and three queued, so
-nothing about a run may be measured from the moment it was dispatched: zone four
-would finalise, credit its usage and release its accounting long before its water
-flowed. The run is therefore driven by the station's own running sensor, and the
-dispatch time is used for exactly one thing — deciding when to give up waiting.
+A controller queues what it is given. Whether a station waits for the ones before
+it or runs alongside them is a per-station flag in the controller's own
+configuration, so ``queue_option: append`` can leave a zone watering immediately
+or hours later, and the same four zones behave differently on two controllers.
+Nothing about a run may therefore be measured from the moment it was dispatched:
+a queued zone would finalise, credit its usage and release its accounting long
+before its water flowed. The run is driven by the station's own running sensor
+instead, and the dispatch time is used for exactly one thing — deciding when to
+give up waiting.
+
+That flag is also why ``zone_sequencing`` is applied here rather than left to the
+hardware: the integration exposes no way to set it, so a controller whose
+stations are flagged to run concurrently would ignore the setting entirely. See
+``async_dispatch_opensprinkler_zones``.
 
 Why the station switch must never be turned on
 ----------------------------------------------
@@ -29,6 +37,7 @@ returns before it gets there.
 from __future__ import annotations
 
 import logging
+import uuid
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.core import Event, callback
@@ -120,6 +129,50 @@ def resolve_running_sensor(hass, station_entity_id: str) -> str | None:
                 continue
         return state.entity_id
     return None
+
+
+def observed_start_iso(hass, running_entity: str, planned_seconds: float) -> str:
+    """When the station started watering, ISO-8601 UTC, for RUN_OBSERVED_START.
+
+    Prefers the controller's own ``start_time`` over the moment Home Assistant
+    noticed the station was on. The integration polls (5 s by default), so both
+    ends of a run are seen up to a poll late; a window measured between the two
+    sightings is short as often as it is long, by up to a poll interval either
+    way. One second of slack in the completion test cannot absorb that, so a run
+    the controller finished in full is recorded as an early stop roughly half the
+    time — and because the delivered fraction is clamped at 1.0 above but scaled
+    down below, the error biases the bucket credit one way. Live against a real
+    controller, two of four full 60 s runs came back as ``partial``.
+
+    Anchoring to the controller's start makes the measured window at least the
+    true one, so a full run always reads as complete and always credits 1.0.
+
+    Falls back to now when the attribute is absent (an older firmware, a station
+    whose payload lacks it) or implausible — it is built from the controller's
+    clock and its configured timezone offset, and a wrong one there must not be
+    able to claim a run began in the future or hours before it could have.
+    """
+    now = dt_util.utcnow()
+    attributes = station_attributes(hass, running_entity) or {}
+    raw = attributes.get(const.OPENSPRINKLER_ATTR_START_TIME)
+    if raw:
+        reported = dt_util.parse_datetime(str(raw))
+        if reported is not None:
+            slack = const.OPENSPRINKLER_START_TIME_SLACK_SECONDS
+            age = (now - dt_util.as_utc(reported)).total_seconds()
+            # The station is running as this is called, so a credible start lies
+            # between "just now" and one planned window ago, plus clock slack.
+            if -slack <= age <= max(0.0, planned_seconds) + slack:
+                return dt_util.as_utc(reported).isoformat()
+            _LOGGER.debug(
+                "Station %s reported start %s is %.0fs from now, outside the "
+                "plausible window for a %.0fs run; using the observation time",
+                running_entity,
+                raw,
+                age,
+                planned_seconds,
+            )
+    return now.isoformat()
 
 
 def zone_watch_entity(hass, zone: dict) -> str | None:
@@ -265,9 +318,121 @@ class OpenSprinklerMixin:
             cancel()
 
     def async_teardown_opensprinkler_watchers(self) -> None:
-        """Drop every station subscription (called on unload)."""
+        """Drop every station subscription and pending chain (called on unload)."""
         for zone_id in list(self._os_watchers()):
             self._os_cancel_watch(zone_id)
+        # The chain lives in memory only, so unload ends it. The master hold goes
+        # with the coordinator; there is nothing left that could release it.
+        chain = self._os_chain_state()
+        chain["zones"], chain["trigger"], chain["token"] = [], None, None
+
+    # --- sequencing ---------------------------------------------------------
+
+    def _os_chain_state(self) -> dict:
+        """Lazy dispatch chain: zones still to start, and the cycle's master hold.
+
+        In memory only, deliberately. Persisting it would mean re-dispatching
+        after a restart, and this mode's contract is that Smart Irrigation never
+        actuates a station on the way back up — see ``_os_resume_run``. The cost
+        is that a restart mid-cycle abandons whatever had not been dispatched
+        yet, which is the trade sequential sequencing makes: under ``parallel``
+        the whole cycle sits in the controller's queue and survives a crash,
+        under ``sequential`` only the run that already started does.
+        """
+        state = getattr(self, "_os_pending_chain", None)
+        if state is None:
+            state = self._os_pending_chain = {
+                "zones": [],
+                "trigger": None,
+                "token": None,
+            }
+        return state
+
+    async def async_dispatch_opensprinkler_zones(self, zones: list, *, trigger) -> None:
+        """Start OpenSprinkler zones under the configured zone sequencing.
+
+        The controller decides for itself whether stations run one at a time or
+        together — it is a per-station flag in its own configuration, and the
+        integration exposes no way to set it — so ``parallel`` here means "hand
+        the controller everything and let it schedule", which is what a station's
+        own sequential-group setting then governs.
+
+        ``sequential`` is the case Smart Irrigation has to enforce itself: it
+        dispatches one station and holds the rest back until that run finalises,
+        so the setting means the same thing on a controller whose stations are
+        flagged to run concurrently as on one whose stations are not.
+        """
+        zones = [z for z in zones if self._os_is_opensprinkler(z)]
+        if not zones:
+            return
+        sequencing = self.store.config.zone_sequencing
+        if sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL or len(zones) == 1:
+            for zone in zones:
+                await self.async_run_self_closing(zone, trigger=trigger)
+            return
+        if sequencing == const.CONF_ZONE_SEQUENCING_ROTATING:
+            # Rotating splits each zone's duration into slots with absorption
+            # waits between turns. That is a different dispatch shape, not a
+            # chain, and is not implemented for stations yet — say so rather than
+            # let it look like it was honoured.
+            _LOGGER.warning(
+                "Zone sequencing '%s' is not implemented for OpenSprinkler "
+                "stations; running the %s station zones sequentially instead",
+                const.CONF_ZONE_SEQUENCING_ROTATING,
+                len(zones),
+            )
+
+        state = self._os_chain_state()
+        state["zones"] = [int(z.get(const.ZONE_ID)) for z in zones[1:]]
+        state["trigger"] = trigger
+        if state["token"] is None:
+            # One hold for the whole chain, as the classic sequential path does:
+            # the gaps between runs are part of the cycle, and a per-run hold
+            # would drop the master in each of them.
+            state["token"] = f"os-chain:{uuid.uuid4().hex[:8]}"
+            await self.async_master_acquire(state["token"])
+        _LOGGER.info(
+            "OpenSprinkler: dispatching zone %s, %s more chained behind it",
+            zones[0].get(const.ZONE_ID),
+            len(state["zones"]),
+        )
+        if not await self.async_run_self_closing(zones[0], trigger=trigger):
+            # Refused (an unresolvable station); the chain must not stall on it.
+            await self._os_chain_advance()
+
+    async def _os_chain_advance(self) -> None:
+        """Start the next chained zone, or end the chain.
+
+        Safe to call from every finalisation path: it returns while any station
+        run is still in flight, so whichever of them fires first advances once.
+        """
+        state = self._os_chain_state()
+        if not state["zones"] and state["token"] is None:
+            return
+        for run in await self._sc_active_runs():
+            if run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER:
+                return
+        while state["zones"]:
+            zone_id = state["zones"].pop(0)
+            zone = self.store.get_zone(zone_id) or {}
+            if not is_opensprinkler_zone(zone):
+                continue
+            if (zone.get(const.ZONE_DURATION) or 0) <= 0:
+                continue
+            if self.zone_run_in_flight(zone_id):
+                continue
+            if await self.async_run_self_closing(zone, trigger=state["trigger"]):
+                return
+            # Refused: fall through to the next rather than stalling the chain.
+        await self._os_chain_release()
+
+    async def _os_chain_release(self) -> None:
+        """Drop the chain and its master hold."""
+        state = self._os_chain_state()
+        state["zones"], state["trigger"] = [], None
+        token, state["token"] = state["token"], None
+        if token:
+            await self.async_master_release(token)
 
     def _os_arm_timer(self, zone_id, delay: float, reason: str) -> None:
         """(Re)arm the watcher's single timer."""
@@ -391,9 +556,17 @@ class OpenSprinklerMixin:
         planned = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
         zone = self.store.get_zone(zid) or {}
 
+        # The controller's own start, not the moment this observation arrived —
+        # see observed_start_iso for why the difference decides whether a full
+        # run is recorded as completed or as an early stop.
+        started = observed_start_iso(
+            self.hass,
+            (watcher or {}).get("entity") or run.get(const.RUN_WATCH_ENTITY),
+            planned,
+        )
         runs = [
             (
-                dict(r, **{const.RUN_OBSERVED_START: dt_util.utcnow().isoformat()})
+                dict(r, **{const.RUN_OBSERVED_START: started})
                 if r.get(const.RUN_ZONE_ID) == run.get(const.RUN_ZONE_ID)
                 else r
             )

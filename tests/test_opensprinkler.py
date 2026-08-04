@@ -10,12 +10,15 @@ registry, and a state subscription that has to survive the gap between dispatch
 and the station's turn.
 """
 
+from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
 
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_mock_service
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation.opensprinkler import (
+    observed_start_iso,
     queue_deadline_seconds,
     resolve_running_sensor,
     zone_watch_entity,
@@ -36,10 +39,15 @@ def _attrs(index=0, is_master=False, program_id=0, **extra):
     return a
 
 
-def _publish(hass, *, running="off", program_id=0, station="on", index=0):
+def _publish(hass, *, running="off", program_id=0, station="on", index=0, extra=None):
     """Publish a controller state: the enabled switch plus its running sensor."""
-    hass.states.async_set(STATION, station, _attrs(index=index, program_id=program_id))
-    hass.states.async_set(RUNNING, running, _attrs(index=index, program_id=program_id))
+    extra = extra or {}
+    hass.states.async_set(
+        STATION, station, _attrs(index=index, program_id=program_id, **extra)
+    )
+    hass.states.async_set(
+        RUNNING, running, _attrs(index=index, program_id=program_id, **extra)
+    )
 
 
 async def _drive(hass, **kw):
@@ -73,8 +81,15 @@ def _coord(hass):
     # Keep the run list in memory so a whole lifecycle can be driven through.
     c._sc_active_runs = AsyncMock(side_effect=lambda: list(c._runs))
 
+    c.store.config = Mock()
+    c.store.config.zone_sequencing = const.CONF_ZONE_SEQUENCING_PARALLEL
+    c.store.config.active_valve_runs = c._runs
+
     async def _persist(runs):
         c._runs = list(runs)
+        # zone_run_in_flight reads the config copy, so the chain only sees a run
+        # clear when both do.
+        c.store.config.active_valve_runs = c._runs
 
     c._sc_persist_runs = AsyncMock(side_effect=_persist)
     # Record the two controller services instead of calling a controller.
@@ -221,6 +236,190 @@ async def test_a_queued_station_only_starts_the_run_when_it_actually_runs(hass):
     assert c._runs[0][const.RUN_OBSERVED_START] is not None
     c._sc_start_flow_sampling.assert_awaited_once()
     c._sc_schedule_cleanup.assert_called_once_with(2, 600.0)
+
+
+async def test_the_run_is_anchored_to_the_controllers_start_not_the_poll(hass):
+    """The integration polls, so "on" arrives up to a poll interval late.
+
+    Timing the run from that sighting shortens it by the lag, which is what made
+    a full run record as an early stop on real hardware. The controller reports
+    when the station really started; that is the anchor.
+    """
+    started = dt_util.utcnow() - timedelta(seconds=4)
+    _publish(hass)
+    c = _coord(hass)
+    await c.async_run_self_closing(_zone())
+    c.store.get_zone = Mock(return_value=_zone())
+
+    await _drive(
+        hass,
+        running="on",
+        program_id=99,
+        extra={const.OPENSPRINKLER_ATTR_START_TIME: started.isoformat()},
+    )
+    assert c._runs[0][const.RUN_OBSERVED_START] == started.isoformat()
+
+
+async def test_a_full_run_completes_even_though_both_ends_were_seen_late(hass):
+    """The regression this anchoring exists for.
+
+    Poll lag at both ends used to leave the measured window short of planned, and
+    the one-second slack in the completion test could not absorb it, so a run the
+    controller finished in full settled as an early stop with its credit scaled
+    down. Live, that hit two of four full 60 s runs.
+    """
+    planned = 60.0
+    started = dt_util.utcnow() - timedelta(seconds=planned + 2)
+    _publish(hass)
+    c = _coord(hass)
+    await c.async_run_self_closing(_zone(**{const.ZONE_DURATION: planned}))
+    c.store.get_zone = Mock(return_value=_zone(**{const.ZONE_DURATION: planned}))
+
+    await _drive(
+        hass,
+        running="on",
+        program_id=99,
+        extra={const.OPENSPRINKLER_ATTR_START_TIME: started.isoformat()},
+    )
+    c._sc_finish_run = AsyncMock()
+    c.async_stop_self_closing = AsyncMock()
+    await _drive(hass, running="off", program_id=0)
+
+    c._sc_finish_run.assert_awaited_once()
+    c.async_stop_self_closing.assert_not_awaited()
+
+
+async def test_an_implausible_reported_start_falls_back_to_the_observation(hass):
+    """It comes off the controller's clock via its timezone offset.
+
+    A mis-set clock must not be able to claim a run began tomorrow, or long
+    before it could have: that would mis-size every window measured from it.
+    """
+    _publish(hass, running="on", program_id=99)
+    for raw in (
+        (dt_util.utcnow() + timedelta(hours=3)).isoformat(),
+        (dt_util.utcnow() - timedelta(hours=9)).isoformat(),
+        "not a timestamp",
+        None,
+    ):
+        hass.states.async_set(
+            RUNNING, "on", _attrs(program_id=99, **{"start_time": raw})
+        )
+        got = observed_start_iso(hass, RUNNING, 600.0)
+        assert abs((dt_util.parse_datetime(got) - dt_util.utcnow()).total_seconds()) < 5
+
+
+# --------------------------------------------------------------------------- #
+# Zone sequencing, which Smart Irrigation has to apply itself
+# --------------------------------------------------------------------------- #
+STATION_B = "switch.front_north_station_enabled"
+RUNNING_B = "binary_sensor.front_north_station_running"
+
+
+def _publish_b(hass, *, running="off", program_id=0):
+    hass.states.async_set(STATION_B, "on", _attrs(index=1, program_id=program_id))
+    hass.states.async_set(RUNNING_B, running, _attrs(index=1, program_id=program_id))
+
+
+def _two_zones(hass, c, sequencing):
+    """Two station zones on one controller, and the coordinator to run them."""
+    _publish(hass)
+    _publish_b(hass)
+    c.store.config.zone_sequencing = sequencing
+    zones = {
+        2: _zone(**{const.ZONE_DURATION: 60.0}),
+        3: _zone(
+            **{
+                const.ZONE_ID: 3,
+                const.ZONE_DURATION: 60.0,
+                const.ZONE_LINKED_ENTITY: STATION_B,
+            }
+        ),
+    }
+    c.store.get_zone = Mock(side_effect=lambda z: zones.get(int(z)))
+    return list(zones.values())
+
+
+def _dispatched(c):
+    return [call.data["entity_id"] for call in c._os_calls["run"]]
+
+
+async def test_parallel_hands_the_controller_every_station_at_once(hass):
+    """Which is what lets its own per-station scheduling decide, and what keeps
+    a whole cycle in its queue across a restart."""
+    c = _coord(hass)
+    zones = _two_zones(hass, c, const.CONF_ZONE_SEQUENCING_PARALLEL)
+    await c.async_dispatch_opensprinkler_zones(zones, trigger="schedule")
+    assert _dispatched(c) == [STATION, STATION_B]
+
+
+async def test_sequential_holds_the_second_station_until_the_first_finishes(hass):
+    """A controller may run stations concurrently, so 'sequential' only means
+    anything if Smart Irrigation withholds the next dispatch itself."""
+    c = _coord(hass)
+    zones = _two_zones(hass, c, const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
+    await c.async_dispatch_opensprinkler_zones(zones, trigger="schedule")
+    assert _dispatched(c) == [STATION]
+
+    # The first station waters and stops; only now does the second go out.
+    await _drive(hass, running="on", program_id=99)
+    assert _dispatched(c) == [STATION]
+    await _drive(hass, running="off", program_id=0)
+    assert _dispatched(c) == [STATION, STATION_B]
+
+
+async def test_a_refused_zone_does_not_stall_the_chain(hass):
+    """The second zone's station cannot be resolved, so its dispatch is refused.
+    The third must still get its turn rather than the cycle stopping there."""
+    c = _coord(hass)
+    zones = _two_zones(hass, c, const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
+    broken = _zone(
+        **{
+            const.ZONE_ID: 4,
+            const.ZONE_DURATION: 60.0,
+            const.ZONE_LINKED_ENTITY: "input_boolean.not_a_station",
+        }
+    )
+    existing = c.store.get_zone.side_effect
+    c.store.get_zone = Mock(side_effect=lambda z: broken if int(z) == 4 else existing(z))
+    await c.async_dispatch_opensprinkler_zones(
+        [zones[0], broken, zones[1]], trigger="schedule"
+    )
+    assert _dispatched(c) == [STATION]
+
+    await _drive(hass, running="on", program_id=99)
+    await _drive(hass, running="off", program_id=0)
+    assert _dispatched(c) == [STATION, STATION_B]
+
+
+async def test_the_chain_holds_one_master_token_for_the_whole_cycle(hass):
+    """Per-run holds would drop the master in the gap between two stations."""
+    c = _coord(hass)
+    zones = _two_zones(hass, c, const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
+    await c.async_dispatch_opensprinkler_zones(zones, trigger="schedule")
+    chain_tokens = {
+        ck.args[0]
+        for ck in c.async_master_acquire.await_args_list
+        if str(ck.args[0]).startswith("os-chain:")
+    }
+    assert len(chain_tokens) == 1
+    assert not [
+        ck
+        for ck in c.async_master_release.await_args_list
+        if str(ck.args[0]).startswith("os-chain:")
+    ]
+
+    await _drive(hass, running="on", program_id=99)
+    await _drive(hass, running="off", program_id=0)
+    _publish_b(hass, running="on", program_id=99)
+    await hass.async_block_till_done()
+    _publish_b(hass, running="off", program_id=0)
+    await hass.async_block_till_done()
+    assert [
+        ck.args[0]
+        for ck in c.async_master_release.await_args_list
+        if str(ck.args[0]).startswith("os-chain:")
+    ] == list(chain_tokens)
 
 
 async def test_a_station_the_controller_drops_is_written_off_immediately(hass):
