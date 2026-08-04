@@ -607,7 +607,14 @@ def _row_rso_eq36(row, hour, doy, latitude, longitude, elevation, tz_offset_h):
     actual vapour pressure, and pressure is the measured barometer when the
     mapping has one, else derived from elevation the same way the ETo helper
     derives it.
+
+    ``tz_offset_h`` is the caller's window-wide fallback; a row that carries its
+    own ``tz_offset_h`` wins. Rso is the DENOMINATOR of the clearness ratio, so
+    an hour of solar-time error here moves the refilled radiation by +23.5% /
+    -16.0%, two orders of magnitude more than the same error costs on the ETo
+    path.
     """
+    tz_offset_h = row.get("tz_offset_h", tz_offset_h)
     ra = extraterrestrial_radiation_hourly(latitude, longitude, doy, hour, tz_offset_h)
     if ra <= 0:
         return 0.0
@@ -728,6 +735,7 @@ def build_hourly_rows(
     longitude=None,
     elevation=0.0,
     tz_offset_h=0.0,
+    tz=None,
 ):
     """Reduce a zone's window of the shared buffer to hourly FAO-56 rows, or None.
 
@@ -751,6 +759,16 @@ def build_hourly_rows(
     ``elevation`` (m) and ``tz_offset_h`` (the local UTC offset the naive buffer
     stamps are in) are taken here. Without coordinates the flat hold stands,
     which is what every caller that has none would have got anyway.
+
+    ``tz`` is the site's ``tzinfo``. Given one, each row resolves its own UTC
+    offset from its own naive stamp and carries it as ``tz_offset_h``, and both
+    the ETo series and the Eq. 36 ratio denominator prefer that to the scalar. A
+    window can reach seven days and therefore span a DST transition, where one
+    offset for the whole window puts every row on the far side an hour out in
+    solar time. That is worth 0.26-0.74% on daily ETo but +23.5% / -16.0% on the
+    radiation the clearness-ratio hold refills, because there Rso is a
+    denominator. Ambiguous fall-back hours resolve ``fold=0``; the repeated hour
+    is genuinely indistinguishable in a naive stamp.
 
     ``coverage_h`` is the fraction of the hour the window actually covers, so the
     partial hours at each end of the window are charged their real share rather
@@ -837,6 +855,13 @@ def build_hourly_rows(
             "doy": hour_start.timetuple().tm_yday,
             "coverage_h": coverage,
         }
+        if tz is not None:
+            # Resolved from THIS row's stamp, not once for the window: the
+            # window can straddle a DST transition and the rows on either side
+            # of it are in different offsets.
+            row_offset = tz.utcoffset(hour_start)
+            if row_offset is not None:
+                row["tz_offset_h"] = row_offset.total_seconds() / 3600.0
         means = {key: _hourly_mean(table, a, b) for key, table in tables.items()}
         if any(v is None for v in means.values()):
             return None

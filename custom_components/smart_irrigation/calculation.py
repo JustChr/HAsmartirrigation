@@ -518,10 +518,14 @@ class CalculationMixin:
             return None
 
         # Buffer stamps are naive LOCAL times, so the solar-time correction wants
-        # the local UTC offset. Taken once for the window: it feeds Ra, and Ra
-        # reaches ETo through the cloudiness correction on the longwave term and
-        # through the clear-sky denominator of the solar gap hold, so the
-        # twice-a-year DST hour is far below the effects this change is about.
+        # the local UTC offset. The site timezone is passed alongside so each row
+        # resolves the offset from its OWN stamp: a window reaches seven days and
+        # can straddle a DST transition, and one offset for the whole window puts
+        # the rows past it an hour out in solar time. That is only 0.26-0.74% on
+        # daily ETo, but +23.5% / -16.0% on the radiation the clearness-ratio
+        # hold refills, where Rso is a denominator. The scalar remains the
+        # fallback for rows that carry no offset of their own.
+        tz = dt_util.DEFAULT_TIME_ZONE
         offset = dt_util.now().utcoffset()
         tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
 
@@ -538,6 +542,7 @@ class CalculationMixin:
             longitude=longitude,
             elevation=elevation,
             tz_offset_h=tz_offset_h,
+            tz=tz,
         )
         if not rows:
             return None

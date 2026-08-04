@@ -92,6 +92,12 @@ def eto_hourly_series(
       defaulting to a whole hour. The partial hours at the ends of a
       calculation window are charged their real share this way rather than a
       full hour of ET.
+    * ``tz_offset_h`` — this row's OWN UTC offset, overriding the argument. A
+      window can span up to seven days and therefore a DST transition, after
+      which one offset for the whole window puts the rows on the far side of it
+      an hour out in solar time. ``build_hourly_rows`` sets it when it is given
+      a timezone; rows from elsewhere (the live estimate's Open-Meteo series)
+      carry no such key and keep the argument.
     """
     out = []
     for r in rows:
@@ -104,7 +110,7 @@ def eto_hourly_series(
             longitude_deg=longitude_deg,
             doy=r["doy"],
             hour_mid=r["hour"],
-            tz_offset_h=tz_offset_h,
+            tz_offset_h=r.get("tz_offset_h", tz_offset_h),
             elevation_m=elevation_m,
             pressure_kpa=r.get("pressure_kpa"),
         )
