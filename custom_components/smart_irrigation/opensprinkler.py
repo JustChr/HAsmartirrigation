@@ -182,13 +182,22 @@ def zone_watch_entity(hass, zone: dict) -> str | None:
     OpenSprinkler station switch reports whether the station is *enabled* — on
     permanently on a working install. Consumers that mean "is water flowing"
     (the zone's own running binary sensor, observed watering) must come through
-    here or they report every OpenSprinkler zone as watering forever.
+    here or they report the zone as watering forever.
+
+    Gated on what the entity IS, not on the zone's watering mode, because the
+    case that needs it most is the one where the mode is wrong: a zone left in
+    classic mode with a station linked. Its run is refused, but the sensor would
+    still mirror the enabled switch and sit on for ever, and observed watering
+    would treat that as a valve nobody closes. Reading the station's real running
+    sensor is the truthful answer either way — if something else runs that
+    station, water really is flowing on that zone.
     """
     if not isinstance(zone, dict):
         return None
-    if not is_opensprinkler_zone(zone):
-        return zone.get(const.ZONE_LINKED_ENTITY)
-    return resolve_running_sensor(hass, zone.get(const.ZONE_LINKED_ENTITY))
+    linked = zone.get(const.ZONE_LINKED_ENTITY)
+    if is_opensprinkler_zone(zone) or entity_is_station(hass, linked):
+        return resolve_running_sensor(hass, linked)
+    return linked
 
 
 def queue_deadline_seconds(runs: list, run: dict) -> float:

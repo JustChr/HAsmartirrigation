@@ -164,6 +164,38 @@ async def test_watch_entity_is_the_running_sensor_not_the_enabled_switch(hass):
     assert zone_watch_entity(hass, classic) == "switch.plain"
 
 
+async def test_a_classic_zone_linked_to_a_station_still_watches_the_sensor(hass):
+    """The misconfiguration is exactly where the mode cannot be trusted.
+
+    Its run is refused, but pointing the zone's watering-now sensor at the
+    enabled switch would leave it on for ever, and observed watering would read
+    that as a valve nobody ever closes and credit against it. Live, the sensor
+    sat on for a zone Smart Irrigation had just refused to run.
+    """
+    _publish(hass)
+    mislinked = _zone(
+        **{
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_CLASSIC,
+            const.ZONE_LINKED_ENTITY: STATION,
+        }
+    )
+    assert zone_watch_entity(hass, mislinked) == RUNNING
+
+
+async def test_watch_entity_falls_back_while_the_controller_is_unknown(hass):
+    """Before the OpenSprinkler integration publishes anything, a station entity
+    is indistinguishable from any other switch. The linked entity is the only
+    answer available; a dispatch re-signals once the station resolves."""
+    assert zone_watch_entity(hass, _zone()) is None
+    classic = _zone(
+        **{
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_CLASSIC,
+            const.ZONE_LINKED_ENTITY: STATION,
+        }
+    )
+    assert zone_watch_entity(hass, classic) == STATION
+
+
 # --------------------------------------------------------------------------- #
 # Dispatch
 # --------------------------------------------------------------------------- #
