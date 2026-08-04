@@ -787,6 +787,29 @@ def to_absolute_pressure(value, mapping, field_config, elevation):
     return relative_to_absolute_pressure(value, elevation)
 
 
+def solar_reading_is_rate(unit):
+    """Return True when a Solar Radiation reading in ``unit`` is an instantaneous rate.
+
+    ``clamp_solar_to_clear_sky`` measures a reading against the clear-sky
+    radiation of the hour centred on the stamp, which is only meaningful for a
+    rate. ``MJ/day/m2`` and ``MJ/day/sq ft`` are selectable units for this field
+    and describe a DAILY TOTAL: a daily-total sensor reads the same at 02:00 as
+    at noon, so ceilinging it against a nighttime clear sky floors the whole
+    night away. Measured on a 20 MJ/day/m2 total, that destroyed 36% of the day's
+    radiation on 21 June and 72% on 21 December, biasing every zone in the group
+    towards under-watering.
+
+    An unset unit means the value is taken as W/m2 (metric) or W/sq ft
+    (imperial) by ``convert_mapping_to_metric``, i.e. a rate.
+
+    Shared by both writers of the buffer's Solar Radiation field — the interval
+    poll in ``build_sensor_values_for_mapping`` and the event-driven appends in
+    ``_continuous_metric_value`` — the same way ``to_absolute_pressure`` is
+    shared for Pressure, so the two cannot drift on which readings get a ceiling.
+    """
+    return unit not in (UNIT_MJ_DAY_M2, UNIT_MJ_DAY_SQFT)
+
+
 def clamp_solar_to_clear_sky(value, when, latitude, longitude, elevation, tz_offset_h):
     """Ceiling a solar-radiation reading [MJ/day/m2] at clear sky for ``when``.
 

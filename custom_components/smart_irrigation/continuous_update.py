@@ -60,6 +60,7 @@ from . import const
 from .helpers import (
     convert_mapping_to_metric,
     resolve_sensor_unit,
+    solar_reading_is_rate,
     to_absolute_pressure,
 )
 
@@ -194,14 +195,17 @@ class ContinuousUpdateMixin:
         quantity than the other makes the aggregate a mix of the two. Pressure is
         exactly that case — it is corrected to absolute here, matching
         ``_apply_pressure_type`` on the poll side. Solar radiation is the other:
-        it is ceilinged at clear sky here, matching ``_apply_solar_clamp``.
+        a reading that is an instantaneous rate is ceilinged at clear sky here,
+        matching ``build_sensor_values_for_mapping`` on the poll side. Both
+        clamps sit right after the conversion because that is where the
+        reading's resolved unit is in hand.
         """
         unit = resolve_sensor_unit(
             key, the_map.get(const.MAPPING_CONF_UNIT), ha_unit, entity_id
         )
         value = convert_mapping_to_metric(raw_value, key, unit, system_is_metric)
         value = to_absolute_pressure(value, key, the_map, self.hass.config.elevation)
-        if key == const.MAPPING_SOLRAD:
+        if key == const.MAPPING_SOLRAD and solar_reading_is_rate(unit):
             value = self._clamp_solar_reading(value)
         return value
 

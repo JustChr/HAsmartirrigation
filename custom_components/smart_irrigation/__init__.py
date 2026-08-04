@@ -56,6 +56,7 @@ from .helpers import (
     convert_mapping_to_metric,
     loadModules,
     resolve_sensor_unit,
+    solar_reading_is_rate,
     to_absolute_pressure,
 )
 from .irrigation import IrrigationRunnerMixin
@@ -970,6 +971,12 @@ class SmartIrrigationCoordinator(
         way ``to_absolute_pressure`` is shared for Pressure: a buffer holding
         clamped and unclamped rows would aggregate to a mix of the two.
 
+        Called only where the reading's resolved unit is known and
+        ``solar_reading_is_rate`` says it is one. Nothing else reaches here: a
+        static value and a weather service's radiation both bypass the two
+        conversion sites, so their exemption is structural rather than a check
+        that has to be kept in step with them.
+
         The clamp is reported at WARNING and re-reported hourly for as long as it
         keeps firing. Deliberately not once per lifetime: PyETO's clear-sky clamp
         warns exactly once per module instance, and that is how a solar
@@ -1005,14 +1012,6 @@ class SmartIrrigationCoordinator(
                     clamped,
                 )
         return clamped
-
-    def _apply_solar_clamp(self, weatherdata):
-        """Ceiling a polled row's Solar Radiation at clear sky, in place."""
-        if not weatherdata or const.MAPPING_SOLRAD not in weatherdata:
-            return
-        weatherdata[const.MAPPING_SOLRAD] = self._clamp_solar_reading(
-            weatherdata[const.MAPPING_SOLRAD]
-        )
 
     async def _async_update_zone(self, zone_id):
         # update the weather data for the mapping for the zone
@@ -1056,10 +1055,6 @@ class SmartIrrigationCoordinator(
                 )
             if sensor_in_mapping or static_in_mapping:
                 self._apply_pressure_type(mapping, weatherdata)
-                # Only ingested sensor/static radiation. A weather service's
-                # radiation is modelled and cannot exceed clear sky by
-                # construction, so clamping it would only add noise.
-                self._apply_solar_clamp(weatherdata)
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
@@ -1182,10 +1177,6 @@ class SmartIrrigationCoordinator(
                 )
             if sensor_in_mapping or static_in_mapping:
                 self._apply_pressure_type(mapping, weatherdata)
-                # Only ingested sensor/static radiation. A weather service's
-                # radiation is modelled and cannot exceed clear sky by
-                # construction, so clamping it would only add noise.
-                self._apply_solar_clamp(weatherdata)
 
             # add the weatherdata value to the mappings sensor values
             if mapping is not None and weatherdata is not None:
@@ -1471,6 +1462,15 @@ class SmartIrrigationCoordinator(
                                 unit,
                                 self.hass.config.units is METRIC_SYSTEM,
                             )
+                            # Clamped here rather than on the merged row because
+                            # this is where the reading's RESOLVED unit is known:
+                            # a daily-total sensor must not be measured against
+                            # an instantaneous clear sky, and a sensor configured
+                            # MJ/day but actually reporting W/m2 must still be.
+                            if key == const.MAPPING_SOLRAD and solar_reading_is_rate(
+                                unit
+                            ):
+                                val = self._clamp_solar_reading(val)
                             # add val to sensor values
                             sensor_values[key] = val
                         except (ValueError, TypeError):
