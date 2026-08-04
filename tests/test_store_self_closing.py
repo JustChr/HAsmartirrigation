@@ -86,3 +86,38 @@ async def test_self_closing_fields_survive_reload(hass):
     assert z["duration_field"] == "dauer"
     assert z["duration_unit"] == const.DURATION_UNIT_MINUTES
     assert z["confirm_entity"] == "valve.beet"
+
+
+async def test_active_valve_runs_survive_reload(hass):
+    """Regression: an in-flight self-closing run must be hydrated on load.
+
+    The attr.ib and the migration setdefault existed without a hydration line, so
+    the list came back EMPTY on every restart: async_resume_self_closing_runs had
+    nothing to reconcile, a run interrupted by a restart was never finalised, and
+    the next config write dropped the persisted record. It is also what tells the
+    calculation gate the zone is still being watered (run_state.RunStateMixin).
+    """
+    reg = await async_get_registry(hass)
+    run = {
+        const.RUN_ZONE_ID: 3,
+        const.RUN_ENTITY_ID: "script.irrigation_beet",
+        const.RUN_STARTED: "2026-08-03T21:00:00+00:00",
+        const.RUN_PLANNED_SECONDS: 600.0,
+        const.RUN_PLANNED_MM: 4.0,
+        const.RUN_PRE_BUCKET: -12.0,
+        const.RUN_MODE: const.WATERING_MODE_SERVICE,
+        const.RUN_CREDITED: True,
+    }
+    await reg.async_update_config({const.CONF_ACTIVE_VALVE_RUNS: [run]})
+
+    data = {
+        "config": attr.asdict(reg.config),
+        "zones": [],
+        "modules": [],
+        "mappings": [],
+    }
+    fresh = SmartIrrigationStorage(hass)
+    fresh._store.async_load = AsyncMock(return_value=data)
+    await fresh.async_load()
+
+    assert fresh.config.active_valve_runs == [run]

@@ -17,6 +17,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 from .const import (
     ATTR_NEW_BUCKET_VALUE,
     ATTR_NEW_MULTIPLIER_VALUE,
+    CONF_ACTIVE_VALVE_RUNS,
     CONF_AUTO_CALC_ENABLED,
     CONF_AUTO_UPDATE_DELAY,
     CONF_AUTO_UPDATE_ENABLED,
@@ -912,6 +913,14 @@ class SmartIrrigationStorage:
                     "master_kick_pause_seconds", 1.0
                 ),
                 master_off_after=data["config"].get("master_off_after", False),
+                # In-flight self-closing runs. The attr.ib and the migration
+                # setdefault existed without this line, so the list was rebuilt
+                # EMPTY on every load: async_resume_self_closing_runs saw nothing
+                # to reconcile, a run interrupted by a restart was never finalised
+                # (no run-log row, no water_used_total, no master re-hold, no
+                # bucket correction), and the next config write dropped the
+                # persisted record. See tests/test_store_self_closing.py.
+                active_valve_runs=data["config"].get(CONF_ACTIVE_VALVE_RUNS, []),
             )
 
             if "zones" in data:
