@@ -362,6 +362,22 @@ class CalculationMixin:
         if zone is None:
             return
 
+        # Every run path settles the bucket from an anchor captured before the
+        # valve opened, so a calculation landing mid-run is overwritten within a
+        # commit interval and that window's ET is lost. Give way and return
+        # BEFORE anything is consumed: last_consumed_at is only advanced on the
+        # write path below, so the readings stay in the buffer and the deferred
+        # calculation (run at the end of the run, see RunStateMixin) folds in the
+        # whole window. See tests/test_run_in_flight.py.
+        if self.zone_run_in_flight(zone_id):
+            self.defer_zone_calculation(zone_id)
+            _LOGGER.info(
+                "Zone %s is being watered; deferring its calculation until the "
+                "run finishes (no weather data is consumed in the meantime)",
+                zone_id,
+            )
+            return
+
         weatherdata, n_points = await self._aggregate_for_zone(zone, now=now)
         if weatherdata is None:
             _LOGGER.debug(

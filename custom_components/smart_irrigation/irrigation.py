@@ -489,6 +489,14 @@ class IrrigationRunnerMixin:
             and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
             and (target is None or int(z.get(const.ZONE_ID)) in target)
         ]
+        # Single-flight: a zone already being watered is not a candidate. Dropped
+        # HERE rather than after the demand gate so the no-demand transparency log
+        # below does not report a running zone as having had no deficit. The demand
+        # gate is NOT a substitute — it only rejects a second dispatch once the
+        # first run has credited the bucket, which a classic run does not do until
+        # its first RUN_COMMIT_INTERVAL tick and Irrigate-now / run_zone never
+        # consult at all. See tests/test_run_in_flight.py.
+        targeted_eligible = self._drop_zones_already_running(targeted_eligible)
         zones_to_irrigate = [
             z
             for z in targeted_eligible
@@ -585,6 +593,26 @@ class IrrigationRunnerMixin:
         # Past the veto+live gates with a non-empty set: at least one real run
         # (self-closing and/or the sequencing task) was dispatched.
         return True
+
+    def _drop_zones_already_running(self, zones: list) -> list:
+        """Filter out zones that already have a run in flight.
+
+        Shared by the scheduled dispatch and Irrigate-now. A duplicate dispatch is
+        honoured, not merged: live, two Irrigate-now presses 10 s apart ran two
+        full concurrent loops on one zone, delivered twice the water, and credited
+        the bucket once (both loops write the same absolute anchor + credit).
+        """
+        out = []
+        for z in zones:
+            zone_id = z.get(const.ZONE_ID)
+            if self.zone_run_in_flight(zone_id):
+                _LOGGER.info(
+                    "Zone %s already has a run in flight; not dispatching another",
+                    zone_id,
+                )
+                continue
+            out.append(z)
+        return out
 
     async def _dispatch_sequencing(self, zones: list) -> None:
         """Start the linked-entity zones under the configured sequencing.
@@ -1069,6 +1097,10 @@ class IrrigationRunnerMixin:
                 # cycle (master.py async_master_release).
                 if master_token:
                     await self.async_master_release(master_token)
+                # Ordered AFTER _unregister_active_run so the calculation no
+                # longer sees a run in flight and actually runs. No-op unless a
+                # calculation was displaced by this run.
+                await self.async_run_deferred_calculation(zone_id)
 
     async def _irrigate_zone_flow_slot(
         self,
@@ -1977,6 +2009,10 @@ class IrrigationRunnerMixin:
             and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
             and z.get(const.ZONE_DISTRIBUTOR_ID) is None
         ]
+        # Single-flight, same as the scheduled path. Irrigate-now consults no
+        # demand gate at all, so without this a second press simply starts a
+        # second concurrent run on the same zone.
+        zones_to_irrigate = self._drop_zones_already_running(zones_to_irrigate)
 
         target = "all" if zone_id is None else [zone_id]
         if zones_to_irrigate:
@@ -2019,6 +2055,13 @@ class IrrigationRunnerMixin:
             return
         if zone.get(const.ZONE_STATE) == const.ZONE_STATE_DISABLED:
             _LOGGER.info("run_zone: zone %s is disabled, ignoring", zone_id)
+            return
+        # Single-flight, matching the distributor-busy rejection below: a custom
+        # run must not interleave with a run already holding this zone's valve.
+        if self.zone_run_in_flight(zone_id):
+            _LOGGER.info(
+                "run_zone: zone %s already has a run in flight, ignoring", zone_id
+            )
             return
         # Self-closing zones run via their own service for the requested duration.
         # async_run_self_closing takes (and later releases) its own master hold.

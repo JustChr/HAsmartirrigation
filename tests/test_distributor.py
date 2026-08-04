@@ -12,11 +12,16 @@ from custom_components.smart_irrigation.flow_metering import (
 )
 from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
 from custom_components.smart_irrigation.master import MasterMixin
+from custom_components.smart_irrigation.run_state import RunStateMixin
 from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
 
 
 class _DistHost(
-    DistributorMixin, MasterMixin, SkipConditionsMixin, IrrigationRunnerMixin
+    DistributorMixin,
+    MasterMixin,
+    SkipConditionsMixin,
+    IrrigationRunnerMixin,
+    RunStateMixin,
 ):
     """Minimal host to unit-test the distributor mixin in isolation."""
 

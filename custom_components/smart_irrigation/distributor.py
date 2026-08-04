@@ -1065,6 +1065,14 @@ class DistributorMixin:
             inflight.discard(dist_id)
             if not interrupted:
                 await self._dist_clear_cycle(dist_id)
+                # The sweep credits each member from the snapshot taken when the
+                # cycle started, so a calculation landing mid-sweep would be
+                # overwritten — it is deferred instead (RunStateMixin) and runs
+                # here. Ordered AFTER _dist_clear_cycle so active_cycle is empty
+                # and the calculation is no longer considered in-flight. No-op
+                # for any member that had nothing deferred.
+                for member in await self._dist_members(dist_id):
+                    await self.async_run_deferred_calculation(member.get(const.ZONE_ID))
 
     async def _dist_run_sweep(
         self,

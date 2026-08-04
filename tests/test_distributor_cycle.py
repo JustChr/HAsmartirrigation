@@ -8,10 +8,11 @@ import pytest
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.distributor import DistributorMixin
 from custom_components.smart_irrigation.master import MasterMixin
+from custom_components.smart_irrigation.run_state import RunStateMixin
 from tests.test_distributor import _dist, _host
 
 
-class _CycleHost(DistributorMixin, MasterMixin):
+class _CycleHost(DistributorMixin, MasterMixin, RunStateMixin):
     """Minimal host to unit-test the cycle orchestration in isolation."""
 
 
