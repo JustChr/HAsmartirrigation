@@ -226,15 +226,29 @@ class LiveEstimateMixin:
         module re-scans the calc-module directory, which is far too heavy for a
         path that runs every minute per zone.
 
-        The continuous-updates gate is part of that mirror and has to stay in
-        step with it: if the daily calculation is running the daily equation
-        while this reports ``hourly_sensor``, the panel shows a live curve the
-        stored bucket never meets, differing by the 12% that separates the two
-        forms. Note this gates only the BUFFER source — a weather-service
-        install keeps the client and proxy estimates it already had, which is
-        why the check is here rather than in ``_intraday_for_zone``.
+        The opt-in read here is ``hourlycalculation`` — the switch the daily
+        form itself reads, via ``_hourly_calculation_enabled`` — and NOT
+        ``continuousupdates``. The two are independent axes, so reading the
+        ingestion flag broke the mirror in both directions: dense ingestion
+        alone put an hourly live curve against a ledger still running the daily
+        equation, which is the 12% gap this gate exists to prevent, while a
+        poll-only install that had turned the hourly form on was refused the
+        buffer source the daily calculation was already using. Note this gates
+        only the BUFFER source — a weather-service install keeps the client and
+        proxy estimates it already had, which is why the check is here rather
+        than in ``_intraday_for_zone``.
+
+        Strict identity check, matching ``_hourly_calculation_enabled``, so a
+        test double or an absent attribute reads as off.
         """
-        if getattr(self.store.config, const.CONF_CONTINUOUS_UPDATES, False) is not True:
+        if (
+            getattr(
+                getattr(self.store, "config", None),
+                const.CONF_HOURLY_CALCULATION,
+                False,
+            )
+            is not True
+        ):
             return False
         module = self.store.get_module(zone.get(const.ZONE_MODULE))
         if not module or module.get(const.MODULE_NAME) != "PyETO":

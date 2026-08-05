@@ -127,9 +127,11 @@ class _Store:
     ):
         self.readings = readings
         self.module = module
-        # Axis A and B are both gated on continuous updates: that ingestion mode
-        # is what produces a buffer dense enough for an hourly series.
-        self.config = SimpleNamespace(continuousupdates=True)
+        # Two independent axes, both on here. ``hourlycalculation`` is what the
+        # buffer source is gated on, because it is what the DAILY form reads;
+        # ``continuousupdates`` only selects the precipitation aggregation, and
+        # has to match what ``_aggregate_for_zone`` would do for the same window.
+        self.config = SimpleNamespace(hourlycalculation=True, continuousupdates=True)
         self.mapping = {
             const.MAPPING_MAPPINGS: mappings_config or {},
             const.MAPPING_DATA_LAST_ENTRY: last_entry or {},
@@ -244,8 +246,8 @@ class TestSensorOnlyInstall:
         # state is ever given the accumulators' extra digits.
         assert est["live_deficit"] == round(est["live_deficit"], 2)
 
-    def test_polling_declines_the_buffer_source(self):
-        """Gated on continuous updates, in step with the daily calculation.
+    def test_the_hourly_form_being_off_declines_the_buffer_source(self):
+        """Gated on ``hourlycalculation``, in step with the daily calculation.
 
         If the daily calc runs the daily equation while this reports
         ``hourly_sensor``, the panel shows a live curve the stored bucket never
@@ -253,11 +255,44 @@ class TestSensorOnlyInstall:
         """
         now = ANCHOR + timedelta(hours=3)
         store = _Store(_readings(now))
-        store.config = SimpleNamespace(continuousupdates=False)
+        store.config = SimpleNamespace(hourlycalculation=False, continuousupdates=True)
         coord = _Coord(store)
         assert coord._hourly_form_applies(_zone()) is False
         # Nothing else can supply a sensor-only install, so it offers no estimate
         # rather than falling to a source that disagrees with the ledger.
+        assert coord._intraday_for_zone(_zone(), _inputs(now))["available"] is False
+
+    def test_a_polling_install_with_the_hourly_form_on_still_gets_the_buffer(self):
+        """The two axes are independent, and the gate follows the daily form only.
+
+        ``_hourly_calculation_enabled`` blesses poll-only installs for the hourly
+        form: measured against dense truth they run it within 8.4% and with no
+        systematic bias. Reading ``continuousupdates`` here would refuse them the
+        buffer source while the daily calculation was already summing hourly, so
+        the live curve would sit against a ledger it does not match -- the same
+        divergence the gate exists to prevent, in the other direction.
+        """
+        now = ANCHOR + timedelta(hours=3, minutes=30)
+        store = _Store(_readings(now))
+        store.config = SimpleNamespace(hourlycalculation=True, continuousupdates=False)
+        coord = _Coord(store)
+        assert coord._hourly_form_applies(_zone()) is True
+        est = coord._intraday_for_zone(_zone(), _inputs(now))
+        assert est["available"] is True
+        assert est["method"] == "hourly_sensor"
+
+    def test_a_module_that_is_not_pyeto_declines(self):
+        """The fourth decline condition. The daily form is PyETO-only, so any
+        other module leaves the ledger on the daily equation and the buffer
+        source would put the 12% gap on the dashboard.
+        """
+        now = ANCHOR + timedelta(hours=3)
+        other = {
+            const.MODULE_NAME: "Hargreaves",
+            const.MODULE_CONFIG: {const.CONF_PYETO_SOLRAD_BEHAVIOR: "3"},
+        }
+        coord = _Coord(_Store(_readings(now), module=other))
+        assert coord._hourly_form_applies(_zone()) is False
         assert coord._intraday_for_zone(_zone(), _inputs(now))["available"] is False
 
     def test_a_module_that_estimates_radiation_keeps_its_own_source(self):
