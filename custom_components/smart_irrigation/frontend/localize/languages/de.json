@@ -462,6 +462,9 @@
         "title": "Letzter Lauf fehlgeschlagen",
         "valve_no_response": "Das Ventil hat nicht reagiert — es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
         "flow_never_started": "Kein Durchfluss erkannt — es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
+        "station_never_ran": "Der OpenSprinkler-Controller hat die Station nie gestartet — es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
+        "station_unresolved": "Die OpenSprinkler-Station wurde nicht gefunden — der Lauf wurde nicht gestartet, der Wasserspeicher bleibt unverändert.",
+        "station_wrong_mode": "Es ist eine OpenSprinkler-Station verknüpft, aber der Bewässerungsmodus der Zone ist nicht OpenSprinkler-Station — der Lauf wurde abgelehnt, der Wasserspeicher bleibt unverändert.",
         "generic": "Der letzte Bewässerungslauf ist fehlgeschlagen."
       },
       "skip": {

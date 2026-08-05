@@ -462,6 +462,9 @@
         "title": "Laatste run mislukt",
         "valve_no_response": "De klep reageerde niet — er is geen water gegeven, dus de balans bleef ongewijzigd.",
         "flow_never_started": "Geen doorstroming gedetecteerd — er is geen water gegeven, dus de balans bleef ongewijzigd.",
+        "station_never_ran": "De OpenSprinkler-controller heeft het station nooit gestart — er is geen water gegeven, dus de balans bleef ongewijzigd.",
+        "station_unresolved": "Het OpenSprinkler-station is niet gevonden — de run is niet gestart, dus de balans bleef ongewijzigd.",
+        "station_wrong_mode": "Er is een OpenSprinkler-station gekoppeld, maar de bewateringsmodus van de zone is niet OpenSprinkler-station — de run is geweigerd, dus de balans bleef ongewijzigd.",
         "generic": "De laatste irrigatierun is mislukt."
       },
       "skip": {

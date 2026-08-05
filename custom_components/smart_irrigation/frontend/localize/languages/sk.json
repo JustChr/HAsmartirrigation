@@ -462,6 +462,9 @@
         "title": "Posledný beh zlyhal",
         "valve_no_response": "Ventil nereagoval — voda nebola dodaná, takže zostatok ostal nezmenený.",
         "flow_never_started": "Nezistil sa žiadny prietok — voda nebola dodaná, takže zostatok ostal nezmenený.",
+        "station_never_ran": "Ovládač OpenSprinkler stanicu nikdy nespustil — voda nebola dodaná, takže zostatok ostal nezmenený.",
+        "station_unresolved": "Stanica OpenSprinkler sa nenašla — beh sa nespustil, takže zostatok ostal nezmenený.",
+        "station_wrong_mode": "Je pripojená stanica OpenSprinkler, ale režim zavlažovania zóny nie je stanica OpenSprinkler — beh bol odmietnutý, takže zostatok ostal nezmenený.",
         "generic": "Posledné zavlažovanie zlyhalo."
       },
       "skip": {

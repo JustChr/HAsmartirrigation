@@ -1833,11 +1833,13 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
           .split(",")
           .map((r) => localize(`panels.zones.outlook.checks.${r}`, lang) || r)
           .join(", ");
-      } else if (entry.result === "failed") {
+      } else {
+        // Not only for a failed run: a station run the controller dropped is
+        // recorded as partial (it was stopped, not refused) while its detail is
+        // still a fault reason, and would otherwise read as a raw code here.
+        // A detail with no copy of its own falls back to itself either way.
         detail =
           localize(`panels.zones.fault.${entry.detail}`, lang) || entry.detail;
-      } else {
-        detail = entry.detail;
       }
     }
     return html`

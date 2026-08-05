@@ -615,6 +615,9 @@
         "title": "Last run failed",
         "valve_no_response": "The valve didn't respond — no water was delivered, so the bucket was left unchanged.",
         "flow_never_started": "No flow was detected — no water was delivered, so the bucket was left unchanged.",
+        "station_never_ran": "The OpenSprinkler controller never ran the station — no water was delivered, so the bucket was left unchanged.",
+        "station_unresolved": "The OpenSprinkler station could not be found — the run was not started, so the bucket was left unchanged.",
+        "station_wrong_mode": "An OpenSprinkler station is linked, but the zone's watering mode is not OpenSprinkler station — the run was refused, so the bucket was left unchanged.",
         "generic": "The last irrigation run failed."
       },
       "skip": {

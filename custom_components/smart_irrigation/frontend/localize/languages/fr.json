@@ -462,6 +462,9 @@
         "title": "Échec de la dernière exécution",
         "valve_no_response": "La vanne n'a pas répondu — aucune eau distribuée, le bilan reste inchangé.",
         "flow_never_started": "Aucun débit détecté — aucune eau distribuée, le bilan reste inchangé.",
+        "station_never_ran": "Le contrôleur OpenSprinkler n'a jamais démarré la station — aucune eau distribuée, le bilan reste inchangé.",
+        "station_unresolved": "Station OpenSprinkler introuvable — l'arrosage n'a pas démarré, le bilan reste inchangé.",
+        "station_wrong_mode": "Une station OpenSprinkler est liée, mais le mode d'arrosage de la zone n'est pas station OpenSprinkler — l'exécution a été refusée, le bilan reste inchangé.",
         "generic": "La dernière exécution d'arrosage a échoué."
       },
       "skip": {
