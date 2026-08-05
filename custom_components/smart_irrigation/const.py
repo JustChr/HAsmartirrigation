@@ -776,6 +776,10 @@ PROBLEM_STATION_UNRESOLVED = "station_unresolved"
 # classic runner would have turned the station's enabled flag on instead of
 # watering. The run is refused rather than performed.
 PROBLEM_STATION_WRONG_MODE = "station_wrong_mode"
+# Same string as PROBLEM_STATION_NEVER_RAN and deliberately a separate name: the
+# two are read by different panel lookups (panels.zones.fault.* for a problem, the
+# run-log detail for this), so they are free to diverge without one silently
+# changing the other's copy.
 RUN_DETAIL_STATION_NEVER_RAN = "station_never_ran"
 
 # --- Gardena Wasserverteiler automatic (distributor) -------------------------

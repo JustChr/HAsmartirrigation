@@ -28,7 +28,7 @@ from .flow_metering import (
 )
 from .helpers import convert_between
 from .localize import localize
-from .opensprinkler import entity_is_station
+from .opensprinkler import entity_is_station, is_opensprinkler_zone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -209,6 +209,9 @@ class IrrigationRunnerMixin:
         opened valve, or a run started before a restart).
         """
         zid = int(zone_id)
+        # Before the run in flight is finalised, or the finalisation advances the
+        # cycle straight back onto this zone.
+        self._os_drop_from_cycle(zid)
         if await self._sc_maybe_stop(zid):
             return
         reg = getattr(self, "_active_runs", None) or {}
@@ -247,6 +250,22 @@ class IrrigationRunnerMixin:
         }
         _LOGGER.warning("Zone %s irrigation fault: %s", zone_id, reason)
         self._notify_fault_listeners(int(zone_id))
+
+    def _fire_zone_problem(self, zone_id, zone: dict, entity_id, reason: str) -> None:
+        """Announce a zone's run failure on the bus.
+
+        The payload is what user automations bind to, so its shape lives in one
+        place rather than being rebuilt at each site that can fail a run.
+        """
+        self.hass.bus.async_fire(
+            f"{const.DOMAIN}_{const.EVENT_ZONE_PROBLEM}",
+            {
+                "zone_id": zone_id,
+                "zone": (zone or {}).get(const.ZONE_NAME),
+                "entity_id": entity_id,
+                "reason": reason,
+            },
+        )
 
     def _clear_zone_fault(self, zone_id) -> None:
         """Clear any recorded fault for this zone (a run just succeeded)."""
@@ -574,34 +593,41 @@ class IrrigationRunnerMixin:
             _LOGGER.debug("Live-estimate duration left no zones needing water")
             return False
 
-        # Master (pump): take a hold for the DISPATCH itself. It brings the master
-        # up before the first valve and, crucially, keeps it up in the window
-        # between dispatching work and that work taking its own holds — otherwise
-        # a release could land in the gap and end the cycle under a starting run.
+        await self._dispatch_by_mode(zones_to_irrigate, trigger="schedule")
+        # Past the veto+live gates with a non-empty set: at least one real run
+        # (self-closing and/or the sequencing task) was dispatched.
+        return True
+
+    async def _dispatch_by_mode(self, zones: list, *, trigger: str) -> None:
+        """Start a set of zones, each by the path its actuation mode needs.
+
+        Master (pump): the hold is taken for the DISPATCH itself. It brings the
+        master up before the first valve and, crucially, keeps it up in the
+        window between dispatching work and that work taking its own holds —
+        otherwise a release could land in the gap and end the cycle under a
+        starting run.
+
+        Self-closing zones delegate the run to their own service (the valve owns
+        the close), so they bypass the linked-entity sequencing; each takes its
+        own hold, released when its run finalises. Stations go through their own
+        dispatcher because one controller can run several at once, so
+        zone_sequencing has to be applied there rather than left to the hardware.
+        """
         cycle_token = f"cycle:{uuid.uuid4().hex[:8]}"
         await self.async_master_acquire(cycle_token)
         try:
-            # Self-closing zones delegate the run to their own service (the valve
-            # owns the close); they bypass the linked-entity sequencing below.
-            # Each takes its own hold, released when its run finalises.
-            self_closing = [z for z in zones_to_irrigate if self._sc_is_self_closing(z)]
-            for z in [z for z in self_closing if not self._os_is_opensprinkler(z)]:
-                await self.async_run_self_closing(z, trigger="schedule")
-            # Stations go through their own dispatcher: one controller can run
-            # several at once, so zone_sequencing has to be applied here rather
-            # than left to the hardware.
+            self_closing = [z for z in zones if self._sc_is_self_closing(z)]
+            for z in [z for z in self_closing if not is_opensprinkler_zone(z)]:
+                await self.async_run_self_closing(z, trigger=trigger)
             await self.async_dispatch_opensprinkler_zones(
-                [z for z in self_closing if self._os_is_opensprinkler(z)],
-                trigger="schedule",
+                [z for z in self_closing if is_opensprinkler_zone(z)],
+                trigger=trigger,
             )
-            linked = [z for z in zones_to_irrigate if not self._sc_is_self_closing(z)]
+            linked = [z for z in zones if not self._sc_is_self_closing(z)]
             if linked:
                 await self._dispatch_sequencing(linked)
         finally:
             await self.async_master_release(cycle_token)
-        # Past the veto+live gates with a non-empty set: at least one real run
-        # (self-closing and/or the sequencing task) was dispatched.
-        return True
 
     def _drop_zones_already_running(self, zones: list) -> list:
         """Filter out zones that already have a run in flight.
@@ -650,14 +676,8 @@ class IrrigationRunnerMixin:
             const.WATERING_MODE_OPENSPRINKLER,
         )
         self._set_zone_fault(zone_id, const.PROBLEM_STATION_WRONG_MODE)
-        self.hass.bus.async_fire(
-            f"{const.DOMAIN}_{const.EVENT_ZONE_PROBLEM}",
-            {
-                "zone_id": zone_id,
-                "zone": zone.get(const.ZONE_NAME),
-                "entity_id": entity_id,
-                "reason": const.PROBLEM_STATION_WRONG_MODE,
-            },
+        self._fire_zone_problem(
+            zone_id, zone, entity_id, const.PROBLEM_STATION_WRONG_MODE
         )
         return True
 
@@ -2069,26 +2089,7 @@ class IrrigationRunnerMixin:
 
         target = "all" if zone_id is None else [zone_id]
         if zones_to_irrigate:
-            # Master (pump): dispatch hold — see _irrigate_linked_entities.
-            cycle_token = f"cycle:{uuid.uuid4().hex[:8]}"
-            await self.async_master_acquire(cycle_token)
-            try:
-                self_closing = [
-                    z for z in zones_to_irrigate if self._sc_is_self_closing(z)
-                ]
-                for z in [z for z in self_closing if not self._os_is_opensprinkler(z)]:
-                    await self.async_run_self_closing(z, trigger="manual")
-                await self.async_dispatch_opensprinkler_zones(
-                    [z for z in self_closing if self._os_is_opensprinkler(z)],
-                    trigger="manual",
-                )
-                remaining = [
-                    z for z in zones_to_irrigate if not self._sc_is_self_closing(z)
-                ]
-                if remaining:
-                    await self._dispatch_sequencing(remaining)
-            finally:
-                await self.async_master_release(cycle_token)
+            await self._dispatch_by_mode(zones_to_irrigate, trigger="manual")
         else:
             _LOGGER.info("irrigate_now: no zones with linked entity and duration > 0")
         # Distributor member zones are excluded from the linked-entity path, so

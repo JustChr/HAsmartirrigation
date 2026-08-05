@@ -16,6 +16,7 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.util import dt as dt_util
 
 from . import const
+from .opensprinkler import is_opensprinkler_zone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class SelfClosingMixin:
     async def _sc_dispatch_open(self, zone: dict) -> None:
         """Open the valve for its run by firing the run_service."""
         seconds = float(zone.get(const.ZONE_DURATION) or 0)
-        if self._os_is_opensprinkler(zone):
+        if is_opensprinkler_zone(zone):
             # run_station takes whole seconds and nothing else; the duration unit
             # is a property of a user's own run_service script, not of this API.
             await self._os_dispatch_open(zone, max(1, math.ceil(seconds)))
@@ -315,7 +316,7 @@ class SelfClosingMixin:
         # run dispatched without it would credit the bucket and never finalise.
         # Resolution is deliberately at dispatch, not at config time, so a
         # controller that was offline when the zone was set up still works.
-        is_opensprinkler = self._os_is_opensprinkler(zone)
+        is_opensprinkler = is_opensprinkler_zone(zone)
         watch_entity = None
         if is_opensprinkler:
             station, watch_entity = self._os_resolve(zone)
@@ -327,14 +328,11 @@ class SelfClosingMixin:
                     station or zone.get(const.ZONE_LINKED_ENTITY),
                 )
                 self._set_zone_fault(zone_id, const.PROBLEM_STATION_UNRESOLVED)
-                self._sc_fire(
-                    const.EVENT_ZONE_PROBLEM,
-                    {
-                        "zone_id": zone_id,
-                        "zone": zone.get(const.ZONE_NAME),
-                        "entity_id": zone.get(const.ZONE_LINKED_ENTITY),
-                        "reason": const.PROBLEM_STATION_UNRESOLVED,
-                    },
+                self._fire_zone_problem(
+                    zone_id,
+                    zone,
+                    zone.get(const.ZONE_LINKED_ENTITY),
+                    const.PROBLEM_STATION_UNRESOLVED,
                 )
                 return False
 
@@ -414,14 +412,8 @@ class SelfClosingMixin:
                 # needs the pump, and a leaked hold would keep it on forever.
                 self._sc_finish_flow(zone_id)
                 await self.async_master_release(self._sc_master_token(zone_id))
-                self._sc_fire(
-                    const.EVENT_ZONE_PROBLEM,
-                    {
-                        "zone_id": zone_id,
-                        "zone": zone.get(const.ZONE_NAME),
-                        "entity_id": confirm_target,
-                        "reason": const.PROBLEM_VALVE_DID_NOT_OPEN,
-                    },
+                self._fire_zone_problem(
+                    zone_id, zone, confirm_target, const.PROBLEM_VALVE_DID_NOT_OPEN
                 )
                 return False
 
@@ -547,7 +539,7 @@ class SelfClosingMixin:
         # already ended the run itself, which is every OpenSprinkler finish
         # except a user-initiated stop.
         if close_valve:
-            if self._os_is_opensprinkler(zone):
+            if is_opensprinkler_zone(zone):
                 # opensprinkler.stop is entity-targeted; the stop_service adapter
                 # below sends a zone_id that its schema rejects.
                 await self._os_dispatch_stop(zone)

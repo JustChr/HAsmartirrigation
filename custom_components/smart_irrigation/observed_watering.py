@@ -112,6 +112,12 @@ class ObservedWateringMixin:
             # window is taken when the run is dispatched, which for a queued
             # OpenSprinkler station is well before the water; the in-flight lookup
             # covers that gap because the run record exists from dispatch.
+            #
+            # Checked for every mode rather than only for stations, because it
+            # costs nothing to: everywhere else the marker is taken with the run's
+            # own length (_note_si_valve run_seconds + margin) and so already
+            # spans the whole run, and _active_runs / the distributor's
+            # active_cycle are live for exactly that window too.
             if self.zone_run_in_flight(zone_id) or self.hass.loop.time() < (
                 self._si_driven_until.get(zone_id, 0.0)
             ):

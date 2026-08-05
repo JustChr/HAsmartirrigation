@@ -405,6 +405,25 @@ async def test_sequential_holds_the_second_station_until_the_first_finishes(hass
     assert _dispatched(c) == [STATION, STATION_B]
 
 
+async def test_stopping_a_chained_zone_before_its_turn_drops_it(hass):
+    """The pending zones are held in memory, so a stop has to reach them there.
+
+    Nothing else can: the zone has no run in flight to finalise, and the panel
+    shows no control for it, so the stop would otherwise be a no-op and the
+    zone would water when the one ahead of it finished.
+    """
+    c = _coord(hass)
+    zones = _two_zones(hass, c, const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
+    await c.async_dispatch_opensprinkler_zones(zones, trigger="schedule")
+    assert _dispatched(c) == [STATION]
+
+    await c.async_stop_zone(3)
+
+    await _drive(hass, running="on", program_id=99)
+    await _drive(hass, running="off", program_id=0)
+    assert _dispatched(c) == [STATION]
+
+
 async def test_a_refused_zone_does_not_stall_the_chain(hass):
     """The second zone's station cannot be resolved, so its dispatch is refused.
     The third must still get its turn rather than the cycle stopping there."""
@@ -636,6 +655,32 @@ async def test_rotating_alternates_slot_sized_runs_between_the_zones(hass, freez
     ]
 
 
+async def test_stopping_a_rotating_zone_ends_its_turn(hass, freezer):
+    """A stop has to take the zone out of the rotation, not just end its slot.
+
+    The remaining slots live in memory rather than in the run record, so a stop
+    that only finalises the run in flight leaves them there, and the zone the
+    user just stopped is dispatched again one absorption wait later.
+    """
+    c = _coord(hass)
+    zones = _rotating(hass, c, duration=180.0, slot_minutes=1)
+    await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
+    assert _dispatched(c) == [STATION]
+
+    _publish(hass, running="on", program_id=99)
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=20))
+    await c.async_stop_zone(2)
+    _publish(hass, running="off", program_id=0)
+    await hass.async_block_till_done()
+
+    # Zone 3 still takes its turns; zone 2 is done.
+    for _ in range(3):
+        await _water_slot(hass, freezer, station_b=True)
+
+    assert STATION not in _dispatched(c)[1:]
+
+
 async def test_a_rotated_zone_is_given_the_same_water_as_a_single_run(hass, freezer):
     """Slicing is a delivery schedule, not a discount: the bucket credit and the
     logged volume have to come out where one long run would have left them."""
@@ -678,7 +723,7 @@ async def test_a_zone_is_not_returned_to_until_it_has_absorbed(hass, freezer):
     await _water_slot(hass, freezer)
     await _water_slot(hass, freezer, station_b=True)
     assert _dispatched(c) == [STATION, STATION_B]
-    assert c._os_chain_state()["absorb"] is not None
+    assert c._os_chain_state().absorb is not None
 
     freezer.tick(timedelta(seconds=301))
     async_fire_time_changed(hass, dt_util.utcnow(), fire_all=True)
@@ -696,14 +741,14 @@ async def test_a_wait_that_expires_a_hair_early_dispatches_anyway(hass, freezer)
     )
     await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
     await _water_slot(hass, freezer)
-    assert c._os_chain_state()["absorb"] is not None
+    assert c._os_chain_state().absorb is not None
 
     # Two milliseconds short of the window, exactly as the live boundary landed.
     freezer.tick(timedelta(seconds=299.998))
     async_fire_time_changed(hass, dt_util.utcnow(), fire_all=True)
     await hass.async_block_till_done()
     assert _dispatched(c) == [STATION, STATION]
-    assert c._os_chain_state()["absorb"] is None
+    assert c._os_chain_state().absorb is None
 
 
 async def test_a_slot_the_controller_cuts_short_still_ends_the_turn(hass, freezer):
@@ -733,11 +778,11 @@ async def test_teardown_cancels_a_pending_absorption_wait(hass, freezer):
     await c.async_dispatch_opensprinkler_zones(list(zones.values()), trigger="schedule")
     await _water_slot(hass, freezer)
     await _water_slot(hass, freezer, station_b=True)
-    assert c._os_chain_state()["absorb"] is not None
+    assert c._os_chain_state().absorb is not None
 
     c.async_teardown_opensprinkler_watchers()
-    assert c._os_chain_state()["absorb"] is None
-    assert c._os_chain_state()["rotation"] is None
+    assert c._os_chain_state().absorb is None
+    assert c._os_chain_state().rotation is None
 
     freezer.tick(timedelta(seconds=301))
     async_fire_time_changed(hass, dt_util.utcnow(), fire_all=True)
@@ -900,6 +945,68 @@ async def test_a_queued_run_resumed_after_a_restart_still_finishes(hass, freezer
 
     await _drive(hass, running="on", program_id=99)
     assert c._runs[0][const.RUN_OBSERVED_START] is not None
+
+
+async def test_an_outage_longer_than_the_deadline_keeps_a_queued_run(hass, freezer):
+    """Downtime alone must not exhaust the queue deadline.
+
+    The deadline is measured from dispatch, so an outage longer than it leaves
+    no budget for a station the controller is still holding. Writing that run
+    off reverses the credit for water the controller then goes on to deliver,
+    and the zone is watered again on the next cycle.
+    """
+    # Dispatched 10:00, deadline 2700s, and the station is still queued at 11:30.
+    freezer.move_to("2026-08-04T11:30:00+00:00")
+    _publish(hass, running="off", program_id=99)
+    c = _coord(hass)
+    c._runs = [_run(**{const.RUN_WATCH_ENTITY: RUNNING})]
+    c.store.get_zone = Mock(return_value=_zone())
+
+    await c.async_resume_self_closing_runs()
+    await hass.async_block_till_done()
+
+    # One clock tick: the deadline timer is armed in seconds, so a frozen clock
+    # alone would hide an already-expired one.
+    freezer.tick(timedelta(seconds=1))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+
+    assert len(c._runs) == 1
+    assert 2 in c._os_watchers()
+    c._set_zone_fault.assert_not_called()
+
+    # And it still waters when its turn comes.
+    await _drive(hass, running="on", program_id=99)
+    assert c._runs[0][const.RUN_OBSERVED_START] is not None
+
+
+async def test_a_station_that_goes_silent_is_written_off_at_the_deadline(
+    hass, freezer
+):
+    """The deadline is the backstop for a station that stops reporting.
+
+    No drop is ever observed on that path - the program id never comes back as
+    0, because nothing arrives at all - so the timer is the only thing that can
+    end the run.
+    """
+    freezer.move_to("2026-08-04T10:05:00+00:00")
+    _publish(hass, running="off", program_id=99)
+    c = _coord(hass)
+    c._runs = [_run(**{const.RUN_WATCH_ENTITY: RUNNING})]
+    c.store.get_zone = Mock(return_value=_zone())
+
+    await c.async_resume_self_closing_runs()
+    await hass.async_block_till_done()
+    assert len(c._runs) == 1
+    deadline = queue_deadline_seconds(c._runs, c._runs[0])
+
+    # Nothing further is ever published for this station.
+    freezer.tick(timedelta(seconds=deadline + 1))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+
+    assert c._runs == []
+    c._set_zone_fault.assert_called_once()
 
 
 # --------------------------------------------------------------------------- #
