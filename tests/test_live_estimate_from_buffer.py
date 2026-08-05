@@ -27,6 +27,7 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
+import custom_components.smart_irrigation.et_estimate as ete
 import custom_components.smart_irrigation.live_estimate as le
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.et_estimate import eto_hourly_series
@@ -485,13 +486,16 @@ class TestTheRowBuilderGetsTheSameGeometryAsTheDailyCalculation:
         self, monkeypatch
     ):
         seen = {}
-        original = le.build_hourly_rows
+        # Patched where ``hourly_eto_priced`` resolves it, which is the single
+        # call both this and the daily calculation now reach the row builder
+        # through -- so a geometry argument can no longer be dropped on one side.
+        original = ete.build_hourly_rows
 
         def spy(readings, watermark, config, **kwargs):
             seen.update(kwargs)
             return original(readings, watermark, config, **kwargs)
 
-        monkeypatch.setattr(le, "build_hourly_rows", spy)
+        monkeypatch.setattr(ete, "build_hourly_rows", spy)
         now = ANCHOR + timedelta(hours=3, minutes=30)
         coord = _Coord(_Store(_readings(now)))
         coord._intraday_for_zone(_zone(), _inputs(now))
@@ -512,14 +516,14 @@ class TestCompletedHourCarry:
     @staticmethod
     def _recording(monkeypatch):
         calls = []
-        original = le.build_hourly_rows
+        original = ete.build_hourly_rows
 
         def spy(readings, watermark, config, **kwargs):
             rows = original(readings, watermark, config, **kwargs)
             calls.append((watermark, len(rows or [])))
             return rows
 
-        monkeypatch.setattr(le, "build_hourly_rows", spy)
+        monkeypatch.setattr(ete, "build_hourly_rows", spy)
         return calls
 
     def test_the_second_refresh_only_rebuilds_the_open_hour(self, monkeypatch):

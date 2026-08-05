@@ -16,15 +16,15 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .calcmodules.pyeto import SOLRAD_behavior
-from .et_estimate import drained_over_window, eto_hourly_series, replay_water_balance
+from .et_estimate import (
+    SiteGeometry,
+    drained_over_window,
+    hourly_eto_priced,
+    replay_water_balance,
+)
 from .helpers import convert_between, loadModules, parse_datetime
 from .localize import localize
-from .weather_aggregate import (
-    aggregate_window,
-    build_hourly_rows,
-    build_substeps,
-    select_window,
-)
+from .weather_aggregate import aggregate_window, build_substeps, select_window
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -562,7 +562,7 @@ class CalculationMixin:
         offset = dt_util.now().utcoffset()
         tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
 
-        rows = build_hourly_rows(
+        priced = hourly_eto_priced(
             readings,
             _as_datetime(zone.get(const.ZONE_LAST_CONSUMED)),
             mappings_config,
@@ -571,16 +571,11 @@ class CalculationMixin:
             # An hour that saw no solar reading is refilled from the held
             # clearness ratio rather than the last absolute value, which needs
             # the site's own solar geometry.
-            latitude=latitude,
-            longitude=longitude,
-            elevation=elevation,
-            tz_offset_h=tz_offset_h,
-            tz=tz,
+            geometry=SiteGeometry(latitude, longitude, elevation, tz_offset_h, tz),
         )
-        if not rows:
+        if priced is None:
             return None
-
-        series = eto_hourly_series(rows, latitude, longitude, tz_offset_h, elevation)
+        rows, series = priced
 
         per_hour = {}
         for row, eto in zip(rows, series, strict=True):

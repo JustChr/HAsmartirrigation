@@ -38,14 +38,15 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 from . import const
 from .calcmodules.pyeto import SOLRAD_behavior
 from .et_estimate import (
+    SiteGeometry,
     estimate_daily_et0_hargreaves,
-    eto_hourly_series,
+    hourly_eto_priced,
     live_balance,
     proxy_et_since,
     rigorous_et_since,
 )
 from .helpers import convert_between
-from .weather_aggregate import aggregate_window, build_hourly_rows
+from .weather_aggregate import aggregate_window
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -250,9 +251,7 @@ class LiveEstimateMixin:
             return False
         return forecast_days == 0
 
-    def _buffer_hourly_et_mm(
-        self, zone, anchor, *, now, lat, lon, tz_offset_h, elev, tz=None
-    ):
+    def _buffer_hourly_et_mm(self, zone, anchor, *, now, geometry):
         """Summed FAO-56 hourly ETo (mm) since ``anchor`` from the zone's buffer.
 
         Returns None when the hourly form does not apply to this zone or the
@@ -263,7 +262,7 @@ class LiveEstimateMixin:
         behaviour rather than a fabricated series.
 
         Cheap by construction: completed hours are carried in
-        ``_live_hourly_carry`` and only the current partial hour is re-reduced.
+        ``_hourly_carry`` and only the current partial hour is re-reduced.
         """
         if not self._hourly_form_applies(zone):
             return None
@@ -279,7 +278,7 @@ class LiveEstimateMixin:
             return None
 
         zone_id = zone.get(const.ZONE_ID)
-        carry = self._live_hourly_carry().get(zone_id)
+        carry = self._hourly_carry().get(zone_id)
         watermark, base_mm = anchor, 0.0
         if carry is not None and carry.anchor == anchor and anchor <= carry.boundary:
             if carry.boundary <= now:
@@ -287,36 +286,22 @@ class LiveEstimateMixin:
             # A boundary in the future means the clock went backwards; recompute
             # the whole window rather than trust a total measured past "now".
 
-        rows = build_hourly_rows(
+        # The same reduction the daily calculation runs, geometry and all: an
+        # hour with no solar reading is refilled from the held clearness ratio
+        # rather than a flat hold, and each row resolves its own UTC offset. A
+        # window priced any other way drifts from the bucket the nightly calc
+        # lands on, which is the one thing this estimate exists to track.
+        priced = hourly_eto_priced(
             readings,
             watermark,
             mappings_config,
             now=now,
             last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
-            # Must match _hourly_et_for_zone exactly. Without the site geometry
-            # an hour with no solar reading falls back to the flat hold while
-            # the daily calculation refills it from the held clearness ratio, so
-            # the two would price a gapped window differently and the live
-            # deficit would drift from the bucket the nightly calc lands on --
-            # the one thing this estimate exists to track.
-            latitude=lat,
-            longitude=lon,
-            elevation=elev,
-            tz_offset_h=tz_offset_h,
-            # The timezone as well as the offset, so each row resolves the offset
-            # from its own stamp. The scalar alone is not a smaller version of
-            # the same thing: a window reaches seven days and can straddle a DST
-            # transition, which puts every row past it an hour out in solar time,
-            # and the daily form resolves per row -- so the drift this whole call
-            # exists to prevent returns on exactly those windows. It travels with
-            # tz_offset_h rather than being read from dt_util here, because the
-            # offset is the caller's and a timezone from anywhere else would
-            # silently win over it.
-            tz=tz,
+            geometry=geometry,
         )
-        if not rows:
+        if priced is None:
             return None
-        series = eto_hourly_series(rows, lat, lon, tz_offset_h, elev)
+        rows, series = priced
 
         # Fold every hour that has closed into the carry. The rows already carry
         # each end's partial coverage through ``coverage_h``, so the anchor hour
@@ -330,16 +315,16 @@ class LiveEstimateMixin:
         if current_hour > watermark and any(
             row["hour_start"] < current_hour for row in rows
         ):
-            self._live_hourly_carry()[zone_id] = _HourlyCarry(
+            self._hourly_carry()[zone_id] = _HourlyCarry(
                 anchor, current_hour, base_mm + closed
             )
         return base_mm + sum(series)
 
-    def _live_hourly_carry(self) -> dict:
+    def _hourly_carry(self) -> dict:
         """The per-zone completed-hour ETo carry, created on first use."""
-        carry = getattr(self, "_live_hourly_carry_cache", None)
+        carry = getattr(self, "_hourly_carry_by_zone", None)
         if carry is None:
-            carry = self._live_hourly_carry_cache = {}
+            carry = self._hourly_carry_by_zone = {}
         return carry
 
     def invalidate_live_estimate_carry(self, mapping_id=None) -> None:
@@ -352,7 +337,7 @@ class LiveEstimateMixin:
         dropping unconsumed rows. The carried hours were computed from rows that
         no longer exist, and nothing else would ever notice.
         """
-        carry = getattr(self, "_live_hourly_carry_cache", None)
+        carry = getattr(self, "_hourly_carry_by_zone", None)
         if not carry:
             return
         if mapping_id is None:
@@ -476,11 +461,7 @@ class LiveEstimateMixin:
                 zone,
                 anchor,
                 now=now_local,
-                lat=lat,
-                lon=lon,
-                tz_offset_h=tz_offset_h,
-                elev=elevation,
-                tz=site_tz,
+                geometry=SiteGeometry(lat, lon, elevation, tz_offset_h, site_tz),
             )
             if buffer_et_mm is not None:
                 et_mm = buffer_et_mm
