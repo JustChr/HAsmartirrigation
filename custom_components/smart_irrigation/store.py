@@ -160,6 +160,7 @@ from .const import (
     ZONE_NAME,
     ZONE_NUMBER_OF_DATA_POINTS,
     ZONE_OBSERVED_ENTITY,
+    ZONE_PENDING_BUCKET_EVENTS,
     ZONE_PLANT_TYPE,
     ZONE_RUN_LOG,
     ZONE_SIZE,
@@ -256,6 +257,9 @@ class ZoneEntry:
     water_used_total = attr.ib(type=float, default=0.0)
     # Bounded rolling run/skip log (newest first); see const.ZONE_RUN_LOG (WS-2).
     run_log = attr.ib(type=list, factory=list)
+    # Mid-window bucket movements awaiting the next calculation, in mm;
+    # see const.ZONE_PENDING_BUCKET_EVENTS.
+    pending_bucket_events = attr.ib(type=list, factory=list)
     # Self-closing valve mode (per-zone actuation adapter). "classic" = the
     # historic open->sleep->close; "service" = fire run_service, valve self-closes.
     watering_mode = attr.ib(type=str, default="classic")
@@ -974,6 +978,11 @@ class SmartIrrigationStorage:
                         # Migration: pre-WS-2 zones start with no usage history.
                         water_used_total=zone.get(ZONE_WATER_USED_TOTAL, 0.0),
                         run_log=zone.get(ZONE_RUN_LOG, []) or [],
+                        # Migration: a zone stored before mid-window credits were
+                        # booked simply has none pending, which is what an empty
+                        # list means anyway.
+                        pending_bucket_events=zone.get(ZONE_PENDING_BUCKET_EVENTS, [])
+                        or [],
                         # Self-closing valve mode config — must be hydrated here
                         # or it silently reverts to classic on every reload.
                         watering_mode=zone.get("watering_mode", "classic"),

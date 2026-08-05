@@ -347,6 +347,7 @@ async def test_zone_view_ignores_server_owned_fields():
         const.ZONE_LAST_CONSUMED: "2020-01-01T00:00:00",
         const.ZONE_LAST_CALCULATED: "2020-01-01T00:00:00",
         const.ZONE_LAST_UPDATED: "2020-01-01T00:00:00",
+        const.ZONE_PENDING_BUCKET_EVENTS: [{"ts": "2020-01-01T00:00:00", "mm": 9.0}],
     }
     request.json = AsyncMock(return_value=data)
 
@@ -370,6 +371,8 @@ async def test_zone_view_ignores_server_owned_fields():
     assert const.ZONE_FLOW_RESET_STREAK not in forwarded
     assert const.ZONE_FLOW_CAL_SAMPLES not in forwarded
     assert const.ZONE_FLOW_CAL_ADVISED not in forwarded
+    # restoring an already-consumed mid-window credit would apply it twice
+    assert const.ZONE_PENDING_BUCKET_EVENTS not in forwarded
     # the runner-owned timestamps are stripped too — the consumption watermark
     # (last_consumed_at) is the critical one: reverting it makes the next calc
     # re-aggregate an already-consumed weather window and double-count the bucket

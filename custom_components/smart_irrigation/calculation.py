@@ -42,6 +42,34 @@ def _as_datetime(value):
     return parse_datetime(value)
 
 
+def pending_bucket_events(zone):
+    """A zone's unconsumed mid-window bucket credits as ``[(naive_local, mm)]``.
+
+    Stored aware (see ``IrrigationRunnerMixin.async_write_watered_bucket``) and
+    flattened to naive local here, because the window these have to be placed on
+    is built from naive ``datetime.now()`` stamps and mixing the two raises.
+    Entries that will not parse are dropped rather than defaulted to a time: a
+    credit placed at the wrong instant is worse than one placed at the window
+    start, which is what dropping it falls back to.
+    """
+    out = []
+    for entry in zone.get(const.ZONE_PENDING_BUCKET_EVENTS) or []:
+        if not isinstance(entry, dict):
+            continue
+        stamp = _as_datetime(entry.get("ts"))
+        if stamp is None:
+            continue
+        if stamp.tzinfo is not None:
+            stamp = dt_util.as_local(stamp).replace(tzinfo=None)
+        try:
+            mm = float(entry.get("mm"))
+        except (TypeError, ValueError):
+            continue
+        if mm:
+            out.append((stamp, mm))
+    return out
+
+
 def duration_from_deficit(
     deficit,
     throughput,
@@ -561,7 +589,9 @@ class CalculationMixin:
         )
         return total, per_hour
 
-    def _substeps_for_zone(self, zone, precip_total, *, now, hourly_et=None):
+    def _substeps_for_zone(
+        self, zone, precip_total, *, now, hourly_et=None, applied=None
+    ):
         """Water-balance sub-steps for this zone's window, or None to lump.
 
         Reconciled against the aggregate's precipitation total before being
@@ -597,6 +627,7 @@ class CalculationMixin:
             mappings_config,
             now=now,
             hourly_et=hourly_et,
+            applied=applied,
         )
         if not steps:
             return None
@@ -748,11 +779,26 @@ class CalculationMixin:
         # bursts never happens. Replaying the window at its own event times
         # removes both without changing the ledger — still one calculation, one
         # bucket write, one delta, one explanation. See ``build_substeps``.
+        #
+        # Irrigation credited part-way through this window. The stored bucket
+        # already holds it, so the replay starts from the level BEFORE it and the
+        # credit goes back in at the step it happened on. Without that it is
+        # charged the whole window's drainage — up to ~2.5 mm of bucket on a run
+        # that overshoots into surplus, always reading the zone drier than it is,
+        # and it does not wash out: once the zone is back in deficit drainage
+        # stops acting and the gap is frozen in.
+        applied = pending_bucket_events(zone)
         steps = (
-            self._substeps_for_zone(zone, precip, now=now, hourly_et=hourly_et)
+            self._substeps_for_zone(
+                zone, precip, now=now, hourly_et=hourly_et, applied=applied
+            )
             if module_uses_precipitation
             else None
         )
+        # Consumed whether or not the replay ran: the single-shot path cannot
+        # place them, and carrying them into a later window would put them
+        # further from where they belong, not closer.
+        data[const.ZONE_PENDING_BUCKET_EVENTS] = []
         runoff = 0.0
         # Kept for the explanation in both paths: it is the number the reader
         # recognises as "bucket plus delta, capped", and it is what selects the
@@ -761,8 +807,9 @@ class CalculationMixin:
         if maximum_bucket is not None and bucket_plus_delta_capped > maximum_bucket:
             bucket_plus_delta_capped = float(maximum_bucket)
         if steps is not None:
+            applied_total = sum(s.applied_mm for s in steps)
             newbucket, drainage, runoff = replay_water_balance(
-                bucket,
+                bucket - applied_total,
                 et_delta,
                 steps,
                 drainage_rate,
@@ -771,10 +818,11 @@ class CalculationMixin:
             )
             _LOGGER.debug(
                 "[calculate-module]: sub-stepped water balance over %s steps: "
-                "drainage %s, runoff %s",
+                "drainage %s, runoff %s, irrigation replayed %s mm",
                 len(steps),
                 drainage,
                 runoff,
+                applied_total,
             )
         else:
             newbucket = bucket_plus_delta_capped

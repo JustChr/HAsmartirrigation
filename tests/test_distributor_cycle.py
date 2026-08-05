@@ -4,15 +4,22 @@ import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.distributor import DistributorMixin
+from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
 from custom_components.smart_irrigation.master import MasterMixin
 from tests.test_distributor import _dist, _host
 
 
-class _CycleHost(DistributorMixin, MasterMixin):
-    """Minimal host to unit-test the cycle orchestration in isolation."""
+class _CycleHost(DistributorMixin, IrrigationRunnerMixin, MasterMixin):
+    """Minimal host to unit-test the cycle orchestration in isolation.
+
+    Carries IrrigationRunnerMixin for the same reason the real coordinator does:
+    the distributor credits the bucket through its shared writer, which books the
+    credit on the zone's mid-window ledger.
+    """
 
 
 def _mem(zid, outlet, **kw):
@@ -84,7 +91,10 @@ async def test_persist_and_clear_cycle():
 
 def _credit_host():
     c = _CycleHost()
+    c.hass = Mock()
+    c.hass.config.units = METRIC_SYSTEM
     c.store = Mock()
+    c.store.get_zone = Mock(return_value={const.ZONE_BUCKET: -5.0})
     c.store.async_update_zone = AsyncMock()
     c._timed_volume_l = Mock(return_value=20.0)  # litres
     c._credited_depth_native = Mock(return_value=4.0)  # mm
@@ -92,12 +102,24 @@ def _credit_host():
     return c
 
 
+def _credited_mm(c):
+    """The mm booked on the ledger by the single bucket write under test."""
+    changes = c.store.async_update_zone.await_args.args[1]
+    events = changes[const.ZONE_PENDING_BUCKET_EVENTS]
+    assert len(events) == 1
+    return events[0]["mm"]
+
+
 async def test_credit_zone_credits_bucket_and_records_run():
     c = _credit_host()
     z = _mem(2, 1, **{const.ZONE_BUCKET: -5.0, const.ZONE_MAXIMUM_BUCKET: 50.0})
     await c._dist_credit_zone(z, 60.0)
     # bucket -5 + 4 = -1
-    c.store.async_update_zone.assert_awaited_once_with(2, {const.ZONE_BUCKET: -1.0})
+    assert c.store.async_update_zone.await_args.args[0] == 2
+    assert c.store.async_update_zone.await_args.args[1][const.ZONE_BUCKET] == -1.0
+    # The 4 mm has to be booked at the time it was applied, or the next
+    # calculation charges it the whole window's drainage.
+    assert _credited_mm(c) == pytest.approx(4.0)
     kwargs = c._record_run.await_args.kwargs
     assert kwargs["result"] == const.RUN_RESULT_COMPLETED
     assert kwargs["volume_l"] == 20.0
@@ -110,7 +132,10 @@ async def test_credit_zone_caps_at_maximum_bucket():
     c._credited_depth_native = Mock(return_value=100.0)
     z = _mem(2, 1, **{const.ZONE_BUCKET: -5.0, const.ZONE_MAXIMUM_BUCKET: 10.0})
     await c._dist_credit_zone(z, 60.0)
-    c.store.async_update_zone.assert_awaited_once_with(2, {const.ZONE_BUCKET: 10.0})
+    assert c.store.async_update_zone.await_args.args[1][const.ZONE_BUCKET] == 10.0
+    # Clamped credit -> the ledger books what actually entered the bucket (15),
+    # not the 100 that was offered, so subtracting it recovers the pre-run level.
+    assert _credited_mm(c) == pytest.approx(15.0)
 
 
 def _dist_cfg(**kw):

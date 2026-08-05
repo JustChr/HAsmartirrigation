@@ -454,6 +454,34 @@ RUN_RESULT_SKIPPED = "skipped"
 # outside Smart Irrigation and its estimated volume was credited to the bucket.
 RUN_RESULT_OBSERVED = "observed"
 
+# Bucket movements that happened part-way through the current calculation
+# window: irrigation credits, and the reconciles that correct them. Each entry
+# is {ts: iso, mm: float}, newest last.
+#
+# The replayed water balance takes the stored bucket as the level at the window
+# START, so without these a credit deposited at 10:00 in a window that opened at
+# 02:00 is charged the whole window's drainage instead of the hours it was
+# actually there. Drainage only acts on a surplus, so the error needs a run that
+# overshoots the deficit (a manual run at a chosen duration, a multiplier above
+# 1, observed watering) — but when it lands it is worth multiple mm of bucket,
+# it does not wash out at the next calculation, and it always reads the zone as
+# drier than it is. See calculation.calculate_module.
+#
+# Held in mm regardless of the display unit system, unlike the bucket they
+# describe: a list cannot be listed in unit_system.ZONE_DEPTH_FIELDS, so storing
+# them in display units would leave them silently reinterpreted by a metric/
+# imperial flip.
+ZONE_PENDING_BUCKET_EVENTS = "pending_bucket_events"
+# Consumed by every calculation, so reaching this cap means calculation has been
+# failing for a long time; the oldest are dropped rather than growing the store.
+# Sized so a single longest-possible run cannot truncate itself: a metered run
+# commits its progress every RUN_COMMIT_INTERVAL, which over the default
+# maximum_duration of 4 h is 240 entries. Dropping the oldest is safe either way
+# -- water is still conserved, because the replay starts from the bucket minus
+# only what it kept -- but a dropped credit is back to being charged the whole
+# window, which is the thing this exists to avoid.
+PENDING_BUCKET_EVENTS_MAX = 500
+
 CONF_ZONE_SEQUENCING = "zone_sequencing"
 CONF_ZONE_SEQUENCING_SEQUENTIAL = "sequential"
 CONF_ZONE_SEQUENCING_PARALLEL = "parallel"

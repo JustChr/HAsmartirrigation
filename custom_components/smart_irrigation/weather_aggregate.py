@@ -456,11 +456,17 @@ class WaterStep(NamedTuple):
     sum to 1.0, so the window's ET is exactly conserved however it is split.
     ``precip_mm`` is the rain that landed at the END of the step: a rain-gauge
     increment read at time t fell during the interval ending at t.
+
+    ``applied_mm`` is irrigation credited to the bucket during the step, booked
+    by the same end-of-step rule. Kept apart from ``precip_mm`` because that one
+    has to reconcile against the window's precipitation aggregate — the two are
+    the same water to the balance and different water to the ledger.
     """
 
     dt_hours: float
     et_weight: float
     precip_mm: float
+    applied_mm: float = 0.0
 
 
 def _clamped_samples(samples, start, end):
@@ -922,7 +928,9 @@ def _weights_from_hourly_et(weights, hours, dt_hours, hourly_et):
     return out
 
 
-def build_substeps(readings, watermark, mappings_config, *, now=None, hourly_et=None):
+def build_substeps(
+    readings, watermark, mappings_config, *, now=None, hourly_et=None, applied=None
+):
     """Cut a zone's window into ordered water-balance sub-steps, or None.
 
     The single-shot form collapses a whole window to one ``(delta, elapsed)``
@@ -946,6 +954,11 @@ def build_substeps(readings, watermark, mappings_config, *, now=None, hourly_et=
     exactly one hour and no re-cutting is needed. The returned weights still sum
     to 1 and are still applied to a single window total by the caller, so this
     only changes how that total is shaped.
+
+    ``applied`` is ``[(datetime, mm)]`` of irrigation credited to the bucket
+    inside the window. Each one earns a cut and is booked on the step it ends,
+    exactly as rain is; the caller must then start the replay from the level
+    BEFORE those credits, since the stored bucket already contains them.
 
     Returns None whenever the window cannot be sub-stepped faithfully — no
     timestamps, a zero-length window, a precipitation aggregate with no time
@@ -980,17 +993,28 @@ def build_substeps(readings, watermark, mappings_config, *, now=None, hourly_et=
     # reading for no gain: the interval that matters is the one the rain landed
     # in, not the one the gauge happened to be read in.
     increments = [(t, mm) for t, mm in increments if mm]
-    cuts = _substep_boundaries(start, end, [t for t, _ in increments])
+    applied = [(t, mm) for t, mm in (applied or []) if mm and t is not None]
+    cuts = _substep_boundaries(
+        start, end, [t for t, _ in increments] + [t for t, _ in applied]
+    )
     if len(cuts) < 2:
         return None
 
     # Rain is booked against the step it ends, and every increment time is one of
     # the cuts -- except one landing exactly on the window start, which belongs
     # to the first step rather than to a step that does not exist before it.
-    rain_at = {}
-    for t, mm in increments:
-        idx = min(max(bisect.bisect_left(cuts, t), 1), len(cuts) - 1)
-        rain_at[cuts[idx]] = rain_at.get(cuts[idx], 0.0) + mm
+    def _book(events):
+        at = {}
+        for t, mm in events:
+            idx = min(max(bisect.bisect_left(cuts, t), 1), len(cuts) - 1)
+            at[cuts[idx]] = at.get(cuts[idx], 0.0) + mm
+        return at
+
+    rain_at = _book(increments)
+    # A credit stamped outside the window is clamped onto the nearest end step by
+    # the same rule rather than dropped: the stored bucket already contains it,
+    # so losing it here would silently delete that water from the balance.
+    applied_at = _book(applied)
 
     # ET is apportioned by measured solar radiation rather than evenly by elapsed
     # time. Both conserve the window total and the two differ by <= 0.004 mm on
@@ -1025,11 +1049,11 @@ def build_substeps(readings, watermark, mappings_config, *, now=None, hourly_et=
             )
         weights.append(weight)
         hours.append(a.replace(minute=0, second=0, microsecond=0))
-        steps.append((dt_hours, rain_at.get(b, 0.0)))
+        steps.append((dt_hours, rain_at.get(b, 0.0), applied_at.get(b, 0.0)))
 
     if hourly_et is not None:
         weights = _weights_from_hourly_et(
-            weights, hours, [dt for dt, _ in steps], hourly_et
+            weights, hours, [dt for dt, _, _ in steps], hourly_et
         )
         if weights is None:
             return None
@@ -1038,12 +1062,14 @@ def build_substeps(readings, watermark, mappings_config, *, now=None, hourly_et=
     if total <= 0:
         # Night-only window under solar weighting. ET over such a window is
         # <= 0.017 mm/day, but it still has to go somewhere: spread it by time.
-        weights = [dt for dt, _ in steps]
+        weights = [dt for dt, _, _ in steps]
         total = sum(weights)
         if total <= 0:
             return None
 
     return [
-        WaterStep(dt_hours, weight / total, precip_mm)
-        for (dt_hours, precip_mm), weight in zip(steps, weights, strict=True)
+        WaterStep(dt_hours, weight / total, precip_mm, applied_mm)
+        for (dt_hours, precip_mm, applied_mm), weight in zip(
+            steps, weights, strict=True
+        )
     ]

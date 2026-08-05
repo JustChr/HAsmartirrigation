@@ -238,7 +238,7 @@ class SelfClosingMixin:
             ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
             if ceiling is not None and nb > float(ceiling):
                 nb = float(ceiling)
-            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: nb})
+            await self.async_write_watered_bucket(zone_id, nb)
             zone = self.store.get_zone(zone_id) or zone
             volume_l = measured
         else:
@@ -364,7 +364,7 @@ class SelfClosingMixin:
             new_bucket = pre_bucket + depth
             if ceiling and new_bucket > ceiling:
                 new_bucket = float(ceiling)
-            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: new_bucket})
+            await self.async_write_watered_bucket(zone_id, new_bucket)
             # NB: water_used_total is NOT counted here — it is recorded once at the
             # run's actual end (_sc_finish_run / async_stop_self_closing) for the
             # delivered volume, so an early stop can't over-report usage. The bucket,
@@ -475,16 +475,14 @@ class SelfClosingMixin:
                 nb = float(pre_bucket) + planned_mm * delivered_frac
             if ceiling is not None and nb > float(ceiling):
                 nb = float(ceiling)
-            await self.store.async_update_zone(zone_id, {const.ZONE_BUCKET: nb})
+            await self.async_write_watered_bucket(zone_id, nb)
         else:
             # No pre-run anchor -> no absolute measured reconcile is possible; keep the
             # time-based undelivered subtraction (measured only refines the usage log).
             undelivered_mm = planned_mm * (1.0 - delivered_frac)
             if undelivered_mm:
                 new_bucket = float(zone.get(const.ZONE_BUCKET) or 0) - undelivered_mm
-                await self.store.async_update_zone(
-                    zone_id, {const.ZONE_BUCKET: new_bucket}
-                )
+                await self.async_write_watered_bucket(zone_id, new_bucket)
 
         await self._sc_remove_run(zone_id)
         # review finding D: cancel-and-pop the original run's pending cleanup timer so it

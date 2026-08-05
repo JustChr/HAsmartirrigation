@@ -348,6 +348,10 @@ class SmartIrrigationZoneView(HomeAssistantView):
             const.ZONE_LAST_CONSUMED,
             const.ZONE_LAST_CALCULATED,
             const.ZONE_LAST_UPDATED,
+            # Same hazard as the watermark, opposite direction: a stale snapshot
+            # would restore credits the last calculation already folded into the
+            # bucket, and the next calculation would apply them a second time.
+            const.ZONE_PENDING_BUCKET_EVENTS,
         ):
             data.pop(_server_owned, None)
         try:

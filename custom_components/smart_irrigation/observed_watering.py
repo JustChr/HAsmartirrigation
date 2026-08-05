@@ -181,12 +181,10 @@ class ObservedWateringMixin:
             trigger=const.RUN_TRIGGER_OBSERVED,
             add_to_total=True,
         )
-        await self.store.async_update_zone(
+        await self.async_write_watered_bucket(
             zone_id,
-            {
-                const.ZONE_BUCKET: new_bucket,
-                const.ZONE_LAST_IRRIGATION: dt_util.now(),
-            },
+            new_bucket,
+            {const.ZONE_LAST_IRRIGATION: dt_util.now()},
         )
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
         _LOGGER.info(

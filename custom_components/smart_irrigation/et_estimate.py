@@ -182,8 +182,14 @@ def replay_water_balance(
     by the crop coefficient and the window length) and ``steps`` are
     ``WaterStep``s whose ``et_weight`` sums to 1, so the same total ET is charged
     either way — only its interleaving with rain and drainage changes. Each step
-    runs **ET share, then drainage, then rain, then the clamp**, which is the
-    order the single-shot form applies over the whole window at once.
+    runs **ET share, then drainage, then rain and irrigation, then the clamp**,
+    which is the order the single-shot form applies over the whole window at once.
+
+    ``bucket`` is the level at the window START. Where steps carry
+    ``applied_mm``, the caller has to hand in the level BEFORE those credits —
+    the stored bucket already contains them, and passing it unadjusted would both
+    double-count the water and charge it the drainage of the hours before it was
+    applied.
 
     Exact rather than approximate at any step length: ``drained_over_window`` is
     the closed-form solution of the drainage ODE, so cutting the window at
@@ -194,7 +200,8 @@ def replay_water_balance(
     no capacity to scale by, so drainage falls back to a constant rate.
 
     Returns ``(bucket, drainage_total, runoff_total)``. The three conserve water
-    against the inputs: ``bucket + et_total + rain - drainage - runoff``.
+    against the inputs: ``bucket + et_total + rain + applied - drainage -
+    runoff``.
     """
     value = float(bucket)
     # The stored bucket is always the output of a previous clamp, so this is a
@@ -212,7 +219,7 @@ def replay_water_balance(
         )
         value -= drained
         drainage_total += drained
-        value += step.precip_mm
+        value += step.precip_mm + getattr(step, "applied_mm", 0.0)
         if maximum_bucket is not None and value > maximum_bucket:
             runoff_total += value - float(maximum_bucket)
             value = float(maximum_bucket)

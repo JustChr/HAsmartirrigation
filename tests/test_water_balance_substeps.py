@@ -298,6 +298,104 @@ class TestReplay:
         assert runoff > 0.0
 
 
+class TestMidWindowIrrigationCredits:
+    """Water put in the bucket part-way through the window, not at its start.
+
+    The replay reads the stored bucket as the level the window OPENED at, and a
+    run that overshoots the deficit leaves a surplus behind (every credit path
+    writes ``pre_bucket + depth``, clamped only at ``maximum_bucket`` -- the
+    deficit is not an input). Drainage only bites on a surplus, so that surplus
+    is then charged the whole window instead of the hours it was really there,
+    and the zone reads drier than it is. It does not wash out either: once the
+    zone is back in deficit drainage stops acting and the gap is frozen in.
+    """
+
+    def test_a_credit_is_booked_on_the_step_it_landed_in(self):
+        readings = _day({})
+        steps = build_substeps(
+            readings,
+            T0,
+            {},
+            now=T0 + timedelta(hours=24),
+            applied=[(T0 + timedelta(hours=20, minutes=30), 8.0)],
+        )
+        assert sum(s.applied_mm for s in steps) == pytest.approx(8.0)
+        # Its time earns a cut, so the credit ends the step that contains it and
+        # nothing before 20:30 has seen the water.
+        elapsed = 0.0
+        for step in steps:
+            elapsed += step.dt_hours
+            if step.applied_mm:
+                assert elapsed == pytest.approx(20.5)
+
+    def test_a_credit_stamped_outside_the_window_is_still_applied(self):
+        """The stored bucket already holds it, so dropping it deletes water."""
+        readings = _day({})
+        for stamp in (T0 - timedelta(hours=3), T0 + timedelta(hours=30)):
+            steps = build_substeps(
+                readings, T0, {}, now=T0 + timedelta(hours=24), applied=[(stamp, 4.0)]
+            )
+            assert sum(s.applied_mm for s in steps) == pytest.approx(4.0)
+
+    def test_credits_do_not_disturb_the_precipitation_ledger(self):
+        """ZONE_DELTA is published from the aggregate, the bucket from these.
+
+        Folding irrigation into ``precip_mm`` would make the two disagree and
+        drop the whole zone back to the single-shot path.
+        """
+        readings = _day({16: 6.0})
+        steps = build_substeps(
+            readings,
+            T0,
+            {},
+            now=T0 + timedelta(hours=24),
+            applied=[(T0 + timedelta(hours=9), 5.0)],
+        )
+        assert sum(s.precip_mm for s in steps) == pytest.approx(6.0)
+
+    def test_water_is_conserved_with_a_credit(self):
+        readings = _day({})
+        steps = build_substeps(
+            readings,
+            T0,
+            {},
+            now=T0 + timedelta(hours=24),
+            applied=[(T0 + timedelta(hours=10), 9.0)],
+        )
+        applied = sum(s.applied_mm for s in steps)
+        bucket, drainage, runoff = replay_water_balance(
+            0.0, -3.0, steps, DRAINAGE_RATE, MAXIMUM_BUCKET, MAXIMUM_BUCKET
+        )
+        assert bucket == pytest.approx(
+            0.0 - 3.0 + applied - drainage - runoff, abs=1e-9
+        )
+
+    def test_the_credit_is_not_charged_the_hours_before_it_was_applied(self):
+        """The defect, stated as the difference the fix makes.
+
+        Same water, same window, same total: one run replays it from the window
+        start (what a stored bucket carrying the credit does), the other books it
+        at 20:00. The second keeps materially more bucket, and the first is the
+        one that reads drier and waters again sooner.
+        """
+        readings = _day({})
+        late = build_substeps(
+            readings,
+            T0,
+            {},
+            now=T0 + timedelta(hours=24),
+            applied=[(T0 + timedelta(hours=20), 10.0)],
+        )
+        at_start = build_substeps(readings, T0, {}, now=T0 + timedelta(hours=24))
+        booked_late = replay_water_balance(
+            0.0, -4.0, late, DRAINAGE_RATE, MAXIMUM_BUCKET, MAXIMUM_BUCKET
+        )[0]
+        folded_in = replay_water_balance(
+            10.0, -4.0, at_start, DRAINAGE_RATE, MAXIMUM_BUCKET, MAXIMUM_BUCKET
+        )[0]
+        assert booked_late > folded_in + 1.0
+
+
 @pytest.fixture
 async def coordinator(hass):
     """A real coordinator over a real in-memory store."""

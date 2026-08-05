@@ -1694,6 +1694,45 @@ class IrrigationRunnerMixin:
             return float(max_bucket) if max_bucket is not None else float("inf")
         return self._zone_target_bucket(zone)
 
+    async def async_write_watered_bucket(
+        self, zone_id, new_bucket: float, extra_changes: dict | None = None
+    ) -> None:
+        """Write a bucket level that moved because water was applied JUST NOW.
+
+        Every credit path writes the bucket absolutely (``pre_bucket + depth``,
+        or a reconcile back to ``pre_bucket + measured``), so the water this
+        write represents is the difference against the level currently stored.
+        Booking that difference on ``ZONE_PENDING_BUCKET_EVENTS`` with its
+        timestamp is what lets the next calculation replay it at the moment it
+        happened rather than at the window start, where it would be charged
+        drainage for hours it was not in the soil.
+
+        Deliberately NOT hooked into ``store.async_update_zone``, which every
+        bucket write funnels through: that would also book the writes where no
+        water moved — a metric/imperial flip rewrites the bucket by 25.4, and
+        booking that as ~19 mm of irrigation would wreck the balance far worse
+        than the drainage error this fixes. Only water calls here.
+
+        The bucket is stored in display units; the ledger is mm (see
+        ``const.ZONE_PENDING_BUCKET_EVENTS``).
+        """
+        zone = self.store.get_zone(zone_id) or {}
+        changes = dict(extra_changes or {})
+        changes[const.ZONE_BUCKET] = new_bucket
+        try:
+            delta = float(new_bucket) - float(zone.get(const.ZONE_BUCKET) or 0)
+        except (TypeError, ValueError):
+            delta = 0.0
+        if delta:
+            if self.hass.config.units is not METRIC_SYSTEM:
+                delta = convert_between(const.UNIT_INCH, const.UNIT_MM, delta)
+            events = list(zone.get(const.ZONE_PENDING_BUCKET_EVENTS) or [])
+            events.append({"ts": dt_util.now().isoformat(), "mm": delta})
+            changes[const.ZONE_PENDING_BUCKET_EVENTS] = events[
+                -const.PENDING_BUCKET_EVENTS_MAX :
+            ]
+        await self.store.async_update_zone(zone_id, changes)
+
     async def _commit_run_progress(
         self, zone_id, *, new_bucket: float, volume_delta_l: float, dispatch: bool
     ) -> None:
@@ -1708,7 +1747,7 @@ class IrrigationRunnerMixin:
         coarse cadence so the ``_config_updated`` weather fan-out stays cheap.
         """
         zone = self.store.get_zone(zone_id) or {}
-        changes = {const.ZONE_BUCKET: new_bucket}
+        changes = {}
         if volume_delta_l and volume_delta_l > 0:
             # Only stamp "last irrigation" + the usage counter when water actually
             # flowed this commit, so a failed / never-started run (which still
@@ -1717,7 +1756,7 @@ class IrrigationRunnerMixin:
             changes[const.ZONE_WATER_USED_TOTAL] = (
                 zone.get(const.ZONE_WATER_USED_TOTAL) or 0.0
             ) + volume_delta_l
-        await self.store.async_update_zone(zone_id, changes)
+        await self.async_write_watered_bucket(zone_id, new_bucket, changes)
         if dispatch:
             async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
 
