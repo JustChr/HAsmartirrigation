@@ -5,9 +5,9 @@ calculation*. Three sources, in decreasing order of agreement with the stored
 ledger:
 
 * **the zone's own sensor-group buffer** — the same rows the daily calculation
-  reduces, summed as FAO-56 hourly ETo by the same row builder, so the live
-  curve is the path the stored bucket takes and the two coincide at every
-  calculation time;
+  reduces, summed as FAO-56 hourly ETo by the same row builder and run through
+  the same replayed water balance, so the live curve is the path the stored
+  bucket takes and the two coincide at every calculation time;
 * **the weather client's hourly series**, where one exposes solar radiation;
 * a **Hargreaves-seeded proxy** distributed over the elapsed hours, for
   providers with neither.
@@ -43,10 +43,11 @@ from .et_estimate import (
     hourly_eto_priced,
     live_balance,
     proxy_et_since,
+    replay_water_balance,
     rigorous_et_since,
 )
 from .helpers import convert_between
-from .weather_aggregate import aggregate_window
+from .weather_aggregate import aggregate_window, build_substeps
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,11 +72,18 @@ class _HourlyCarry(NamedTuple):
     ``anchor`` is the ``last_calculated`` the total is measured FROM: a new
     calculation moves it, and the mismatch drops the entry without anyone having
     to remember to invalidate it.
+
+    Carried per HOUR rather than as one running total, because the replayed
+    balance needs an ET quantum for every hour of the window and the re-reduction
+    only ever returns the hours from ``boundary`` on. A bare total would leave
+    every earlier hour missing from ``build_substeps``' ``hourly_et``, which is a
+    documented reason for it to refuse the window — so the estimate would fall
+    back to the lumped form for as long as the carry was warm, i.e. always.
     """
 
     anchor: datetime.datetime
     boundary: datetime.datetime
-    et_mm: float
+    per_hour: dict
 
 
 def _parse_local_naive(value):
@@ -265,8 +273,12 @@ class LiveEstimateMixin:
             return False
         return forecast_days == 0
 
-    def _buffer_hourly_et_mm(self, zone, anchor, *, now, geometry):
-        """Summed FAO-56 hourly ETo (mm) since ``anchor`` from the zone's buffer.
+    def _buffer_hourly_et(self, zone, anchor, *, now, geometry):
+        """``(total_mm, {hour_start: eto_mm})`` since ``anchor`` from the buffer.
+
+        Summed FAO-56 hourly ETo, in the same shape ``_hourly_et_for_zone``
+        hands the daily calculation: the total is what the balance charges, and
+        the per-hour series is what shapes it across the window's sub-steps.
 
         Returns None when the hourly form does not apply to this zone or the
         window cannot be reduced to hourly rows (``build_hourly_rows`` decides
@@ -293,10 +305,10 @@ class LiveEstimateMixin:
 
         zone_id = zone.get(const.ZONE_ID)
         carry = self._hourly_carry().get(zone_id)
-        watermark, base_mm = anchor, 0.0
+        watermark, base = anchor, {}
         if carry is not None and carry.anchor == anchor and anchor <= carry.boundary:
             if carry.boundary <= now:
-                watermark, base_mm = carry.boundary, carry.et_mm
+                watermark, base = carry.boundary, carry.per_hour
             # A boundary in the future means the clock went backwards; recompute
             # the whole window rather than trust a total measured past "now".
 
@@ -320,19 +332,77 @@ class LiveEstimateMixin:
         # Fold every hour that has closed into the carry. The rows already carry
         # each end's partial coverage through ``coverage_h``, so the anchor hour
         # is folded at its real share and never re-charged as a whole one.
+        #
+        # ``base`` and the freshly priced hours cannot collide: the carry holds
+        # only hours strictly before its boundary, and the re-reduction starts AT
+        # that boundary, which is a whole hour.
         current_hour = now.replace(minute=0, second=0, microsecond=0)
-        closed = sum(
-            eto
-            for row, eto in zip(rows, series, strict=True)
-            if row["hour_start"] < current_hour
-        )
-        if current_hour > watermark and any(
-            row["hour_start"] < current_hour for row in rows
-        ):
+        per_hour = dict(base)
+        closed = {}
+        for row, eto in zip(rows, series, strict=True):
+            hour = row["hour_start"]
+            per_hour[hour] = per_hour.get(hour, 0.0) + eto
+            if hour < current_hour:
+                closed[hour] = closed.get(hour, 0.0) + eto
+        if current_hour > watermark and closed:
             self._hourly_carry()[zone_id] = _HourlyCarry(
-                anchor, current_hour, base_mm + closed
+                anchor, current_hour, {**base, **closed}
             )
-        return base_mm + sum(series)
+        return sum(per_hour.values()), per_hour
+
+    def _buffer_water_steps(self, zone, anchor, *, now, hourly_et, precip_total):
+        """Water-balance sub-steps over the live window, or None to lump.
+
+        The live twin of ``CalculationMixin._substeps_for_zone``, cut from the
+        same rows by the same builder but over the live estimate's own anchor
+        rather than the consume watermark. The two are the same instant on a
+        healthy install, which is what makes the replayed curve land on the
+        bucket the next calculation commits.
+
+        No gate of its own. The caller reaches this only on the buffer path,
+        which ``_hourly_form_applies`` has already restricted to PyETO zones on
+        an install with ``hourlycalculation`` on — exactly the pair of conditions
+        (``module_uses_precipitation`` and ``_hourly_calculation_enabled``) the
+        daily side replays under. Adding a second, separately-worded gate here is
+        how the two would drift.
+
+        Reconciled against the same precipitation total the estimate publishes as
+        its own trace, for the reason the daily side reconciles against ZONE_DELTA:
+        the rain in the balance and the rain on the dashboard have to be the same
+        water. They are derived from the same rows by the same rule, so a
+        disagreement means an assumption has broken, and lumping the window is the
+        self-consistent answer.
+        """
+        mapping_id = zone.get(const.ZONE_MAPPING)
+        if mapping_id is None:
+            return None
+        mapping = self.store.get_mapping(mapping_id)
+        if not isinstance(mapping, dict):
+            return None
+        readings = self.store.get_mapping_buffer(mapping_id)
+        mappings_config = mapping.get(const.MAPPING_MAPPINGS)
+        if not isinstance(readings, list) or not isinstance(mappings_config, dict):
+            return None
+        steps = build_substeps(
+            readings,
+            anchor,
+            mappings_config,
+            now=now,
+            hourly_et=hourly_et,
+        )
+        if not steps:
+            return None
+        stepped = sum(s.precip_mm for s in steps)
+        if abs(stepped - precip_total) > max(1e-6, abs(precip_total) * 1e-6):
+            _LOGGER.debug(
+                "intraday: sub-step precipitation %s does not reconcile with the "
+                "aggregated %s for zone %s; using the lumped balance",
+                stepped,
+                precip_total,
+                zone.get(const.ZONE_ID),
+            )
+            return None
+        return steps
 
     def _hourly_carry(self) -> dict:
         """The per-zone completed-hour ETo carry, created on first use."""
@@ -471,14 +541,15 @@ class LiveEstimateMixin:
             # same row builder is the only source that coincides with the stored
             # bucket at each calculation. A client's series is a different set of
             # observations for the same site and drifts from the ledger.
-            buffer_et_mm = self._buffer_hourly_et_mm(
+            buffer_et = self._buffer_hourly_et(
                 zone,
                 anchor,
                 now=now_local,
                 geometry=SiteGeometry(lat, lon, elevation, tz_offset_h, site_tz),
             )
-            if buffer_et_mm is not None:
-                et_mm = buffer_et_mm
+            hourly_et = None
+            if buffer_et is not None:
+                et_mm, hourly_et = buffer_et
                 # Same anchor as the ET, aggregated the way the daily calc does
                 # (rate -> Riemann, cumulative gauge -> delta).
                 precip_mm = self._observed_precip_since_mm(zone, anchor)
@@ -535,6 +606,8 @@ class LiveEstimateMixin:
             # drained over exactly that window (mirrors the daily calc's
             # capacity cap + drainage, integrated analytically). Compared in
             # local time since the anchor is naive local (see _parse_local_naive).
+            # Used by the LUMPED balance only; the replay takes each step's own
+            # dt_hours, which is the whole point of it.
             elapsed_hours = max(0.0, (now_local - anchor).total_seconds() / 3600.0)
             # Crop coefficient (WS-4): scale the intraday ET0 term by the zone's Kc
             # so the live deficit stays consistent with the daily calc (which also
@@ -543,18 +616,54 @@ class LiveEstimateMixin:
             if kc is None:
                 kc = const.CONF_DEFAULT_KC
             et_mm = et_mm * kc
+            # Replay the window at its own event times, exactly as the daily
+            # calculation does, rather than lumping it into one update. The
+            # lumped form treats every mid-window event as present from the last
+            # commit onward, and drainage is Brooks-Corey with n = 4, so the
+            # error is strongly non-linear and runs one way: on this install's
+            # zone parameters a 12.7 mm surplus drains 1.57 mm charged over the
+            # hour it actually fell and 6.94 mm charged over a 20 h window. That
+            # 5.37 mm is 0.21 in against a 0.394 in bucket_threshold, always in
+            # the direction that reads the zone drier than it is, and with
+            # live_estimate_enabled on it both triggers and sizes real runs.
+            #
+            # Only the buffer path can be replayed: it is the only one with the
+            # rows the sub-steps are cut from. The client and proxy paths keep
+            # the lumped form, which is also what the daily side does when it
+            # cannot sub-step.
+            steps = None
+            if hourly_et is not None:
+                steps = self._buffer_water_steps(
+                    zone,
+                    anchor,
+                    now=now_local,
+                    hourly_et=hourly_et,
+                    precip_total=precip_mm,
+                )
             # Drainage comes back alongside the deficit rather than being
             # re-derived: it is a trace of its own on the dashboard (bucket,
             # drainage and ET are plotted separately), and a second computation
             # of the same closed form is a second thing to keep in step.
-            live_mm, drained_mm = live_balance(
-                bucket_mm,
-                et_mm,
-                precip_mm,
-                max_bucket_mm,
-                drainage_rate=drainage_rate_mm,
-                elapsed_hours=elapsed_hours,
-            )
+            if steps is not None:
+                live_mm, drained_mm, _runoff = replay_water_balance(
+                    bucket_mm,
+                    -et_mm,
+                    steps,
+                    drainage_rate_mm,
+                    max_bucket_mm,
+                    # A maximum bucket of 0 still clamps, but there is no field
+                    # capacity to scale Brooks-Corey against.
+                    max_bucket_mm if max_bucket_mm and max_bucket_mm > 0 else None,
+                )
+            else:
+                live_mm, drained_mm = live_balance(
+                    bucket_mm,
+                    et_mm,
+                    precip_mm,
+                    max_bucket_mm,
+                    drainage_rate=drainage_rate_mm,
+                    elapsed_hours=elapsed_hours,
+                )
             ndigits = 2 if metric else 3
             # The three accumulators are graph inputs rather than display
             # strings: they run since the last calculation, so a dashboard
