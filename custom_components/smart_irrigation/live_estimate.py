@@ -12,6 +12,11 @@ ledger:
 * a **Hargreaves-seeded proxy** distributed over the elapsed hours, for
   providers with neither.
 
+Those three choose the EVAPOTRANSPIRATION only. Precipitation comes from the
+reading buffer on every one of them, because that is the only source the daily
+calculation ever books rain from: a total taken from anywhere else is a total
+the ledger will never record.
+
 Does NOT touch the stored bucket, the daily calculation, or irrigation — with
 one exception the user opts into: with ``live_estimate_enabled`` on, the deficit
 computed here both triggers and sizes runs (see ``irrigation.py``), which is why
@@ -564,7 +569,16 @@ class LiveEstimateMixin:
                 tz = inputs["tz"] or 0.0
                 window = self._rows_since(rows, anchor)
                 et_mm = rigorous_et_since(window, lat, lon, tz, elevation)
-                precip_mm = sum(r.get("precipitation", 0.0) for r in window)
+                # Rain from the BUFFER, not from the provider's own hourly
+                # series, even though the ET on this path comes from that
+                # series. The buffer is the only place the daily calculation
+                # ever books rain from, so summing the provider's series
+                # published a total the ledger will never record: a different
+                # set of observations for the same site, plain-summed rather
+                # than aggregated per source, and cut at whole-hour row
+                # boundaries instead of at the anchor. Same anchor as the ET, so
+                # the balance is still the difference of one window.
+                precip_mm = self._observed_precip_since_mm(zone, anchor)
                 method = "hourly"
                 as_of = window[-1]["time"] if window else None
             else:

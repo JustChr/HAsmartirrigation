@@ -109,19 +109,34 @@ async def coordinator(hass):
     return c, store
 
 
-async def _zone(c, store, bucket, *, rain_at=None, events=None, drainage=DRAINAGE_RATE):
+async def _zone(
+    c,
+    store,
+    bucket,
+    *,
+    rain_at=None,
+    events=None,
+    drainage=DRAINAGE_RATE,
+    solrad="3",
+    readings=None,
+    mappings_config=None,
+):
     """A zone whose DAILY calculation sums hourly ETo, over a real buffer.
 
     The module instance reports the axis-A configuration the hourly form is
     gated on -- PyETO, DontEstimate, no forecast days -- because that is also
     what ``_hourly_form_applies`` reads on the estimate side. Anything else and
     the two would be comparing different equations.
+
+    ``solrad`` is the one knob a case flips: "1" (EstimateFromTemp) is the
+    configuration the hourly form declines, which is how a case reaches the
+    weather-client source instead of the buffer one.
     """
     mapping = await store.async_create_mapping(
         {
             const.MAPPING_NAME: "GW",
-            const.MAPPING_MAPPINGS: {},
-            const.MAPPING_DATA: _readings(rain_at),
+            const.MAPPING_MAPPINGS: mappings_config or {},
+            const.MAPPING_DATA: _readings(rain_at) if readings is None else readings,
         }
     )
     module = await store.async_create_module(
@@ -129,13 +144,13 @@ async def _zone(c, store, bucket, *, rain_at=None, events=None, drainage=DRAINAG
             const.MODULE_NAME: "PyETO",
             "description": "",
             "config": {
-                const.CONF_PYETO_SOLRAD_BEHAVIOR: "3",  # DontEstimate
+                const.CONF_PYETO_SOLRAD_BEHAVIOR: solrad,
                 const.CONF_PYETO_FORECAST_DAYS: 0,
             },
         }
     )
     instance = Mock()
-    instance._solrad_behavior = "3"
+    instance._solrad_behavior = solrad
     instance.forecast_days = 0
     instance.calculate = Mock(return_value=0.0)
     c.getModuleInstanceByID = AsyncMock(return_value=instance)
@@ -457,3 +472,201 @@ class TestTheCompletedHourCarryFeedsTheReplay:
         assert est["live_deficit"] == pytest.approx(
             round(data[const.ZONE_BUCKET], 2), abs=0.01
         )
+
+
+def _provider_rows(precip_mm_per_row):
+    """A weather client's OWN hourly series for the same day.
+
+    A different set of observations of the same site, which is the point: the
+    provider is made deliberately wetter than the gauge in the buffer so the two
+    cannot be confused for each other.
+    """
+    return [
+        {
+            "time": (T0 + timedelta(hours=hour)).isoformat(),
+            "hour": hour + 0.5,
+            "doy": T0.timetuple().tm_yday,
+            "temperature": 20.0,
+            "humidity": 55.0,
+            "wind_2m": 1.5,
+            "solar_mj_h": 2.0 if 6 <= hour < 20 else 0.0,
+            "precipitation": precip_mm_per_row,
+        }
+        for hour in range(24)
+    ]
+
+
+def _client_inputs(rows, now=NOW):
+    """A weather-client install: an hourly series, and no forecast behind it."""
+    return {
+        "client": None,
+        "rows": rows,
+        "tz": 0.0,
+        "forecast": None,
+        "now": now,
+        "tz_offset_h": 0.0,
+        "site_tz": dt_util.DEFAULT_TIME_ZONE,
+    }
+
+
+def _rate_readings(rate_at):
+    """The same day with precipitation as a weather-service RATE (mm/h).
+
+    ``rate_at`` is ``{hour: mm/h}`` reported on every row inside that hour. The
+    distinction matters: integrated over time an hour at 12 mm/h is 12 mm, while
+    plain-summing the ten-minute rows that report it gives 72.
+    """
+    readings = []
+    for hour in range(24):
+        for minute in range(0, 60, 10):
+            readings.append(
+                {
+                    const.RETRIEVED_AT: T0 + timedelta(hours=hour, minutes=minute),
+                    const.MAPPING_TEMPERATURE: 20.0,
+                    const.MAPPING_HUMIDITY: 55.0,
+                    const.MAPPING_WINDSPEED: 1.5,
+                    const.MAPPING_SOLRAD: (
+                        700.0 * 0.0864 * (hour + minute / 60.0 - 6) / 8
+                        if 6 <= hour < 20
+                        else 0.0
+                    ),
+                    const.MAPPING_PRECIPITATION: rate_at.get(hour, 0.0),
+                }
+            )
+    return readings
+
+
+async def _committed_precip(c, zone, now=NOW):
+    """The rain the daily calculation would book for this window, in mm."""
+    weatherdata, _ = await c._aggregate_for_zone(zone, now=now)
+    return weatherdata[const.MAPPING_PRECIPITATION]
+
+
+class TestTheWeatherClientPathBooksTheBuffersRain:
+    """The estimate's rain comes from the reading buffer on EVERY path.
+
+    The client path used to sum the provider's own hourly series, which nothing
+    else in the integration reads: the commit always aggregates the buffer. So
+    the total shown beside the live bucket was a total the ledger would never
+    record, drawn from different observations, plain-summed rather than
+    aggregated per source, and cut at whole-hour row boundaries rather than at
+    the anchor.
+
+    These zones estimate solar radiation, so the hourly form declines them and
+    the weather client is the source -- which is exactly the configuration the
+    defect was reachable from.
+    """
+
+    async def test_the_client_path_publishes_the_buffers_rain_not_the_providers(
+        self, coordinator
+    ):
+        c, store = coordinator
+        zone = await _zone(c, store, 2.0, rain_at={20: 14.0}, solrad="1")
+        # 24 rows at 1 mm each: 24 mm of provider rain against 14 mm in the gauge.
+        rows = _provider_rows(1.0)
+
+        est = c._intraday_for_zone(zone, _client_inputs(rows))
+
+        assert est["available"] is True
+        assert est["method"] == "hourly"
+        assert est["precip_since"] == pytest.approx(14.0, abs=0.01)
+        assert est["precip_since"] != pytest.approx(
+            sum(r["precipitation"] for r in rows)
+        )
+
+    async def test_the_published_rain_is_the_rain_the_commit_will_book(
+        self, coordinator
+    ):
+        """The externally observable claim, against the real aggregation the
+        calculation runs rather than against a number computed here."""
+        c, store = coordinator
+        zone = await _zone(c, store, 2.0, rain_at={20: 14.0}, solrad="1")
+
+        est = c._intraday_for_zone(zone, _client_inputs(_provider_rows(1.0)))
+        booked = await _committed_precip(c, zone)
+
+        assert booked == pytest.approx(14.0, abs=0.01)
+        assert est["precip_since"] == pytest.approx(booked, abs=0.01)
+
+    async def test_a_dry_provider_does_not_hide_rain_the_gauge_recorded(
+        self, coordinator
+    ):
+        """The error runs both ways. A provider reporting nothing while the
+        gauge filled would have shown a dry window against a commit that books
+        the rain."""
+        c, store = coordinator
+        zone = await _zone(c, store, 2.0, rain_at={20: 14.0}, solrad="1")
+
+        est = c._intraday_for_zone(zone, _client_inputs(_provider_rows(0.0)))
+
+        assert est["precip_since"] == pytest.approx(14.0, abs=0.01)
+
+    async def test_a_rate_source_is_integrated_over_time_not_summed(self, coordinator):
+        """Aggregated the way the commit aggregates it. A weather-service precip
+        source is a rate, so it is Riemann-integrated; the provider series it
+        replaces was plain-summed, which over-counts sub-hourly rows by exactly
+        the factor of their cadence."""
+        c, store = coordinator
+        readings = _rate_readings({20: 12.0})
+        zone = await _zone(
+            c,
+            store,
+            2.0,
+            solrad="1",
+            readings=readings,
+            mappings_config={
+                const.MAPPING_PRECIPITATION: {
+                    const.MAPPING_CONF_SOURCE: const.MAPPING_CONF_SOURCE_WEATHER_SERVICE
+                }
+            },
+        )
+
+        est = c._intraday_for_zone(zone, _client_inputs(_provider_rows(0.0)))
+        booked = await _committed_precip(c, zone)
+
+        plain_sum = sum(r[const.MAPPING_PRECIPITATION] for r in readings)
+        assert plain_sum == pytest.approx(72.0)
+        assert est["precip_since"] == pytest.approx(booked, abs=0.01)
+        assert est["precip_since"] == pytest.approx(12.0, abs=0.1)
+
+    async def test_the_client_path_stays_read_only(self, coordinator):
+        """Sourcing the buffer must not consume it: no watermark moved, no
+        readings taken, no bucket written, no credit ledger cleared."""
+        c, store = coordinator
+        events = [{"ts": (T0 + timedelta(hours=20)).isoformat(), "mm": 10.0}]
+        zone = await _zone(c, store, 2.0, rain_at={20: 14.0}, solrad="1", events=events)
+        before = dict(store.get_zone(zone[const.ZONE_ID]))
+        rows_before = len(store.get_mapping_buffer(zone[const.ZONE_MAPPING]))
+
+        for _ in range(3):
+            c._intraday_for_zone(zone, _client_inputs(_provider_rows(1.0)))
+
+        after = store.get_zone(zone[const.ZONE_ID])
+        for field in (
+            const.ZONE_BUCKET,
+            const.ZONE_LAST_CONSUMED,
+            const.ZONE_LAST_CALCULATED,
+        ):
+            assert after.get(field) == before.get(field)
+        assert len(store.get_mapping_buffer(zone[const.ZONE_MAPPING])) == rows_before
+        assert zone[const.ZONE_PENDING_BUCKET_EVENTS] == events
+
+    async def test_both_halves_of_the_balance_measure_from_one_anchor(
+        self, coordinator
+    ):
+        """A watermark ahead of the last calculation moves the rain window with
+        the evapotranspiration one. The provider series was cut at
+        ``last_calculated`` floored at the watermark too, so this is the property
+        the change had to preserve rather than one it introduces."""
+        c, store = coordinator
+        zone = await _zone(c, store, 2.0, rain_at={20: 14.0}, solrad="1")
+        # A weather reset advanced the consume watermark past the burst; the
+        # readings behind it no longer belong to this window.
+        moved = dict(zone)
+        moved[const.ZONE_LAST_CONSUMED] = T0 + timedelta(hours=22)
+
+        est = c._intraday_for_zone(moved, _client_inputs(_provider_rows(1.0)))
+        whole = c._intraday_for_zone(zone, _client_inputs(_provider_rows(1.0)))
+
+        assert est["precip_since"] == pytest.approx(0.0, abs=0.01)
+        assert est["et_since"] < whole["et_since"]
