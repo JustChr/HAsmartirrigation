@@ -40,7 +40,7 @@ The official **bucket** is recalculated once a day, at your [calculation time](c
 
 - Where your weather service provides **hourly solar radiation** (e.g. Open-Meteo), it uses the dedicated **hourly** FAO-56 Penman-Monteith reference-ET equation — not the daily equation run more often. Hover/tap the chip to see which method was used and the “as of” time.
 - Other providers fall back to an estimate based on the day's temperature range, distributed across the day by sun position.
-- The estimate is **display-only**: it never changes the stored bucket or the watering decision, and it is anchored to the last calculation so it does not double-count. See [How it works](how-it-works.md#live-status-estimate).
+- The estimate never changes the stored bucket, and it is anchored to the last calculation so it does not double-count. By default it is also **display-only** and does not affect the watering decision. With [live-estimate watering](configuration-experimental.md#live-estimate-watering) on it does: scheduled runs are triggered and sized from it, so the card's decision line quotes the duration derived from this estimate rather than the one the last calculation committed. See [How it works](how-it-works.md#live-status-estimate).
 
 ## Actions
 
