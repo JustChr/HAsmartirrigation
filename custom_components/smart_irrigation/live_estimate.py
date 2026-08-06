@@ -37,6 +37,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .calcmodules.pyeto import SOLRAD_behavior
+from .calculation import pending_bucket_events
 from .et_estimate import (
     SiteGeometry,
     estimate_daily_et0_hargreaves,
@@ -350,7 +351,9 @@ class LiveEstimateMixin:
             )
         return sum(per_hour.values()), per_hour
 
-    def _buffer_water_steps(self, zone, anchor, *, now, hourly_et, precip_total):
+    def _buffer_water_steps(
+        self, zone, anchor, *, now, hourly_et, precip_total, applied
+    ):
         """Water-balance sub-steps over the live window, or None to lump.
 
         The live twin of ``CalculationMixin._substeps_for_zone``, cut from the
@@ -389,6 +392,7 @@ class LiveEstimateMixin:
             mappings_config,
             now=now,
             hourly_et=hourly_et,
+            applied=applied,
         )
         if not steps:
             return None
@@ -639,14 +643,23 @@ class LiveEstimateMixin:
                     now=now_local,
                     hourly_et=hourly_et,
                     precip_total=precip_mm,
+                    # Irrigation credited part-way through this window. Read
+                    # ONLY: the ledger is the daily calculation's to consume, and
+                    # the estimate is a projection from the last commit rather
+                    # than a commit of its own.
+                    applied=pending_bucket_events(zone),
                 )
             # Drainage comes back alongside the deficit rather than being
             # re-derived: it is a trace of its own on the dashboard (bucket,
             # drainage and ET are plotted separately), and a second computation
             # of the same closed form is a second thing to keep in step.
             if steps is not None:
+                # The stored bucket already contains these credits, so the replay
+                # starts from the level BEFORE them and each goes back in at the
+                # step it landed on. Mirrors calculate_module.
+                applied_total = sum(s.applied_mm for s in steps)
                 live_mm, drained_mm, _runoff = replay_water_balance(
-                    bucket_mm,
+                    bucket_mm - applied_total,
                     -et_mm,
                     steps,
                     drainage_rate_mm,

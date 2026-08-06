@@ -16,6 +16,10 @@ the direction that reads the zone drier than it is. With
 ``live_estimate_enabled`` on that number both triggers and sizes real runs, so
 it is not a dashboard cosmetic.
 
+Irrigation credited part-way through the window has the same defect and the same
+fix, already built for the calculation: a per-zone ledger of ``(when, mm)``. The
+estimate reads it and must never consume it.
+
 The equality is the whole point, so it is asserted against a run of the real
 ``calculate_module`` over a real store rather than against a hand-computed
 number -- a reimplementation of the balance in the test would agree with itself
@@ -282,6 +286,75 @@ class TestTheLiveCurveLandsOnTheCommittedBucket:
 
         assert est["drainage_since"] == 0.0
         assert est["live_deficit"] == pytest.approx(round(lumped, 2), abs=0.01)
+
+
+class TestTheCreditLedger:
+    """Irrigation credited part-way through the window, read from the ledger the
+    calculation writes and consumes."""
+
+    async def test_a_late_credit_keeps_more_bucket_than_one_at_the_window_start(
+        self, coordinator
+    ):
+        c, store = coordinator
+        late = await _zone(
+            c,
+            store,
+            10.0,
+            events=[{"ts": (T0 + timedelta(hours=20)).isoformat(), "mm": 10.0}],
+        )
+        folded = await _zone(c, store, 10.0)
+
+        with_ledger = c._intraday_for_zone(late, _inputs())
+        without = c._intraday_for_zone(folded, _inputs())
+
+        assert with_ledger["live_deficit"] > without["live_deficit"] + 1.0
+        # The whole difference is drainage that was never owed.
+        assert with_ledger["drainage_since"] < without["drainage_since"]
+
+    async def test_a_credited_window_lands_on_the_committed_bucket(self, coordinator):
+        c, store = coordinator
+        events = [{"ts": (T0 + timedelta(hours=20)).isoformat(), "mm": 10.0}]
+        zone = await _zone(c, store, 10.0, events=events)
+
+        est = c._intraday_for_zone(zone, _inputs())
+        # calculate_module consumes the ledger, so it has to run second: the
+        # estimate must see the same credits the commit will.
+        data = await _committed(c, zone)
+
+        assert est["live_deficit"] == pytest.approx(
+            round(data[const.ZONE_BUCKET], 2), abs=0.01
+        )
+
+    async def test_the_estimate_does_not_consume_the_ledger(self, coordinator):
+        """Read-only. Consuming here would delete credits the calculation has
+        not applied yet, and the water would simply vanish from the balance."""
+        c, store = coordinator
+        events = [{"ts": (T0 + timedelta(hours=20)).isoformat(), "mm": 10.0}]
+        zone = await _zone(c, store, 10.0, events=events)
+
+        for _ in range(3):
+            c._intraday_for_zone(zone, _inputs())
+
+        assert zone[const.ZONE_PENDING_BUCKET_EVENTS] == events
+        stored = store.get_zone(zone[const.ZONE_ID])
+        assert stored.get(const.ZONE_PENDING_BUCKET_EVENTS) in ([], None, events)
+
+    async def test_the_estimate_advances_no_watermark_and_writes_no_bucket(
+        self, coordinator
+    ):
+        c, store = coordinator
+        zone = await _zone(c, store, 10.0, rain_at={20: 14.0})
+        before = dict(store.get_zone(zone[const.ZONE_ID]))
+
+        c._intraday_for_zone(zone, _inputs())
+
+        after = store.get_zone(zone[const.ZONE_ID])
+        for field in (
+            const.ZONE_BUCKET,
+            const.ZONE_LAST_CONSUMED,
+            const.ZONE_LAST_CALCULATED,
+        ):
+            assert after.get(field) == before.get(field)
 
 
 class TestFallingBackToTheLumpedForm:
