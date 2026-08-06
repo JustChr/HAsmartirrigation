@@ -614,6 +614,19 @@ class SmartIrrigationCoordinator(
                 self._schedule_continuous_updates_setup,
             )
         )
+        # Resolved calc-module instances (CalculationMixin). Resolving one scans
+        # and re-imports the calc-module directory, and the live estimate wants a
+        # zone's module every minute, so the instance is cached and released here
+        # whenever a stored module stops matching its cached snapshot. Torn down
+        # with the rest of ``_subscriptions`` in async_unload.
+        self._subscriptions.append(
+            async_dispatcher_connect(
+                hass,
+                const.DOMAIN + "_config_updated",
+                self.invalidate_module_instances,
+            )
+        )
+
         self._track_auto_calc_time_unsub = None
         self._track_auto_update_time_unsub = None
         self._track_midnight_time_unsub = None

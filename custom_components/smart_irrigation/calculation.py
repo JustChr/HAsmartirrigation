@@ -11,6 +11,7 @@ import logging
 from datetime import datetime, timedelta
 
 import homeassistant.util.dt as dt_util
+from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
@@ -400,8 +401,48 @@ class CalculationMixin:
         )
         async_dispatcher_send(self.hass, const.DOMAIN + "_update_frontend")
 
+    def _module_instances(self) -> dict:
+        """The resolved calc-module instances by module id, created on first use.
+
+        Lazily built rather than set up in the coordinator's ``__init__`` so a
+        partially constructed coordinator (and every test double that never runs
+        that constructor) still resolves modules.
+        """
+        cache = getattr(self, "_module_instance_by_id", None)
+        if cache is None:
+            cache = self._module_instance_by_id = {}
+        return cache
+
+    @callback
+    def invalidate_module_instances(self, *args) -> None:
+        """Drop cached calc-module instances the stored configuration outran.
+
+        Wired to the existing ``_config_updated`` fan-out, which is what a module
+        edit dispatches (``async_update_module_config``). That signal also
+        carries every zone and mapping write, so this re-evaluates idempotently
+        instead of clearing: comparing each cached snapshot against the store is
+        a couple of dict compares, whereas clearing would throw the cache away on
+        a signal that fires per zone per ingestion flush and hand back the
+        directory scan the cache exists to remove.
+
+        Also collects instances for modules that have since been deleted —
+        deletion is the one module write that dispatches nothing of its own.
+        """
+        cache = getattr(self, "_module_instance_by_id", None)
+        if not cache:
+            return
+        for module_id, (record, _) in list(cache.items()):
+            current = self.store.get_module(module_id)
+            if current is None or current != record:
+                cache.pop(module_id, None)
+
     async def getModuleInstanceByID(self, module_id):
         """Retrieve and instantiate a module by its ID.
+
+        Resolved once per module and reused. ``loadModules`` re-scans the
+        calc-module directory and re-imports every package it finds, over an
+        executor hop; that is affordable for a once-a-day calculation but not for
+        the live estimate, which resolves a zone's module every minute.
 
         Args:
             module_id: The ID of the module to retrieve.
@@ -413,6 +454,15 @@ class CalculationMixin:
         m = self.store.get_module(module_id)
         if m is None:
             return None
+        cache = self._module_instances()
+        key = int(module_id)
+        cached = cache.get(key)
+        # The stored record is compared, not merely trusted to have been
+        # invalidated: the dispatcher signal is the release mechanism, but a
+        # module whose config changed without one reaching us (a direct store
+        # write, a migration rewrite) must still not be served stale.
+        if cached is not None and cached[0] == m:
+            return cached[1]
         # load the module dynamically
         mods = await self.hass.async_add_executor_job(loadModules, const.MODULE_DIR)
         modinst = None
@@ -435,6 +485,12 @@ class CalculationMixin:
                 modinst._latitude = eff_lat
             if eff_elev is not None and hasattr(modinst, "_elevation"):
                 modinst._elevation = eff_elev
+            # Only a resolved instance is cached; a module name with no matching
+            # package on disk must keep re-scanning, since the next scan is what
+            # would pick it up after an integration update dropped it in.
+            cache[key] = (m, modinst)
+        else:
+            cache.pop(key, None)
         return modinst
 
     def _hourly_calculation_enabled(self) -> bool:
