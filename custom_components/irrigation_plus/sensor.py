@@ -807,6 +807,14 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             # consumes. None where nothing was projected, since the residual
             # there depends entirely on how much of the window is still to come.
             "forecast_tier_range_mae_c": est.get("forecast_tier_range_mae_c"),
+            # Which weather entity that tier read, where it was the entity tier.
+            # The entity is adopted automatically unless one is configured, so
+            # this is what makes a moved figure traceable to the source that
+            # moved it -- and it names the entity the same way whether it was
+            # adopted or pinned. None on every other tier: no entity supplied
+            # the hours, and naming a candidate that was not used would read as
+            # though one had been.
+            "forecast_entity_id": est.get("forecast_entity_id"),
             # Why this sensor has no value, for the zones that have none: which
             # of the preconditions is missing, rather than an empty state and a
             # guess. None whenever there is a value. An operator who turned

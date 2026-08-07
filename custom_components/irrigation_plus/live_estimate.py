@@ -123,6 +123,44 @@ REASON_FAILED = "estimate_failed"
 # first refresh cycle. Distinct from every reason above, which are answers.
 REASON_NOT_COMPUTED = "not_computed_yet"
 
+# How long a weather entity's hourly forecast is reused before it is read again.
+#
+# ``weather.get_forecasts`` is served by the entity itself, so an integration
+# that fetches on demand would be asked once a minute for as long as the
+# estimate runs — the estimate would be polling an external API through a proxy.
+# Caching bounds that to one read per window below, as a property of this code
+# rather than an assumption about other integrations.
+#
+# Fifteen minutes costs no accuracy: an hourly forecast advertises hour-resolved
+# values and no product republishes them faster than hourly. It is also well
+# under the 3.5 h gap ``forecast_remainder`` tolerates between samples, so a
+# series that covered the window when it was read still covers it when it is
+# served — a cached series can never be one the coverage check would have
+# refused had it been fetched fresh.
+FORECAST_ENTITY_TTL_SECONDS = 900
+
+
+class _ForecastEntitySeries(NamedTuple):
+    """A weather entity's hourly temperatures, with what and when they are.
+
+    Keyed on ``entity_id`` rather than held bare, so a changed selection — the
+    configured override arriving, or the auto-selected entity going unavailable
+    and another taking its place — misses instead of serving the previous
+    entity's series under the new entity's name.
+
+    That key is also why nothing subscribes to ``_config_updated`` to release
+    this, unlike the cached calc-module instances. The selection is re-resolved
+    on every read, so the only change a configuration write can make to it
+    already misses. Clearing on that signal would be worse than redundant: it
+    fires once per zone per ingestion flush, so the cache would be discarded
+    every flush and the entity read once a minute again -- measured on a running
+    instance as four reads in four minutes with the cache nominally in place.
+    """
+
+    entity_id: str
+    read_at: float
+    series: list | None
+
 
 class _HourlyCarry(NamedTuple):
     """ETo already accumulated for a zone, up to a whole-hour boundary.
@@ -253,14 +291,18 @@ class LiveEstimateMixin:
         # Resolved for the whole refresh, and outside the client branch: the
         # install this tier exists for has no client at all, so a series fetched
         # only where one existed would never reach the zones that need it.
-        series, tier = await self._resolve_hourly_forecast(client)
+        series, tier, entity_id = await self._resolve_hourly_forecast(client)
         inputs["hourly_forecast"] = series
         inputs["hourly_forecast_tier"] = tier
         inputs["hourly_rain_forecast"] = self._hourly_forecast_precipitation(client)
+        inputs["hourly_forecast_entity_id"] = entity_id
         return inputs
 
     async def _resolve_hourly_forecast(self, client):
-        """``(series, tier)`` for the hours a window has not reached, in tier order.
+        """``(series, tier, entity_id)`` for the hours a window has not reached.
+
+        In tier order, with ``entity_id`` naming the weather entity where one
+        supplied the series and ``None`` everywhere else.
 
         The configured weather service first, then a Home Assistant weather
         entity, then neither, in that fixed order. Both sources hand
@@ -276,51 +318,120 @@ class LiveEstimateMixin:
         """
         series = self._hourly_forecast_temperatures(client)
         if series:
-            return series, TIER_SERVICE
-        series = await self._weather_entity_temperatures()
+            # No entity read the series, so nothing to name. The attribute
+            # answers "which entity supplied this", and on this tier the answer
+            # is none rather than "whichever one would have been picked".
+            return series, TIER_SERVICE, None
+        entity_id, series = await self._weather_entity_temperatures()
         if series:
-            return series, TIER_ENTITY
-        return None, None
+            return series, TIER_ENTITY, entity_id
+        return None, None, None
 
-    async def _weather_entity_temperatures(self):
-        """``[(naive local datetime, temperature C)]`` from the configured entity.
+    @staticmethod
+    def _offers_hourly_forecast(state) -> bool:
+        """Whether this weather state can be asked for an hourly forecast.
 
-        The tier that serves a sensor-only install: it has no weather service to
-        ask, but a Home Assistant install almost always has some weather
-        integration set up already, and its hourly forecast composes into the
-        window exactly as a service's does.
-
-        Read through ``weather.get_forecasts`` rather than off the entity's
-        state, because the forecast has not been a state attribute since Home
-        Assistant 2024.4. That call reads whatever the weather integration has
-        already fetched on its own schedule -- the estimate still issues no
-        external request of its own, which is the epic's rule.
-
-        Declines to ``None`` on every unhappy path -- no entity configured, the
-        entity gone or unavailable, no hourly forecast among its supported
-        features, an empty or unparseable series. The caller then falls to the
-        self-contained tier and publishes that it did, so the failure mode is a
-        weaker projection that says so rather than a fabricated one.
+        Asked before calling rather than caught after: ``weather.get_forecasts``
+        raises for a type the entity does not support, and this path runs every
+        minute, so the alternative is an exception a minute for as long as the
+        entity stays selected.
         """
-        entity_id = getattr(
+        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            return False
+        try:
+            features = int(state.attributes.get(ATTR_SUPPORTED_FEATURES) or 0)
+        except (TypeError, ValueError):
+            return False
+        return bool(features & WeatherEntityFeature.FORECAST_HOURLY)
+
+    def _forecast_weather_entity(self):
+        """The weather entity the projection should read, or ``None``.
+
+        The configured one where there is one -- it is an override, and pinning
+        an entity means that entity or nothing. Where the field is empty, one is
+        adopted automatically: a sensor-only install that never opens this
+        setting would otherwise sit on the self-contained tier at roughly twice
+        the residual, which is the gap the entity tier exists to close, and the
+        install that needs it most is the one least likely to go looking for a
+        switch.
+
+        Sorted by entity id and the first taken, NOT whichever the state machine
+        happens to yield first. The published live bucket is priced off this
+        choice, so a pick that reshuffled across a restart would move a figure
+        nobody changed anything to move, and leave no way to tell why.
+        """
+        configured = getattr(
             getattr(self.store, "config", None),
             const.CONF_FORECAST_WEATHER_ENTITY,
             None,
         )
-        if not entity_id:
-            return None
-        state = self.hass.states.get(entity_id)
-        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
-            return None
-        # Asked before calling rather than caught after: the service raises on an
-        # entity that only forecasts daily, and this path runs every minute, so
-        # the alternative is an exception a minute for as long as the entity is
-        # configured.
+        if configured:
+            state = self.hass.states.get(configured)
+            return configured if self._offers_hourly_forecast(state) else None
+        # Defensive around the state machine itself, unlike the configured
+        # branch: this now runs on EVERY install rather than only where somebody
+        # filled the field in, and it runs before the per-zone reduction's own
+        # guard. An optional tier must not be able to take the whole refresh --
+        # and with it every zone's live bucket -- down with it.
         try:
-            features = int(state.attributes.get(ATTR_SUPPORTED_FEATURES) or 0)
-        except (TypeError, ValueError):
+            candidates = [
+                state.entity_id
+                for state in self.hass.states.async_all(WEATHER_DOMAIN)
+                if self._offers_hourly_forecast(state)
+            ]
+        except Exception as e:  # noqa: BLE001 — estimate must never raise
+            _LOGGER.debug("intraday: could not enumerate weather entities: %s", e)
             return None
-        if not features & WeatherEntityFeature.FORECAST_HOURLY:
+        if not candidates:
+            return None
+        return sorted(candidates)[0]
+
+    async def _weather_entity_temperatures(self):
+        """``(entity_id, [(naive local datetime, temperature C)])``, or ``(None, None)``.
+
+        The tier that serves a sensor-only install: it has no weather service to
+        ask, but a Home Assistant install almost always has some weather
+        integration set up already, and its hourly forecast composes into the
+        window exactly as a service's does. Which entity it was travels back with
+        the series, because the figure it prices moves with the entity and
+        nothing else would say which one produced it.
+
+        Read through ``weather.get_forecasts`` rather than off the entity's
+        state, because the forecast has not been a state attribute since Home
+        Assistant 2024.4. That call reads whatever the weather integration has
+        already fetched on its own schedule, so the estimate issues no external
+        request of its own. An integration that fetches when asked is read at
+        most once per cache window below, never once a minute.
+
+        Declines on every unhappy path -- no entity to read, the entity gone or
+        unavailable, no hourly forecast among its supported features, an empty or
+        unparseable series. The caller then falls to the self-contained tier and
+        publishes that it did, so the failure mode is a weaker projection that
+        says so rather than a fabricated one.
+        """
+        entity_id = self._forecast_weather_entity()
+        if not entity_id:
+            return None, None
+        cached = getattr(self, "_forecast_entity_series", None)
+        if (
+            cached is not None
+            and cached.entity_id == entity_id
+            and time.monotonic() - cached.read_at < FORECAST_ENTITY_TTL_SECONDS
+        ):
+            return entity_id, cached.series
+        series = await self._read_hourly_forecast(entity_id)
+        # A declined read is cached too. That is the entity a re-ask every minute
+        # would cost the most against, and repeating a call that just came back
+        # empty cannot turn it into a series.
+        self._forecast_entity_series = _ForecastEntitySeries(
+            entity_id, time.monotonic(), series
+        )
+        return entity_id, series
+
+    async def _read_hourly_forecast(self, entity_id):
+        """``[(naive local datetime, temperature C)]`` off one weather entity."""
+        state = self.hass.states.get(entity_id)
+        if state is None:
             return None
         try:
             response = await self.hass.services.async_call(
@@ -1081,6 +1192,13 @@ class LiveEstimateMixin:
             # tiers differ by a factor of three on the input they supply, so a
             # figure alone never says which one produced it.
             "forecast_tier": None,
+            # And, on the entity tier, WHICH entity that was. The entity is
+            # adopted automatically where none is configured, so naming it is the
+            # only thing that answers "why did this number move" from outside the
+            # process -- and it answers the same way whether the entity was
+            # adopted or pinned, which is what a reader needs. None on every
+            # other tier, where no entity supplied the series.
+            "forecast_entity_id": None,
             # And what that tier was measured to be worth, so the gap is stated
             # rather than left to be inferred from the tier's name.
             "forecast_tier_range_mae_c": None,
@@ -1153,6 +1271,7 @@ class LiveEstimateMixin:
             hourly_et = None
             forecast_tier = None
             forecast_tier_range_mae = None
+            forecast_entity_id = None
             # Reduced once and shared: the mirrored daily equation reads its
             # day-level inputs from this, and the precipitation trace is the same
             # window's rain. Two reductions of one window is a needless second
@@ -1184,6 +1303,14 @@ class LiveEstimateMixin:
                 # estimate runs the same one over the composed window rather than
                 # a different equation whose answer is then compared against it.
                 et_mm, forecast_tier, forecast_tier_range_mae = mirrored
+                # Named only where the entity tier is the one that filled the
+                # hours. The series is resolved for the whole refresh, so it can
+                # be present on ``inputs`` while this zone's window had no hours
+                # left for it to fill -- publishing the entity there would claim
+                # a contribution it did not make, on exactly the reading someone
+                # checks the two figures against each other with.
+                if forecast_tier == TIER_ENTITY:
+                    forecast_entity_id = inputs.get("hourly_forecast_entity_id")
                 precip_mm = (agg or {}).get(const.MAPPING_PRECIPITATION, 0.0) or 0.0
                 method = "daily_mirror"
                 as_of = now_local.isoformat()
@@ -1372,6 +1499,7 @@ class LiveEstimateMixin:
                 forecast_tier=forecast_tier,
                 forecast_tier_range_mae_c=forecast_tier_range_mae,
                 unavailable_reason=None,
+                forecast_entity_id=forecast_entity_id,
             )
         except Exception as e:  # noqa: BLE001 — estimate must never raise
             _LOGGER.debug("intraday estimate failed for a zone: %s", e)
