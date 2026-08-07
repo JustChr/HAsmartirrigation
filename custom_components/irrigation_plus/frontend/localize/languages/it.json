@@ -804,6 +804,11 @@
         "label": "Attiva e dimensiona ogni esecuzione dal deficit in tempo reale",
         "note": "Riguarda solo le esecuzioni pianificate e può avviarne una non approvata dal calcolo giornaliero. Per irrigazioni frequenti mantieni un deficit minimo ragionevole e un secchio massimo pari ad almeno l'ET di un giorno."
       },
+      "forecast_entity": {
+        "title": "Fonte di previsione per il secchio in tempo reale",
+        "description": "Una zona il cui modulo stima l'irradiamento solare dall'escursione termica del giorno ha bisogno del massimo e del minimo prima che il giorno finisca, perciò le ore che la finestra non ha ancora raggiunto vengono completate da una previsione. Un servizio meteo configurato fornisce quelle ore da sé. In sua assenza le fornisce l'entità meteo di Home Assistant scelta qui: misurata su un anno, l'escursione termica proiettata resta entro circa 1,3 gradi Celsius, contro circa 2,7 del ripiego costruito solo sui giorni passati di questo sito. Se il campo resta vuoto viene usato quel ripiego, e il sensore «Secchio in tempo reale» indica quale sia stato tramite il suo attributo forecast_tier. La previsione dell'entità viene letta così come la sua stessa integrazione già la conserva, quindi non viene scaricato nulla di aggiuntivo da internet.",
+        "label": "Entità meteo (opzionale)"
+      },
       "continuous_updates": {
         "title": "Aggiornamenti continui dei sensori",
         "description": "Per impostazione predefinita, i valori meteo basati su sensori vengono letti una volta per ogni aggiornamento pianificato (di norma ogni ora), quindi tutto ciò che accade nel frattempo non viene mai registrato — la temperatura minima e massima del giorno provengono da quelle letture istantanee e l'irradiamento solare viene integrato in modo grossolano. Con questa opzione attiva, una lettura viene registrata nel momento in cui il sensore cambia, il che rende gli aggregati giornalieri e l'evapotraspirazione risultante notevolmente più accurati. I gruppi di sensori che usano anche un servizio meteo mantengono il loro aggiornamento pianificato per i valori del servizio meteo; solo i valori dei sensori diventano continui. Le piccole variazioni vengono ignorate, così un sensore rumoroso non riempie il buffer.",

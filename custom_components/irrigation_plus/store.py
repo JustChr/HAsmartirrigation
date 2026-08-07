@@ -47,6 +47,7 @@ from .const import (
     CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_DISTRIBUTORS_ENABLED,
     CONF_DEFAULT_DRAINAGE_RATE,
+    CONF_DEFAULT_FORECAST_WEATHER_ENTITY,
     CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED,
     CONF_DEFAULT_FREEZE_THRESHOLD,
     CONF_DEFAULT_HOURLY_CALCULATION,
@@ -77,6 +78,7 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
     CONF_DISTRIBUTORS_ENABLED,
     CONF_FIRED_OCCURRENCES,
+    CONF_FORECAST_WEATHER_ENTITY,
     CONF_FORECAST_WEIGHTING_ENABLED,
     CONF_FREEZE_THRESHOLD,
     CONF_HOURLY_CALCULATION,
@@ -418,6 +420,14 @@ class Config:
     )
     live_estimate_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_LIVE_ESTIMATE_ENABLED
+    )
+    # Entity id of the weather entity the live bucket's projection imports an
+    # hourly forecast from. Same migration obligation as every key below: no
+    # setdefault in _async_migrate_func and the allowlist strip drops it on load,
+    # silently demoting every install that had picked one back to the
+    # self-contained tier.
+    forecast_weather_entity = attr.ib(
+        type=str, default=CONF_DEFAULT_FORECAST_WEATHER_ENTITY
     )
     distributors_enabled = attr.ib(type=bool, default=CONF_DEFAULT_DISTRIBUTORS_ENABLED)
     # Continuous (event-driven) sensor ingestion + its per-sensor-group debounce
@@ -829,6 +839,14 @@ class MigratableStore(Store):
                 ] = CONF_DEFAULT_HOURLY_CALCULATION
             if CONF_FIRED_OCCURRENCES not in data["config"]:
                 data["config"][CONF_FIRED_OCCURRENCES] = {}
+            # The live bucket's forecast entity: same obligation again. Absent
+            # here it is stripped on every load, and the tier attribute would
+            # report the self-contained projection on an install that had
+            # configured an entity.
+            if CONF_FORECAST_WEATHER_ENTITY not in data["config"]:
+                data["config"][
+                    CONF_FORECAST_WEATHER_ENTITY
+                ] = CONF_DEFAULT_FORECAST_WEATHER_ENTITY
 
             # Get valid field names from Config class to filter out unrecognized keys
             valid_fields = set(attr.fields_dict(Config).keys())
@@ -1030,6 +1048,10 @@ class SmartIrrigationStorage:
                             CONF_DEFAULT_LIVE_ESTIMATE_ENABLED,
                         ),
                     ),
+                ),
+                forecast_weather_entity=data["config"].get(
+                    CONF_FORECAST_WEATHER_ENTITY,
+                    CONF_DEFAULT_FORECAST_WEATHER_ENTITY,
                 ),
                 distributors_enabled=data["config"].get(
                     CONF_DISTRIBUTORS_ENABLED,

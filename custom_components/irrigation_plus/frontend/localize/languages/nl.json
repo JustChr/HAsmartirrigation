@@ -804,6 +804,11 @@
         "label": "Elke beurt starten en dimensioneren op het live tekort",
         "note": "Heeft alleen invloed op geplande beurten en kan er een starten die de dagelijkse berekening niet goedkeurde. Houd voor frequent water geven een redelijk minimumtekort aan en een maximale emmer van ten minste een dag ET."
       },
+      "forecast_entity": {
+        "title": "Verwachtingsbron voor de live-emmer",
+        "description": "Een zone waarvan de module de zonnestraling uit het temperatuurbereik van de dag schat, heeft het maximum en minimum van de dag nodig voordat de dag om is; de uren die het venster nog niet heeft bereikt, worden daarom aangevuld uit een verwachting. Een ingestelde weerdienst levert die uren zelf. Zonder weerdienst levert de hier gekozen Home Assistant-weerentiteit ze: over een jaar gemeten blijft het geprojecteerde temperatuurbereik daarmee binnen ongeveer 1,3 graden Celsius, tegenover ongeveer 2,7 voor de terugval die alleen uit de eerdere dagen van deze locatie wordt opgebouwd. Blijft het veld leeg, dan wordt die terugval gebruikt, en de sensor ‘Live-emmer’ meldt via zijn attribuut forecast_tier welke het was. De verwachting van de entiteit wordt gelezen zoals de eigen integratie die al bijhoudt, er wordt dus niets extra van internet opgehaald.",
+        "label": "Weerentiteit (optioneel)"
+      },
       "continuous_updates": {
         "title": "Continue sensorupdates",
         "description": "Standaard worden sensorgebaseerde weerwaarden één keer per geplande update uitgelezen (standaard elk uur), zodat alles wat er tussenin gebeurt nooit wordt vastgelegd — de dagelijkse minimum- en maximumtemperatuur komen uit die momentmetingen en de zonnestraling wordt grof geïntegreerd. Met deze optie aan wordt een meting vastgelegd zodra de sensor verandert, waardoor de dagelijkse aggregaten en de daaruit berekende verdamping aanzienlijk nauwkeuriger worden. Sensorgroepen die ook een weerdienst gebruiken, behouden hun geplande update voor de waarden van de weerdienst; alleen de sensorwaarden worden continu. Kleine veranderingen worden genegeerd, zodat een ruisende sensor de buffer niet laat vollopen.",

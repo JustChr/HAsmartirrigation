@@ -12,6 +12,7 @@ import { globalStyle } from "../../styles/global-style";
 import {
   CONF_OBSERVED_WATERING_ENABLED,
   CONF_LIVE_ESTIMATE_ENABLED,
+  CONF_FORECAST_WEATHER_ENTITY,
   CONF_DISTRIBUTORS_ENABLED,
   CONF_CONTINUOUS_UPDATES,
   CONF_SENSOR_DEBOUNCE,
@@ -112,6 +113,7 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         CONF_LIVE_ESTIMATE_ENABLED,
         this.config.live_estimate_enabled,
       )}
+      ${this._renderForecastEntityCard()}
       ${this._renderToggleCard(
         "distributors",
         CONF_DISTRIBUTORS_ENABLED,
@@ -124,6 +126,57 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         this.config.hourlycalculation,
       )}
     `;
+  }
+
+  /**
+   * The weather entity the live bucket's projection may import an hourly
+   * forecast from. Deliberately NOT gated on the live-estimate switch: the live
+   * bucket is published whether or not it also waters, so an install that only
+   * reads the figure still wants the better projection behind it.
+   */
+  private _renderForecastEntityCard(): TemplateResult {
+    if (!this.hass || !this.config) return html``;
+    const base = "panels.experimental.forecast_entity";
+    return html`
+      <ha-card header="${localize(`${base}.title`, this.hass.language)}">
+        <div class="card-content description-text">
+          ${localize(`${base}.description`, this.hass.language)}
+        </div>
+        <div class="card-content">
+          <div class="setting-row">
+            <label>${localize(`${base}.label`, this.hass.language)}</label>
+            <ha-entity-picker
+              .hass="${this.hass}"
+              .value="${this.config.forecast_weather_entity || ""}"
+              .includeDomains="${["weather"]}"
+              .disabled="${this._saving}"
+              allow-custom-entity
+              @value-changed="${(e: CustomEvent) =>
+                this._saveForecastEntity(e.detail.value || null)}"
+            ></ha-entity-picker>
+          </div>
+        </div>
+      </ha-card>
+    `;
+  }
+
+  private async _saveForecastEntity(value: string | null): Promise<void> {
+    if (!this.hass || !this.config) return;
+    if ((this.config.forecast_weather_entity ?? null) === value) return;
+    this.config = {
+      ...this.config,
+      [CONF_FORECAST_WEATHER_ENTITY]: value,
+    } as SmartIrrigationConfig;
+    this._saving = true;
+    try {
+      await saveConfig(this.hass, { [CONF_FORECAST_WEATHER_ENTITY]: value });
+    } catch (error) {
+      console.error("Error saving forecast weather entity:", error);
+      showErrorToast(this, this.hass, "common.errors.save_failed", error);
+      await this._fetchData();
+    } finally {
+      this._saving = false;
+    }
   }
 
   /**

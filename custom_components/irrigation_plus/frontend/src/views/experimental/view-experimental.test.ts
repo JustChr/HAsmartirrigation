@@ -42,6 +42,33 @@ function make(config: any) {
   return el;
 }
 
+describe("view-experimental forecast entity picker", () => {
+  it("offers the picker whatever the live-estimate switch is set to", () => {
+    // The live bucket publishes either way; the picker is an input to the
+    // figure, not a sub-setting of the watering feature.
+    const el = make({
+      observed_watering_enabled: false,
+      live_estimate_enabled: false,
+      distributors_enabled: false,
+      forecast_weather_entity: null,
+    });
+    const text = flatten(el.render());
+    expect(text).toContain("Live-bucket forecast source");
+    expect(text).toContain("Weather entity (optional)");
+    expect(text).toContain("weather");
+  });
+
+  it("shows the configured entity", () => {
+    const el = make({
+      observed_watering_enabled: false,
+      live_estimate_enabled: true,
+      distributors_enabled: false,
+      forecast_weather_entity: "weather.home",
+    });
+    expect(flatten(el.render())).toContain("weather.home");
+  });
+});
+
 describe("view-experimental distributors toggle", () => {
   it("renders the distributors toggle card", () => {
     const el = make({

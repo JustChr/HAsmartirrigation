@@ -148,6 +148,7 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_FORECAST_WEIGHTING_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_OBSERVED_WATERING_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_LIVE_ESTIMATE_ENABLED): cv.boolean,
+                vol.Optional(const.CONF_FORECAST_WEATHER_ENTITY): vol.Or(str, None),
                 vol.Optional(const.CONF_DISTRIBUTORS_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_CONTINUOUS_UPDATES): cv.boolean,
                 vol.Optional(const.CONF_HOURLY_CALCULATION): cv.boolean,

@@ -117,6 +117,39 @@ class TestSmartIrrigationStore:
         )
         assert migrated["config"][const.CONF_HOURLY_CALCULATION] is True
 
+    async def test_forecast_weather_entity_config_roundtrip(self, hass) -> None:
+        """The live bucket's forecast entity survives a config round-trip.
+
+        Same half-wiring trap as the flags above, with a quieter symptom: a
+        Config attribute without a migration setdefault is stripped by the
+        allowlist on every load, so the picked entity disappears and the tier
+        attribute reports the self-contained projection as though none had ever
+        been configured.
+        """
+        reg = await async_get_registry(hass)
+        cfg = await reg.async_get_config()
+        assert cfg.get(const.CONF_FORECAST_WEATHER_ENTITY) is None
+
+        updated = await reg.async_update_config(
+            {const.CONF_FORECAST_WEATHER_ENTITY: "weather.home"}
+        )
+        assert updated[const.CONF_FORECAST_WEATHER_ENTITY] == "weather.home"
+        assert const.CONF_USE_WEATHER_SERVICE in updated
+
+    async def test_migration_keeps_a_stored_forecast_weather_entity(self, hass) -> None:
+        """A stored entity survives the allowlist strip, and a config that
+        predates the key gains it empty rather than losing the load."""
+        from custom_components.irrigation_plus.store import MigratableStore
+
+        store = MigratableStore(hass, 11, "test.storage")
+        kept = await store._async_migrate_func(
+            11, {"config": {const.CONF_FORECAST_WEATHER_ENTITY: "weather.home"}}
+        )
+        assert kept["config"][const.CONF_FORECAST_WEATHER_ENTITY] == "weather.home"
+
+        fresh = await store._async_migrate_func(5, {"config": {}})
+        assert fresh["config"][const.CONF_FORECAST_WEATHER_ENTITY] is None
+
     async def test_zone_crud(self, hass) -> None:
         reg = await async_get_registry(hass)
         created = await reg.async_create_zone(

@@ -804,6 +804,11 @@
         "label": "Déclencher et dimensionner chaque exécution selon le déficit en direct",
         "note": "N'affecte que les exécutions planifiées et peut en démarrer une que le calcul quotidien n'a pas approuvée. Pour des arrosages fréquents, conservez un déficit minimal raisonnable et un seau maximal d'au moins l'ET d'une journée."
       },
+      "forecast_entity": {
+        "title": "Source de prévision pour le réservoir en direct",
+        "description": "Une zone dont le module estime le rayonnement solaire à partir de l'amplitude de température du jour a besoin du maximum et du minimum avant la fin de la journée ; les heures que la fenêtre n'a pas encore atteintes sont donc complétées par une prévision. Un service météo configuré fournit ces heures lui-même. À défaut, c'est l'entité météo de Home Assistant choisie ici qui les fournit : mesurée sur une année, l'amplitude de température projetée reste ainsi à environ 1,3 degré Celsius près, contre environ 2,7 pour le repli construit uniquement à partir des journées passées de ce site. Laissé vide, ce repli est utilisé, et le capteur « Réservoir en direct » indique lequel a servi via son attribut forecast_tier. La prévision de l'entité est lue telle que son intégration la détient déjà, rien n'est donc téléchargé en plus depuis internet.",
+        "label": "Entité météo (optionnel)"
+      },
       "continuous_updates": {
         "title": "Mises à jour continues des capteurs",
         "description": "Par défaut, les valeurs météo issues de capteurs sont lues une fois par mise à jour planifiée (toutes les heures par défaut), de sorte que tout ce qui se produit entre-temps n'est jamais enregistré — les températures minimale et maximale du jour proviennent de ces relevés ponctuels, et le rayonnement solaire est intégré grossièrement. Avec cette option, un relevé est enregistré dès que le capteur change, ce qui rend les agrégats quotidiens et l'évapotranspiration qui en résulte nettement plus précis. Les groupes de capteurs qui utilisent aussi un service météo conservent leur mise à jour planifiée pour les valeurs du service météo ; seules les valeurs des capteurs deviennent continues. Les petits changements sont ignorés, afin qu'un capteur bruyant ne remplisse pas le tampon.",

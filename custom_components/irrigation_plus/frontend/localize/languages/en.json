@@ -342,6 +342,11 @@
         "label": "Trigger and size each run from the live deficit",
         "note": "Affects scheduled runs only, and can start a run the daily calculation didn't approve. For frequent watering keep a sensible minimum deficit and a maximum bucket of at least a day's ET."
       },
+      "forecast_entity": {
+        "title": "Live-bucket forecast source",
+        "description": "A zone whose module estimates solar radiation from the day's temperature range needs the day's high and low before the day is over, so the hours the window has not reached yet are filled in from a forecast. A configured weather service supplies those hours itself. Without one, the Home Assistant weather entity chosen here supplies them instead: measured over a year that keeps the projected temperature range within about 1.3 degrees Celsius, against about 2.7 for the fallback built from nothing but this site's own past days. Left empty, that fallback is used, and the Live bucket sensor reports which one it was through its forecast_tier attribute. The entity's forecast is read as its own integration already holds it, so nothing extra is fetched from the internet.",
+        "label": "Weather entity (optional)"
+      },
       "continuous_updates": {
         "title": "Continuous sensor updates",
         "description": "By default, sensor-based weather values are read once per scheduled update (hourly by default), so anything that happened in between is never recorded — the daily minimum and maximum temperature come from those spot readings, and solar radiation is integrated coarsely. With this on, a reading is recorded the moment the sensor changes, which makes the daily aggregates and the resulting evapotranspiration considerably more accurate. Sensor groups that also use a weather service keep their scheduled update for the weather-service values; only the sensor values become continuous. Small changes are ignored, so a noisy sensor does not fill the buffer.",

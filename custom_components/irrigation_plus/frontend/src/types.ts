@@ -90,6 +90,7 @@ export class SmartIrrigationConfig {
   forecast_weighting_enabled: boolean;
   observed_watering_enabled: boolean;
   live_estimate_enabled: boolean;
+  forecast_weather_entity?: string | null;
   distributors_enabled: boolean;
   log_no_demand: boolean;
   master_entity?: string | null;
@@ -149,6 +150,7 @@ export class SmartIrrigationConfig {
     this.forecast_weighting_enabled = false;
     this.observed_watering_enabled = false;
     this.live_estimate_enabled = false;
+    this.forecast_weather_entity = null;
     this.distributors_enabled = false;
     this.log_no_demand = false;
     this.master_entity = null;

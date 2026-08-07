@@ -804,6 +804,11 @@
         "label": "Jeden Lauf anhand des Live-Defizits auslösen und bemessen",
         "note": "Betrifft nur geplante Läufe und kann einen Lauf starten, den die tägliche Berechnung nicht freigegeben hat. Für häufiges Gießen ein sinnvolles Mindestdefizit und einen maximalen Eimer von mindestens der ET eines Tages beibehalten."
       },
+      "forecast_entity": {
+        "title": "Vorhersagequelle für den Live-Eimer",
+        "description": "Eine Zone, deren Modul die Solarstrahlung aus der Temperaturspanne des Tages schätzt, braucht Höchst- und Tiefstwert des Tages, bevor der Tag vorbei ist; die Stunden, die das Zeitfenster noch nicht erreicht hat, werden deshalb aus einer Vorhersage ergänzt. Ein eingerichteter Wetterdienst liefert diese Stunden selbst. Ohne ihn liefert sie die hier gewählte Home-Assistant-Wetterentität: über ein Jahr gemessen bleibt die vorhergesagte Temperaturspanne damit auf etwa 1,3 Grad Celsius genau, gegenüber etwa 2,7 für den Rückfall, der allein aus den vergangenen Tagen dieses Standorts gebildet wird. Bleibt das Feld leer, wird dieser Rückfall verwendet, und der Sensor „Live-Eimer“ gibt über sein Attribut forecast_tier an, welcher es war. Die Vorhersage der Entität wird so gelesen, wie ihre eigene Integration sie bereits vorhält, es wird also nichts zusätzlich aus dem Internet abgerufen.",
+        "label": "Wetterentität (optional)"
+      },
       "continuous_updates": {
         "title": "Kontinuierliche Sensoraktualisierungen",
         "description": "Standardmäßig werden sensorbasierte Wetterwerte einmal pro geplanter Aktualisierung ausgelesen (standardmäßig stündlich), sodass alles, was dazwischen passiert, nie erfasst wird — die tägliche Minimal- und Maximaltemperatur stammen aus diesen punktuellen Messungen, und die Solarstrahlung wird nur grob integriert. Ist diese Option aktiv, wird ein Messwert in dem Moment erfasst, in dem sich der Sensor ändert, was die täglichen Aggregate und die daraus resultierende Verdunstung deutlich genauer macht. Sensorgruppen, die zusätzlich einen Wetterdienst nutzen, behalten für die Werte des Wetterdienstes ihre geplante Aktualisierung; nur die Sensorwerte werden kontinuierlich. Kleine Änderungen werden ignoriert, sodass ein verrauschter Sensor den Puffer nicht füllt.",

@@ -13,12 +13,17 @@ inputs converge on exactly what the commit will see once the window closes --
 with no blend rule and no gate times, and no residual left standing at the moment
 of commit the way a decaying weight or a plain envelope leaves one.
 
-Two sources for the remainder, in a fixed order:
+Three sources for the remainder, in a fixed order:
 
 * **the configured weather service's own hourly temperatures** (:func:`forecast_remainder`).
   Measured over a year of windows, this lands the range within 0.9 C MAE through
   the morning at a small-hours anchor and 1.3 C at a late-evening one, against
   7.9 C for reading the extremes off the observation alone.
+* **a Home Assistant weather entity's hourly forecast**, for an install with no
+  weather service of its own -- which is most sensor-only installs. Composed by
+  the same :func:`forecast_remainder`, because an hour of forecast temperature
+  is the same input whoever supplied it; only the tier published alongside
+  differs, since the two products' own skill does.
 * **the site's solar geometry, scaled by the amplitude of the windows already
   committed** (:func:`diurnal_remainder`), for an install with no service.
   2.5 C and 2.7 C on the same two anchors. Weaker, and it says so through the
@@ -43,14 +48,40 @@ from .et_hourly import extraterrestrial_radiation_hourly, solar_elevation_sin
 # user cannot act on it, but an operator diagnosing a gap and a live check both
 # need it, and it carries no obligation to translate.
 TIER_SERVICE = "service"
-# A Home Assistant weather entity's hourly forecast composes directly and is the
-# next tier down. It needs an entity to be configured and is not built here; when
-# it lands it takes the name "entity", which is reserved by this comment rather
-# than by an unused constant.
+# A Home Assistant weather entity's hourly forecast, for an install that has no
+# weather service of its own. It composes through exactly the same call as the
+# service's -- the hours are hours whoever forecast them -- so the tier is a
+# statement about provenance rather than about construction.
+TIER_ENTITY = "entity"
 TIER_SELF_CONTAINED = "self_contained"
 # Nothing was projected: the extremes are the observed ones. Either the window
 # has closed, in which case this is the exact answer, or no source could fill it.
 TIER_OBSERVED = "observed"
+
+# What each tier is worth, as mean absolute error in degrees Celsius on the day's
+# temperature RANGE -- the input the mirrored equation actually consumes, and the
+# quantity every measurement in this area was taken on. Published beside the tier
+# so the figure carries its own error bar rather than leaving a reader to infer
+# one from a tier name.
+#
+# The two forecast-backed tiers share a number because they share a construction:
+# both compose the window from an hourly series, so the residual is the imported
+# forecast's own error and nothing the composition adds. It is stated at the
+# worse of the two window anchors measured (1.34 C six hours into a decision-point
+# window, against 0.89 C at a 02:00 one), and the whole-year sweep behind it used
+# an archived model forecast for both. No real weather entity's payload has been
+# measured, so the entity tier's figure is inherited rather than observed, and
+# products differ.
+#
+# The self-contained figure is that tier's own measurement over the same year,
+# again at the worse anchor. It is roughly twice the forecast-backed tiers and
+# was accepted deliberately, since the alternative for an install with no
+# forecast at all is reading the extremes off the morning, which runs 6.9 C.
+TIER_RANGE_MAE_C = {
+    TIER_SERVICE: 1.3,
+    TIER_ENTITY: 1.3,
+    TIER_SELF_CONTAINED: 2.7,
+}
 
 # Thermal lag from solar noon to the day's warmest moment. The air lags the
 # radiation; the same 2.5 h places the peak where the phase gate of the

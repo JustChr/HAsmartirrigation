@@ -56,6 +56,11 @@ export const CONF_PRECIPITATION_THRESHOLD_MM = "precipitation_threshold_mm";
 export const CONF_FORECAST_WEIGHTING_ENABLED = "forecast_weighting_enabled";
 export const CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled";
 export const CONF_LIVE_ESTIMATE_ENABLED = "live_estimate_enabled";
+// The weather entity the live bucket's projection may import an hourly forecast
+// from where no weather service is configured. Not a feature switch: it is an
+// input to a figure that publishes either way, so it is offered whatever the
+// live-estimate toggle is set to.
+export const CONF_FORECAST_WEATHER_ENTITY = "forecast_weather_entity";
 export const CONF_DISTRIBUTORS_ENABLED = "distributors_enabled";
 // Event-driven weather-sensor ingestion + the debounce (ms) that coalesces a
 // burst of sensor changes. Key name matches the backend's altmenorg-compatible

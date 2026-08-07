@@ -804,6 +804,11 @@
         "label": "Utløs og dimensjoner hver kjøring fra sanntidsunderskuddet",
         "note": "Påvirker kun planlagte kjøringer og kan starte en som den daglige beregningen ikke godkjente. For hyppig vanning, behold et fornuftig minimumsunderskudd og en maksbøtte på minst en dags ET."
       },
+      "forecast_entity": {
+        "title": "Værvarselkilde for sanntidsbøtta",
+        "description": "En sone der modulen estimerer solstråling ut fra dagens temperaturspenn, trenger dagens maksimum og minimum før dagen er omme, så timene vinduet ennå ikke har nådd, fylles ut fra et værvarsel. En konfigurert værtjeneste leverer de timene selv. Uten en slik leverer værenheten i Home Assistant som velges her dem i stedet: målt over et år holder det det anslåtte temperaturspennet innenfor omtrent 1,3 grader Celsius, mot omtrent 2,7 for reserven som bygges bare på tidligere døgn på dette stedet. Står feltet tomt, brukes den reserven, og sensoren «Sanntidsbøtte» oppgir hvilken det ble gjennom attributtet forecast_tier. Værvarselet til enheten leses slik dens egen integrasjon allerede har det, så ingenting hentes i tillegg fra internett.",
+        "label": "Værenhet (valgfritt)"
+      },
       "continuous_updates": {
         "title": "Kontinuerlige sensoroppdateringer",
         "description": "Som standard leses sensorbaserte værverdier én gang per planlagt oppdatering (hver time som standard), så alt som skjer i mellomtiden, blir aldri registrert — den daglige minimums- og maksimumstemperaturen kommer fra disse øyeblikksavlesningene, og solstråling integreres grovt. Med dette på registreres en avlesning i det øyeblikket sensoren endrer seg, noe som gjør de daglige aggregerte verdiene og den resulterende evapotranspirasjonen betydelig mer nøyaktige. Sensorgrupper som også bruker en værtjeneste, beholder den planlagte oppdateringen for værtjenesteverdiene; bare sensorverdiene blir kontinuerlige. Små endringer ignoreres, så en støyende sensor fyller ikke opp bufferen.",
