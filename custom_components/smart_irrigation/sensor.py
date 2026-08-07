@@ -768,6 +768,13 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             # rather than inferring it from the gap between them.
             "drainage_since_calculation": est.get("drainage_since"),
             "as_of": est.get("as_of"),
+            # "replayed" or "lumped": whether the window's rain, credits and
+            # drainage were charged at their own event times or all at the
+            # window start. The two differ by millimeters on a wet window and by
+            # nothing on a dry one, so a reading alone cannot say which ran, and
+            # the zones that get each form are a configuration question rather
+            # than a visible one.
+            "balance_form": est.get("balance_form"),
         }
 
 

@@ -69,6 +69,56 @@ def pending_bucket_events(zone):
     return out
 
 
+def hourly_calculation_enabled(store) -> bool:
+    """Whether this install has opted into the hourly form of the calculation.
+
+    Free function over the store rather than a method, so the commit and the live
+    estimate read the switch through the same call: the estimate's mixin is
+    instantiated on its own in its tests, where a cross-mixin call raises, and on
+    that path an exception is indistinguishable from an estimate that simply has
+    nothing to say.
+
+    Strict identity check so a test double or an absent attribute reads as off,
+    matching the poll-skip guard and the mixin's own setup.
+    """
+    return (
+        getattr(getattr(store, "config", None), const.CONF_HOURLY_CALCULATION, False)
+        is True
+    )
+
+
+def replayed_balance_applies(store, zone) -> bool:
+    """Whether a zone's water balance is replayed rather than lumped.
+
+    The one wording of the condition, read by the commit and by the live estimate
+    alike. The estimate has to replay wherever the commit does, or it shows a
+    curve the stored bucket does not take; asking the same question a second way
+    on the estimate's side is how the two would drift apart as either changes.
+    Both halves are answered here for that reason -- passing either in as an
+    argument would leave that half to be restated per caller.
+
+    Two conditions, for two different reasons:
+
+    * the module has to model precipitation at all -- replaying a window for
+      Static or Passthrough would introduce water the shipped model deliberately
+      leaves out;
+    * ``hourlycalculation`` has to be on. That one is blast radius rather than a
+      technical limit: replaying moves the stored bucket on any install that maps
+      precipitation, because rain that used to be booked at the window start
+      (clamped there, and over-drained for the whole window afterwards) is now
+      booked when it fell. A better number, but still a change to what an install
+      that opted into nothing sees.
+
+    Reads the STORED module rather than an instance: the estimate asks this every
+    minute per zone, and instantiating a module re-scans the calc-module
+    directory.
+    """
+    if not hourly_calculation_enabled(store):
+        return False
+    module = store.get_module(zone.get(const.ZONE_MODULE))
+    return bool(module) and module.get(const.MODULE_NAME) == "PyETO"
+
+
 class CalculationMixin:
     """Aggregation + ET/bucket calculation for SmartIrrigationCoordinator.
 
@@ -506,18 +556,8 @@ class CalculationMixin:
         that had opted into denser ingestion and nothing else, while withholding
         it from hourly-polled installs, which measure within 8.4% of dense truth
         on this form with no systematic bias. The two axes are independent.
-
-        Strict identity check so a test double or an absent attribute reads as
-        off, matching the poll-skip guard and the mixin's own setup.
         """
-        return (
-            getattr(
-                getattr(self.store, "config", None),
-                const.CONF_HOURLY_CALCULATION,
-                False,
-            )
-            is True
-        )
+        return hourly_calculation_enabled(self.store)
 
     def _hourly_et_for_zone(self, zone, modinst, *, now):
         """Summed FAO-56 hourly ETo over this zone's window, or None to use the daily form.
@@ -627,15 +667,13 @@ class CalculationMixin:
         an assumption has broken. Falling back then costs the sub-stepping but
         keeps the ledger self-consistent, which is the more important property.
 
-        Gated behind ``hourlycalculation`` for the same reason as the hourly ET
-        form: replaying the window changes the stored bucket on any install that
-        maps precipitation, because rain that used to be booked at the window
-        start (clamped against maximum_bucket there, and over-drained for the
-        whole window afterwards) is now booked when it fell. That is a better
-        number, but it is still a change to what an install that opted into
-        nothing sees, so it travels with the same switch.
+        Gated by ``replayed_balance_applies``, which is also what the live
+        estimate reads: the estimate exists to show the path this bucket takes,
+        so the two have to replay for exactly the same zones. Answering that
+        question here rather than at the call site is what lets the estimate ask
+        it of a zone without reproducing the conditions.
         """
-        if not self._hourly_calculation_enabled():
+        if not replayed_balance_applies(self.store, zone):
             return None
         mapping_id = zone.get(const.ZONE_MAPPING)
         if mapping_id is None:
@@ -713,10 +751,8 @@ class CalculationMixin:
         explanation = ""
 
         precip = 0
-        # Only PyETO folds precipitation into the deficit, and sub-stepping the
-        # water balance is only meaningful for a module that models rain at all:
-        # replaying a window for Static or Passthrough would introduce water the
-        # shipped model deliberately leaves out.
+        # Only PyETO folds precipitation into the deficit, and it is the only
+        # module the summed-hourly form of the equation exists for.
         module_uses_precipitation = m[const.MODULE_NAME] == "PyETO"
         # Resolved BEFORE the daily equation runs, so that equation is skipped
         # entirely when its answer would be discarded. It is not just wasted work:
@@ -814,12 +850,8 @@ class CalculationMixin:
         # and it does not wash out: once the zone is back in deficit drainage
         # stops acting and the gap is frozen in.
         applied = pending_bucket_events(zone)
-        steps = (
-            self._substeps_for_zone(
-                zone, precip, now=now, hourly_et=hourly_et, applied=applied
-            )
-            if module_uses_precipitation
-            else None
+        steps = self._substeps_for_zone(
+            zone, precip, now=now, hourly_et=hourly_et, applied=applied
         )
         # Consumed whether or not the replay ran: the single-shot path cannot
         # place them, and carrying them into a later window would put them
