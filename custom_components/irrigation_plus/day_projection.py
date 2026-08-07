@@ -68,10 +68,18 @@ _NIGHT_FLOOR = math.exp(-_NIGHT_B)
 # grid the remainder is evaluated on, so the marks are never the limiting error.
 _SCAN_STEPS = 24 * 12
 
-# Longest remainder that will be built. A window is a day; anything past this is
-# a zone whose watermark has not moved in a long time, where projecting is
-# meaningless and the hour walk should not run away.
-_MAX_REMAINDER_HOURS = 48
+# Longest span any projection will look across. A window is a day; anything past
+# this is a zone whose watermark has not moved in a long time, where projecting
+# is meaningless and the hour walk should not run away.
+#
+# Public because the next-run projection has to refuse at the SAME span this
+# bounds the remainder at. Clamping the span here while a caller charged the
+# unclamped one would price the two charge shapes differently: the uniform share
+# a daily-equation zone accrues on would bill the whole span, while the solar
+# share an hourly-summed zone accrues on stopped at the bound, and drainage ran
+# on the full span for both. A decision point a week out would then read as a
+# real projection with one of its two terms quietly truncated.
+MAX_REMAINDER_HOURS = 48
 
 # Longest step a forecast series may take and still be trusted to place a
 # window's extremes. Admits a three-hourly product (OpenWeatherMap's free
@@ -179,7 +187,7 @@ def remainder_hours(now, window_end):
         return []
     first = now.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
     out = []
-    while first <= window_end and len(out) < _MAX_REMAINDER_HOURS:
+    while first <= window_end and len(out) < MAX_REMAINDER_HOURS:
         out.append(first)
         first += datetime.timedelta(hours=1)
     return out
@@ -262,7 +270,7 @@ def radiation_share(start, end, geometry):
         return 0.0
     # Bounded for the same reason the temperature remainder is: past this the
     # zone's watermark has not moved in days and the walk must not run away.
-    end = min(end, start + datetime.timedelta(hours=_MAX_REMAINDER_HOURS))
+    end = min(end, start + datetime.timedelta(hours=MAX_REMAINDER_HOURS))
     total = 0.0
     hour = start
     while hour < end:

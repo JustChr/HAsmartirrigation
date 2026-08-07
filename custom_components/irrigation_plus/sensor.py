@@ -908,7 +908,7 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
                 "projected_target_utc": None,
                 "decision_point_utc": None,
                 "projected_duration_seconds": None,
-                "projected_bucket": None,
+                "decision_point_bucket": None,
                 "projected_rain": None,
                 "projected_evapotranspiration": None,
                 "forecast_tier": None,
@@ -924,7 +924,7 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
             "projected_target_utc": entry.get("target_utc"),
             "decision_point_utc": entry.get("decision_point_utc"),
             "projected_duration_seconds": zone.get("duration_seconds"),
-            "projected_bucket": zone.get("bucket"),
+            "decision_point_bucket": zone.get("bucket"),
             # Null rather than zero where no forecast tier could supply rain: the
             # projection is evapotranspiration-only there, and a zero would read
             # as a forecast of no rain.

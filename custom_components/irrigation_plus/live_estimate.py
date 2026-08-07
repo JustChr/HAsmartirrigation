@@ -56,6 +56,7 @@ from .calculation import (
     trailing_temperature_amplitude,
 )
 from .day_projection import (
+    MAX_REMAINDER_HOURS,
     TIER_OBSERVED,
     TIER_SELF_CONTAINED,
     TIER_SERVICE,
@@ -1314,6 +1315,15 @@ class LiveEstimateMixin:
             if kc is None:
                 kc = const.CONF_DEFAULT_KC
             hours = (until_local - now_local).total_seconds() / 3600.0
+            if hours > MAX_REMAINDER_HOURS:
+                # Past the span a remainder is built over, the two charge shapes
+                # below stop agreeing about how far they may look: the uniform
+                # one keeps billing, the solar one is clamped, and drainage runs
+                # on the whole span regardless. Publishing that is a fabricated
+                # projection wearing a real one's clothes, so decline instead --
+                # a decision point this far out is a weekly schedule or a stalled
+                # watermark, and neither is a thing to predict rain against.
+                return projected
             # The remainder is charged the way the zone's OWN charge accrues,
             # which is the only way the two can meet at the decision point. A
             # zone priced by its own daily equation accrues uniformly -- its

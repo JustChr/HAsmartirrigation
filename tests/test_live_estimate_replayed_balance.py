@@ -1906,6 +1906,70 @@ class TestTheProjectionIsSizedAtTheDecisionPoint:
             assert after.get(field) == before.get(field)
 
 
+class TestTheProjectionRefusesASpanItCannotPrice:
+    """A decision point further out than a remainder is built over. The two
+    charge shapes stop agreeing there -- the uniform one keeps billing while the
+    solar one is clamped, and drainage runs on the whole span for both -- so the
+    only honest answer is to publish no carry rather than one whose ET term was
+    quietly truncated."""
+
+    async def test_a_decision_days_away_carries_nothing(self, coordinator, utc_site):
+        c, store = coordinator
+        # Weekly, on the far side of MAX_REMAINDER_HOURS from the projection.
+        # T0 is a Friday; asking on Friday noon puts Wednesday's run five days out.
+        zone, manager = await _scheduled(
+            c,
+            store,
+            schedules=[
+                _projection_schedule(
+                    **{
+                        const.SCHEDULE_CONF_RECURRENCE: (
+                            const.SCHEDULE_RECURRENCE_WEEKLY
+                        ),
+                        const.SCHEDULE_CONF_DAYS_OF_WEEK: ["wed"],
+                    }
+                )
+            ],
+        )
+        noon = _utc(T0 + timedelta(hours=12))
+
+        with freeze_time(noon):
+            _as_of(c, store, zone, manager, noon)
+            live = (await c.async_get_cached_zone_estimates())[str(zone[const.ZONE_ID])]
+            carried = c._carry_estimate_to(
+                zone,
+                live,
+                {"now": noon.replace(tzinfo=None)},
+                (noon + timedelta(days=5)).replace(tzinfo=None),
+            )
+
+        # Declined: no evapotranspiration charged, and the bucket is still the
+        # live one rather than a carried-forward figure wearing its name.
+        assert carried["projected_et"] is None
+        assert carried["projection_tier"] is None
+        assert carried["live_deficit"] == live["live_deficit"]
+
+    async def test_a_decision_the_same_night_still_carries(self, coordinator, utc_site):
+        """The other side of the bound, so the refusal above cannot pass by
+        declining everything."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        noon = _utc(T0 + timedelta(hours=12))
+
+        with freeze_time(noon):
+            _as_of(c, store, zone, manager, noon)
+            live = (await c.async_get_cached_zone_estimates())[str(zone[const.ZONE_ID])]
+            carried = c._carry_estimate_to(
+                zone,
+                live,
+                {"now": noon.replace(tzinfo=None)},
+                (noon + timedelta(hours=10)).replace(tzinfo=None),
+            )
+
+        assert carried["projected_et"] is not None
+        assert carried["live_deficit"] < live["live_deficit"]
+
+
 class TestTheProjectionConvergesOnTheDecidedRun:
     """The property that makes it a projection rather than a guess: the
     unobserved remainder shrinks to nothing, so the published run has to arrive
@@ -2169,7 +2233,7 @@ class TestTheProjectionIsPublishedAsEntityAttributes:
         assert attrs["schedule_name"] == "overnight"
         assert attrs["will_water"] is True
         assert attrs["projected_duration_seconds"] > 0
-        assert attrs["projected_bucket"] is not None
+        assert attrs["decision_point_bucket"] is not None
         assert attrs["decision_point_utc"] == _utc(NEXT_RUN_DECISION).isoformat()
         assert attrs["projected_target_utc"] == _utc(NEXT_RUN_TARGET).isoformat()
 

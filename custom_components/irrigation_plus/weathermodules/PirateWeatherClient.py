@@ -169,8 +169,15 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
         """``[(aware UTC datetime, mm/h)]`` from the hourly block.
 
         ``precipIntensity`` is already a rate in mm/h under SI units, which is
-        the shape the consumer integrates; it is read as the rate over the hour
-        ENDING at its stamp, matching the convention the other clients hand back.
+        the shape the consumer integrates; it is handed back as the rate over the
+        hour ENDING at its stamp, which is the convention the other clients use.
+
+        ⚠️ That convention is ASSUMED here, not verified. This API follows Dark
+        Sky, whose hourly points are documented as the hour BEGINNING at ``time``
+        -- which would put this series an hour early. It has never been exercised
+        against a real response for want of a key, so the shift is unmeasured
+        rather than ruled out. An hour's offset moves rain between two hours of
+        the projection; it cannot change the total across a whole window.
 
         Reads only the already-fetched document and never issues a request of its
         own, for the same reason the temperature accessor does not.
