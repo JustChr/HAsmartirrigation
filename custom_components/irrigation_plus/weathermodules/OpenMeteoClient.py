@@ -277,6 +277,39 @@ class OpenMeteoClient:
             out.append((local.replace(tzinfo=datetime.timezone.utc) - offset, temp))
         return out or None
 
+    def get_hourly_precipitation_forecast(self):
+        """``[(aware UTC datetime, mm/h)]`` over the whole hourly series.
+
+        The rate is the mean over the interval ENDING at each instant, which is
+        what Open-Meteo's ``precipitation`` is (the preceding hour's sum, and an
+        hour of it, so the number is its own rate). Handing back a rate rather
+        than an accumulation is what lets a three-hourly product integrate to the
+        same water as an hourly one.
+
+        Reads only what has already been fetched and never issues a request of
+        its own, for the same reason the temperature accessor does not: the
+        next-run projection asks for this every refresh.
+        """
+        doc = self._cached_doc
+        if not doc:
+            return None
+        hourly = doc.get("hourly") or {}
+        times = hourly.get("time") or []
+        precip = hourly.get("precipitation") or []
+        offset = datetime.timedelta(seconds=doc.get("utc_offset_seconds", 0))
+        out = []
+        for tstr, mm in zip(times, precip, strict=False):
+            if mm is None:
+                continue
+            try:
+                local = datetime.datetime.fromisoformat(tstr)
+            except (TypeError, ValueError):
+                continue
+            out.append(
+                (local.replace(tzinfo=datetime.timezone.utc) - offset, float(mm))
+            )
+        return out or None
+
     def get_hourly_data(self):
         """Return elapsed hourly rows (local) for the intra-day estimate.
 

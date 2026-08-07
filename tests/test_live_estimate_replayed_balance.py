@@ -47,6 +47,7 @@ from unittest.mock import AsyncMock, Mock
 
 import homeassistant.util.dt as dt_util
 import pytest
+from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
@@ -57,6 +58,7 @@ from custom_components.irrigation_plus.calcmodules.pyeto import (
 from custom_components.irrigation_plus.et_estimate import live_balance
 from custom_components.irrigation_plus.sensor import (
     SmartIrrigationZoneLiveDeficitSensor,
+    SmartIrrigationZoneNextIrrigationSensor,
 )
 from custom_components.irrigation_plus.store import SmartIrrigationStorage
 
@@ -1669,3 +1671,565 @@ class TestTheEstimatePathDoesNotSpendTheClampWarning:
             )
 
         assert getattr(instance, "_warned_solrad_clamp", False) is False
+
+
+# ---------------------------------------------------------------------------
+# The next-run projection.
+#
+# The live bucket answers where a zone is now. This answers what the next run
+# will do, in the run's own tense: sized from each zone's bucket AT THE DECISION
+# POINT, because that is the bucket the decision reads. Asserted against the run
+# the scheduler actually decides -- the same seam as everything above, so a
+# projection that agreed only with a reimplementation of the decision could not
+# pass.
+#
+# The schedule below finishes at 02:00 with a 22:00 floor, so its decision point
+# is 22:00 and its target is the far end of the fixture's own window. Both are
+# clock times, which keeps every expectation a plain arithmetic one.
+# ---------------------------------------------------------------------------
+
+NEXT_RUN_TARGET = WINDOW_END
+NEXT_RUN_DECISION = T0 + timedelta(hours=22)
+
+
+@pytest.fixture
+def utc_site():
+    """Put the site on UTC for the duration of a test.
+
+    The fixture's readings, the schedule's clock times and the solar geometry the
+    projection distributes its remainder with are three different clocks
+    otherwise, and an offset between them would move the decision point relative
+    to the day the buffer describes.
+    """
+    original = dt_util.DEFAULT_TIME_ZONE
+    dt_util.set_default_time_zone(datetime.timezone.utc)
+    yield
+    dt_util.set_default_time_zone(original)
+
+
+def _projection_schedule(**kw):
+    # Finish at 02:00 with a Start bound at 22:00, pinned to Finish: both ends
+    # bounded is what puts the schedule on the two-stage arm, and the Start
+    # bound is the decision point the projection has to price its buckets at.
+    base = {
+        const.SCHEDULE_CONF_ID: "s1",
+        const.SCHEDULE_CONF_NAME: "overnight",
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+        const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+        const.SCHEDULE_CONF_START_TIME: "22:00",
+        const.SCHEDULE_CONF_FINISH_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+        const.SCHEDULE_CONF_FINISH_TIME: "02:00",
+        const.SCHEDULE_CONF_ANCHOR: const.SCHEDULE_ANCHOR_FINISH,
+        const.SCHEDULE_CONF_ACTION: "irrigate",
+        const.SCHEDULE_CONF_ZONES: "all",
+        const.SCHEDULE_CONF_ENABLED: True,
+    }
+    base.update(kw)
+    return base
+
+
+async def _scheduled_measuring(c, store, *, bucket=-6.0):
+    """The other branch: a zone whose commit SUMS hourly evapotranspiration.
+
+    Its charge accrues with the sun rather than uniformly, so the hours between
+    now and the decision point are distributed by the site's own geometry
+    instead of by the clock. Same schedule, same assertions available.
+    """
+    zone = await _zone(c, store, bucket, solrad="3", readings=_diurnal_readings())
+    return await _schedule_over(c, store, zone)
+
+
+async def _scheduled(c, store, *, bucket=-6.0, live=True, schedules=None):
+    """A due zone the runner could actually water, and a schedule over it."""
+    zone, _module, _instance = await _estimating_zone(c, store, bucket)
+    return await _schedule_over(c, store, zone, live=live, schedules=schedules)
+
+
+async def _schedule_over(c, store, zone, *, live=True, schedules=None):
+    await store.async_update_zone(
+        zone[const.ZONE_ID],
+        {
+            const.ZONE_LINKED_ENTITY: "switch.valve",
+            const.ZONE_BUCKET_THRESHOLD: -2.0,
+            const.ZONE_DURATION: 900,
+        },
+    )
+    await store.async_update_config({const.CONF_LIVE_ESTIMATE_ENABLED: live})
+    c.hass.data[const.DOMAIN]["coordinator"] = c
+    manager = c.recurring_schedule_manager
+    manager._schedules = (
+        [_projection_schedule()] if schedules is None else list(schedules)
+    )
+    return zone, manager
+
+
+def _observe(store, zone, when):
+    """Cut the buffer back to the readings a live install would hold at ``when``.
+
+    A buffer holding the rest of the day would hand every check the whole
+    window's inputs, and every convergence assertion would pass without the
+    projection doing anything.
+    """
+    store.set_mapping_buffer(
+        zone[const.ZONE_MAPPING],
+        _observed_rows(_diurnal_readings(), when.replace(tzinfo=None)),
+    )
+
+
+def _as_of(c, store, zone, manager, when):
+    """Reset every cache that outlives a clock move."""
+    _observe(store, zone, when)
+    c._zone_estimates_cache = None
+    c._hourly_carry_by_zone = {}
+    manager.invalidate_next_run_projection()
+
+
+async def _project_at(c, store, zone, manager, when):
+    """The projection as it stands at ``when`` (aware UTC)."""
+    with freeze_time(when):
+        _as_of(c, store, zone, manager, when)
+        runs = await manager.async_get_next_run_projection()
+    return runs[0] if runs else None
+
+
+async def _arm_at(c, store, zone, manager, when):
+    """Let the schedule make its real decision at ``when``, and report it."""
+    schedule = manager._schedules[0]
+    with freeze_time(when):
+        _as_of(c, store, zone, manager, when)
+        target = await manager._next_governing_time(
+            schedule, const.SCHEDULE_ANCHOR_FINISH
+        )
+        floor = await manager._paired_bound_time(
+            schedule, const.SCHEDULE_ANCHOR_START, target
+        )
+        await manager._decide_and_arm(schedule, target, floor, commit=False)
+    tracker = manager._schedule_trackers.get(schedule[const.SCHEDULE_CONF_ID])
+    if tracker:
+        tracker()
+    return manager._armed_runs[schedule[const.SCHEDULE_CONF_ID]]
+
+
+def _run_of(entry, zone):
+    return entry["zone_runs"][str(zone[const.ZONE_ID])]
+
+
+def _seconds(entry, zone):
+    return _run_of(entry, zone)["duration_seconds"]
+
+
+def _utc(when):
+    return when.replace(tzinfo=datetime.timezone.utc)
+
+
+class TestTheProjectionIsSizedAtTheDecisionPoint:
+    """A run decided at 22:00 is sized from the bucket at 22:00, so a
+    projection published at noon that quotes noon's bucket is answering a
+    different question from the one it appears to answer."""
+
+    async def test_the_projected_run_is_deeper_than_the_bucket_it_is_read_at(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        noon = _utc(T0 + timedelta(hours=12))
+
+        entry = await _project_at(c, store, zone, manager, noon)
+        with freeze_time(noon):
+            _as_of(c, store, zone, manager, noon)
+            live = (await c.async_get_cached_zone_estimates())[str(zone[const.ZONE_ID])]
+
+        # The decision is ten hours away and the zone keeps losing water for all
+        # of them, so a run sized at the decision is longer than one sized now.
+        assert _run_of(entry, zone)["bucket"] < live["live_deficit"]
+        assert _seconds(entry, zone) > 0
+
+    async def test_a_zone_that_sums_hourly_evapotranspiration_projects_too(
+        self, coordinator, utc_site
+    ):
+        """The remainder's other branch. Unlike the live bucket, the projection
+        looks past now for every configuration -- including the one whose
+        elapsed charge is fully observable."""
+        c, store = coordinator
+        zone, manager = await _scheduled_measuring(c, store)
+        noon = _utc(T0 + timedelta(hours=12))
+
+        entry = await _project_at(c, store, zone, manager, noon)
+        with freeze_time(noon):
+            _as_of(c, store, zone, manager, noon)
+            live = (await c.async_get_cached_zone_estimates())[str(zone[const.ZONE_ID])]
+
+        assert live["method"] == "hourly_sensor"
+        assert _run_of(entry, zone)["projected_et"] > 0
+        assert _run_of(entry, zone)["bucket"] < live["live_deficit"]
+
+    async def test_the_start_is_the_target_minus_the_projected_demand(
+        self, coordinator, utc_site
+    ):
+        """A finish anchor's start is an OUTPUT of the projection, not a
+        schedule lookup: the schedule only fixes when the run must end."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        start = dt_util.parse_datetime(entry["start_utc"])
+        assert entry["target_utc"] == _utc(NEXT_RUN_TARGET).isoformat()
+        assert entry["decision_point_utc"] == _utc(NEXT_RUN_DECISION).isoformat()
+        # The water, plus the confirm poll the runner pays before any of it
+        # flows: a classic zone on a linked entity is not running until
+        # _confirm_valve_running returns, and that wait sits inside the window
+        # rather than past its finish.
+        assert (_utc(NEXT_RUN_TARGET) - start).total_seconds() == pytest.approx(
+            _seconds(entry, zone) + const.VALVE_CONFIRM_TIMEOUT, abs=1
+        )
+
+    async def test_the_projection_touches_nothing(self, coordinator, utc_site):
+        """Read-only, at the surfaces a projection could plausibly disturb: the
+        consume watermark, the stored bucket, and the credit ledger."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        before = dict(store.get_zone(zone[const.ZONE_ID]))
+
+        await _project_at(c, store, zone, manager, _utc(T0 + timedelta(hours=12)))
+
+        after = store.get_zone(zone[const.ZONE_ID])
+        for field in (
+            const.ZONE_BUCKET,
+            const.ZONE_LAST_CONSUMED,
+            const.ZONE_LAST_CALCULATED,
+            const.ZONE_DURATION,
+            const.ZONE_PENDING_BUCKET_EVENTS,
+        ):
+            assert after.get(field) == before.get(field)
+
+
+class TestTheProjectionConvergesOnTheDecidedRun:
+    """The property that makes it a projection rather than a guess: the
+    unobserved remainder shrinks to nothing, so the published run has to arrive
+    at the run the decision point actually produces."""
+
+    async def test_it_snaps_to_the_armed_start_at_the_decision_point(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+        entry = await _project_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        assert entry["estimated"] is False
+        assert entry["start_utc"] == armed["start_utc"].isoformat()
+        assert _seconds(entry, zone) == pytest.approx(
+            armed["zones"][zone[const.ZONE_ID]], abs=1
+        )
+
+    async def test_the_gap_narrows_as_the_decision_approaches(
+        self, coordinator, utc_site
+    ):
+        """Asserted at more than one point, because a single one cannot tell a
+        projection that converges from one that happens to be close."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        morning = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=8))
+        )
+        evening = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=21))
+        )
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        decided = armed["zones"][zone[const.ZONE_ID]]
+        assert abs(_seconds(evening, zone) - decided) <= abs(
+            _seconds(morning, zone) - decided
+        )
+        # An hour of darkness is worth almost no evapotranspiration, so by then
+        # the projection is on the decided run rather than merely near it.
+        assert _seconds(evening, zone) == pytest.approx(decided, abs=5)
+
+    async def test_before_the_decision_it_says_it_is_a_projection(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert entry["estimated"] is True
+
+
+class TestWhatTheProjectionSizesFrom:
+    """Which bucket the run is sized off is a configuration question, and the
+    projection has to follow the runner onto whichever of the two it uses."""
+
+    async def test_with_live_estimate_watering_off_it_is_the_committed_run(
+        self, coordinator, utc_site
+    ):
+        """The runner genuinely uses the committed duration and the committed
+        gate in that mode, so a decision-point bucket slipped underneath it would
+        publish a run that is not going to happen."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store, live=False)
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _seconds(entry, zone) == 900
+        assert _run_of(entry, zone)["bucket"] is None
+
+    async def test_the_committed_gate_applies_with_it_off(self, coordinator, utc_site):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store, live=False)
+        # Above the threshold on the committed ledger: the runner would not water
+        # it, whatever the intra-day figure says.
+        await store.async_update_zone(zone[const.ZONE_ID], {const.ZONE_BUCKET: 0.0})
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _run_of(entry, zone)["will_water"] is False
+        assert _seconds(entry, zone) == 0
+
+    async def test_with_it_on_the_duration_is_the_one_the_runner_will_use(
+        self, coordinator, utc_site
+    ):
+        """Not the committed 900 s: the run under the live gate is sized from
+        the deficit, and the projection has to quote that size."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+        entry = await _project_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        assert _seconds(entry, zone) != 900
+        assert _seconds(entry, zone) == pytest.approx(
+            armed["zones"][zone[const.ZONE_ID]], abs=1
+        )
+
+
+class TestTheRunnersOwnGuardsDecideTheProjection:
+    """A guard that is inert for the runner has to be inert here, and one that
+    would refuse the run has to refuse it here -- which is why each is asked
+    through the runner's own evaluation rather than restated."""
+
+    async def test_a_guard_that_would_skip_the_run_skips_the_projection(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await store.async_update_config({const.CONF_RAIN_SENSOR: "binary_sensor.rain"})
+        c.hass.states.async_set("binary_sensor.rain", "on")
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert entry["skipped"] is True
+        assert "rain_sensor" in entry["skip_reasons"]
+        assert _run_of(entry, zone)["will_water"] is False
+
+    async def test_a_guard_the_runner_cannot_evaluate_is_inert(
+        self, coordinator, utc_site
+    ):
+        """The precipitation guard early-returns without a weather client. It
+        must not become a skip here just because the projection asked it."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await store.async_update_config(
+            {const.CONF_SKIP_IRRIGATION_ON_PRECIPITATION: True}
+        )
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert entry["skipped"] is False
+        assert _run_of(entry, zone)["will_water"] is True
+
+    async def test_a_soil_moisture_veto_holds_the_zone_back(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await store.async_update_zone(
+            zone[const.ZONE_ID],
+            {
+                const.ZONE_SOIL_MOISTURE_SENSOR: "sensor.soil",
+                const.ZONE_SOIL_MOISTURE_THRESHOLD: 30.0,
+            },
+        )
+        c.hass.states.async_set("sensor.soil", "55")
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _run_of(entry, zone)["will_water"] is False
+        assert _seconds(entry, zone) == 0
+
+    async def test_a_rain_delay_past_the_start_refuses_the_run(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await store.async_update_config(
+            {const.CONF_RAIN_DELAY_UNTIL: _utc(T0 + timedelta(days=2)).isoformat()}
+        )
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert entry["skipped"] is True
+        assert const.SKIP_REASON_PAUSED in entry["skip_reasons"]
+
+
+class TestAnInstallWithNothingToProject:
+    """A projection nobody asked for is worse than none: it looks like a run."""
+
+    async def test_a_schedule_bounded_at_neither_end_publishes_nothing(
+        self, coordinator, utc_site
+    ):
+        """Neither end bounded names no occurrence at all. Save-time validation
+        refuses one, but a document written before that check still loads, and
+        publishing a run for it would invent both ends of the window."""
+        c, store = coordinator
+        zone, manager = await _scheduled(
+            c,
+            store,
+            schedules=[
+                _projection_schedule(
+                    start_mode=const.SCHEDULE_BOUND_MODE_NONE,
+                    finish_mode=const.SCHEDULE_BOUND_MODE_NONE,
+                )
+            ],
+        )
+
+        assert (
+            await _project_at(c, store, zone, manager, _utc(T0 + timedelta(hours=12)))
+            is None
+        )
+
+    async def test_a_disabled_schedule_publishes_nothing(self, coordinator, utc_site):
+        c, store = coordinator
+        zone, manager = await _scheduled(
+            c, store, schedules=[_projection_schedule(enabled=False)]
+        )
+
+        assert (
+            await _project_at(c, store, zone, manager, _utc(T0 + timedelta(hours=12)))
+            is None
+        )
+
+    async def test_the_sensor_says_none_rather_than_leaving_the_last_one_up(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store, schedules=[])
+        sensor = SmartIrrigationZoneNextIrrigationSensor(
+            c.hass, "sensor.si_next_irrigation", zone
+        )
+
+        with freeze_time(_utc(T0 + timedelta(hours=12))):
+            _as_of(c, store, zone, manager, _utc(T0 + timedelta(hours=12)))
+            await sensor.async_update()
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["projection_state"] == "none"
+        assert attrs["will_water"] is False
+        assert attrs["projected_start_utc"] is None
+        assert attrs["projected_duration_seconds"] is None
+
+
+class TestTheProjectionIsPublishedAsEntityAttributes:
+    """Attributes first: they carry no localization burden and a dashboard or a
+    template can build on them straight away."""
+
+    async def test_the_sensor_publishes_the_projected_run(self, coordinator, utc_site):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        sensor = SmartIrrigationZoneNextIrrigationSensor(
+            c.hass, "sensor.si_next_irrigation", zone
+        )
+        when = _utc(T0 + timedelta(hours=12))
+
+        with freeze_time(when):
+            _as_of(c, store, zone, manager, when)
+            await sensor.async_update()
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["projection_state"] == "projected"
+        assert attrs["schedule_name"] == "overnight"
+        assert attrs["will_water"] is True
+        assert attrs["projected_duration_seconds"] > 0
+        assert attrs["projected_bucket"] is not None
+        assert attrs["decision_point_utc"] == _utc(NEXT_RUN_DECISION).isoformat()
+        assert attrs["projected_target_utc"] == _utc(NEXT_RUN_TARGET).isoformat()
+
+    async def test_it_reports_armed_once_the_decision_has_been_made(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        sensor = SmartIrrigationZoneNextIrrigationSensor(
+            c.hass, "sensor.si_next_irrigation", zone
+        )
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        with freeze_time(_utc(NEXT_RUN_DECISION)):
+            _as_of(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+            await sensor.async_update()
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["projection_state"] == "armed"
+        assert attrs["projected_start_utc"] == armed["start_utc"].isoformat()
+
+
+class TestForecastRainBeforeTheDecision:
+    """The decision will see rain that has already fallen by the time it is
+    made, so a projection that ignores it predicts a run the decision will not
+    order. Only a real forecast can supply it."""
+
+    async def test_without_a_forecast_the_projection_is_evapotranspiration_only(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        run = _run_of(entry, zone)
+        assert run["projected_rain"] is None
+        assert run["projected_et"] > 0
+
+    async def test_forecast_rain_before_the_decision_shortens_the_run(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        dry = await _project_at(c, store, zone, manager, _utc(T0 + timedelta(hours=12)))
+
+        # 1 mm/h for every hour of the fixture's day, sampled hourly, which is
+        # what a service's own hourly series looks like.
+        client = Mock(spec=["get_hourly_precipitation_forecast"])
+        client.get_hourly_precipitation_forecast = Mock(
+            return_value=[(T0 + timedelta(hours=h), 1.0) for h in range(30)]
+        )
+        c._WeatherServiceClient = client
+        wet = await _project_at(c, store, zone, manager, _utc(T0 + timedelta(hours=12)))
+
+        dry_run = _run_of(dry, zone)
+        wet_run = _run_of(wet, zone)
+        # 12:00 to the 22:00 decision is ten hours, so ten millimetres.
+        assert wet_run["projected_rain"] == pytest.approx(10.0, abs=0.01)
+        assert wet_run["bucket"] > dry_run["bucket"]
+        assert _seconds(wet, zone) < _seconds(dry, zone)

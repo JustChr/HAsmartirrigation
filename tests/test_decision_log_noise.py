@@ -227,8 +227,15 @@ def _run(zone_id, duration, ratio=2.0):
 
 
 async def _arm(mgr, target, floor=None):
-    with patch(
-        "custom_components.irrigation_plus.scheduler.async_track_point_in_utc_time"
+    # Arming records what it armed and tells the projection to re-read it, which
+    # reaches the real dispatcher. The manager here is built on a Mock hass, so
+    # that send walks a Mock instead of a listener table and raises before any
+    # log assertion below is reached.
+    with (
+        patch(
+            "custom_components.irrigation_plus.scheduler.async_track_point_in_utc_time"
+        ),
+        patch("custom_components.irrigation_plus.scheduler.async_dispatcher_send"),
     ):
         await mgr._decide_and_arm(_schedule(), target, floor, commit=False)
 

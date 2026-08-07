@@ -165,6 +165,36 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                 continue
         return out or None
 
+    def get_hourly_precipitation_forecast(self):
+        """``[(aware UTC datetime, mm/h)]`` from the hourly block.
+
+        ``precipIntensity`` is already a rate in mm/h under SI units, which is
+        the shape the consumer integrates; it is read as the rate over the hour
+        ENDING at its stamp, matching the convention the other clients hand back.
+
+        Reads only the already-fetched document and never issues a request of its
+        own, for the same reason the temperature accessor does not.
+        """
+        doc = self._cached_doc
+        if not doc:
+            return None
+        out = []
+        for entry in (doc.get("hourly") or {}).get("data") or []:
+            rate = entry.get(PirateWeather_current_precip_key_name)
+            stamp = entry.get("time")
+            if rate is None or stamp is None:
+                continue
+            try:
+                out.append(
+                    (
+                        datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc),
+                        float(rate),
+                    )
+                )
+            except (TypeError, ValueError, OSError):
+                continue
+        return out or None
+
     def get_forecast_data(self):
         """Validate and return forecast data."""
         if not self._is_fresh(self._cached_forecast_at):

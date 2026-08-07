@@ -193,6 +193,46 @@ class OWMClient:  # pylint: disable=invalid-name
                 continue
         return out or None
 
+    def get_hourly_precipitation_forecast(self):
+        """``[(aware UTC datetime, mm/h)]`` from the three-hourly product.
+
+        The free forecast reports ``rain.3h`` (and ``snow.3h``) as the
+        accumulation over the three hours ENDING at the entry's stamp, so it is
+        divided back to a rate. Handing back a rate rather than an accumulation
+        is what lets this integrate to the same water as an hourly product; an
+        entry with neither key saw no precipitation and reports zero, because a
+        dry sample is coverage of the span rather than a hole in it.
+
+        Reads only the already-fetched document and never issues a request of its
+        own, for the same reason the temperature accessor does not.
+        """
+        doc = self._cached_forecast_doc
+        if not doc:
+            return None
+        out = []
+        for entry in doc.get("list") or []:
+            stamp = entry.get("dt")
+            if stamp is None:
+                continue
+            total = 0.0
+            for key in ("rain", "snow"):
+                amount = (entry.get(key) or {}).get("3h")
+                if amount is not None:
+                    try:
+                        total += float(amount)
+                    except (TypeError, ValueError):
+                        continue
+            try:
+                out.append(
+                    (
+                        datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc),
+                        total / 3.0,
+                    )
+                )
+            except (TypeError, ValueError, OSError):
+                continue
+        return out or None
+
     def get_forecast_data(self):
         """Fetch and return daily forecast data from /data/2.5/forecast.
 

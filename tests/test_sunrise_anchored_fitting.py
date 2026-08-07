@@ -53,6 +53,10 @@ def _schedule(**kw):
 
 def _manager(plan=(), sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL):
     mgr = RecurringScheduleManager(Mock(), Mock())
+    # A real dict, because arming tells the next-irrigation entities to
+    # recompute and the dispatcher walks hass.data for its subscribers. A Mock
+    # there is not iterable and the arm raises before it decides anything.
+    mgr.hass.data = {}
     coord = mgr.coordinator
     coord.async_plan_zone_runs = AsyncMock(return_value=list(plan))
     coord.sequencing_timing = Mock(return_value=(sequencing, 300.0, 0.0))
@@ -559,6 +563,74 @@ class TestDecideAndArm:
         mgr.hass.loop.call_soon_threadsafe = Mock()
         track.call_args[0][1](target)
         assert mgr._finish_last_target["s1"] == target.isoformat()
+
+
+class TestTheArmIsPublishedToTheProjection:
+    """The next-run projection reports the DECIDED run once one exists, so the
+    decision has to leave a record and has to tell the entities it did. Both
+    happen inside a timer callback hours after the write that armed it, and
+    nothing else dispatches at that moment."""
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_the_decision_records_its_start_and_its_zones(self):
+        mgr = _manager(plan=[_run(0, 600), _run(1, 900)])
+        target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        with patch(
+            "custom_components.irrigation_plus.scheduler."
+            "async_track_point_in_utc_time"
+        ):
+            await mgr._decide_and_arm(
+                _schedule(fit_to_window=True), target, None, commit=False
+            )
+
+        armed = mgr._armed_runs["s1"]
+        assert armed["target"] == target
+        assert armed["start_utc"] == target - datetime.timedelta(seconds=1500)
+        assert armed["zones"] == {0: 600.0, 1: 900.0}
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_a_night_the_decision_refused_is_still_a_decision(self):
+        """Recording nothing would leave the pre-decision estimate published as
+        though the decision had not been made yet."""
+        mgr = _manager(plan=[])
+        target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        with patch(
+            "custom_components.irrigation_plus.scheduler."
+            "async_track_point_in_utc_time"
+        ):
+            await mgr._decide_and_arm(
+                _schedule(fit_to_window=True), target, None, commit=False
+            )
+
+        assert mgr._armed_runs["s1"]["zones"] == {}
+        assert mgr._armed_runs["s1"]["start_utc"] is None
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_the_decision_invalidates_the_published_projection(self):
+        mgr = _manager(plan=[_run(0, 600)])
+        mgr._projection_cache = [{"stale": True}]
+        mgr._projection_at = 1.0
+        target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        with (
+            patch(
+                "custom_components.irrigation_plus.scheduler."
+                "async_track_point_in_utc_time"
+            ),
+            patch(
+                "custom_components.irrigation_plus.scheduler.async_dispatcher_send"
+            ) as send,
+        ):
+            await mgr._decide_and_arm(
+                _schedule(fit_to_window=True), target, None, commit=False
+            )
+
+        assert mgr._projection_cache is None
+        assert any(
+            call.args[1].endswith("_schedules_updated") for call in send.call_args_list
+        )
 
 
 class TestScheduleValidation:

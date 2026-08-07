@@ -817,9 +817,16 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
     def __init__(self, hass: HomeAssistant, entity_id: str, zone: dict) -> None:
         """Initialize and recompute when schedules change."""
         self._next_run = None
+        self._projection = None
         super().__init__(hass, entity_id, zone)
         async_dispatcher_connect(
             hass, const.DOMAIN + "_schedules_updated", self._async_schedules_updated
+        )
+        # The projection is sized from the live bucket, so it moves whenever the
+        # estimates do. Without this the attributes would only advance when a
+        # schedule or a zone was written.
+        async_dispatcher_connect(
+            hass, const.DOMAIN + "_estimates_updated", self._async_schedules_updated
         )
 
     @callback
@@ -828,35 +835,104 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
         if self.hass:
             self.async_schedule_update_ha_state(force_refresh=True)
 
+    def _targets_this_zone(self, run) -> bool:
+        """Whether ``run``'s schedule includes this zone in its target selection."""
+        zones = run.get("zones", "all")
+        if zones == "all":
+            return True
+        try:
+            return int(self._zone_id) in {int(z) for z in zones}
+        except (TypeError, ValueError):
+            return False
+
     async def async_update(self):
-        """Recompute the next irrigation run targeting this zone."""
+        """Recompute the next irrigation run targeting this zone, and what it will do."""
         try:
             coordinator = self._hass.data[const.DOMAIN]["coordinator"]
-            runs = (
-                await coordinator.recurring_schedule_manager.async_get_upcoming_runs()
-            )
+            manager = coordinator.recurring_schedule_manager
+            runs = await manager.async_get_upcoming_runs()
         except (KeyError, AttributeError):
             return
         next_run = None
         for run in runs:
             if run.get("action") != "irrigate" or not run.get("next_run_utc"):
                 continue
-            zones = run.get("zones", "all")
-            if zones != "all":
-                try:
-                    if int(self._zone_id) not in {int(z) for z in zones}:
-                        continue
-                except (TypeError, ValueError):
-                    continue
+            if not self._targets_this_zone(run):
+                continue
             when = _to_aware_datetime(run["next_run_utc"])
             if when and (next_run is None or when < next_run):
                 next_run = when
         self._next_run = next_run
 
+        self._projection = None
+        try:
+            projections = await manager.async_get_next_run_projection()
+        except Exception as e:  # noqa: BLE001 — a projection must never raise
+            _LOGGER.debug("next irrigation: projection unavailable: %s", e)
+            return
+        for entry in projections:
+            if not self._targets_this_zone(entry):
+                continue
+            self._projection = entry
+            break
+
     @property
     def native_value(self):
         """Return the next scheduled run (None when nothing is scheduled)."""
         return self._next_run
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Zone identity plus what the next run is projected to do for this zone.
+
+        Every value describes the run as its own decision point will see it: the
+        start it will begin at, whether this zone waters, and for how long —
+        sized from the zone's bucket carried forward to that decision rather than
+        from the bucket as it stands now, because the run is sized there.
+
+        ``projection_state`` is the one to read first. ``none`` means no enabled
+        schedule reaches this zone, so every other value is null rather than a
+        stale or invented one; ``projected`` means the
+        decision point has not arrived and the figures will still move;
+        ``armed`` means the decision has been made and these are its own numbers.
+        """
+        base = super().extra_state_attributes
+        entry = self._projection
+        if entry is None:
+            return {
+                **base,
+                "projection_state": "none",
+                "schedule_name": None,
+                "will_water": False,
+                "projected_start_utc": None,
+                "projected_target_utc": None,
+                "decision_point_utc": None,
+                "projected_duration_seconds": None,
+                "projected_bucket": None,
+                "projected_rain": None,
+                "projected_evapotranspiration": None,
+                "forecast_tier": None,
+                "skip_reasons": [],
+            }
+        zone = (entry.get("zone_runs") or {}).get(str(self._zone_id)) or {}
+        return {
+            **base,
+            "projection_state": "projected" if entry.get("estimated") else "armed",
+            "schedule_name": entry.get("name"),
+            "will_water": bool(zone.get("will_water")),
+            "projected_start_utc": entry.get("start_utc"),
+            "projected_target_utc": entry.get("target_utc"),
+            "decision_point_utc": entry.get("decision_point_utc"),
+            "projected_duration_seconds": zone.get("duration_seconds"),
+            "projected_bucket": zone.get("bucket"),
+            # Null rather than zero where no forecast tier could supply rain: the
+            # projection is evapotranspiration-only there, and a zero would read
+            # as a forecast of no rain.
+            "projected_rain": zone.get("projected_rain"),
+            "projected_evapotranspiration": zone.get("projected_et"),
+            "forecast_tier": zone.get("forecast_tier"),
+            "skip_reasons": entry.get("skip_reasons") or [],
+        }
 
 
 class SmartIrrigationZoneWaterUsageSensor(SmartIrrigationZoneChildSensor):

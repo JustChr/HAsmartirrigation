@@ -36,7 +36,7 @@ import datetime
 import functools
 import math
 
-from .et_hourly import solar_elevation_sin
+from .et_hourly import extraterrestrial_radiation_hourly, solar_elevation_sin
 
 # Which source filled in the unobserved hours. Published as an entity attribute
 # rather than a localized string, for the same reason the balance form is: a
@@ -241,6 +241,110 @@ def forecast_remainder(series, now, window_end):
             break
         out.append(temp)
     return out or None
+
+
+def radiation_share(start, end, geometry):
+    """The share of a day's evapotranspiration that falls between two instants.
+
+    Weighted by extraterrestrial radiation, the same shape ``proxy_et_since``
+    distributes a daily total with, and generalised to a span that crosses
+    midnight because a decision point routinely sits on the far side of one from
+    the moment a projection is asked for.
+
+    Not a fraction of elapsed time: the commit's own multiplier is, but the
+    commit only ever charges a whole window with it. Charging a REMAINDER
+    uniformly would price an evening at a noon rate, which is exactly the hours
+    a night-anchored run's decision point sits in. Zero for an empty or
+    already-closed span, so the projection collapses onto the live bucket at the
+    decision point rather than approaching it.
+    """
+    if end <= start:
+        return 0.0
+    # Bounded for the same reason the temperature remainder is: past this the
+    # zone's watermark has not moved in days and the walk must not run away.
+    end = min(end, start + datetime.timedelta(hours=_MAX_REMAINDER_HOURS))
+    total = 0.0
+    hour = start
+    while hour < end:
+        # Charge each partial hour its own share, so a span that starts or ends
+        # mid-hour is not rounded onto the hourly grid.
+        step_end = min(
+            end,
+            hour.replace(minute=0, second=0, microsecond=0)
+            + datetime.timedelta(hours=1),
+        )
+        coverage = (step_end - hour).total_seconds() / 3600.0
+        mid = hour + (step_end - hour) / 2
+        day = mid.date()
+        total += (
+            extraterrestrial_radiation_hourly(
+                geometry.latitude,
+                geometry.longitude,
+                day.timetuple().tm_yday,
+                mid.hour + mid.minute / 60.0,
+                _offset(geometry, mid),
+            )
+            * coverage
+        )
+        hour = step_end
+    if total <= 0:
+        return 0.0
+    day = start.date()
+    doy = day.timetuple().tm_yday
+    offset = _offset(geometry, datetime.datetime.combine(day, datetime.time(12)))
+    all_day = sum(
+        extraterrestrial_radiation_hourly(
+            geometry.latitude, geometry.longitude, doy, h + 0.5, offset
+        )
+        for h in range(24)
+    )
+    if all_day <= 0:
+        return 0.0
+    return total / all_day
+
+
+def forecast_rain_mm(series, start, end):
+    """Rain the forecast expects between two instants, in mm, or None.
+
+    ``series`` is ``[(naive local datetime, mm/h over the interval ENDING at that
+    instant)]``. Each sample's rate is charged over the part of its own interval
+    that falls inside the span, so a three-hourly product and an hourly one
+    integrate to the same water and nothing has to be interpolated into
+    existence.
+
+    None whenever the series cannot cover the span -- it begins too late, stops
+    too early, or leaves a gap wider than a three-hourly product's step. A
+    partial answer would be published as the rain the decision will see while
+    silently omitting some of it, which is worse than declining and saying the
+    projection is evapotranspiration-only. Returns 0.0 for a closed span, which
+    is coverage rather than absence.
+    """
+    if not series:
+        return None
+    if end <= start:
+        return 0.0
+    samples = sorted(
+        (when, float(rate))
+        for when, rate in series
+        if when is not None and rate is not None
+    )
+    # The first sample only closes an interval whose start is unknown, so the
+    # series has to begin at or before the span to cover its opening hours.
+    if len(samples) < 2 or samples[0][0] > start or samples[-1][0] < end:
+        return None
+    gap = datetime.timedelta(hours=_MAX_FORECAST_GAP_H)
+    total = 0.0
+    previous = samples[0][0]
+    for when, rate in samples[1:]:
+        if when - previous > gap:
+            return None
+        low, high = max(previous, start), min(when, end)
+        if high > low:
+            total += rate * (high - low).total_seconds() / 3600.0
+        previous = when
+        if when >= end:
+            break
+    return total
 
 
 def diurnal_remainder(now, latest_temperature, amplitude, geometry, window_end):

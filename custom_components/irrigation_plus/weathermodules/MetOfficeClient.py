@@ -212,6 +212,53 @@ class MetOfficeClient:  # pylint: disable=invalid-name
                 continue
         return out or None
 
+    def get_hourly_precipitation_forecast(self):
+        """``[(aware UTC datetime, mm/h)]`` from the hourly product.
+
+        ``totalPrecipAmount`` is the accumulation over the period FOLLOWING each
+        step, so the stamp is advanced by that period to give the rate over the
+        interval ENDING at it -- the convention every client hands back, and the
+        one the consumer integrates. The step length is taken from the series
+        itself, so the three-hourly product stands in where only it was fetched
+        and its samples are divided back to a rate rather than counted as an
+        hour's worth.
+
+        Reads only the already-fetched document and never issues a request of its
+        own, for the same reason the temperature accessor does not.
+        """
+        doc = self._cached_hourly or self._cached_three_hourly
+        if not doc:
+            return None
+        stamps = []
+        for step in self._time_series(doc):
+            amount = step.get("totalPrecipAmount")
+            ts = step.get("time")
+            if amount is None or not ts:
+                continue
+            try:
+                stamps.append((self._parse_time(ts), float(amount)))
+            except (TypeError, ValueError):
+                continue
+        if not stamps:
+            return None
+        out = []
+        previous_span = None
+        for i, (when, amount) in enumerate(stamps):
+            if i + 1 < len(stamps):
+                span = stamps[i + 1][0] - when
+            else:
+                # The last sample has nothing after it to measure against, so it
+                # keeps the spacing the series has been using. An hour stands in
+                # only for a lone sample: it is the finer of the two products and
+                # the conservative reading of a total.
+                span = previous_span or datetime.timedelta(hours=1)
+            hours = span.total_seconds() / 3600.0
+            if hours <= 0:
+                continue
+            previous_span = span
+            out.append((when + span, amount / hours))
+        return out or None
+
     def get_data(self):
         """Return current conditions mapped to MAPPING_* constants."""
         try:

@@ -636,36 +636,53 @@ class IrrigationRunnerMixin:
         """
         out = []
         for z in zones:
-            sensor = z.get(const.ZONE_SOIL_MOISTURE_SENSOR)
-            threshold = z.get(const.ZONE_SOIL_MOISTURE_THRESHOLD)
-            if not sensor or threshold is None:
-                out.append(z)  # feature off for this zone
-                continue
-            state = self.hass.states.get(sensor)
-            observed = None
-            if state is not None and state.state not in (
-                "unavailable",
-                "unknown",
-                None,
-                "",
-            ):
-                try:
-                    observed = float(state.state)
-                except (ValueError, TypeError):
-                    observed = None
-            if observed is None or not math.isfinite(observed):
-                # fail-open: unreadable OR non-finite (inf/nan) — a broken sensor
-                # must never veto forever (that would be the fail-closed trap).
-                out.append(z)
-                continue
-            if observed > float(threshold):
-                await self._veto_zone_soil_moisture(
-                    z, sensor, observed, float(threshold)
-                )
+            reading = self._soil_moisture_reading(z)
+            if self._soil_moisture_vetoes(reading):
+                await self._veto_zone_soil_moisture(z, *reading)
                 continue  # dropped from this run
-            self._clear_zone_skip(z.get(const.ZONE_ID))
-            out.append(z)  # dry enough -> water
+            if reading is not None:
+                self._clear_zone_skip(z.get(const.ZONE_ID))
+            out.append(z)  # feature off, unreadable, or dry enough -> water
         return out
+
+    def _soil_moisture_reading(self, zone: dict):
+        """``(sensor, observed, threshold)`` for a configured, readable sensor, else None.
+
+        Missing sensor, missing threshold, or an unavailable / non-numeric /
+        non-finite reading all come back None, which the caller treats as
+        fail-open (the zone waters per ET): a dead sensor must never silently
+        stop irrigation, and that would be the fail-closed trap.
+        """
+        sensor = zone.get(const.ZONE_SOIL_MOISTURE_SENSOR)
+        threshold = zone.get(const.ZONE_SOIL_MOISTURE_THRESHOLD)
+        if not sensor or threshold is None:
+            return None
+        state = self.hass.states.get(sensor)
+        observed = None
+        if state is not None and state.state not in (
+            "unavailable",
+            "unknown",
+            None,
+            "",
+        ):
+            try:
+                observed = float(state.state)
+            except (ValueError, TypeError):
+                observed = None
+        if observed is None or not math.isfinite(observed):
+            return None
+        return sensor, observed, float(threshold)
+
+    @staticmethod
+    def _soil_moisture_vetoes(reading) -> bool:
+        """Whether a reading holds its zone out of the run (moister than the threshold).
+
+        The single place the veto's condition is expressed: the run applies it and
+        the next-run projection asks it, so a guard that is inert for one is inert
+        for the other. Restating the comparison anywhere else is how a projection
+        would come to predict a run the runner refuses.
+        """
+        return reading is not None and reading[1] > reading[2]
 
     async def _veto_zone_soil_moisture(self, zone, sensor, observed, threshold) -> None:
         """Re-anchor the vetoed zone's bucket, fire the event, record the skip."""
@@ -2419,7 +2436,7 @@ class IrrigationRunnerMixin:
         )
 
     async def async_plan_zone_runs(
-        self, zone_ids=None, *, runnable_only=False, ignore_demand=False
+        self, zone_ids=None, *, runnable_only=False, ignore_demand=False, estimates=None
     ) -> list:
         """The zones a scheduled run would water right now, and for how long.
 
@@ -2442,6 +2459,13 @@ class IrrigationRunnerMixin:
         soil-moisture veto and the rain delay are NOT applied: both read live
         sensor state and the veto re-anchors buckets, so they belong to the run
         path, not to a projection that may be evaluated hours ahead.
+
+        ``estimates`` substitutes an already-computed estimate map for the
+        cached one, so the next-run projection can plan the same run from the
+        DECISION-POINT buckets instead of from the buckets as they stand. It is
+        the one input that differs between the two; everything downstream of it
+        — the demand gate, the sizing, the ranking — is the same code, which is
+        the only reason the projection can be trusted to predict the decision.
         """
         zones = await self.store.async_get_zones()
         selection = normalize_zone_selection(zone_ids)
@@ -2463,13 +2487,14 @@ class IrrigationRunnerMixin:
         if not eligible:
             return []
 
-        estimates = {}
-        if getattr(self.store.config, "live_estimate_enabled", False) is True:
-            try:
-                estimates = await self.async_get_cached_zone_estimates()
-            except Exception as e:  # noqa: BLE001 — a projection must not raise
-                _LOGGER.debug("Run plan: live estimates unavailable: %s", e)
-                estimates = {}
+        if estimates is None:
+            estimates = {}
+            if getattr(self.store.config, "live_estimate_enabled", False) is True:
+                try:
+                    estimates = await self.async_get_cached_zone_estimates()
+                except Exception as e:  # noqa: BLE001 — a projection must not raise
+                    _LOGGER.debug("Run plan: live estimates unavailable: %s", e)
+                    estimates = {}
 
         metric = self.hass.config.units is METRIC_SYSTEM
         planned = []
