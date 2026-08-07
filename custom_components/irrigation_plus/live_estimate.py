@@ -57,7 +57,12 @@ from homeassistant.components.weather import (
 from homeassistant.components.weather import (
     DOMAIN as WEATHER_DOMAIN,
 )
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
+from homeassistant.const import (
+    ATTR_SUPPORTED_FEATURES,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    UnitOfTemperature,
+)
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
@@ -312,7 +317,7 @@ class LiveEstimateMixin:
         # the alternative is an exception a minute for as long as the entity is
         # configured.
         try:
-            features = int(state.attributes.get("supported_features") or 0)
+            features = int(state.attributes.get(ATTR_SUPPORTED_FEATURES) or 0)
         except (TypeError, ValueError):
             return None
         if not features & WeatherEntityFeature.FORECAST_HOURLY:
@@ -736,8 +741,20 @@ class LiveEstimateMixin:
         if low is None or high is None:
             return None, None, None, None
 
-        remainder = forecast_remainder(inputs.get("hourly_forecast"), now, window_end)
-        tier = inputs.get("hourly_forecast_tier") or TIER_SERVICE
+        # The series and its tier are resolved together, so a series arriving
+        # without one means the resolver was bypassed and the provenance is
+        # simply unknown. Refuse it rather than defaulting: every candidate
+        # default lies in one direction or the other -- naming the best-scoring
+        # tier over-claims accuracy the source may not have, and naming the
+        # observed tier denies a contribution that was made. Falling through to
+        # the self-contained remainder below still publishes a figure, under a
+        # tier that is true of it.
+        tier = inputs.get("hourly_forecast_tier")
+        remainder = (
+            forecast_remainder(inputs.get("hourly_forecast"), now, window_end)
+            if tier
+            else None
+        )
         if remainder is None:
             remainder = diurnal_remainder(
                 now,
