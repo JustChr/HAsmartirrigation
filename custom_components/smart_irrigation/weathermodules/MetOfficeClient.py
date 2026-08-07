@@ -185,6 +185,33 @@ class MetOfficeClient:  # pylint: disable=invalid-name
         self._cached_three_hourly_at = datetime.datetime.now()
         return doc
 
+    def get_hourly_temperature_forecast(self):
+        """``[(aware UTC datetime, temperature C)]`` from the hourly product.
+
+        The hourly endpoint runs T to T+48, which covers a calculation window's
+        remaining hours with room to spare. Falls back to the three-hourly
+        product where only that has been fetched -- coarser, but it still
+        places the window's extremes far better than reading them off the
+        observation.
+
+        Reads an already-fetched document only; see
+        ``OpenMeteoClient.get_hourly_temperature_forecast`` for why.
+        """
+        doc = self._cached_hourly or self._cached_three_hourly
+        if not doc:
+            return None
+        out = []
+        for step in self._time_series(doc):
+            temp = step.get("screenTemperature")
+            ts = step.get("time")
+            if temp is None or not ts:
+                continue
+            try:
+                out.append((self._parse_time(ts), float(temp)))
+            except (TypeError, ValueError):
+                continue
+        return out or None
+
     def get_data(self):
         """Return current conditions mapped to MAPPING_* constants."""
         try:

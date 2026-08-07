@@ -74,6 +74,11 @@ class OWMClient:  # pylint: disable=invalid-name
         self._cached_data_at = None
         self._cached_forecast_data = None
         self._cached_forecast_at = None
+        # The raw forecast document, kept alongside the parsed daily roll-up so
+        # the three-hourly entries stay reachable. get_forecast_data folds them
+        # into calendar days, which loses the intra-day shape the composed window
+        # needs, and re-requesting for it would be a second call on a metered key.
+        self._cached_forecast_doc = None
 
     def _is_fresh(self, fetched_at) -> bool:
         """Whether a result fetched at ``fetched_at`` may still be served cached."""
@@ -156,6 +161,38 @@ class OWMClient:  # pylint: disable=invalid-name
             _LOGGER.debug("Returning cached OWM data")
             return self._cached_data
 
+    def get_hourly_temperature_forecast(self):
+        """``[(aware UTC datetime, temperature C)]`` from the three-hourly product.
+
+        Three-hourly rather than hourly, which is what the free forecast endpoint
+        supplies; the composed window reads extremes off the samples themselves
+        rather than off an hourly grid, so a coarser series still places them.
+
+        Reads an already-fetched document only; see
+        ``OpenMeteoClient.get_hourly_temperature_forecast`` for why.
+        """
+        doc = self._cached_forecast_doc
+        if not doc:
+            return None
+        # The list is UTC epochs regardless of the city's own zone, so no shift
+        # is applied here; the caller localises.
+        out = []
+        for entry in doc.get("list") or []:
+            temp = (entry.get("main") or {}).get("temp")
+            stamp = entry.get("dt")
+            if temp is None or stamp is None:
+                continue
+            try:
+                out.append(
+                    (
+                        datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc),
+                        float(temp),
+                    )
+                )
+            except (TypeError, ValueError, OSError):
+                continue
+        return out or None
+
     def get_forecast_data(self):
         """Fetch and return daily forecast data from /data/2.5/forecast.
 
@@ -176,6 +213,7 @@ class OWMClient:  # pylint: disable=invalid-name
                 if doc.get("cod") not in (200, "200"):
                     self.raiseHTTPError()
 
+                self._cached_forecast_doc = doc
                 entries = doc.get("list", [])
                 if not entries:
                     _LOGGER.warning(

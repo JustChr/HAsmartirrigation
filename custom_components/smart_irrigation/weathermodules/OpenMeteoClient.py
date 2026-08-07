@@ -243,6 +243,40 @@ class OpenMeteoClient:
             _LOGGER.error("Open-Meteo get_forecast_data error: %s", ex)
             return None
 
+    def get_hourly_temperature_forecast(self):
+        """``[(aware UTC datetime, temperature C)]`` over the whole hourly series.
+
+        Past and future alike, ascending, because the caller composes a window
+        that starts before now and ends after it. Reads only what has already
+        been fetched and never issues a request of its own: the live estimate
+        asks for this every minute per zone, and that path adds no external
+        polling. ``None`` until some other
+        accessor has populated the document.
+        """
+        doc = self._cached_doc
+        if not doc:
+            return None
+        hourly = doc.get("hourly") or {}
+        times = hourly.get("time") or []
+        temps = hourly.get("temperature_2m") or []
+        offset = datetime.timedelta(seconds=doc.get("utc_offset_seconds", 0))
+        out = []
+        # Not strict: the two arrays come from the same response and should be
+        # the same length, but a short one is a reason to return fewer rows, not
+        # to take the estimate down with a ValueError.
+        for tstr, temp in zip(times, temps, strict=False):
+            if temp is None:
+                continue
+            try:
+                local = datetime.datetime.fromisoformat(tstr)
+            except (TypeError, ValueError):
+                continue
+            # The series is local wall clock (timezone=auto in the request), so
+            # it is handed back as an absolute instant rather than leaving every
+            # caller to rediscover which zone it was in.
+            out.append((local.replace(tzinfo=datetime.timezone.utc) - offset, temp))
+        return out or None
+
     def get_hourly_data(self):
         """Return elapsed hourly rows (local) for the intra-day estimate.
 
