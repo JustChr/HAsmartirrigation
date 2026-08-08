@@ -122,6 +122,54 @@ async def test_finish_records_usage_removes_run_and_fires_finished():
     assert fired[key]["zones"][0]["zone_id"] == 2
 
 
+async def test_finish_stamps_last_irrigation_and_zeroes_duration_when_satisfied():
+    # HA-Prod repro (Kirschlorbeer/Beet): a completed self-closing run credits the
+    # bucket and records history, but never stamped last_irrigation nor zeroed the
+    # displayed duration. It bypasses _commit_run_progress (which stamps
+    # last_irrigation for a driven/metered run), and the store's
+    # "bucket == 0 -> duration 0" shortcut misses because a MEASURED run lands the
+    # bucket slightly POSITIVE (measured overshoot), never exactly 0.
+    c = _coord()
+    store_zone = _zone(
+        **{
+            const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+            const.ZONE_BUCKET: -2.0,
+            const.ZONE_MAXIMUM_BUCKET: 24.0,
+            const.ZONE_DURATION: 1611,
+        }
+    )
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+
+    async def _upd(zid, changes):
+        store_zone.update(changes)
+
+    c.store.async_update_zone = AsyncMock(side_effect=_upd)
+    c.store.async_get_config = AsyncMock(
+        return_value={
+            const.CONF_ACTIVE_VALVE_RUNS: [
+                {
+                    const.RUN_ZONE_ID: 2,
+                    const.RUN_PLANNED_SECONDS: 1611.0,
+                    const.RUN_PRE_BUCKET: -2.0,
+                }
+            ]
+        }
+    )
+    # A measured run that delivers slightly more than the deficit -> bucket +0.26.
+    c._sc_finish_flow = Mock(return_value=(2.26, {}))  # (measured litres, end_changes)
+    c._credited_depth_native = Mock(return_value=2.26)  # mm credited from the measure
+    c._flow_calibration_check = AsyncMock()
+
+    await c._sc_finish_run(2)
+
+    # bucket credited to a small measured surplus, POSITIVE and NOT exactly 0 (so
+    # the store's bucket==0 -> duration 0 shortcut can't help)
+    assert store_zone[const.ZONE_BUCKET] > 0
+    # the two fields that were stale on HA-Prod now update after the run:
+    assert const.ZONE_LAST_IRRIGATION in store_zone
+    assert store_zone[const.ZONE_DURATION] == 0
+
+
 async def test_finish_is_idempotent_when_run_missing():
     c = _coord()
     c.store.async_get_config = AsyncMock(

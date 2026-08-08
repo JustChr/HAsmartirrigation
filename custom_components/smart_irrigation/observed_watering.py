@@ -198,11 +198,21 @@ class ObservedWateringMixin:
             trigger=const.RUN_TRIGGER_OBSERVED,
             add_to_total=True,
         )
-        await self.async_write_watered_bucket(
-            zone_id,
-            new_bucket,
-            {const.ZONE_LAST_IRRIGATION: dt_util.now()},
-        )
+        extra = {const.ZONE_LAST_IRRIGATION: dt_util.now()}
+        # REGEL-8 sibling of irrigation.py::_stamp_run_finalized (self-closing +
+        # distributor): an observed run that leaves an AUTOMATIC zone satisfied
+        # (bucket back to >= 0) must also reset the displayed Duration, matching
+        # the store's bucket==0 -> duration 0 shortcut. External water usually
+        # overshoots the deficit, so new_bucket lands POSITIVE (not exactly 0) and
+        # the store shortcut alone would miss it — the same stale-"Duration" the
+        # self-closing/distributor paths had. Gated on automatic to leave a manual
+        # zone's Duration untouched, exactly like the shortcut and the helper.
+        # Folded into async_write_watered_bucket's extra_changes so the credit is
+        # still booked at its own timestamp (v08.06 mid-window replay, #77).
+        # siehe test_experimental_features.py::test_observed_credit_zeroes_duration_when_satisfied
+        if zone.get(const.ZONE_STATE) == const.ZONE_STATE_AUTOMATIC and new_bucket >= 0:
+            extra[const.ZONE_DURATION] = 0
+        await self.async_write_watered_bucket(zone_id, new_bucket, extra)
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
         _LOGGER.info(
             "Observed watering: zone %s ran %.0fs externally → +%.2f mm, "

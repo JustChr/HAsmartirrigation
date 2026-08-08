@@ -101,6 +101,7 @@ def _credit_host():
     c._timed_volume_l = Mock(return_value=20.0)  # litres
     c._credited_depth_native = Mock(return_value=4.0)  # mm
     c._record_run = AsyncMock()
+    c._stamp_run_finalized = AsyncMock()  # shared post-run last_irrigation/duration stamp
     return c
 
 
@@ -127,6 +128,9 @@ async def test_credit_zone_credits_bucket_and_records_run():
     assert kwargs["volume_l"] == 20.0
     assert kwargs["trigger"] == const.RUN_TRIGGER_DISTRIBUTOR
     assert kwargs["add_to_total"] is True
+    # REGEL-8 sister of the self-closing fix: a watered distributor member must
+    # also stamp last_irrigation + reset the displayed duration (shared helper).
+    c._stamp_run_finalized.assert_awaited_once_with(2, 20.0)
 
 
 async def test_credit_zone_caps_at_maximum_bucket():

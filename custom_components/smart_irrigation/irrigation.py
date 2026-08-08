@@ -1900,6 +1900,34 @@ class IrrigationRunnerMixin:
             return 0.0
         return self._throughput_lpm(zone) * (seconds / 60.0)
 
+    async def _stamp_run_finalized(self, zone_id, volume_l) -> None:
+        """Stamp the post-run bookkeeping a driven (metered) run gets for free.
+
+        Self-closing runs (``_sc_finish_run`` / ``async_stop_self_closing``) and
+        distributor-member runs (``_dist_credit_zone``) credit the bucket DIRECTLY
+        and never pass through ``_commit_run_progress`` — the only run-path that
+        stamps ``ZONE_LAST_IRRIGATION`` when water flows. So without this the
+        "Last irrigation" sensor never advances for those zones. And the store's
+        ``bucket == 0 -> duration 0`` shortcut also misses, because a MEASURED run
+        lands the bucket slightly POSITIVE (measured overshoot), never exactly 0 —
+        leaving the displayed "Duration" stale too. Mirror both here: stamp
+        ``last_irrigation`` when water was delivered, and zero the duration once an
+        automatic zone is left satisfied (bucket >= 0), matching the store
+        shortcut's intent (no deficit -> nothing to water).
+        siehe test_self_closing.py::test_finish_stamps_last_irrigation_and_zeroes_duration_when_satisfied
+        """
+        changes = {}
+        if volume_l and volume_l > 0:
+            changes[const.ZONE_LAST_IRRIGATION] = dt_util.now()
+        zone = self.store.get_zone(zone_id) or {}
+        if (
+            zone.get(const.ZONE_STATE) == const.ZONE_STATE_AUTOMATIC
+            and float(zone.get(const.ZONE_BUCKET) or 0) >= 0
+        ):
+            changes[const.ZONE_DURATION] = 0
+        if changes:
+            await self.store.async_update_zone(zone_id, changes)
+
     async def _record_run(
         self,
         zone_id,

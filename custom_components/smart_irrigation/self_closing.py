@@ -252,6 +252,7 @@ class SelfClosingMixin:
             volume_l = measured
         else:
             volume_l = self._timed_volume_l(zone, planned_s)
+        await self._stamp_run_finalized(zone_id, volume_l)
         await self._record_run(
             zone_id,
             result=const.RUN_RESULT_COMPLETED,
@@ -607,6 +608,7 @@ class SelfClosingMixin:
         delivered_l = (
             measured if measured is not None else self._timed_volume_l(zone, elapsed)
         )
+        await self._stamp_run_finalized(zone_id, delivered_l)
         await self._record_run(
             zone_id,
             result=const.RUN_RESULT_PARTIAL,

@@ -357,3 +357,64 @@ async def test_observed_credit_writes_run_log_and_total(monkeypatch):
     assert entry["result"] == const.RUN_RESULT_OBSERVED
     assert entry["volume_l"] == pytest.approx(10.0)
     assert changes[const.ZONE_WATER_USED_TOTAL] == pytest.approx(10.0)
+
+
+async def test_observed_credit_zeroes_duration_when_satisfied(monkeypatch):
+    """REGEL-8 sibling of _stamp_run_finalized: an observed run that leaves an
+    AUTOMATIC zone satisfied (bucket back to >= 0) must also reset the displayed
+    Duration. External water overshoots the deficit, so the bucket lands POSITIVE
+    (not exactly 0) and the store's bucket==0 -> duration 0 shortcut alone would
+    miss it, leaving a stale Duration the way self-closing/distributor runs did."""
+    coord = _observer_coordinator(monkeypatch)
+    coord.store.get_zone = Mock(
+        return_value={
+            const.ZONE_ID: 1,
+            const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+            const.ZONE_SIZE: 10.0,
+            const.ZONE_THROUGHPUT: 10.0,
+            const.ZONE_BUCKET: -0.5,
+            const.ZONE_DURATION: 300,
+            const.ZONE_MAXIMUM_BUCKET: 50.0,
+        }
+    )
+
+    await coord._credit_observed_watering(1, 60)  # +1 mm -> bucket = +0.5 (positive)
+
+    bucket_calls = [
+        c
+        for c in coord.store.async_update_zone.await_args_list
+        if const.ZONE_BUCKET in c.args[1]
+    ]
+    assert bucket_calls, "observed credit should write the bucket"
+    changes = bucket_calls[-1].args[1]
+    assert changes[const.ZONE_BUCKET] == pytest.approx(0.5)
+    assert changes[const.ZONE_BUCKET] > 0  # overshoot: not exactly 0
+    assert const.ZONE_LAST_IRRIGATION in changes
+    assert changes[const.ZONE_DURATION] == 0
+
+
+async def test_observed_credit_leaves_duration_for_non_automatic_zone(monkeypatch):
+    """The duration reset is gated on an AUTOMATIC zone (mirrors the store
+    shortcut + _stamp_run_finalized); a manual zone's Duration is left untouched."""
+    coord = _observer_coordinator(monkeypatch)
+    coord.store.get_zone = Mock(
+        return_value={
+            const.ZONE_ID: 1,
+            const.ZONE_STATE: const.ZONE_STATE_MANUAL,
+            const.ZONE_SIZE: 10.0,
+            const.ZONE_THROUGHPUT: 10.0,
+            const.ZONE_BUCKET: -0.5,
+            const.ZONE_DURATION: 300,
+            const.ZONE_MAXIMUM_BUCKET: 50.0,
+        }
+    )
+
+    await coord._credit_observed_watering(1, 60)
+
+    bucket_calls = [
+        c
+        for c in coord.store.async_update_zone.await_args_list
+        if const.ZONE_BUCKET in c.args[1]
+    ]
+    changes = bucket_calls[-1].args[1]
+    assert const.ZONE_DURATION not in changes
