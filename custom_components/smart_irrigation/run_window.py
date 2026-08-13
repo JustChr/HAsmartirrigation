@@ -57,6 +57,17 @@ RUN_CEILING_SECONDS = 14400
 # floors the seconds, which is the same guarantee one level down.
 MIN_SLOT_SECONDS = 1.0
 
+# Depletion ratios equal to this many decimals are one tie group. A ratio
+# difference below 0.01 — 0.006 in of bucket at a -0.6 in threshold — is not a
+# meaningful dryness distinction, just measurement and rounding residue, and
+# letting it order the night would defeat the packing this grouping exists for.
+RATIO_TIE_DECIMALS = 2
+
+# Past this many tied zones the subset search (2^k simulations) falls back to
+# greedy add-in-rank-order. Real installs run single digits of zones; this is a
+# backstop, not a tuning knob.
+MAX_TIE_GROUP_EXHAUSTIVE = 12
+
 
 @dataclass(frozen=True)
 class ZoneRun:
@@ -82,7 +93,7 @@ class ZoneRun:
     zone_id: int
     duration: float
     depletion_ratio: float
-    last_irrigation: datetime.datetime | None = None
+    last_irrigation: datetime.datetime | str | None = None
     maximum_duration: float | None = None
     track: str = TRACK_CLASSIC
 
@@ -100,17 +111,29 @@ def track_for_zone(zone: dict) -> str:
     return TRACK_CLASSIC
 
 
-def _epoch(moment: datetime.datetime | None) -> float:
+def _epoch(moment: datetime.datetime | str | None) -> float:
     """Sort value for a last-irrigation stamp, oldest first, never watered first.
 
-    Stamps reach us from two eras: the runner writes ``dt_util.now()`` (aware),
-    while a zone hydrated from older storage can carry a naive one. Comparing
-    the two raises TypeError, which here would abort the whole night's run — so
-    both are reduced to a float. A naive stamp is read as local time, which is
-    what wrote it.
+    Stamps reach us in three shapes. The runner writes ``dt_util.now()``
+    (aware); a zone hydrated from older storage can carry a naive one; and
+    ``store.async_get_zones`` returns ``attr.asdict`` of an entry loaded from
+    JSON, so every zone carries an ISO **string** until something rewrites the
+    field in the running process. Comparing those raises TypeError, which here
+    would abort the whole night's run — so all three are reduced to a float.
+
+    The string shape is the one worth naming, because letting it fall through to
+    the never-watered value is silent rather than loud: it is what a restarted
+    install hands over for every zone, so the whole tie-break would collapse to
+    zone id exactly where it is supposed to be doing the work. A naive stamp is
+    read as local time, which is what wrote it.
     """
     if moment is None:
         return float("-inf")
+    if isinstance(moment, str):
+        try:
+            moment = datetime.datetime.fromisoformat(moment)
+        except ValueError:
+            return float("-inf")
     try:
         return moment.timestamp()
     except (AttributeError, ValueError, OverflowError, OSError):
@@ -272,15 +295,22 @@ def select(
     are simulated rather than subtracted because the rotating clock is not a
     running sum of durations — see :func:`simulate_wall_clock`.
 
-    The highest-ranked zone is always included, even when its own duration
-    exceeds the whole window. Excluding it would starve it permanently: it can
-    never fit, so it could never water, and it is by definition the driest zone
-    there is. Including it hands the overrun to the run deadline, which cuts it
-    where it stands and carries the residual — accounting the runner already
-    does honestly. Selection excludes; the deadline truncates.
+    Zones tied on depletion ratio (to :data:`RATIO_TIE_DECIMALS`) form one
+    group, and within a group the subset that delivers the most watering
+    seconds into the window wins — among equally-due zones there is no dryness
+    argument for one over another, so rotation order deciding between a partial
+    fill and a complete one was a coin flip paid in wasted window. Equal
+    utilization falls back to the longest-unwatered members, so the rotation
+    instinct survives as the final tie-break. With no ties every group is a
+    singleton and this is exactly the old largest-prefix-plus-gap-fill rule.
 
-    A zone skipped tonight is drier tomorrow and sorts ahead of everything, so
-    nothing starves.
+    Dryness still owns the window ACROSS groups: when nothing in the driest
+    group fits, its tie-broken leader runs anyway and the run deadline cuts it
+    where it stands — a wetter zone must never water ahead of a drier one that
+    could not fit, or the driest zone would starve forever. A *tied* zone that
+    loses the packing tonight dries past its group, becomes that strict leader,
+    and the same rule then guarantees it water. Selection excludes; the
+    deadline truncates.
     """
     ranked = rank(runs)
     if not ranked:
@@ -297,20 +327,69 @@ def select(
             <= window_seconds
         )
 
-    chosen: list[ZoneRun] = []
-    for size in range(1, len(ranked) + 1):
-        prefix = ranked[:size]
-        if fits(prefix):
-            chosen = prefix
-    # Nothing fit at all — the leader runs anyway and the deadline truncates it.
-    chosen = list(chosen) if chosen else [ranked[0]]
+    # Contiguity needs no sort of its own: rounding is monotone, so zones
+    # sharing a rounded ratio are adjacent in the exact-ratio ranking.
+    groups: list[list[ZoneRun]] = []
+    last_key = None
+    for r in ranked:
+        key = round(r.depletion_ratio, RATIO_TIE_DECIMALS)
+        if groups and key == last_key:
+            groups[-1].append(r)
+        else:
+            groups.append([r])
+            last_key = key
+    # Within a group the sub-quantum ratio difference is exactly the noise the
+    # rounding neutralizes — order members by the tie-break alone, or float
+    # residue would still decide the execution order.
+    for group in groups:
+        group.sort(key=lambda r: (_epoch(r.last_irrigation), r.zone_id))
 
-    picked = {r.zone_id for r in chosen}
-    for candidate in ranked:
-        if candidate.zone_id in picked:
-            continue
-        trial = [*chosen, candidate]
-        if fits(trial):
-            chosen = trial
-            picked.add(candidate.zone_id)
+    chosen: list[ZoneRun] = []
+    for index, group in enumerate(groups):
+        subset = _best_fitting_subset(chosen, group, fits)
+        if index == 0 and not subset:
+            # Nothing in the driest group fits at all — the leader runs anyway
+            # and the deadline truncates it. Lower groups are NOT consulted.
+            return [ranked[0]]
+        chosen = [*chosen, *subset]
     return chosen
+
+
+def _best_fitting_subset(chosen, group, fits):
+    """The subset of one tie group that best uses the remaining window.
+
+    Most watering seconds first; among equals, the members longest unwatered
+    (lexicographic on their sorted last-irrigation epochs — a never-watered
+    zone reads oldest); zone ids settle the rest deterministically. Members
+    keep their ranked order, so the execution order the caller accumulates is
+    the ranking's.
+
+    A group past :data:`MAX_TIE_GROUP_EXHAUSTIVE` falls back to greedy
+    add-in-rank-order — 2^k simulations stop being cheap somewhere, and a
+    single-figure zone count never gets there.
+    """
+    if len(group) == 1:
+        return group if fits([*chosen, *group]) else []
+    if len(group) > MAX_TIE_GROUP_EXHAUSTIVE:
+        subset = []
+        for member in group:
+            if fits([*chosen, *subset, member]):
+                subset.append(member)
+        return subset
+
+    best: list[ZoneRun] = []
+    best_score = None
+    for mask in range(1, 1 << len(group)):
+        subset = [m for bit, m in enumerate(group) if mask >> bit & 1]
+        if not fits([*chosen, *subset]):
+            continue
+        # Negated epochs/ids so that on equal watering seconds the plain
+        # max() comparison prefers older members, then smaller zone ids.
+        score = (
+            sum(m.duration or 0.0 for m in subset),
+            tuple(sorted((-_epoch(m.last_irrigation) for m in subset), reverse=True)),
+            tuple(sorted((-m.zone_id for m in subset), reverse=True)),
+        )
+        if best_score is None or score > best_score:
+            best, best_score = subset, score
+    return best

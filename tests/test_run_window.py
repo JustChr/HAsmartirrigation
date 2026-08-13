@@ -137,6 +137,33 @@ class TestRank:
         runs = [_run(0, 300, ratio=1.5, last=naive), _run(1, 300, ratio=1.5, last=aware)]
         assert [r.zone_id for r in rank(runs)] == [1, 0]
 
+    def test_a_stored_iso_stamp_orders_like_a_datetime(self):
+        # store.async_get_zones returns attr.asdict of an entry hydrated from
+        # JSON, so after any restart last_irrigation is an ISO STRING; only a
+        # stamp written in the current process is still a datetime. Reading the
+        # string shape as "never watered" is quieter than raising and worse: it
+        # collapses this tie-break to zone id on every install that has been
+        # restarted, which is all of them.
+        old = "2026-08-01T06:00:00-04:00"
+        recent = "2026-08-05T06:00:00-04:00"
+        runs = [_run(0, 300, ratio=1.5, last=recent), _run(1, 300, ratio=1.5, last=old)]
+        assert [r.zone_id for r in rank(runs)] == [1, 0]
+
+    def test_a_stored_string_and_a_live_datetime_compare(self):
+        # The mix is the normal state mid-run: the zone the runner just watered
+        # carries a datetime while every other zone still carries its string.
+        stored = "2026-08-01T06:00:00+00:00"
+        live = datetime.datetime(2026, 8, 5, 6, 0, tzinfo=datetime.timezone.utc)
+        runs = [_run(0, 300, ratio=1.5, last=live), _run(1, 300, ratio=1.5, last=stored)]
+        assert [r.zone_id for r in rank(runs)] == [1, 0]
+
+    def test_an_unparseable_stamp_reads_as_never_watered(self):
+        runs = [
+            _run(0, 300, ratio=1.5, last="2026-08-05T06:00:00+00:00"),
+            _run(1, 300, ratio=1.5, last="not a timestamp"),
+        ]
+        assert [r.zone_id for r in rank(runs)] == [1, 0]
+
     def test_zone_id_is_the_final_tie_break(self):
         runs = [_run(2, 300, ratio=1.5), _run(0, 300, ratio=1.5), _run(1, 300, ratio=1.5)]
         assert [r.zone_id for r in rank(runs)] == [0, 1, 2]
@@ -216,6 +243,105 @@ class TestSelect:
     def test_window_of_zero_still_returns_the_leader(self):
         runs = [_run(0, 300, ratio=3.0), _run(1, 300, ratio=2.0)]
         assert [r.zone_id for r in self._select(runs, 0)] == [0]
+
+
+class TestSelectTiePacking:
+    """Within a ratio tie, pack the window instead of following rotation order.
+
+    Ties are the steady state here (identical buckets under a shared sensor
+    group), and among equally-due zones there is no dryness argument for one
+    over another — so the subset that wastes the least window wins. A tied zone
+    skipped tonight dries past its group, becomes the strict leader, and the
+    always-include-the-leader rule then guarantees it water; utilization never
+    overrides dryness ACROSS groups.
+    """
+
+    def _select(self, runs, window, sequencing=SEQUENTIAL, slot=300.0, absorb=0.0):
+        return select(
+            runs,
+            window_seconds=window,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorb,
+        )
+
+    def _tied(self, zone_id, duration, last_days_ago):
+        return _run(
+            zone_id,
+            duration,
+            ratio=1.2,
+            last=datetime.datetime(2026, 8, 1) - datetime.timedelta(last_days_ago),
+        )
+
+    def test_tied_pair_that_packs_the_window_beats_the_rotation_leader(self):
+        # A (2400) cannot fit at all, B (1700) wastes 300, C+D (1900) waste
+        # 100. Rotation order alone would pick A and hand the whole night to a
+        # partial fill; packing picks C+D.
+        runs = [
+            self._tied(0, 2400, last_days_ago=4),  # A - rotation leader
+            self._tied(1, 1700, last_days_ago=3),  # B
+            self._tied(2, 1000, last_days_ago=2),  # C
+            self._tied(3, 900, last_days_ago=1),  # D
+        ]
+        assert [r.zone_id for r in self._select(runs, 2000)] == [2, 3]
+
+    def test_equal_utilization_prefers_the_longest_unwatered(self):
+        runs = [
+            self._tied(0, 1000, last_days_ago=1),
+            self._tied(1, 1000, last_days_ago=5),
+        ]
+        assert [r.zone_id for r in self._select(runs, 1000)] == [1]
+
+    def test_a_drier_group_still_owns_the_window(self):
+        # The strictly driest zone does not fit; a wetter zone would. Dryness
+        # priority holds: the leader runs and the deadline truncates it —
+        # otherwise the driest zone starves forever behind fitting wet ones.
+        runs = [
+            _run(0, 2400, ratio=1.5),
+            _run(1, 500, ratio=1.2),
+        ]
+        assert [r.zone_id for r in self._select(runs, 2000)] == [0]
+
+    def test_packing_is_constrained_by_the_rotating_simulation(self):
+        # Sum of the tied pair (1200) fits 1400, but the rotating clock is
+        # 1500 (residual absorption pause), so only one fits — the older.
+        runs = [
+            self._tied(0, 600, last_days_ago=1),
+            self._tied(1, 600, last_days_ago=3),
+        ]
+        chosen = self._select(runs, 1400, ROTATING, slot=300, absorb=600)
+        assert [r.zone_id for r in chosen] == [1]
+
+    def test_near_ties_within_rounding_noise_pack_too(self):
+        # Ratios differing past the second decimal are the same dryness — not
+        # a meaningful distinction, just rounding residue — so they pack
+        # rather than letting float noise decide the night.
+        runs = [
+            _run(0, 2400, ratio=1.203),
+            _run(1, 1000, ratio=1.201),
+            _run(2, 900, ratio=1.202),
+        ]
+        assert [r.zone_id for r in self._select(runs, 2000)] == [1, 2]
+
+    def test_distinct_ratios_keep_prefix_and_gap_fill_semantics(self):
+        # No ties -> identical behaviour to the prefix + gap-fill rule.
+        runs = [
+            _run(0, 600, ratio=3.0),
+            _run(1, 600, ratio=2.0),
+            _run(2, 200, ratio=1.5),
+        ]
+        assert [r.zone_id for r in self._select(runs, 900)] == [0, 2]
+
+    def test_lower_group_fills_what_the_packed_tie_leaves(self):
+        # After the tied pair packs 1900 of 2300, a wetter singleton (400)
+        # still gap-fills the residual.
+        runs = [
+            self._tied(0, 2400, last_days_ago=4),
+            self._tied(2, 1000, last_days_ago=2),
+            self._tied(3, 900, last_days_ago=1),
+            _run(5, 400, ratio=1.05),
+        ]
+        assert [r.zone_id for r in self._select(runs, 2300)] == [2, 3, 5]
 
 
 class TestBoundWallClock:
