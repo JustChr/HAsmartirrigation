@@ -255,6 +255,15 @@ class RecurringScheduleManager:
         # Remove old tracker
         await self._remove_schedule_tracker(schedule_id)
 
+        # Forget which occurrence was last fired. The memo exists so that a
+        # re-arm triggered by the schedule's own fire callback does not run the
+        # same occurrence twice, and it matches by proximity — but an edit is
+        # not a re-arm. Editing a schedule that has already run today to a time
+        # within that proximity would otherwise look like the occurrence just
+        # fired and skip a whole day: set 21:15, let it run, move it to 21:18,
+        # and the next run is tomorrow.
+        self._finish_last_target.pop(schedule_id, None)
+
         # Update schedule
         self._schedules[schedule_index].update(schedule_data)
 

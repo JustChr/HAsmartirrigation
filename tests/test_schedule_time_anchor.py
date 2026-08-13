@@ -454,6 +454,27 @@ class TestFinishTrackerAdvance:
         assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
 
     @pytest.mark.asyncio
+    async def test_editing_a_schedule_forgets_the_fired_occurrence(
+        self, coordinator, monkeypatch
+    ):
+        """Editing is not re-arming. The proximity match that stops a fire
+        callback re-running its own occurrence would otherwise swallow an edit
+        made within the tolerance: run at 21:15, move it to 21:18, and the next
+        run is tomorrow."""
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        sched = self._finish_sched()
+        sid = sched[const.SCHEDULE_CONF_ID]
+        mgr._schedules = [sched]
+        mgr._finish_last_target[sid] = "2026-06-10T06:00:00+00:00"
+        monkeypatch.setattr(mgr, "_remove_schedule_tracker", AsyncMock())
+        monkeypatch.setattr(mgr, "_setup_schedule_tracker", AsyncMock())
+        monkeypatch.setattr(mgr, "_save_schedules", AsyncMock())
+
+        await mgr.async_update_schedule(sid, {**sched, "finish_time": "06:03"})
+
+        assert sid not in mgr._finish_last_target
+
+    @pytest.mark.asyncio
     @freeze_time("2026-06-10 18:00:00")
     async def test_rearm_advances_when_the_bound_will_not_resolve_twice_alike(
         self, coordinator, monkeypatch
