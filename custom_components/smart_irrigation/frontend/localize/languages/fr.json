@@ -609,10 +609,7 @@
         "daily": "Quotidien",
         "weekly": "Hebdomadaire",
         "monthly": "Mensuel",
-        "interval": "Toutes les N heures",
-        "sunrise": "Lever du soleil",
-        "sunset": "Coucher du soleil",
-        "solar_azimuth": "Azimut solaire"
+        "interval": "Toutes les N heures"
       },
       "actions": {
         "calculate": "Calculer (mettre à jour la durée d'irrigation)",
@@ -630,42 +627,37 @@
       },
       "fields": {
         "name": "Nom",
-        "type": "Type de planification",
+        "recurrence": "Récurrence",
         "enabled": "Activé",
-        "time": "Heure (HH:MM)",
         "days_of_week": "Jours de la semaine",
         "day_of_month": "Jour du mois",
         "interval_hours": "Intervalle",
         "action": "Action",
         "zones": "Zones",
+        "start_mode": "Début",
         "start_time": "Heure de début (optionnel)",
+        "finish_mode": "Fin",
+        "finish_time": "Heure de fin (HH:MM)",
+        "anchor": "Ancré sur",
         "start_date": "Date de début (optionnel)",
         "end_date": "Date de fin (optionnel)",
         "offset_minutes": "Décalage par rapport au lever/coucher du soleil",
-        "account_for_duration": "Démarrer tôt pour que l'irrigation se termine à l'heure cible",
-        "azimuth_angle": "Angle d'azimut solaire",
-        "time_anchor": "Lheure correspond au",
-        "earliest_start": "Démarrage au plus tôt",
-        "earliest_start_time": "Heure de démarrage au plus tôt (HH:MM)",
-        "earliest_start_offset": "Minutes après le coucher du soleil",
-        "fit_to_window": "Ajuster le cycle à la fenêtre disponible"
+        "azimuth_angle": "Angle d'azimut solaire"
       },
       "dialog": {
         "add_title": "Ajouter une planification",
         "edit_title": "Modifier la planification"
       },
-      "time_anchor": {
-        "start": "Début de larrosage",
-        "finish": "Fin de larrosage"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "Aucune limite",
-        "time": "À une heure fixe",
-        "sunset": "Après le coucher du soleil"
+        "time": "À une heure",
+        "sunrise": "Au lever du soleil",
+        "sunset": "Au coucher du soleil",
+        "solar_azimuth": "À l'azimut solaire"
       },
-      "help": {
-        "earliest_start": "Le cycle ne commencera pas avant cette heure. Sans limite, un cycle qui occupe presque toute la nuit démarre aussi tôt qu'il le faut pour finir à l'heure, ce qui lors d'une courte nuit d'été peut être avant le coucher du soleil.",
-        "fit_to_window": "Désactivé : toutes les zones dues sont arrosées dans leur ordre d'enregistrement, sans limite, et le cycle peut dépasser l'heure cible. Activé : les zones sont classées selon le niveau de leur seau (bucket), seul ce qui tient entre le démarrage au plus tôt et l'heure cible est arrosé, et le cycle est arrêté à l'heure cible."
+      "anchor": {
+        "start": "Le plus tôt possible dans la fenêtre",
+        "finish": "Le plus tard possible dans la fenêtre"
       }
     },
     "info": {

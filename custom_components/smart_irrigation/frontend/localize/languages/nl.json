@@ -609,10 +609,7 @@
         "daily": "Dagelijks",
         "weekly": "Wekelijks",
         "monthly": "Maandelijks",
-        "interval": "Elke N uur",
-        "sunrise": "Zonsopgang",
-        "sunset": "Zonsondergang",
-        "solar_azimuth": "Zonneazimut"
+        "interval": "Elke N uur"
       },
       "actions": {
         "calculate": "Berekenen (bewateringsduur bijwerken)",
@@ -630,42 +627,37 @@
       },
       "fields": {
         "name": "Naam",
-        "type": "Schematype",
+        "recurrence": "Herhaling",
         "enabled": "Ingeschakeld",
-        "time": "Tijd (HH:MM)",
         "days_of_week": "Weekdagen",
         "day_of_month": "Dag van de maand",
         "interval_hours": "Interval",
         "action": "Actie",
         "zones": "Zones",
+        "start_mode": "Start",
         "start_time": "Starttijd (optioneel)",
+        "finish_mode": "Einde",
+        "finish_time": "Eindtijd (HH:MM)",
+        "anchor": "Vastgezet op",
         "start_date": "Startdatum (optioneel)",
         "end_date": "Einddatum (optioneel)",
         "offset_minutes": "Offset van zonsopgang/-ondergang",
-        "account_for_duration": "Vroeg starten zodat bewatering eindigt op doeltijd",
-        "azimuth_angle": "Zonneazimuthoek",
-        "time_anchor": "Tijd markeert het",
-        "earliest_start": "Vroegste start",
-        "earliest_start_time": "Vroegste starttijd (HH:MM)",
-        "earliest_start_offset": "Minuten na zonsondergang",
-        "fit_to_window": "Beurt aanpassen aan beschikbaar venster"
+        "azimuth_angle": "Zonneazimuthoek"
       },
       "dialog": {
         "add_title": "Schema toevoegen",
         "edit_title": "Schema bewerken"
       },
-      "time_anchor": {
-        "start": "Begin van de bewatering",
-        "finish": "Einde van de bewatering"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "Geen limiet",
-        "time": "Op een vast tijdstip",
-        "sunset": "Na zonsondergang"
+        "time": "Op een tijdstip",
+        "sunrise": "Bij zonsopgang",
+        "sunset": "Bij zonsondergang",
+        "solar_azimuth": "Bij zonneazimut"
       },
-      "help": {
-        "earliest_start": "De beurt begint niet voor dit tijdstip. Zonder limiet start een beurt die bijna de hele nacht nodig heeft zo vroeg als nodig om op tijd klaar te zijn, wat in een korte zomernacht voor zonsondergang kan zijn.",
-        "fit_to_window": "Uit: elke zone die aan de beurt is wordt bewaterd, in de opgeslagen volgorde, zonder limiet, en de beurt kan de doeltijd overschrijden. Aan: de zones worden gesorteerd op hoe leeg hun voorraad is, alleen wat past tussen de vroegste start en de doeltijd wordt bewaterd, en de beurt stopt op de doeltijd."
+      "anchor": {
+        "start": "Zo vroeg mogelijk binnen het venster",
+        "finish": "Zo laat mogelijk binnen het venster"
       }
     },
     "info": {

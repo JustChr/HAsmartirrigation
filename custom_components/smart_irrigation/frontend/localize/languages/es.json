@@ -609,10 +609,7 @@
         "daily": "Diario",
         "weekly": "Semanal",
         "monthly": "Mensual",
-        "interval": "Cada N horas",
-        "sunrise": "Amanecer",
-        "sunset": "Atardecer",
-        "solar_azimuth": "Azimut solar"
+        "interval": "Cada N horas"
       },
       "actions": {
         "calculate": "Calcular (actualizar duración de riego)",
@@ -630,42 +627,37 @@
       },
       "fields": {
         "name": "Nombre",
-        "type": "Tipo de programa",
+        "recurrence": "Frecuencia",
         "enabled": "Activado",
-        "time": "Hora (HH:MM)",
         "days_of_week": "Días de la semana",
         "day_of_month": "Día del mes",
         "interval_hours": "Intervalo",
         "action": "Acción",
         "zones": "Zonas",
+        "start_mode": "Inicio",
         "start_time": "Hora de inicio (opcional)",
+        "finish_mode": "Fin",
+        "finish_time": "Hora de fin (HH:MM)",
+        "anchor": "Anclado a",
         "start_date": "Fecha de inicio (opcional)",
         "end_date": "Fecha de fin (opcional)",
         "offset_minutes": "Desplazamiento desde amanecer/atardecer",
-        "account_for_duration": "Iniciar antes para que el riego termine a la hora objetivo",
-        "azimuth_angle": "Ángulo de azimut solar",
-        "time_anchor": "La hora marca el",
-        "earliest_start": "Inicio más temprano",
-        "earliest_start_time": "Hora de inicio más temprana (HH:MM)",
-        "earliest_start_offset": "Minutos después del atardecer",
-        "fit_to_window": "Ajustar el riego a la ventana disponible"
+        "azimuth_angle": "Ángulo de azimut solar"
       },
       "dialog": {
         "add_title": "Añadir programa",
         "edit_title": "Editar programa"
       },
-      "time_anchor": {
-        "start": "Inicio del riego",
-        "finish": "Fin del riego"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "Sin límite",
-        "time": "A una hora fija",
-        "sunset": "Después del atardecer"
+        "time": "A una hora",
+        "sunrise": "Al amanecer",
+        "sunset": "Al atardecer",
+        "solar_azimuth": "En azimut solar"
       },
-      "help": {
-        "earliest_start": "El riego no empezará antes de esta hora. Sin límite, un riego que necesita casi toda la noche empieza tan pronto como haga falta para terminar a tiempo, lo que en una noche corta de verano puede ser antes del atardecer.",
-        "fit_to_window": "Desactivado: todas las zonas pendientes riegan en el orden en que están guardadas, sin límite, y el riego puede pasarse de la hora objetivo. Activado: las zonas se ordenan según lo vacío que esté su depósito, solo se riega lo que cabe entre el inicio más temprano y la hora objetivo, y el riego se detiene a esa hora."
+      "anchor": {
+        "start": "Lo antes posible dentro de la ventana",
+        "finish": "Lo más tarde posible dentro de la ventana"
       }
     },
     "info": {

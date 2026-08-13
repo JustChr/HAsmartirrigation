@@ -609,10 +609,7 @@
         "daily": "Denne",
         "weekly": "Týždenne",
         "monthly": "Mesačne",
-        "interval": "Každých N hodín",
-        "sunrise": "Východ slnka",
-        "sunset": "Západ slnka",
-        "solar_azimuth": "Slnečný azimut"
+        "interval": "Každých N hodín"
       },
       "actions": {
         "calculate": "Vypočítať (aktualizovať dobu závlahy)",
@@ -630,42 +627,37 @@
       },
       "fields": {
         "name": "Názov",
-        "type": "Typ plánu",
+        "recurrence": "Opakovanie",
         "enabled": "Povolené",
-        "time": "Čas (HH:MM)",
         "days_of_week": "Dni v týždni",
         "day_of_month": "Deň v mesiaci",
         "interval_hours": "Interval",
         "action": "Akcia",
         "zones": "Zóny",
+        "start_mode": "Začiatok",
         "start_time": "Čas začiatku (voliteľné)",
+        "finish_mode": "Koniec",
+        "finish_time": "Čas konca (HH:MM)",
+        "anchor": "Ukotvené na",
         "start_date": "Dátum začiatku (voliteľné)",
         "end_date": "Dátum konca (voliteľné)",
         "offset_minutes": "Posun od východu/západu slnka",
-        "account_for_duration": "Spustiť skoro, aby závlaha skončila v cieľovom čase",
-        "azimuth_angle": "Uhol slnečného azimutu",
-        "time_anchor": "Čas označuje",
-        "earliest_start": "Najskorší začiatok",
-        "earliest_start_time": "Najskorší čas začiatku (HH:MM)",
-        "earliest_start_offset": "Minúty po západe slnka",
-        "fit_to_window": "Prispôsobiť spustenie dostupnému oknu"
+        "azimuth_angle": "Uhol slnečného azimutu"
       },
       "dialog": {
         "add_title": "Pridať plán",
         "edit_title": "Upraviť plán"
       },
-      "time_anchor": {
-        "start": "Začiatok zavlažovania",
-        "finish": "Koniec zavlažovania"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "Bez obmedzenia",
-        "time": "V pevnom čase",
-        "sunset": "Po západe slnka"
+        "time": "V určenom čase",
+        "sunrise": "Pri východe slnka",
+        "sunset": "Pri západe slnka",
+        "solar_azimuth": "Pri slnečnom azimute"
       },
-      "help": {
-        "earliest_start": "Spustenie nezačne pred týmto časom. Bez obmedzenia sa spustenie, ktoré potrebuje takmer celú noc, začne tak skoro, ako je nutné, aby skončilo včas — v krátkej letnej noci teda pred západom slnka.",
-        "fit_to_window": "Vypnuté: všetky zóny, ktoré sú na rade, sa zavlažia v uloženom poradí, bez obmedzenia, a spustenie môže presiahnuť cieľový čas. Zapnuté: zóny sa zoradia podľa toho, ako prázdne je ich vedro, zavlaží sa len to, čo sa zmestí medzi najskorší začiatok a cieľový čas, a spustenie sa v tomto čase zastaví."
+      "anchor": {
+        "start": "Čo najskôr v danom okne",
+        "finish": "Čo najneskôr v danom okne"
       }
     },
     "info": {

@@ -194,10 +194,7 @@
         "daily": "Daily",
         "weekly": "Weekly",
         "monthly": "Monthly",
-        "interval": "Every N hours",
-        "sunrise": "Sunrise",
-        "sunset": "Sunset",
-        "solar_azimuth": "Solar azimuth"
+        "interval": "Every N hours"
       },
       "actions": {
         "calculate": "Calculate (update irrigation duration)",
@@ -215,42 +212,37 @@
       },
       "fields": {
         "name": "Name",
-        "type": "Schedule type",
+        "recurrence": "Recurrence",
         "enabled": "Enabled",
-        "time": "Time (HH:MM)",
         "days_of_week": "Days of week",
         "day_of_month": "Day of month",
         "interval_hours": "Interval",
         "action": "Action",
         "zones": "Zones",
+        "start_mode": "Start",
         "start_time": "Start time (optional)",
+        "finish_mode": "Finish",
+        "finish_time": "Finish time (HH:MM)",
+        "anchor": "Pinned to",
         "start_date": "Start date (optional)",
         "end_date": "End date (optional)",
         "offset_minutes": "Offset from sunrise/sunset",
-        "account_for_duration": "Start early so irrigation finishes at trigger time",
-        "azimuth_angle": "Solar azimuth angle",
-        "time_anchor": "Time marks the",
-        "earliest_start": "Earliest start",
-        "earliest_start_time": "Earliest start time (HH:MM)",
-        "earliest_start_offset": "Minutes after sunset",
-        "fit_to_window": "Fit run to available window"
+        "azimuth_angle": "Solar azimuth angle"
       },
       "dialog": {
         "add_title": "Add Schedule",
         "edit_title": "Edit Schedule"
       },
-      "time_anchor": {
-        "start": "Start of irrigation",
-        "finish": "End of irrigation"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "No limit",
-        "time": "At a fixed time",
-        "sunset": "After sunset"
+        "time": "At a time",
+        "sunrise": "At sunrise",
+        "sunset": "At sunset",
+        "solar_azimuth": "At solar azimuth"
       },
-      "help": {
-        "earliest_start": "The run will not begin before this. Without a limit, a run long enough to need most of the night starts wherever it has to in order to finish on time, which on a short summer night can be before sunset.",
-        "fit_to_window": "Off: every zone that is due runs, in the order it is stored, with no cap, and the run may overrun the finish time. On: zones are ordered by how depleted they are, only what fits between the earliest start and the finish time is run, and the run is stopped at the finish time."
+      "anchor": {
+        "start": "As early as possible within the window",
+        "finish": "As late as possible within the window"
       }
     },
     "setup": {

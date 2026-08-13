@@ -94,11 +94,10 @@ def _schedule(**kw):
     base = {
         const.SCHEDULE_CONF_ID: "s1",
         const.SCHEDULE_CONF_NAME: "overnight",
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_SUNRISE,
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+        const.SCHEDULE_CONF_FINISH_MODE: const.SCHEDULE_BOUND_MODE_SUNRISE,
         const.SCHEDULE_CONF_ACTION: "irrigate",
-        const.SCHEDULE_CONF_TIME_ANCHOR: const.SCHEDULE_TIME_ANCHOR_FINISH,
         const.SCHEDULE_CONF_ZONES: "all",
-        const.SCHEDULE_CONF_FIT_TO_WINDOW: True,
     }
     base.update(kw)
     return base

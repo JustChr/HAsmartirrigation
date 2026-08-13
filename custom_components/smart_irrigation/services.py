@@ -20,6 +20,32 @@ from .const import SmartIrrigationError
 _LOGGER = logging.getLogger(__name__)
 
 
+def _translate_legacy_schedule_fields(schedule_data: dict) -> dict:
+    """Adapt the public create/update-schedule service call onto the v14
+    storage shape (GitLab #27).
+
+    ``services.yaml`` still publishes ``type``/``time`` — the fields any
+    existing YAML automation already calls this service with — so those keep
+    working as an input contract even though storage no longer has a `type`
+    field. Only `type`/`time` need translating: the service schema never
+    exposed sun references, offsets, azimuth, anchor, or a window, so nothing
+    else here can carry a retired field.
+    """
+    if "type" not in schedule_data:
+        return schedule_data
+    schedule_data = dict(schedule_data)
+    old_type = schedule_data.pop("type")
+    old_time = schedule_data.pop("time", None)
+    if old_type == const.SCHEDULE_RECURRENCE_INTERVAL:
+        schedule_data[const.SCHEDULE_CONF_RECURRENCE] = old_type
+        return schedule_data
+    schedule_data[const.SCHEDULE_CONF_RECURRENCE] = old_type
+    schedule_data[const.SCHEDULE_CONF_START_MODE] = const.SCHEDULE_BOUND_MODE_TIME
+    if old_time is not None:
+        schedule_data[const.SCHEDULE_CONF_START_TIME] = old_time
+    return schedule_data
+
+
 class ServiceHandlersMixin:
     """Service-call handlers for SmartIrrigationCoordinator.
 
@@ -300,7 +326,7 @@ class ServiceHandlersMixin:
     # Enhanced Scheduling Service Handlers
     async def handle_create_recurring_schedule(self, call):
         """Create recurring schedule service handler."""
-        schedule_data = dict(call.data)
+        schedule_data = _translate_legacy_schedule_fields(dict(call.data))
         _LOGGER.info(
             "Create recurring schedule service called: %s",
             schedule_data.get("name", "Unnamed"),
@@ -316,7 +342,7 @@ class ServiceHandlersMixin:
     async def handle_update_recurring_schedule(self, call):
         """Update recurring schedule service handler."""
         schedule_id = call.data.get("schedule_id")
-        schedule_data = dict(call.data)
+        schedule_data = _translate_legacy_schedule_fields(dict(call.data))
         schedule_data.pop("schedule_id", None)
 
         _LOGGER.info("Update recurring schedule service called for ID: %s", schedule_id)

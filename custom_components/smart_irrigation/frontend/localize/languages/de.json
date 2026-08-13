@@ -609,10 +609,7 @@
         "daily": "Täglich",
         "weekly": "Wöchentlich",
         "monthly": "Monatlich",
-        "interval": "Alle N Stunden",
-        "sunrise": "Sonnenaufgang",
-        "sunset": "Sonnenuntergang",
-        "solar_azimuth": "Sonnenazimut"
+        "interval": "Alle N Stunden"
       },
       "actions": {
         "calculate": "Berechnen (Bewässerungsdauer aktualisieren)",
@@ -630,42 +627,37 @@
       },
       "fields": {
         "name": "Name",
-        "type": "Zeitplantyp",
+        "recurrence": "Wiederholung",
         "enabled": "Aktiviert",
-        "time": "Uhrzeit (HH:MM)",
         "days_of_week": "Wochentage",
         "day_of_month": "Tag des Monats",
         "interval_hours": "Intervall",
         "action": "Aktion",
         "zones": "Zonen",
+        "start_mode": "Start",
         "start_time": "Startzeit (optional)",
+        "finish_mode": "Ende",
+        "finish_time": "Endzeit (HH:MM)",
+        "anchor": "Fixiert auf",
         "start_date": "Startdatum (optional)",
         "end_date": "Enddatum (optional)",
         "offset_minutes": "Versatz von Sonnenaufgang/-untergang",
-        "account_for_duration": "Früh starten, damit Bewässerung zur Zielzeit endet",
-        "azimuth_angle": "Sonnenazimutwinkel",
-        "time_anchor": "Zeitpunkt markiert",
-        "earliest_start": "Frühester Start",
-        "earliest_start_time": "Frühester Start (HH:MM)",
-        "earliest_start_offset": "Minuten nach Sonnenuntergang",
-        "fit_to_window": "Lauf an verfügbares Zeitfenster anpassen"
+        "azimuth_angle": "Sonnenazimutwinkel"
       },
       "dialog": {
         "add_title": "Zeitplan hinzufügen",
         "edit_title": "Zeitplan bearbeiten"
       },
-      "time_anchor": {
-        "start": "Beginn der Bewässerung",
-        "finish": "Ende der Bewässerung"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "Keine Begrenzung",
-        "time": "Zu einer festen Uhrzeit",
-        "sunset": "Nach Sonnenuntergang"
+        "time": "Zu einer Uhrzeit",
+        "sunrise": "Bei Sonnenaufgang",
+        "sunset": "Bei Sonnenuntergang",
+        "solar_azimuth": "Bei Sonnenazimut"
       },
-      "help": {
-        "earliest_start": "Der Lauf beginnt nicht vor diesem Zeitpunkt. Ohne Begrenzung startet ein Lauf, der den größten Teil der Nacht benötigt, so früh wie nötig, um rechtzeitig zu enden — in einer kurzen Sommernacht also vor Sonnenuntergang.",
-        "fit_to_window": "Aus: Jede fällige Zone läuft in Speicherreihenfolge, ohne Begrenzung, und der Lauf kann die Zielzeit überschreiten. Ein: Die Zonen werden nach ihrem Vorrat sortiert, es läuft nur, was zwischen frühestem Start und Zielzeit passt, und der Lauf wird zur Zielzeit beendet."
+      "anchor": {
+        "start": "So früh wie möglich im Zeitfenster",
+        "finish": "So spät wie möglich im Zeitfenster"
       }
     },
     "info": {

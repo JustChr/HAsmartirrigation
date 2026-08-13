@@ -609,10 +609,7 @@
         "daily": "Daglig",
         "weekly": "Ukentlig",
         "monthly": "Månedlig",
-        "interval": "Hver N time",
-        "sunrise": "Soloppgang",
-        "sunset": "Solnedgang",
-        "solar_azimuth": "Solazimutt"
+        "interval": "Hver N time"
       },
       "actions": {
         "calculate": "Beregn (oppdater vanningsvarighet)",
@@ -630,42 +627,37 @@
       },
       "fields": {
         "name": "Navn",
-        "type": "Tidsplantype",
+        "recurrence": "Gjentakelse",
         "enabled": "Aktivert",
-        "time": "Tid (HH:MM)",
         "days_of_week": "Ukedager",
         "day_of_month": "Dag i måneden",
         "interval_hours": "Intervall",
         "action": "Handling",
         "zones": "Soner",
+        "start_mode": "Start",
         "start_time": "Starttid (valgfritt)",
+        "finish_mode": "Slutt",
+        "finish_time": "Sluttid (HH:MM)",
+        "anchor": "Festet til",
         "start_date": "Startdato (valgfritt)",
         "end_date": "Sluttdato (valgfritt)",
         "offset_minutes": "Forskyvning fra soloppgang/-nedgang",
-        "account_for_duration": "Start tidlig slik at vanningen er ferdig til måltidspunktet",
-        "azimuth_angle": "Solazimutt-vinkel",
-        "time_anchor": "Tidspunktet angir",
-        "earliest_start": "Tidligste start",
-        "earliest_start_time": "Tidligste starttid (HH:MM)",
-        "earliest_start_offset": "Minutter etter solnedgang",
-        "fit_to_window": "Tilpass kjøringen til tilgjengelig vindu"
+        "azimuth_angle": "Solazimutt-vinkel"
       },
       "dialog": {
         "add_title": "Legg til tidsplan",
         "edit_title": "Rediger tidsplan"
       },
-      "time_anchor": {
-        "start": "Start på vanningen",
-        "finish": "Slutt på vanningen"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "Ingen grense",
-        "time": "På et fast tidspunkt",
-        "sunset": "Etter solnedgang"
+        "time": "På et tidspunkt",
+        "sunrise": "Ved soloppgang",
+        "sunset": "Ved solnedgang",
+        "solar_azimuth": "Ved solazimutt"
       },
-      "help": {
-        "earliest_start": "Kjøringen starter ikke før dette tidspunktet. Uten en grense starter en kjøring som trenger nesten hele natten så tidlig som den må for å bli ferdig i tide, noe som en kort sommernatt kan bety før solnedgang.",
-        "fit_to_window": "Av: alle soner som er klare vannes i lagret rekkefølge, uten grense, og kjøringen kan gå forbi måltidspunktet. På: sonene sorteres etter hvor tom bøtten er, bare det som får plass mellom tidligste start og måltidspunktet vannes, og kjøringen stoppes ved måltidspunktet."
+      "anchor": {
+        "start": "Så tidlig som mulig i vinduet",
+        "finish": "Så sent som mulig i vinduet"
       }
     },
     "info": {

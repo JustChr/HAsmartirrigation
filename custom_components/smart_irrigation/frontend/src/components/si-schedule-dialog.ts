@@ -4,16 +4,16 @@ import { HomeAssistant, SmartIrrigationZone } from "../types";
 import { localize } from "../../localize/localize";
 import { globalStyle } from "../styles/global-style";
 import {
-  SCHEDULE_TYPE_SUNRISE,
-  SCHEDULE_TYPE_SUNSET,
-  SCHEDULE_TYPE_SOLAR_AZIMUTH,
-  SCHEDULE_TIME_ANCHOR_START,
-  SCHEDULE_TIME_ANCHOR_FINISH,
-  SCHEDULE_EARLIEST_START_NONE,
-  SCHEDULE_EARLIEST_START_TIME,
-  SCHEDULE_EARLIEST_START_SUNSET,
-  SCHEDULE_EARLIEST_START_MODES,
-  SCHEDULE_DEFAULT_EARLIEST_START_TIME,
+  SCHEDULE_RECURRENCES,
+  SCHEDULE_RECURRENCE_INTERVAL,
+  SCHEDULE_BOUND_MODE_NONE,
+  SCHEDULE_BOUND_MODE_TIME,
+  SCHEDULE_BOUND_MODE_SUNRISE,
+  SCHEDULE_BOUND_MODE_SUNSET,
+  SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
+  SCHEDULE_BOUND_MODES,
+  SCHEDULE_ANCHOR_START,
+  SCHEDULE_ANCHOR_FINISH,
 } from "../const";
 
 const DAYS = [
@@ -26,24 +26,27 @@ const DAYS = [
   "sunday",
 ];
 
+// A run's window is two independently bounded ends — see GitLab #27. `recurrence`
+// (daily/weekly/monthly/interval) is independent of where in the day it lands,
+// which is the Start/Finish bound below. `anchor` only matters when both ends
+// are bounded, naming which one the run is pinned to.
 export interface Schedule {
   id?: string;
   name: string;
-  type: string;
+  recurrence: string;
   enabled: boolean;
-  time?: string;
   days_of_week?: string[];
   day_of_month?: number;
   interval_hours?: number;
-  start_time?: string; // optional HH:MM clock anchor for interval schedules
-  offset_minutes?: number;
-  account_for_duration?: boolean; // legacy; superseded by time_anchor
-  time_anchor?: string; // "start" | "finish"
-  earliest_start_mode?: string; // "none" | "time" | "sunset"
-  earliest_start_time?: string; // HH:MM, "time" mode only
-  earliest_start_offset_minutes?: number; // "sunset" mode only
-  fit_to_window?: boolean;
-  azimuth_angle?: number;
+  start_time?: string; // HH:MM — start_mode = "time", or interval's own optional clock anchor
+  start_mode?: string; // "none" | "time" | "sunrise" | "sunset" | "solar_azimuth"
+  start_offset?: number; // signed minutes, sun-relative start modes
+  start_azimuth?: number; // degrees, start_mode = "solar_azimuth"
+  finish_mode?: string; // "none" | "time" | "sunrise" | "sunset" | "solar_azimuth"
+  finish_time?: string; // HH:MM, finish_mode = "time"
+  finish_offset?: number; // signed minutes, sun-relative finish modes
+  finish_azimuth?: number; // degrees, finish_mode = "solar_azimuth"
+  anchor?: string; // "start" | "finish" — only meaningful when both ends bounded
   action: string;
   zones: string | string[];
   start_date?: string;
@@ -53,22 +56,41 @@ export interface Schedule {
 export function emptySchedule(): Schedule {
   return {
     name: "",
-    type: "daily",
+    recurrence: "daily",
     enabled: true,
-    time: "06:00",
+    start_mode: SCHEDULE_BOUND_MODE_TIME,
+    start_time: "06:00",
+    finish_mode: SCHEDULE_BOUND_MODE_NONE,
     action: "irrigate",
     zones: "all",
   };
 }
 
 /**
- * Human-readable label for a schedule type. Shared between this dialog's own
- * type `<select>` and the schedule-list cards in view-schedules.ts, which is
- * why it lives here rather than as a private method on either — a single
- * fallback-to-raw-type behavior instead of two copies that could drift.
+ * Human-readable label for a schedule's recurrence. Shared between this
+ * dialog's own recurrence `<select>` and the schedule-list cards in
+ * view-schedules.ts, which is why it lives here rather than as a private
+ * method on either — a single fallback-to-raw-value behavior instead of two
+ * copies that could drift.
  */
-export function typeLabel(type: string, language: string): string {
-  return localize(`panels.schedules.types.${type}`, language) || type;
+export function recurrenceLabel(recurrence: string, language: string): string {
+  return (
+    localize(`panels.schedules.types.${recurrence}`, language) || recurrence
+  );
+}
+
+type BoundEnd = "start" | "finish";
+
+interface BoundFieldConfig {
+  end: BoundEnd;
+  mode: string;
+  time?: string;
+  offset?: number;
+  azimuth?: number;
+  emitMode: (v: string) => void;
+  emitTime: (v: string) => void;
+  emitOffset: (v: number) => void;
+  emitAzimuth: (v: number) => void;
 }
 
 /**
@@ -93,6 +115,11 @@ export function typeLabel(type: string, language: string): string {
  * parent simply not un-rendering this element on failure — see
  * view-schedules.ts's `_save`, which only closes the dialog after a
  * successful `saveSchedule` result.
+ *
+ * This reads and writes the reshaped storage fields (GitLab #27: recurrence
+ * plus independent Start/Finish bounds) but keeps the prior flat layout — the
+ * grouped WHEN/ZONES/SEASON redesign and the run-window dial are a later
+ * ticket.
  */
 @customElement("si-schedule-dialog")
 export class SiScheduleDialog extends LitElement {
@@ -203,52 +230,18 @@ export class SiScheduleDialog extends LitElement {
     `;
   }
 
-  private _renderTypeFields() {
+  /** Recurrence-specific fields: weekday picker, day-of-month, or the
+   * interval's own hours + optional clock anchor. Daily needs nothing here —
+   * its only configuration is the Start/Finish bound below. */
+  private _renderRecurrenceFields() {
     const s = this.schedule;
-    switch (s.type) {
-      case "daily":
-        return html`
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.time",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="time"
-              .value="${s.time || "06:00"}"
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  time: (e.target as HTMLInputElement).value,
-                })}
-            />
-          </div>
-        `;
+    const lang = this.hass.language;
+    switch (s.recurrence) {
       case "weekly":
         return html`
           <div class="field">
             <label
-              >${localize(
-                "panels.schedules.fields.time",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="time"
-              .value="${s.time || "06:00"}"
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  time: (e.target as HTMLInputElement).value,
-                })}
-            />
-          </div>
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.days_of_week",
-                this.hass.language,
-              )}</label
+              >${localize("panels.schedules.fields.days_of_week", lang)}</label
             >
             <div class="day-checkboxes">
               ${DAYS.map(
@@ -266,10 +259,7 @@ export class SiScheduleDialog extends LitElement {
                         this._emitChanged({ days_of_week: next });
                       }}
                     />
-                    ${localize(
-                      `panels.schedules.days.${day}`,
-                      this.hass.language,
-                    )}
+                    ${localize(`panels.schedules.days.${day}`, lang)}
                   </label>
                 `,
               )}
@@ -280,26 +270,7 @@ export class SiScheduleDialog extends LitElement {
         return html`
           <div class="field">
             <label
-              >${localize(
-                "panels.schedules.fields.time",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="time"
-              .value="${s.time || "06:00"}"
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  time: (e.target as HTMLInputElement).value,
-                })}
-            />
-          </div>
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.day_of_month",
-                this.hass.language,
-              )}</label
+              >${localize("panels.schedules.fields.day_of_month", lang)}</label
             >
             <input
               type="number"
@@ -319,7 +290,7 @@ export class SiScheduleDialog extends LitElement {
             <label
               >${localize(
                 "panels.schedules.fields.interval_hours",
-                this.hass.language,
+                lang,
               )}</label
             >
             <div class="input-suffix-row">
@@ -335,16 +306,13 @@ export class SiScheduleDialog extends LitElement {
                   })}
               />
               <span class="suffix"
-                >${localize("panels.schedules.hours", this.hass.language)}</span
+                >${localize("panels.schedules.hours", lang)}</span
               >
             </div>
           </div>
           <div class="field">
             <label
-              >${localize(
-                "panels.schedules.fields.start_time",
-                this.hass.language,
-              )}</label
+              >${localize("panels.schedules.fields.start_time", lang)}</label
             >
             <input
               type="time"
@@ -356,214 +324,89 @@ export class SiScheduleDialog extends LitElement {
             />
           </div>
         `;
-      case SCHEDULE_TYPE_SUNRISE:
-      case SCHEDULE_TYPE_SUNSET:
-        return html`${this._renderSunOffsetFields()}`;
-      case SCHEDULE_TYPE_SOLAR_AZIMUTH:
-        return html`
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.azimuth_angle",
-                this.hass.language,
-              )}</label
-            >
-            <div class="input-suffix-row">
-              <input
-                type="number"
-                min="0"
-                max="359"
-                step="1"
-                .value="${String(s.azimuth_angle ?? 90)}"
-                @input=${(e: Event) =>
-                  this._emitChanged({
-                    azimuth_angle: parseInt(
-                      (e.target as HTMLInputElement).value,
-                    ),
-                  })}
-              />
-              <span class="suffix">°</span>
-            </div>
-          </div>
-          ${this._renderSunOffsetFields()}
-        `;
       default:
         return html``;
     }
   }
 
-  private _renderSunOffsetFields() {
-    const s = this.schedule;
+  /** One end (Start or Finish) of the run's window: a mode picker plus
+   * whichever of time/offset/azimuth that mode needs. */
+  private _renderBoundFields(config: BoundFieldConfig) {
+    const {
+      end,
+      mode,
+      time,
+      offset,
+      azimuth,
+      emitMode,
+      emitTime,
+      emitOffset,
+      emitAzimuth,
+    } = config;
+    const lang = this.hass.language;
     return html`
       <div class="field">
-        <label
-          >${localize(
-            "panels.schedules.fields.offset_minutes",
-            this.hass.language,
-          )}</label
-        >
-        <div class="input-suffix-row">
-          <input
-            type="number"
-            step="1"
-            .value="${String(s.offset_minutes ?? 0)}"
-            @input=${(e: Event) =>
-              this._emitChanged({
-                offset_minutes: parseInt((e.target as HTMLInputElement).value),
-              })}
-          />
-          <span class="suffix"
-            >${localize("panels.schedules.minutes", this.hass.language)}</span
-          >
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Resolved start/finish anchor. Mirrors the backend's legacy resolution: only
-   * solar schedules ever honored account_for_duration (True => finish);
-   * everything else defaults to start.
-   */
-  private _timeAnchor(s: Schedule): string {
-    const isSolar = [
-      SCHEDULE_TYPE_SUNRISE,
-      SCHEDULE_TYPE_SUNSET,
-      SCHEDULE_TYPE_SOLAR_AZIMUTH,
-    ].includes(s.type);
-    const legacyFinish = isSolar && s.account_for_duration !== false;
-    return (
-      s.time_anchor ??
-      (legacyFinish ? SCHEDULE_TIME_ANCHOR_FINISH : SCHEDULE_TIME_ANCHOR_START)
-    );
-  }
-
-  /**
-   * Whether the run-window controls apply. They only bound a finish anchor: a
-   * start-anchored schedule's configured time IS its start, so there is nothing
-   * to floor and nothing to fit between.
-   */
-  private _hasRunWindow(s: Schedule): boolean {
-    return (
-      s.action === "irrigate" &&
-      s.type !== "interval" &&
-      this._timeAnchor(s) === SCHEDULE_TIME_ANCHOR_FINISH
-    );
-  }
-
-  /**
-   * Start-vs-finish anchor. Only meaningful for an irrigate action on a type
-   * with a fixed target time (everything except interval). "Finish" fires the
-   * run early enough that it ends at the configured time, using the live
-   * estimated duration.
-   */
-  private _renderTimeAnchorField() {
-    const s = this.schedule;
-    if (s.action !== "irrigate" || s.type === "interval") return html``;
-    const current = this._timeAnchor(s);
-    return html`
-      <div class="field">
-        <label
-          >${localize(
-            "panels.schedules.fields.time_anchor",
-            this.hass.language,
-          )}</label
-        >
+        <label>${localize(`panels.schedules.fields.${end}_mode`, lang)}</label>
         <select
           @change=${(e: Event) =>
-            this._emitChanged({
-              time_anchor: (e.target as HTMLSelectElement).value,
-            })}
+            emitMode((e.target as HTMLSelectElement).value)}
         >
-          ${["start", "finish"].map(
-            (a) => html`
-              <option value="${a}" ?selected="${current === a}">
-                ${localize(
-                  `panels.schedules.time_anchor.${a}`,
-                  this.hass.language,
-                )}
-              </option>
-            `,
-          )}
-        </select>
-      </div>
-    `;
-  }
-
-  /**
-   * Earliest start + fit-to-window, the two controls that bound a
-   * finish-anchored run. Both default to off, so a schedule nobody edits keeps
-   * starting wherever target - demand lands and watering every due zone.
-   */
-  private _renderRunWindowFields() {
-    const s = this.schedule;
-    if (!this._hasRunWindow(s)) return html``;
-    const lang = this.hass.language;
-    const mode = SCHEDULE_EARLIEST_START_MODES.includes(
-      s.earliest_start_mode ?? "",
-    )
-      ? (s.earliest_start_mode as string)
-      : SCHEDULE_EARLIEST_START_NONE;
-    return html`
-      <div class="field">
-        <label
-          >${localize("panels.schedules.fields.earliest_start", lang)}</label
-        >
-        <select
-          @change=${(e: Event) => {
-            const next = (e.target as HTMLSelectElement).value;
-            this._emitChanged({
-              earliest_start_mode: next,
-              // The backend rejects a null/malformed HH:MM outright, so a floor
-              // switched on from the picker has to arrive with a usable time.
-              earliest_start_time:
-                next === SCHEDULE_EARLIEST_START_TIME
-                  ? s.earliest_start_time ||
-                    SCHEDULE_DEFAULT_EARLIEST_START_TIME
-                  : s.earliest_start_time,
-            });
-          }}
-        >
-          ${SCHEDULE_EARLIEST_START_MODES.map(
+          ${SCHEDULE_BOUND_MODES.map(
             (m) => html`
               <option value="${m}" ?selected="${mode === m}">
-                ${localize(`panels.schedules.earliest_start.${m}`, lang)}
+                ${localize(`panels.schedules.bound_mode.${m}`, lang)}
               </option>
             `,
           )}
         </select>
-        <span class="field-help"
-          >${localize("panels.schedules.help.earliest_start", lang)}</span
-        >
       </div>
-
-      ${mode === SCHEDULE_EARLIEST_START_TIME
+      ${mode === SCHEDULE_BOUND_MODE_TIME
         ? html`
             <div class="field">
               <label
-                >${localize(
-                  "panels.schedules.fields.earliest_start_time",
-                  lang,
-                )}</label
+                >${localize(`panels.schedules.fields.${end}_time`, lang)}</label
               >
               <input
                 type="time"
-                .value="${s.earliest_start_time ||
-                SCHEDULE_DEFAULT_EARLIEST_START_TIME}"
+                .value="${time || "06:00"}"
                 @change=${(e: Event) =>
-                  this._emitChanged({
-                    earliest_start_time: (e.target as HTMLInputElement).value,
-                  })}
+                  emitTime((e.target as HTMLInputElement).value)}
               />
             </div>
           `
         : ""}
-      ${mode === SCHEDULE_EARLIEST_START_SUNSET
+      ${mode === SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH
         ? html`
             <div class="field">
               <label
                 >${localize(
-                  "panels.schedules.fields.earliest_start_offset",
+                  "panels.schedules.fields.azimuth_angle",
+                  lang,
+                )}</label
+              >
+              <div class="input-suffix-row">
+                <input
+                  type="number"
+                  min="0"
+                  max="359"
+                  step="1"
+                  .value="${String(azimuth ?? 90)}"
+                  @input=${(e: Event) =>
+                    emitAzimuth(parseInt((e.target as HTMLInputElement).value))}
+                />
+                <span class="suffix">°</span>
+              </div>
+            </div>
+          `
+        : ""}
+      ${mode === SCHEDULE_BOUND_MODE_SUNRISE ||
+      mode === SCHEDULE_BOUND_MODE_SUNSET ||
+      mode === SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH
+        ? html`
+            <div class="field">
+              <label
+                >${localize(
+                  "panels.schedules.fields.offset_minutes",
                   lang,
                 )}</label
               >
@@ -571,12 +414,10 @@ export class SiScheduleDialog extends LitElement {
                 <input
                   type="number"
                   step="1"
-                  .value="${String(s.earliest_start_offset_minutes ?? 0)}"
+                  .value="${String(offset ?? 0)}"
                   @input=${(e: Event) => {
                     const v = parseInt((e.target as HTMLInputElement).value);
-                    this._emitChanged({
-                      earliest_start_offset_minutes: isNaN(v) ? 0 : v,
-                    });
+                    emitOffset(isNaN(v) ? 0 : v);
                   }}
                 />
                 <span class="suffix"
@@ -586,27 +427,74 @@ export class SiScheduleDialog extends LitElement {
             </div>
           `
         : ""}
+    `;
+  }
 
+  private _bothBounded(s: Schedule): boolean {
+    return (
+      (s.start_mode ?? SCHEDULE_BOUND_MODE_NONE) !== SCHEDULE_BOUND_MODE_NONE &&
+      (s.finish_mode ?? SCHEDULE_BOUND_MODE_NONE) !== SCHEDULE_BOUND_MODE_NONE
+    );
+  }
+
+  /** Which end the run is pinned to. Only shown once both ends carry a bound
+   * — with a single bound that bound is unambiguously the anchor. */
+  private _renderAnchorField() {
+    const s = this.schedule;
+    if (!this._bothBounded(s)) return html``;
+    const lang = this.hass.language;
+    const current =
+      s.anchor === SCHEDULE_ANCHOR_START
+        ? SCHEDULE_ANCHOR_START
+        : SCHEDULE_ANCHOR_FINISH;
+    return html`
       <div class="field">
-        <div class="field-row">
-          <label
-            >${localize("panels.schedules.fields.fit_to_window", lang)}</label
-          >
-          <input
-            type="checkbox"
-            ?checked="${s.fit_to_window === true}"
-            @change=${(e: Event) =>
-              // A real boolean, not the input's string value: the backend
-              // validates this strictly and rejects "false".
-              this._emitChanged({
-                fit_to_window: (e.target as HTMLInputElement).checked,
-              })}
-          />
-        </div>
-        <span class="field-help"
-          >${localize("panels.schedules.help.fit_to_window", lang)}</span
+        <label>${localize("panels.schedules.fields.anchor", lang)}</label>
+        <select
+          @change=${(e: Event) =>
+            this._emitChanged({
+              anchor: (e.target as HTMLSelectElement).value,
+            })}
         >
+          ${[SCHEDULE_ANCHOR_START, SCHEDULE_ANCHOR_FINISH].map(
+            (a) => html`
+              <option value="${a}" ?selected="${current === a}">
+                ${localize(`panels.schedules.anchor.${a}`, lang)}
+              </option>
+            `,
+          )}
+        </select>
       </div>
+    `;
+  }
+
+  private _renderStartFinishFields() {
+    const s = this.schedule;
+    if (s.recurrence === SCHEDULE_RECURRENCE_INTERVAL) return html``;
+    return html`
+      ${this._renderBoundFields({
+        end: "start",
+        mode: s.start_mode ?? SCHEDULE_BOUND_MODE_NONE,
+        time: s.start_time,
+        offset: s.start_offset,
+        azimuth: s.start_azimuth,
+        emitMode: (v) => this._emitChanged({ start_mode: v }),
+        emitTime: (v) => this._emitChanged({ start_time: v }),
+        emitOffset: (v) => this._emitChanged({ start_offset: v }),
+        emitAzimuth: (v) => this._emitChanged({ start_azimuth: v }),
+      })}
+      ${this._renderBoundFields({
+        end: "finish",
+        mode: s.finish_mode ?? SCHEDULE_BOUND_MODE_NONE,
+        time: s.finish_time,
+        offset: s.finish_offset,
+        azimuth: s.finish_azimuth,
+        emitMode: (v) => this._emitChanged({ finish_mode: v }),
+        emitTime: (v) => this._emitChanged({ finish_time: v }),
+        emitOffset: (v) => this._emitChanged({ finish_offset: v }),
+        emitAzimuth: (v) => this._emitChanged({ finish_azimuth: v }),
+      })}
+      ${this._renderAnchorField()}
     `;
   }
 
@@ -638,36 +526,28 @@ export class SiScheduleDialog extends LitElement {
           <div class="field">
             <label
               >${localize(
-                "panels.schedules.fields.type",
+                "panels.schedules.fields.recurrence",
                 this.hass.language,
               )}</label
             >
             <select
               @change=${(e: Event) =>
                 this._emitChanged({
-                  type: (e.target as HTMLSelectElement).value,
+                  recurrence: (e.target as HTMLSelectElement).value,
                 })}
             >
-              ${[
-                "daily",
-                "weekly",
-                "monthly",
-                "interval",
-                "sunrise",
-                "sunset",
-                "solar_azimuth",
-              ].map(
-                (t) => html`
-                  <option value="${t}" ?selected="${s.type === t}">
-                    ${typeLabel(t, this.hass.language)}
+              ${SCHEDULE_RECURRENCES.map(
+                (r) => html`
+                  <option value="${r}" ?selected="${s.recurrence === r}">
+                    ${recurrenceLabel(r, this.hass.language)}
                   </option>
                 `,
               )}
             </select>
           </div>
 
-          ${this._renderTypeFields()} ${this._renderTimeAnchorField()}
-          ${this._renderRunWindowFields()} ${this._renderZonePicker()}
+          ${this._renderRecurrenceFields()} ${this._renderStartFinishFields()}
+          ${this._renderZonePicker()}
 
           <div class="field-row">
             <label

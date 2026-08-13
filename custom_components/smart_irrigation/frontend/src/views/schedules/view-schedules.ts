@@ -19,7 +19,7 @@ import { showErrorToast } from "../../helpers";
 import {
   Schedule,
   emptySchedule,
-  typeLabel,
+  recurrenceLabel,
 } from "../../components/si-schedule-dialog";
 
 const MONTHS = [
@@ -207,22 +207,44 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                   <div class="info-row">
                     <span class="info-label"
                       >${localize(
-                        "panels.schedules.fields.type",
+                        "panels.schedules.fields.recurrence",
                         this.hass.language,
                       )}:</span
                     >
-                    <span>${typeLabel(s.type, this.hass.language)}</span>
+                    <span
+                      >${recurrenceLabel(
+                        s.recurrence,
+                        this.hass.language,
+                      )}</span
+                    >
                   </div>
-                  ${s.time && ["daily", "weekly", "monthly"].includes(s.type)
+                  ${s.recurrence !== "interval" &&
+                  s.start_mode === "time" &&
+                  s.start_time
                     ? html`
                         <div class="info-row">
                           <span class="info-label"
                             >${localize(
-                              "panels.schedules.fields.time",
+                              "panels.schedules.fields.start_time",
                               this.hass.language,
                             )}:</span
                           >
-                          <span>${s.time}</span>
+                          <span>${s.start_time}</span>
+                        </div>
+                      `
+                    : ""}
+                  ${s.recurrence !== "interval" &&
+                  s.finish_mode === "time" &&
+                  s.finish_time
+                    ? html`
+                        <div class="info-row">
+                          <span class="info-label"
+                            >${localize(
+                              "panels.schedules.fields.finish_time",
+                              this.hass.language,
+                            )}:</span
+                          >
+                          <span>${s.finish_time}</span>
                         </div>
                       `
                     : ""}
@@ -245,7 +267,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                         </div>
                       `
                     : ""}
-                  ${s.type === "interval" && s.start_time
+                  ${s.recurrence === "interval" && s.start_time
                     ? html`
                         <div class="info-row">
                           <span class="info-label"

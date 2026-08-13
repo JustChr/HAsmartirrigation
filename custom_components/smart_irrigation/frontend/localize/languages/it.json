@@ -649,10 +649,7 @@
         "daily": "Giornaliero",
         "weekly": "Settimanale",
         "monthly": "Mensile",
-        "interval": "Ogni N ore",
-        "sunrise": "Alba",
-        "sunset": "Tramonto",
-        "solar_azimuth": "Azimut solare"
+        "interval": "Ogni N ore"
       },
       "actions": {
         "calculate": "Calcola (aggiorna durata irrigazione)",
@@ -670,42 +667,37 @@
       },
       "fields": {
         "name": "Nome",
-        "type": "Tipo di pianificazione",
+        "recurrence": "Ricorrenza",
         "enabled": "Abilitato",
-        "time": "Ora (HH:MM)",
         "days_of_week": "Giorni della settimana",
         "day_of_month": "Giorno del mese",
         "interval_hours": "Intervallo",
         "action": "Azione",
         "zones": "Zone",
+        "start_mode": "Inizio",
         "start_time": "Ora di inizio (opzionale)",
+        "finish_mode": "Fine",
+        "finish_time": "Ora di fine (HH:MM)",
+        "anchor": "Ancorato a",
         "start_date": "Data di inizio (opzionale)",
         "end_date": "Data di fine (opzionale)",
         "offset_minutes": "Offset dall'alba/tramonto",
-        "account_for_duration": "Iniziare prima affinché l'irrigazione finisca all'orario target",
-        "azimuth_angle": "Angolo di azimut solare",
-        "time_anchor": "Lorario indica",
-        "earliest_start": "Avvio al più presto",
-        "earliest_start_time": "Ora di avvio al più presto (HH:MM)",
-        "earliest_start_offset": "Minuti dopo il tramonto",
-        "fit_to_window": "Adatta l'esecuzione alla finestra disponibile"
+        "azimuth_angle": "Angolo di azimut solare"
       },
       "dialog": {
         "add_title": "Aggiungi pianificazione",
         "edit_title": "Modifica pianificazione"
       },
-      "time_anchor": {
-        "start": "Inizio dellirrigazione",
-        "finish": "Fine dellirrigazione"
-      },
-      "earliest_start": {
+      "bound_mode": {
         "none": "Nessun limite",
-        "time": "A un orario fisso",
-        "sunset": "Dopo il tramonto"
+        "time": "A un orario",
+        "sunrise": "All'alba",
+        "sunset": "Al tramonto",
+        "solar_azimuth": "All'azimut solare"
       },
-      "help": {
-        "earliest_start": "L'esecuzione non inizierà prima di questo orario. Senza limite, un'esecuzione che occupa quasi tutta la notte parte quanto serve per finire in orario, il che in una notte estiva breve può essere prima del tramonto.",
-        "fit_to_window": "Disattivato: tutte le zone dovute vengono irrigate nell'ordine in cui sono salvate, senza limite, e l'esecuzione può superare l'orario target. Attivato: le zone vengono ordinate in base al bucket, viene irrigato solo ciò che rientra tra l'avvio al più presto e l'orario target, e l'esecuzione si ferma a quell'orario."
+      "anchor": {
+        "start": "Il prima possibile nella finestra",
+        "finish": "Il più tardi possibile nella finestra"
       }
     },
     "setup": {

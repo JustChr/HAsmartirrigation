@@ -1,8 +1,10 @@
-"""The two-stage arm, the earliest-start floor, and deadline truncation.
+"""The two-stage arm, the paired Start bound, and deadline truncation.
 
-Covers the scheduling half of sunrise-anchored irrigation: deciding late enough
-that the demand is current, refusing to start before a floor, and cutting a run
-at its finish target rather than watering past it.
+Covers the scheduling half of a bounded run window: deciding late enough that
+the demand is current, refusing to start before the Start bound, and cutting a
+run at its Finish bound rather than watering past it. Fitting is derived from
+both ends being bounded rather than configured (GitLab #27), so reaching
+``_decide_and_arm`` at all implies it and no test opts into it separately.
 """
 
 import datetime
@@ -25,18 +27,16 @@ def _local(*args):
     The floor is a LOCAL clock time, and the test suite does not run in UTC, so
     expectations written as bare UTC would encode the offset by accident.
     """
-    return dt_util.as_utc(
-        datetime.datetime(*args, tzinfo=dt_util.DEFAULT_TIME_ZONE)
-    )
+    return dt_util.as_utc(datetime.datetime(*args, tzinfo=dt_util.DEFAULT_TIME_ZONE))
 
 
 def _schedule(**kw):
     base = {
         const.SCHEDULE_CONF_ID: "s1",
         const.SCHEDULE_CONF_NAME: "overnight",
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_SUNRISE,
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+        const.SCHEDULE_CONF_FINISH_MODE: const.SCHEDULE_BOUND_MODE_SUNRISE,
         const.SCHEDULE_CONF_ACTION: "irrigate",
-        const.SCHEDULE_CONF_TIME_ANCHOR: const.SCHEDULE_TIME_ANCHOR_FINISH,
         const.SCHEDULE_CONF_ZONES: "all",
     }
     base.update(kw)
@@ -62,36 +62,29 @@ def _run(zone_id, duration, ratio=2.0, maximum=None):
     )
 
 
-class TestUsesTwoStageArm:
-    """Neither control set means the arm is untouched."""
+class TestBoundedEndsNeedTwoStages:
+    """Neither end bounded beyond the governing one means the arm is
+    untouched; both bounded always needs a decision point."""
 
     def test_plain_finish_schedule_keeps_the_single_stage_arm(self):
-        mgr = _manager()
-        assert mgr._uses_two_stage_arm(_schedule()) is False
+        governing, paired = RecurringScheduleManager._bounded_ends(_schedule())
+        assert governing == const.SCHEDULE_ANCHOR_FINISH
+        assert paired is None
 
-    def test_fitting_needs_a_decision_point(self):
-        mgr = _manager()
-        assert mgr._uses_two_stage_arm(_schedule(fit_to_window=True)) is True
-
-    def test_an_earliest_start_alone_needs_a_decision_point(self):
-        mgr = _manager()
-        assert (
-            mgr._uses_two_stage_arm(
-                _schedule(
-                    earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                    earliest_start_time="22:00",
-                )
+    def test_a_bounded_start_alongside_the_finish_needs_a_decision_point(self):
+        governing, paired = RecurringScheduleManager._bounded_ends(
+            _schedule(
+                start_mode=const.SCHEDULE_BOUND_MODE_TIME,
+                start_time="22:00",
             )
-            is True
         )
-
-    def test_an_unrecognised_mode_falls_back_to_no_floor(self):
-        mgr = _manager()
-        assert mgr._uses_two_stage_arm(_schedule(earliest_start_mode="whenever")) is False
+        assert governing == const.SCHEDULE_ANCHOR_FINISH
+        assert paired == const.SCHEDULE_ANCHOR_START
 
 
-class TestEarliestStart:
-    """Resolving the floor against the occurrence, not against now."""
+class TestPairedBoundTime:
+    """Resolving the paired Start bound against the governing Finish
+    instant, not against now."""
 
     @pytest.mark.asyncio
     async def test_fixed_time_floor_lands_on_the_previous_evening(self):
@@ -101,11 +94,9 @@ class TestEarliestStart:
         # is the whole failure this control exists to prevent.
         mgr = _manager()
         target = _local(2026, 6, 21, 6, 0)
-        floor = await mgr._earliest_start(
-            _schedule(
-                earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                earliest_start_time="22:00",
-            ),
+        floor = await mgr._paired_bound_time(
+            _schedule(start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="22:00"),
+            const.SCHEDULE_ANCHOR_START,
             target,
         )
         assert floor == _local(2026, 6, 20, 22, 0)
@@ -114,11 +105,9 @@ class TestEarliestStart:
     async def test_fixed_time_floor_the_same_day_is_kept(self):
         mgr = _manager()
         target = _local(2026, 6, 21, 23, 0)
-        floor = await mgr._earliest_start(
-            _schedule(
-                earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                earliest_start_time="20:00",
-            ),
+        floor = await mgr._paired_bound_time(
+            _schedule(start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="20:00"),
+            const.SCHEDULE_ANCHOR_START,
             target,
         )
         assert floor == _local(2026, 6, 21, 20, 0)
@@ -127,18 +116,24 @@ class TestEarliestStart:
     async def test_no_mode_means_no_floor(self):
         mgr = _manager()
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
-        assert await mgr._earliest_start(_schedule(), target) is None
+        assert (
+            await mgr._paired_bound_time(
+                _schedule(), const.SCHEDULE_ANCHOR_START, target
+            )
+            is None
+        )
 
     @pytest.mark.asyncio
     async def test_an_unparseable_time_disables_the_floor_rather_than_the_run(self):
         mgr = _manager()
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         assert (
-            await mgr._earliest_start(
+            await mgr._paired_bound_time(
                 _schedule(
-                    earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                    earliest_start_time="not a time",
+                    start_mode=const.SCHEDULE_BOUND_MODE_TIME,
+                    start_time="not a time",
                 ),
+                const.SCHEDULE_ANCHOR_START,
                 target,
             )
             is None
@@ -150,11 +145,11 @@ class TestEarliestStart:
         mgr = _manager()
         target = _local(2026, 6, 21, 6, 0)
         assert (
-            await mgr._earliest_start(
+            await mgr._paired_bound_time(
                 _schedule(
-                    earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                    earliest_start_time="06:00",
+                    start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="06:00"
                 ),
+                const.SCHEDULE_ANCHOR_START,
                 target,
             )
             is None
@@ -165,18 +160,23 @@ class TestEarliestStart:
         mgr = _manager()
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         sunsets = {
-            datetime.date(2026, 6, 21): datetime.datetime(2026, 6, 21, 21, 7, tzinfo=UTC),
-            datetime.date(2026, 6, 20): datetime.datetime(2026, 6, 20, 21, 7, tzinfo=UTC),
+            datetime.date(2026, 6, 21): datetime.datetime(
+                2026, 6, 21, 21, 7, tzinfo=UTC
+            ),
+            datetime.date(2026, 6, 20): datetime.datetime(
+                2026, 6, 20, 21, 7, tzinfo=UTC
+            ),
         }
         with patch(
             "custom_components.smart_irrigation.scheduler.get_astral_event_date",
             side_effect=lambda hass, event, date: sunsets.get(date),
         ):
-            floor = await mgr._earliest_start(
+            floor = await mgr._paired_bound_time(
                 _schedule(
-                    earliest_start_mode=const.SCHEDULE_EARLIEST_START_SUNSET,
-                    earliest_start_offset_minutes=120,
+                    start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
+                    start_offset=120,
                 ),
+                const.SCHEDULE_ANCHOR_START,
                 target,
             )
         # 2026-06-20 sunset 21:07 + 2 h, not the 21st's sunset which is AFTER
@@ -185,12 +185,11 @@ class TestEarliestStart:
 
 
 class TestResolveEventInstant:
-    """``_resolve_event_instant`` is the shared seam _earliest_start and
-    _next_target_time both resolve through: same per-kind math (clock time,
-    sunrise, sunset, solar azimuth), walked forward or backward. Exercised
-    directly here rather than only through the two callers, so a regression in
-    the seam itself fails here even if a caller's own tests happen not to
-    reach the broken branch.
+    """``_resolve_event_instant`` is the shared seam every Start/Finish bound
+    resolves through: same per-kind math (clock time, sunrise, sunset, solar
+    azimuth), walked forward or backward. Exercised directly here rather than
+    only through its callers, so a regression in the seam itself fails here
+    even if a caller's own tests happen not to reach the broken branch.
     """
 
     @pytest.mark.asyncio
@@ -199,8 +198,8 @@ class TestResolveEventInstant:
         # occurrence of the clock time AT OR BEFORE the reference. A resolver
         # that searched forward instead would land 16 hours past the
         # reference, which is the exact failure the overnight floor exists to
-        # prevent (see TestEarliestStart.test_fixed_time_floor_lands_on_the_
-        # previous_evening, the same case through _earliest_start).
+        # prevent (see TestPairedBoundTime.test_fixed_time_floor_lands_on_the_
+        # previous_evening, the same case through _paired_bound_time).
         mgr = _manager()
         reference = _local(2026, 6, 21, 6, 0)
         resolved = await mgr._resolve_event_instant(
@@ -240,8 +239,12 @@ class TestResolveEventInstant:
         mgr = _manager()
         reference = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         sunsets = {
-            datetime.date(2026, 6, 21): datetime.datetime(2026, 6, 21, 21, 7, tzinfo=UTC),
-            datetime.date(2026, 6, 20): datetime.datetime(2026, 6, 20, 21, 7, tzinfo=UTC),
+            datetime.date(2026, 6, 21): datetime.datetime(
+                2026, 6, 21, 21, 7, tzinfo=UTC
+            ),
+            datetime.date(2026, 6, 20): datetime.datetime(
+                2026, 6, 20, 21, 7, tzinfo=UTC
+            ),
         }
         with patch(
             "custom_components.smart_irrigation.scheduler.get_astral_event_date",
@@ -273,12 +276,12 @@ class TestResolveEventInstant:
 
     @pytest.mark.asyncio
     async def test_solar_azimuth_backward_is_reachable(self):
-        # Not wired to any caller yet (a later ticket adds azimuth earliest-
-        # start), but the resolver must already support the direction so that
-        # ticket only has to call it, not build it. A clear day near the
-        # summer solstice guarantees the sun crosses 90 degrees (due east)
-        # sometime that morning, so a backward search from local noon must
-        # find it rather than return None.
+        # Wired to a Start bound whenever it is paired against a Finish
+        # (GitLab #27), but exercised directly here too so the seam is proven
+        # to work in both directions. A clear day near the summer solstice
+        # guarantees the sun crosses 90 degrees (due east) sometime that
+        # morning, so a backward search from local noon must find it rather
+        # than return None.
         mgr = _manager()
         mgr.hass.config.as_dict = Mock(
             return_value={"latitude": 45.0, "longitude": 0.0}
@@ -333,7 +336,12 @@ class TestDurationBound:
 
 
 class TestDecideAndArm:
-    """The second stage: read demand, select, arm the real start."""
+    """The second stage: read demand, select, arm the real start.
+
+    Only reached when both ends are bounded, so — unlike before GitLab #27 —
+    a schedule need not opt into anything extra to exercise this: reaching
+    ``_decide_and_arm`` at all already implies fitting.
+    """
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-20 20:00:00")
@@ -344,9 +352,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, None, commit=True
-            )
+            await mgr._decide_and_arm(_schedule(), target, None, commit=True)
         # 3600 s of demand, so the slack sits before the start and the run
         # still ends exactly on the target.
         assert track.call_args[0][2] == datetime.datetime(2026, 6, 21, 5, 0, tzinfo=UTC)
@@ -364,9 +370,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, floor, commit=True
-            )
+            await mgr._decide_and_arm(_schedule(), target, floor, commit=True)
         assert track.call_args[0][2] == floor
 
     @pytest.mark.asyncio
@@ -378,9 +382,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ):
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, None, commit=False
-            )
+            await mgr._decide_and_arm(_schedule(), target, None, commit=False)
         # Restarting inside the window must NOT re-commit: the ledger for this
         # run was already committed at the decision point.
         mgr.coordinator.async_commit_pre_run_calculation.assert_not_awaited()
@@ -389,9 +391,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ):
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, None, commit=True
-            )
+            await mgr._decide_and_arm(_schedule(), target, None, commit=True)
         mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -412,9 +412,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, floor, commit=True
-            )
+            await mgr._decide_and_arm(_schedule(), target, floor, commit=True)
         callback = track.call_args[0][1]
         mgr._execute_schedule = Mock()
         callback(datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC))
@@ -422,26 +420,6 @@ class TestDecideAndArm:
         assert kwargs["order"] == [2, 1]
         assert kwargs["deadline"] == target
         assert kwargs["pre_committed"] is True
-
-    @pytest.mark.asyncio
-    @freeze_time("2026-06-20 20:00:00")
-    async def test_a_floor_without_fitting_passes_no_order_or_deadline(self):
-        # Ordering, selection and the deadline are ONE opt-in. A floor alone
-        # bounds the start and changes nothing else about the run.
-        mgr = _manager(plan=[_run(0, 600, ratio=1.1), _run(1, 600, ratio=3.0)])
-        target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
-        floor = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
-        with patch(
-            "custom_components.smart_irrigation.scheduler."
-            "async_track_point_in_utc_time"
-        ) as track:
-            await mgr._decide_and_arm(_schedule(), target, floor, commit=True)
-        callback = track.call_args[0][1]
-        mgr._execute_schedule = Mock()
-        callback(datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC))
-        kwargs = mgr._execute_schedule.call_args.kwargs
-        assert kwargs["order"] is None
-        assert kwargs["deadline"] is None
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-20 20:00:00")
@@ -454,9 +432,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
-            tracker = await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, None, commit=True
-            )
+            tracker = await mgr._decide_and_arm(_schedule(), target, None, commit=True)
         assert tracker is not None
         assert track.call_args[0][2] == target
         # And firing it records the occurrence so the re-arm advances past it.
@@ -474,24 +450,21 @@ class TestDecideAndArm:
         # shared inlet rather than its own valve. A schedule whose targets are
         # all members therefore plans nothing while still having a cycle to
         # run, and _execute_schedule is that cycle's sole automatic driver. A
-        # pass-through that only lapsed left those members dry for as long as
-        # either new control was set on the schedule.
+        # pass-through that only lapsed left those members dry.
         mgr = _manager(plan=[])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, None, commit=True
-            )
+            await mgr._decide_and_arm(_schedule(), target, None, commit=True)
         mgr.hass.loop.call_soon_threadsafe = Mock()
         mgr._execute_schedule = Mock()
         track.call_args[0][1](target)
         mgr._execute_schedule.assert_called_once()
         kwargs = mgr._execute_schedule.call_args.kwargs
-        # Nothing was fitted, so the run carries neither an order nor a
-        # deadline, exactly as the same schedule does with neither control set.
+        # Nothing was fitted (no due zone), so the run carries neither an
+        # order nor a deadline.
         assert kwargs["order"] is None
         assert kwargs["deadline"] is None
         assert kwargs["pre_committed"] is True
@@ -505,9 +478,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, None, commit=False
-            )
+            await mgr._decide_and_arm(_schedule(), target, None, commit=False)
         fire = track.call_args[0][2]
         assert fire == datetime.datetime(2026, 6, 21, 5, 30, 2, tzinfo=UTC)
 
@@ -522,9 +493,7 @@ class TestDecideAndArm:
             "custom_components.smart_irrigation.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
-            await mgr._decide_and_arm(
-                _schedule(fit_to_window=True), target, None, commit=True
-            )
+            await mgr._decide_and_arm(_schedule(), target, None, commit=True)
         assert "s1" not in mgr._finish_last_target
         mgr._execute_schedule = Mock()
         mgr.hass.loop.call_soon_threadsafe = Mock()
@@ -533,20 +502,20 @@ class TestDecideAndArm:
 
 
 class TestScheduleValidation:
-    """Bad floor settings are rejected, not silently dropped."""
+    """Bad Start/Finish settings are rejected, not silently dropped."""
 
-    def test_an_unknown_earliest_start_mode_is_rejected(self):
+    def test_an_unknown_start_mode_is_rejected(self):
         mgr = _manager()
-        with pytest.raises(ValueError, match="earliest start mode"):
-            mgr._validate_schedule_data(_schedule(earliest_start_mode="whenever"))
+        with pytest.raises(ValueError, match="start mode"):
+            mgr._validate_schedule_data(_schedule(start_mode="whenever"))
 
-    def test_a_malformed_earliest_start_time_is_rejected(self):
+    def test_a_malformed_start_time_is_rejected(self):
         mgr = _manager()
-        with pytest.raises(ValueError, match="earliest start time"):
+        with pytest.raises(ValueError, match="start time"):
             mgr._validate_schedule_data(
                 _schedule(
-                    earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                    earliest_start_time="25:99",
+                    start_mode=const.SCHEDULE_BOUND_MODE_TIME,
+                    start_time="25:99",
                 )
             )
 
@@ -554,11 +523,17 @@ class TestScheduleValidation:
         mgr = _manager()
         mgr._validate_schedule_data(
             _schedule(
-                earliest_start_mode=const.SCHEDULE_EARLIEST_START_SUNSET,
-                earliest_start_offset_minutes=120,
-                fit_to_window=True,
+                start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
+                start_offset=120,
             )
         )
+
+    def test_both_ends_unbounded_is_rejected(self):
+        mgr = _manager()
+        with pytest.raises(ValueError, match="Start or a Finish"):
+            mgr._validate_schedule_data(
+                _schedule(finish_mode=const.SCHEDULE_BOUND_MODE_NONE)
+            )
 
 
 class TestUpcomingRunsEstimatedFlag:
@@ -569,17 +544,12 @@ class TestUpcomingRunsEstimatedFlag:
     async def test_estimated_before_the_decision_point(self):
         mgr = _manager(plan=[_run(0, 3600, maximum=4800)])
         mgr._schedules = [
-            _schedule(
-                earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                earliest_start_time="22:00",
-            )
+            _schedule(start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="22:00")
         ]
-        mgr._next_target_time = AsyncMock(
-            return_value=_local(2026, 6, 21, 6, 0)
-        )
+        mgr._next_governing_time = AsyncMock(return_value=_local(2026, 6, 21, 6, 0))
         runs = await mgr.async_get_upcoming_runs()
         assert runs[0]["estimated"] is True
-        assert runs[0]["earliest_start_utc"] == _local(2026, 6, 20, 22, 0).isoformat()
+        assert runs[0]["start_bound_utc"] == _local(2026, 6, 20, 22, 0).isoformat()
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-21 08:00:00")
@@ -588,14 +558,9 @@ class TestUpcomingRunsEstimatedFlag:
         # the number is a fact rather than a projection.
         mgr = _manager(plan=[_run(0, 3600, maximum=4800)])
         mgr._schedules = [
-            _schedule(
-                earliest_start_mode=const.SCHEDULE_EARLIEST_START_TIME,
-                earliest_start_time="22:00",
-            )
+            _schedule(start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="22:00")
         ]
-        mgr._next_target_time = AsyncMock(
-            return_value=_local(2026, 6, 21, 6, 0)
-        )
+        mgr._next_governing_time = AsyncMock(return_value=_local(2026, 6, 21, 6, 0))
         runs = await mgr.async_get_upcoming_runs()
         assert runs[0]["estimated"] is False
 
@@ -604,8 +569,6 @@ class TestUpcomingRunsEstimatedFlag:
     async def test_a_plain_finish_schedule_is_never_flagged_estimated(self):
         mgr = _manager()
         mgr._schedules = [_schedule()]
-        mgr._next_target_time = AsyncMock(
-            return_value=_local(2026, 6, 21, 6, 0)
-        )
+        mgr._next_governing_time = AsyncMock(return_value=_local(2026, 6, 21, 6, 0))
         runs = await mgr.async_get_upcoming_runs()
         assert runs[0]["estimated"] is False

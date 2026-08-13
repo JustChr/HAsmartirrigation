@@ -103,7 +103,7 @@ describe("si-schedule-dialog", () => {
       if (evt && evt.detail.value.name === "new name") {
         sawPatch = true;
         // The emitted value carries the rest of the schedule forward too.
-        expect(evt.detail.value.type).toBe("daily");
+        expect(evt.detail.value.recurrence).toBe("daily");
       }
     }
     expect(sawPatch).toBe(true);

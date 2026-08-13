@@ -141,8 +141,10 @@ async def test_upcoming_runs_resolves_clock_and_marks_interval():
         {
             const.SCHEDULE_CONF_ID: "a",
             const.SCHEDULE_CONF_NAME: "Morning",
-            const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_DAILY,
-            const.SCHEDULE_CONF_TIME: "06:00",
+            const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+            const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+            const.SCHEDULE_CONF_START_TIME: "06:00",
+            const.SCHEDULE_CONF_FINISH_MODE: const.SCHEDULE_BOUND_MODE_NONE,
             const.SCHEDULE_CONF_ACTION: "irrigate",
             const.SCHEDULE_CONF_ZONES: "all",
             const.SCHEDULE_CONF_ENABLED: True,
@@ -150,7 +152,7 @@ async def test_upcoming_runs_resolves_clock_and_marks_interval():
         {
             const.SCHEDULE_CONF_ID: "b",
             const.SCHEDULE_CONF_NAME: "Every 6h",
-            const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_INTERVAL,
+            const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_INTERVAL,
             const.SCHEDULE_CONF_INTERVAL_HOURS: 6,
             const.SCHEDULE_CONF_ACTION: "update",
             const.SCHEDULE_CONF_ENABLED: True,
@@ -158,8 +160,9 @@ async def test_upcoming_runs_resolves_clock_and_marks_interval():
         {
             const.SCHEDULE_CONF_ID: "c",
             const.SCHEDULE_CONF_NAME: "Off",
-            const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_DAILY,
-            const.SCHEDULE_CONF_TIME: "07:00",
+            const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+            const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+            const.SCHEDULE_CONF_START_TIME: "07:00",
             const.SCHEDULE_CONF_ENABLED: False,
         },
     ]
@@ -170,6 +173,6 @@ async def test_upcoming_runs_resolves_clock_and_marks_interval():
     assert set(by_id) == {"a", "b"}  # disabled schedule excluded
     assert by_id["a"]["next_run_utc"] is not None
     assert by_id["a"]["action"] == "irrigate"
-    assert by_id["a"]["time_anchor"] == const.SCHEDULE_TIME_ANCHOR_START
+    assert by_id["a"]["anchor"] == const.SCHEDULE_ANCHOR_START
     assert by_id["b"]["next_run_utc"] is None  # interval has no fixed clock target
     assert by_id["b"]["interval_hours"] == 6

@@ -189,7 +189,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DATA_REGISTRY = f"{DOMAIN}_storage"
 STORAGE_KEY = f"{DOMAIN}.storage"
-STORAGE_VERSION = 13
+STORAGE_VERSION = 14
 # Coalescing window (seconds) for the whole-document store write. Every
 # async_schedule_save() reserializes the ENTIRE store — config, zones, modules
 # and every sensor group's reading buffer — and replaces the file, so at 0 a
@@ -506,6 +506,82 @@ class DistributorEntry:
     active_cycle = attr.ib(type=dict, factory=dict)
 
 
+def _migrate_schedule_to_v14(old: dict) -> dict:
+    """Translate one v13-shaped recurring-schedule dict into the v14 shape.
+
+    v13 conflated recurrence (how often a schedule comes round) and time of
+    day (where in the day it lands) in a single ``type`` field, and could
+    bound only whichever end ``time_anchor`` pointed at. v14 separates them:
+    ``recurrence`` is daily/weekly/monthly/interval, and Start and Finish are
+    each independently none/time/sunrise/sunset/solar_azimuth. Every v13
+    shape has an exact v14 equivalent (GitLab #27).
+    """
+    new = dict(old)
+    old_type = new.pop("type", None)
+    old_time = new.pop("time", None)
+    old_offset = new.pop("offset_minutes", None)
+    old_account_for_duration = new.pop("account_for_duration", None)
+    old_azimuth = new.pop("azimuth_angle", None)
+    old_anchor = new.pop("time_anchor", None)
+
+    if old_type is None:
+        # Malformed/incomplete entry (e.g. already-partial data) — nothing
+        # sensible to translate; leave recurrence unset.
+        return new
+
+    if old_type == "interval":
+        new["recurrence"] = "interval"
+        return new
+
+    if old_type not in (
+        "daily",
+        "weekly",
+        "monthly",
+        "sunrise",
+        "sunset",
+        "solar_azimuth",
+    ):
+        # Unrecognized type — leave recurrence unset rather than guess.
+        return new
+
+    if old_type in ("sunrise", "sunset", "solar_azimuth"):
+        new["recurrence"] = "daily"
+        mode = old_type
+        if old_anchor in ("start", "finish"):
+            anchor = old_anchor
+        else:
+            # Legacy fallback: solar types defaulted to a finish anchor
+            # unless account_for_duration was explicitly set False.
+            anchor = (
+                "finish"
+                if (old_account_for_duration is None or old_account_for_duration)
+                else "start"
+            )
+        prefix = anchor
+        if old_offset is not None:
+            new[f"{prefix}_offset"] = old_offset
+        if mode == "solar_azimuth" and old_azimuth is not None:
+            new[f"{prefix}_azimuth"] = old_azimuth
+    else:
+        new["recurrence"] = old_type
+        mode = "time"
+        anchor = old_anchor if old_anchor in ("start", "finish") else "start"
+        prefix = anchor
+        # ``time`` was optional on a clock schedule and the v13 resolver read it
+        # as ``schedule.get(time, "06:00")``, so an entry stored without it fires
+        # at 06:00. The v14 resolver has no such default and treats a missing
+        # time as an unresolvable bound, which would silently stop such a
+        # schedule from ever firing. Materialise the default the old default
+        # produced instead.
+        new[f"{prefix}_time"] = old_time if old_time is not None else "06:00"
+
+    other = "finish" if prefix == "start" else "start"
+    new[f"{prefix}_mode"] = mode
+    new[f"{other}_mode"] = "none"
+    new["anchor"] = anchor
+    return new
+
+
 class MigratableStore(Store):
     """Store subclass that supports migration for Smart Irrigation storage."""
 
@@ -653,6 +729,23 @@ class MigratableStore(Store):
                     else UNIT_SYSTEM_US_CUSTOMARY
                 ),
             )
+
+        if old_version <= 13:
+            # v14: reshape recurring schedules — split the old `type` (which
+            # conflated recurrence and time-of-day) into an explicit
+            # `recurrence` plus independent Start/Finish bounds. Destructive:
+            # old keys are popped, matching the two prior schedule-shape
+            # migrations above (v3's use_owm rename, v6→v7's trigger-
+            # collection replacement). See _migrate_schedule_to_v14.
+            if "config" in data:
+                data["config"]["recurring_schedules"] = [
+                    _migrate_schedule_to_v14(s)
+                    for s in data["config"].get("recurring_schedules", [])
+                ]
+            for dist in data.get("distributors", []):
+                dist["schedules"] = [
+                    _migrate_schedule_to_v14(s) for s in dist.get("schedules", []) or []
+                ]
 
         # CRITICAL: Always ensure required fields are present and strip unrecognized keys
         # This prevents TypeError when Config(**config_data) is called

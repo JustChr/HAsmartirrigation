@@ -192,8 +192,10 @@ export interface UpcomingRun {
   name: string;
   action: "irrigate" | "calculate" | "update" | string;
   zones: "all" | number[];
-  type: string;
-  time_anchor: "start" | "finish" | string;
+  recurrence: string;
+  /** Which end of the window governs this occurrence's timing. Absent for
+   * an interval schedule, which has no Start/Finish bound. */
+  anchor?: "start" | "finish" | string;
   next_run_utc: string | null;
   target_utc: string | null;
   duration_seconds: number;
@@ -204,10 +206,8 @@ export interface UpcomingRun {
    * time drifts as deficits grow. False once the one-shot is armed.
    */
   estimated?: boolean;
-  /** Resolved earliest-start floor for this occurrence, or null when unset. */
-  earliest_start_utc?: string | null;
-  /** Whether this schedule ranks and truncates its zones to fit the window. */
-  fit_to_window?: boolean;
+  /** Resolved Start bound for this occurrence, or null when unset. */
+  start_bound_utc?: string | null;
 }
 
 /** Read-only intra-day "live status" estimate for one zone. */
