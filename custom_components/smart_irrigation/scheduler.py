@@ -46,6 +46,13 @@ _BOUND_FIELDS = {
     ),
 }
 
+# Two resolved targets closer together than this are the same occurrence, not
+# two of them. Every recurrence a bound can carry — daily, weekly, monthly —
+# puts real occurrences at least a day apart, so the margin is enormous; it
+# exists only to be wider than the drift of a bound that does not resolve to
+# quite the same instant twice. See _advance_past_fired_occurrence.
+SAME_OCCURRENCE = datetime.timedelta(hours=1)
+
 
 class RecurringScheduleManager:
     """Manages recurring schedules for Smart Irrigation."""
@@ -961,6 +968,62 @@ class RecurringScheduleManager:
         _LOGGER.info("Registered schedule '%s' (%s) at %s", name, end, target)
         return async_track_point_in_utc_time(self.hass, fire, target)
 
+    async def _advance_past_fired_occurrence(
+        self, schedule: dict[str, Any], end: str, target
+    ):
+        """``target``, or the occurrence after it when this one already ran.
+
+        A schedule that re-arms from its own fire callback re-derives a target
+        that is still in the future, recomputes a start that is now in the
+        past, and takes the "run ASAP" branch again. Left alone that fires
+        every two seconds for the whole window.
+
+        The occurrence is matched by PROXIMITY, not by equality of the instant.
+        An equality test holds only while a bound resolves to the same instant
+        every time it is asked, and a solar azimuth near the wrap does not: it
+        answers a couple of seconds later on each call, so every re-arm looked
+        like a brand-new occurrence and the guard never engaged. Observed on a
+        bearing the sun never reaches, at 14 dispatches in 90 seconds.
+
+        Returns None when the schedule cannot be advanced off the occurrence it
+        just ran, which leaves it unarmed until the next config write or
+        restart. That is the right outcome for a bound this unstable: the
+        alternative is arming it on a target it has already watered.
+        """
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        fired_iso = self._finish_last_target.get(sid)
+        if not fired_iso:
+            return target
+        try:
+            fired = datetime.datetime.fromisoformat(fired_iso)
+        except ValueError:
+            return target
+        if abs(target - fired) >= SAME_OCCURRENCE:
+            return target
+
+        nxt = await self._next_governing_time(schedule, end, reference_utc=target)
+        if nxt is None:
+            _LOGGER.warning(
+                "Schedule '%s': could not resolve its %s bound after %s",
+                name,
+                end,
+                target,
+            )
+            return None
+        if nxt - fired < SAME_OCCURRENCE:
+            _LOGGER.warning(
+                "Schedule '%s': its %s bound will not advance past the "
+                "occurrence just run (%s then %s); leaving it unarmed until "
+                "the next configuration change or restart",
+                name,
+                end,
+                fired,
+                nxt,
+            )
+            return None
+        return nxt
+
     # --- finish-governed: fires at (target − duration) -----------------------
 
     async def _setup_finish_tracker(
@@ -971,7 +1034,6 @@ class RecurringScheduleManager:
         the two-stage arm — the resolution and advance logic is shared by
         both, since only one is ever wanted for a given schedule."""
         name = schedule.get(const.SCHEDULE_CONF_NAME)
-        sid = schedule[const.SCHEDULE_CONF_ID]
         target = await self._next_governing_time(schedule, const.SCHEDULE_ANCHOR_FINISH)
         if target is None:
             _LOGGER.warning(
@@ -979,23 +1041,11 @@ class RecurringScheduleManager:
             )
             return None
 
-        # If we already fired this occurrence (the run just happened and we're
-        # re-arming), advance to the NEXT occurrence. Without this the tracker
-        # re-derives the same still-future target, recomputes a start that is now
-        # in the past, and busy-loops the "run ASAP" branch every ~2s for the
-        # whole start→finish window — re-firing irrigation thousands of times.
-        if self._finish_last_target.get(sid) == target.isoformat():
-            nxt = await self._next_governing_time(
-                schedule, const.SCHEDULE_ANCHOR_FINISH, reference_utc=target
-            )
-            if nxt is None:
-                _LOGGER.warning(
-                    "Finish schedule '%s': could not determine next target after %s",
-                    name,
-                    target,
-                )
-                return None
-            target = nxt
+        target = await self._advance_past_fired_occurrence(
+            schedule, const.SCHEDULE_ANCHOR_FINISH, target
+        )
+        if target is None:
+            return None
 
         if fitted:
             return await self._setup_fitted_tracker(schedule, target)
@@ -1090,18 +1140,11 @@ class RecurringScheduleManager:
             _LOGGER.warning("Schedule '%s': could not resolve its Start bound", name)
             return None
 
-        if self._finish_last_target.get(sid) == target.isoformat():
-            nxt = await self._next_governing_time(
-                schedule, const.SCHEDULE_ANCHOR_START, reference_utc=target
-            )
-            if nxt is None:
-                _LOGGER.warning(
-                    "Schedule '%s': could not resolve its Start bound after %s",
-                    name,
-                    target,
-                )
-                return None
-            target = nxt
+        target = await self._advance_past_fired_occurrence(
+            schedule, const.SCHEDULE_ANCHOR_START, target
+        )
+        if target is None:
+            return None
 
         finish = await self._paired_bound_time(
             schedule, const.SCHEDULE_ANCHOR_FINISH, target

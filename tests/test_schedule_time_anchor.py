@@ -451,6 +451,57 @@ class TestFinishTrackerAdvance:
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-10 18:00:00")
+    async def test_rearm_advances_when_the_bound_will_not_resolve_twice_alike(
+        self, coordinator, monkeypatch
+    ):
+        """Regression (live 2026-08-09): the guard matched the fired occurrence
+        by equality of the instant, so a bound that resolves a couple of
+        seconds later every time it is asked never looked like the same
+        occurrence twice. A solar azimuth near the wrap does exactly that, and
+        the "run ASAP" branch then fired 14 times in 90 seconds."""
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=7200)
+        sched = self._finish_sched()
+        sid = sched[const.SCHEDULE_CONF_ID]
+
+        # A target 30 minutes out, drifting 2 seconds further away on every
+        # call, so the ideal start is always in the past and every resolution
+        # is a "new" instant.
+        base = dt_util.utcnow() + datetime.timedelta(minutes=30)
+        drift = {"n": 0}
+
+        async def _drifting(_schedule, _end, reference_utc=None):
+            drift["n"] += 1
+            return base + datetime.timedelta(seconds=2 * drift["n"])
+
+        monkeypatch.setattr(mgr, "_next_governing_time", _drifting)
+
+        captured: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+
+        # First arm: the start is in the past, so catching up ASAP is right.
+        await mgr._setup_finish_tracker(sched, fitted=False)
+        assert captured[-1] == dt_util.utcnow() + datetime.timedelta(seconds=2)
+        fired = drift["n"]
+
+        # Having fired, a re-arm must NOT catch up again. The bound cannot
+        # advance off this occurrence, so the schedule is left unarmed rather
+        # than watering the same target over and over.
+        mgr._finish_last_target[sid] = (
+            base + datetime.timedelta(seconds=2 * fired)
+        ).isoformat()
+        armed = len(captured)
+        assert await mgr._setup_finish_tracker(sched, fitted=False) is None
+        assert len(captured) == armed
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
     async def test_rearm_advances_for_negative_offset_sunrise(
         self, coordinator, monkeypatch
     ):
