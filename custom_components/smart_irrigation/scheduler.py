@@ -404,31 +404,19 @@ class RecurringScheduleManager:
                     raw,
                 )
                 return None
-            local_target = dt_util.as_local(target)
-            candidate = local_target.replace(
-                hour=hour, minute=minute, second=0, microsecond=0
-            )
             # The latest occurrence of that clock time at or before the target,
             # so an overnight window (floor 22:00, target 06:00) floors on the
             # PREVIOUS evening rather than jumping forward a whole day.
-            if candidate > local_target:
-                candidate -= datetime.timedelta(days=1)
-            floor = dt_util.as_utc(candidate)
+            floor = await self._resolve_event_instant(
+                "clock", target, direction="backward", hour=hour, minute=minute
+            )
         elif mode == const.SCHEDULE_EARLIEST_START_SUNSET:
             offset = datetime.timedelta(
                 minutes=schedule.get(const.SCHEDULE_CONF_EARLIEST_START_OFFSET, 0) or 0
             )
-            local_date = dt_util.as_local(target).date()
-            for back in (0, 1):
-                event = get_astral_event_date(
-                    self.hass, "sunset", local_date - datetime.timedelta(days=back)
-                )
-                if event is None:
-                    continue
-                candidate = dt_util.as_utc(event) + offset
-                if candidate <= target:
-                    floor = candidate
-                    break
+            floor = await self._resolve_event_instant(
+                "sunset", target, direction="backward", offset=offset
+            )
             if floor is None:
                 _LOGGER.warning(
                     "Schedule '%s': no sunset before the target %s to floor the "
@@ -477,6 +465,154 @@ class RecurringScheduleManager:
             min_absorption_seconds=absorption,
         )
 
+    async def _resolve_event_instant(
+        self,
+        kind: str,
+        reference_utc,
+        *,
+        direction: str,
+        hour: int | None = None,
+        minute: int | None = None,
+        angle: float | None = None,
+        offset: datetime.timedelta = datetime.timedelta(0),
+    ):
+        """Resolve one occurrence of a schedule's time source relative to
+        ``reference_utc`` — the shared seam between the run's target
+        (``_next_target_time``, ``direction="forward"``) and its earliest-start
+        floor (``_earliest_start``, ``direction="backward"``).
+
+        ``kind`` is one of "clock" (needs ``hour``/``minute``), "sunrise",
+        "sunset", or "solar_azimuth" (needs ``angle``). ``offset`` shifts the
+        resolved instant before it is compared against ``reference_utc`` — for
+        "forward" that means retrying until the shifted instant is strictly
+        after the reference (guards a negative offset landing on/before it);
+        for "backward" it means walking further back until the shifted instant
+        is at or before the reference. Same per-kind math either way, just
+        walked in opposite directions.
+
+        Returns None when the occurrence cannot be resolved — a polar sunset/
+        sunrise, a malformed clock spec, an azimuth the sun never reaches, or a
+        backward walk that exhausts its lookback window — rather than raising,
+        matching both callers' existing "no floor / no target" contract.
+        """
+        if kind == "clock":
+            if hour is None or minute is None:
+                return None
+            local_ref = dt_util.as_local(reference_utc)
+            candidate = local_ref.replace(
+                hour=hour, minute=minute, second=0, microsecond=0
+            )
+            if direction == "forward":
+                if candidate <= local_ref:
+                    candidate += datetime.timedelta(days=1)
+            else:
+                # The latest occurrence at or before the reference, so an
+                # overnight floor (22:00) resolved against a 06:00 target lands
+                # on the PREVIOUS evening rather than jumping forward a day.
+                if candidate > local_ref:
+                    candidate -= datetime.timedelta(days=1)
+            return dt_util.as_utc(candidate)
+
+        if kind in ("sunrise", "sunset"):
+            if direction == "forward":
+                ev = get_astral_event_next(self.hass, kind, reference_utc)
+                candidate = ev + offset
+                # A NEGATIVE offset shifts the target before its sun event, so
+                # it can land on/before the reference while the raw event is
+                # still in the future. Advance to the following event until the
+                # shifted candidate is strictly after the reference. Bounded so
+                # a pathological offset can't spin. See
+                # test_schedule_time_anchor::TestFinishTrackerAdvance.
+                guard = 0
+                while candidate <= reference_utc and guard < 8:
+                    ev = get_astral_event_next(self.hass, kind, ev)
+                    candidate = ev + offset
+                    guard += 1
+                return candidate
+            # Backward: walk back across days looking for an occurrence whose
+            # offset-adjusted instant lands at or before the reference.
+            local_date = dt_util.as_local(reference_utc).date()
+            for back in (0, 1):
+                event = get_astral_event_date(
+                    self.hass, kind, local_date - datetime.timedelta(days=back)
+                )
+                if event is None:
+                    continue
+                candidate = dt_util.as_utc(event) + offset
+                if candidate <= reference_utc:
+                    return candidate
+            return None
+
+        if kind == "solar_azimuth":
+            if angle is None:
+                return None
+            ha_cfg = self.hass.config.as_dict()
+            lat = ha_cfg.get(CONF_LATITUDE, 45.0)
+            lon = ha_cfg.get(CONF_LONGITUDE, 0.0)
+            norm_angle = normalize_azimuth_angle(angle)
+            # UTC, aware, end to end, in BOTH directions. calculate_solar_azimuth
+            # documents (and reads) UTC and takes a naive value AS UTC, so
+            # handing it naive local time put the zone offset on top of the sign
+            # error the helper itself had — see issue #81. dt_util.as_utc on an
+            # already-UTC value is a no-op, so the offset arithmetic around each
+            # crossing is unchanged.
+            if direction == "forward":
+                ref = reference_utc
+                # Same negative-offset advance as sunrise/sunset above: step
+                # past the found occurrence until the offset-shifted candidate
+                # is strictly after the reference, so the finish tracker
+                # doesn't busy-loop.
+                guard = 0
+                while True:
+                    next_time = find_next_solar_azimuth_time(
+                        lat, lon, norm_angle, ref
+                    )
+                    if next_time is None:
+                        return None
+                    candidate = dt_util.as_utc(next_time) + offset
+                    if candidate > reference_utc or guard >= 8:
+                        return candidate
+                    # find_next_solar_azimuth_time samples in 15-min steps, so a
+                    # tiny step re-detects the SAME crossing. Step past a full
+                    # search interval so the next search lands on the following
+                    # crossing.
+                    ref = next_time + datetime.timedelta(minutes=16)
+                    guard += 1
+            # Backward: not wired to any caller yet (a later ticket adds
+            # azimuth earliest-start) but exercised directly so the seam is
+            # proven to work in both directions, mirroring the sunset walk:
+            # scan each local day, most recent first, from midnight, keeping
+            # the latest crossing whose offset-adjusted instant is still at or
+            # before the reference.
+            local_ref = dt_util.as_local(reference_utc)
+            for back in (0, 1):
+                day_start_local = local_ref.replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                ) - datetime.timedelta(days=back)
+                # The DAY is local; the instants scanned across it are UTC, per
+                # the frame note on the forward branch.
+                scan_from = dt_util.as_utc(day_start_local)
+                day = day_start_local.date()
+                found = None
+                guard = 0
+                while guard < 96:
+                    crossing = find_next_solar_azimuth_time(
+                        lat, lon, norm_angle, scan_from
+                    )
+                    if crossing is None or dt_util.as_local(crossing).date() != day:
+                        break
+                    candidate = dt_util.as_utc(crossing) + offset
+                    if candidate > reference_utc:
+                        break
+                    found = candidate
+                    scan_from = crossing + datetime.timedelta(minutes=16)
+                    guard += 1
+                if found is not None:
+                    return found
+            return None
+
+        return None
+
     @staticmethod
     def _clock_day_matches(schedule: dict[str, Any], dt_local) -> bool:
         """Whether a clock-type schedule should run on dt_local's day."""
@@ -521,56 +657,18 @@ class RecurringScheduleManager:
 
         if stype in (const.SCHEDULE_TYPE_SUNRISE, const.SCHEDULE_TYPE_SUNSET):
             event = "sunrise" if stype == const.SCHEDULE_TYPE_SUNRISE else "sunset"
-            ev = get_astral_event_next(self.hass, event, now_utc)
-            candidate = ev + offset
-            # A NEGATIVE offset shifts the target *before* its sun event, so the
-            # offset-adjusted target can land on/before the reference while the
-            # raw event is still in the future (the |offset|-wide window between
-            # target and the event). Advance to the following event until the
-            # shifted target is strictly after the reference. Without this the
-            # finish tracker — which re-arms with reference_utc=target to skip the
-            # occurrence it just fired — re-derives the SAME target (the next
-            # event after target is that same event, because target < event) and
-            # busy-loops the "run ASAP" (now+2s) branch for the whole offset
-            # window (live 2026-07-04: ~2s skips for ~30 min). Bounded so a
-            # pathological offset can't spin. See test_schedule_time_anchor::
-            # TestFinishTrackerAdvance::test_rearm_advances_for_negative_offset_sunrise.
-            guard = 0
-            while candidate <= now_utc and guard < 8:
-                ev = get_astral_event_next(self.hass, event, ev)
-                candidate = ev + offset
-                guard += 1
-            return candidate
-        if stype == const.SCHEDULE_TYPE_SOLAR_AZIMUTH:
-            ha_cfg = self.hass.config.as_dict()
-            lat = ha_cfg.get(CONF_LATITUDE, 45.0)
-            lon = ha_cfg.get(CONF_LONGITUDE, 0.0)
-            angle = normalize_azimuth_angle(
-                schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
+            return await self._resolve_event_instant(
+                event, now_utc, direction="forward", offset=offset
             )
-            # UTC, aware, end to end. This used to hand over naive LOCAL time
-            # while calculate_solar_azimuth documented (and read) UTC, so the
-            # zone offset landed on top of the sign error the helper already
-            # had — see issue #81. dt_util.as_utc on an already-UTC value below
-            # is a no-op, so the surrounding offset arithmetic is unchanged.
-            ref = now_utc
-            # Same negative-offset advance as sunrise/sunset above: step past the
-            # found occurrence until the offset-shifted target is strictly after
-            # the reference, so the finish tracker doesn't busy-loop.
-            guard = 0
-            while True:
-                next_time = find_next_solar_azimuth_time(lat, lon, angle, ref)
-                if next_time is None:
-                    return None
-                candidate = dt_util.as_utc(next_time) + offset
-                if candidate > now_utc or guard >= 8:
-                    return candidate
-                # find_next_solar_azimuth_time samples in 15-min steps, so a tiny
-                # step re-detects the SAME crossing (the azimuth is still within a
-                # sample of the target a moment later). Step past a full search
-                # interval so the next search lands on the following crossing.
-                ref = next_time + datetime.timedelta(minutes=16)
-                guard += 1
+        if stype == const.SCHEDULE_TYPE_SOLAR_AZIMUTH:
+            angle = schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
+            return await self._resolve_event_instant(
+                "solar_azimuth",
+                now_utc,
+                direction="forward",
+                angle=angle,
+                offset=offset,
+            )
 
         if stype == const.SCHEDULE_TYPE_INTERVAL:
             # Only an interval with an explicit start_time has a fixed clock
@@ -578,16 +676,24 @@ class RecurringScheduleManager:
             # derivable next time (returns None, handled by the caller).
             return self._next_interval_target(schedule, now_utc)
 
-        # Clock types: next local HH:MM that falls on a matching day.
+        # Clock types: next local HH:MM that falls on a matching day. The
+        # resolver gives the next raw occurrence of the clock time; re-anchor
+        # on it and ask again until the day matches, so day-of-week/month
+        # filtering wraps the shared resolver rather than duplicating its
+        # clock math.
         hour, minute = map(
             int, schedule.get(const.SCHEDULE_CONF_TIME, "06:00").split(":")
         )
-        local_now = dt_util.as_local(now_utc)
-        candidate = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        candidate_ref = now_utc
         for _ in range(367):
-            if candidate > local_now and self._clock_day_matches(schedule, candidate):
-                return dt_util.as_utc(candidate)
-            candidate += datetime.timedelta(days=1)
+            candidate = await self._resolve_event_instant(
+                "clock", candidate_ref, direction="forward", hour=hour, minute=minute
+            )
+            if candidate is None:
+                return None
+            if self._clock_day_matches(schedule, dt_util.as_local(candidate)):
+                return candidate
+            candidate_ref = candidate
         return None
 
     def _next_interval_target(self, schedule: dict[str, Any], reference_utc):

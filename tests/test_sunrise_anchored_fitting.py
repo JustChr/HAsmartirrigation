@@ -184,6 +184,124 @@ class TestEarliestStart:
         assert floor == datetime.datetime(2026, 6, 20, 23, 7, tzinfo=UTC)
 
 
+class TestResolveEventInstant:
+    """``_resolve_event_instant`` is the shared seam _earliest_start and
+    _next_target_time both resolve through: same per-kind math (clock time,
+    sunrise, sunset, solar azimuth), walked forward or backward. Exercised
+    directly here rather than only through the two callers, so a regression in
+    the seam itself fails here even if a caller's own tests happen not to
+    reach the broken branch.
+    """
+
+    @pytest.mark.asyncio
+    async def test_clock_backward_wraps_to_the_previous_evening(self):
+        # The defining property of the "backward" direction: the latest
+        # occurrence of the clock time AT OR BEFORE the reference. A resolver
+        # that searched forward instead would land 16 hours past the
+        # reference, which is the exact failure the overnight floor exists to
+        # prevent (see TestEarliestStart.test_fixed_time_floor_lands_on_the_
+        # previous_evening, the same case through _earliest_start).
+        mgr = _manager()
+        reference = _local(2026, 6, 21, 6, 0)
+        resolved = await mgr._resolve_event_instant(
+            "clock", reference, direction="backward", hour=22, minute=0
+        )
+        assert resolved == _local(2026, 6, 20, 22, 0)
+
+    @pytest.mark.asyncio
+    async def test_clock_backward_same_day_is_kept(self):
+        mgr = _manager()
+        reference = _local(2026, 6, 21, 23, 0)
+        resolved = await mgr._resolve_event_instant(
+            "clock", reference, direction="backward", hour=20, minute=0
+        )
+        assert resolved == _local(2026, 6, 21, 20, 0)
+
+    @pytest.mark.asyncio
+    async def test_clock_forward_jumps_to_the_next_day_once_passed(self):
+        mgr = _manager()
+        reference = _local(2026, 6, 21, 23, 0)
+        resolved = await mgr._resolve_event_instant(
+            "clock", reference, direction="forward", hour=20, minute=0
+        )
+        assert resolved == _local(2026, 6, 22, 20, 0)
+
+    @pytest.mark.asyncio
+    async def test_clock_forward_same_day_when_still_ahead(self):
+        mgr = _manager()
+        reference = _local(2026, 6, 21, 6, 0)
+        resolved = await mgr._resolve_event_instant(
+            "clock", reference, direction="forward", hour=22, minute=0
+        )
+        assert resolved == _local(2026, 6, 21, 22, 0)
+
+    @pytest.mark.asyncio
+    async def test_sunset_backward_takes_the_sunset_before_the_reference(self):
+        mgr = _manager()
+        reference = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        sunsets = {
+            datetime.date(2026, 6, 21): datetime.datetime(2026, 6, 21, 21, 7, tzinfo=UTC),
+            datetime.date(2026, 6, 20): datetime.datetime(2026, 6, 20, 21, 7, tzinfo=UTC),
+        }
+        with patch(
+            "custom_components.smart_irrigation.scheduler.get_astral_event_date",
+            side_effect=lambda hass, event, date: sunsets.get(date),
+        ):
+            resolved = await mgr._resolve_event_instant(
+                "sunset",
+                reference,
+                direction="backward",
+                offset=datetime.timedelta(minutes=120),
+            )
+        # 2026-06-20 sunset 21:07 + 2h, not the 21st's (after the reference).
+        assert resolved == datetime.datetime(2026, 6, 20, 23, 7, tzinfo=UTC)
+
+    @pytest.mark.asyncio
+    async def test_sunset_backward_exhausted_returns_none(self):
+        mgr = _manager()
+        reference = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        with patch(
+            "custom_components.smart_irrigation.scheduler.get_astral_event_date",
+            return_value=None,
+        ):
+            assert (
+                await mgr._resolve_event_instant(
+                    "sunset", reference, direction="backward"
+                )
+                is None
+            )
+
+    @pytest.mark.asyncio
+    async def test_solar_azimuth_backward_is_reachable(self):
+        # Not wired to any caller yet (a later ticket adds azimuth earliest-
+        # start), but the resolver must already support the direction so that
+        # ticket only has to call it, not build it. A clear day near the
+        # summer solstice guarantees the sun crosses 90 degrees (due east)
+        # sometime that morning, so a backward search from local noon must
+        # find it rather than return None.
+        mgr = _manager()
+        mgr.hass.config.as_dict = Mock(
+            return_value={"latitude": 45.0, "longitude": 0.0}
+        )
+        reference = datetime.datetime(2026, 6, 21, 12, 0, tzinfo=UTC)
+        resolved = await mgr._resolve_event_instant(
+            "solar_azimuth", reference, direction="backward", angle=90
+        )
+        assert resolved is not None
+        assert resolved <= reference
+
+    @pytest.mark.asyncio
+    async def test_unknown_kind_returns_none(self):
+        mgr = _manager()
+        reference = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        assert (
+            await mgr._resolve_event_instant(
+                "not-a-kind", reference, direction="forward"
+            )
+            is None
+        )
+
+
 class TestDurationBound:
     """The decision point's duration-independent fixed point."""
 
