@@ -84,6 +84,22 @@ describe("si-schedule-dialog", () => {
     expect(text).toContain("<ha-dialog");
     expect(text).toContain("Edit schedule");
     expect(text).toContain("Front lawn");
+    // The title goes through ha-dialog's own heading attribute rather than a
+    // custom "heading" slot: markup of ours in that slot sits inside the
+    // dialog's padding box and runs under both top corners.
+    expect(text).toContain("heading=");
+    expect(text).not.toContain('slot="heading"');
+  });
+
+  it("puts the enabled toggle in the actions row, not the heading", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), enabled: true },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain(
+      '<label slot="secondaryAction" class="enabled-toggle"',
+    );
+    expect(text).toContain("<ha-switch");
   });
 
   it("emits schedule-changed with the patched schedule when the name field changes", () => {
@@ -180,13 +196,43 @@ describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
     });
     const { text } = flatten(el.render());
     expect(text).toContain("°");
-    // The azimuth input carries a literal min="0"/max="359" attribute pair
-    // (bearing bounds, not the minutes suffix), so a bare toContain("min")
-    // would false-positive on that attribute name — exclude it with a
-    // negative lookahead on "=" and require the localized minutes suffix
-    // never renders as text content instead.
+    // The azimuth input has no min/max (a bearing wraps rather than clamps —
+    // see the wraparound test below), so this only needs to confirm the
+    // localized minutes suffix never renders as text content here.
     expect(text).not.toMatch(/\bmin\b(?!=)/);
   });
+
+  it.each([
+    ["past the top", "400", 40],
+    ["past the bottom", "-10", 350],
+  ])(
+    "wraps the solar-azimuth stepper %s instead of clamping",
+    (_label, typed, wrapped) => {
+      const { el, emitted } = makeDialog({
+        schedule: {
+          ...emptySchedule(),
+          start_mode: "solar_azimuth",
+          start_azimuth: 120,
+          finish_mode: "none",
+        },
+      });
+      const { handlers } = flatten(el.render());
+      let sawWrap = false;
+      for (const h of handlers) {
+        emitted.length = 0;
+        try {
+          h({ target: { value: typed } });
+        } catch {
+          continue;
+        }
+        const evt = emitted.find((e) => e.type === "schedule-changed");
+        if (evt && evt.detail.value.start_azimuth === wrapped) {
+          sawWrap = true;
+        }
+      }
+      expect(sawWrap).toBe(true);
+    },
+  );
 
   it("renders a signed minutes stepper for sunrise/sunset", () => {
     const { el } = makeDialog({

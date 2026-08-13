@@ -253,9 +253,6 @@ export class SiScheduleDialog extends LitElement {
       case "weekly":
         return html`
           <div class="field">
-            <label
-              >${localize("panels.schedules.fields.days_of_week", lang)}</label
-            >
             <div class="day-checkboxes">
               ${DAYS.map(
                 (day) => html`
@@ -299,31 +296,29 @@ export class SiScheduleDialog extends LitElement {
         `;
       case "interval":
         return html`
-          <div class="field">
+          <div class="field field-inline">
             <label
               >${localize(
                 "panels.schedules.fields.interval_hours",
                 lang,
               )}</label
             >
-            <div class="rowfields">
-              <input
-                type="number"
-                min="1"
-                .value="${String(s.interval_hours || 24)}"
-                @input=${(e: Event) =>
-                  this._emitChanged({
-                    interval_hours: parseInt(
-                      (e.target as HTMLInputElement).value,
-                    ),
-                  })}
-              />
-              <span class="suffix"
-                >${localize("panels.schedules.hours", lang)}</span
-              >
-            </div>
+            <input
+              type="number"
+              min="1"
+              .value="${String(s.interval_hours || 24)}"
+              @input=${(e: Event) =>
+                this._emitChanged({
+                  interval_hours: parseInt(
+                    (e.target as HTMLInputElement).value,
+                  ),
+                })}
+            />
+            <span class="suffix"
+              >${localize("panels.schedules.hours", lang)}</span
+            >
           </div>
-          <div class="field">
+          <div class="field field-inline">
             <label
               >${localize("panels.schedules.fields.start_time", lang)}</label
             >
@@ -389,18 +384,23 @@ export class SiScheduleDialog extends LitElement {
         // absolute compass bearing, not an offset from an event, so the row
         // reads as "At solar azimuth [90] °" rather than misnaming a bearing
         // as an offset.
+        //
+        // No min/max: a bearing is circular, so the native spinner (and
+        // typing past either end) should wrap rather than clamp - stepping
+        // up from 359 lands on 0, not stick at 359. Wrapping the value
+        // ourselves on every input needs the browser not clamping it first.
         return html`
           <input
             type="number"
-            min="0"
-            max="359"
             step="1"
             .value="${String(row.azimuth ?? DEFAULT_AZIMUTH)}"
             @input=${(e: Event) => {
               const v = parseInt((e.target as HTMLInputElement).value);
               onChange({
                 ...row,
-                azimuth: isNaN(v) ? (row.azimuth ?? DEFAULT_AZIMUTH) : v,
+                azimuth: isNaN(v)
+                  ? (row.azimuth ?? DEFAULT_AZIMUTH)
+                  : ((v % 360) + 360) % 360,
               });
             }}
           />
@@ -591,7 +591,6 @@ export class SiScheduleDialog extends LitElement {
     const lang = this.hass.language;
     return html`
       <div class="field">
-        <label>${localize("panels.schedules.season.label", lang)}</label>
         <div class="rowfields">
           <input
             type="date"
@@ -626,21 +625,11 @@ export class SiScheduleDialog extends LitElement {
     const lang = this.hass.language;
 
     return html`
-      <ha-dialog open @closed=${this._cancel}>
-        <div slot="heading" class="dialog-heading-row">
-          <span>${this.heading}</span>
-          <label class="enabled-toggle">
-            <input
-              type="checkbox"
-              ?checked="${s.enabled}"
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  enabled: (e.target as HTMLInputElement).checked,
-                })}
-            />
-            ${localize("panels.schedules.fields.enabled", lang)}
-          </label>
-        </div>
+      <!-- Plain heading attribute rather than a custom "heading" slot: the
+           slot sits inside ha-dialog's own padding box, so a row of our own
+           markup runs under both top corners. The Enabled toggle moves to the
+           actions row instead, where it has somewhere to sit. -->
+      <ha-dialog open heading="${this.heading}" @closed=${this._cancel}>
         <div class="dialog-content">
           ${this._renderSummary()}
 
@@ -662,6 +651,7 @@ export class SiScheduleDialog extends LitElement {
             html`
               <div class="field">
                 <select
+                  class="recurrence-select"
                   aria-label="${localize(
                     "panels.schedules.fields.recurrence",
                     lang,
@@ -707,21 +697,28 @@ export class SiScheduleDialog extends LitElement {
           ${this._renderSection("season", this._renderSeasonSection())}
         </div>
 
-        <button
-          slot="secondaryAction"
-          class="dialog-btn"
-          @click=${this._cancel}
-        >
-          ${localize("common.actions.cancel", this.hass.language)}
-        </button>
-        <button
-          slot="primaryAction"
-          class="dialog-btn dialog-btn-primary"
-          ?disabled="${!this._canSave()}"
-          @click=${this._save}
-        >
-          ${localize("common.actions.save", this.hass.language)}
-        </button>
+        <label slot="secondaryAction" class="enabled-toggle">
+          <ha-switch
+            .checked="${s.enabled}"
+            @change=${(e: Event) =>
+              this._emitChanged({
+                enabled: (e.target as HTMLInputElement).checked,
+              })}
+          ></ha-switch>
+          <span>${localize("panels.schedules.fields.enabled", lang)}</span>
+        </label>
+        <div slot="primaryAction" class="dialog-buttons">
+          <button class="dialog-btn" @click=${this._cancel}>
+            ${localize("common.actions.cancel", this.hass.language)}
+          </button>
+          <button
+            class="dialog-btn dialog-btn-primary"
+            ?disabled="${!this._canSave()}"
+            @click=${this._save}
+          >
+            ${localize("common.actions.save", this.hass.language)}
+          </button>
+        </div>
       </ha-dialog>
     `;
   }
@@ -739,7 +736,7 @@ export class SiScheduleDialog extends LitElement {
            between fields and section cards). */
         .dialog-content {
           display: block;
-          padding: 4px 0 8px;
+          padding: 4px 0 0;
           color: var(--primary-text-color);
           font-size: 0.875rem;
           line-height: 1.5;
@@ -773,6 +770,31 @@ export class SiScheduleDialog extends LitElement {
         .field input[type="number"] {
           width: 78px;
         }
+        /* Sized to its own longest option ("Every N hours"), not stretched
+           to the field's full width by the column flex's default stretch. */
+        .recurrence-select {
+          align-self: flex-start;
+          width: auto;
+        }
+        /* Label and input share a row instead of the field's default
+           stacked layout; the help text still wraps to its own line below
+           via the 100% flex-basis, so nothing else about the field changes.
+           No width override on the input itself - flex-direction: row
+           already sizes it to its own content (the column layout's default
+           stretch was the whole problem), so it matches the same
+           unconstrained <input type="time"> in the Start/Finish rows. */
+        .field-inline {
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+        }
+        .field-inline input {
+          flex: none;
+        }
+        .field-inline .field-help {
+          flex-basis: 100%;
+        }
         .field-help {
           font-size: 0.78125rem;
           line-height: 1.35;
@@ -801,29 +823,30 @@ export class SiScheduleDialog extends LitElement {
           top: -1px;
           opacity: 0.45;
         }
-        /* Dialog heading: the title plus the Enabled toggle (GitLab #30) —
-           it reads as a property of the schedule, not of the date range it
-           used to sit beside. */
-        .dialog-heading-row {
+        /* The Enabled toggle shares the actions row with Cancel/Save, pinned
+           left while the buttons stay right.
+           ha-dialog justifies that row with the --justify-action-buttons
+           variable (defaulting to flex-end) and lets it wrap, so the supported
+           way to split it is that variable plus exactly TWO flex children. An
+           auto margin on a third child does not survive the wrap: the toggle,
+           Cancel and Save were three items in a wrapping right-aligned row,
+           and the toggle landed on top of Cancel. Hence the buttons share one
+           wrapper. */
+        ha-dialog {
+          --justify-action-buttons: space-between;
+        }
+        .dialog-buttons {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          width: 100%;
+          gap: 8px;
         }
         .enabled-toggle {
           display: flex;
           align-items: center;
-          gap: 6px;
-          font-size: 0.8125rem;
-          font-weight: 400;
-          color: var(--secondary-text-color);
+          gap: 8px;
+          font-size: 0.875rem;
+          color: var(--primary-text-color);
           cursor: pointer;
-        }
-        .enabled-toggle input[type="checkbox"] {
-          width: 16px;
-          height: 16px;
-          accent-color: var(--primary-color);
         }
         /* The read-only summary sentence (GitLab #30): describes the
            schedule's own configuration only, never live bucket/weather
@@ -855,6 +878,9 @@ export class SiScheduleDialog extends LitElement {
           padding: 14px 14px 2px;
           margin-bottom: 14px;
         }
+        .sect-card:last-child {
+          margin-bottom: 0;
+        }
         .sect-card > h4 {
           margin: 0 0 12px;
           font-size: 0.71875rem;
@@ -876,13 +902,51 @@ export class SiScheduleDialog extends LitElement {
           gap: 8px;
           margin-top: 4px;
         }
+        /* Reads as a sub-choice of the Weekly recurrence above it, now that
+           it has no "Days of week" label of its own to make that relation
+           visible. */
+        .day-checkboxes {
+          margin-left: 12px;
+        }
+        /* Chips: the checkbox stays in the DOM (and keeps its own
+           keyboard/focus/checked state - this is not a fake-checkbox built
+           from a click handler), just visually replaced by the pill-shaped
+           label around it. :has() drives the checked look, so there is no
+           JS-side "is this one selected" state to keep in sync. */
         .day-check,
         .zone-check {
+          position: relative;
           display: flex;
           align-items: center;
-          gap: 4px;
-          font-size: 0.875rem;
+          padding: 6px 14px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+          border-radius: 999px;
+          font-size: 0.8125rem;
+          color: var(--primary-text-color);
           cursor: pointer;
+          user-select: none;
+          transition:
+            background-color 0.15s,
+            border-color 0.15s,
+            color 0.15s;
+        }
+        .day-check input,
+        .zone-check input {
+          position: absolute;
+          inset: 0;
+          margin: 0;
+          opacity: 0;
+        }
+        .day-check:has(input:checked),
+        .zone-check:has(input:checked) {
+          background: var(--primary-color);
+          border-color: var(--primary-color);
+          color: var(--text-primary-color, #fff);
+        }
+        .day-check:has(input:focus-visible),
+        .zone-check:has(input:focus-visible) {
+          outline: 2px solid var(--primary-color);
+          outline-offset: 2px;
         }
         .input-suffix-row {
           display: flex;
