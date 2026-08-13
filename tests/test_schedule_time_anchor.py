@@ -2,6 +2,7 @@
 duration + bucket reset introduced for the irrigation-timer work."""
 
 import datetime
+import logging
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -9,7 +10,15 @@ from freezegun import freeze_time
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation import scheduler as scheduler_module
+from custom_components.smart_irrigation.run_window import ZoneRun
 from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+
+UTC = datetime.timezone.utc
+
+
+def _run(zone_id, duration, ratio=2.0):
+    return ZoneRun(zone_id=zone_id, duration=duration, depletion_ratio=ratio)
+
 
 WEEKDAYS = [
     "monday",
@@ -725,10 +734,21 @@ class TestStartPinnedBothBounded:
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-20 20:00:00")
-    async def test_callback_passes_the_finish_bound_as_a_deadline_no_order(
-        self, coordinator, monkeypatch
-    ):
-        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+    async def test_callback_schedules_the_fitted_decision(self, monkeypatch):
+        """The callback itself stays synchronous (a native HA time tracker
+        calls it directly), so ranking/fitting cannot run inline any more —
+        it hands off to _decide_and_run_start_pinned through the same
+        call_soon_threadsafe/async_create_task hop every other resolver-driven
+        one-shot in this module uses to reach async code from a sync callback.
+
+        Built on a bare-Mock manager rather than the real `coordinator`
+        fixture: TIME-mode bound resolution needs no real hass, and a bare
+        Mock lets call_soon_threadsafe itself be mocked safely to inspect the
+        hand-off without touching the real event loop's own cross-thread
+        signaling (see the now-removed sibling test this replaces, which hit
+        exactly that stall).
+        """
+        mgr = RecurringScheduleManager(Mock(), Mock())
         sched = self._both_bounded_sched()
 
         captured = {}
@@ -741,27 +761,23 @@ class TestStartPinnedBothBounded:
         monkeypatch.setattr(
             scheduler_module, "async_track_point_in_utc_time", fake_track
         )
-        monkeypatch.setattr(mgr, "_execute_schedule", Mock())
-        # Stub _reregister_tracker with an AsyncMock (not a plain Mock) so
-        # `self._reregister_tracker(s)` still returns a real, awaitable
-        # coroutine — call_soon_threadsafe is NOT mocked here (unlike other
-        # tests in this file that use a bare Mock coordinator): mgr.hass is
-        # the real `hass` fixture's real event loop, and replacing its
-        # call_soon_threadsafe breaks asyncio's own cross-thread executor
-        # signaling, which manifests as a genuine ~300s stall at teardown
-        # ("executor did not finish joining its threads"), not just a warning.
-        monkeypatch.setattr(mgr, "_reregister_tracker", AsyncMock())
+        mgr.hass.loop.call_soon_threadsafe = Mock()
+        mgr._decide_and_run_start_pinned = Mock()
 
         await mgr._setup_start_pinned_tracker(sched)
         captured["cb"](captured["when"])
 
-        kwargs = mgr._execute_schedule.call_args.kwargs
-        assert kwargs["order"] is None
-        assert kwargs["pre_committed"] is False
+        scheduled = mgr.hass.loop.call_soon_threadsafe.call_args_list
+        assert scheduled[0].args[0] is mgr.hass.async_create_task
+        mgr._decide_and_run_start_pinned.assert_called_once()
+        s, now, target, deadline = mgr._decide_and_run_start_pinned.call_args.args
+        assert s is sched
+        assert now == captured["when"]
+        assert target == captured["when"]
         # The deadline is the resolved Finish bound (06:00 local), strictly
         # after the Start bound (22:00 local the previous evening).
-        assert kwargs["deadline"] is not None
-        assert kwargs["deadline"] > captured["when"]
+        assert deadline is not None
+        assert deadline > captured["when"]
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-20 20:00:00")
@@ -786,6 +802,113 @@ class TestStartPinnedBothBounded:
 
         assert captured[-1] > target1
         assert captured[-1] - target1 == datetime.timedelta(days=1)
+
+
+def _decide_manager(plan, sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL):
+    mgr = RecurringScheduleManager(Mock(), Mock())
+    mgr.coordinator.async_plan_zone_runs = AsyncMock(return_value=list(plan))
+    mgr.coordinator.sequencing_timing = Mock(return_value=(sequencing, 300.0, 0.0))
+    mgr.coordinator.async_commit_pre_run_calculation = AsyncMock()
+    mgr._execute_schedule = Mock()
+    return mgr
+
+
+class TestDecideAndRunStartPinned:
+    """Both ends bounded, pinned to Start: fitting runs at fire time instead
+    of at a separate decision point (there is nothing duration-dependent to
+    wait for — the Start bound is already fixed), but is otherwise the same
+    rank/select/log-dropped-once sequence _decide_and_arm applies for a
+    floating start pinned to Finish."""
+
+    @pytest.mark.asyncio
+    async def test_orders_by_depletion_and_defers_what_does_not_fit(self):
+        # 4 h window, 6 h of demand across three zones: the driest two fit,
+        # the least-depleted is dropped and carries its deficit forward.
+        mgr = _decide_manager(
+            [
+                _run(0, 7200, ratio=1.1),
+                _run(1, 7200, ratio=1.5),
+                _run(2, 7200, ratio=3.0),
+            ]
+        )
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        deadline = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, deadline
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] == [2, 1]
+        assert kwargs["deadline"] == deadline
+        assert kwargs["pre_committed"] is True
+        mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_the_driest_zone_still_runs_even_when_it_alone_overruns(self):
+        # A single zone whose full duration exceeds the entire window is still
+        # selected; the deadline truncates it where it stands rather than the
+        # selection excluding it outright (it would starve forever otherwise).
+        mgr = _decide_manager([_run(0, 18000, ratio=3.0)])
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        deadline = datetime.datetime(2026, 6, 21, 4, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, deadline
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] == [0]
+        assert kwargs["deadline"] == deadline
+
+    @pytest.mark.asyncio
+    async def test_no_deadline_runs_every_due_zone_unfitted(self):
+        # The paired Finish bound failed to resolve (a degenerate pairing) —
+        # there is no window to fit against, so nothing is dropped and
+        # store/plan order stands, matching a single open end.
+        mgr = _decide_manager([_run(0, 600, ratio=1.5), _run(1, 600, ratio=2.0)])
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, None
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] is None
+        assert kwargs["deadline"] is None
+        assert kwargs["pre_committed"] is True
+
+    @pytest.mark.asyncio
+    async def test_no_due_zone_still_dispatches_pre_committed(self):
+        mgr = _decide_manager([])
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        deadline = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, deadline
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] is None
+        assert kwargs["deadline"] == deadline
+        assert kwargs["pre_committed"] is True
+
+    @pytest.mark.asyncio
+    async def test_a_dropped_zone_is_announced_once_per_decision(self, caplog):
+        # A re-arm that decides the same thing (e.g. the tracker firing again
+        # after a fast re-register) is not a second decision — mirrors
+        # TestArmLogsOncePerDecision for the Finish-pinned arm.
+        mgr = _decide_manager([_run(0, 7200, ratio=3.0), _run(1, 3600, ratio=1.1)])
+        target = datetime.datetime(2026, 6, 21, 0, 0, tzinfo=UTC)
+        deadline = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        caplog.set_level(logging.DEBUG)
+
+        sched = _sched(action="irrigate", zones="all")
+        await mgr._decide_and_run_start_pinned(sched, target, target, deadline)
+        await mgr._decide_and_run_start_pinned(sched, target, target, deadline)
+
+        dropped = [r for r in caplog.records if "do not fit" in r.message]
+        assert [r.levelno for r in dropped] == [logging.WARNING, logging.DEBUG]
 
 
 class TestIntervalStartTime:

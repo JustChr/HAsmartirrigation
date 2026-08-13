@@ -1079,10 +1079,9 @@ class RecurringScheduleManager:
         Start instant — a fixed, non-duration-dependent moment, so unlike the
         Finish-pinned arm there is no decision point to wait for — passing the
         resolved Finish through as a hard deadline so the run still stops
-        there. Whatever is due runs, in store order: this ticket resolves both
-        ends through the shared resolver but does not extend selection/
-        ordering to the new pinned-to-start combination, since no prior shape
-        could express it (only a Finish-anchored run could ever be fitted).
+        there. Ranking/fitting happens at fire time (:meth:`_decide_and_run_start_pinned`)
+        rather than ahead of it, because there is nothing duration-dependent
+        to wait for here in the first place.
         """
         name = schedule.get(const.SCHEDULE_CONF_NAME)
         sid = schedule[const.SCHEDULE_CONF_ID]
@@ -1114,7 +1113,14 @@ class RecurringScheduleManager:
 
         def run_callback(now, s=schedule, fired=target, d=finish):
             self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
-            self._execute_schedule(s, now, order=None, deadline=d, pre_committed=False)
+            # Ranking/fitting needs to await the plan, but a native HA time
+            # tracker calls back synchronously — same thread-safe hop the
+            # resolved one-shot and finish trackers use to reach async code
+            # from here.
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task,
+                self._decide_and_run_start_pinned(s, now, fired, d),
+            )
             self.hass.loop.call_soon_threadsafe(
                 self.hass.async_create_task,
                 self._persist_fired_occurrences(dict(self._finish_last_target)),
@@ -1125,6 +1131,68 @@ class RecurringScheduleManager:
 
         return self._store_tracker(
             sid, async_track_point_in_utc_time(self.hass, run_callback, target)
+        )
+
+    async def _decide_and_run_start_pinned(
+        self, schedule: dict[str, Any], now, target, deadline
+    ) -> None:
+        """Both ends bounded, pinned to Start: rank, fit, and dispatch.
+
+        The Start bound already fixed the fire time (see
+        ``_setup_start_pinned_tracker``), so there is no separate decision
+        point to read the demand ahead of the run — this runs the same
+        rank/select sequence :meth:`_decide_and_arm` applies at ITS decision
+        point, but at the moment the schedule actually fires. ``deadline`` is
+        the paired Finish bound; when it could not be resolved (a degenerate
+        pairing — see ``_paired_bound_time``) there is no window to fit
+        against, so whatever is due runs unfitted, matching a single open end.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+
+        await self.coordinator.async_commit_pre_run_calculation(zones)
+
+        plan = await self.coordinator.async_plan_zone_runs(zones, runnable_only=True)
+        plan = [p for p in plan if p.duration > 0]
+
+        order = None
+        if plan and deadline is not None:
+            sequencing, slot, absorption = self.coordinator.sequencing_timing()
+            window = max(0.0, (deadline - now).total_seconds())
+            selection = select(
+                plan,
+                window_seconds=window,
+                sequencing=sequencing,
+                max_slot_seconds=slot,
+                min_absorption_seconds=absorption,
+            )
+
+            dropped = {p.zone_id for p in plan} - {p.zone_id for p in selection}
+            # One announcement per decision — same guard _decide_and_arm uses,
+            # keyed on the fixed Start occurrence rather than the Finish
+            # target, since that is what identifies this run.
+            new = self._decision_is_new(
+                sid,
+                (
+                    target.isoformat(),
+                    tuple(p.zone_id for p in selection),
+                    tuple(sorted(dropped)),
+                ),
+            )
+            if dropped:
+                log = _LOGGER.warning if new else _LOGGER.debug
+                log(
+                    "Schedule '%s': zones %s are due but do not fit the window "
+                    "before %s; they carry their deficit and lead the next run",
+                    name,
+                    sorted(dropped),
+                    deadline,
+                )
+            order = [p.zone_id for p in selection]
+
+        self._execute_schedule(
+            schedule, now, order=order, deadline=deadline, pre_committed=True
         )
 
     async def _setup_fitted_tracker(self, schedule: dict[str, Any], target) -> Any:

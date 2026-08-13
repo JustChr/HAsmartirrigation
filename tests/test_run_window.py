@@ -247,6 +247,28 @@ class TestSelect:
         runs = [_run(0, 300, ratio=3.0), _run(1, 300, ratio=2.0)]
         assert [r.zone_id for r in self._select(runs, 0)] == [0]
 
+    def test_a_dropped_zone_leads_the_next_nights_selection(self):
+        # No special-casing needed: a zone excluded tonight keeps draining
+        # unwatered, so tomorrow it is due again at a HIGHER ratio, and
+        # rank()/select() alone put it back at the front — even ahead of a
+        # zone that only just crossed its own threshold overnight.
+        night_one = [
+            _run(0, 7200, ratio=1.1),
+            _run(1, 7200, ratio=1.5),
+            _run(2, 7200, ratio=3.0),
+        ]
+        chosen_one = self._select(night_one, 14400)
+        assert [r.zone_id for r in chosen_one] == [2, 1]
+        dropped = {r.zone_id for r in night_one} - {r.zone_id for r in chosen_one}
+        assert dropped == {0}
+
+        # Zones 1 and 2 watered to satisfaction and are no longer due; zone 0
+        # went unwatered and its ratio grew; zone 3 is freshly due with a
+        # smaller deficit than zone 0's accumulated one.
+        night_two = [_run(0, 7200, ratio=1.3), _run(3, 7200, ratio=1.05)]
+        chosen_two = self._select(night_two, 14400)
+        assert [r.zone_id for r in chosen_two] == [0, 3]
+
 
 class TestSelectTiePacking:
     """Within a ratio tie, pack the window instead of following rotation order.
