@@ -27,7 +27,7 @@ from .helpers import (
     normalize_azimuth_angle,
     normalize_zone_selection,
 )
-from .run_window import bound_wall_clock, select, simulate_wall_clock
+from .run_window import ZoneRun, bound_wall_clock, select, simulate_wall_clock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1133,6 +1133,66 @@ class RecurringScheduleManager:
             sid, async_track_point_in_utc_time(self.hass, run_callback, target)
         )
 
+    def _select_and_log_dropped(
+        self,
+        schedule: dict[str, Any],
+        label: str,
+        plan: list[ZoneRun],
+        *,
+        window_seconds: float,
+        occurrence: datetime.datetime,
+        deadline_desc: datetime.datetime,
+    ) -> tuple[list[ZoneRun], bool, str, float, float]:
+        """Rank+fit ``plan`` to ``window_seconds``, logging dropped zones once
+        per decision.
+
+        Shared by the Finish-pinned decision point (:meth:`_decide_and_arm`)
+        and the Start-pinned fire-time decision
+        (:meth:`_decide_and_run_start_pinned`) — both need the identical
+        select() call and the same :meth:`_decision_is_new`-guarded
+        dropped-zone bookkeeping, just keyed on a different notion of "this
+        decision" (the Finish target vs. the fixed Start occurrence) and
+        phrased with a different subject (``label``: "Finish schedule" vs.
+        "Schedule"). Returns ``(selection, is_new, sequencing, slot,
+        absorption)`` since both callers also need the timing tuple —
+        ``_decide_and_arm`` to price the demand, and ``is_new`` for its own
+        trailing summary log.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        sequencing, slot, absorption = self.coordinator.sequencing_timing()
+        selection = select(
+            plan,
+            window_seconds=window_seconds,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorption,
+        )
+
+        dropped = {p.zone_id for p in plan} - {p.zone_id for p in selection}
+        # One announcement per decision. A re-arm that reaches the same zones
+        # repeats itself at DEBUG instead, so the strings stay greppable
+        # without the log implying an arm/run that did not happen.
+        new = self._decision_is_new(
+            sid,
+            (
+                occurrence.isoformat(),
+                tuple(p.zone_id for p in selection),
+                tuple(sorted(dropped)),
+            ),
+        )
+        if dropped:
+            log = _LOGGER.warning if new else _LOGGER.debug
+            log(
+                "%s '%s': zones %s are due but do not fit the window before "
+                "%s; they carry their deficit and lead the next run",
+                label,
+                name,
+                sorted(dropped),
+                deadline_desc,
+            )
+        return selection, new, sequencing, slot, absorption
+
     async def _decide_and_run_start_pinned(
         self, schedule: dict[str, Any], now, target, deadline
     ) -> None:
@@ -1147,8 +1207,6 @@ class RecurringScheduleManager:
         pairing — see ``_paired_bound_time``) there is no window to fit
         against, so whatever is due runs unfitted, matching a single open end.
         """
-        name = schedule.get(const.SCHEDULE_CONF_NAME)
-        sid = schedule[const.SCHEDULE_CONF_ID]
         zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
 
         await self.coordinator.async_commit_pre_run_calculation(zones)
@@ -1158,37 +1216,15 @@ class RecurringScheduleManager:
 
         order = None
         if plan and deadline is not None:
-            sequencing, slot, absorption = self.coordinator.sequencing_timing()
             window = max(0.0, (deadline - now).total_seconds())
-            selection = select(
+            selection, _new, _seq, _slot, _absorption = self._select_and_log_dropped(
+                schedule,
+                "Schedule",
                 plan,
                 window_seconds=window,
-                sequencing=sequencing,
-                max_slot_seconds=slot,
-                min_absorption_seconds=absorption,
+                occurrence=target,
+                deadline_desc=deadline,
             )
-
-            dropped = {p.zone_id for p in plan} - {p.zone_id for p in selection}
-            # One announcement per decision — same guard _decide_and_arm uses,
-            # keyed on the fixed Start occurrence rather than the Finish
-            # target, since that is what identifies this run.
-            new = self._decision_is_new(
-                sid,
-                (
-                    target.isoformat(),
-                    tuple(p.zone_id for p in selection),
-                    tuple(sorted(dropped)),
-                ),
-            )
-            if dropped:
-                log = _LOGGER.warning if new else _LOGGER.debug
-                log(
-                    "Schedule '%s': zones %s are due but do not fit the window "
-                    "before %s; they carry their deficit and lead the next run",
-                    name,
-                    sorted(dropped),
-                    deadline,
-                )
             order = [p.zone_id for p in selection]
 
         self._execute_schedule(
@@ -1306,15 +1342,15 @@ class RecurringScheduleManager:
 
         now_utc = dt_util.utcnow()
         start_floor = max(now_utc, floor) if floor is not None else now_utc
-        sequencing, slot, absorption = self.coordinator.sequencing_timing()
 
         window = (target - start_floor).total_seconds()
-        selection = select(
+        selection, new, sequencing, slot, absorption = self._select_and_log_dropped(
+            schedule,
+            "Finish schedule",
             plan,
             window_seconds=window,
-            sequencing=sequencing,
-            max_slot_seconds=slot,
-            min_absorption_seconds=absorption,
+            occurrence=target,
+            deadline_desc=target,
         )
 
         demand = simulate_wall_clock(
@@ -1331,28 +1367,6 @@ class RecurringScheduleManager:
         if fire_time <= now_utc:
             fire_time = now_utc + datetime.timedelta(seconds=2)
 
-        dropped = {p.zone_id for p in plan} - {p.zone_id for p in selection}
-        # One announcement per decision. A re-arm that reaches the same zones
-        # repeats itself at DEBUG instead, so the strings stay greppable without
-        # the log implying an arm that did not happen.
-        new = self._decision_is_new(
-            sid,
-            (
-                target.isoformat(),
-                tuple(p.zone_id for p in selection),
-                tuple(sorted(dropped)),
-            ),
-        )
-        if dropped:
-            log = _LOGGER.warning if new else _LOGGER.debug
-            log(
-                "Finish schedule '%s': zones %s are due but do not fit the "
-                "window before %s; they carry their deficit and lead the next "
-                "run",
-                name,
-                sorted(dropped),
-                target,
-            )
         log = _LOGGER.info if new else _LOGGER.debug
         log(
             "Finish schedule '%s': target %s, %s zone(s) %s, demand %ss → start %s",

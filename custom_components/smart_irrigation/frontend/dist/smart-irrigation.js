@@ -5467,14 +5467,13 @@ function me(e,t){return(t,i,s)=>((e,t,i)=>(i.configurable=!0,i.enumerable=!0,Ref
             >${Ea("panels.schedules.minutes",n)}</span
           >
         `;case ai:return W`
-          <span class="row-inline"
-            >${Ea("panels.schedules.fields.offset_by",n)}</span
-          >
           <input
             type="number"
+            min="0"
+            max="359"
             step="1"
             .value="${String(null!==(a=e.azimuth)&&void 0!==a?a:90)}"
-            @input=${i=>{const s=parseInt(i.target.value);t(Object.assign(Object.assign({},e),{azimuth:isNaN(s)?0:s}))}}
+            @input=${i=>{var s;const a=parseInt(i.target.value);t(Object.assign(Object.assign({},e),{azimuth:isNaN(a)?null!==(s=e.azimuth)&&void 0!==s?s:90:a}))}}
           />
           <span class="row-inline">°</span>
         `;default:return W``}}_renderWindowRow(e,t,i,s){const a=this.hass.language;return W`

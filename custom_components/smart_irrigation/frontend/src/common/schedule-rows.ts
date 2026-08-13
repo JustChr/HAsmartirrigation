@@ -79,7 +79,7 @@ export interface ScheduleWindowFields {
 
 const DEFAULT_TIME = "06:00";
 const DEFAULT_OFFSET = 0;
-const DEFAULT_AZIMUTH = 90;
+export const DEFAULT_AZIMUTH = 90;
 
 function isBoundMode(mode: string | undefined): mode is BoundMode {
   return (

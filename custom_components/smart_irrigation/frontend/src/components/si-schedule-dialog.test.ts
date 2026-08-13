@@ -180,10 +180,12 @@ describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
     });
     const { text } = flatten(el.render());
     expect(text).toContain("°");
-    // The Finish row is "none" so the only minutes suffix that could appear
-    // is Start's — and Start is azimuth, so the minutes localize() call
-    // never happens at all for this render.
-    expect(text).not.toContain("min");
+    // The azimuth input carries a literal min="0"/max="359" attribute pair
+    // (bearing bounds, not the minutes suffix), so a bare toContain("min")
+    // would false-positive on that attribute name — exclude it with a
+    // negative lookahead on "=" and require the localized minutes suffix
+    // never renders as text content instead.
+    expect(text).not.toMatch(/\bmin\b(?!=)/);
   });
 
   it("renders a signed minutes stepper for sunrise/sunset", () => {

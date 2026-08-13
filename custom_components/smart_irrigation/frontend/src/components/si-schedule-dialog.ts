@@ -22,6 +22,7 @@ import {
   rowsToSchedule,
   describeWindow,
   defaultRowForMode,
+  DEFAULT_AZIMUTH,
   BoundMode,
   Anchor,
 } from "../common/schedule-rows";
@@ -369,17 +370,23 @@ export class SiScheduleDialog extends LitElement {
           >
         `;
       case SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH:
+        // No "offset by" prefix here, unlike sunrise/sunset: azimuth is an
+        // absolute compass bearing, not an offset from an event, so the row
+        // reads as "At solar azimuth [90] °" rather than misnaming a bearing
+        // as an offset.
         return html`
-          <span class="row-inline"
-            >${localize("panels.schedules.fields.offset_by", lang)}</span
-          >
           <input
             type="number"
+            min="0"
+            max="359"
             step="1"
-            .value="${String(row.azimuth ?? 90)}"
+            .value="${String(row.azimuth ?? DEFAULT_AZIMUTH)}"
             @input=${(e: Event) => {
               const v = parseInt((e.target as HTMLInputElement).value);
-              onChange({ ...row, azimuth: isNaN(v) ? 0 : v });
+              onChange({
+                ...row,
+                azimuth: isNaN(v) ? (row.azimuth ?? DEFAULT_AZIMUTH) : v,
+              });
             }}
           />
           <span class="row-inline">°</span>
