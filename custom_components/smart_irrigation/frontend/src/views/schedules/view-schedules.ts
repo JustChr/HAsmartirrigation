@@ -18,6 +18,13 @@ import {
   SCHEDULE_TYPE_SUNRISE,
   SCHEDULE_TYPE_SUNSET,
   SCHEDULE_TYPE_SOLAR_AZIMUTH,
+  SCHEDULE_TIME_ANCHOR_START,
+  SCHEDULE_TIME_ANCHOR_FINISH,
+  SCHEDULE_EARLIEST_START_NONE,
+  SCHEDULE_EARLIEST_START_TIME,
+  SCHEDULE_EARLIEST_START_SUNSET,
+  SCHEDULE_EARLIEST_START_MODES,
+  SCHEDULE_DEFAULT_EARLIEST_START_TIME,
 } from "../../const";
 import { SmartIrrigationZone } from "../../types";
 import { showErrorToast } from "../../helpers";
@@ -59,6 +66,10 @@ interface Schedule {
   offset_minutes?: number;
   account_for_duration?: boolean; // legacy; superseded by time_anchor
   time_anchor?: string; // "start" | "finish"
+  earliest_start_mode?: string; // "none" | "time" | "sunset"
+  earliest_start_time?: string; // HH:MM, "time" mode only
+  earliest_start_offset_minutes?: number; // "sunset" mode only
+  fit_to_window?: boolean;
   azimuth_angle?: number;
   action: string;
   zones: string | string[];
@@ -135,7 +146,14 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     if (this._editingId) schedule.id = this._editingId;
     // Convert zones: if "all" keep as string, else keep as array
     try {
-      await saveSchedule(this.hass, schedule);
+      // The backend answers a rejected schedule with a *successful* websocket
+      // result carrying {success: false, error}, not an exception — so without
+      // this the dialog would close on a validation failure and the edit would
+      // silently vanish on the next reload.
+      const result = await saveSchedule(this.hass, schedule);
+      if (result && result.success === false) {
+        throw new Error(result.error || "");
+      }
       this._closeDialog();
       await this._load();
     } catch (e) {
@@ -467,6 +485,37 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
   }
 
   /**
+   * Resolved start/finish anchor. Mirrors the backend's legacy resolution: only
+   * solar schedules ever honored account_for_duration (True => finish);
+   * everything else defaults to start.
+   */
+  private _timeAnchor(s: Schedule): string {
+    const isSolar = [
+      SCHEDULE_TYPE_SUNRISE,
+      SCHEDULE_TYPE_SUNSET,
+      SCHEDULE_TYPE_SOLAR_AZIMUTH,
+    ].includes(s.type);
+    const legacyFinish = isSolar && s.account_for_duration !== false;
+    return (
+      s.time_anchor ??
+      (legacyFinish ? SCHEDULE_TIME_ANCHOR_FINISH : SCHEDULE_TIME_ANCHOR_START)
+    );
+  }
+
+  /**
+   * Whether the run-window controls apply. They only bound a finish anchor: a
+   * start-anchored schedule's configured time IS its start, so there is nothing
+   * to floor and nothing to fit between.
+   */
+  private _hasRunWindow(s: Schedule): boolean {
+    return (
+      s.action === "irrigate" &&
+      s.type !== "interval" &&
+      this._timeAnchor(s) === SCHEDULE_TIME_ANCHOR_FINISH
+    );
+  }
+
+  /**
    * Start-vs-finish anchor. Only meaningful for an irrigate action on a type
    * with a fixed target time (everything except interval). "Finish" fires the
    * run early enough that it ends at the configured time, using the live
@@ -475,11 +524,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
   private _renderTimeAnchorField() {
     const s = this._editingSchedule;
     if (s.action !== "irrigate" || s.type === "interval") return html``;
-    // Mirror the backend's legacy resolution: only solar schedules ever honored
-    // account_for_duration (True => finish); everything else defaults to start.
-    const isSolar = ["sunrise", "sunset", "solar_azimuth"].includes(s.type);
-    const legacyFinish = isSolar && s.account_for_duration !== false;
-    const current = s.time_anchor ?? (legacyFinish ? "finish" : "start");
+    const current = this._timeAnchor(s);
     return html`
       <div class="field">
         <label
@@ -509,6 +554,126 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     `;
   }
 
+  /**
+   * Earliest start + fit-to-window, the two controls that bound a
+   * finish-anchored run. Both default to off, so a schedule nobody edits keeps
+   * starting wherever target - demand lands and watering every due zone.
+   */
+  private _renderRunWindowFields() {
+    const s = this._editingSchedule;
+    if (!this._hasRunWindow(s)) return html``;
+    const lang = this.hass.language;
+    const mode = SCHEDULE_EARLIEST_START_MODES.includes(
+      s.earliest_start_mode ?? "",
+    )
+      ? (s.earliest_start_mode as string)
+      : SCHEDULE_EARLIEST_START_NONE;
+    return html`
+      <div class="field">
+        <label
+          >${localize("panels.schedules.fields.earliest_start", lang)}</label
+        >
+        <select
+          @change=${(e: Event) => {
+            const next = (e.target as HTMLSelectElement).value;
+            this._update({
+              earliest_start_mode: next,
+              // The backend rejects a null/malformed HH:MM outright, so a floor
+              // switched on from the picker has to arrive with a usable time.
+              earliest_start_time:
+                next === SCHEDULE_EARLIEST_START_TIME
+                  ? s.earliest_start_time ||
+                    SCHEDULE_DEFAULT_EARLIEST_START_TIME
+                  : s.earliest_start_time,
+            });
+          }}
+        >
+          ${SCHEDULE_EARLIEST_START_MODES.map(
+            (m) => html`
+              <option value="${m}" ?selected="${mode === m}">
+                ${localize(`panels.schedules.earliest_start.${m}`, lang)}
+              </option>
+            `,
+          )}
+        </select>
+        <span class="field-help"
+          >${localize("panels.schedules.help.earliest_start", lang)}</span
+        >
+      </div>
+
+      ${mode === SCHEDULE_EARLIEST_START_TIME
+        ? html`
+            <div class="field">
+              <label
+                >${localize(
+                  "panels.schedules.fields.earliest_start_time",
+                  lang,
+                )}</label
+              >
+              <input
+                type="time"
+                .value="${s.earliest_start_time ||
+                SCHEDULE_DEFAULT_EARLIEST_START_TIME}"
+                @change=${(e: Event) =>
+                  this._update({
+                    earliest_start_time: (e.target as HTMLInputElement).value,
+                  })}
+              />
+            </div>
+          `
+        : ""}
+      ${mode === SCHEDULE_EARLIEST_START_SUNSET
+        ? html`
+            <div class="field">
+              <label
+                >${localize(
+                  "panels.schedules.fields.earliest_start_offset",
+                  lang,
+                )}</label
+              >
+              <div class="input-suffix-row">
+                <input
+                  type="number"
+                  step="1"
+                  .value="${String(s.earliest_start_offset_minutes ?? 0)}"
+                  @input=${(e: Event) => {
+                    const v = parseInt((e.target as HTMLInputElement).value);
+                    this._update({
+                      earliest_start_offset_minutes: isNaN(v) ? 0 : v,
+                    });
+                  }}
+                />
+                <span class="suffix"
+                  >${localize("panels.schedules.minutes", lang)}</span
+                >
+              </div>
+            </div>
+          `
+        : ""}
+
+      <div class="field">
+        <div class="field-row">
+          <label
+            >${localize("panels.schedules.fields.fit_to_window", lang)}</label
+          >
+          <input
+            type="checkbox"
+            ?checked="${s.fit_to_window === true}"
+            @change=${(e: Event) =>
+              // A real boolean, not the input's string value: the backend
+              // validates this strictly and rejects "false".
+              this._update({
+                fit_to_window: (e.target as HTMLInputElement).checked,
+              })}
+          />
+        </div>
+        <span class="field-help"
+          >${localize("panels.schedules.help.fit_to_window", lang)}</span
+        >
+      </div>
+    `;
+  }
+
   private _renderDialog() {
     if (!this._showDialog) return html``;
     const s = this._editingSchedule;
@@ -517,17 +682,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
       : localize("panels.schedules.dialog.add_title", this.hass.language);
 
     return html`
-      <ha-dialog open .heading=${true} @closed=${this._closeDialog}>
-        <div slot="heading">
-          <ha-header-bar>
-            <ha-icon-button
-              slot="navigationIcon"
-              .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}
-            ></ha-icon-button>
-            <span slot="title">${title}</span>
-          </ha-header-bar>
-        </div>
-
+      <ha-dialog open heading="${title}" @closed=${this._closeDialog}>
         <div class="dialog-content">
           <div class="field">
             <label
@@ -577,7 +732,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
           </div>
 
           ${this._renderTypeFields()} ${this._renderTimeAnchorField()}
-          ${this._renderZonePicker()}
+          ${this._renderRunWindowFields()} ${this._renderZonePicker()}
 
           <div class="field-row">
             <label
@@ -631,14 +786,20 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
           </div>
         </div>
 
-        <div class="dialog-footer">
-          <button class="dialog-btn" @click=${this._closeDialog}>
-            ${localize("common.actions.cancel", this.hass.language)}
-          </button>
-          <button class="dialog-btn dialog-btn-primary" @click=${this._save}>
-            ${localize("common.actions.save", this.hass.language)}
-          </button>
-        </div>
+        <button
+          slot="secondaryAction"
+          class="dialog-btn"
+          @click=${this._closeDialog}
+        >
+          ${localize("common.actions.cancel", this.hass.language)}
+        </button>
+        <button
+          slot="primaryAction"
+          class="dialog-btn dialog-btn-primary"
+          @click=${this._save}
+        >
+          ${localize("common.actions.save", this.hass.language)}
+        </button>
       </ha-dialog>
     `;
   }
@@ -813,11 +974,14 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return [
       globalStyle,
       css`
+        /* The buttons sit in ha-dialog's own action slots rather than in a
+           footer inside the content, so the actions bar it always renders is
+           the one holding them instead of an empty 52px strip below them. */
         .dialog-content {
           display: flex;
           flex-direction: column;
           gap: 14px;
-          padding: 4px 0;
+          padding: 4px 0 8px;
           color: var(--primary-text-color);
         }
         .field {
@@ -844,6 +1008,11 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
           font-size: 1rem;
           font-family: inherit;
           box-sizing: border-box;
+        }
+        .field-help {
+          font-size: 0.8125rem;
+          line-height: 1.35;
+          color: var(--secondary-text-color);
         }
         .field-row {
           display: flex;

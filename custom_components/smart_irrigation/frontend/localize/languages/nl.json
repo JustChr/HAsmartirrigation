@@ -118,7 +118,15 @@
           "description": "Bij het berekenen wordt de verzamelde weersinformatie gebruikt om the voorraad en irrigatieduur per zone aan te passen. Daarna wordt de verzamelde weersinformatie verwijderd.",
           "labels": {
             "auto-calc-enabled": "Automatisch irrigatietijd berekening voor elke zone",
-            "calc-time": "Berekenen om"
+            "calc-time": "Berekenen om",
+            "calc-mode": "Berekenen"
+          },
+          "modes": {
+            "fixed_time": "Op een vast tijdstip",
+            "before_run": "Voor elke bewateringsbeurt"
+          },
+          "help": {
+            "before-run": "De duur wordt berekend wanneer elk irrigatieschema zijn beurt plant, zodat de beurt wordt bepaald met weersinformatie van minuten in plaats van uren oud."
           }
         },
         "run-history-logging": {
@@ -476,6 +484,10 @@
         "title": "Overgeslagen",
         "soil_moisture": "Bodemvocht {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duur begrensd",
+        "detail": "Deze zone heeft meer nodig dan haar maximale duur van {maximum}, dus bij elke beurt blijft een deel van het tekort onbewaterd. Een lagere voorraaddrempel heeft pas effect als de begrenzing wordt verhoogd."
+      },
       "help": {
         "bucket": "Bodemvochtbalans (voorraad). Een negatieve waarde betekent dat de bodem droog is en de zone water nodig heeft.",
         "calculate": "Berekent op basis van de nieuwste gegevens hoe lang er bewaterd wordt. Voer dit uit na Bijwerken.",
@@ -487,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Volgende beurt",
+        "estimated": "geschat",
+        "estimated_help": "De starttijd is nog een voorspelling: de beurt wordt bepaald door de watervraag die kort voor aanvang wordt gelezen, dus deze tijd verschuift tot dat moment.",
         "no_schedule": "Geen automatisch schema — zones worden alleen bewaterd wanneer je ze handmatig start.",
         "setup_schedule": "Een schema instellen",
         "targets_all": "alle zones",
@@ -630,7 +644,11 @@
         "offset_minutes": "Offset van zonsopgang/-ondergang",
         "account_for_duration": "Vroeg starten zodat bewatering eindigt op doeltijd",
         "azimuth_angle": "Zonneazimuthoek",
-        "time_anchor": "Tijd markeert het"
+        "time_anchor": "Tijd markeert het",
+        "earliest_start": "Vroegste start",
+        "earliest_start_time": "Vroegste starttijd (HH:MM)",
+        "earliest_start_offset": "Minuten na zonsondergang",
+        "fit_to_window": "Beurt aanpassen aan beschikbaar venster"
       },
       "dialog": {
         "add_title": "Schema toevoegen",
@@ -639,6 +657,15 @@
       "time_anchor": {
         "start": "Begin van de bewatering",
         "finish": "Einde van de bewatering"
+      },
+      "earliest_start": {
+        "none": "Geen limiet",
+        "time": "Op een vast tijdstip",
+        "sunset": "Na zonsondergang"
+      },
+      "help": {
+        "earliest_start": "De beurt begint niet voor dit tijdstip. Zonder limiet start een beurt die bijna de hele nacht nodig heeft zo vroeg als nodig om op tijd klaar te zijn, wat in een korte zomernacht voor zonsondergang kan zijn.",
+        "fit_to_window": "Uit: elke zone die aan de beurt is wordt bewaterd, in de opgeslagen volgorde, zonder limiet, en de beurt kan de doeltijd overschrijden. Aan: de zones worden gesorteerd op hoe leeg hun voorraad is, alleen wat past tussen de vroegste start en de doeltijd wordt bewaterd, en de beurt stopt op de doeltijd."
       }
     },
     "info": {

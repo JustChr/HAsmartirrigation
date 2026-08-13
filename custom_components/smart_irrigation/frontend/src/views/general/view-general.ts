@@ -28,6 +28,9 @@ import {
   AUTO_UPDATE_SCHEDULE_HOURLY,
   AUTO_UPDATE_SCHEDULE_MINUTELY,
   CONF_AUTO_CALC_ENABLED,
+  CONF_AUTO_CALC_MODE,
+  CONF_AUTO_CALC_MODE_FIXED_TIME,
+  CONF_AUTO_CALC_MODES,
   CONF_AUTO_UPDATE_ENABLED,
   CONF_AUTO_UPDATE_INTERVAL,
   CONF_AUTO_UPDATE_SCHEDULE,
@@ -177,6 +180,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       this.data = pick(this.config, [
         CONF_CALC_TIME,
         CONF_AUTO_CALC_ENABLED,
+        CONF_AUTO_CALC_MODE,
         CONF_AUTO_UPDATE_ENABLED,
         CONF_AUTO_UPDATE_SCHEDULE,
         CONF_AUTO_UPDATE_TIME,
@@ -491,29 +495,84 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                 })}"
             ></ha-switch>
           </div>
-          ${this.data.autocalcenabled
-            ? html`
-                <div class="setting-row">
-                  <label>
-                    ${localize(
-                      "panels.general.cards.automatic-duration-calculation.labels.calc-time",
-                      this.hass.language,
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    class="settings-input shortfield"
-                    .value="${this.config.calctime}"
-                    @input="${(e: Event) =>
-                      this.handleConfigChange({
-                        calctime: (e.target as HTMLInputElement).value,
-                      })}"
-                  />
-                </div>
-              `
-            : ""}
+          ${this.data.autocalcenabled ? this._renderAutoCalcMode() : ""}
         </div>
       </ha-card>
+    `;
+  }
+
+  /**
+   * When the automatic calculation runs. "Before each irrigation run" sizes the
+   * run from a ledger minutes old instead of one committed hours earlier;
+   * "at a fixed time" keeps calctime's original meaning. calctime is left
+   * untouched by the mode switch so picking the fixed time back restores it.
+   */
+  private _renderAutoCalcMode(): TemplateResult {
+    if (!this.hass || !this.config) return html``;
+    const lang = this.hass.language;
+    const mode = CONF_AUTO_CALC_MODES.includes(this.config.autocalcmode)
+      ? this.config.autocalcmode
+      : CONF_AUTO_CALC_MODE_FIXED_TIME;
+    return html`
+      <div class="setting-row">
+        <label>
+          ${localize(
+            "panels.general.cards.automatic-duration-calculation.labels.calc-mode",
+            lang,
+          )}
+        </label>
+        <select
+          class="settings-input"
+          .value="${live(mode)}"
+          @change="${(e: Event) =>
+            // autocalcenabled rides along because the coordinator only re-arms
+            // (or cancels) the fixed-time tracker when it sees that key in the
+            // update; without it the old schedule stays armed until a restart.
+            this.handleConfigChange({
+              autocalcmode: (e.target as HTMLSelectElement).value,
+              autocalcenabled: true,
+            })}"
+        >
+          ${CONF_AUTO_CALC_MODES.map(
+            (m) => html`
+              <option value="${m}" ?selected="${mode === m}">
+                ${localize(
+                  `panels.general.cards.automatic-duration-calculation.modes.${m}`,
+                  lang,
+                )}
+              </option>
+            `,
+          )}
+        </select>
+      </div>
+      ${mode === CONF_AUTO_CALC_MODE_FIXED_TIME
+        ? html`
+            <div class="setting-row">
+              <label>
+                ${localize(
+                  "panels.general.cards.automatic-duration-calculation.labels.calc-time",
+                  lang,
+                )}
+              </label>
+              <input
+                type="text"
+                class="settings-input shortfield"
+                .value="${this.config.calctime}"
+                @input="${(e: Event) =>
+                  this.handleConfigChange({
+                    calctime: (e.target as HTMLInputElement).value,
+                  })}"
+              />
+            </div>
+          `
+        : html`
+            <div class="card-content description-text">
+              ${localize(
+                "panels.general.cards.automatic-duration-calculation.help.before-run",
+                lang,
+              )}
+            </div>
+          `}
     `;
   }
   private _renderRunHistoryLoggingCard(): TemplateResult {

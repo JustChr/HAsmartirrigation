@@ -58,6 +58,8 @@ export class SmartIrrigationConfig {
   use_weather_service: boolean;
   units: string;
   autocalcenabled: boolean;
+  /** "fixed_time" (calctime applies) | "before_run". */
+  autocalcmode: string;
   autoupdateenabled: boolean;
   autoupdateschedule: string;
   autoupdatedelay: number;
@@ -111,6 +113,7 @@ export class SmartIrrigationConfig {
     this.use_weather_service = false;
     this.units = "";
     this.autocalcenabled = true;
+    this.autocalcmode = "fixed_time";
     this.autoupdateenabled = true;
     this.autoupdateschedule = "";
     this.autoupdatedelay = 0;
@@ -195,6 +198,16 @@ export interface UpcomingRun {
   target_utc: string | null;
   duration_seconds: number;
   interval_hours?: number;
+  /**
+   * True while the shown start is only a projection: a finish-anchored run is
+   * sized from the demand read at its decision point, so before that moment the
+   * time drifts as deficits grow. False once the one-shot is armed.
+   */
+  estimated?: boolean;
+  /** Resolved earliest-start floor for this occurrence, or null when unset. */
+  earliest_start_utc?: string | null;
+  /** Whether this schedule ranks and truncates its zones to fit the window. */
+  fit_to_window?: boolean;
 }
 
 /** Read-only intra-day "live status" estimate for one zone. */

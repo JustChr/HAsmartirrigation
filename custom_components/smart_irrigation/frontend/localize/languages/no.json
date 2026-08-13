@@ -117,7 +117,15 @@
           "header": "Automatisk varighetsberegning",
           "labels": {
             "auto-calc-enabled": "Beregn sonevarigheter automatisk",
-            "calc-time": "Beregn kl."
+            "calc-time": "Beregn kl.",
+            "calc-mode": "Beregn"
+          },
+          "modes": {
+            "fixed_time": "På et fast tidspunkt",
+            "before_run": "Før hver vanningskjøring"
+          },
+          "help": {
+            "before-run": "Varighetene beregnes når hver vanningsplan planlegger kjøringen sin, slik at kjøringen dimensjoneres ut fra værdata som er minutter og ikke timer gamle."
           },
           "description": "Beregningen bruker værdataene som er samlet inn frem til da, og oppdaterer bøtten for hver automatiske sone. Deretter justeres varigheten basert på den nye bøtteverdien, og de innsamlede værdataene fjernes."
         },
@@ -476,6 +484,10 @@
         "title": "Hoppet over",
         "soil_moisture": "Jordfuktighet {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Varighet begrenset",
+        "detail": "Denne sonen trenger mer enn sin maksimale varighet på {maximum}, så en del av underskuddet blir stående uvannet ved hver kjøring. Å senke bøtteterskelen har ingen virkning før grensen heves."
+      },
       "help": {
         "bucket": "Jordfuktighetsbalanse (bøtte). En negativ verdi betyr at jorda er tørr og sonen trenger vann.",
         "calculate": "Beregner hvor lenge det skal vannes ut fra de nyeste dataene. Kjør dette etter Oppdater.",
@@ -487,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Neste kjøring",
+        "estimated": "estimert",
+        "estimated_help": "Starttidspunktet er fortsatt et anslåg: kjøringen dimensjoneres ut fra vannbehovet som leses kort før den starter, så dette tidspunktet flytter seg fram til da.",
         "no_schedule": "Ingen automatisk tidsplan — soner vannes bare når du starter dem.",
         "setup_schedule": "Sett opp en tidsplan",
         "targets_all": "alle soner",
@@ -630,7 +644,11 @@
         "offset_minutes": "Forskyvning fra soloppgang/-nedgang",
         "account_for_duration": "Start tidlig slik at vanningen er ferdig til måltidspunktet",
         "azimuth_angle": "Solazimutt-vinkel",
-        "time_anchor": "Tidspunktet angir"
+        "time_anchor": "Tidspunktet angir",
+        "earliest_start": "Tidligste start",
+        "earliest_start_time": "Tidligste starttid (HH:MM)",
+        "earliest_start_offset": "Minutter etter solnedgang",
+        "fit_to_window": "Tilpass kjøringen til tilgjengelig vindu"
       },
       "dialog": {
         "add_title": "Legg til tidsplan",
@@ -639,6 +657,15 @@
       "time_anchor": {
         "start": "Start på vanningen",
         "finish": "Slutt på vanningen"
+      },
+      "earliest_start": {
+        "none": "Ingen grense",
+        "time": "På et fast tidspunkt",
+        "sunset": "Etter solnedgang"
+      },
+      "help": {
+        "earliest_start": "Kjøringen starter ikke før dette tidspunktet. Uten en grense starter en kjøring som trenger nesten hele natten så tidlig som den må for å bli ferdig i tide, noe som en kort sommernatt kan bety før solnedgang.",
+        "fit_to_window": "Av: alle soner som er klare vannes i lagret rekkefølge, uten grense, og kjøringen kan gå forbi måltidspunktet. På: sonene sorteres etter hvor tom bøtten er, bare det som får plass mellom tidligste start og måltidspunktet vannes, og kjøringen stoppes ved måltidspunktet."
       }
     },
     "info": {

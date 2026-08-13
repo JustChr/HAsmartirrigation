@@ -118,7 +118,15 @@
           "description": "Il calcolo prende i dati meteorologici raccolti fino a quel momento e aggiorna il bucket per ciascuna zona automatica. Quindi, la durata viene regolata in base al nuovo valore del segmento e i dati meteorologici raccolti vengono rimossi.",
           "labels": {
             "auto-calc-enabled": "Calcola automaticamente la durata delle zone",
-            "calc-time": "Calcola alle"
+            "calc-time": "Calcola alle",
+            "calc-mode": "Calcola"
+          },
+          "modes": {
+            "fixed_time": "A un orario fisso",
+            "before_run": "Prima di ogni irrigazione"
+          },
+          "help": {
+            "before-run": "Le durate vengono calcolate quando ogni pianificazione di irrigazione prepara la sua esecuzione, quindi l'esecuzione è dimensionata su dati meteorologici vecchi di minuti anziché di ore."
           }
         },
         "run-history-logging": {
@@ -516,6 +524,10 @@
         "title": "Saltato",
         "soil_moisture": "Umidità del suolo {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Durata limitata",
+        "detail": "Questa zona richiede più della sua durata massima di {maximum}, quindi a ogni esecuzione una parte del deficit resta non irrigata. Abbassare la soglia del bucket non ha effetto finché il limite non viene aumentato."
+      },
       "help": {
         "bucket": "Bilancio di umidità del suolo (secchio). Un valore negativo significa che il terreno è asciutto e la zona ha bisogno d'acqua.",
         "calculate": "Calcola la durata dell'irrigazione dai dati più recenti. Eseguilo dopo Aggiorna.",
@@ -527,6 +539,8 @@
       },
       "outlook": {
         "next_run": "Prossima esecuzione",
+        "estimated": "stimato",
+        "estimated_help": "L'orario di avvio è ancora una proiezione: l'esecuzione è dimensionata sul fabbisogno d'acqua letto poco prima dell'inizio, quindi questo orario si sposta fino ad allora.",
         "no_schedule": "Nessuna pianificazione automatica — le zone si irrigano solo quando le avvii tu.",
         "setup_schedule": "Configura una pianificazione",
         "targets_all": "tutte le zone",
@@ -670,7 +684,11 @@
         "offset_minutes": "Offset dall'alba/tramonto",
         "account_for_duration": "Iniziare prima affinché l'irrigazione finisca all'orario target",
         "azimuth_angle": "Angolo di azimut solare",
-        "time_anchor": "Lorario indica"
+        "time_anchor": "Lorario indica",
+        "earliest_start": "Avvio al più presto",
+        "earliest_start_time": "Ora di avvio al più presto (HH:MM)",
+        "earliest_start_offset": "Minuti dopo il tramonto",
+        "fit_to_window": "Adatta l'esecuzione alla finestra disponibile"
       },
       "dialog": {
         "add_title": "Aggiungi pianificazione",
@@ -679,6 +697,15 @@
       "time_anchor": {
         "start": "Inizio dellirrigazione",
         "finish": "Fine dellirrigazione"
+      },
+      "earliest_start": {
+        "none": "Nessun limite",
+        "time": "A un orario fisso",
+        "sunset": "Dopo il tramonto"
+      },
+      "help": {
+        "earliest_start": "L'esecuzione non inizierà prima di questo orario. Senza limite, un'esecuzione che occupa quasi tutta la notte parte quanto serve per finire in orario, il che in una notte estiva breve può essere prima del tramonto.",
+        "fit_to_window": "Disattivato: tutte le zone dovute vengono irrigate nell'ordine in cui sono salvate, senza limite, e l'esecuzione può superare l'orario target. Attivato: le zone vengono ordinate in base al bucket, viene irrigato solo ciò che rientra tra l'avvio al più presto e l'orario target, e l'esecuzione si ferma a quell'orario."
       }
     },
     "setup": {

@@ -118,7 +118,15 @@
           "description": "Calculation takes collected weather data up to that point and updates the bucket for each automatic zone. Then, the duration is adjusted based on the new bucket value and the collected weather data is removed.",
           "labels": {
             "auto-calc-enabled": "Automatically calculate irrigation durations",
-            "calc-time": "Calculate at"
+            "calc-time": "Calculate at",
+            "calc-mode": "Calculate"
+          },
+          "modes": {
+            "fixed_time": "At a fixed time",
+            "before_run": "Before each irrigation run"
+          },
+          "help": {
+            "before-run": "Durations are calculated when each irrigation schedule plans its run, so a run is sized from weather data minutes old instead of hours old."
           }
         },
         "run-history-logging": {
@@ -221,7 +229,11 @@
         "offset_minutes": "Offset from sunrise/sunset",
         "account_for_duration": "Start early so irrigation finishes at trigger time",
         "azimuth_angle": "Solar azimuth angle",
-        "time_anchor": "Time marks the"
+        "time_anchor": "Time marks the",
+        "earliest_start": "Earliest start",
+        "earliest_start_time": "Earliest start time (HH:MM)",
+        "earliest_start_offset": "Minutes after sunset",
+        "fit_to_window": "Fit run to available window"
       },
       "dialog": {
         "add_title": "Add Schedule",
@@ -230,6 +242,15 @@
       "time_anchor": {
         "start": "Start of irrigation",
         "finish": "End of irrigation"
+      },
+      "earliest_start": {
+        "none": "No limit",
+        "time": "At a fixed time",
+        "sunset": "After sunset"
+      },
+      "help": {
+        "earliest_start": "The run will not begin before this. Without a limit, a run long enough to need most of the night starts wherever it has to in order to finish on time, which on a short summer night can be before sunset.",
+        "fit_to_window": "Off: every zone that is due runs, in the order it is stored, with no cap, and the run may overrun the finish time. On: zones are ordered by how depleted they are, only what fits between the earliest start and the finish time is run, and the run is stopped at the finish time."
       }
     },
     "setup": {
@@ -629,6 +650,10 @@
         "title": "Skipped",
         "soil_moisture": "Soil moisture {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duration capped",
+        "detail": "This zone needs longer than its maximum duration of {maximum}, so part of the deficit is left unwatered on every run. Deepening the bucket threshold has no effect until the cap is raised."
+      },
       "help": {
         "bucket": "Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",
         "calculate": "Works out how long to water from the latest data. Run this after Update.",
@@ -640,6 +665,8 @@
       },
       "outlook": {
         "next_run": "Next run",
+        "estimated": "estimated",
+        "estimated_help": "The start time is still a projection: the run is sized from the water demand read shortly before it begins, so this time moves until then.",
         "no_schedule": "No automatic schedule — zones water only when you trigger them.",
         "setup_schedule": "Set up a schedule",
         "targets_all": "all zones",

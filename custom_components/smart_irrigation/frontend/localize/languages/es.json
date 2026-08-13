@@ -117,7 +117,15 @@
           "header": "Cálculo automático de la duración",
           "labels": {
             "auto-calc-enabled": "Cálculo automático de la duración de las zonas",
-            "calc-time": "Calcular a las"
+            "calc-time": "Calcular a las",
+            "calc-mode": "Calcular"
+          },
+          "modes": {
+            "fixed_time": "A una hora fija",
+            "before_run": "Antes de cada riego"
+          },
+          "help": {
+            "before-run": "Las duraciones se calculan cuando cada programa de riego planifica su ejecución, por lo que el riego se dimensiona con datos meteorológicos de minutos en lugar de horas."
           },
           "description": "El cálculo toma los datos meteorológicos recopilados hasta ese momento y actualiza el depósito de cada zona automática. Después, la duración se ajusta según el nuevo valor del depósito y se eliminan los datos meteorológicos recopilados."
         },
@@ -476,6 +484,10 @@
         "title": "Omitido",
         "soil_moisture": "Humedad del suelo {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duración limitada",
+        "detail": "Esta zona necesita más que su duración máxima de {maximum}, así que en cada riego queda sin regar parte del déficit. Bajar el umbral del depósito no tiene efecto hasta que se suba el límite."
+      },
       "help": {
         "bucket": "Balance de humedad del suelo (cubo). Un valor negativo significa que el suelo está seco y la zona necesita agua.",
         "calculate": "Calcula cuánto tiempo regar a partir de los últimos datos. Ejecútalo después de Actualizar.",
@@ -487,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Próximo riego",
+        "estimated": "estimado",
+        "estimated_help": "La hora de inicio es todavía una proyección: el riego se dimensiona con la demanda de agua leída poco antes de empezar, así que esta hora se irá moviendo hasta entonces.",
         "no_schedule": "Sin horario automático — las zonas solo se riegan cuando lo activas tú.",
         "setup_schedule": "Configurar un horario",
         "targets_all": "todas las zonas",
@@ -630,7 +644,11 @@
         "offset_minutes": "Desplazamiento desde amanecer/atardecer",
         "account_for_duration": "Iniciar antes para que el riego termine a la hora objetivo",
         "azimuth_angle": "Ángulo de azimut solar",
-        "time_anchor": "La hora marca el"
+        "time_anchor": "La hora marca el",
+        "earliest_start": "Inicio más temprano",
+        "earliest_start_time": "Hora de inicio más temprana (HH:MM)",
+        "earliest_start_offset": "Minutos después del atardecer",
+        "fit_to_window": "Ajustar el riego a la ventana disponible"
       },
       "dialog": {
         "add_title": "Añadir programa",
@@ -639,6 +657,15 @@
       "time_anchor": {
         "start": "Inicio del riego",
         "finish": "Fin del riego"
+      },
+      "earliest_start": {
+        "none": "Sin límite",
+        "time": "A una hora fija",
+        "sunset": "Después del atardecer"
+      },
+      "help": {
+        "earliest_start": "El riego no empezará antes de esta hora. Sin límite, un riego que necesita casi toda la noche empieza tan pronto como haga falta para terminar a tiempo, lo que en una noche corta de verano puede ser antes del atardecer.",
+        "fit_to_window": "Desactivado: todas las zonas pendientes riegan en el orden en que están guardadas, sin límite, y el riego puede pasarse de la hora objetivo. Activado: las zonas se ordenan según lo vacío que esté su depósito, solo se riega lo que cabe entre el inicio más temprano y la hora objetivo, y el riego se detiene a esa hora."
       }
     },
     "info": {

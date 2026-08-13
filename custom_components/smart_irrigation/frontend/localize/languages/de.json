@@ -118,7 +118,15 @@
           "description": "Die Berechnung berücksichtigt die bis zu diesem Zeitpunkt gesammelten Wetterdaten und aktualisiert den Vorrat für jede automatische Zone. Anschließend wird die Dauer basierend auf dem neuen Vorrat angepasst und die gesammelten Wetterdaten entfernt.",
           "labels": {
             "auto-calc-enabled": "Automatische Berechnung der Dauer pro Zone",
-            "calc-time": "Berechnen um"
+            "calc-time": "Berechnen um",
+            "calc-mode": "Berechnen"
+          },
+          "modes": {
+            "fixed_time": "Zu einer festen Uhrzeit",
+            "before_run": "Vor jedem Bewässerungslauf"
+          },
+          "help": {
+            "before-run": "Die Dauern werden berechnet, wenn ein Bewässerungszeitplan seinen Lauf plant — der Lauf wird also aus Wetterdaten bemessen, die Minuten statt Stunden alt sind."
           }
         },
         "run-history-logging": {
@@ -476,6 +484,10 @@
         "title": "Übersprungen",
         "soil_moisture": "Bodenfeuchte {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Dauer begrenzt",
+        "detail": "Diese Zone braucht länger als ihre maximale Dauer von {maximum}, daher bleibt bei jedem Lauf ein Teil des Defizits ungewässert. Ein tieferer Vorrat-Schwellwert wirkt erst, wenn die Begrenzung angehoben wird."
+      },
       "help": {
         "bucket": "Bodenfeuchte-Bilanz (Vorrat). Ein negativer Wert bedeutet, dass der Boden trocken ist und die Zone Wasser braucht.",
         "calculate": "Berechnet aus den neuesten Daten, wie lange bewässert wird. Nach dem Aktualisieren ausführen.",
@@ -487,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Nächster Lauf",
+        "estimated": "geschätzt",
+        "estimated_help": "Die Startzeit ist noch eine Prognose: Der Lauf wird aus dem kurz vor Beginn gemessenen Wasserbedarf bemessen, daher verschiebt sich diese Zeit bis dahin.",
         "no_schedule": "Kein automatischer Zeitplan — Zonen bewässern nur, wenn du sie auslöst.",
         "setup_schedule": "Zeitplan einrichten",
         "targets_all": "alle Zonen",
@@ -630,7 +644,11 @@
         "offset_minutes": "Versatz von Sonnenaufgang/-untergang",
         "account_for_duration": "Früh starten, damit Bewässerung zur Zielzeit endet",
         "azimuth_angle": "Sonnenazimutwinkel",
-        "time_anchor": "Zeitpunkt markiert"
+        "time_anchor": "Zeitpunkt markiert",
+        "earliest_start": "Frühester Start",
+        "earliest_start_time": "Frühester Start (HH:MM)",
+        "earliest_start_offset": "Minuten nach Sonnenuntergang",
+        "fit_to_window": "Lauf an verfügbares Zeitfenster anpassen"
       },
       "dialog": {
         "add_title": "Zeitplan hinzufügen",
@@ -639,6 +657,15 @@
       "time_anchor": {
         "start": "Beginn der Bewässerung",
         "finish": "Ende der Bewässerung"
+      },
+      "earliest_start": {
+        "none": "Keine Begrenzung",
+        "time": "Zu einer festen Uhrzeit",
+        "sunset": "Nach Sonnenuntergang"
+      },
+      "help": {
+        "earliest_start": "Der Lauf beginnt nicht vor diesem Zeitpunkt. Ohne Begrenzung startet ein Lauf, der den größten Teil der Nacht benötigt, so früh wie nötig, um rechtzeitig zu enden — in einer kurzen Sommernacht also vor Sonnenuntergang.",
+        "fit_to_window": "Aus: Jede fällige Zone läuft in Speicherreihenfolge, ohne Begrenzung, und der Lauf kann die Zielzeit überschreiten. Ein: Die Zonen werden nach ihrem Vorrat sortiert, es läuft nur, was zwischen frühestem Start und Zielzeit passt, und der Lauf wird zur Zielzeit beendet."
       }
     },
     "info": {

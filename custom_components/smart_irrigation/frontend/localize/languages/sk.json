@@ -118,7 +118,15 @@
           "description": "Výpočet berie zhromaždené údaje o počasí až do tohto bodu a aktualizuje vedro pre každú automatickú zónu. Potom sa trvanie upraví na základe novej hodnoty segmentu a zhromaždené údaje o počasí sa odstránia.",
           "labels": {
             "auto-calc-enabled": "Automaticky vypočítajte trvanie zón",
-            "calc-time": "Vypočítať o"
+            "calc-time": "Vypočítať o",
+            "calc-mode": "Vypočítať"
+          },
+          "modes": {
+            "fixed_time": "V pevnom čase",
+            "before_run": "Pred každým zavlažovaním"
+          },
+          "help": {
+            "before-run": "Trvania sa vypočítajú vtedy, keď každý plán zavlažovania pripravuje svoje spustenie, takže spustenie vychádza z údajov o počasí starých minúty namiesto hodín."
           }
         },
         "run-history-logging": {
@@ -476,6 +484,10 @@
         "title": "Preskočené",
         "soil_moisture": "Vlhkosť pôdy {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Trvanie obmedzené",
+        "detail": "Táto zóna potrebuje viac než svoje maximálne trvanie {maximum}, takže pri každom spustení zostane časť deficitu nezavlažená. Zníženie prahu vedra nemá účinok, kým sa limit nezvýši."
+      },
       "help": {
         "bucket": "Bilancia vlhkosti pôdy (vedro). Záporná hodnota znamená, že pôda je suchá a zóna potrebuje vodu.",
         "calculate": "Vypočíta dĺžku zavlažovania z najnovších údajov. Spustite po Aktualizovať.",
@@ -487,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Ďalšie spustenie",
+        "estimated": "odhad",
+        "estimated_help": "Čas začiatku je zatiaľ len odhad: spustenie sa dimenzuje podľa potreby vody zistenej krátko pred začiatkom, takže sa tento čas dovtedy posúva.",
         "no_schedule": "Žiadny automatický plán — zóny sa zavlažujú len keď ich spustíte.",
         "setup_schedule": "Nastaviť plán",
         "targets_all": "všetky zóny",
@@ -630,7 +644,11 @@
         "offset_minutes": "Posun od východu/západu slnka",
         "account_for_duration": "Spustiť skoro, aby závlaha skončila v cieľovom čase",
         "azimuth_angle": "Uhol slnečného azimutu",
-        "time_anchor": "Čas označuje"
+        "time_anchor": "Čas označuje",
+        "earliest_start": "Najskorší začiatok",
+        "earliest_start_time": "Najskorší čas začiatku (HH:MM)",
+        "earliest_start_offset": "Minúty po západe slnka",
+        "fit_to_window": "Prispôsobiť spustenie dostupnému oknu"
       },
       "dialog": {
         "add_title": "Pridať plán",
@@ -639,6 +657,15 @@
       "time_anchor": {
         "start": "Začiatok zavlažovania",
         "finish": "Koniec zavlažovania"
+      },
+      "earliest_start": {
+        "none": "Bez obmedzenia",
+        "time": "V pevnom čase",
+        "sunset": "Po západe slnka"
+      },
+      "help": {
+        "earliest_start": "Spustenie nezačne pred týmto časom. Bez obmedzenia sa spustenie, ktoré potrebuje takmer celú noc, začne tak skoro, ako je nutné, aby skončilo včas — v krátkej letnej noci teda pred západom slnka.",
+        "fit_to_window": "Vypnuté: všetky zóny, ktoré sú na rade, sa zavlažia v uloženom poradí, bez obmedzenia, a spustenie môže presiahnuť cieľový čas. Zapnuté: zóny sa zoradia podľa toho, ako prázdne je ich vedro, zavlaží sa len to, čo sa zmestí medzi najskorší začiatok a cieľový čas, a spustenie sa v tomto čase zastaví."
       }
     },
     "info": {

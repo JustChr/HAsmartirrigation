@@ -30,6 +30,16 @@ export const AVAILABLE_LANGUAGES = [
 
 export const CONF_CALC_TIME = "calctime";
 export const CONF_AUTO_CALC_ENABLED = "autocalcenabled";
+// When the automatic calculation runs. "fixed_time" keeps calctime's meaning;
+// "before_run" calculates when each irrigate schedule plans its run. Values
+// match CONF_AUTO_CALC_MODE_* in const.py.
+export const CONF_AUTO_CALC_MODE = "autocalcmode";
+export const CONF_AUTO_CALC_MODE_FIXED_TIME = "fixed_time";
+export const CONF_AUTO_CALC_MODE_BEFORE_RUN = "before_run";
+export const CONF_AUTO_CALC_MODES = [
+  CONF_AUTO_CALC_MODE_FIXED_TIME,
+  CONF_AUTO_CALC_MODE_BEFORE_RUN,
+];
 export const CONF_AUTO_UPDATE_ENABLED = "autoupdateenabled";
 export const CONF_AUTO_UPDATE_SCHEDULE = "autoupdateschedule";
 export const CONF_AUTO_UPDATE_TIME = "autoupdatefirsttime";
@@ -208,6 +218,29 @@ export const CONF_MASTER_OFF_AFTER = "master_off_after";
 export const SCHEDULE_TYPE_SUNRISE = "sunrise";
 export const SCHEDULE_TYPE_SUNSET = "sunset";
 export const SCHEDULE_TYPE_SOLAR_AZIMUTH = "solar_azimuth";
+export const SCHEDULE_TIME_ANCHOR_START = "start";
+export const SCHEDULE_TIME_ANCHOR_FINISH = "finish";
+
+// Run-window controls for a finish-anchored irrigate schedule. Keys and values
+// mirror the backend SCHEDULE_CONF_* / SCHEDULE_EARLIEST_START_* constants
+// (const.py); _validate_schedule_data rejects anything else.
+export const SCHEDULE_CONF_EARLIEST_START_MODE = "earliest_start_mode";
+export const SCHEDULE_CONF_EARLIEST_START_TIME = "earliest_start_time";
+export const SCHEDULE_CONF_EARLIEST_START_OFFSET =
+  "earliest_start_offset_minutes";
+export const SCHEDULE_EARLIEST_START_NONE = "none";
+export const SCHEDULE_EARLIEST_START_TIME = "time";
+export const SCHEDULE_EARLIEST_START_SUNSET = "sunset";
+export const SCHEDULE_EARLIEST_START_MODES = [
+  SCHEDULE_EARLIEST_START_NONE,
+  SCHEDULE_EARLIEST_START_TIME,
+  SCHEDULE_EARLIEST_START_SUNSET,
+];
+// A fixed floor has to be a real HH:MM the moment "time" is picked — the
+// backend rejects a null, so the picker starts from a clock time that is after
+// sunset at any latitude the integration is likely to run at.
+export const SCHEDULE_DEFAULT_EARLIEST_START_TIME = "22:00";
+export const SCHEDULE_CONF_FIT_TO_WINDOW = "fit_to_window";
 
 // ---------------------------------------------------------------------------
 // Gardena water distributor (Plan F). Field keys mirror the backend
