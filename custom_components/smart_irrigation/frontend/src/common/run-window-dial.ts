@@ -391,12 +391,23 @@ export function buildDial(input: DialInput): DialModel {
     sunsetMinutes,
     azimuthResolver,
   );
-  const finishAbs = resolveAbsMinutes(
+  let finishAbs = resolveAbsMinutes(
     rows.finish,
     sunriseMinutes,
     sunsetMinutes,
     azimuthResolver,
   );
+  // Unwrap the pair ONCE, here, so that every consumer downstream gets a
+  // monotonically increasing span and none of them has to re-derive the wrap.
+  // An overnight window's finish is a smaller minute-of-day than its start
+  // (17:44 to 09:50), and handing that raw to arcPath makes the sweep negative:
+  // its large-arc flag then reads 0, and SVG draws whichever of the two
+  // candidate arcs is under 180 degrees, which is the COMPLEMENT of the window.
+  // Invisible below a 12h span, because there the intended arc is the short one
+  // anyway, and a band on the wrong side of the dial above it.
+  if (startAbs !== null && finishAbs !== null && finishAbs <= startAbs) {
+    finishAbs += MINUTES_PER_DAY;
+  }
   const noEnds = startAbs === null && finishAbs === null;
 
   if (noEnds) {
@@ -414,13 +425,10 @@ export function buildDial(input: DialInput): DialModel {
     };
   }
 
+  // Already unwrapped above, so this is a plain span in 1..1440 rather than a
+  // modular difference; equal ends mean a whole day, not an empty window.
   const windowMins =
-    startAbs !== null && finishAbs !== null
-      ? (() => {
-          const diff = clampMinutes(finishAbs - startAbs);
-          return diff === 0 ? MINUTES_PER_DAY : diff;
-        })()
-      : null;
+    startAbs !== null && finishAbs !== null ? finishAbs - startAbs : null;
 
   let runStart: number;
   let runLen: number;
@@ -430,9 +438,7 @@ export function buildDial(input: DialInput): DialModel {
     runLen = Math.min(nominalDemandMinutes, win);
     unserved = Math.max(0, nominalDemandMinutes - win);
     runStart =
-      rows.anchor === SCHEDULE_ANCHOR_FINISH
-        ? startAbs + clampMinutes(finishAbs - startAbs) - runLen
-        : startAbs;
+      rows.anchor === SCHEDULE_ANCHOR_FINISH ? finishAbs - runLen : startAbs;
   } else if (startAbs !== null) {
     runStart = startAbs;
     runLen = nominalDemandMinutes;

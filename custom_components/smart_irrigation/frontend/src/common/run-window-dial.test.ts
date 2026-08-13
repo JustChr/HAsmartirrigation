@@ -352,6 +352,49 @@ describe("buildDial: minimum visible arc", () => {
   });
 });
 
+describe("buildDial: an overnight window sweeps the long way round", () => {
+  it("draws a span over 12h as the arc it reports, not its complement", () => {
+    // 17:44 to 09:50 is 16h 06m. Left wrapped, the sweep handed to arcPath is
+    // negative, its large-arc flag reads 0, and SVG picks whichever candidate
+    // arc is under 180 degrees - the 7h 54m complement, on the wrong side of
+    // the dial. Under 12h the two coincide, which is why this only showed up
+    // once the offsets pushed the window past half a day.
+    const model = buildDial({
+      rows: rows(
+        { mode: SCHEDULE_BOUND_MODE_TIME, time: "17:44" },
+        { mode: SCHEDULE_BOUND_MODE_TIME, time: "09:50" },
+      ),
+      recurrence: SCHEDULE_RECURRENCE_DAILY,
+      nominalDemandMinutes: 60,
+      sunriseMinutes: SUNRISE,
+      sunsetMinutes: SUNSET,
+    });
+    expect(model.centre).toEqual({ kind: "window", minutes: 16 * 60 + 6 });
+    expect(model.windowArc).toEqual({
+      kind: "solid",
+      d: arcPath(DIAL_RADIUS, 17 * 60 + 44, 17 * 60 + 44 + 16 * 60 + 6),
+    });
+    // The flag SVG actually reads, stated outright: the band and the figure in
+    // the middle describe the same arc.
+    expect((model.windowArc as { d: string }).d).toMatch(/ A \d+ \d+ 0 1 1 /);
+  });
+
+  it("keeps a window of exactly 12h on the short-arc flag", () => {
+    const model = buildDial({
+      rows: rows(
+        { mode: SCHEDULE_BOUND_MODE_TIME, time: "20:00" },
+        { mode: SCHEDULE_BOUND_MODE_TIME, time: "08:00" },
+      ),
+      recurrence: SCHEDULE_RECURRENCE_DAILY,
+      nominalDemandMinutes: 60,
+      sunriseMinutes: SUNRISE,
+      sunsetMinutes: SUNSET,
+    });
+    expect(model.centre).toEqual({ kind: "window", minutes: 12 * 60 });
+    expect((model.windowArc as { d: string }).d).toMatch(/ A \d+ \d+ 0 0 1 /);
+  });
+});
+
 describe("buildDial: interval wrap fade", () => {
   it("fades a run out before it reaches the next cycle's first occurrence, rather than drawing into it", () => {
     // 5h runs every 4h starting at midnight: the last occurrence overruns
