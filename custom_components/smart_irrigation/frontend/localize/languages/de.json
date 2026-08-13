@@ -604,7 +604,7 @@
       "zones_all": "Alle Zonen",
       "zones_specific": "Bestimmte Zonen",
       "hours": "Stunden",
-      "minutes": "Min",
+      "minutes": "Minuten",
       "types": {
         "daily": "Täglich",
         "weekly": "Wöchentlich",
@@ -631,14 +631,15 @@
         "enabled": "Aktiviert",
         "days_of_week": "Wochentage",
         "day_of_month": "Tag des Monats",
-        "interval_hours": "Intervall",
+        "interval_hours": "Alle",
         "action": "Aktion",
         "zones": "Zonen",
         "start_mode": "Start",
-        "start_time": "Startzeit (optional)",
+        "start_time": "Erster Lauf um",
         "finish_mode": "Ende",
         "finish_time": "Endzeit (HH:MM)",
-        "anchor": "Fixiert auf",
+        "anchor_prefix": "Bewässern so",
+        "anchor_suffix": "wie möglich im Zeitfenster",
         "offset_by": "versetzt um"
       },
       "dialog": {
@@ -683,11 +684,12 @@
         "solar_azimuth": "Bei Sonnenazimut"
       },
       "anchor": {
-        "start": "So früh wie möglich im Zeitfenster",
-        "finish": "So spät wie möglich im Zeitfenster"
+        "start": "früh",
+        "finish": "spät"
       },
       "help": {
         "error": "Es muss entweder eine Start- oder Ende-Bedingung festgelegt werden",
+        "interval_start": "Leer lassen, um ab dem Speichern des Zeitplans zu starten. Ein Intervall-Zeitplan hat keine Zielzeit und damit kein Zeitfenster.",
         "demand_open": "Nach Bedarf festgelegt. Alle Zonen laufen bis zum Abschluss.",
         "exact": "Exakt.",
         "demand_floored": "Nach Bedarf festgelegt, aber nicht vor diesem Zeitpunkt.",
@@ -702,6 +704,9 @@
         "sunset": "Sonnenuntergang {time}",
         "run": "Lauf {from} bis {to}",
         "collision": "Kollidiert mit dem vorherigen Lauf, {from} bis {to}: Zonen, die noch bewässern, werden übersprungen",
+        "collision_note": "Zonen, die noch bewässern, werden übersprungen",
+        "runs_of": "{count} Läufe à {duration}",
+        "shortfall": "{duration} passen nicht",
         "window_label": "Zeitfenster",
         "run_label": "Lauf",
         "per_day": "{count}x pro Tag",

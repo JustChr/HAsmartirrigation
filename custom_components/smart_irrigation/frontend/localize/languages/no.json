@@ -604,7 +604,7 @@
       "zones_all": "Alle soner",
       "zones_specific": "Spesifikke soner",
       "hours": "timer",
-      "minutes": "min",
+      "minutes": "minutter",
       "types": {
         "daily": "Daglig",
         "weekly": "Ukentlig",
@@ -631,14 +631,15 @@
         "enabled": "Aktivert",
         "days_of_week": "Ukedager",
         "day_of_month": "Dag i måneden",
-        "interval_hours": "Intervall",
+        "interval_hours": "Hver",
         "action": "Handling",
         "zones": "Soner",
         "start_mode": "Start",
-        "start_time": "Starttid (valgfritt)",
+        "start_time": "Første kjøring kl.",
         "finish_mode": "Slutt",
         "finish_time": "Sluttid (HH:MM)",
-        "anchor": "Festet til",
+        "anchor_prefix": "Vann så",
+        "anchor_suffix": "som mulig innenfor vinduet",
         "offset_by": "forskjøvet med"
       },
       "dialog": {
@@ -683,11 +684,12 @@
         "solar_azimuth": "Ved solazimutt"
       },
       "anchor": {
-        "start": "Så tidlig som mulig i vinduet",
-        "finish": "Så sent som mulig i vinduet"
+        "start": "tidlig",
+        "finish": "sent"
       },
       "help": {
         "error": "Du må angi enten en start- eller sluttbetingelse",
+        "interval_start": "La stå tom for å starte fra når planen lagres. En intervallplan har ikke et måltidspunkt, og dermed ikke noe vindu.",
         "demand_open": "Angitt etter behov. Alle soner kjører til de er ferdige.",
         "exact": "Nøyaktig.",
         "demand_floored": "Angitt etter behov, men aldri før dette.",
@@ -702,6 +704,9 @@
         "sunset": "Solnedgang {time}",
         "run": "Vanning {from} til {to}",
         "collision": "Kolliderer med forrige vanning, {from} til {to}: soner som fortsatt vannes hoppes over",
+        "collision_note": "Soner som fortsatt vanner hoppes over",
+        "runs_of": "{count} kjøringer på {duration}",
+        "shortfall": "{duration} får ikke plass",
         "window_label": "vindu",
         "run_label": "vanning",
         "per_day": "{count}x per dag",

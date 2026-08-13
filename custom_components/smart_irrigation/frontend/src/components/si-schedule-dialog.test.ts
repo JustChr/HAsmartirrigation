@@ -207,7 +207,7 @@ describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
       schedule: { ...emptySchedule(), start_mode: "time", finish_mode: "none" },
     });
     const { text } = flatten(el.render());
-    expect(text).not.toContain("Pinned to");
+    expect(text).not.toContain("Water as");
   });
 
   it("renders the pinned-end row only once both ends are bounded", () => {
@@ -221,9 +221,9 @@ describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
       },
     });
     const { text } = flatten(el.render());
-    expect(text).toContain("Pinned to");
-    expect(text).toContain("As early as possible within the window");
-    expect(text).toContain("As late as possible within the window");
+    expect(text).toContain("Water as");
+    expect(text).toContain("as possible in the window");
+    expect(text).toContain("late");
   });
 
   it("shows the error help on both rows and disables Save when both ends are unbounded", () => {
@@ -353,7 +353,7 @@ describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
       },
     });
     const { text } = flatten(el.render());
-    expect(text).not.toContain("Pinned to");
+    expect(text).not.toContain("Water as");
     expect(text).not.toContain("At sunrise");
     expect(text).not.toContain("At solar azimuth");
     // Interval always allows saving — it has no window to be unbounded.
@@ -380,9 +380,9 @@ describe("si-schedule-dialog: unreachable solar-azimuth bearings (GitLab #34)", 
       start_azimuth: 90,
       finish_mode: "none",
     });
-    const { text } = flatten(el.render());
+    const { text, values } = flatten(el.render());
     expect(text).toContain("so this schedule will not run");
-    expect(text).toContain("is-warning");
+    expect(values).toContain("warn");
   });
 
   it("warns that the limit is ignored when the paired end is unreachable", () => {
@@ -406,7 +406,7 @@ describe("si-schedule-dialog: unreachable solar-azimuth bearings (GitLab #34)", 
       finish_mode: "none",
     });
     expect((el as any)._canSave()).toBe(true);
-    expect(flatten(el.render()).text).not.toContain("is-error");
+    expect(flatten(el.render()).text).not.toContain("err");
   });
 
   it("says nothing for a bearing that does resolve", () => {
@@ -428,7 +428,7 @@ describe("si-schedule-dialog: unreachable solar-azimuth bearings (GitLab #34)", 
     };
     const { text } = flatten(el.render());
     expect(text).not.toContain("The sun never reaches");
-    expect(text).not.toContain("is-warning");
+    expect(flatten(el.render()).values).not.toContain("warn");
   });
 
   it("says nothing when the location is unknown, rather than guessing", () => {

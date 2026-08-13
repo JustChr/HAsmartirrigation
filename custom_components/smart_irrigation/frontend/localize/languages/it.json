@@ -644,7 +644,7 @@
       "zones_all": "Tutte le zone",
       "zones_specific": "Zone specifiche",
       "hours": "ore",
-      "minutes": "min",
+      "minutes": "minuti",
       "types": {
         "daily": "Giornaliero",
         "weekly": "Settimanale",
@@ -671,14 +671,15 @@
         "enabled": "Abilitato",
         "days_of_week": "Giorni della settimana",
         "day_of_month": "Giorno del mese",
-        "interval_hours": "Intervallo",
+        "interval_hours": "Ogni",
         "action": "Azione",
         "zones": "Zone",
         "start_mode": "Inizio",
-        "start_time": "Ora di inizio (opzionale)",
+        "start_time": "Prima irrigazione alle",
         "finish_mode": "Fine",
         "finish_time": "Ora di fine (HH:MM)",
-        "anchor": "Ancorato a",
+        "anchor_prefix": "Irrigare il più",
+        "anchor_suffix": "possibile nella finestra",
         "offset_by": "offset di"
       },
       "dialog": {
@@ -723,11 +724,12 @@
         "solar_azimuth": "All'azimut solare"
       },
       "anchor": {
-        "start": "Il prima possibile nella finestra",
-        "finish": "Il più tardi possibile nella finestra"
+        "start": "presto",
+        "finish": "tardi"
       },
       "help": {
         "error": "È necessario impostare una condizione di inizio o di fine",
+        "interval_start": "Lascia vuoto per partire da quando la pianificazione viene salvata. Una pianificazione a intervalli non ha un orario di riferimento, quindi nessuna finestra.",
         "demand_open": "Impostato in base alla domanda. Tutte le zone vengono completate.",
         "exact": "Esatto.",
         "demand_floored": "Impostato in base alla domanda, ma mai prima di questo.",
@@ -742,6 +744,9 @@
         "sunset": "Tramonto {time}",
         "run": "Irrigazione da {from} a {to}",
         "collision": "Si sovrappone all'irrigazione precedente, da {from} a {to}: le zone ancora in irrigazione vengono saltate",
+        "collision_note": "Le zone ancora in irrigazione vengono saltate",
+        "runs_of": "{count} irrigazioni da {duration}",
+        "shortfall": "{duration} non ci stanno",
         "window_label": "finestra",
         "run_label": "irrigazione",
         "per_day": "{count}x al giorno",

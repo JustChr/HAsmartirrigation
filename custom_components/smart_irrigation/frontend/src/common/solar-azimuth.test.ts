@@ -6,7 +6,7 @@ import {
   normalizeAzimuthAngle,
   solarAzimuthDegrees,
   wallClockNowInZone,
-  wallClockToBrowserMinutes,
+  wallClockMinutes,
 } from "./solar-azimuth";
 
 /**
@@ -203,22 +203,26 @@ describe("normalizeAzimuthAngle", () => {
 });
 
 describe("zone bridging", () => {
-  it("is an identity when Home Assistant and the browser share a zone", () => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const w = wallClockNowInZone(tz, new Date("2026-06-21T18:00:00Z"));
-    expect(wallClockToBrowserMinutes(w, tz)).toBe(
-      w.getUTCHours() * 60 + w.getUTCMinutes(),
+  it("reads an instant on Home Assistant's clock, not the browser's", () => {
+    // 00:00 UTC is 09:00 in Tokyo. The dial must say 09:00 wherever the
+    // viewer happens to be sitting, because that is when the schedule fires.
+    const instant = new Date("2026-06-21T00:00:00Z");
+    expect(wallClockMinutes(wallClockNowInZone("Asia/Tokyo", instant))).toBe(
+      9 * 60,
     );
+    expect(
+      wallClockMinutes(wallClockNowInZone("America/New_York", instant)),
+    ).toBe(20 * 60);
   });
 
-  it("shifts a wall clock from another zone onto the browser's clock", () => {
-    // 09:00 in Tokyo is 00:00 UTC; the assertion is written against whatever
-    // the test runner's own zone makes of that instant, so it holds anywhere.
-    const tokyoWall = wall("2026-06-21T09:00:00");
-    const instant = new Date("2026-06-21T00:00:00Z");
-    expect(wallClockToBrowserMinutes(tokyoWall, "Asia/Tokyo")).toBe(
-      instant.getHours() * 60 + instant.getMinutes(),
-    );
+  it("puts an evening sunset in the evening half of the dial", () => {
+    // The regression this exists for: 2026-08-10T00:42Z is a 20:42 sunset in
+    // New York, and reading it on a UTC browser drew the moon at 00:42 -
+    // most of the way round the ring from the run it was meant to bracket.
+    const sunset = new Date("2026-08-10T00:42:14Z");
+    expect(
+      wallClockMinutes(wallClockNowInZone("America/New_York", sunset)),
+    ).toBe(20 * 60 + 42);
   });
 
   it("falls back to the browser zone for a missing or bogus zone", () => {

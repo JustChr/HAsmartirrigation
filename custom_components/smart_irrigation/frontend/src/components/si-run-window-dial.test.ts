@@ -103,20 +103,15 @@ describe("si-run-window-dial", () => {
     expect(text).toContain("Run window on a 24 hour dial");
   });
 
-  it("renders sun/moon glyph hover text with the resolved sunrise/sunset clock time", () => {
+  it("renders sun/moon glyph hover text on Home Assistant's clock", () => {
     const el = makeDial();
     const { text } = flatten(el.render());
-    // Resolved through the local timezone the test runs in (same conversion
-    // the component itself does), not hardcoded to the fixture's UTC value.
-    const rising = new Date("2026-08-10T10:12:00Z");
-    const setting = new Date("2026-08-10T20:31:00Z");
-    const pad = (n: number) => String(n).padStart(2, "0");
-    expect(text).toContain(
-      `Sunrise ${pad(rising.getHours())}:${pad(rising.getMinutes())}`,
-    );
-    expect(text).toContain(
-      `Sunset ${pad(setting.getHours())}:${pad(setting.getMinutes())}`,
-    );
+    // Home Assistant is in Phoenix (UTC-7, no DST), so 10:12Z is 03:12 and
+    // 20:31Z is 13:31 there. Hardcoded rather than derived from the runner's
+    // own zone on purpose: the dial must read the same wherever it is viewed
+    // from, because the schedule fires on Home Assistant's clock.
+    expect(text).toContain("Sunrise 03:12");
+    expect(text).toContain("Sunset 13:31");
   });
 
   it("renders one drop with hover text per run occurrence", () => {
@@ -268,20 +263,14 @@ describe("si-run-window-dial: solar-azimuth bounds (GitLab #34)", () => {
     expect(values).toContain("window");
   });
 
-  it("puts an azimuth bound on the viewer's clock, like the sun glyph", () => {
-    // Home Assistant in Phoenix, browser wherever the runner is. The backend
-    // resolver puts 270 degrees at 07:46 Phoenix wall clock on this date (see
-    // solar-azimuth.test.ts's goldens); the dial has to draw that instant on
-    // the viewer's clock, the same conversion sun.sun's timestamps get, or
-    // the two sit an offset apart on one dial.
+  it("puts an azimuth bound on Home Assistant's clock, like the sun glyph", () => {
+    // The backend resolver puts 270 degrees at 07:46 Phoenix wall clock on
+    // this date (see solar-azimuth.test.ts's goldens), and the finish bound is
+    // 20:00 on that same clock, so the window is 12h 14m. Independent of the
+    // runner's own zone, which is the whole point: one dial, one clock.
     const el = makeDial({ rows: azimuthRows(270) });
     const { values } = flatten(el.render());
-    const crossing = new Date("2026-06-21T07:46:00-07:00");
-    const startMinutes = crossing.getHours() * 60 + crossing.getMinutes();
-    const span = (((20 * 60 - startMinutes) % 1440) + 1440) % 1440;
-    expect(values).toContain(
-      `${Math.floor(span / 60)}h ${span % 60}m`, // the centre's window duration
-    );
+    expect(values).toContain("12h 14m"); // the centre's window duration
   });
 
   it("moves the bound with Home Assistant's zone, not the browser's", () => {

@@ -320,9 +320,11 @@ class TestTheEstimateFollowsHowEachModeIsActuallyDispatched:
             return_value=_zones()
             + [
                 {
-                    const.ZONE_ID: 4,
+                    const.ZONE_ID: 5,
                     const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
                     const.ZONE_DURATION: 600,
+                    const.ZONE_BUCKET: -5.0,
+                    const.ZONE_BUCKET_THRESHOLD: -1.0,
                     const.ZONE_WATERING_MODE: const.WATERING_MODE_SERVICE,
                 }
             ]
@@ -339,9 +341,11 @@ class TestTheEstimateFollowsHowEachModeIsActuallyDispatched:
             return_value=_zones()
             + [
                 {
-                    const.ZONE_ID: 4,
+                    const.ZONE_ID: 5,
                     const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
                     const.ZONE_DURATION: 4000,
+                    const.ZONE_BUCKET: -5.0,
+                    const.ZONE_BUCKET_THRESHOLD: -1.0,
                     const.ZONE_WATERING_MODE: const.WATERING_MODE_SERVICE,
                 }
             ]

@@ -302,7 +302,7 @@ export class SiScheduleDialog extends LitElement {
                 lang,
               )}</label
             >
-            <div class="input-suffix-row">
+            <div class="rowfields">
               <input
                 type="number"
                 min="1"
@@ -331,6 +331,9 @@ export class SiScheduleDialog extends LitElement {
                   start_time: (e.target as HTMLInputElement).value || undefined,
                 })}
             />
+            <span class="field-help"
+              >${localize("panels.schedules.help.interval_start", lang)}</span
+            >
           </div>
         `;
       default:
@@ -416,36 +419,38 @@ export class SiScheduleDialog extends LitElement {
     onChange: (row: EndRow) => void,
   ) {
     const lang = this.hass.language;
+    // Label ABOVE the controls, not beside them. Inline, the label plus the
+    // mode select plus "offset by [n] minutes" is wider than the column left
+    // once the dial takes its 156px, so the stepper wrapped onto its own line
+    // and the row stopped reading as one control.
     return html`
-      <div class="window-row">
+      <div class="field">
         <label>${localize(`panels.schedules.fields.${end}_mode`, lang)}</label>
-        <select
-          @change=${(e: Event) =>
-            onChange(
-              defaultRowForMode(
-                (e.target as HTMLSelectElement).value as BoundMode,
-              ),
+        <div class="rowfields">
+          <select
+            @change=${(e: Event) =>
+              onChange(
+                defaultRowForMode(
+                  (e.target as HTMLSelectElement).value as BoundMode,
+                ),
+              )}
+          >
+            ${SCHEDULE_BOUND_MODES.map(
+              (m) => html`
+                <option value="${m}" ?selected="${row.mode === m}">
+                  ${localize(`panels.schedules.bound_mode.${m}`, lang)}
+                </option>
+              `,
             )}
-        >
-          ${SCHEDULE_BOUND_MODES.map(
-            (m) => html`
-              <option value="${m}" ?selected="${row.mode === m}">
-                ${localize(`panels.schedules.bound_mode.${m}`, lang)}
-              </option>
-            `,
-          )}
-        </select>
-        ${this._renderRowStepper(row, onChange)}
-      </div>
-      <div
-        class="window-row-help ${helpKey === "error"
-          ? "is-error"
-          : isWarningHelp(helpKey)
-            ? "is-warning"
-            : ""}"
-      >
-        <span class="help-arrow" aria-hidden="true">↳</span>
-        <span class="help-text"
+          </select>
+          ${this._renderRowStepper(row, onChange)}
+        </div>
+        <span
+          class="field-help kid-arrow ${helpKey === "error"
+            ? "err"
+            : isWarningHelp(helpKey)
+              ? "warn"
+              : ""}"
           >${localize(`panels.schedules.help.${helpKey}`, lang)}</span
         >
       </div>
@@ -461,24 +466,34 @@ export class SiScheduleDialog extends LitElement {
     patch: (rows: ScheduleRows) => void,
   ) {
     const lang = this.hass.language;
+    // A sentence with the choice inside it rather than a labelled dropdown:
+    // the option alone ("late") is not a sentence, and the label alone does
+    // not say what late means.
     return html`
-      <div class="window-row">
-        <label>${localize("panels.schedules.fields.anchor", lang)}</label>
-        <select
-          @change=${(e: Event) =>
-            patch({
-              ...rows,
-              anchor: (e.target as HTMLSelectElement).value as Anchor,
-            })}
-        >
-          ${[SCHEDULE_ANCHOR_START, SCHEDULE_ANCHOR_FINISH].map(
-            (a) => html`
-              <option value="${a}" ?selected="${rows.anchor === a}">
-                ${localize(`panels.schedules.anchor.${a}`, lang)}
-              </option>
-            `,
-          )}
-        </select>
+      <div class="field">
+        <div class="rowfields">
+          <span class="row-inline"
+            >${localize("panels.schedules.fields.anchor_prefix", lang)}</span
+          >
+          <select
+            @change=${(e: Event) =>
+              patch({
+                ...rows,
+                anchor: (e.target as HTMLSelectElement).value as Anchor,
+              })}
+          >
+            ${[SCHEDULE_ANCHOR_START, SCHEDULE_ANCHOR_FINISH].map(
+              (a) => html`
+                <option value="${a}" ?selected="${rows.anchor === a}">
+                  ${localize(`panels.schedules.anchor.${a}`, lang)}
+                </option>
+              `,
+            )}
+          </select>
+          <span class="row-inline"
+            >${localize("panels.schedules.fields.anchor_suffix", lang)}</span
+          >
+        </div>
       </div>
     `;
   }
@@ -661,17 +676,26 @@ export class SiScheduleDialog extends LitElement {
                   )}
                 </select>
               </div>
-              ${this._renderRecurrenceFields()}
+              ${s.recurrence === SCHEDULE_RECURRENCE_INTERVAL
+                ? html``
+                : this._renderRecurrenceFields()}
               <div class="when-row">
-                <div class="when-rows-col">${this._renderWindowRows()}</div>
-                <si-run-window-dial
-                  .hass="${this.hass}"
-                  .rows="${scheduleToRows(s)}"
-                  .recurrence="${s.recurrence}"
-                  .intervalHours="${s.interval_hours}"
-                  .intervalStartTime="${s.start_time}"
-                  .nominalDemandSeconds="${s.nominal_demand_seconds ?? 0}"
-                ></si-run-window-dial>
+                <div class="when-rows-col">
+                  ${s.recurrence === SCHEDULE_RECURRENCE_INTERVAL
+                    ? this._renderRecurrenceFields()
+                    : html``}
+                  ${this._renderWindowRows()}
+                </div>
+                <div>
+                  <si-run-window-dial
+                    .hass="${this.hass}"
+                    .rows="${scheduleToRows(s)}"
+                    .recurrence="${s.recurrence}"
+                    .intervalHours="${s.interval_hours}"
+                    .intervalStartTime="${s.start_time}"
+                    .nominalDemandSeconds="${s.nominal_demand_seconds ?? 0}"
+                  ></si-run-window-dial>
+                </div>
               </div>
             `,
           )}
@@ -705,22 +729,29 @@ export class SiScheduleDialog extends LitElement {
         /* The buttons sit in ha-dialog's own action slots rather than in a
            footer inside the content, so the actions bar it always renders is
            the one holding them instead of an empty 52px strip below them. */
+        /* Spacing is carried by each block's own margin rather than by a
+           flex gap on the container: a gap applies uniformly, and the
+           prototype's rhythm is not uniform (18px under the summary, 14px
+           between fields and section cards). */
         .dialog-content {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
+          display: block;
           padding: 4px 0 8px;
           color: var(--primary-text-color);
+          font-size: 0.875rem;
+          line-height: 1.5;
         }
         .field {
           display: flex;
           flex-direction: column;
           gap: 5px;
+          margin-bottom: 14px;
         }
-        .field label {
+        /* Primary text at body size and normal weight. A muted 500-weight
+           label reads as chrome; these name the thing directly under them. */
+        .field > label {
           font-size: 0.875rem;
-          font-weight: 500;
-          color: var(--secondary-text-color);
+          font-weight: 400;
+          color: var(--primary-text-color);
         }
         .field input[type="text"],
         .field input[type="time"],
@@ -729,17 +760,42 @@ export class SiScheduleDialog extends LitElement {
         .field select {
           padding: 8px 10px;
           border: 1px solid var(--divider-color, #e0e0e0);
-          border-radius: 4px;
+          border-radius: 6px;
           background: var(--card-background-color, #fff);
           color: var(--primary-text-color);
-          font-size: 1rem;
-          font-family: inherit;
+          font: inherit;
           box-sizing: border-box;
         }
+        .field input[type="number"] {
+          width: 78px;
+        }
         .field-help {
-          font-size: 0.8125rem;
+          font-size: 0.78125rem;
           line-height: 1.35;
           color: var(--secondary-text-color);
+        }
+        .field-help.err {
+          color: var(--error-color, #db4437);
+        }
+        /* Amber, not red: an unreachable bearing still saves and the backend
+           still accepts it — the schedule just will not behave the way the
+           row reads. See describeWindow's unresolvable handling. */
+        .field-help.warn {
+          color: var(--warning-color, #ffa600);
+        }
+        /* The help reads as a child of its row: the block itself is indented,
+           and the glyph sits in the gap that indent opens up. */
+        .field-help.kid-arrow {
+          margin-left: 12px;
+          padding-left: 15px;
+          position: relative;
+        }
+        .field-help.kid-arrow::before {
+          content: "↳";
+          position: absolute;
+          left: 1px;
+          top: -1px;
+          opacity: 0.45;
         }
         /* Dialog heading: the title plus the Enabled toggle (GitLab #30) —
            it reads as a property of the schedule, not of the date range it
@@ -843,87 +899,45 @@ export class SiScheduleDialog extends LitElement {
           color: var(--secondary-text-color);
           font-size: 0.875rem;
         }
-        /* Start/Finish/pinned-end rows (GitLab #29): a mode select plus at
-           most one stepper, all inline, so the pair reads as one control
-           rather than a stack of unrelated fields. */
-        .window-row {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .window-row > label {
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: var(--secondary-text-color);
-          min-width: 44px;
-        }
-        .window-row select,
-        .window-row input[type="time"],
-        .window-row input[type="number"] {
-          padding: 8px 10px;
-          border: 1px solid var(--divider-color, #e0e0e0);
-          border-radius: 4px;
-          background: var(--card-background-color, #fff);
-          color: var(--primary-text-color);
-          font-size: 1rem;
-          font-family: inherit;
-          box-sizing: border-box;
-        }
-        .window-row input[type="number"] {
-          width: 76px;
-        }
-        /* Part of the row rather than chrome, so these read as primary text
-           rather than a muted label. */
+        /* Suffix words sit inside the row's sentence, so they are primary
+           text at the row's own size rather than muted chrome. */
+        .suffix,
         .row-inline {
           color: var(--primary-text-color);
-          font-size: 0.9375rem;
-        }
-        /* Help is a child of its row: indented, with an arrow glyph in the
-           gap pointing back up at the control it explains. */
-        .window-row-help {
-          display: flex;
-          align-items: baseline;
-          gap: 6px;
-          padding-left: 20px;
-          margin-top: -4px;
-        }
-        .help-arrow {
-          opacity: 0.5;
-        }
-        .window-row-help .help-text {
           font-size: 0.8125rem;
-          line-height: 1.35;
-          color: var(--secondary-text-color);
-        }
-        .window-row-help.is-error .help-text {
-          color: var(--error-color, #db4437);
-        }
-        /* Amber, not red: an unreachable bearing still saves and the backend
-           still accepts it — the schedule just will not behave the way the
-           row reads. See describeWindow's unresolvable handling. */
-        .window-row-help.is-warning .help-text {
-          color: var(--warning-color, #ffa600);
         }
         /* Two-column layout inside the WHEN card (GitLab #31): the
            Start/Finish/pinned-end rows on the left, the run-window dial in
            a fixed-width right column, collapsing to one column on narrow
            dialogs. */
         .when-row {
-          display: flex;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: 1fr 168px;
           gap: 16px;
-          align-items: flex-start;
+          align-items: start;
+        }
+        @media (max-width: 640px) {
+          .when-row {
+            grid-template-columns: 1fr;
+          }
         }
         .when-rows-col {
-          flex: 1 1 240px;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
           min-width: 0;
         }
-        .when-row si-run-window-dial {
-          flex: 0 0 156px;
+        /* Caption under the dial: how many runs an interval schedule makes,
+           or what a short window will not fit. */
+        .dial-note {
+          font-size: 0.78125rem;
+          line-height: 1.35;
+          color: var(--secondary-text-color);
+          text-align: center;
+          margin-top: 4px;
+        }
+        .dial-note.warn {
+          color: var(--warning-color, #ffa600);
+        }
+        .summary {
+          margin-bottom: 18px;
         }
       `,
     ];

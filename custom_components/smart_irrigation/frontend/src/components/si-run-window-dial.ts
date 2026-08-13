@@ -18,7 +18,11 @@ import {
   DialModel,
   RunBar,
 } from "../common/run-window-dial";
-import { azimuthResolverFromLocation } from "../common/solar-azimuth";
+import {
+  azimuthResolverFromLocation,
+  wallClockMinutes,
+  wallClockNowInZone,
+} from "../common/solar-azimuth";
 
 // Tiny glyphs, drawn in a 24x24 box and scaled onto the ring's outside —
 // verbatim from the settled prototype (plans/prototypes/schedule-ui.html).
@@ -63,16 +67,25 @@ export class SiRunWindowDial extends LitElement {
   @property({ attribute: false }) nominalDemandSeconds = 0;
 
   /** `sun.sun` always exists on a live HA instance; guarded defensively for
-   * the brief window during startup where it may not have attributes yet. */
+   * the brief window during startup where it may not have attributes yet.
+   *
+   * Its `next_rising`/`next_setting` are absolute UTC instants, and they are
+   * rendered in HOME ASSISTANT's zone rather than the browser's. Reading them
+   * with `Date.getHours()` instead puts the glyphs on the viewer's clock while
+   * every other time on the dial - the Start/Finish clock inputs, the azimuth
+   * bounds, the times the schedule fires at - is on Home Assistant's. A viewer
+   * on UTC then sees a 20:42 sunset drawn at 00:42, most of the way round the
+   * ring from the run it is meant to bracket. */
   private _sunTimes(): { sunrise: number; sunset: number } {
     const sun = this.hass?.states?.["sun.sun"];
     const rising = sun?.attributes?.next_rising as string | undefined;
     const setting = sun?.attributes?.next_setting as string | undefined;
+    const timeZone = this.hass?.config?.time_zone;
     const toMinutes = (iso: string | undefined, fallback: number) => {
       if (!iso) return fallback;
       const d = new Date(iso);
       if (isNaN(d.getTime())) return fallback;
-      return d.getHours() * 60 + d.getMinutes();
+      return wallClockMinutes(wallClockNowInZone(timeZone, d));
     };
     return {
       sunrise: toMinutes(rising, 6 * 60),
@@ -117,6 +130,65 @@ export class SiRunWindowDial extends LitElement {
           />
         `,
       )}
+    `;
+  }
+
+  /** Hover text for a from/to span — the run drop and the collision arc. */
+  private _t(
+    key: string,
+    lang: string,
+    span: { fromMinutes: number; toMinutes: number },
+  ): string {
+    return localize(
+      `panels.schedules.dial.${key}`,
+      lang,
+      "{from}",
+      fmtClock(span.fromMinutes),
+      "{to}",
+      fmtClock(span.toMinutes),
+    );
+  }
+
+  /**
+   * The line under the dial: how many runs an interval schedule makes and how
+   * long each is, or how much of a bounded window's demand will not fit.
+   *
+   * Read off nominal demand like everything else here, never off tonight — a
+   * caption that moved because a bucket moved would be describing something
+   * the user did not configure.
+   */
+  private _note(model: DialModel, lang: string) {
+    const demand = this.nominalDemandSeconds / 60;
+    if (!demand) return html``;
+    if (model.centre.kind === "interval") {
+      const collides = model.overlaps.length > 0;
+      return html`
+        <div class="d-note ${collides ? "warn" : ""}">
+          ${collides
+            ? localize("panels.schedules.dial.collision_note", lang)
+            : localize(
+                "panels.schedules.dial.runs_of",
+                lang,
+                "{count}",
+                model.runs.length,
+                "{duration}",
+                fmtDuration(demand),
+              )}
+        </div>
+      `;
+    }
+    if (model.centre.kind !== "window") return html``;
+    const short = demand - (model.centre.minutes ?? 0);
+    if (short <= 1) return html``;
+    return html`
+      <div class="d-note warn">
+        ${localize(
+          "panels.schedules.dial.shortfall",
+          lang,
+          "{duration}",
+          fmtDuration(short),
+        )}
+      </div>
     `;
   }
 
@@ -172,6 +244,22 @@ export class SiRunWindowDial extends LitElement {
       azimuthResolver: this._azimuthResolver(),
     });
     const { val, lbl } = this._centreText(model, lang);
+    // Precomputed, and each <title> kept on one line. A title element's text
+    // content IS the tooltip, newlines and indentation included, so the
+    // pretty-printed multi-line form renders as a box of blank space with the
+    // words lost in the middle of it.
+    const sunTitle = localize(
+      "panels.schedules.dial.sunrise",
+      lang,
+      "{time}",
+      fmtClock(model.sun.minutes),
+    );
+    const moonTitle = localize(
+      "panels.schedules.dial.sunset",
+      lang,
+      "{time}",
+      fmtClock(model.moon.minutes),
+    );
 
     return html`
       <div class="viz-dial">
@@ -203,16 +291,7 @@ export class SiRunWindowDial extends LitElement {
             ${model.overlaps.map(
               (o) => svg`
                 <path d="${o.d}" class="d-overlap">
-                  <title>
-                    ${localize(
-                      "panels.schedules.dial.collision",
-                      lang,
-                      "{from}",
-                      fmtClock(o.fromMinutes),
-                      "{to}",
-                      fmtClock(o.toMinutes),
-                    )}
-                  </title>
+                  <title>${this._t("collision", lang, o)}</title>
                 </path>
               `,
             )}
@@ -234,14 +313,7 @@ export class SiRunWindowDial extends LitElement {
                 12 * 0.42
               ).toFixed(1)}) scale(0.42)"
             >
-              <title>
-                ${localize(
-                  "panels.schedules.dial.sunrise",
-                  lang,
-                  "{time}",
-                  fmtClock(model.sun.minutes),
-                )}
-              </title>
+              <title>${sunTitle}</title>
               ${SUN_PATH}
             </g>
             <g
@@ -251,14 +323,7 @@ export class SiRunWindowDial extends LitElement {
                 12 * 0.42
               ).toFixed(1)}) scale(0.42)"
             >
-              <title>
-                ${localize(
-                  "panels.schedules.dial.sunset",
-                  lang,
-                  "{time}",
-                  fmtClock(model.moon.minutes),
-                )}
-              </title>
+              <title>${moonTitle}</title>
               ${MOON_PATH}
             </g>
             ${model.drops.map(
@@ -270,16 +335,7 @@ export class SiRunWindowDial extends LitElement {
                     12 * 0.38
                   ).toFixed(1)}) scale(0.38)"
                 >
-                  <title>
-                    ${localize(
-                      "panels.schedules.dial.run",
-                      lang,
-                      "{from}",
-                      fmtClock(d.fromMinutes),
-                      "{to}",
-                      fmtClock(d.toMinutes),
-                    )}
-                  </title>
+                  <title>${this._t("run", lang, d)}</title>
                   ${DROP_PATH}
                 </g>
               `,
@@ -290,6 +346,7 @@ export class SiRunWindowDial extends LitElement {
             <div class="d-lbl">${lbl}</div>
           </div>
         </div>
+        ${this._note(model, lang)}
       </div>
     `;
   }
@@ -397,6 +454,15 @@ export class SiRunWindowDial extends LitElement {
         font-weight: 500;
         font-variant-numeric: tabular-nums;
         color: var(--primary-text-color);
+      }
+      .viz-dial .d-note {
+        font-size: 0.78125rem;
+        line-height: 1.35;
+        color: var(--secondary-text-color);
+        margin-top: 4px;
+      }
+      .viz-dial .d-note.warn {
+        color: var(--accent-color, #ff9800);
       }
       .viz-dial .d-lbl {
         font-size: 9.5px;

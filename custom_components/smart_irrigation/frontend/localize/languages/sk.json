@@ -604,7 +604,7 @@
       "zones_all": "Všetky zóny",
       "zones_specific": "Konkrétne zóny",
       "hours": "hodín",
-      "minutes": "min",
+      "minutes": "minút",
       "types": {
         "daily": "Denne",
         "weekly": "Týždenne",
@@ -631,14 +631,15 @@
         "enabled": "Povolené",
         "days_of_week": "Dni v týždni",
         "day_of_month": "Deň v mesiaci",
-        "interval_hours": "Interval",
+        "interval_hours": "Každých",
         "action": "Akcia",
         "zones": "Zóny",
         "start_mode": "Začiatok",
-        "start_time": "Čas začiatku (voliteľné)",
+        "start_time": "Prvý beh o",
         "finish_mode": "Koniec",
         "finish_time": "Čas konca (HH:MM)",
-        "anchor": "Ukotvené na",
+        "anchor_prefix": "Zavlažovať čo",
+        "anchor_suffix": "najviac v rámci okna",
         "offset_by": "posunuté o"
       },
       "dialog": {
@@ -683,11 +684,12 @@
         "solar_azimuth": "Pri slnečnom azimute"
       },
       "anchor": {
-        "start": "Čo najskôr v danom okne",
-        "finish": "Čo najneskôr v danom okne"
+        "start": "skoro",
+        "finish": "neskoro"
       },
       "help": {
         "error": "Musíte nastaviť buď podmienku začiatku, alebo konca",
+        "interval_start": "Nechajte prázdne, ak sa má začať od uloženia plánu. Intervalový plán nemá cieľový čas dňa, takže nemá ani okno behu.",
         "demand_open": "Nastavené podľa dopytu. Všetky zóny bežia do dokončenia.",
         "exact": "Presne.",
         "demand_floored": "Nastavené podľa dopytu, ale nikdy pred týmto.",
@@ -702,6 +704,9 @@
         "sunset": "Západ slnka {time}",
         "run": "Závlaha {from} až {to}",
         "collision": "Prekrýva sa s predchádzajúcou závlahou, {from} až {to}: zóny, ktoré ešte zavlažujú, sa preskočia",
+        "collision_note": "Zóny, ktoré ešte zavlažujú, sa preskočia",
+        "runs_of": "{count} behov po {duration}",
+        "shortfall": "{duration} sa nezmestí",
         "window_label": "okno",
         "run_label": "závlaha",
         "per_day": "{count}x denne",

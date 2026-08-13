@@ -604,7 +604,7 @@
       "zones_all": "Alle zones",
       "zones_specific": "Specifieke zones",
       "hours": "uur",
-      "minutes": "min",
+      "minutes": "minuten",
       "types": {
         "daily": "Dagelijks",
         "weekly": "Wekelijks",
@@ -631,14 +631,15 @@
         "enabled": "Ingeschakeld",
         "days_of_week": "Weekdagen",
         "day_of_month": "Dag van de maand",
-        "interval_hours": "Interval",
+        "interval_hours": "Elke",
         "action": "Actie",
         "zones": "Zones",
         "start_mode": "Start",
-        "start_time": "Starttijd (optioneel)",
+        "start_time": "Eerste beurt om",
         "finish_mode": "Einde",
         "finish_time": "Eindtijd (HH:MM)",
-        "anchor": "Vastgezet op",
+        "anchor_prefix": "Water geven zo",
+        "anchor_suffix": "mogelijk binnen het venster",
         "offset_by": "offset van"
       },
       "dialog": {
@@ -683,11 +684,12 @@
         "solar_azimuth": "Bij zonneazimut"
       },
       "anchor": {
-        "start": "Zo vroeg mogelijk binnen het venster",
-        "finish": "Zo laat mogelijk binnen het venster"
+        "start": "vroeg",
+        "finish": "laat"
       },
       "help": {
         "error": "Er moet een start- of eindvoorwaarde worden ingesteld",
+        "interval_start": "Laat leeg om te starten vanaf het moment dat het schema wordt opgeslagen. Een intervalschema heeft geen doeltijdstip en dus geen venster.",
         "demand_open": "Ingesteld op basis van vraag. Alle zones worden volledig uitgevoerd.",
         "exact": "Exact.",
         "demand_floored": "Ingesteld op basis van vraag, maar nooit eerder dan dit.",
@@ -702,6 +704,9 @@
         "sunset": "Zonsondergang {time}",
         "run": "Beurt van {from} tot {to}",
         "collision": "Overlapt met de vorige beurt, van {from} tot {to}: zones die nog aan het bewateren zijn worden overgeslagen",
+        "collision_note": "Zones die nog water geven worden overgeslagen",
+        "runs_of": "{count} beurten van {duration}",
+        "shortfall": "{duration} past niet",
         "window_label": "venster",
         "run_label": "beurt",
         "per_day": "{count}x per dag",

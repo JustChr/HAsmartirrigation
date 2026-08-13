@@ -189,7 +189,7 @@
       "zones_all": "All zones",
       "zones_specific": "Specific zones",
       "hours": "hours",
-      "minutes": "min",
+      "minutes": "minutes",
       "types": {
         "daily": "Daily",
         "weekly": "Weekly",
@@ -216,14 +216,15 @@
         "enabled": "Enabled",
         "days_of_week": "Days of week",
         "day_of_month": "Day of month",
-        "interval_hours": "Interval",
+        "interval_hours": "Every",
         "action": "Action",
         "zones": "Zones",
         "start_mode": "Start",
-        "start_time": "Start time (optional)",
+        "start_time": "First run at",
         "finish_mode": "Finish",
         "finish_time": "Finish time (HH:MM)",
-        "anchor": "Pinned to",
+        "anchor_prefix": "Water as",
+        "anchor_suffix": "as possible in the window",
         "offset_by": "offset by"
       },
       "dialog": {
@@ -268,11 +269,12 @@
         "solar_azimuth": "At solar azimuth"
       },
       "anchor": {
-        "start": "As early as possible within the window",
-        "finish": "As late as possible within the window"
+        "start": "early",
+        "finish": "late"
       },
       "help": {
         "error": "Must set either a start or finish condition",
+        "interval_start": "Leave blank to start from when the schedule is saved. An interval schedule has no target time of day, so no run window.",
         "demand_open": "Set by demand. All zones run to completion.",
         "exact": "Exact.",
         "demand_floored": "Set by demand, but never before this.",
@@ -287,6 +289,9 @@
         "sunset": "Sunset {time}",
         "run": "Run {from} to {to}",
         "collision": "Collides with the previous run, {from} to {to}: zones still watering are skipped",
+        "collision_note": "Zones still watering are skipped",
+        "runs_of": "{count} runs of {duration}",
+        "shortfall": "{duration} will not fit",
         "window_label": "window",
         "run_label": "run",
         "per_day": "{count}x per day",

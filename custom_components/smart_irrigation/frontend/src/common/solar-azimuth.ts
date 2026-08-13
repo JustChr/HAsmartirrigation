@@ -26,10 +26,10 @@
  * a wall-clock time in Home Assistant's configured zone. This module keeps
  * that frame: every `Date` flowing through the resolver carries a wall clock
  * in its UTC fields (`getUTCHours()` etc.) and has no timezone meaning of its
- * own. `wallClockNowInZone` / `wallClockToBrowserMinutes` are the only two
- * places a real instant exists, and they are what keeps an azimuth bound in
- * the same frame as the dial's sunrise/sunset glyphs (which come from
- * `sun.sun`'s absolute timestamps rendered in the browser's zone).
+ * own. `wallClockNowInZone` / `wallClockMinutes` are the only two places a
+ * real instant exists, and they are what keeps an azimuth bound in the same
+ * frame as the dial's sunrise/sunset glyphs, which come from `sun.sun`'s
+ * absolute timestamps rendered in that same Home Assistant zone.
  */
 
 /** Mirrors helpers.py's `normalize_azimuth_angle`, but non-negative for a
@@ -234,30 +234,19 @@ function browserWallClock(instant: Date): Date {
 }
 
 /**
- * A wall clock in `timeZone` rendered as a minute-of-day on the browser's own
- * clock - the frame the dial draws in, and the one `sun.sun`'s next_rising /
- * next_setting already land in.
+ * Minute-of-day of a wall clock produced by `wallClockNowInZone`, which
+ * carries its hour and minute in the Date's UTC fields.
  *
- * When the two zones agree this is just the wall clock's own hour and minute.
- * When they do not, the shift is what keeps an azimuth bound consistent with
- * the sunrise glyph beside it rather than an hour off it.
+ * The dial draws in HOME ASSISTANT's zone, not the browser's. That is not a
+ * cosmetic choice: every other time in the dialog is a Home Assistant wall
+ * clock (the Start/Finish clock inputs, the summary sentence, the times the
+ * schedule actually fires at), so rendering the sun in the viewer's zone puts
+ * two different clocks on one dial. A browser an hour off drew the window band
+ * an hour from the times typed beside it, and a browser on UTC put a 20:42
+ * sunset at 00:42 on the ring, moving the moon glyph most of the way round.
  */
-export function wallClockToBrowserMinutes(
-  wall: Date,
-  timeZone: string | undefined,
-): number {
-  let instantMs = wall.getTime();
-  // Two passes: the zone's offset is itself a function of the instant, so the
-  // first guess (offset at the wall clock read as UTC) is refined once against
-  // the instant it produces. Enough everywhere except inside a DST fold, where
-  // no answer is right anyway.
-  for (let i = 0; i < 2; i++) {
-    const offsetMs =
-      wallClockNowInZone(timeZone, new Date(instantMs)).getTime() - instantMs;
-    instantMs = wall.getTime() - offsetMs;
-  }
-  const local = new Date(instantMs);
-  return local.getHours() * 60 + local.getMinutes();
+export function wallClockMinutes(wall: Date): number {
+  return wall.getUTCHours() * 60 + wall.getUTCMinutes();
 }
 
 /**
@@ -324,5 +313,5 @@ export function azimuthBoundMinutes(
     midnight,
   );
   if (crossing === null) return null;
-  return wallClockToBrowserMinutes(crossing, timeZone);
+  return wallClockMinutes(crossing);
 }

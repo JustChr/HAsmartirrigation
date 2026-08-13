@@ -604,7 +604,7 @@
       "zones_all": "Todas las zonas",
       "zones_specific": "Zonas específicas",
       "hours": "horas",
-      "minutes": "min",
+      "minutes": "minutos",
       "types": {
         "daily": "Diario",
         "weekly": "Semanal",
@@ -631,14 +631,15 @@
         "enabled": "Activado",
         "days_of_week": "Días de la semana",
         "day_of_month": "Día del mes",
-        "interval_hours": "Intervalo",
+        "interval_hours": "Cada",
         "action": "Acción",
         "zones": "Zonas",
         "start_mode": "Inicio",
-        "start_time": "Hora de inicio (opcional)",
+        "start_time": "Primer riego a las",
         "finish_mode": "Fin",
         "finish_time": "Hora de fin (HH:MM)",
-        "anchor": "Anclado a",
+        "anchor_prefix": "Regar lo más",
+        "anchor_suffix": "posible dentro de la ventana",
         "offset_by": "desfase de"
       },
       "dialog": {
@@ -683,11 +684,12 @@
         "solar_azimuth": "En azimut solar"
       },
       "anchor": {
-        "start": "Lo antes posible dentro de la ventana",
-        "finish": "Lo más tarde posible dentro de la ventana"
+        "start": "pronto",
+        "finish": "tarde"
       },
       "help": {
         "error": "Debe establecer una condición de inicio o de fin",
+        "interval_start": "Déjalo en blanco para empezar desde que se guarda la programación. Una programación por intervalo no tiene hora objetivo, así que no tiene ventana de riego.",
         "demand_open": "Establecido según demanda. Todas las zonas se ejecutan hasta completarse.",
         "exact": "Exacto.",
         "demand_floored": "Establecido según demanda, pero nunca antes de esto.",
@@ -702,6 +704,9 @@
         "sunset": "Atardecer {time}",
         "run": "Riego de {from} a {to}",
         "collision": "Coincide con el riego anterior, de {from} a {to}: las zonas que aún están regando se omiten",
+        "collision_note": "Se omiten las zonas que siguen regando",
+        "runs_of": "{count} riegos de {duration}",
+        "shortfall": "{duration} no caben",
         "window_label": "ventana",
         "run_label": "riego",
         "per_day": "{count}x al día",
