@@ -21,6 +21,7 @@ import {
   emptySchedule,
   recurrenceLabel,
 } from "../../components/si-schedule-dialog";
+import { summarizeSchedule } from "../../common/schedule-summary";
 
 const MONTHS = [
   "Jan",
@@ -204,6 +205,9 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
             (s) => html`
               <ha-card header="${s.name}">
                 <div class="card-content">
+                  <div class="summary">
+                    ${summarizeSchedule(s, this.hass.language).text}
+                  </div>
                   <div class="info-row">
                     <span class="info-label"
                       >${localize(
@@ -350,6 +354,21 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return [
       globalStyle,
       css`
+        /* Same read-only summary sentence as si-schedule-dialog.ts's own
+           ".summary" (GitLab #30) — a schedule can be read without opening
+           it. Kept as a second copy of the CSS rather than a shared style
+           module because these two components don't otherwise share
+           styling infrastructure; the text itself comes from the one
+           shared schedule-summary.ts so the wording can't drift. */
+        .summary {
+          border-left: 3px solid var(--primary-color);
+          background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+          border-radius: 0 8px 8px 0;
+          padding: 11px 14px;
+          font-size: 0.90625rem;
+          line-height: 1.6;
+          margin-bottom: 10px;
+        }
         .info-row {
           display: flex;
           gap: 8px;

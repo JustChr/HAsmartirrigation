@@ -639,13 +639,41 @@
         "finish_mode": "Fin",
         "finish_time": "Heure de fin (HH:MM)",
         "anchor": "Ancré sur",
-        "start_date": "Date de début (optionnel)",
-        "end_date": "Date de fin (optionnel)",
         "offset_by": "décalé de"
       },
       "dialog": {
         "add_title": "Ajouter une planification",
         "edit_title": "Modifier la planification"
+      },
+      "sections": {
+        "when": "Quand",
+        "zones": "Zones",
+        "season": "Saison"
+      },
+      "season": {
+        "label": "Plage de dates",
+        "to": "à",
+        "note": "Laissez les deux vides pour fonctionner toute l'année."
+      },
+      "summary": {
+        "invalid": "Cette planification n'a ni début ni fin définis, elle ne s'exécute donc jamais.",
+        "recurrence_daily": "S'exécute quotidiennement",
+        "recurrence_weekly": "S'exécute chaque semaine le {days}",
+        "recurrence_monthly": "S'exécute chaque mois le jour {day}",
+        "recurrence_interval": "S'exécute toutes les {hours} heures",
+        "recurrence_interval_at": "S'exécute toutes les {hours} heures, à partir de {time}",
+        "zones_all": "toutes les zones",
+        "zones_some": "{count, plural, one {# zone sélectionnée} other {# zones sélectionnées}}",
+        "watering": "irrigue {zones}",
+        "start_only": "débute à {when} ; toutes les zones vont jusqu'au bout",
+        "finish_only": "se termine à {when} ; toutes les zones vont jusqu'au bout",
+        "anchor_finish": "se termine à {finish}, en débutant le plus tard possible mais jamais avant {start} ; les zones qui ne rentrent pas attendent le prochain passage",
+        "anchor_start": "débute à {start}, se termine au plus tard à {finish} ; les zones qui ne rentrent pas attendent le prochain passage",
+        "sunrise": "lever du soleil",
+        "sunset": "coucher du soleil",
+        "offset_before": "{minutes} min avant {event}",
+        "offset_after": "{minutes} min après {event}",
+        "at_azimuth": "azimut solaire {degrees}°"
       },
       "bound_mode": {
         "none": "Aucune limite",

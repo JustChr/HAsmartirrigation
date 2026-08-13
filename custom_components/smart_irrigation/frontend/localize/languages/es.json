@@ -639,13 +639,41 @@
         "finish_mode": "Fin",
         "finish_time": "Hora de fin (HH:MM)",
         "anchor": "Anclado a",
-        "start_date": "Fecha de inicio (opcional)",
-        "end_date": "Fecha de fin (opcional)",
         "offset_by": "desfase de"
       },
       "dialog": {
         "add_title": "Añadir programa",
         "edit_title": "Editar programa"
+      },
+      "sections": {
+        "when": "Cuándo",
+        "zones": "Zonas",
+        "season": "Temporada"
+      },
+      "season": {
+        "label": "Rango de fechas",
+        "to": "a",
+        "note": "Deje ambas en blanco para regar todo el año."
+      },
+      "summary": {
+        "invalid": "Este programa no tiene inicio ni fin establecidos, por lo que nunca se ejecuta.",
+        "recurrence_daily": "Se ejecuta a diario",
+        "recurrence_weekly": "Se ejecuta semanalmente los {days}",
+        "recurrence_monthly": "Se ejecuta mensualmente el día {day}",
+        "recurrence_interval": "Se ejecuta cada {hours} horas",
+        "recurrence_interval_at": "Se ejecuta cada {hours} horas, comenzando a {time}",
+        "zones_all": "todas las zonas",
+        "zones_some": "{count, plural, one {# zona seleccionada} other {# zonas seleccionadas}}",
+        "watering": "regando {zones}",
+        "start_only": "comenzando a {when}; todas las zonas se ejecutan hasta completarse",
+        "finish_only": "terminando a {when}; todas las zonas se ejecutan hasta completarse",
+        "anchor_finish": "terminando a {finish}, comenzando lo más tarde posible pero nunca antes de {start}; las zonas que no caben esperan al siguiente riego",
+        "anchor_start": "comenzando a {start}, terminando como máximo a {finish}; las zonas que no caben esperan al siguiente riego",
+        "sunrise": "amanecer",
+        "sunset": "atardecer",
+        "offset_before": "{minutes} min antes de {event}",
+        "offset_after": "{minutes} min después de {event}",
+        "at_azimuth": "azimut solar {degrees}°"
       },
       "bound_mode": {
         "none": "Sin límite",

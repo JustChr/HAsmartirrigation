@@ -639,13 +639,41 @@
         "finish_mode": "Slutt",
         "finish_time": "Sluttid (HH:MM)",
         "anchor": "Festet til",
-        "start_date": "Startdato (valgfritt)",
-        "end_date": "Sluttdato (valgfritt)",
         "offset_by": "forskjøvet med"
       },
       "dialog": {
         "add_title": "Legg til tidsplan",
         "edit_title": "Rediger tidsplan"
+      },
+      "sections": {
+        "when": "Når",
+        "zones": "Soner",
+        "season": "Sesong"
+      },
+      "season": {
+        "label": "Datoperiode",
+        "to": "til",
+        "note": "La begge stå tomme for å vanne hele året."
+      },
+      "summary": {
+        "invalid": "Denne tidsplanen har verken start eller slutt angitt, så den kjører aldri.",
+        "recurrence_daily": "Kjører daglig",
+        "recurrence_weekly": "Kjører ukentlig på {days}",
+        "recurrence_monthly": "Kjører månedlig på dag {day}",
+        "recurrence_interval": "Kjører hver {hours}. time",
+        "recurrence_interval_at": "Kjører hver {hours}. time, med start {time}",
+        "zones_all": "alle soner",
+        "zones_some": "{count, plural, one {# valgt sone} other {# valgte soner}}",
+        "watering": "vanner {zones}",
+        "start_only": "starter {when}; alle soner kjører til de er ferdige",
+        "finish_only": "slutter {when}; alle soner kjører til de er ferdige",
+        "anchor_finish": "slutter {finish}, starter så sent som mulig, men aldri før {start}; soner som ikke får plass venter til neste gang",
+        "anchor_start": "starter {start}, slutter senest {finish}; soner som ikke får plass venter til neste gang",
+        "sunrise": "soloppgang",
+        "sunset": "solnedgang",
+        "offset_before": "{minutes} min før {event}",
+        "offset_after": "{minutes} min etter {event}",
+        "at_azimuth": "solazimutt {degrees}°"
       },
       "bound_mode": {
         "none": "Ingen grense",

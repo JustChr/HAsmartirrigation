@@ -639,13 +639,41 @@
         "finish_mode": "Koniec",
         "finish_time": "Čas konca (HH:MM)",
         "anchor": "Ukotvené na",
-        "start_date": "Dátum začiatku (voliteľné)",
-        "end_date": "Dátum konca (voliteľné)",
         "offset_by": "posunuté o"
       },
       "dialog": {
         "add_title": "Pridať plán",
         "edit_title": "Upraviť plán"
+      },
+      "sections": {
+        "when": "Kedy",
+        "zones": "Zóny",
+        "season": "Sezóna"
+      },
+      "season": {
+        "label": "Rozsah dátumov",
+        "to": "do",
+        "note": "Ak obe polia necháte prázdne, plán beží celý rok."
+      },
+      "summary": {
+        "invalid": "Tento plán nemá nastavený začiatok ani koniec, takže nikdy nebeží.",
+        "recurrence_daily": "Beží denne",
+        "recurrence_weekly": "Beží týždenne v tieto dni: {days}",
+        "recurrence_monthly": "Beží mesačne v deň {day}",
+        "recurrence_interval": "Beží každých {hours} hodín",
+        "recurrence_interval_at": "Beží každých {hours} hodín, so začiatkom o {time}",
+        "zones_all": "všetky zóny",
+        "zones_some": "{count, plural, one {# vybraná zóna} few {# vybrané zóny} other {# vybraných zón}}",
+        "watering": "zavlažuje {zones}",
+        "start_only": "začína o {when}; všetky zóny bežia do dokončenia",
+        "finish_only": "končí o {when}; všetky zóny bežia do dokončenia",
+        "anchor_finish": "končí o {finish}, začína čo najneskôr, ale nikdy pred {start}; zóny, ktoré sa nezmestia, čakajú na ďalší beh",
+        "anchor_start": "začína o {start}, končí najneskôr o {finish}; zóny, ktoré sa nezmestia, čakajú na ďalší beh",
+        "sunrise": "východ slnka",
+        "sunset": "západ slnka",
+        "offset_before": "{minutes} min pred {event}",
+        "offset_after": "{minutes} min po {event}",
+        "at_azimuth": "slnečný azimut {degrees}°"
       },
       "bound_mode": {
         "none": "Bez obmedzenia",

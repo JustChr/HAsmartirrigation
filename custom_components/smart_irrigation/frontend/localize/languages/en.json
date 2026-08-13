@@ -224,13 +224,41 @@
         "finish_mode": "Finish",
         "finish_time": "Finish time (HH:MM)",
         "anchor": "Pinned to",
-        "start_date": "Start date (optional)",
-        "end_date": "End date (optional)",
         "offset_by": "offset by"
       },
       "dialog": {
         "add_title": "Add Schedule",
         "edit_title": "Edit Schedule"
+      },
+      "sections": {
+        "when": "When",
+        "zones": "Zones",
+        "season": "Season"
+      },
+      "season": {
+        "label": "Date range",
+        "to": "to",
+        "note": "Leave both blank to run all year."
+      },
+      "summary": {
+        "invalid": "This schedule has no start or finish set, so it never runs.",
+        "recurrence_daily": "Runs daily",
+        "recurrence_weekly": "Runs weekly on {days}",
+        "recurrence_monthly": "Runs monthly on day {day}",
+        "recurrence_interval": "Runs every {hours} hours",
+        "recurrence_interval_at": "Runs every {hours} hours, starting at {time}",
+        "zones_all": "all zones",
+        "zones_some": "{count, plural, one {# selected zone} other {# selected zones}}",
+        "watering": "watering {zones}",
+        "start_only": "starting at {when}; every zone runs to completion",
+        "finish_only": "finishing at {when}; every zone runs to completion",
+        "anchor_finish": "finishing at {finish}, starting as late as possible but never before {start}; zones that don't fit wait for the next run",
+        "anchor_start": "starting at {start}, finishing by {finish} at the latest; zones that don't fit wait for the next run",
+        "sunrise": "sunrise",
+        "sunset": "sunset",
+        "offset_before": "{minutes} min before {event}",
+        "offset_after": "{minutes} min after {event}",
+        "at_azimuth": "solar azimuth {degrees}°"
       },
       "bound_mode": {
         "none": "No limit",

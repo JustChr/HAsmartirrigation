@@ -639,13 +639,41 @@
         "finish_mode": "Ende",
         "finish_time": "Endzeit (HH:MM)",
         "anchor": "Fixiert auf",
-        "start_date": "Startdatum (optional)",
-        "end_date": "Enddatum (optional)",
         "offset_by": "versetzt um"
       },
       "dialog": {
         "add_title": "Zeitplan hinzufügen",
         "edit_title": "Zeitplan bearbeiten"
+      },
+      "sections": {
+        "when": "Wann",
+        "zones": "Zonen",
+        "season": "Saison"
+      },
+      "season": {
+        "label": "Zeitraum",
+        "to": "bis",
+        "note": "Beide Felder leer lassen, um ganzjährig zu laufen."
+      },
+      "summary": {
+        "invalid": "Für diesen Zeitplan ist weder Start noch Ende festgelegt, er läuft also nie.",
+        "recurrence_daily": "Läuft täglich",
+        "recurrence_weekly": "Läuft wöchentlich an {days}",
+        "recurrence_monthly": "Läuft monatlich am Tag {day}",
+        "recurrence_interval": "Läuft alle {hours} Stunden",
+        "recurrence_interval_at": "Läuft alle {hours} Stunden, beginnend um {time}",
+        "zones_all": "alle Zonen",
+        "zones_some": "{count, plural, one {# ausgewählte Zone} other {# ausgewählte Zonen}}",
+        "watering": "bewässert {zones}",
+        "start_only": "beginnt um {when}; alle Zonen laufen bis zum Abschluss",
+        "finish_only": "endet um {when}; alle Zonen laufen bis zum Abschluss",
+        "anchor_finish": "endet um {finish}, beginnt so spät wie möglich, aber nie vor {start}; Zonen, die nicht hineinpassen, warten auf den nächsten Durchlauf",
+        "anchor_start": "beginnt um {start}, endet spätestens um {finish}; Zonen, die nicht hineinpassen, warten auf den nächsten Durchlauf",
+        "sunrise": "Sonnenaufgang",
+        "sunset": "Sonnenuntergang",
+        "offset_before": "{minutes} Min. vor {event}",
+        "offset_after": "{minutes} Min. nach {event}",
+        "at_azimuth": "Sonnenazimut {degrees}°"
       },
       "bound_mode": {
         "none": "Keine Begrenzung",

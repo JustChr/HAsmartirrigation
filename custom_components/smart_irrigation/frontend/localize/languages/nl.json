@@ -639,13 +639,41 @@
         "finish_mode": "Einde",
         "finish_time": "Eindtijd (HH:MM)",
         "anchor": "Vastgezet op",
-        "start_date": "Startdatum (optioneel)",
-        "end_date": "Einddatum (optioneel)",
         "offset_by": "offset van"
       },
       "dialog": {
         "add_title": "Schema toevoegen",
         "edit_title": "Schema bewerken"
+      },
+      "sections": {
+        "when": "Wanneer",
+        "zones": "Zones",
+        "season": "Seizoen"
+      },
+      "season": {
+        "label": "Periode",
+        "to": "tot",
+        "note": "Beide leeg laten om het hele jaar door te draaien."
+      },
+      "summary": {
+        "invalid": "Dit schema heeft geen start of einde ingesteld, dus het draait nooit.",
+        "recurrence_daily": "Draait dagelijks",
+        "recurrence_weekly": "Draait wekelijks op {days}",
+        "recurrence_monthly": "Draait maandelijks op dag {day}",
+        "recurrence_interval": "Draait elke {hours} uur",
+        "recurrence_interval_at": "Draait elke {hours} uur, startend om {time}",
+        "zones_all": "alle zones",
+        "zones_some": "{count, plural, one {# geselecteerde zone} other {# geselecteerde zones}}",
+        "watering": "bewatert {zones}",
+        "start_only": "start om {when}; alle zones lopen tot ze klaar zijn",
+        "finish_only": "eindigt om {when}; alle zones lopen tot ze klaar zijn",
+        "anchor_finish": "eindigt om {finish}, start zo laat mogelijk maar nooit voor {start}; zones die niet passen wachten op de volgende keer",
+        "anchor_start": "start om {start}, eindigt uiterlijk om {finish}; zones die niet passen wachten op de volgende keer",
+        "sunrise": "zonsopgang",
+        "sunset": "zonsondergang",
+        "offset_before": "{minutes} min voor {event}",
+        "offset_after": "{minutes} min na {event}",
+        "at_azimuth": "zonneazimut {degrees}°"
       },
       "bound_mode": {
         "none": "Geen limiet",

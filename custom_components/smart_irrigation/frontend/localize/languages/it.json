@@ -679,13 +679,41 @@
         "finish_mode": "Fine",
         "finish_time": "Ora di fine (HH:MM)",
         "anchor": "Ancorato a",
-        "start_date": "Data di inizio (opzionale)",
-        "end_date": "Data di fine (opzionale)",
         "offset_by": "offset di"
       },
       "dialog": {
         "add_title": "Aggiungi pianificazione",
         "edit_title": "Modifica pianificazione"
+      },
+      "sections": {
+        "when": "Quando",
+        "zones": "Zone",
+        "season": "Stagione"
+      },
+      "season": {
+        "label": "Intervallo di date",
+        "to": "a",
+        "note": "Lasciare entrambe vuote per irrigare tutto l'anno."
+      },
+      "summary": {
+        "invalid": "Questa pianificazione non ha né inizio né fine impostati, quindi non viene mai eseguita.",
+        "recurrence_daily": "Viene eseguita ogni giorno",
+        "recurrence_weekly": "Viene eseguita ogni settimana il {days}",
+        "recurrence_monthly": "Viene eseguita ogni mese il giorno {day}",
+        "recurrence_interval": "Viene eseguita ogni {hours} ore",
+        "recurrence_interval_at": "Viene eseguita ogni {hours} ore, a partire da {time}",
+        "zones_all": "tutte le zone",
+        "zones_some": "{count, plural, one {# zona selezionata} other {# zone selezionate}}",
+        "watering": "irriga {zones}",
+        "start_only": "inizia a {when}; tutte le zone vengono completate",
+        "finish_only": "termina a {when}; tutte le zone vengono completate",
+        "anchor_finish": "termina a {finish}, iniziando il più tardi possibile ma mai prima di {start}; le zone che non rientrano attendono il prossimo ciclo",
+        "anchor_start": "inizia a {start}, termina al più tardi a {finish}; le zone che non rientrano attendono il prossimo ciclo",
+        "sunrise": "alba",
+        "sunset": "tramonto",
+        "offset_before": "{minutes} min prima {event}",
+        "offset_after": "{minutes} min dopo {event}",
+        "at_azimuth": "azimut solare {degrees}°"
       },
       "bound_mode": {
         "none": "Nessun limite",

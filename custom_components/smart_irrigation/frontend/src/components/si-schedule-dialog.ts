@@ -26,6 +26,7 @@ import {
   BoundMode,
   Anchor,
 } from "../common/schedule-rows";
+import { summarizeSchedule } from "../common/schedule-summary";
 
 const DAYS = [
   "monday",
@@ -119,8 +120,11 @@ type BoundEnd = "start" | "finish";
  * plus independent Start/Finish bounds) through the two Start/Finish rows
  * plus their help text and the pinned-end row (GitLab #29) — all sourced
  * from the pure mapping in ../common/schedule-rows.ts, which is also where
- * the rows<->fields round trip is tested. The grouped WHEN/ZONES/SEASON
- * redesign and the run-window dial are a later ticket.
+ * the rows<->fields round trip is tested. Fields are grouped into WHEN/
+ * ZONES/SEASON cards with a read-only summary sentence at the top (GitLab
+ * #30, ../common/schedule-summary.ts — the same sentence heads each card in
+ * view-schedules.ts's list). The 24-hour run-window dial is a later ticket
+ * (GitLab #31).
  */
 @customElement("si-schedule-dialog")
 export class SiScheduleDialog extends LitElement {
@@ -164,12 +168,6 @@ export class SiScheduleDialog extends LitElement {
 
     return html`
       <div class="field">
-        <label
-          >${localize(
-            "panels.schedules.fields.zones",
-            this.hass.language,
-          )}</label
-        >
         <div class="switch-container">
           <input
             type="radio"
@@ -502,20 +500,96 @@ export class SiScheduleDialog extends LitElement {
     return describeWindow(scheduleToRows(s)).valid;
   }
 
+  /** One bordered card: a small-caps heading (also the label for whatever
+   * unlabeled control sits directly under it, e.g. the recurrence select
+   * and the zone picker's radios) plus its body. */
+  private _renderSection(titleKey: string, body: TemplateResult) {
+    return html`
+      <div class="sect-card">
+        <h4>
+          ${localize(
+            `panels.schedules.sections.${titleKey}`,
+            this.hass.language,
+          )}
+        </h4>
+        ${body}
+      </div>
+    `;
+  }
+
+  /** The read-only sentence restating the whole schedule — same wording as
+   * the one heading this schedule's card in the list view. Built purely
+   * from the stored schedule (../common/schedule-summary.ts), never from
+   * live bucket/weather state. */
+  private _renderSummary() {
+    const summary = summarizeSchedule(this.schedule, this.hass.language);
+    return html`
+      <div class="summary ${summary.isError ? "is-error" : ""}">
+        ${summary.text}
+      </div>
+    `;
+  }
+
+  private _renderSeasonSection() {
+    const s = this.schedule;
+    const lang = this.hass.language;
+    return html`
+      <div class="field">
+        <label>${localize("panels.schedules.season.label", lang)}</label>
+        <div class="rowfields">
+          <input
+            type="date"
+            .value="${s.start_date || ""}"
+            @change=${(e: Event) =>
+              this._emitChanged({
+                start_date: (e.target as HTMLInputElement).value || undefined,
+              })}
+          />
+          <span class="suffix"
+            >${localize("panels.schedules.season.to", lang)}</span
+          >
+          <input
+            type="date"
+            .value="${s.end_date || ""}"
+            @change=${(e: Event) =>
+              this._emitChanged({
+                end_date: (e.target as HTMLInputElement).value || undefined,
+              })}
+          />
+        </div>
+        <span class="field-help"
+          >${localize("panels.schedules.season.note", lang)}</span
+        >
+      </div>
+    `;
+  }
+
   render(): TemplateResult {
     if (!this.hass || !this.schedule) return html``;
     const s = this.schedule;
+    const lang = this.hass.language;
 
     return html`
-      <ha-dialog open heading="${this.heading}" @closed=${this._cancel}>
+      <ha-dialog open @closed=${this._cancel}>
+        <div slot="heading" class="dialog-heading-row">
+          <span>${this.heading}</span>
+          <label class="enabled-toggle">
+            <input
+              type="checkbox"
+              ?checked="${s.enabled}"
+              @change=${(e: Event) =>
+                this._emitChanged({
+                  enabled: (e.target as HTMLInputElement).checked,
+                })}
+            />
+            ${localize("panels.schedules.fields.enabled", lang)}
+          </label>
+        </div>
         <div class="dialog-content">
+          ${this._renderSummary()}
+
           <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.name",
-                this.hass.language,
-              )}</label
-            >
+            <label>${localize("panels.schedules.fields.name", lang)}</label>
             <input
               type="text"
               .value="${s.name}"
@@ -527,82 +601,34 @@ export class SiScheduleDialog extends LitElement {
             />
           </div>
 
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.recurrence",
-                this.hass.language,
-              )}</label
-            >
-            <select
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  recurrence: (e.target as HTMLSelectElement).value,
-                })}
-            >
-              ${SCHEDULE_RECURRENCES.map(
-                (r) => html`
-                  <option value="${r}" ?selected="${s.recurrence === r}">
-                    ${recurrenceLabel(r, this.hass.language)}
-                  </option>
-                `,
-              )}
-            </select>
-          </div>
-
-          ${this._renderRecurrenceFields()} ${this._renderWindowRows()}
-          ${this._renderZonePicker()}
-
-          <div class="field-row">
-            <label
-              >${localize(
-                "panels.schedules.fields.enabled",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="checkbox"
-              ?checked="${s.enabled}"
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  enabled: (e.target as HTMLInputElement).checked,
-                })}
-            />
-          </div>
-
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.start_date",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="date"
-              .value="${s.start_date || ""}"
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  start_date: (e.target as HTMLInputElement).value || undefined,
-                })}
-            />
-          </div>
-
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.end_date",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="date"
-              .value="${s.end_date || ""}"
-              @change=${(e: Event) =>
-                this._emitChanged({
-                  end_date: (e.target as HTMLInputElement).value || undefined,
-                })}
-            />
-          </div>
+          ${this._renderSection(
+            "when",
+            html`
+              <div class="field">
+                <select
+                  aria-label="${localize(
+                    "panels.schedules.fields.recurrence",
+                    lang,
+                  )}"
+                  @change=${(e: Event) =>
+                    this._emitChanged({
+                      recurrence: (e.target as HTMLSelectElement).value,
+                    })}
+                >
+                  ${SCHEDULE_RECURRENCES.map(
+                    (r) => html`
+                      <option value="${r}" ?selected="${s.recurrence === r}">
+                        ${recurrenceLabel(r, lang)}
+                      </option>
+                    `,
+                  )}
+                </select>
+              </div>
+              ${this._renderRecurrenceFields()} ${this._renderWindowRows()}
+            `,
+          )}
+          ${this._renderSection("zones", this._renderZonePicker())}
+          ${this._renderSection("season", this._renderSeasonSection())}
         </div>
 
         <button
@@ -643,8 +669,7 @@ export class SiScheduleDialog extends LitElement {
           flex-direction: column;
           gap: 5px;
         }
-        .field label,
-        .field-row label {
+        .field label {
           font-size: 0.875rem;
           font-weight: 500;
           color: var(--secondary-text-color);
@@ -668,16 +693,73 @@ export class SiScheduleDialog extends LitElement {
           line-height: 1.35;
           color: var(--secondary-text-color);
         }
-        .field-row {
+        /* Dialog heading: the title plus the Enabled toggle (GitLab #30) —
+           it reads as a property of the schedule, not of the date range it
+           used to sit beside. */
+        .dialog-heading-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          min-height: 36px;
+          gap: 16px;
+          width: 100%;
         }
-        .field-row input[type="checkbox"] {
-          width: 18px;
-          height: 18px;
+        .enabled-toggle {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.8125rem;
+          font-weight: 400;
+          color: var(--secondary-text-color);
+          cursor: pointer;
+        }
+        .enabled-toggle input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
           accent-color: var(--primary-color);
+        }
+        /* The read-only summary sentence (GitLab #30): describes the
+           schedule's own configuration only, never live bucket/weather
+           state — see schedule-summary.ts. */
+        .summary {
+          border-left: 3px solid var(--primary-color);
+          background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+          border-radius: 0 8px 8px 0;
+          padding: 11px 14px;
+          font-size: 0.90625rem;
+          line-height: 1.6;
+          margin-bottom: 18px;
+          color: var(--primary-text-color);
+        }
+        .summary.is-error {
+          border-left-color: var(--error-color, #db4437);
+          background: color-mix(
+            in srgb,
+            var(--error-color, #db4437) 8%,
+            transparent
+          );
+        }
+        /* WHEN/ZONES/SEASON cards (GitLab #30): the heading is small-caps
+           and doubles as the label for whatever unlabeled control sits
+           directly under it. */
+        .sect-card {
+          border: 1px solid var(--divider-color, #e0e0e0);
+          border-radius: 10px;
+          padding: 14px 14px 2px;
+          margin-bottom: 14px;
+        }
+        .sect-card > h4 {
+          margin: 0 0 12px;
+          font-size: 0.71875rem;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+          color: var(--secondary-text-color);
+          font-weight: 500;
+        }
+        .rowfields {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
         }
         .day-checkboxes,
         .zone-checkboxes {
