@@ -11,6 +11,7 @@ import asyncio
 import logging
 import math
 import uuid
+from dataclasses import dataclass
 from datetime import timedelta
 
 import homeassistant.util.dt as dt_util
@@ -27,10 +28,11 @@ from .flow_metering import (
     flow_learn_resolve,
     flow_litres_from_total,
 )
-from .helpers import convert_between
+from .helpers import convert_between, normalize_zone_selection
 from .localize import localize
 from .opensprinkler import entity_is_station, is_opensprinkler_zone
 from .run_watch import run_is_queue_bound
+from .run_window import ZoneRun, track_for_zone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +48,40 @@ SI_VALVE_SUPPRESS_MARGIN = 30
 # Linked-entity states that count as "the valve actually opened" (switch on,
 # valve open/opening). Mirrors binary_sensor._WATERING_STATES.
 _VALVE_ON_STATES = ("on", "open", "opening")
+
+
+@dataclass(frozen=True)
+class _ZoneRunDecision:
+    """One zone's answer to "do you water now, and for how long".
+
+    ``resized`` distinguishes a duration recomputed from the live intra-day
+    deficit from the stored daily one — only the former may credit above the
+    daily target (see ``_run_ceiling``).
+    """
+
+    duration: float
+    deficit: float
+    ratio: float
+    resized: bool
+
+
+def _depletion_ratio(bucket: float, threshold: float) -> float:
+    """``bucket / bucket_threshold`` — how far past its allowed depletion a zone is.
+
+    Dimensionless, so zones with different allowed depletions compare correctly,
+    and exactly 1.0 is the due line: the ranking key and the demand gate are the
+    same quantity.
+
+    A threshold of 0 or above configures no depletion allowance at all, so there
+    is no scale to rank on; those zones all return 1.0 and are separated by the
+    last-irrigation tie-break instead of by a fabricated number.
+    """
+    try:
+        if threshold < 0:
+            return float(bucket) / float(threshold)
+    except (TypeError, ValueError, ZeroDivisionError):
+        pass
+    return 1.0
 
 
 class IrrigationRunnerMixin:
@@ -623,11 +659,20 @@ class IrrigationRunnerMixin:
     # (scheduler.py) awaits this directly; routing it through async_add_job would
     # have had HA call it and drop the coroutine on the floor, silently skipping
     # every irrigation.
-    async def _irrigate_linked_entities(self, zone_ids=None) -> bool:
+    async def _irrigate_linked_entities(
+        self, zone_ids=None, *, order=None, deadline=None
+    ) -> bool:
         """Directly control linked valve/switch entities for zones needing irrigation.
 
         ``zone_ids`` optionally restricts to a schedule's target zones (an
         iterable of ids, or None/"all" for every eligible zone).
+
+        ``order`` is a fitted run's priority order: an explicit list of zone ids
+        that both restricts the run to those zones and waters them in that
+        sequence. Without it the run keeps store order and every due zone, which
+        is the unfitted behaviour. ``deadline`` is the UTC moment the run must
+        be finished by; it truncates whatever is still running rather than
+        selecting, and both are None unless a schedule opted into fitting.
 
         Returns ``True`` iff at least one real run was dispatched (self-closing
         service and/or the sequencing task), ``False`` on every no-water path
@@ -638,6 +683,17 @@ class IrrigationRunnerMixin:
         zones = await self.store.async_get_zones()
         want_all = zone_ids is None or zone_ids == "all"
         target = None if want_all else {int(z) for z in zone_ids}
+        if order is not None:
+            # A fitted run has already decided both the membership and the
+            # sequence, so it supersedes the schedule's zone target rather than
+            # intersecting with it — the selection was computed from that same
+            # target to begin with.
+            rank_of = {int(zid): i for i, zid in enumerate(order)}
+            target = set(rank_of)
+            zones = sorted(
+                (z for z in zones if int(z.get(const.ZONE_ID)) in rank_of),
+                key=lambda z: rank_of[int(z.get(const.ZONE_ID))],
+            )
 
         # Live-estimate watering (experimental): when on, the per-zone trigger is
         # the intra-day live deficit (decided in _apply_live_durations), so the
@@ -751,12 +807,45 @@ class IrrigationRunnerMixin:
             _LOGGER.debug("Live-estimate duration left no zones needing water")
             return False
 
-        await self._dispatch_by_mode(zones_to_irrigate, trigger="schedule")
+        # Days-between guard, per zone. Evaluated here rather than as a
+        # whole-run skip so a zone that has served its wait still waters when a
+        # zone watered more recently has not — the case a truncated run creates
+        # every time it cuts the tail of the priority order. Off by default
+        # (days_between_irrigation = 0), and the setting is read first so the
+        # default path costs nothing.
+        days_between = self._days_between_setting()
+        if days_between > 0:
+            held = [
+                z
+                for z in zones_to_irrigate
+                if self._zone_days_between_blocked(z, days_between)
+            ]
+            if held:
+                _LOGGER.info(
+                    "Days-between guard (%s days) holds zones %s back this run",
+                    days_between,
+                    [z.get(const.ZONE_ID) for z in held],
+                )
+                held_ids = {int(z.get(const.ZONE_ID)) for z in held}
+                zones_to_irrigate = [
+                    z
+                    for z in zones_to_irrigate
+                    if int(z.get(const.ZONE_ID)) not in held_ids
+                ]
+            if not zones_to_irrigate:
+                _LOGGER.debug("Days-between guard left no zones needing water")
+                return False
+
+        await self._dispatch_by_mode(
+            zones_to_irrigate, trigger="schedule", deadline=deadline
+        )
         # Past the veto+live gates with a non-empty set: at least one real run
         # (self-closing and/or the sequencing task) was dispatched.
         return True
 
-    async def _dispatch_by_mode(self, zones: list, *, trigger: str) -> None:
+    async def _dispatch_by_mode(
+        self, zones: list, *, trigger: str, deadline=None
+    ) -> None:
         """Start a set of zones, each by the path its actuation mode needs.
 
         Master (pump): the hold is taken for the DISPATCH itself. It brings the
@@ -770,6 +859,13 @@ class IrrigationRunnerMixin:
         own hold, released when its run finalises. Stations go through their own
         dispatcher because one controller can run several at once, so
         zone_sequencing has to be applied there rather than left to the hardware.
+
+        ``deadline`` is the UTC moment a fitted run must be finished by. Only
+        the sequencing path can honour it, under all three of its modes, because
+        it is the only one that still holds the run when the deadline arrives.
+        Self-closing zones and stations have handed the close to their own
+        hardware by then, so a run of theirs that the selection could not fit
+        runs to its full length and finishes past the target.
         """
         cycle_token = f"cycle:{uuid.uuid4().hex[:8]}"
         await self.async_master_acquire(cycle_token)
@@ -793,7 +889,7 @@ class IrrigationRunnerMixin:
                 await self.async_dispatch_batch_zones(batched, trigger=trigger)
             linked = [z for z in zones if not self._sc_is_self_closing(z)]
             if linked:
-                await self._dispatch_sequencing(linked)
+                await self._dispatch_sequencing(linked, deadline=deadline)
         finally:
             await self.async_master_release(cycle_token)
 
@@ -849,7 +945,7 @@ class IrrigationRunnerMixin:
         )
         return True
 
-    async def _dispatch_sequencing(self, zones: list) -> None:
+    async def _dispatch_sequencing(self, zones: list, *, deadline=None) -> None:
         """Start the linked-entity zones under the configured sequencing.
 
         Acquires the master hold HERE, before the task exists, and hands the token
@@ -873,16 +969,26 @@ class IrrigationRunnerMixin:
             token = f"seq:{uuid.uuid4().hex[:8]}"
             await self.async_master_acquire(token)
             self.hass.async_create_task(
-                self._irrigate_zones_sequential(zones, master_token=token)
+                self._irrigate_zones_sequential(
+                    zones, master_token=token, deadline=deadline
+                )
             )
         elif sequencing == const.CONF_ZONE_SEQUENCING_ROTATING:
             token = f"rot:{uuid.uuid4().hex[:8]}"
             await self.async_master_acquire(token)
             self.hass.async_create_task(
-                self._irrigate_zones_rotating(zones, master_token=token)
+                self._irrigate_zones_rotating(
+                    zones, master_token=token, deadline=deadline
+                )
             )
         else:
-            await self._irrigate_zones_parallel(zones)
+            # Parallel: every zone opens at once, so there is no ORDER to
+            # truncate — but there is still a run to cut. The selection does not
+            # guarantee the set fits: when nothing in the driest group fits,
+            # `select` keeps the leader on purpose and leaves the deadline to
+            # cut it. Parallel holds that run in the same task the other two
+            # modes do, so it cuts it the same way, by the length it dispatches.
+            await self._irrigate_zones_parallel(zones, deadline=deadline)
 
     def _read_flow_sample(self, flow_sensor: str):
         """Current (value, unit, state_class) of a flow sensor, or None when it is
@@ -1463,7 +1569,9 @@ class IrrigationRunnerMixin:
             trigger=self._run_trigger(zid),
         )
 
-    async def _irrigate_zones_rotating(self, zones: list, *, master_token=None):
+    async def _irrigate_zones_rotating(
+        self, zones: list, *, master_token=None, deadline=None
+    ):
         """Irrigate all zones (timed and flow-meter) in a unified rotation.
 
         Each zone gets at most max_consecutive_duration per turn.
@@ -1471,18 +1579,21 @@ class IrrigationRunnerMixin:
 
         Holds the master for the whole rotation, which is what makes
         ``min_absorption_time`` safe: the waits stretch the cycle far past any
-        up-front estimate (2×600 s with a 10 min absorption really ends at
-        1920 s, not 1200 s), and a predicted deadline cut the pump mid-rotation.
+        naive ``sum(durations)`` (2×600 s with a 10 min absorption really ends at
+        1920 s, not 1200 s), which is how a predicted deadline once cut the pump
+        mid-rotation. A ``deadline`` passed in here is safe because the anchor
+        that produced it was itself sized by ``run_window.simulate_wall_clock``,
+        which replays this loop's absorption structure rather than summing.
         """
         claimed = self._claim_chain_zones(zones)
         try:
-            await self._run_rotation(zones)
+            await self._run_rotation(zones, deadline=deadline)
         finally:
             await self._release_chain_zones(claimed)
             if master_token:
                 await self.async_master_release(master_token)
 
-    async def _run_rotation(self, zones: list):
+    async def _run_rotation(self, zones: list, *, deadline=None):
         """The rotation itself (master hold is managed by the caller)."""
         max_slot = (
             max(1, (self.store.config.zone_sequencing_max_consecutive_duration or 5))
@@ -1574,12 +1685,89 @@ class IrrigationRunnerMixin:
                 _flow_done(z) for z in flow_by_id
             )
 
-        while not _all_done():
+        def _remaining_window():
+            """Seconds left before the run deadline, or None when unbounded."""
+            if deadline is None:
+                return None
+            return (deadline - dt_util.utcnow()).total_seconds()
+
+        async def _reprice(zid) -> bool:
+            """Re-price a timed zone against the live deficit.
+
+            False means the zone is finished here — either it no longer needs
+            water, or what it still owes has been delivered. A zone that has
+            already received water this run is re-priced as ``started``, so it
+            refills to capacity instead of stopping at its trigger threshold
+            (see :meth:`_zone_run_decision`).
+            """
+            repriced = await self._resize_queued_zone(
+                {**timed_by_id[zid], const.ZONE_DURATION: timed_remaining[zid]},
+                ha_metric,
+                started=timed_delivered_l[zid] > 0,
+            )
+            if repriced is None:
+                _LOGGER.info(
+                    "Rotating irrigation: zone %s no longer needs water; "
+                    "finishing it here with what it has already received",
+                    zid,
+                )
+                if zid not in recorded:
+                    recorded.add(zid)
+                    planned = float(timed_by_id[zid][const.ZONE_DURATION])
+                    self._clear_zone_fault(zid)
+                    await self._record_run(
+                        zid,
+                        result=const.RUN_RESULT_PARTIAL,
+                        volume_l=timed_delivered_l[zid],
+                        add_to_total=False,
+                        planned_s=planned,
+                        actual_s=planned - timed_remaining[zid],
+                        detail=const.SKIP_REASON_NO_DEMAND,
+                        trigger=self._run_trigger(zid),
+                    )
+                timed_remaining[zid] = 0
+                self._unregister_active_run(zid)
+                return False
+            timed_remaining[zid] = min(
+                timed_remaining[zid],
+                float(repriced.get(const.ZONE_DURATION) or 0),
+            )
+            if timed_remaining[zid] <= 0:
+                self._unregister_active_run(zid)
+                return False
+            return True
+
+        out_of_time = False
+        while not _all_done() and not out_of_time:
             for zid in zone_order:
                 is_flow = zid in flow_by_id
                 if is_flow and _flow_done(zid):
                     continue
                 if not is_flow and _timed_done(zid):
+                    continue
+
+                # Deadline check goes BEFORE the absorption wait: sleeping out a
+                # 10-minute pause only to find the window gone would hold the
+                # master pump for that whole pause with no water to show for it.
+                window = _remaining_window()
+                if window is not None and window <= 0:
+                    _LOGGER.warning(
+                        "Rotating irrigation: run deadline %s reached; stopping "
+                        "with zone %s (and any other unfinished zone) short. "
+                        "Their residual deficit carries to the next run",
+                        deadline,
+                        zid,
+                    )
+                    out_of_time = True
+                    break
+
+                # Re-price a timed zone before returning to it. A rotation with
+                # absorption pauses can span hours, so rain part-way through
+                # should stop the zones that have not finished rather than keep
+                # refilling a profile that is already full. Timed zones only: a
+                # flow zone delivers to a measured volume whose target was fixed
+                # in litres when the rotation started.
+                if not is_flow and not await _reprice(zid):
                     continue
 
                 # A user stopped this zone — log a partial (keeping the water
@@ -1613,12 +1801,37 @@ class IrrigationRunnerMixin:
                 if min_absorption > 0 and zid in last_finish:
                     wait = min_absorption - (loop.time() - last_finish[zid])
                     if wait > 0:
+                        if window is not None and wait >= window:
+                            # The pause alone outlasts the window. Waiting it out
+                            # would spend every remaining minute on a sleep.
+                            _LOGGER.warning(
+                                "Rotating irrigation: zone %s needs a %.0fs "
+                                "absorption pause but only %.0fs of the window "
+                                "remain; stopping short of the deadline %s",
+                                zid,
+                                wait,
+                                window,
+                                deadline,
+                            )
+                            out_of_time = True
+                            break
                         _LOGGER.info(
                             "Rotating irrigation: zone %s absorbing, waiting %.0fs",
                             zid,
                             wait,
                         )
                         await asyncio.sleep(wait)
+                        window = _remaining_window()
+                        # And re-price again now the pause is over. The
+                        # re-price above has to come first so a deadline is
+                        # never slept out, but on its own it reads the deficit
+                        # from before a pause that can be tens of minutes long
+                        # — so rain landing inside it went unseen until the
+                        # zone's next lap, and the zone watered a full slot it
+                        # no longer owed. Timed zones only, as above: a flow
+                        # zone's target was fixed in litres at dispatch.
+                        if not is_flow and not await _reprice(zid):
+                            continue
 
                 # This zone's slot starts here, so it stops reading as queued
                 # until the slot ends. A rotation holds a zone's claim across the
@@ -1631,6 +1844,8 @@ class IrrigationRunnerMixin:
                     entity_id = z[const.ZONE_LINKED_ENTITY]
                     safety = z.get(const.ZONE_MAXIMUM_DURATION) or 14400
                     slot = min(max_slot, safety - flow_elapsed[zid])
+                    if window is not None:
+                        slot = min(slot, window)
                     rem_vol = flow_target[zid] - flow_delivered[zid]
                     _LOGGER.info(
                         "Rotating irrigation: flow zone %s slot %.0fs (%.1f/%.1f L)",
@@ -1699,6 +1914,10 @@ class IrrigationRunnerMixin:
                     domain = entity_id.split(".")[0]
                     rem = timed_remaining[zid]
                     slot = min(rem, max_slot)
+                    if window is not None and slot > window:
+                        # The zone keeps whatever this shortened slot delivers;
+                        # the loop then finds the window gone and stops.
+                        slot = window
                     _LOGGER.info(
                         "Rotating irrigation: %s for %.0fs (%.0fs remaining after slot)",
                         entity_id,
@@ -1804,6 +2023,43 @@ class IrrigationRunnerMixin:
                 self._set_run_queued(zid, True)
                 last_finish[zid] = loop.time()
 
+        if out_of_time:
+            # A zone the deadline cut mid-rotation has NOT been recorded: the
+            # loop only logs a zone when it finishes its whole duration or a user
+            # stops it, and the deadline is a third way out. Its water was
+            # credited as each slot committed, so without this the bucket, the
+            # usage total and "last irrigation" all move while the run history
+            # shows nothing at all — the run simply vanishes from the log.
+            for zid in zone_order:
+                if zid in recorded:
+                    continue
+                is_flow = zid in flow_by_id
+                if is_flow:
+                    if flow_delivered[zid] <= 0:
+                        continue
+                    volume, actual, planned = (
+                        flow_delivered[zid],
+                        flow_elapsed[zid],
+                        None,
+                    )
+                else:
+                    if timed_delivered_l[zid] <= 0:
+                        continue
+                    planned = float(timed_by_id[zid][const.ZONE_DURATION])
+                    volume = timed_delivered_l[zid]
+                    actual = planned - timed_remaining[zid]
+                recorded.add(zid)
+                await self._record_run(
+                    zid,
+                    result=const.RUN_RESULT_PARTIAL,
+                    volume_l=volume,
+                    add_to_total=False,
+                    planned_s=planned,
+                    actual_s=actual,
+                    detail=const.RUN_DETAIL_DEADLINE,
+                    trigger=self._run_trigger(zid),
+                )
+
         # Remaining in-progress markers (zones that finished normally, or a stop
         # during an absorption wait) are swept by the caller's finally, so they
         # are cleared on the exception path too.
@@ -1845,42 +2101,11 @@ class IrrigationRunnerMixin:
         metric = self.hass.config.units is METRIC_SYSTEM
         out = []
         for z in zones:
-            threshold = z.get(const.ZONE_BUCKET_THRESHOLD) or 0
-            daily_needs = (z.get(const.ZONE_DURATION) or 0) > 0 and (
-                z.get(const.ZONE_BUCKET) or 0
-            ) < threshold
-            if z.get(const.ZONE_FLOW_SENSOR):
-                # Flow zones deliver to a measured volume, not a recomputed
-                # duration — keep the daily deficit gate for them.
-                if daily_needs:
-                    out.append(z)
+            decision = self._zone_run_decision(z, estimates, metric)
+            if decision is None:
                 continue
-            est = estimates.get(str(z.get(const.ZONE_ID)))
-            deficit = est.get("live_deficit") if est else None
-            if deficit is None:
-                # No live estimate — fall back to the daily gate.
-                if daily_needs:
-                    out.append(z)
-                continue
-            if deficit >= threshold:
-                _LOGGER.info(
-                    "Live-estimate watering: zone %s live deficit %.2f hasn't "
-                    "crossed the threshold %.2f — not watering this run",
-                    z.get(const.ZONE_ID),
-                    deficit,
-                    threshold,
-                )
-                continue
-            live = duration_from_deficit(
-                deficit,
-                z.get(const.ZONE_THROUGHPUT),
-                z.get(const.ZONE_SIZE),
-                z.get(const.ZONE_MULTIPLIER),
-                z.get(const.ZONE_MAXIMUM_DURATION),
-                z.get(const.ZONE_LEAD_TIME),
-                metric,
-            )
-            if live <= 0:
+            if not decision.resized:
+                out.append(z)
                 continue
             zid = int(z.get(const.ZONE_ID))
             self._live_run_zones.add(zid)
@@ -1889,11 +2114,263 @@ class IrrigationRunnerMixin:
                 "Live-estimate watering: zone %s %ss → %ss (live deficit %.2f)",
                 zid,
                 z.get(const.ZONE_DURATION),
-                live,
-                deficit,
+                decision.duration,
+                decision.deficit,
             )
-            out.append({**z, const.ZONE_DURATION: live})
+            out.append({**z, const.ZONE_DURATION: decision.duration})
         return out
+
+    def _zone_run_decision(
+        self,
+        zone: dict,
+        estimates: dict,
+        metric: bool,
+        *,
+        started: bool = False,
+        quiet: bool = False,
+    ):
+        """Whether ``zone`` waters now, for how long, and how depleted it is.
+
+        The single place the demand gate and the run length are decided, shared
+        by the run itself (:meth:`_apply_live_durations`), the finish-anchor
+        duration estimate and the fitting decision point. They used to answer
+        this question three different ways: the estimate read the stored daily
+        ``duration`` while the run under the live gate used
+        ``duration_from_deficit(live_deficit)`` over a different zone set, so the
+        anchor was wrong in both directions at once.
+
+        No side effects — no markers, no writes, no estimate refresh — so the
+        estimator can call it as often as it likes. ``estimates`` is the already
+        refreshed map; pass ``{}`` to evaluate on the daily ledger alone.
+        ``quiet`` goes with that: a projection re-prices every zone on every
+        estimate refresh, and narrating each one produced bursts of identical
+        lines about a run that was not happening. Only a caller that is really
+        about to water leaves it off.
+
+        ``started`` marks a zone this run has ALREADY watered, which drops the
+        trigger threshold and leaves only the sizing. A rotation commits every
+        slot's water, so a started zone's own credits lift its live deficit
+        towards the threshold: re-applying the trigger there would end the zone
+        the moment it crossed, refilling it to its threshold rather than to
+        capacity and leaving the rest of a planned run undelivered. Capacity is
+        the only gate that belongs to a started zone, and it arrives on its own
+        as a re-priced duration of 0 (``duration_from_deficit`` is 0 at
+        ``deficit >= 0``). Rain still shortens and still drops it — through the
+        sizing, which is untouched.
+
+        Returns None when the zone does not water.
+        """
+        threshold = zone.get(const.ZONE_BUCKET_THRESHOLD) or 0
+        bucket = zone.get(const.ZONE_BUCKET) or 0
+        daily_needs = (zone.get(const.ZONE_DURATION) or 0) > 0 and (
+            started or bucket < threshold
+        )
+
+        def _daily():
+            if not daily_needs:
+                return None
+            return _ZoneRunDecision(
+                duration=float(zone.get(const.ZONE_DURATION) or 0),
+                deficit=bucket,
+                ratio=_depletion_ratio(bucket, threshold),
+                resized=False,
+            )
+
+        live_gate = getattr(self.store.config, "live_estimate_enabled", False) is True
+        if not live_gate or zone.get(const.ZONE_FLOW_SENSOR):
+            # Flow zones deliver to a measured volume, not a recomputed
+            # duration — keep the daily deficit gate for them even under the
+            # live gate.
+            return _daily()
+
+        est = estimates.get(str(zone.get(const.ZONE_ID)))
+        deficit = est.get("live_deficit") if est else None
+        if deficit is None:
+            # No live estimate — fall back to the daily gate rather than
+            # watering blind.
+            return _daily()
+        if deficit >= threshold and not started:
+            if not quiet:
+                _LOGGER.debug(
+                    "Live-estimate watering: zone %s live deficit %.2f hasn't "
+                    "crossed the threshold %.2f — not watering this run",
+                    zone.get(const.ZONE_ID),
+                    deficit,
+                    threshold,
+                )
+            return None
+        live = self._duration_for_deficit(zone, deficit, metric)
+        if live <= 0:
+            return None
+        return _ZoneRunDecision(
+            duration=float(live),
+            deficit=deficit,
+            ratio=_depletion_ratio(deficit, threshold),
+            resized=True,
+        )
+
+    def _duration_for_deficit(self, zone: dict, deficit: float, metric: bool) -> int:
+        """``duration_from_deficit`` for this zone, warning when the cap bites.
+
+        A ``maximum_duration`` clamp emits nothing at all: the shortfall simply
+        never gets watered, so deepening ``bucket_threshold`` past what the caps
+        can deliver is silently ignored and the zone drifts drier every cycle.
+        Surface it instead of letting the zone quietly under-water.
+        """
+        duration = duration_from_deficit(
+            deficit,
+            zone.get(const.ZONE_THROUGHPUT),
+            zone.get(const.ZONE_SIZE),
+            zone.get(const.ZONE_MULTIPLIER),
+            zone.get(const.ZONE_MAXIMUM_DURATION),
+            zone.get(const.ZONE_LEAD_TIME),
+            metric,
+        )
+        uncapped = duration_from_deficit(
+            deficit,
+            zone.get(const.ZONE_THROUGHPUT),
+            zone.get(const.ZONE_SIZE),
+            zone.get(const.ZONE_MULTIPLIER),
+            None,
+            zone.get(const.ZONE_LEAD_TIME),
+            metric,
+        )
+        if uncapped > duration:
+            self._warn_duration_clamped(zone, duration, uncapped)
+        return duration
+
+    def _warn_duration_clamped(self, zone: dict, capped: float, wanted: float) -> None:
+        """Warn once per zone that its maximum_duration is cutting the run."""
+        warned = getattr(self, "_duration_clamp_warned", None)
+        if warned is None:
+            warned = self._duration_clamp_warned = set()
+        zid = int(zone.get(const.ZONE_ID))
+        if zid in warned:
+            return
+        warned.add(zid)
+        _LOGGER.warning(
+            "Zone %s needs %ss of watering but its maximum duration caps the run "
+            "at %ss, so %ss of the deficit goes unwatered every run. Raise the "
+            "zone's maximum duration, or the cap — not the bucket threshold — is "
+            "what decides how much this zone ever receives",
+            zone.get(const.ZONE_ID),
+            round(wanted),
+            round(capped),
+            round(wanted - capped),
+        )
+
+    def sequencing_timing(self) -> tuple[str, float, float]:
+        """``(sequencing, slot_seconds, absorption_seconds)`` for the wall-clock model.
+
+        Read defensively: this feeds the finish-anchor estimate and the fitting
+        decision point, both of which run while arming a schedule. An unreadable
+        setting there would raise inside a tracker setup and leave the schedule
+        silently unarmed, so a bad value degrades to the runner's own defaults
+        instead — the same ``or``-fallbacks ``_run_rotation`` applies.
+        """
+
+        def _number(value, default):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return float(default)
+
+        config = self.store.config
+        sequencing = getattr(config, "zone_sequencing", None)
+        if sequencing not in (
+            const.CONF_ZONE_SEQUENCING_SEQUENTIAL,
+            const.CONF_ZONE_SEQUENCING_PARALLEL,
+            const.CONF_ZONE_SEQUENCING_ROTATING,
+        ):
+            sequencing = const.CONF_DEFAULT_ZONE_SEQUENCING
+        slot_minutes = _number(
+            getattr(config, "zone_sequencing_max_consecutive_duration", None) or 5, 5
+        )
+        absorption_minutes = _number(
+            getattr(config, "zone_sequencing_min_absorption_time", None) or 0, 0
+        )
+        return (
+            sequencing,
+            max(1.0, slot_minutes) * 60,
+            max(0.0, absorption_minutes) * 60,
+        )
+
+    async def async_plan_zone_runs(
+        self, zone_ids=None, *, runnable_only=False, ignore_demand=False
+    ) -> list:
+        """The zones a scheduled run would water right now, and for how long.
+
+        Read-only: the demand and sizing rules :meth:`_irrigate_linked_entities`
+        applies, evaluated without touching anything. Feeds the finish-anchor
+        duration estimate and the fitting decision point, so both agree on the
+        zone set and the durations by construction.
+
+        ``runnable_only`` adds the runner's own actuation requirement — a linked
+        entity or a self-closing service. Fitting sets it, because it may only
+        drop zones this integration is actually going to run. The finish-anchor
+        estimate does NOT: an install that drives its valves externally (no
+        linked entity anywhere) still watches the schedule's start event and
+        still spends that time watering, so requiring an entity there would
+        collapse its anchor to zero and fire every run at the target instead of
+        a run-length before it.
+
+        Distributor members are excluded — they water through their
+        distributor's own cycle, which is estimated on its own track. The
+        soil-moisture veto and the rain delay are NOT applied: both read live
+        sensor state and the veto re-anchors buckets, so they belong to the run
+        path, not to a projection that may be evaluated hours ahead.
+        """
+        zones = await self.store.async_get_zones()
+        selection = normalize_zone_selection(zone_ids)
+        target = None if selection is None else {int(z) for z in selection}
+
+        eligible = [
+            z
+            for z in zones
+            if z.get(const.ZONE_DISTRIBUTOR_ID) is None
+            and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+            and (target is None or int(z.get(const.ZONE_ID)) in target)
+            and (
+                not runnable_only
+                or z.get(const.ZONE_LINKED_ENTITY)
+                or self._sc_is_self_closing(z)
+            )
+        ]
+        if not eligible:
+            return []
+
+        estimates = {}
+        if getattr(self.store.config, "live_estimate_enabled", False) is True:
+            try:
+                estimates = await self.async_get_cached_zone_estimates()
+            except Exception as e:  # noqa: BLE001 — a projection must not raise
+                _LOGGER.debug("Run plan: live estimates unavailable: %s", e)
+                estimates = {}
+
+        metric = self.hass.config.units is METRIC_SYSTEM
+        planned = []
+        for zone in eligible:
+            decision = self._zone_run_decision(zone, estimates, metric, quiet=True)
+            if decision is None or decision.duration <= 0:
+                if not ignore_demand:
+                    continue
+                # ignore_demand: the caller wants the shape of the run rather
+                # than tonight's demand — it is pricing configured ceilings for
+                # a decision point that may be hours away, by which time a zone
+                # that is satisfied now can be due. Duration 0 keeps it out of
+                # any wall-clock sum that uses the live durations.
+                decision = None
+            planned.append(
+                ZoneRun(
+                    zone_id=int(zone.get(const.ZONE_ID)),
+                    duration=decision.duration if decision else 0.0,
+                    depletion_ratio=decision.ratio if decision else 0.0,
+                    last_irrigation=zone.get(const.ZONE_LAST_IRRIGATION),
+                    maximum_duration=zone.get(const.ZONE_MAXIMUM_DURATION),
+                    track=track_for_zone(zone),
+                )
+            )
+        return planned
 
     def _warn_if_low_maximum_bucket(self, zone: dict, metric: bool) -> None:
         """Warn once per zone when live-estimate watering runs against a small
@@ -2015,6 +2492,17 @@ class IrrigationRunnerMixin:
             changes[const.ZONE_PENDING_BUCKET_EVENTS] = events[
                 -const.PENDING_BUCKET_EVENTS_MAX :
             ]
+        if delta > 0:
+            # This zone just received water, so its days-between wait restarts —
+            # here, in the same write as the credit, because this is the only
+            # place that knows it happened. The dispatcher cannot: a sequential
+            # or rotating run is a background task that can still be watering
+            # hours later, so anything reset at dispatch time is reset for zones
+            # a deadline or a mid-run re-price will never actually water. That
+            # is precisely the starvation the per-zone counter exists to stop.
+            # Every credit path funnels through here (timed, flow, distributor,
+            # self-closing, and observed external runs), so all of them count.
+            changes[const.ZONE_DAYS_SINCE_IRRIGATION] = 0
         await self.store.async_update_zone(zone_id, changes)
 
     async def _commit_run_progress(
@@ -2249,27 +2737,62 @@ class IrrigationRunnerMixin:
                 add_to_total=False,
             )
 
-    async def _irrigate_zones_sequential(self, zones: list, *, master_token=None):
+    async def _irrigate_zones_sequential(
+        self, zones: list, *, master_token=None, deadline=None
+    ):
         """Irrigate zones one after another, skipping zones with no duration.
 
         Holds the master for the WHOLE chain, so the pump covers every zone plus
         the per-zone valve-confirm polling and any flow zone that outruns its
         nominal duration — none of which a predicted deadline could size.
+
+        With a ``deadline`` each zone runs for ``min(duration, remaining)`` and
+        the chain stops once the window is spent. A cut zone keeps the water it
+        received: ``_commit_run_progress`` recomputes the bucket from the volume
+        actually delivered, so the residual simply carries to the next run and
+        sorts that zone ahead of everything.
         """
         claimed = self._claim_chain_zones(zones)
         try:
-            for zone in zones:
-                if self._run_stopped(zone[const.ZONE_ID]):
+            metric = self.hass.config.units is METRIC_SYSTEM
+            for queued in zones:
+                if self._run_stopped(queued[const.ZONE_ID]):
                     # Stopped while it was still queued. The claim carries the
                     # stop event, so honour it here rather than opening the valve
-                    # and closing it again one poll later.
+                    # and closing it again one poll later. Checked before the
+                    # re-price, which would otherwise refresh estimates for a
+                    # zone that is not going to run.
                     _LOGGER.info(
                         "Sequential irrigation: zone %s was stopped before its "
                         "turn came; skipping it",
-                        zone[const.ZONE_ID],
+                        queued[const.ZONE_ID],
                     )
-                    self._unregister_active_run(zone[const.ZONE_ID])
+                    self._unregister_active_run(queued[const.ZONE_ID])
                     continue
+                zone = await self._resize_queued_zone(queued, metric)
+                if zone is None:
+                    continue
+                if deadline is not None:
+                    remaining = (deadline - dt_util.utcnow()).total_seconds()
+                    if remaining <= 0:
+                        _LOGGER.warning(
+                            "Sequential irrigation: run deadline %s reached with "
+                            "zone %s (and any after it) unwatered; their deficit "
+                            "carries and they lead the next run",
+                            deadline,
+                            zone[const.ZONE_ID],
+                        )
+                        break
+                    if (zone.get(const.ZONE_DURATION) or 0) > remaining:
+                        _LOGGER.warning(
+                            "Sequential irrigation: zone %s cut from %ss to %ss "
+                            "by the run deadline %s",
+                            zone[const.ZONE_ID],
+                            round(zone.get(const.ZONE_DURATION) or 0),
+                            round(remaining),
+                            deadline,
+                        )
+                        zone = {**zone, const.ZONE_DURATION: remaining}
                 entity_id = zone[const.ZONE_LINKED_ENTITY]
                 real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
                 _LOGGER.info(
@@ -2291,14 +2814,103 @@ class IrrigationRunnerMixin:
             if master_token:
                 await self.async_master_release(master_token)
 
-    async def _irrigate_zones_parallel(self, zones: list):
+    async def _resize_queued_zone(self, zone: dict, metric: bool, *, started=False):
+        """Re-price a zone that has been waiting its turn, or drop it.
+
+        A sequential chain can be hours long, and the zone dict was sized when
+        the run was dispatched. Rain three hours into it should shorten — or
+        cancel — the zones that have not started yet, rather than watering a
+        soil profile that has already been refilled.
+
+        Read-only by construction: it re-reads the stored zone and refreshes the
+        live estimate cache, but commits nothing, so it neither writes a bucket
+        mid-run nor collides with the calculation's mid-run deferral.
+
+        Only ever shortens. A grown deficit is left alone: the run was dispatched
+        against a window, and silently extending a zone past the length the
+        selection was sized on would push the whole chain out. Returns None when
+        the zone should now be skipped; falls back to the queued zone unchanged
+        if anything about the re-derivation is unavailable.
+
+        ``started`` is for the rotation, which returns to a zone it has already
+        watered: see :meth:`_zone_run_decision` for why that zone is gated on
+        capacity rather than on its trigger threshold.
+        """
+        config = getattr(self.store, "config", None)
+        if getattr(config, "live_estimate_enabled", False) is not True:
+            return zone
+        zid = int(zone.get(const.ZONE_ID))
+        planned = zone.get(const.ZONE_DURATION) or 0
+        try:
+            fresh = self.store.get_zone(zid)
+            estimates = await self.async_refresh_zone_estimates()
+        except Exception as e:  # noqa: BLE001 — never abort a run over a re-price
+            _LOGGER.debug("Zone %s: could not re-price before its turn: %s", zid, e)
+            return zone
+        if not fresh:
+            return zone
+        decision = self._zone_run_decision(fresh, estimates, metric, started=started)
+        if decision is None or decision.duration <= 0:
+            _LOGGER.info(
+                "Zone %s no longer needs water by the time its turn came "
+                "(rain or an earlier credit); skipping the rest of its run",
+                zid,
+            )
+            # Release the live-crediting marker the dispatch took for this zone,
+            # or the next run to credit it would be handed a ceiling meant for a
+            # run that never happened.
+            live = getattr(self, "_live_run_zones", None)
+            if live:
+                live.discard(zid)
+            return None
+        if decision.duration >= planned:
+            return zone
+        _LOGGER.info(
+            "Zone %s re-priced from %ss to %ss before its turn (live deficit %.2f)",
+            zid,
+            round(planned),
+            round(decision.duration),
+            decision.deficit,
+        )
+        return {**zone, const.ZONE_DURATION: decision.duration}
+
+    async def _irrigate_zones_parallel(self, zones: list, *, deadline=None):
         """Start all zone entities simultaneously, each accounting for its own run.
 
         One master hold per zone, taken here (before the task exists) and released
         by that zone's runner — see _dispatch_sequencing on why acquiring inside
         the task would race.
+
+        ``deadline`` is the UTC moment a fitted run must be finished by. Every
+        zone opens now, so one remaining window applies to all of them and each
+        is dispatched for ``min(duration, remaining)``: a zone the selection
+        could not fit is cut where the target falls instead of watering past it,
+        and a zone already inside the window is untouched.
         """
+        remaining = None
+        if deadline is not None:
+            remaining = (deadline - dt_util.utcnow()).total_seconds()
+            if remaining <= 0:
+                _LOGGER.warning(
+                    "Parallel irrigation: run deadline %s reached before any zone "
+                    "opened; zones %s stay unwatered and their deficit carries",
+                    deadline,
+                    [z[const.ZONE_ID] for z in zones],
+                )
+                return
         for zone in zones:
+            if remaining is not None and (zone.get(const.ZONE_DURATION) or 0) > (
+                remaining
+            ):
+                _LOGGER.warning(
+                    "Parallel irrigation: zone %s cut from %ss to %ss by the run "
+                    "deadline %s",
+                    zone[const.ZONE_ID],
+                    round(zone.get(const.ZONE_DURATION) or 0),
+                    round(remaining),
+                    deadline,
+                )
+                zone = {**zone, const.ZONE_DURATION: remaining}
             entity_id = zone[const.ZONE_LINKED_ENTITY]
             real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
             _LOGGER.info(

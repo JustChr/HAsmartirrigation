@@ -12,10 +12,8 @@ import logging
 import homeassistant.util.dt as dt_util
 
 from . import const
-from .batch import is_batch_zone
 from .helpers import normalize_zone_selection
-from .opensprinkler import is_opensprinkler_zone
-from .self_closing import is_self_closing_zone
+from .run_window import concurrent_wall_clock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,16 +179,39 @@ class SkipConditionsMixin:
         return result
 
     async def _eval_days_between(self, config) -> dict:
-        """Structured days-between-irrigation guard (pure config math)."""
+        """Structured days-between-irrigation guard.
+
+        The counter is per zone, so this whole-run guard reports the zone that
+        has waited LONGEST and skips only when no zone has waited long enough.
+        Reporting the global counter instead would skip the entire run whenever
+        the most recently watered zone was still in its wait, which is exactly
+        how a truncated run used to starve the tail of the priority order. The
+        per-zone decision is made in ``_zone_days_between_blocked``, applied as a
+        filter by the runner.
+        """
         days_between = config.get(
             const.CONF_DAYS_BETWEEN_IRRIGATION,
             const.CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
         )
-        days_since = config.get(
+        global_days = config.get(
             const.CONF_DAYS_SINCE_LAST_IRRIGATION,
             const.CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
         )
         enabled = days_between > 0
+        days_since = global_days
+        if enabled:
+            try:
+                per_zone = [
+                    z.get(const.ZONE_DAYS_SINCE_IRRIGATION)
+                    for z in await self.store.async_get_zones()
+                    if z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+                    and z.get(const.ZONE_DAYS_SINCE_IRRIGATION) is not None
+                ]
+            except Exception as e:  # noqa: BLE001 — preview must never raise
+                _LOGGER.debug("Skip preview: days-between eval failed: %s", e)
+                per_zone = []
+            if per_zone:
+                days_since = max(per_zone)
         return {
             "id": SKIP_DAYS_BETWEEN,
             "enabled": enabled,
@@ -385,8 +406,7 @@ class SkipConditionsMixin:
         with one another — ``_dispatch_by_mode`` starts each of them and returns
         without waiting, so the wall-clock is the LONGEST track, not their sum:
 
-          * classic track — the linked-entity zones, reduced per zone_sequencing
-            (parallel: max(duration); sequential/rotating: sum(duration)).
+          * classic track — the linked-entity zones, reduced per zone_sequencing.
           * self-closing track — ``service``-mode zones, always max(duration).
             zone_sequencing does NOT reach them: ``_dispatch_by_mode`` fires
             every one of them in a single loop and the hardware owns each close,
@@ -401,6 +421,11 @@ class SkipConditionsMixin:
             (see opensprinkler.py's header). Serialised is the longer of the two
             possibilities, and only an over-estimate is safe here — an
             under-estimate finishes the irrigation after the anchor.
+
+            All three come from the shared :meth:`async_plan_zone_runs`
+            projection and are reduced through
+            :func:`run_window.concurrent_wall_clock`, which owns the per-track
+            sequencing.
           * distributor track — one distributor_cycle_estimate per in-scope
             distributor (windows + n pauses + settle + buffer). Distributor
             cycles are dispatched strictly SEQUENTIALLY regardless of
@@ -411,38 +436,28 @@ class SkipConditionsMixin:
             mid-cycle distributor, or one whose members are not due.
 
         An install whose zones are all classic — the default, and every install
-        that predates the self-closing modes — collapses to the original
-        single-track reduction, so its anchor times are unchanged.
+        that predates the self-closing modes — has one zone track and collapses
+        to the plain sequencing reduction.
+
+        Two further things the reduction has to get right, both of which moved
+        the anchor when it did not:
+
+        * The zone set and the durations are the run's own, not the stored daily
+          ``ZONE_DURATION``. Under the live-estimate gate the run sizes from the
+          intra-day deficit — which can exceed the stored bucket — over a
+          different zone set, so reading the stored value was wrong in both
+          directions at once. Pricing the projection prices what the run does.
+        * Rotating is not a sum. The sum is watering time; the absorption pauses
+          between a zone's slots are wall clock too, and the rotating runner's
+          own docstring records a predicted deadline having cut the pump
+          mid-rotation for want of them.
 
         ``zone_ids`` is an iterable of zone ids to include, or None/"all" for
         every enabled (automatic/manual) zone. Only positive durations count.
         """
-        zones = await self.store.async_get_zones()
+        planned = await self.async_plan_zone_runs(zone_ids)
         selection = normalize_zone_selection(zone_ids)
         target = None if selection is None else {int(z) for z in selection}
-
-        classic, self_closing, stations, batched = [], [], [], []
-        for zone in zones:
-            if zone.get(const.ZONE_STATE) not in (
-                const.ZONE_STATE_AUTOMATIC,
-                const.ZONE_STATE_MANUAL,
-            ):
-                continue
-            if target is not None and int(zone.get(const.ZONE_ID)) not in target:
-                continue
-            if zone.get(const.ZONE_DISTRIBUTOR_ID) is not None:
-                continue
-            duration = zone.get(const.ZONE_DURATION, 0) or 0
-            if duration <= 0:
-                continue
-            if is_opensprinkler_zone(zone):
-                stations.append(duration)
-            elif is_batch_zone(zone):
-                batched.append(duration)
-            elif is_self_closing_zone(zone):
-                self_closing.append(duration)
-            else:
-                classic.append(duration)
 
         dist_track = 0
         for dist in await self.store.async_get_distributors():
@@ -474,25 +489,19 @@ class SkipConditionsMixin:
                 self.distributor_cycle_estimate(dist, members, only_zone_ids=only)
             )
 
-        if self.store.config.zone_sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL:
-            classic_track = max(classic) if classic else 0
-        else:
-            classic_track = sum(classic)
-        # Always max: they are dispatched in one loop and never sequenced.
-        sc_track = max(self_closing) if self_closing else 0
-        # Always sum: see the station-track note above.
-        station_track = sum(stations)
-        # Always sum, and with no ambiguity to hedge against: a queue runs one
-        # valve at a time by construction, so a batch of zones takes as long as
-        # all of them put together. This is the one track whose serialisation is
-        # a property of the mode rather than of a setting or a controller flag.
-        batch_track = sum(batched)
-        # Every track is started without being waited on, so the wall-clock is
-        # the longest of them rather than their total.
-        return int(max(classic_track, sc_track, station_track, batch_track, dist_track))
+        sequencing, slot_seconds, absorption_seconds = self.sequencing_timing()
+        zone_track = concurrent_wall_clock(
+            planned,
+            sequencing=sequencing,
+            max_slot_seconds=slot_seconds,
+            min_absorption_seconds=absorption_seconds,
+        )
+        # The zone tracks run as background tasks concurrently with the awaited
+        # distributor dispatch, so wall-clock is the longest track of all.
+        return int(max(zone_track, dist_track))
 
     async def _increment_days_since_irrigation(self):
-        """Increment the counter for days since last irrigation."""
+        """Bump the days-since-irrigation counters (global and per zone)."""
         config = await self.store.async_get_config()
         current_days = config.get(
             const.CONF_DAYS_SINCE_LAST_IRRIGATION,
@@ -503,11 +512,63 @@ class SkipConditionsMixin:
         await self.store.async_update_config(
             {const.CONF_DAYS_SINCE_LAST_IRRIGATION: new_days}
         )
+        for zone in await self.store.async_get_zones():
+            days = zone.get(
+                const.ZONE_DAYS_SINCE_IRRIGATION,
+                const.CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
+            )
+            await self.store.async_update_zone(
+                zone.get(const.ZONE_ID),
+                {const.ZONE_DAYS_SINCE_IRRIGATION: (days or 0) + 1},
+            )
 
         _LOGGER.debug("Incremented days since last irrigation to %d", new_days)
 
     async def _reset_days_since_irrigation(self):
-        """Reset the counter for days since last irrigation to 0."""
+        """Reset the GLOBAL days-since-irrigation counter to 0.
+
+        Global only. Each zone's own counter is reset by
+        ``async_write_watered_bucket``, in the same write as the water it is
+        recording — the only place that knows which zones actually got water. A
+        sequential or rotating run is a background task that can still be
+        watering hours after this returns, so resetting per-zone counters here
+        would clear them for zones a deadline or a mid-run re-price never
+        reaches, which is exactly the starvation the per-zone counter exists to
+        prevent. The global value survives for the dashboard preview.
+        """
         await self.store.async_update_config({const.CONF_DAYS_SINCE_LAST_IRRIGATION: 0})
 
         _LOGGER.debug("Reset days since last irrigation to 0")
+
+    def _days_between_setting(self) -> int:
+        """The configured days-between-irrigation wait, 0 when off.
+
+        Read from the in-memory config off the runner's hot path, and coerced,
+        because an unreadable value here must leave the guard OFF rather than
+        raise inside a dispatch and cancel the night's watering.
+        """
+        try:
+            value = getattr(
+                self.store.config,
+                "days_between_irrigation",
+                const.CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
+            )
+            return max(0, int(value))
+        except (AttributeError, TypeError, ValueError):
+            return 0
+
+    def _zone_days_between_blocked(self, zone: dict, days_between: int) -> bool:
+        """Whether the days-between guard still holds this zone back.
+
+        A zone with no per-zone counter yet (hydrated before the counter
+        existed, and not through a midnight since) reads as never watered, so it
+        is not held: erring towards watering is the safe direction for a guard
+        whose whole failure mode is stranding a dry zone.
+        """
+        days_since = zone.get(const.ZONE_DAYS_SINCE_IRRIGATION)
+        if days_since is None:
+            return False
+        try:
+            return int(days_since) < days_between
+        except (TypeError, ValueError):
+            return False

@@ -110,21 +110,37 @@ def coordinator(hass, mock_store):
 
 
 def _zones():
+    # The buckets matter: the anchor estimate now prices only the zones the run
+    # would actually water, so a zone whose bucket sits above its threshold
+    # contributes nothing. Zone 4 is exactly that case.
     return [
         {
             const.ZONE_ID: 1,
             const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
             const.ZONE_DURATION: 300,
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_BUCKET_THRESHOLD: -1.0,
         },
         {
             const.ZONE_ID: 2,
             const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
             const.ZONE_DURATION: 600,
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_BUCKET_THRESHOLD: -1.0,
         },
         {
             const.ZONE_ID: 3,
             const.ZONE_STATE: const.ZONE_STATE_DISABLED,
             const.ZONE_DURATION: 999,
+            const.ZONE_BUCKET: -5.0,
+            const.ZONE_BUCKET_THRESHOLD: -1.0,
+        },
+        {
+            const.ZONE_ID: 4,
+            const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+            const.ZONE_DURATION: 450,
+            const.ZONE_BUCKET: 0.0,
+            const.ZONE_BUCKET_THRESHOLD: -1.0,
         },
     ]
 
@@ -143,9 +159,32 @@ class TestSequencingAwareDuration:
         assert await coordinator.get_total_irrigation_duration() == 600
 
     @pytest.mark.asyncio
-    async def test_rotating_sums(self, coordinator, mock_store):
+    async def test_rotating_without_absorption_sums(self, coordinator, mock_store):
         mock_store.config = Mock(zone_sequencing=const.CONF_ZONE_SEQUENCING_ROTATING)
         mock_store.async_get_zones = AsyncMock(return_value=_zones())
+        assert await coordinator.get_total_irrigation_duration() == 900
+
+    @pytest.mark.asyncio
+    async def test_rotating_counts_the_absorption_pauses(self, coordinator, mock_store):
+        # 300 s + 600 s of watering, but 5-minute slots with a 10-minute
+        # absorption pause stretch it to 1500 s of wall clock. Anchoring on the
+        # 900 s sum starts the run ten minutes late and the deadline then cuts
+        # the pump mid-rotation.
+        mock_store.config = Mock(
+            zone_sequencing=const.CONF_ZONE_SEQUENCING_ROTATING,
+            zone_sequencing_max_consecutive_duration=5,
+            zone_sequencing_min_absorption_time=10,
+        )
+        mock_store.async_get_zones = AsyncMock(return_value=_zones())
+        assert await coordinator.get_total_irrigation_duration() == 1500
+
+    @pytest.mark.asyncio
+    async def test_a_satisfied_zone_is_not_priced(self, coordinator, mock_store):
+        # Zone 4 has a duration but its bucket is above threshold, so the run
+        # would skip it. Counting it would start the run 450 s too early.
+        mock_store.config = Mock(zone_sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
+        mock_store.async_get_zones = AsyncMock(return_value=_zones())
+        assert await coordinator.get_total_irrigation_duration([4]) == 0
         assert await coordinator.get_total_irrigation_duration() == 900
 
     @pytest.mark.asyncio

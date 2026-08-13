@@ -19,6 +19,7 @@ from .const import (
     ATTR_NEW_MULTIPLIER_VALUE,
     CONF_ACTIVE_VALVE_RUNS,
     CONF_AUTO_CALC_ENABLED,
+    CONF_AUTO_CALC_MODE,
     CONF_AUTO_UPDATE_DELAY,
     CONF_AUTO_UPDATE_ENABLED,
     CONF_AUTO_UPDATE_INTERVAL,
@@ -34,6 +35,7 @@ from .const import (
     CONF_DAYS_BETWEEN_IRRIGATION,
     CONF_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_AUTO_CALC_ENABLED,
+    CONF_DEFAULT_AUTO_CALC_MODE,
     CONF_DEFAULT_AUTO_UPDATE_DELAY,
     CONF_DEFAULT_AUTO_UPDATE_ENABLED,
     CONF_DEFAULT_AUTO_UPDATE_INTERVAL,
@@ -143,6 +145,7 @@ from .const import (
     ZONE_BUCKET,
     ZONE_BUCKET_THRESHOLD,
     ZONE_CURRENT_DRAINAGE,
+    ZONE_DAYS_SINCE_IRRIGATION,
     ZONE_DELTA,
     ZONE_DRAINAGE_RATE,
     ZONE_DURATION,
@@ -248,6 +251,11 @@ class ZoneEntry:
     # When this zone last actually irrigated (set by the runner). Persisted so
     # the "Last irrigation" sensor survives restarts.
     last_irrigation = attr.ib(type=datetime, default=None)
+    # Per-zone days-between counter; see const.ZONE_DAYS_SINCE_IRRIGATION for
+    # why the global one could not stay the gate.
+    days_since_irrigation = attr.ib(
+        type=int, default=CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION
+    )
     number_of_data_points = attr.ib(type=int, default=0)
     drainage_rate = attr.ib(type=float, default=CONF_DEFAULT_DRAINAGE_RATE)
     current_drainage = attr.ib(type=float, default=0)
@@ -346,6 +354,7 @@ class Config:
     use_weather_service = attr.ib(type=bool, default=CONF_DEFAULT_WEATHER_SERVICE)
     weather_service = attr.ib(type=str, default=None)
     autocalcenabled = attr.ib(type=bool, default=CONF_AUTO_CALC_ENABLED)
+    autocalcmode = attr.ib(type=str, default=CONF_DEFAULT_AUTO_CALC_MODE)
     autoupdateenabled = attr.ib(type=bool, default=CONF_AUTO_UPDATE_ENABLED)
     autoupdateschedule = attr.ib(type=str, default=CONF_DEFAULT_AUTO_UPDATE_SCHEDULE)
     autoupdatedelay = attr.ib(type=str, default=CONF_DEFAULT_AUTO_UPDATE_DELAY)
@@ -689,6 +698,12 @@ class MigratableStore(Store):
                 data["config"][CONF_WIND_THRESHOLD] = CONF_DEFAULT_WIND_THRESHOLD
             if CONF_RAIN_SENSOR not in data["config"]:
                 data["config"][CONF_RAIN_SENSOR] = CONF_DEFAULT_RAIN_SENSOR
+            # Existing installs keep calctime's meaning: they migrate to the
+            # fixed-time mode holding the value they already have. Without this
+            # setdefault the key is filtered out against attr.fields_dict(Config)
+            # on every load and the mode silently reverts.
+            if CONF_AUTO_CALC_MODE not in data["config"]:
+                data["config"][CONF_AUTO_CALC_MODE] = CONF_DEFAULT_AUTO_CALC_MODE
             # Continuous updates: MANDATORY here, not merely nice to have. The
             # allowlist strip below drops any key absent from Config, and a key
             # absent from the stored config is simply never hydrated — so without
@@ -784,6 +799,7 @@ class SmartIrrigationStorage:
             use_weather_service=CONF_DEFAULT_USE_WEATHER_SERVICE,
             weather_service=CONF_DEFAULT_WEATHER_SERVICE,
             autocalcenabled=CONF_DEFAULT_AUTO_CALC_ENABLED,
+            autocalcmode=CONF_DEFAULT_AUTO_CALC_MODE,
             autoupdateenabled=CONF_DEFAULT_AUTO_UPDATE_ENABLED,
             autoupdateschedule=CONF_DEFAULT_AUTO_UPDATE_SCHEDULE,
             autoupdatedelay=CONF_DEFAULT_AUTO_UPDATE_DELAY,
@@ -814,6 +830,9 @@ class SmartIrrigationStorage:
                 ),
                 autocalcenabled=data["config"].get(
                     CONF_AUTO_CALC_ENABLED, CONF_DEFAULT_AUTO_CALC_ENABLED
+                ),
+                autocalcmode=data["config"].get(
+                    CONF_AUTO_CALC_MODE, CONF_DEFAULT_AUTO_CALC_MODE
                 ),
                 autoupdateenabled=data["config"].get(
                     CONF_AUTO_UPDATE_ENABLED, CONF_DEFAULT_AUTO_UPDATE_ENABLED
@@ -1027,6 +1046,17 @@ class SmartIrrigationStorage:
                         # Migration: existing zones have no recorded last
                         # irrigation until they next water.
                         last_irrigation=zone.get(ZONE_LAST_IRRIGATION, None),
+                        # Migration: a zone with no per-zone counter yet inherits
+                        # the global one, so an install mid-way through a
+                        # days-between wait keeps waiting rather than being
+                        # handed a fresh 0 and watering a day early.
+                        days_since_irrigation=zone.get(
+                            ZONE_DAYS_SINCE_IRRIGATION,
+                            data["config"].get(
+                                CONF_DAYS_SINCE_LAST_IRRIGATION,
+                                CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
+                            ),
+                        ),
                         number_of_data_points=zone.get(
                             ZONE_NUMBER_OF_DATA_POINTS, None
                         ),

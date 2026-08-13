@@ -19,7 +19,7 @@ from homeassistant.helpers.event import (
     async_track_time_change,
     async_track_time_interval,
 )
-from homeassistant.helpers.sun import get_astral_event_next
+from homeassistant.helpers.sun import get_astral_event_date, get_astral_event_next
 
 from . import const
 from .helpers import (
@@ -27,6 +27,7 @@ from .helpers import (
     normalize_azimuth_angle,
     normalize_zone_selection,
 )
+from .run_window import bound_wall_clock, select, simulate_wall_clock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +56,12 @@ class RecurringScheduleManager:
         # This dict stays the authority while the manager lives; the stored copy
         # only has to be right by the time a NEW manager reads it.
         self._finish_last_target: dict[str, str] = {}
+        # Per finish-anchored schedule, the decision last written to the log at
+        # INFO. Every config write re-arms the schedule, and past the decision
+        # point that re-runs the whole selection — so an unconditional INFO per
+        # arm reads as the schedule arming over and over while only one dispatch
+        # ever fires. Keyed by schedule id; see _decision_is_new.
+        self._decision_logged: dict[str, tuple] = {}
 
     async def async_load_schedules(self) -> None:
         """Load recurring schedules from configuration."""
@@ -104,6 +111,11 @@ class RecurringScheduleManager:
         # same occurrence twice. Clearing it here would also let a persistence
         # task created just before teardown write an empty map back to the
         # store, which is precisely the state the fix exists to avoid.
+        #
+        # The decision log IS per-manager: it only suppresses repeated log lines
+        # within one manager's life, so a fresh one starting from empty costs a
+        # single duplicate line rather than a duplicate run.
+        self._decision_logged.clear()
 
     @callback
     def _on_config_updated(self, *_args) -> None:
@@ -334,6 +346,137 @@ class RecurringScheduleManager:
         zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
         return await self.coordinator.get_total_irrigation_duration(zones)
 
+    # --- earliest start, decision point, fitting ----------------------------
+
+    @staticmethod
+    def _fit_to_window(schedule: dict[str, Any]) -> bool:
+        """Whether this schedule fits its run to the available window."""
+        return bool(
+            schedule.get(
+                const.SCHEDULE_CONF_FIT_TO_WINDOW,
+                const.SCHEDULE_DEFAULT_FIT_TO_WINDOW,
+            )
+        )
+
+    @staticmethod
+    def _earliest_start_mode(schedule: dict[str, Any]) -> str:
+        mode = schedule.get(const.SCHEDULE_CONF_EARLIEST_START_MODE)
+        if mode in const.SCHEDULE_EARLIEST_START_MODES:
+            return mode
+        return const.SCHEDULE_DEFAULT_EARLIEST_START_MODE
+
+    def _uses_two_stage_arm(self, schedule: dict[str, Any]) -> bool:
+        """Whether this schedule needs a decision point before its start.
+
+        Both new controls need one: fitting has to know the live deficits to
+        select zones, and an earliest start has to bound a start it can only
+        compute once the demand is known. Neither set means the schedule keeps
+        the single-stage arm it has always had, byte for byte.
+        """
+        return (
+            self._fit_to_window(schedule)
+            or self._earliest_start_mode(schedule) != const.SCHEDULE_EARLIEST_START_NONE
+        )
+
+    async def _earliest_start(self, schedule: dict[str, Any], target):
+        """The UTC moment before which this occurrence's run must not begin.
+
+        Resolved against ``target`` — the run's finish — not against "now", so
+        an occurrence armed days ahead still floors on the right night's sunset.
+        Returns None when no floor is configured, or when one cannot be resolved
+        (polar sunset, unparseable time); a schedule with an unusable floor
+        behaves as it did before the floor existed rather than not running.
+        """
+        mode = self._earliest_start_mode(schedule)
+        if mode == const.SCHEDULE_EARLIEST_START_NONE:
+            return None
+
+        floor = None
+        if mode == const.SCHEDULE_EARLIEST_START_TIME:
+            raw = schedule.get(const.SCHEDULE_CONF_EARLIEST_START_TIME)
+            try:
+                hour, minute = (int(x) for x in str(raw).split(":"))
+            except (ValueError, TypeError, AttributeError):
+                _LOGGER.warning(
+                    "Schedule '%s': earliest start time '%s' is not HH:MM; "
+                    "ignoring the floor",
+                    schedule.get(const.SCHEDULE_CONF_NAME),
+                    raw,
+                )
+                return None
+            local_target = dt_util.as_local(target)
+            candidate = local_target.replace(
+                hour=hour, minute=minute, second=0, microsecond=0
+            )
+            # The latest occurrence of that clock time at or before the target,
+            # so an overnight window (floor 22:00, target 06:00) floors on the
+            # PREVIOUS evening rather than jumping forward a whole day.
+            if candidate > local_target:
+                candidate -= datetime.timedelta(days=1)
+            floor = dt_util.as_utc(candidate)
+        elif mode == const.SCHEDULE_EARLIEST_START_SUNSET:
+            offset = datetime.timedelta(
+                minutes=schedule.get(const.SCHEDULE_CONF_EARLIEST_START_OFFSET, 0) or 0
+            )
+            local_date = dt_util.as_local(target).date()
+            for back in (0, 1):
+                event = get_astral_event_date(
+                    self.hass, "sunset", local_date - datetime.timedelta(days=back)
+                )
+                if event is None:
+                    continue
+                candidate = dt_util.as_utc(event) + offset
+                if candidate <= target:
+                    floor = candidate
+                    break
+            if floor is None:
+                _LOGGER.warning(
+                    "Schedule '%s': no sunset before the target %s to floor the "
+                    "start on; ignoring the floor",
+                    schedule.get(const.SCHEDULE_CONF_NAME),
+                    target,
+                )
+                return None
+
+        if floor is not None and floor >= target:
+            # A floor at or after the finish leaves no window at all. Honour the
+            # finish time and log it, rather than silently never running.
+            _LOGGER.warning(
+                "Schedule '%s': earliest start %s is not before its finish "
+                "target %s; ignoring the floor",
+                schedule.get(const.SCHEDULE_CONF_NAME),
+                floor,
+                target,
+            )
+            return None
+        return floor
+
+    async def _duration_bound(self, schedule: dict[str, Any]) -> float:
+        """Longest wall clock the schedule's zones could occupy, in seconds.
+
+        Priced from each zone's configured ``maximum_duration``, so it is a
+        function of configuration alone. That is the whole point: it gives
+        ``target − bound`` a fixed point to arm on days ahead, before any
+        deficit is known, when no earliest start supplies one.
+        """
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+        # ignore_demand, unconditionally: the bound has to cover every zone this
+        # schedule could water by the time the decision point arrives, not the
+        # ones that happen to be due while it is being armed. Pricing only the
+        # currently-due zones would move the decision point every time a zone
+        # crossed its threshold — the exact demand-dependence the bound exists
+        # to remove.
+        plan = await self.coordinator.async_plan_zone_runs(
+            zones, runnable_only=True, ignore_demand=True
+        )
+        sequencing, slot, absorption = self.coordinator.sequencing_timing()
+        return bound_wall_clock(
+            plan,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorption,
+        )
+
     @staticmethod
     def _clock_day_matches(schedule: dict[str, Any], dt_local) -> bool:
         """Whether a clock-type schedule should run on dt_local's day."""
@@ -515,6 +658,14 @@ class RecurringScheduleManager:
                 "next_run_utc": None,
                 "target_utc": None,
                 "duration_seconds": 0,
+                # Whether the start above is a projection rather than an armed
+                # moment. A two-stage schedule does not know its real start
+                # until its decision point, so before then this number moves as
+                # deficits grow through the day — which reads as a defect unless
+                # the UI can say it is an estimate.
+                "estimated": False,
+                "earliest_start_utc": None,
+                "fit_to_window": self._fit_to_window(schedule),
             }
 
             if stype == const.SCHEDULE_TYPE_INTERVAL:
@@ -539,6 +690,22 @@ class RecurringScheduleManager:
                 duration = await self._estimate_duration(schedule)
                 entry["duration_seconds"] = int(duration)
                 next_run = target - datetime.timedelta(seconds=duration)
+                if self._uses_two_stage_arm(schedule):
+                    floor = await self._earliest_start(schedule, target)
+                    if floor is not None:
+                        entry["earliest_start_utc"] = floor.isoformat()
+                        next_run = max(next_run, floor)
+                        decision_point = floor
+                    else:
+                        decision_point = target - datetime.timedelta(
+                            seconds=await self._duration_bound(schedule)
+                        )
+                    # True only until the decision point: the number above is
+                    # the CURRENT demand projected forward, and demand grows all
+                    # day, so it drifts through the evening. Past the decision
+                    # point the start is armed and no longer moves. Without
+                    # marking the difference the drift reads as a defect.
+                    entry["estimated"] = dt_util.utcnow() < decision_point
 
             entry["next_run_utc"] = next_run.isoformat()
             entry["target_utc"] = target.isoformat()
@@ -559,8 +726,6 @@ class RecurringScheduleManager:
             )
             return None
 
-        duration = await self._estimate_duration(schedule)
-
         # If we already fired this occurrence (the run just happened and we're
         # re-arming), advance to the NEXT occurrence. Without this the tracker
         # re-derives the same still-future target, recomputes a start that is now
@@ -577,6 +742,10 @@ class RecurringScheduleManager:
                 return None
             target = nxt
 
+        if self._uses_two_stage_arm(schedule):
+            return await self._setup_fitted_tracker(schedule, target)
+
+        duration = await self._estimate_duration(schedule)
         fire_time = target - datetime.timedelta(seconds=duration)
         now_utc = dt_util.utcnow()
         if fire_time <= now_utc:
@@ -638,6 +807,246 @@ class RecurringScheduleManager:
         await self.coordinator.store.async_update_config(
             {const.CONF_FIRED_OCCURRENCES: markers}
         )
+
+    # --- two-stage arm: decide late, then start ------------------------------
+
+    async def _setup_fitted_tracker(self, schedule: dict[str, Any], target) -> Any:
+        """Arm a schedule that has an earliest start and/or fits its window.
+
+        Two stages, because the start time depends on a demand that is not known
+        until close to the run. The single-stage tracker reads the estimate when
+        it arms — on load, after each fire, and on every config change — which is
+        typically hours before the run, and deficits grow all day after that. On
+        seven zones at this scale that is around three hours of under-estimate:
+        the run starts three hours late and overruns its finish.
+
+        So the first stage arms on a moment that does NOT depend on the
+        duration, and the second stage arms the real start once the demand has
+        been read there:
+
+            decision point = earliest start, if one is configured
+                             target − bound, otherwise
+
+        ``bound`` prices every zone at its configured ``maximum_duration``, so
+        both forms are knowable in advance and the arm always has a fixed point.
+        Deciding at the floor is the more accurate of the two — it is the latest
+        duration-independent moment — which is why a DAYTIME finish anchor
+        (syringing, seed and sod establishment, drip zones, frost protection)
+        should set one: without it the decision sits a whole run-length earlier
+        and an eight-hour daylight gap accrues real ET in between.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        floor = await self._earliest_start(schedule, target)
+        now_utc = dt_util.utcnow()
+
+        if floor is not None:
+            decision_point = floor
+        else:
+            bound = await self._duration_bound(schedule)
+            decision_point = target - datetime.timedelta(seconds=bound)
+
+        if decision_point > now_utc:
+
+            def decide_callback(now, s=schedule, t=target, f=floor):
+                self.hass.loop.call_soon_threadsafe(
+                    self.hass.async_create_task,
+                    self._decide_and_arm(s, t, f, commit=True),
+                )
+
+            _LOGGER.info(
+                "Finish schedule '%s': target %s, deciding at %s (%s)",
+                name,
+                target,
+                decision_point,
+                "earliest start" if floor is not None else "target - bound",
+            )
+            return async_track_point_in_utc_time(
+                self.hass, decide_callback, decision_point
+            )
+
+        # Already past the decision point — a restart inside the window, or a
+        # config change after the decision was made. Re-derive from the live
+        # deficits and arm immediately, WITHOUT a second commit: the ledger for
+        # this run was already committed at the decision point, and committing
+        # again here would re-book the same window every time anything touches
+        # the config.
+        return await self._decide_and_arm(schedule, target, floor, commit=False)
+
+    def _decision_is_new(self, sid: str, decision: tuple) -> bool:
+        """Whether this arm decided something the log has not already said.
+
+        The decision is the occurrence plus the zones: a start time that moved a
+        few seconds because the re-arm happened a few seconds later is the same
+        decision, and re-announcing it is what made a single armed run look like
+        dozens. A zone appearing or being dropped is a real change and is
+        announced. Records the decision as a side effect, so callers ask once.
+        """
+        if self._decision_logged.get(sid) == decision:
+            return False
+        self._decision_logged[sid] = decision
+        return True
+
+    async def _decide_and_arm(
+        self, schedule: dict[str, Any], target, floor, *, commit: bool
+    ) -> Any:
+        """Read the demand, pick the zones, and arm the run's real start."""
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+
+        if commit:
+            await self.coordinator.async_commit_pre_run_calculation(zones)
+
+        plan = await self.coordinator.async_plan_zone_runs(zones, runnable_only=True)
+        plan = [p for p in plan if p.duration > 0]
+        if not plan:
+            log = (
+                _LOGGER.info
+                if self._decision_is_new(sid, (target.isoformat(), None))
+                else _LOGGER.debug
+            )
+            log(
+                "Finish schedule '%s': no zone is due at the decision point; "
+                "the %s occurrence runs unfitted",
+                name,
+                target,
+            )
+            return self._arm_pass_through(schedule, target)
+
+        now_utc = dt_util.utcnow()
+        start_floor = max(now_utc, floor) if floor is not None else now_utc
+        sequencing, slot, absorption = self.coordinator.sequencing_timing()
+
+        if self._fit_to_window(schedule):
+            window = (target - start_floor).total_seconds()
+            selection = select(
+                plan,
+                window_seconds=window,
+                sequencing=sequencing,
+                max_slot_seconds=slot,
+                min_absorption_seconds=absorption,
+            )
+        else:
+            # Floor only: no selection, no ordering, no deadline — the floor
+            # bounds the start and everything due still runs, exactly as it
+            # would without the floor.
+            selection = plan
+
+        demand = simulate_wall_clock(
+            selection,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorption,
+        )
+        # When everything fits, the slack sits BEFORE the start, which is where
+        # it belongs; the run still ends on the target. Only when the demand
+        # outruns the window is the start pinned to the floor and both ends of
+        # the window fixed.
+        fire_time = max(start_floor, target - datetime.timedelta(seconds=demand))
+        if fire_time <= now_utc:
+            fire_time = now_utc + datetime.timedelta(seconds=2)
+
+        dropped = {p.zone_id for p in plan} - {p.zone_id for p in selection}
+        # One announcement per decision. A re-arm that reaches the same zones
+        # repeats itself at DEBUG instead, so the strings stay greppable without
+        # the log implying an arm that did not happen.
+        new = self._decision_is_new(
+            sid,
+            (
+                target.isoformat(),
+                tuple(p.zone_id for p in selection),
+                tuple(sorted(dropped)),
+            ),
+        )
+        if dropped:
+            log = _LOGGER.warning if new else _LOGGER.debug
+            log(
+                "Finish schedule '%s': zones %s are due but do not fit the "
+                "window before %s; they carry their deficit and lead the next "
+                "run",
+                name,
+                sorted(dropped),
+                target,
+            )
+        log = _LOGGER.info if new else _LOGGER.debug
+        log(
+            "Finish schedule '%s': target %s, %s zone(s) %s, demand %ss → start %s",
+            name,
+            target,
+            len(selection),
+            [p.zone_id for p in selection],
+            round(demand),
+            fire_time,
+        )
+
+        order = (
+            [p.zone_id for p in selection] if self._fit_to_window(schedule) else None
+        )
+        deadline = target if self._fit_to_window(schedule) else None
+
+        def run_callback(now, s=schedule, fired=target, o=order, d=deadline):
+            # Recording the fired occurrence here rather than at the decision
+            # point is what lets a config change inside the window re-derive the
+            # start instead of skipping the night: until the run actually fires,
+            # a re-arm still resolves to THIS occurrence.
+            self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
+            self._execute_schedule(s, now, order=o, deadline=d, pre_committed=True)
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task, self._reregister_tracker(s)
+            )
+
+        return self._store_tracker(
+            sid, async_track_point_in_utc_time(self.hass, run_callback, fire_time)
+        )
+
+    def _arm_pass_through(self, schedule: dict[str, Any], target) -> Any:
+        """Arm the schedule's own action at ``target``, unfitted, and re-arm.
+
+        A night the selection has nothing to say about still has to leave a live
+        tracker behind. Simply returning None would arm nothing at all, and since
+        a finish schedule only re-arms from its own fire callback, the schedule
+        would go dormant until the next restart or config write.
+
+        It also has to still run. An empty plan is not the same claim as "there
+        is no water to deliver": ``async_plan_zone_runs`` excludes distributor
+        members by construction, because a member waters through its
+        distributor's shared inlet rather than through its own valve. A schedule
+        whose targets are all members therefore plans nothing while still having
+        a cycle to run, and ``_execute_schedule`` is that cycle's sole automatic
+        driver. Every gate that decides whether anything actually happens - the
+        skip conditions, the rain delay, per-member demand - lives inside it, so
+        firing the action here costs a no-op pass on a genuinely empty night and
+        keeps a members-only schedule watering exactly as it does with neither
+        new control set. Nothing was fitted, so no order and no deadline.
+        """
+        sid = schedule[const.SCHEDULE_CONF_ID]
+
+        def lapse_callback(now, s=schedule, fired=target):
+            self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
+            self._execute_schedule(
+                s, now, order=None, deadline=None, pre_committed=True
+            )
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task, self._reregister_tracker(s)
+            )
+
+        return self._store_tracker(
+            sid, async_track_point_in_utc_time(self.hass, lapse_callback, target)
+        )
+
+    def _store_tracker(self, schedule_id: str, tracker):
+        """Register a tracker armed outside ``_setup_schedule_tracker``.
+
+        The two-stage arm creates its second-stage tracker from a decision-point
+        callback, so nothing further up is going to store the handle — and an
+        unstored handle can never be cancelled by ``async_unload``, which is how
+        a reload ends up with N surviving listeners all firing the same run.
+        """
+        old = self._schedule_trackers.get(schedule_id)
+        if old and old is not tracker:
+            old()
+        self._schedule_trackers[schedule_id] = tracker
+        return tracker
 
     async def _reregister_tracker(self, schedule: dict[str, Any]) -> None:
         """Cancel and rebuild a schedule's tracker (used by self-rescheduling
@@ -823,9 +1232,21 @@ class RecurringScheduleManager:
 
     @callback
     def _execute_schedule(
-        self, schedule: dict[str, Any], now: datetime.datetime
+        self,
+        schedule: dict[str, Any],
+        now: datetime.datetime,
+        *,
+        order=None,
+        deadline=None,
+        pre_committed=False,
     ) -> None:
-        """Execute a scheduled action."""
+        """Execute a scheduled action.
+
+        ``order`` and ``deadline`` are set only by a fitted run's second stage:
+        the zone ids chosen at the decision point, in priority order, and the
+        finish target the runner must not water past. ``pre_committed`` says a
+        two-stage schedule already committed its pre-run calculation there.
+        """
         # Check date range if specified
         start_date = schedule.get(const.SCHEDULE_CONF_START_DATE)
         end_date = schedule.get(const.SCHEDULE_CONF_END_DATE)
@@ -882,11 +1303,25 @@ class RecurringScheduleManager:
 
         self.hass.loop.call_soon_threadsafe(
             self.hass.async_create_task,
-            self._perform_schedule_action(action, zones, schedule_name),
+            self._perform_schedule_action(
+                action,
+                zones,
+                schedule_name,
+                order=order,
+                deadline=deadline,
+                pre_committed=pre_committed,
+            ),
         )
 
     async def _perform_schedule_action(
-        self, action: str, zones: str | list[str], schedule_name: str
+        self,
+        action: str,
+        zones: str | list[str],
+        schedule_name: str,
+        *,
+        order=None,
+        deadline=None,
+        pre_committed=False,
     ) -> None:
         """Perform the scheduled action."""
         # None = every zone. Only the two loops below need this; the irrigate
@@ -913,6 +1348,13 @@ class RecurringScheduleManager:
                     for zone_id in selection:
                         await self.coordinator._async_update_zone(zone_id)
             elif action == "irrigate":
+                # "Before each irrigation run" means when the run is PLANNED,
+                # which is two different moments internally: a two-stage
+                # schedule commits at its decision point, so the selection and
+                # the start time are both computed on the fresh ledger;
+                # everything else commits here, immediately before dispatch.
+                if not pre_committed:
+                    await self.coordinator.async_commit_pre_run_calculation(zones)
                 # Check skip conditions (same as trigger-based irrigation)
                 if await self.coordinator._check_skip_conditions():
                     _LOGGER.info(
@@ -942,7 +1384,9 @@ class RecurringScheduleManager:
                 )
                 # Directly control linked entities (restricted to the schedule's
                 # target zones), then reset counter
-                watered = await self.coordinator._irrigate_linked_entities(zones)
+                watered = await self.coordinator._irrigate_linked_entities(
+                    zones, order=order, deadline=deadline
+                )
                 # Plan G: also run distributor cycles for due member zones. Members
                 # are excluded from _irrigate_linked_entities (irrigation.py:462), so
                 # this is their sole automatic driver, and it runs even when no
@@ -957,6 +1401,12 @@ class RecurringScheduleManager:
                 # unconditionally, fooling the days_between_irrigation guard into
                 # skipping the next due run. Only reset when water was actually
                 # delivered.
+                #
+                # This resets the GLOBAL counter only. Per-zone counters are
+                # reset as each zone's water is credited, because a fitted run
+                # waters a prefix of the priority order and this call happens at
+                # dispatch, long before a sequential or rotating run has
+                # finished — so it cannot know which zones were reached.
                 if watered or watered_members:
                     await self.coordinator._reset_days_since_irrigation()
 
@@ -1023,6 +1473,44 @@ class RecurringScheduleManager:
                 raise ValueError(
                     f"Invalid start time format: {start_time_str}. Expected HH:MM"
                 ) from e
+
+        # Earliest start. Rejected here rather than shrugged off at arm time: a
+        # floor is the only thing keeping a long run out of the evening, so a
+        # typo that silently disables it would show up as watering at sunset.
+        mode = schedule_data.get(const.SCHEDULE_CONF_EARLIEST_START_MODE)
+        if mode is not None and mode not in const.SCHEDULE_EARLIEST_START_MODES:
+            raise ValueError(
+                f"Invalid earliest start mode: {mode}. Expected one of "
+                f"{const.SCHEDULE_EARLIEST_START_MODES}"
+            )
+        if mode == const.SCHEDULE_EARLIEST_START_TIME:
+            earliest = schedule_data.get(const.SCHEDULE_CONF_EARLIEST_START_TIME)
+            try:
+                datetime.datetime.strptime(earliest, "%H:%M")
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid earliest start time: {earliest}. Expected HH:MM"
+                ) from e
+        if mode == const.SCHEDULE_EARLIEST_START_SUNSET:
+            offset = schedule_data.get(const.SCHEDULE_CONF_EARLIEST_START_OFFSET, 0)
+            try:
+                int(offset or 0)
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid earliest start offset: {offset}. Expected minutes"
+                ) from e
+
+        # Schedules have no voluptuous schema (websocket_save_schedule hands the
+        # raw dict straight through), so this is the only gate on the type. A
+        # string "false" would otherwise read truthy and silently turn fitting
+        # on, which changes both the zone set and the run's deadline.
+        if const.SCHEDULE_CONF_FIT_TO_WINDOW in schedule_data and not isinstance(
+            schedule_data[const.SCHEDULE_CONF_FIT_TO_WINDOW], bool
+        ):
+            raise ValueError(
+                "Invalid fit to window: "
+                f"{schedule_data[const.SCHEDULE_CONF_FIT_TO_WINDOW]}. Expected a boolean"
+            )
 
     def _generate_schedule_id(self) -> str:
         """Generate a unique schedule ID."""

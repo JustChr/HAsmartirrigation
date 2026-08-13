@@ -227,6 +227,31 @@ SCHEDULE_CONF_TIME_ANCHOR = "time_anchor"
 SCHEDULE_TIME_ANCHOR_START = "start"
 SCHEDULE_TIME_ANCHOR_FINISH = "finish"
 
+# Earliest start ("floor"): the moment before which a finish-anchored run must
+# not begin. Without one, a run long enough to need most of the night starts
+# wherever target − demand lands, which on a short summer night is before
+# sunset. Only meaningful for a finish anchor — a start-anchored schedule's
+# configured time IS its start, so there is nothing to bound.
+SCHEDULE_CONF_EARLIEST_START_MODE = "earliest_start_mode"
+SCHEDULE_EARLIEST_START_NONE = "none"
+SCHEDULE_EARLIEST_START_TIME = "time"
+SCHEDULE_EARLIEST_START_SUNSET = "sunset"
+SCHEDULE_EARLIEST_START_MODES = [
+    SCHEDULE_EARLIEST_START_NONE,
+    SCHEDULE_EARLIEST_START_TIME,
+    SCHEDULE_EARLIEST_START_SUNSET,
+]
+SCHEDULE_CONF_EARLIEST_START_TIME = "earliest_start_time"  # HH:MM, "time" mode
+SCHEDULE_CONF_EARLIEST_START_OFFSET = "earliest_start_offset_minutes"  # "sunset" mode
+SCHEDULE_DEFAULT_EARLIEST_START_MODE = SCHEDULE_EARLIEST_START_NONE
+
+# Fit the run to the window between its earliest start and its finish target:
+# rank due zones by depletion, drop what does not fit, and pass the target into
+# the runner as a deadline. Off (the default) is today's behaviour exactly —
+# every due zone, in store order, uncapped, free to overrun the target.
+SCHEDULE_CONF_FIT_TO_WINDOW = "fit_to_window"
+SCHEDULE_DEFAULT_FIT_TO_WINDOW = False
+
 CONF_WEATHER_SERVICE = "weather_service"
 CONF_WEATHER_SERVICE_API_KEY = (
     "weather_service_api_key"  # legacy single-key slot (kept for migration)
@@ -264,6 +289,20 @@ CONF_CALC_TIME = "calctime"
 CONF_DEFAULT_CALC_TIME = "23:00"
 CONF_AUTO_CALC_ENABLED = "autocalcenabled"
 CONF_DEFAULT_AUTO_CALC_ENABLED = True
+# When the automatic calculation runs. "fixed_time" keeps calctime's original
+# meaning; "before_run" calculates when each irrigate schedule plans its run, so
+# the run is sized from a ledger minutes old rather than one committed hours
+# earlier. Existing installs migrate to fixed_time with their current calctime.
+CONF_AUTO_CALC_MODE = "autocalcmode"
+CONF_AUTO_CALC_MODE_FIXED_TIME = "fixed_time"
+CONF_AUTO_CALC_MODE_BEFORE_RUN = "before_run"
+CONF_AUTO_CALC_MODES = [CONF_AUTO_CALC_MODE_FIXED_TIME, CONF_AUTO_CALC_MODE_BEFORE_RUN]
+CONF_DEFAULT_AUTO_CALC_MODE = CONF_AUTO_CALC_MODE_FIXED_TIME
+# Under "before_run" a night with no run commits nothing, and after seven days
+# the replay window outruns BUFFER_RETENTION and the live estimate silently
+# falls back to a week-old bucket. The midnight tracker holds the invariant
+# instead of guarding the cases: the ledger is never more than this stale.
+AUTO_CALC_MAX_LEDGER_AGE_HOURS = 24
 CONF_AUTO_UPDATE_ENABLED = "autoupdateenabled"
 CONF_AUTO_UPDATE_SCHEDULE = "autoupdateschedule"
 CONF_AUTO_UPDATE_MINUTELY = "minutes"
@@ -374,6 +413,12 @@ ZONE_LAST_CALCULATED = "last_calculated"
 ZONE_LAST_CONSUMED = "last_consumed_at"
 ZONE_LAST_UPDATED = "last_updated"
 ZONE_LAST_IRRIGATION = "last_irrigation"
+# Per-zone days-between-irrigation counter. The global counter it replaces was
+# reset by ANY watered run, so a run that only reached the first few zones still
+# told the guard everything had watered and the next night was skipped whole —
+# the tail of the priority order could never come up. Bumped at local midnight,
+# reset only for zones that actually received water.
+ZONE_DAYS_SINCE_IRRIGATION = "days_since_irrigation"
 ZONE_NUMBER_OF_DATA_POINTS = "number_of_data_points"
 ZONE_DRAINAGE_RATE = "drainage_rate"
 ZONE_CURRENT_DRAINAGE = "current_drainage"
@@ -668,6 +713,9 @@ ATTR_DISTRIBUTOR_ID = "distributor_id"
 ATTR_OUTLET = "outlet"
 # Run-log detail marker for a run a user stopped early.
 RUN_DETAIL_STOPPED = "stopped"
+# A run cut short because it reached its schedule's finish target. The water it
+# did deliver is credited; the residual carries to the next run.
+RUN_DETAIL_DEADLINE = "deadline"
 # run_zone / set_rain_delay call params
 ATTR_DURATION_MINUTES = "duration"  # whole minutes for a custom manual run
 ATTR_RAIN_DELAY_UNTIL = "until"  # ISO datetime to hold until

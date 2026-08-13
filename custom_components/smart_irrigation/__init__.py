@@ -46,6 +46,7 @@ from homeassistant.helpers.event import (
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .auto_calc import AutoCalcMixin
 from .batch import BatchMixin
 from .calculation import CalculationMixin
 from .config_resolver import resolve_weather_config
@@ -452,6 +453,7 @@ SmartIrrigationError = const.SmartIrrigationError  # re-exported for backward co
 
 class SmartIrrigationCoordinator(
     ServiceHandlersMixin,
+    AutoCalcMixin,
     WateringCalendarMixin,
     IrrigationRunnerMixin,
     CalculationMixin,
@@ -1052,8 +1054,23 @@ class SmartIrrigationCoordinator(
 
         # handle auto calc changes (only when the save actually touches them —
         # partial saves, e.g. the Experimental tab, omit these keys)
-        if const.CONF_AUTO_CALC_ENABLED in data:
-            await self.set_up_auto_calc_time(data)
+        # The mode counts as touching auto-calc: switching to "before each run"
+        # has to CANCEL the fixed-time tracker, and switching back has to re-arm
+        # it. Gating only on CONF_AUTO_CALC_ENABLED would store the new mode
+        # while the old schedule stayed armed until the next restart.
+        if const.CONF_AUTO_CALC_ENABLED in data or const.CONF_AUTO_CALC_MODE in data:
+            merged = {
+                const.CONF_AUTO_CALC_ENABLED: getattr(
+                    self.store.config,
+                    "autocalcenabled",
+                    const.CONF_DEFAULT_AUTO_CALC_ENABLED,
+                ),
+                const.CONF_CALC_TIME: getattr(
+                    self.store.config, "calctime", const.CONF_DEFAULT_CALC_TIME
+                ),
+                **data,
+            }
+            await self.set_up_auto_calc_time(merged)
         # handle auto update changes, includings updating OWMClient cache settings
         if const.CONF_AUTO_UPDATE_ENABLED in data:
             await self.set_up_auto_update_time(data)
@@ -1085,7 +1102,23 @@ class SmartIrrigationCoordinator(
         if self._track_auto_calc_time_unsub:
             self._track_auto_calc_time_unsub()
             self._track_auto_calc_time_unsub = None
-        if data[const.CONF_AUTO_CALC_ENABLED]:
+        mode = data.get(
+            const.CONF_AUTO_CALC_MODE,
+            getattr(
+                self.store.config, "autocalcmode", const.CONF_DEFAULT_AUTO_CALC_MODE
+            ),
+        )
+        if data[const.CONF_AUTO_CALC_ENABLED] and (
+            mode == const.CONF_AUTO_CALC_MODE_BEFORE_RUN
+        ):
+            # The clock no longer drives the calculation: each irrigate schedule
+            # commits one when it plans its run. calctime keeps its stored value
+            # so switching back restores the original time.
+            _LOGGER.info(
+                "Automatic calculation runs before each irrigation run; no "
+                "fixed-time calculation scheduled"
+            )
+        elif data[const.CONF_AUTO_CALC_ENABLED]:
             # make sure to unsub any existing and add for calc time
             if check_time(data[const.CONF_CALC_TIME]):
                 # make sure we track this time and at that moment trigger the refresh of all modules of all zones that are on automatic
@@ -1870,8 +1903,9 @@ class SmartIrrigationCoordinator(
 
     @callback
     def _reset_event_fired_today(self, *args):
-        """Midnight callback: increment the days-since-irrigation counter."""
+        """Midnight callback: days-since counters, and the ledger staleness floor."""
         self.hass.async_create_task(self._increment_days_since_irrigation())
+        self.hass.async_create_task(self.async_guard_ledger_staleness())
 
     async def async_get_all_modules(self):
         """Get all ModuleEntries."""
