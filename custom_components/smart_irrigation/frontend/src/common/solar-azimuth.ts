@@ -20,16 +20,14 @@
  * the run. Fixing the underlying math is a backend change with real user
  * impact - it moves when existing azimuth-bounded schedules fire.
  *
- * NAIVE WALL CLOCK. The backend feeds `find_next_solar_azimuth_time` a naive
- * local datetime (`scheduler.py`'s `_resolve_event_instant`, which does
- * `dt_util.as_local(...).replace(tzinfo=None)`), so a crossing it returns is
- * a wall-clock time in Home Assistant's configured zone. This module keeps
- * that frame: every `Date` flowing through the resolver carries a wall clock
- * in its UTC fields (`getUTCHours()` etc.) and has no timezone meaning of its
- * own. `wallClockNowInZone` / `wallClockMinutes` are the only two places a
- * real instant exists, and they are what keeps an azimuth bound in the same
- * frame as the dial's sunrise/sunset glyphs, which come from `sun.sun`'s
- * absolute timestamps rendered in that same Home Assistant zone.
+ * UTC INSTANTS. `calculate_solar_azimuth` reads UTC and takes a naive value AS
+ * UTC, and `scheduler.py`'s `_resolve_event_instant` hands it aware UTC in both
+ * directions, so a crossing is a real instant rather than a wall clock in
+ * anyone's zone. This module resolves in that same frame and converts only at
+ * the edge: `azimuthBoundMinutes` starts from the instant Home Assistant's
+ * local midnight falls on and renders the crossing it finds back into Home
+ * Assistant's zone, which is what puts an azimuth bound on the same clock as
+ * the dial's sunrise/sunset glyphs.
  */
 
 /** Mirrors helpers.py's `normalize_azimuth_angle`, but non-negative for a
@@ -52,7 +50,7 @@ function dayOfYear(wall: Date): number {
 const RAD = Math.PI / 180;
 
 /**
- * Solar azimuth in degrees (0=N, 90=E, 180=S, 270=W) for a wall-clock time.
+ * Solar azimuth in degrees (0=N, 90=E, 180=S, 270=W) at a UTC instant.
  * Port of `helpers.calculate_solar_azimuth`.
  *
  * Sub-second precision is dropped on purpose: Python reads `timestamp.second`
@@ -73,7 +71,10 @@ export function solarAzimuthDegrees(
     wall.getUTCHours() +
     wall.getUTCMinutes() / 60 +
     wall.getUTCSeconds() / 3600;
-  const solarTime = timeDecimal - longitude / 15;
+  // ADDED, not subtracted: east-positive longitude runs AHEAD of UTC, so local
+  // solar time is UTC + longitude/15. The backend subtracted it until issue
+  // #81, which is why an older version of this port did too.
+  const solarTime = timeDecimal + longitude / 15;
   const hourAngle = (solarTime - 12) * 15 * RAD;
 
   const azimuth = Math.atan2(
@@ -128,26 +129,26 @@ function refineAzimuthTime(
 }
 
 /**
- * The next wall-clock time at or after `startWall` when the sun reaches
- * `targetAzimuth`, or null if it does not within `maxDays`. Port of
+ * The next instant at or after `from` when the sun reaches `targetAzimuth`, or
+ * null if it does not within `maxDays`. Port of
  * `helpers.find_next_solar_azimuth_time`.
  *
  * Null is a real outcome, not just an error path: with this formula there are
  * latitude/target pairs the azimuth curve never crosses (the equator against
  * a due-east target is one), and the backend treats that as "no bound".
  */
-export function findNextSolarAzimuthWallClock(
+export function findNextSolarAzimuthInstant(
   latitude: number,
   longitude: number,
   targetAzimuth: number,
-  startWall: Date,
+  from: Date,
   maxDays = 1,
 ): Date | null {
-  const startMs = startWall.getTime();
+  const startMs = from.getTime();
   const maxMs = startMs + maxDays * 86400000;
 
   let currentMs = startMs;
-  let prevAzimuth = solarAzimuthDegrees(latitude, longitude, startWall);
+  let prevAzimuth = solarAzimuthDegrees(latitude, longitude, from);
 
   while (currentMs < maxMs) {
     currentMs += SEARCH_INTERVAL_MS;
@@ -171,7 +172,7 @@ export function findNextSolarAzimuthWallClock(
 }
 
 /* ------------------------------------------------------------------ *
- * Frame bridging: naive wall clock <-> real instants.                 *
+ * Frame bridging: wall clock in a zone <-> real instants.             *
  * ------------------------------------------------------------------ */
 
 const ZONE_PART_FORMAT: Intl.DateTimeFormatOptions = {
@@ -218,6 +219,28 @@ export function wallClockNowInZone(
       get("second"),
     ),
   );
+}
+
+/**
+ * The real instant whose `timeZone` wall clock is `wall` - the inverse of
+ * `wallClockNowInZone`, needed to start a scan at a local midnight.
+ *
+ * Two passes: a zone's offset is itself a function of the instant, so the
+ * first guess (the wall clock read as UTC) is refined once against the instant
+ * it produces. Enough everywhere except inside a DST fold, where no answer is
+ * right anyway.
+ */
+export function instantForWallClock(
+  wall: Date,
+  timeZone: string | undefined,
+): Date {
+  let instantMs = wall.getTime();
+  for (let i = 0; i < 2; i++) {
+    const offsetMs =
+      wallClockNowInZone(timeZone, new Date(instantMs)).getTime() - instantMs;
+    instantMs = wall.getTime() - offsetMs;
+  }
+  return new Date(instantMs);
 }
 
 function browserWallClock(instant: Date): Date {
@@ -298,20 +321,23 @@ export function azimuthBoundMinutes(
   timeZone: string | undefined,
   now: Date,
 ): number | null {
+  // The DAY is Home Assistant's local one; the instants scanned across it are
+  // UTC, because that is the frame the azimuth formula reads. Same split the
+  // backend's own backward walk makes.
   const nowWall = wallClockNowInZone(timeZone, now);
-  const midnight = new Date(
+  const midnightWall = new Date(
     Date.UTC(
       nowWall.getUTCFullYear(),
       nowWall.getUTCMonth(),
       nowWall.getUTCDate(),
     ),
   );
-  const crossing = findNextSolarAzimuthWallClock(
+  const crossing = findNextSolarAzimuthInstant(
     latitude,
     longitude,
     normalizeAzimuthAngle(azimuth),
-    midnight,
+    instantForWallClock(midnightWall, timeZone),
   );
   if (crossing === null) return null;
-  return wallClockMinutes(crossing);
+  return wallClockMinutes(wallClockNowInZone(timeZone, crossing));
 }

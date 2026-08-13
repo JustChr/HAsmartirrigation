@@ -264,13 +264,14 @@ describe("si-run-window-dial: solar-azimuth bounds (GitLab #34)", () => {
   });
 
   it("puts an azimuth bound on Home Assistant's clock, like the sun glyph", () => {
-    // The backend resolver puts 270 degrees at 07:46 Phoenix wall clock on
-    // this date (see solar-azimuth.test.ts's goldens), and the finish bound is
-    // 20:00 on that same clock, so the window is 12h 14m. Independent of the
-    // runner's own zone, which is the whole point: one dial, one clock.
+    // The backend resolver puts 270 degrees at 22:44 UTC on this date (see
+    // solar-azimuth.test.ts's goldens), which is 15:44 in Phoenix, and the
+    // finish bound is 20:00 on that same clock, so the window is 4h 16m.
+    // Independent of the runner's own zone, which is the whole point: one
+    // dial, one clock.
     const el = makeDial({ rows: azimuthRows(270) });
     const { values } = flatten(el.render());
-    expect(values).toContain("12h 14m"); // the centre's window duration
+    expect(values).toContain("4h 16m"); // the centre's window duration
   });
 
   it("moves the bound with Home Assistant's zone, not the browser's", () => {

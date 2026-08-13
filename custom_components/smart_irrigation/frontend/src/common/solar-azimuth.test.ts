@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   azimuthBoundMinutes,
   azimuthCrossedTarget,
-  findNextSolarAzimuthWallClock,
+  findNextSolarAzimuthInstant,
   normalizeAzimuthAngle,
   solarAzimuthDegrees,
   wallClockNowInZone,
@@ -20,108 +20,43 @@ import {
  * To regenerate after a backend change, in the hasi-test container:
  *   from custom_components.smart_irrigation.helpers import (
  *       calculate_solar_azimuth, find_next_solar_azimuth_time)
- * called with naive datetimes at the inputs below.
+ * called at the inputs below. Those are UTC instants: the resolver reads UTC
+ * and takes a naive datetime AS UTC, so the two sides agree on the frame
+ * without either converting.
  */
 const AZIMUTH_GOLDENS = [
-  ["phoenix_summer_noon", 33.45, -112.07, "2026-06-21T12:00:00", 301.551060579],
-  [
-    "phoenix_summer_morning",
-    33.45,
-    -112.07,
-    "2026-06-21T07:30:00",
-    267.490753157,
-  ],
-  [
-    "phoenix_winter_afternoon",
-    33.45,
-    -112.07,
-    "2026-12-21T15:45:00",
-    311.303008771,
-  ],
-  ["london_equinox", 51.51, -0.13, "2026-03-20T09:00:00", 128.614563467],
-  ["sydney_south", -33.87, 151.21, "2026-01-15T10:20:00", 175.701001957],
-  [
-    "wellington_south_winter",
-    -41.29,
-    174.78,
-    "2026-07-04T13:05:00",
-    129.046135794,
-  ],
+  ["phoenix_summer_noon", 33.45, -112.07, "2026-06-21T12:00:00", 58.448939421],
+  ["phoenix_summer_morning", 33.45, -112.07, "2026-06-21T07:30:00", 0.470899178],
+  ["phoenix_winter_afternoon", 33.45, -112.07, "2026-12-21T15:45:00", 129.069984578],
+  ["london_equinox", 51.51, -0.13, "2026-03-20T09:00:00", 128.363225344],
+  ["sydney_south", -33.87, 151.21, "2026-01-15T10:20:00", 231.040265498],
+  ["wellington_south_winter", -41.29, 174.78, "2026-07-04T13:05:00", 149.932383498],
   ["equator", 0.0, 0.0, "2026-09-10T06:00:00", 85.784473565],
-  ["high_north", 64.13, -21.9, "2026-05-01T18:40:00", 304.869874151],
+  ["high_north", 64.13, -21.9, "2026-05-01T18:40:00", 265.94116189],
 ] as const;
 
 const FIND_GOLDENS = [
-  ["phoenix_east_90", 33.45, -112.07, 90, "2026-06-21T00:00:00", "01:15:00"],
-  [
-    "phoenix_south_180",
-    33.45,
-    -112.07,
-    180,
-    "2026-06-21T00:00:00",
-    "04:30:56.250",
-  ],
-  [
-    "phoenix_west_270",
-    33.45,
-    -112.07,
-    270,
-    "2026-06-21T00:00:00",
-    "07:46:52.500",
-  ],
-  [
-    "phoenix_winter_east_90",
-    33.45,
-    -112.07,
-    90,
-    "2026-12-21T00:00:00",
-    "19:46:52.500",
-  ],
-  ["london_240", 51.51, -0.13, 240, "2026-03-20T00:00:00", "15:35:37.500"],
-  [
-    "sydney_south_hemisphere_45",
-    -33.87,
-    151.21,
-    45,
-    "2026-01-15T00:00:00",
-    "21:13:07.500",
-  ],
-  [
-    "sydney_south_hemisphere_300",
-    -33.87,
-    151.21,
-    300,
-    "2026-01-15T00:00:00",
-    "23:25:18.750",
-  ],
-  [
-    "wellington_south_winter_120",
-    -41.29,
-    174.78,
-    120,
-    "2026-07-04T00:00:00",
-    "13:29:03.750",
-  ],
+  ["phoenix_east_90", 33.45, -112.07, 90, "2026-06-21T00:00:00", "16:12:11.250"],
+  ["phoenix_south_180", 33.45, -112.07, 180, "2026-06-21T00:00:00", "19:28:07.500"],
+  ["phoenix_west_270", 33.45, -112.07, 270, "2026-06-21T00:00:00", "22:44:03.750"],
+  ["phoenix_winter_east_90", 33.45, -112.07, 90, "2026-12-21T00:00:00", "10:44:03.750"],
+  ["london_240", 51.51, -0.13, 240, "2026-03-20T00:00:00", "15:36:33.750"],
+  ["sydney_south_hemisphere_45", -33.87, 151.21, 45, "2026-01-15T00:00:00", "01:03:45.000"],
+  ["sydney_south_hemisphere_300", -33.87, 151.21, 300, "2026-01-15T00:00:00", "03:15:56.250"],
+  ["wellington_south_winter_120", -41.29, 174.78, 120, "2026-07-04T00:00:00", "14:11:15.000"],
   ["equator_0", 0.0, 0.0, 0, "2026-09-10T00:00:00", "11:59:03.750"],
-  ["high_north_150", 64.13, -21.9, 150, "2026-05-01T00:00:00", "08:55:18.750"],
-  [
-    "wrap_near_north_355",
-    33.45,
-    -112.07,
-    355,
-    "2026-06-21T00:00:00",
-    "16:13:07.500",
-  ],
+  ["high_north_150", 64.13, -21.9, 150, "2026-05-01T00:00:00", "11:50:37.500"],
+  ["wrap_near_north_355", 33.45, -112.07, 355, "2026-06-21T00:00:00", "07:09:22.500"],
 ] as const;
 
-/** A naive wall clock, carried in a Date's UTC fields. */
-const wall = (iso: string) => new Date(`${iso}Z`);
+/** A UTC instant. */
+const at = (iso: string) => new Date(`${iso}Z`);
 
 describe("solarAzimuthDegrees", () => {
   it.each(AZIMUTH_GOLDENS)(
     "matches the Python resolver at %s",
-    (_label, lat, lon, at, expected) => {
-      expect(solarAzimuthDegrees(lat, lon, wall(at))).toBeCloseTo(expected, 6);
+    (_label, lat, lon, when, expected) => {
+      expect(solarAzimuthDegrees(lat, lon, at(when))).toBeCloseTo(expected, 6);
     },
   );
 
@@ -129,22 +64,22 @@ describe("solarAzimuthDegrees", () => {
     const whole = solarAzimuthDegrees(
       33.45,
       -112.07,
-      wall("2026-06-21T04:30:56"),
+      at("2026-06-21T04:30:56"),
     );
     const fractional = solarAzimuthDegrees(
       33.45,
       -112.07,
-      new Date(wall("2026-06-21T04:30:56").getTime() + 250),
+      new Date(at("2026-06-21T04:30:56").getTime() + 250),
     );
     expect(fractional).toBe(whole);
   });
 });
 
-describe("findNextSolarAzimuthWallClock", () => {
+describe("findNextSolarAzimuthInstant", () => {
   it.each(FIND_GOLDENS)(
     "matches the Python resolver for %s",
     (_label, lat, lon, target, from, expectedTime) => {
-      const found = findNextSolarAzimuthWallClock(lat, lon, target, wall(from));
+      const found = findNextSolarAzimuthInstant(lat, lon, target, at(from));
       expect(found).not.toBeNull();
       const day = from.slice(0, 10);
       const expectedMs = Date.parse(`${day}T${expectedTime}Z`);
@@ -162,20 +97,22 @@ describe("findNextSolarAzimuthWallClock", () => {
     // Due east on the equator: the backend's azimuth curve never crosses it,
     // and the scheduler treats that as an unresolvable bound.
     expect(
-      findNextSolarAzimuthWallClock(0, 0, 90, wall("2026-09-10T00:00:00")),
+      findNextSolarAzimuthInstant(0, 0, 90, at("2026-09-10T00:00:00")),
     ).toBeNull();
   });
 
   it("finds the following day's crossing when today's has passed", () => {
-    const found = findNextSolarAzimuthWallClock(
+    // Phoenix reaches 270 at 22:44 UTC on the 21st, so a search starting after
+    // that has to roll into the 22nd rather than report the crossing it missed.
+    const found = findNextSolarAzimuthInstant(
       33.45,
       -112.07,
       270,
-      wall("2026-06-21T12:00:00"),
+      at("2026-06-21T23:00:00"),
     );
     expect(found).not.toBeNull();
     expect((found as Date).getUTCDate()).toBe(22);
-    expect((found as Date).getUTCHours()).toBe(7);
+    expect((found as Date).getUTCHours()).toBe(22);
   });
 });
 

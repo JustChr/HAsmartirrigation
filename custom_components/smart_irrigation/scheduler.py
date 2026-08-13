@@ -586,9 +586,7 @@ class RecurringScheduleManager:
                 # doesn't busy-loop.
                 guard = 0
                 while True:
-                    next_time = find_next_solar_azimuth_time(
-                        lat, lon, norm_angle, ref
-                    )
+                    next_time = find_next_solar_azimuth_time(lat, lon, norm_angle, ref)
                     if next_time is None:
                         return None
                     candidate = dt_util.as_utc(next_time) + offset
