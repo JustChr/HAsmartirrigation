@@ -278,6 +278,17 @@
         "demand_floored": "Set by demand, but never before this.",
         "exact_deferred": "Exact. Zones that don't fit are deferred.",
         "demand_capped_deferred": "Set by demand, but never later than this. Zones that don't fit are deferred."
+      },
+      "dial": {
+        "aria_label": "Run window on a 24 hour dial",
+        "sunrise": "Sunrise {time}",
+        "sunset": "Sunset {time}",
+        "run": "Run {from} to {to}",
+        "collision": "Collides with the previous run, {from} to {to}: zones still watering are skipped",
+        "window_label": "window",
+        "run_label": "run",
+        "per_day": "{count}x per day",
+        "every_hours": "every {hours}h"
       }
     },
     "setup": {

@@ -693,6 +693,17 @@
         "demand_floored": "Angitt etter behov, men aldri før dette.",
         "exact_deferred": "Nøyaktig. Soner som ikke får plass, utsettes.",
         "demand_capped_deferred": "Angitt etter behov, men aldri senere enn dette. Soner som ikke får plass, utsettes."
+      },
+      "dial": {
+        "aria_label": "Vanningsvindu på en 24-timers klokke",
+        "sunrise": "Soloppgang {time}",
+        "sunset": "Solnedgang {time}",
+        "run": "Vanning {from} til {to}",
+        "collision": "Kolliderer med forrige vanning, {from} til {to}: soner som fortsatt vannes hoppes over",
+        "window_label": "vindu",
+        "run_label": "vanning",
+        "per_day": "{count}x per dag",
+        "every_hours": "hver {hours}h"
       }
     },
     "info": {

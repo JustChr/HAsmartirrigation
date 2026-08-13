@@ -693,6 +693,17 @@
         "demand_floored": "Défini selon la demande, mais jamais avant cela.",
         "exact_deferred": "Exact. Les zones qui ne rentrent pas sont reportées.",
         "demand_capped_deferred": "Défini selon la demande, mais jamais après cela. Les zones qui ne rentrent pas sont reportées."
+      },
+      "dial": {
+        "aria_label": "Fenêtre d'irrigation sur une horloge de 24 heures",
+        "sunrise": "Lever du soleil {time}",
+        "sunset": "Coucher du soleil {time}",
+        "run": "Irrigation de {from} à {to}",
+        "collision": "Chevauche l'irrigation précédente, de {from} à {to} : les zones encore en cours d'irrigation sont ignorées",
+        "window_label": "fenêtre",
+        "run_label": "irrigation",
+        "per_day": "{count}x par jour",
+        "every_hours": "toutes les {hours}h"
       }
     },
     "info": {

@@ -733,6 +733,17 @@
         "demand_floored": "Impostato in base alla domanda, ma mai prima di questo.",
         "exact_deferred": "Esatto. Le zone che non rientrano vengono rinviate.",
         "demand_capped_deferred": "Impostato in base alla domanda, ma mai dopo questo. Le zone che non rientrano vengono rinviate."
+      },
+      "dial": {
+        "aria_label": "Finestra di irrigazione su un quadrante di 24 ore",
+        "sunrise": "Alba {time}",
+        "sunset": "Tramonto {time}",
+        "run": "Irrigazione da {from} a {to}",
+        "collision": "Si sovrappone all'irrigazione precedente, da {from} a {to}: le zone ancora in irrigazione vengono saltate",
+        "window_label": "finestra",
+        "run_label": "irrigazione",
+        "per_day": "{count}x al giorno",
+        "every_hours": "ogni {hours}h"
       }
     },
     "setup": {

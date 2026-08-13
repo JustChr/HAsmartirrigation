@@ -693,6 +693,17 @@
         "demand_floored": "Nastavené podľa dopytu, ale nikdy pred týmto.",
         "exact_deferred": "Presne. Zóny, ktoré sa nezmestia, sú odložené.",
         "demand_capped_deferred": "Nastavené podľa dopytu, ale nikdy neskôr než toto. Zóny, ktoré sa nezmestia, sú odložené."
+      },
+      "dial": {
+        "aria_label": "Okno závlahy na 24-hodinovom ciferníku",
+        "sunrise": "Východ slnka {time}",
+        "sunset": "Západ slnka {time}",
+        "run": "Závlaha {from} až {to}",
+        "collision": "Prekrýva sa s predchádzajúcou závlahou, {from} až {to}: zóny, ktoré ešte zavlažujú, sa preskočia",
+        "window_label": "okno",
+        "run_label": "závlaha",
+        "per_day": "{count}x denne",
+        "every_hours": "každých {hours}h"
       }
     },
     "info": {

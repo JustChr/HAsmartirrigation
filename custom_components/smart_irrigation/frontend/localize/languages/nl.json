@@ -693,6 +693,17 @@
         "demand_floored": "Ingesteld op basis van vraag, maar nooit eerder dan dit.",
         "exact_deferred": "Exact. Zones die niet passen worden uitgesteld.",
         "demand_capped_deferred": "Ingesteld op basis van vraag, maar nooit later dan dit. Zones die niet passen worden uitgesteld."
+      },
+      "dial": {
+        "aria_label": "Bewateringsvenster op een 24-uursklok",
+        "sunrise": "Zonsopgang {time}",
+        "sunset": "Zonsondergang {time}",
+        "run": "Beurt van {from} tot {to}",
+        "collision": "Overlapt met de vorige beurt, van {from} tot {to}: zones die nog aan het bewateren zijn worden overgeslagen",
+        "window_label": "venster",
+        "run_label": "beurt",
+        "per_day": "{count}x per dag",
+        "every_hours": "elke {hours}h"
       }
     },
     "info": {

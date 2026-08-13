@@ -693,6 +693,17 @@
         "demand_floored": "Establecido según demanda, pero nunca antes de esto.",
         "exact_deferred": "Exacto. Las zonas que no caben se posponen.",
         "demand_capped_deferred": "Establecido según demanda, pero nunca después de esto. Las zonas que no caben se posponen."
+      },
+      "dial": {
+        "aria_label": "Ventana de riego en un reloj de 24 horas",
+        "sunrise": "Amanecer {time}",
+        "sunset": "Atardecer {time}",
+        "run": "Riego de {from} a {to}",
+        "collision": "Coincide con el riego anterior, de {from} a {to}: las zonas que aún están regando se omiten",
+        "window_label": "ventana",
+        "run_label": "riego",
+        "per_day": "{count}x al día",
+        "every_hours": "cada {hours}h"
       }
     },
     "info": {

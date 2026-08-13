@@ -693,6 +693,17 @@
         "demand_floored": "Nach Bedarf festgelegt, aber nicht vor diesem Zeitpunkt.",
         "exact_deferred": "Exakt. Zonen, die nicht hineinpassen, werden verschoben.",
         "demand_capped_deferred": "Nach Bedarf festgelegt, aber nicht nach diesem Zeitpunkt. Zonen, die nicht hineinpassen, werden verschoben."
+      },
+      "dial": {
+        "aria_label": "Laufzeitfenster auf einer 24-Stunden-Uhr",
+        "sunrise": "Sonnenaufgang {time}",
+        "sunset": "Sonnenuntergang {time}",
+        "run": "Lauf {from} bis {to}",
+        "collision": "Kollidiert mit dem vorherigen Lauf, {from} bis {to}: Zonen, die noch bewässern, werden übersprungen",
+        "window_label": "Zeitfenster",
+        "run_label": "Lauf",
+        "per_day": "{count}x pro Tag",
+        "every_hours": "alle {hours}h"
       }
     },
     "info": {

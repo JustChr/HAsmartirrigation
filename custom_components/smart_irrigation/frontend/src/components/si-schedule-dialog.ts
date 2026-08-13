@@ -27,6 +27,7 @@ import {
   Anchor,
 } from "../common/schedule-rows";
 import { summarizeSchedule } from "../common/schedule-summary";
+import "./si-run-window-dial";
 
 const DAYS = [
   "monday",
@@ -63,6 +64,11 @@ export interface Schedule {
   zones: string | string[];
   start_date?: string;
   end_date?: string;
+  // Populated by the schedules websocket response (GitLab #26) — total
+  // seconds the schedule's zones nominally demand under normal sequencing,
+  // independent of any zone's live bucket. Absent on a not-yet-saved
+  // schedule (the dial then simply has nothing to draw a run bar from).
+  nominal_demand_seconds?: number;
 }
 
 export function emptySchedule(): Schedule {
@@ -624,7 +630,18 @@ export class SiScheduleDialog extends LitElement {
                   )}
                 </select>
               </div>
-              ${this._renderRecurrenceFields()} ${this._renderWindowRows()}
+              ${this._renderRecurrenceFields()}
+              <div class="when-row">
+                <div class="when-rows-col">${this._renderWindowRows()}</div>
+                <si-run-window-dial
+                  .hass="${this.hass}"
+                  .rows="${scheduleToRows(s)}"
+                  .recurrence="${s.recurrence}"
+                  .intervalHours="${s.interval_hours}"
+                  .intervalStartTime="${s.start_time}"
+                  .nominalDemandSeconds="${s.nominal_demand_seconds ?? 0}"
+                ></si-run-window-dial>
+              </div>
             `,
           )}
           ${this._renderSection("zones", this._renderZonePicker())}
@@ -850,6 +867,27 @@ export class SiScheduleDialog extends LitElement {
         }
         .window-row-help.is-error .help-text {
           color: var(--error-color, #db4437);
+        }
+        /* Placeholder layout only — GitLab #30 is concurrently reshaping
+           this dialog into WHEN/ZONES/SEASON cards, whose WHEN card's
+           right-hand column is where si-run-window-dial is meant to live.
+           Until that lands, sit the dial beside the Start/Finish/pinned-end
+           rows so it is visibly wired in rather than orphaned. */
+        .when-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+          align-items: flex-start;
+        }
+        .when-rows-col {
+          flex: 1 1 240px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          min-width: 0;
+        }
+        .when-row si-run-window-dial {
+          flex: 0 0 156px;
         }
       `,
     ];
