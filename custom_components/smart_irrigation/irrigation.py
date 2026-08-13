@@ -143,10 +143,17 @@ class IrrigationRunnerMixin:
         dashboard can render a countdown to ``ends_at``; flow-metered runs are
         volume-bounded (unknown finish time) and register without an end.
         Dispatches ``_config_updated`` so the panel surfaces the Stop control.
+
+        A zone claimed by a chain (:meth:`_claim_chain_zones`) is already in the
+        registry when its own turn comes, so the existing stop event is carried
+        over rather than replaced. Minting a fresh one here would discard a stop
+        the user requested while the zone was still queued, and the valve would
+        then open anyway.
         """
         reg = self._active_run_registry()
         zid = int(zone_id)
-        event = asyncio.Event()
+        existing = reg.get(zid)
+        event = existing["stop"] if existing else asyncio.Event()
         now = dt_util.now()
         ends_at = (
             (now + timedelta(seconds=duration_seconds)).isoformat()
@@ -160,6 +167,33 @@ class IrrigationRunnerMixin:
         }
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zid)
         return event
+
+    def _claim_chain_zones(self, zones: list) -> list:
+        """Register every zone a chain is about to walk, and return their ids.
+
+        ``_active_runs`` answers "does this zone have a run in flight?" for the
+        duplicate-dispatch guard, and a sequential (or rotating) chain only ever
+        holds ONE valve open. Registering at valve-open therefore made the zones
+        queued behind the open one invisible to that guard: a second dispatch
+        arriving mid-chain skipped only the zone currently watering and started a
+        second concurrent chain over all the rest, watering each of them twice.
+
+        So the registry means "claimed by an in-flight run", not "valve open
+        now". Each zone clears as it completes (``_run_valve_metered``'s finally,
+        or the rotation's own per-zone clears); the chain sweeps the remainder,
+        so a chain cut short or one that raises leaves nothing claimed.
+        """
+        claimed = []
+        for zone in zones:
+            zid = int(zone[const.ZONE_ID])
+            self._register_active_run(zid, 0, has_end=False)
+            claimed.append(zid)
+        return claimed
+
+    def _release_chain_zones(self, zone_ids) -> None:
+        """Clear any claim a chain still holds (already-finished zones are gone)."""
+        for zid in zone_ids:
+            self._unregister_active_run(zid)
 
     def _unregister_active_run(self, zone_id) -> None:
         """Clear a zone's in-progress marker (run finished or was stopped)."""
@@ -1376,9 +1410,11 @@ class IrrigationRunnerMixin:
         up-front estimate (2×600 s with a 10 min absorption really ends at
         1920 s, not 1200 s), and a predicted deadline cut the pump mid-rotation.
         """
+        claimed = self._claim_chain_zones(zones)
         try:
             await self._run_rotation(zones)
         finally:
+            self._release_chain_zones(claimed)
             if master_token:
                 await self.async_master_release(master_token)
 
@@ -1453,12 +1489,12 @@ class IrrigationRunnerMixin:
         recorded: set = set()  # zones whose completion has been logged once
         loop = asyncio.get_running_loop()
 
-        # Register every zone so a Stop can interrupt the rotation and the
-        # dashboard surfaces the control. A rotation has no single finish time,
-        # so no countdown end is set (has_end=False). Markers are cleared as each
-        # zone finishes and swept at the end.
-        for zid in zone_order:
-            self._register_active_run(zid, 0, has_end=False)
+        # Every zone is already claimed by the caller (_irrigate_zones_rotating),
+        # which is what lets a Stop interrupt the rotation, surfaces the control
+        # on the dashboard, and keeps a second dispatch off the whole plan rather
+        # than off the one zone currently open. A rotation has no single finish
+        # time, so no countdown end is set. Markers are cleared as each zone
+        # finishes and the caller sweeps the remainder.
 
         def _timed_done(zid):
             return timed_remaining.get(zid, 0) <= 0
@@ -1694,10 +1730,9 @@ class IrrigationRunnerMixin:
 
                 last_finish[zid] = loop.time()
 
-        # Clear any remaining in-progress markers (zones that finished normally,
-        # or a stop during an absorption wait).
-        for zid in zone_order:
-            self._unregister_active_run(zid)
+        # Remaining in-progress markers (zones that finished normally, or a stop
+        # during an absorption wait) are swept by the caller's finally, so they
+        # are cleared on the exception path too.
 
     # --- Live-estimate watering: trigger + size from the live deficit
     #     (experimental, opt-in)
@@ -2147,8 +2182,20 @@ class IrrigationRunnerMixin:
         the per-zone valve-confirm polling and any flow zone that outruns its
         nominal duration — none of which a predicted deadline could size.
         """
+        claimed = self._claim_chain_zones(zones)
         try:
             for zone in zones:
+                if self._run_stopped(zone[const.ZONE_ID]):
+                    # Stopped while it was still queued. The claim carries the
+                    # stop event, so honour it here rather than opening the valve
+                    # and closing it again one poll later.
+                    _LOGGER.info(
+                        "Sequential irrigation: zone %s was stopped before its "
+                        "turn came; skipping it",
+                        zone[const.ZONE_ID],
+                    )
+                    self._unregister_active_run(zone[const.ZONE_ID])
+                    continue
                 entity_id = zone[const.ZONE_LINKED_ENTITY]
                 real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
                 _LOGGER.info(
@@ -2164,6 +2211,9 @@ class IrrigationRunnerMixin:
                 )
                 _LOGGER.info("Sequential irrigation: finished %s", entity_id)
         finally:
+            # Zones the chain never reached (a stop, or an exception) are still
+            # claimed; drop them or they block that zone's runs for good.
+            self._release_chain_zones(claimed)
             if master_token:
                 await self.async_master_release(master_token)
 
