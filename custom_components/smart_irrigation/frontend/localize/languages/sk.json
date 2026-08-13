@@ -604,7 +604,7 @@
       "zones_all": "Všetky zóny",
       "zones_specific": "Konkrétne zóny",
       "hours": "hodín",
-      "minutes": "minút",
+      "minutes": "min",
       "types": {
         "daily": "Denne",
         "weekly": "Týždenne",
@@ -640,7 +640,7 @@
         "finish_time": "Čas konca (HH:MM)",
         "anchor_prefix": "Zavlažovať čo",
         "anchor_suffix": "najviac v rámci okna",
-        "offset_by": "posunuté o"
+        "offset_by": "posunuté"
       },
       "dialog": {
         "add_title": "Pridať plán",

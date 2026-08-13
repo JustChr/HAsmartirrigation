@@ -644,7 +644,7 @@
       "zones_all": "Tutte le zone",
       "zones_specific": "Zone specifiche",
       "hours": "ore",
-      "minutes": "minuti",
+      "minutes": "min",
       "types": {
         "daily": "Giornaliero",
         "weekly": "Settimanale",
@@ -680,7 +680,7 @@
         "finish_time": "Ora di fine (HH:MM)",
         "anchor_prefix": "Irrigare il più",
         "anchor_suffix": "possibile nella finestra",
-        "offset_by": "offset di"
+        "offset_by": "offset"
       },
       "dialog": {
         "add_title": "Aggiungi pianificazione",

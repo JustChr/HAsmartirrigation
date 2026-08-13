@@ -198,7 +198,7 @@ describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
       },
     });
     const { text } = flatten(el.render());
-    expect(text).toContain("offset by");
+    expect(text).toContain("offset");
     expect(text).toContain("min");
   });
 

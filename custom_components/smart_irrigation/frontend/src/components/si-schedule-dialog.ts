@@ -68,10 +68,14 @@ export interface Schedule {
   zones: string | string[];
   start_date?: string;
   end_date?: string;
-  // Populated by the schedules websocket response (GitLab #26) — total
-  // seconds the schedule's zones nominally demand under normal sequencing,
-  // independent of any zone's live bucket. Absent on a not-yet-saved
-  // schedule (the dial then simply has nothing to draw a run bar from).
+  // Total seconds the schedule's zones nominally demand under normal
+  // sequencing, independent of any zone's live bucket (GitLab #26). For a
+  // saved schedule this arrives with the schedules websocket response; for
+  // one still being drafted, view-schedules.ts fetches it directly
+  // (schedule_nominal_demand) whenever the zone selection changes, so the
+  // dial has a real preview before the first save. Absent only until that
+  // first fetch resolves — the dial then simply has nothing to draw a run
+  // bar from yet.
   nominal_demand_seconds?: number;
 }
 
@@ -686,7 +690,7 @@ export class SiScheduleDialog extends LitElement {
                     : html``}
                   ${this._renderWindowRows()}
                 </div>
-                <div>
+                <div class="dial-col">
                   <si-run-window-dial
                     .hass="${this.hass}"
                     .rows="${scheduleToRows(s)}"
@@ -923,6 +927,15 @@ export class SiScheduleDialog extends LitElement {
         }
         .when-rows-col {
           min-width: 0;
+        }
+        /* Wider than its 168px track on purpose: the dial is round, so the
+           overhang lands in the empty corners of its own bounding box, not
+           on the disc itself. Bleeds into the column gap and the section
+           card's own right padding, never into the text column's width, so
+           it cannot cause the Start/Finish row text to wrap. */
+        .dial-col {
+          width: 190px;
+          justify-self: center;
         }
         /* Caption under the dial: how many runs an interval schedule makes,
            or what a short window will not fit. */

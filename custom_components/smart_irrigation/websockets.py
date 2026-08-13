@@ -52,7 +52,8 @@ _LOGGER = logging.getLogger(__name__)
 #   irrigate_now, run_zone, stop_zone,
 #   set_rain_delay, clear_rain_delay                 (the card's actions mode)
 #   mappings, modules, allmodules,
-#   weather_records, weather_forecast, watering_calendar, schedules (reads)
+#   weather_records, weather_forecast, watering_calendar, schedules,
+#   schedule_nominal_demand (reads)
 #
 # NB the HTTP views below (POST /api/smart_irrigation/...) are a separate
 # surface and are NOT covered by this; they still only require authentication.
@@ -702,6 +703,21 @@ async def websocket_get_schedules(hass: HomeAssistant, connection, msg):
     connection.send_result(msg["id"], result)
 
 
+@async_response
+async def websocket_get_nominal_demand(hass: HomeAssistant, connection, msg):
+    """Preview ``nominal_demand_seconds`` for a zone selection not yet saved.
+
+    Same computation ``websocket_get_schedules`` enriches each saved schedule
+    with, exposed standalone so the Add Schedule dialog's dial can show a
+    real run-length preview while the zone picker is still being edited,
+    instead of the 0 a not-yet-saved schedule has no other way to get.
+    """
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    zones = msg.get("zones", "all")
+    seconds = await coordinator.async_nominal_demand_seconds(zones)
+    connection.send_result(msg["id"], {"nominal_demand_seconds": seconds})
+
+
 @websocket_api.require_admin
 @async_response
 async def websocket_save_schedule(hass: HomeAssistant, connection, msg):
@@ -1181,6 +1197,20 @@ async def async_register_websockets(hass: HomeAssistant):
         websocket_get_schedules,
         websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
             {vol.Required("type"): const.DOMAIN + "/schedules"}
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/schedule_nominal_demand",
+        websocket_get_nominal_demand,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/schedule_nominal_demand",
+                # "all" or a list of zone ids only - never a bare non-"all"
+                # string, which normalize_zone_selection would otherwise
+                # iterate character by character (see its own docstring).
+                vol.Optional("zones"): vol.Any("all", [vol.Coerce(str)]),
+            }
         ),
     )
     async_register_command(

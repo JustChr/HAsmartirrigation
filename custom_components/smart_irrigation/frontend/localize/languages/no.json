@@ -604,7 +604,7 @@
       "zones_all": "Alle soner",
       "zones_specific": "Spesifikke soner",
       "hours": "timer",
-      "minutes": "minutter",
+      "minutes": "min",
       "types": {
         "daily": "Daglig",
         "weekly": "Ukentlig",
@@ -640,7 +640,7 @@
         "finish_time": "Sluttid (HH:MM)",
         "anchor_prefix": "Vann så",
         "anchor_suffix": "som mulig innenfor vinduet",
-        "offset_by": "forskjøvet med"
+        "offset_by": "forskjøvet"
       },
       "dialog": {
         "add_title": "Legg til tidsplan",

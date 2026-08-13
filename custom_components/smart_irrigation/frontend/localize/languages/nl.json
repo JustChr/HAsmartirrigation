@@ -604,7 +604,7 @@
       "zones_all": "Alle zones",
       "zones_specific": "Specifieke zones",
       "hours": "uur",
-      "minutes": "minuten",
+      "minutes": "min",
       "types": {
         "daily": "Dagelijks",
         "weekly": "Wekelijks",
@@ -640,7 +640,7 @@
         "finish_time": "Eindtijd (HH:MM)",
         "anchor_prefix": "Water geven zo",
         "anchor_suffix": "mogelijk binnen het venster",
-        "offset_by": "offset van"
+        "offset_by": "offset"
       },
       "dialog": {
         "add_title": "Schema toevoegen",

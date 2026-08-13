@@ -604,7 +604,7 @@
       "zones_all": "Todas las zonas",
       "zones_specific": "Zonas específicas",
       "hours": "horas",
-      "minutes": "minutos",
+      "minutes": "min",
       "types": {
         "daily": "Diario",
         "weekly": "Semanal",
@@ -640,7 +640,7 @@
         "finish_time": "Hora de fin (HH:MM)",
         "anchor_prefix": "Regar lo más",
         "anchor_suffix": "posible dentro de la ventana",
-        "offset_by": "desfase de"
+        "offset_by": "desfase"
       },
       "dialog": {
         "add_title": "Añadir programa",

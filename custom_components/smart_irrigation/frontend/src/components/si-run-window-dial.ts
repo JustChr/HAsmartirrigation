@@ -374,7 +374,7 @@ export class SiRunWindowDial extends LitElement {
         position: relative;
         display: inline-block;
         width: 100%;
-        max-width: 156px;
+        max-width: 190px;
       }
       .viz-dial svg {
         width: 100%;

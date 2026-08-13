@@ -604,7 +604,7 @@
       "zones_all": "Alle Zonen",
       "zones_specific": "Bestimmte Zonen",
       "hours": "Stunden",
-      "minutes": "Minuten",
+      "minutes": "Min.",
       "types": {
         "daily": "Täglich",
         "weekly": "Wöchentlich",
@@ -640,7 +640,7 @@
         "finish_time": "Endzeit (HH:MM)",
         "anchor_prefix": "Bewässern so",
         "anchor_suffix": "wie möglich im Zeitfenster",
-        "offset_by": "versetzt um"
+        "offset_by": "versetzt"
       },
       "dialog": {
         "add_title": "Zeitplan hinzufügen",

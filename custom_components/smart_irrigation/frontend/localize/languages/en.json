@@ -189,7 +189,7 @@
       "zones_all": "All zones",
       "zones_specific": "Specific zones",
       "hours": "hours",
-      "minutes": "minutes",
+      "minutes": "min",
       "types": {
         "daily": "Daily",
         "weekly": "Weekly",
@@ -225,7 +225,7 @@
         "finish_time": "Finish time (HH:MM)",
         "anchor_prefix": "Water as",
         "anchor_suffix": "as possible in the window",
-        "offset_by": "offset by"
+        "offset_by": "offset"
       },
       "dialog": {
         "add_title": "Add Schedule",
