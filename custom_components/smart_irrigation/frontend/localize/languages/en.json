@@ -226,8 +226,7 @@
         "anchor": "Pinned to",
         "start_date": "Start date (optional)",
         "end_date": "End date (optional)",
-        "offset_minutes": "Offset from sunrise/sunset",
-        "azimuth_angle": "Solar azimuth angle"
+        "offset_by": "offset by"
       },
       "dialog": {
         "add_title": "Add Schedule",
@@ -243,6 +242,14 @@
       "anchor": {
         "start": "As early as possible within the window",
         "finish": "As late as possible within the window"
+      },
+      "help": {
+        "error": "Must set either a start or finish condition",
+        "demand_open": "Set by demand. All zones run to completion.",
+        "exact": "Exact.",
+        "demand_floored": "Set by demand, but never before this.",
+        "exact_deferred": "Exact. Zones that don't fit are deferred.",
+        "demand_capped_deferred": "Set by demand, but never later than this. Zones that don't fit are deferred."
       }
     },
     "setup": {

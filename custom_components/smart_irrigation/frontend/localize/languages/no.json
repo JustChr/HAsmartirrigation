@@ -641,8 +641,7 @@
         "anchor": "Festet til",
         "start_date": "Startdato (valgfritt)",
         "end_date": "Sluttdato (valgfritt)",
-        "offset_minutes": "Forskyvning fra soloppgang/-nedgang",
-        "azimuth_angle": "Solazimutt-vinkel"
+        "offset_by": "forskjøvet med"
       },
       "dialog": {
         "add_title": "Legg til tidsplan",
@@ -658,6 +657,14 @@
       "anchor": {
         "start": "Så tidlig som mulig i vinduet",
         "finish": "Så sent som mulig i vinduet"
+      },
+      "help": {
+        "error": "Du må angi enten en start- eller sluttbetingelse",
+        "demand_open": "Angitt etter behov. Alle soner kjører til de er ferdige.",
+        "exact": "Nøyaktig.",
+        "demand_floored": "Angitt etter behov, men aldri før dette.",
+        "exact_deferred": "Nøyaktig. Soner som ikke får plass, utsettes.",
+        "demand_capped_deferred": "Angitt etter behov, men aldri senere enn dette. Soner som ikke får plass, utsettes."
       }
     },
     "info": {

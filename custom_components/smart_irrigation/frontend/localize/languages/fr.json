@@ -641,8 +641,7 @@
         "anchor": "Ancré sur",
         "start_date": "Date de début (optionnel)",
         "end_date": "Date de fin (optionnel)",
-        "offset_minutes": "Décalage par rapport au lever/coucher du soleil",
-        "azimuth_angle": "Angle d'azimut solaire"
+        "offset_by": "décalé de"
       },
       "dialog": {
         "add_title": "Ajouter une planification",
@@ -658,6 +657,14 @@
       "anchor": {
         "start": "Le plus tôt possible dans la fenêtre",
         "finish": "Le plus tard possible dans la fenêtre"
+      },
+      "help": {
+        "error": "Une condition de début ou de fin doit être définie",
+        "demand_open": "Défini selon la demande. Toutes les zones vont jusqu'au bout.",
+        "exact": "Exact.",
+        "demand_floored": "Défini selon la demande, mais jamais avant cela.",
+        "exact_deferred": "Exact. Les zones qui ne rentrent pas sont reportées.",
+        "demand_capped_deferred": "Défini selon la demande, mais jamais après cela. Les zones qui ne rentrent pas sont reportées."
       }
     },
     "info": {

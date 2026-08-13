@@ -641,8 +641,7 @@
         "anchor": "Fixiert auf",
         "start_date": "Startdatum (optional)",
         "end_date": "Enddatum (optional)",
-        "offset_minutes": "Versatz von Sonnenaufgang/-untergang",
-        "azimuth_angle": "Sonnenazimutwinkel"
+        "offset_by": "versetzt um"
       },
       "dialog": {
         "add_title": "Zeitplan hinzufügen",
@@ -658,6 +657,14 @@
       "anchor": {
         "start": "So früh wie möglich im Zeitfenster",
         "finish": "So spät wie möglich im Zeitfenster"
+      },
+      "help": {
+        "error": "Es muss entweder eine Start- oder Ende-Bedingung festgelegt werden",
+        "demand_open": "Nach Bedarf festgelegt. Alle Zonen laufen bis zum Abschluss.",
+        "exact": "Exakt.",
+        "demand_floored": "Nach Bedarf festgelegt, aber nicht vor diesem Zeitpunkt.",
+        "exact_deferred": "Exakt. Zonen, die nicht hineinpassen, werden verschoben.",
+        "demand_capped_deferred": "Nach Bedarf festgelegt, aber nicht nach diesem Zeitpunkt. Zonen, die nicht hineinpassen, werden verschoben."
       }
     },
     "info": {

@@ -149,3 +149,212 @@ describe("si-schedule-dialog", () => {
     expect(text).toBe("");
   });
 });
+
+describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
+  it("offers all five modes on both the Start and Finish rows", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), start_mode: "none", finish_mode: "none" },
+    });
+    const { text } = flatten(el.render());
+    for (const label of [
+      "No limit",
+      "At sunrise",
+      "At sunset",
+      "At solar azimuth",
+      "At a time",
+    ]) {
+      // Once per row (Start, Finish) — two <option> labels each.
+      const count = text.split(label).length - 1;
+      expect(count, `"${label}" should appear on both rows`).toBe(2);
+    }
+  });
+
+  it("renders a degrees stepper (not minutes) when a row's mode is solar_azimuth", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        start_mode: "solar_azimuth",
+        start_azimuth: 120,
+        finish_mode: "none",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("°");
+    // The Finish row is "none" so the only minutes suffix that could appear
+    // is Start's — and Start is azimuth, so the minutes localize() call
+    // never happens at all for this render.
+    expect(text).not.toContain("min");
+  });
+
+  it("renders a signed minutes stepper for sunrise/sunset", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        start_mode: "sunrise",
+        start_offset: -15,
+        finish_mode: "none",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("offset by");
+    expect(text).toContain("min");
+  });
+
+  it("does not render the pinned-end row when only one end is bounded", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), start_mode: "time", finish_mode: "none" },
+    });
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("Pinned to");
+  });
+
+  it("renders the pinned-end row only once both ends are bounded", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        start_mode: "time",
+        start_time: "06:00",
+        finish_mode: "time",
+        finish_time: "20:00",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("Pinned to");
+    expect(text).toContain("As early as possible within the window");
+    expect(text).toContain("As late as possible within the window");
+  });
+
+  it("shows the error help on both rows and disables Save when both ends are unbounded", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), start_mode: "none", finish_mode: "none" },
+    });
+    const { text } = flatten(el.render());
+    const errorCount =
+      text.split("Must set either a start or finish condition").length - 1;
+    expect(errorCount).toBe(2);
+    expect((el as any)._canSave()).toBe(false);
+  });
+
+  it("help text matches the table for all five start/finish states", () => {
+    const lang = "en";
+    const cases: Array<[Partial<Record<string, any>>, string, string]> = [
+      [
+        { start_mode: "none", finish_mode: "time", finish_time: "20:00" },
+        "Set by demand. All zones run to completion.",
+        "Exact.",
+      ],
+      [
+        { start_mode: "time", start_time: "06:00", finish_mode: "none" },
+        "Exact.",
+        "Set by demand. All zones run to completion.",
+      ],
+      [
+        {
+          start_mode: "time",
+          start_time: "06:00",
+          finish_mode: "time",
+          finish_time: "20:00",
+          anchor: "finish",
+        },
+        "Set by demand, but never before this.",
+        "Exact. Zones that don't fit are deferred.",
+      ],
+      [
+        {
+          start_mode: "time",
+          start_time: "06:00",
+          finish_mode: "time",
+          finish_time: "20:00",
+          anchor: "start",
+        },
+        "Exact.",
+        "Set by demand, but never later than this. Zones that don't fit are deferred.",
+      ],
+    ];
+    for (const [patch, startHelp, finishHelp] of cases) {
+      const { el } = makeDialog({
+        schedule: { ...emptySchedule(), ...patch },
+      });
+      el.hass = { language: lang };
+      const { text } = flatten(el.render());
+      expect(text, JSON.stringify(patch)).toContain(startHelp);
+      expect(text, JSON.stringify(patch)).toContain(finishHelp);
+    }
+  });
+
+  it("leaves every mode functionally selectable on every recurrence, including weekly/monthly with a sun-relative finish", () => {
+    // "No option is disabled" is checked behaviorally here rather than by
+    // scanning rendered markup for a `disabled` attribute: the flatten()
+    // helper only walks the tagged-template AST, so a literal "disabled"
+    // substring from the unrelated Save button's `?disabled` binding is
+    // always present in the raw static strings regardless of its runtime
+    // value, making a text-search assertion meaningless. Instead, drive the
+    // Start mode <select>'s own change handler with every mode and confirm
+    // each one actually reaches a schedule-changed patch — which is exactly
+    // what "not disabled" means for a <select>.
+    for (const recurrence of ["daily", "weekly", "monthly"]) {
+      const { el, emitted } = makeDialog({
+        schedule: {
+          ...emptySchedule(),
+          recurrence,
+          days_of_week: ["monday"],
+          day_of_month: 1,
+          start_mode: "none",
+          finish_mode: "sunset",
+          finish_offset: 0,
+        },
+      });
+      const { handlers } = flatten(el.render());
+      for (const mode of [
+        "none",
+        "time",
+        "sunrise",
+        "sunset",
+        "solar_azimuth",
+      ]) {
+        let reached = false;
+        for (const h of handlers) {
+          emitted.length = 0;
+          try {
+            h({ target: { value: mode } });
+          } catch {
+            continue;
+          }
+          const evt = emitted.find((e) => e.type === "schedule-changed");
+          if (
+            evt &&
+            (evt.detail.value.start_mode === mode ||
+              evt.detail.value.finish_mode === mode)
+          ) {
+            reached = true;
+          }
+        }
+        expect(
+          reached,
+          `${recurrence}: mode "${mode}" should be reachable`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("hides the Start, Finish and pinned-end rows for an interval recurrence", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        recurrence: "interval",
+        interval_hours: 6,
+        start_mode: "time",
+        start_time: "06:00",
+        finish_mode: "time",
+        finish_time: "20:00",
+        anchor: "finish",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("Pinned to");
+    expect(text).not.toContain("At sunrise");
+    expect(text).not.toContain("At solar azimuth");
+    // Interval always allows saving — it has no window to be unbounded.
+    expect((el as any)._canSave()).toBe(true);
+  });
+});

@@ -641,8 +641,7 @@
         "anchor": "Anclado a",
         "start_date": "Fecha de inicio (opcional)",
         "end_date": "Fecha de fin (opcional)",
-        "offset_minutes": "Desplazamiento desde amanecer/atardecer",
-        "azimuth_angle": "Ángulo de azimut solar"
+        "offset_by": "desfase de"
       },
       "dialog": {
         "add_title": "Añadir programa",
@@ -658,6 +657,14 @@
       "anchor": {
         "start": "Lo antes posible dentro de la ventana",
         "finish": "Lo más tarde posible dentro de la ventana"
+      },
+      "help": {
+        "error": "Debe establecer una condición de inicio o de fin",
+        "demand_open": "Establecido según demanda. Todas las zonas se ejecutan hasta completarse.",
+        "exact": "Exacto.",
+        "demand_floored": "Establecido según demanda, pero nunca antes de esto.",
+        "exact_deferred": "Exacto. Las zonas que no caben se posponen.",
+        "demand_capped_deferred": "Establecido según demanda, pero nunca después de esto. Las zonas que no caben se posponen."
       }
     },
     "info": {

@@ -6,15 +6,25 @@ import { globalStyle } from "../styles/global-style";
 import {
   SCHEDULE_RECURRENCES,
   SCHEDULE_RECURRENCE_INTERVAL,
-  SCHEDULE_BOUND_MODE_NONE,
   SCHEDULE_BOUND_MODE_TIME,
   SCHEDULE_BOUND_MODE_SUNRISE,
   SCHEDULE_BOUND_MODE_SUNSET,
   SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
   SCHEDULE_BOUND_MODES,
+  SCHEDULE_BOUND_MODE_NONE,
   SCHEDULE_ANCHOR_START,
   SCHEDULE_ANCHOR_FINISH,
 } from "../const";
+import {
+  EndRow,
+  ScheduleRows,
+  scheduleToRows,
+  rowsToSchedule,
+  describeWindow,
+  defaultRowForMode,
+  BoundMode,
+  Anchor,
+} from "../common/schedule-rows";
 
 const DAYS = [
   "monday",
@@ -81,18 +91,6 @@ export function recurrenceLabel(recurrence: string, language: string): string {
 
 type BoundEnd = "start" | "finish";
 
-interface BoundFieldConfig {
-  end: BoundEnd;
-  mode: string;
-  time?: string;
-  offset?: number;
-  azimuth?: number;
-  emitMode: (v: string) => void;
-  emitTime: (v: string) => void;
-  emitOffset: (v: number) => void;
-  emitAzimuth: (v: number) => void;
-}
-
 /**
  * Add/edit dialog for a single schedule. The parent (the schedules view) owns
  * which schedule is open, the edit-vs-add distinction (via `heading`), and all
@@ -117,9 +115,11 @@ interface BoundFieldConfig {
  * successful `saveSchedule` result.
  *
  * This reads and writes the reshaped storage fields (GitLab #27: recurrence
- * plus independent Start/Finish bounds) but keeps the prior flat layout — the
- * grouped WHEN/ZONES/SEASON redesign and the run-window dial are a later
- * ticket.
+ * plus independent Start/Finish bounds) through the two Start/Finish rows
+ * plus their help text and the pinned-end row (GitLab #29) — all sourced
+ * from the pure mapping in ../common/schedule-rows.ts, which is also where
+ * the rows<->fields round trip is tested. The grouped WHEN/ZONES/SEASON
+ * redesign and the run-window dial are a later ticket.
  */
 @customElement("si-schedule-dialog")
 export class SiScheduleDialog extends LitElement {
@@ -329,136 +329,130 @@ export class SiScheduleDialog extends LitElement {
     }
   }
 
-  /** One end (Start or Finish) of the run's window: a mode picker plus
-   * whichever of time/offset/azimuth that mode needs. */
-  private _renderBoundFields(config: BoundFieldConfig) {
-    const {
-      end,
-      mode,
-      time,
-      offset,
-      azimuth,
-      emitMode,
-      emitTime,
-      emitOffset,
-      emitAzimuth,
-    } = config;
+  /** The row's single stepper: the one control whose kind matches the
+   * quantity the current mode carries (time picker / signed minutes /
+   * degrees) — never more than one, and never a before/after dropdown next
+   * to a magnitude. "none" carries nothing, so it renders no stepper at
+   * all. */
+  private _renderRowStepper(row: EndRow, onChange: (row: EndRow) => void) {
+    const lang = this.hass.language;
+    switch (row.mode) {
+      case SCHEDULE_BOUND_MODE_TIME:
+        return html`
+          <input
+            type="time"
+            .value="${row.time ?? "06:00"}"
+            @change=${(e: Event) =>
+              onChange({
+                ...row,
+                time: (e.target as HTMLInputElement).value,
+              })}
+          />
+        `;
+      case SCHEDULE_BOUND_MODE_SUNRISE:
+      case SCHEDULE_BOUND_MODE_SUNSET:
+        return html`
+          <span class="row-inline"
+            >${localize("panels.schedules.fields.offset_by", lang)}</span
+          >
+          <input
+            type="number"
+            step="1"
+            .value="${String(row.offset ?? 0)}"
+            @input=${(e: Event) => {
+              const v = parseInt((e.target as HTMLInputElement).value);
+              onChange({ ...row, offset: isNaN(v) ? 0 : v });
+            }}
+          />
+          <span class="row-inline"
+            >${localize("panels.schedules.minutes", lang)}</span
+          >
+        `;
+      case SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH:
+        return html`
+          <span class="row-inline"
+            >${localize("panels.schedules.fields.offset_by", lang)}</span
+          >
+          <input
+            type="number"
+            step="1"
+            .value="${String(row.azimuth ?? 90)}"
+            @input=${(e: Event) => {
+              const v = parseInt((e.target as HTMLInputElement).value);
+              onChange({ ...row, azimuth: isNaN(v) ? 0 : v });
+            }}
+          />
+          <span class="row-inline">°</span>
+        `;
+      default:
+        return html``;
+    }
+  }
+
+  /** One row — Start, Finish, or (see `_renderAnchorRow`) the pinned-end
+   * choice: a mode picker, that mode's single stepper, and a help line
+   * rendered as its indented child. `onChange` receives the row's full new
+   * value (mode change included) so the caller can fold it back into the
+   * pair and re-derive both fields and help in one place. */
+  private _renderWindowRow(
+    end: BoundEnd,
+    row: EndRow,
+    helpKey: string,
+    onChange: (row: EndRow) => void,
+  ) {
     const lang = this.hass.language;
     return html`
-      <div class="field">
+      <div class="window-row">
         <label>${localize(`panels.schedules.fields.${end}_mode`, lang)}</label>
         <select
           @change=${(e: Event) =>
-            emitMode((e.target as HTMLSelectElement).value)}
+            onChange(
+              defaultRowForMode(
+                (e.target as HTMLSelectElement).value as BoundMode,
+              ),
+            )}
         >
           ${SCHEDULE_BOUND_MODES.map(
             (m) => html`
-              <option value="${m}" ?selected="${mode === m}">
+              <option value="${m}" ?selected="${row.mode === m}">
                 ${localize(`panels.schedules.bound_mode.${m}`, lang)}
               </option>
             `,
           )}
         </select>
+        ${this._renderRowStepper(row, onChange)}
       </div>
-      ${mode === SCHEDULE_BOUND_MODE_TIME
-        ? html`
-            <div class="field">
-              <label
-                >${localize(`panels.schedules.fields.${end}_time`, lang)}</label
-              >
-              <input
-                type="time"
-                .value="${time || "06:00"}"
-                @change=${(e: Event) =>
-                  emitTime((e.target as HTMLInputElement).value)}
-              />
-            </div>
-          `
-        : ""}
-      ${mode === SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH
-        ? html`
-            <div class="field">
-              <label
-                >${localize(
-                  "panels.schedules.fields.azimuth_angle",
-                  lang,
-                )}</label
-              >
-              <div class="input-suffix-row">
-                <input
-                  type="number"
-                  min="0"
-                  max="359"
-                  step="1"
-                  .value="${String(azimuth ?? 90)}"
-                  @input=${(e: Event) =>
-                    emitAzimuth(parseInt((e.target as HTMLInputElement).value))}
-                />
-                <span class="suffix">°</span>
-              </div>
-            </div>
-          `
-        : ""}
-      ${mode === SCHEDULE_BOUND_MODE_SUNRISE ||
-      mode === SCHEDULE_BOUND_MODE_SUNSET ||
-      mode === SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH
-        ? html`
-            <div class="field">
-              <label
-                >${localize(
-                  "panels.schedules.fields.offset_minutes",
-                  lang,
-                )}</label
-              >
-              <div class="input-suffix-row">
-                <input
-                  type="number"
-                  step="1"
-                  .value="${String(offset ?? 0)}"
-                  @input=${(e: Event) => {
-                    const v = parseInt((e.target as HTMLInputElement).value);
-                    emitOffset(isNaN(v) ? 0 : v);
-                  }}
-                />
-                <span class="suffix"
-                  >${localize("panels.schedules.minutes", lang)}</span
-                >
-              </div>
-            </div>
-          `
-        : ""}
+      <div class="window-row-help ${helpKey === "error" ? "is-error" : ""}">
+        <span class="help-arrow" aria-hidden="true">↳</span>
+        <span class="help-text"
+          >${localize(`panels.schedules.help.${helpKey}`, lang)}</span
+        >
+      </div>
     `;
   }
 
-  private _bothBounded(s: Schedule): boolean {
-    return (
-      (s.start_mode ?? SCHEDULE_BOUND_MODE_NONE) !== SCHEDULE_BOUND_MODE_NONE &&
-      (s.finish_mode ?? SCHEDULE_BOUND_MODE_NONE) !== SCHEDULE_BOUND_MODE_NONE
-    );
-  }
-
-  /** Which end the run is pinned to. Only shown once both ends carry a bound
-   * — with a single bound that bound is unambiguously the anchor. */
-  private _renderAnchorField() {
-    const s = this.schedule;
-    if (!this._bothBounded(s)) return html``;
+  /** The third row: which end the run is pinned to, water as late (pinned
+   * to Finish) or as early (pinned to Start) as possible in the window.
+   * Only rendered once both ends carry a bound — with a single bound that
+   * bound is unambiguously the anchor and there is nothing to choose. */
+  private _renderAnchorRow(
+    rows: ScheduleRows,
+    patch: (rows: ScheduleRows) => void,
+  ) {
     const lang = this.hass.language;
-    const current =
-      s.anchor === SCHEDULE_ANCHOR_START
-        ? SCHEDULE_ANCHOR_START
-        : SCHEDULE_ANCHOR_FINISH;
     return html`
-      <div class="field">
+      <div class="window-row">
         <label>${localize("panels.schedules.fields.anchor", lang)}</label>
         <select
           @change=${(e: Event) =>
-            this._emitChanged({
-              anchor: (e.target as HTMLSelectElement).value,
+            patch({
+              ...rows,
+              anchor: (e.target as HTMLSelectElement).value as Anchor,
             })}
         >
           ${[SCHEDULE_ANCHOR_START, SCHEDULE_ANCHOR_FINISH].map(
             (a) => html`
-              <option value="${a}" ?selected="${current === a}">
+              <option value="${a}" ?selected="${rows.anchor === a}">
                 ${localize(`panels.schedules.anchor.${a}`, lang)}
               </option>
             `,
@@ -468,34 +462,37 @@ export class SiScheduleDialog extends LitElement {
     `;
   }
 
-  private _renderStartFinishFields() {
+  /** Start row, Finish row, and (only when both are bounded) the pinned-end
+   * row — all three sourced from the one pure rows<->fields mapping
+   * (../common/schedule-rows.ts). Interval has no time of day and
+   * therefore no window: none of these rows apply to it. */
+  private _renderWindowRows() {
     const s = this.schedule;
     if (s.recurrence === SCHEDULE_RECURRENCE_INTERVAL) return html``;
+    const rows = scheduleToRows(s);
+    const help = describeWindow(rows);
+    const patch = (next: ScheduleRows) =>
+      this._emitChanged(rowsToSchedule(next));
+    const bothBounded =
+      rows.start.mode !== SCHEDULE_BOUND_MODE_NONE &&
+      rows.finish.mode !== SCHEDULE_BOUND_MODE_NONE;
     return html`
-      ${this._renderBoundFields({
-        end: "start",
-        mode: s.start_mode ?? SCHEDULE_BOUND_MODE_NONE,
-        time: s.start_time,
-        offset: s.start_offset,
-        azimuth: s.start_azimuth,
-        emitMode: (v) => this._emitChanged({ start_mode: v }),
-        emitTime: (v) => this._emitChanged({ start_time: v }),
-        emitOffset: (v) => this._emitChanged({ start_offset: v }),
-        emitAzimuth: (v) => this._emitChanged({ start_azimuth: v }),
-      })}
-      ${this._renderBoundFields({
-        end: "finish",
-        mode: s.finish_mode ?? SCHEDULE_BOUND_MODE_NONE,
-        time: s.finish_time,
-        offset: s.finish_offset,
-        azimuth: s.finish_azimuth,
-        emitMode: (v) => this._emitChanged({ finish_mode: v }),
-        emitTime: (v) => this._emitChanged({ finish_time: v }),
-        emitOffset: (v) => this._emitChanged({ finish_offset: v }),
-        emitAzimuth: (v) => this._emitChanged({ finish_azimuth: v }),
-      })}
-      ${this._renderAnchorField()}
+      ${this._renderWindowRow("start", rows.start, help.start, (row) =>
+        patch({ ...rows, start: row }),
+      )}
+      ${this._renderWindowRow("finish", rows.finish, help.finish, (row) =>
+        patch({ ...rows, finish: row }),
+      )}
+      ${bothBounded ? this._renderAnchorRow(rows, patch) : ""}
     `;
+  }
+
+  /** Blocks Save when the window describes no time at all — both Start and
+   * Finish unbounded. Interval has no window, so it is exempt. */
+  private _canSave(): boolean {
+    const s = this.schedule;
+    if (s.recurrence === SCHEDULE_RECURRENCE_INTERVAL) return true;
+    return describeWindow(scheduleToRows(s)).valid;
   }
 
   render(): TemplateResult {
@@ -546,7 +543,7 @@ export class SiScheduleDialog extends LitElement {
             </select>
           </div>
 
-          ${this._renderRecurrenceFields()} ${this._renderStartFinishFields()}
+          ${this._renderRecurrenceFields()} ${this._renderWindowRows()}
           ${this._renderZonePicker()}
 
           <div class="field-row">
@@ -611,6 +608,7 @@ export class SiScheduleDialog extends LitElement {
         <button
           slot="primaryAction"
           class="dialog-btn dialog-btn-primary"
+          ?disabled="${!this._canSave()}"
           @click=${this._save}
         >
           ${localize("common.actions.save", this.hass.language)}
@@ -707,6 +705,62 @@ export class SiScheduleDialog extends LitElement {
         .suffix {
           color: var(--secondary-text-color);
           font-size: 0.875rem;
+        }
+        /* Start/Finish/pinned-end rows (GitLab #29): a mode select plus at
+           most one stepper, all inline, so the pair reads as one control
+           rather than a stack of unrelated fields. */
+        .window-row {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .window-row > label {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--secondary-text-color);
+          min-width: 44px;
+        }
+        .window-row select,
+        .window-row input[type="time"],
+        .window-row input[type="number"] {
+          padding: 8px 10px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+          border-radius: 4px;
+          background: var(--card-background-color, #fff);
+          color: var(--primary-text-color);
+          font-size: 1rem;
+          font-family: inherit;
+          box-sizing: border-box;
+        }
+        .window-row input[type="number"] {
+          width: 76px;
+        }
+        /* Part of the row rather than chrome, so these read as primary text
+           rather than a muted label. */
+        .row-inline {
+          color: var(--primary-text-color);
+          font-size: 0.9375rem;
+        }
+        /* Help is a child of its row: indented, with an arrow glyph in the
+           gap pointing back up at the control it explains. */
+        .window-row-help {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          padding-left: 20px;
+          margin-top: -4px;
+        }
+        .help-arrow {
+          opacity: 0.5;
+        }
+        .window-row-help .help-text {
+          font-size: 0.8125rem;
+          line-height: 1.35;
+          color: var(--secondary-text-color);
+        }
+        .window-row-help.is-error .help-text {
+          color: var(--error-color, #db4437);
         }
       `,
     ];

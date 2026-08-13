@@ -641,8 +641,7 @@
         "anchor": "Ukotvené na",
         "start_date": "Dátum začiatku (voliteľné)",
         "end_date": "Dátum konca (voliteľné)",
-        "offset_minutes": "Posun od východu/západu slnka",
-        "azimuth_angle": "Uhol slnečného azimutu"
+        "offset_by": "posunuté o"
       },
       "dialog": {
         "add_title": "Pridať plán",
@@ -658,6 +657,14 @@
       "anchor": {
         "start": "Čo najskôr v danom okne",
         "finish": "Čo najneskôr v danom okne"
+      },
+      "help": {
+        "error": "Musíte nastaviť buď podmienku začiatku, alebo konca",
+        "demand_open": "Nastavené podľa dopytu. Všetky zóny bežia do dokončenia.",
+        "exact": "Presne.",
+        "demand_floored": "Nastavené podľa dopytu, ale nikdy pred týmto.",
+        "exact_deferred": "Presne. Zóny, ktoré sa nezmestia, sú odložené.",
+        "demand_capped_deferred": "Nastavené podľa dopytu, ale nikdy neskôr než toto. Zóny, ktoré sa nezmestia, sú odložené."
       }
     },
     "info": {
