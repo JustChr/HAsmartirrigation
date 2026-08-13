@@ -34,7 +34,7 @@ The **Zones dashboard** has a "Run all zones now" action that immediately irriga
 
 If you prefer full control via HA automations, leave the linked entity field empty on each zone and:
 
-1. **Create an irrigate [schedule](configuration-schedules.md)** — the `smart_irrigation_start_irrigation_all_zones` [event](usage-events.md) is fired **by schedules**; without one, it never fires. For the classic "finish watering right at sunrise" pattern, use a **Sunrise**-type schedule with the time anchor set to **Finish**.
+1. **Create an irrigate [schedule](configuration-schedules.md)** — the `smart_irrigation_start_irrigation_all_zones` [event](usage-events.md) is fired **by schedules**; without one, it never fires. For the classic "finish watering right at sunrise" pattern, set the schedule's **Finish** row to *At sunrise* and leave **Start** on *No limit*.
 2. Your automation listens for that event, reads `sensor.smart_irrigation_[zone_name]` for the duration, controls the valve, and calls `smart_irrigation.reset_bucket` when done. (Zones without a linked entity are left alone by the schedule itself — your automation does the watering.)
 
 Alternatively, skip the event entirely and trigger your automation on your own schedule (time trigger, workday sensor, …), using the duration sensor and bucket as conditions — see the examples below.
