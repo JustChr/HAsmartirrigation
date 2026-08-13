@@ -1582,8 +1582,9 @@ class IrrigationRunnerMixin:
         naive ``sum(durations)`` (2×600 s with a 10 min absorption really ends at
         1920 s, not 1200 s), which is how a predicted deadline once cut the pump
         mid-rotation. A ``deadline`` passed in here is safe because the anchor
-        that produced it was itself sized by ``run_window.simulate_wall_clock``,
-        which replays this loop's absorption structure rather than summing.
+        that produced it was itself sized by ``run_window.concurrent_wall_clock``,
+        whose classic track replays this loop's absorption structure rather than
+        summing.
         """
         claimed = self._claim_chain_zones(zones)
         try:

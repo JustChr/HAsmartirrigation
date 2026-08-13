@@ -11,8 +11,12 @@ import datetime
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.run_window import (
     RUN_CEILING_SECONDS,
+    TRACK_CLASSIC,
+    TRACK_SELF_CLOSING,
+    TRACK_STATION,
     ZoneRun,
     bound_wall_clock,
+    concurrent_wall_clock,
     nominal_demand_seconds,
     nominal_zone_duration,
     rank,
@@ -26,13 +30,14 @@ PARALLEL = const.CONF_ZONE_SEQUENCING_PARALLEL
 ROTATING = const.CONF_ZONE_SEQUENCING_ROTATING
 
 
-def _run(zone_id, duration, ratio=1.0, last=None, maximum=None):
+def _run(zone_id, duration, ratio=1.0, last=None, maximum=None, track=TRACK_CLASSIC):
     return ZoneRun(
         zone_id=zone_id,
         duration=duration,
         depletion_ratio=ratio,
         last_irrigation=last,
         maximum_duration=maximum,
+        track=track,
     )
 
 
@@ -108,6 +113,44 @@ class TestSimulateWallClock:
         # A zero/negative configured slot would divide the run into zero-length
         # slots and spin forever; the model floors it exactly as the runner does.
         assert _sim([_run(0, 5)], ROTATING, slot=0, absorb=0) == 5
+
+
+class TestConcurrentWallClock:
+    """Splitting a run across the dispatch tracks that start together."""
+
+    def _conc(self, runs, sequencing, slot=300.0, absorb=0.0):
+        return concurrent_wall_clock(
+            runs,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorb,
+        )
+
+    def test_a_classic_only_run_is_the_plain_simulation(self):
+        # The default install, and everything predating the self-closing modes:
+        # one track, so no anchor time may move.
+        runs = [_run(0, 300), _run(1, 600), _run(2, 120)]
+        assert self._conc(runs, SEQUENTIAL) == _sim(runs, SEQUENTIAL) == 1020
+
+    def test_the_longest_track_wins_rather_than_the_total(self):
+        runs = [_run(0, 600), _run(1, 900, track=TRACK_SELF_CLOSING)]
+        assert self._conc(runs, SEQUENTIAL) == 900
+
+    def test_stations_chain_even_under_parallel_sequencing(self):
+        # zone_sequencing does not govern the controller's queue, and only the
+        # longer of the two possible orderings is safe to anchor on.
+        runs = [_run(0, 300, track=TRACK_STATION), _run(1, 600, track=TRACK_STATION)]
+        assert self._conc(runs, PARALLEL) == 900
+
+    def test_service_zones_open_together_even_under_sequential(self):
+        runs = [
+            _run(0, 300, track=TRACK_SELF_CLOSING),
+            _run(1, 600, track=TRACK_SELF_CLOSING),
+        ]
+        assert self._conc(runs, SEQUENTIAL) == 600
+
+    def test_no_runs_is_zero(self):
+        assert self._conc([], SEQUENTIAL) == 0.0
 
 
 class TestRank:
@@ -369,6 +412,83 @@ class TestSelectTiePacking:
         assert [r.zone_id for r in self._select(runs, 2300)] == [2, 3, 5]
 
 
+class TestSelectAcrossTracks:
+    """Fitting decisions priced per dispatch track rather than on one timeline.
+
+    ``fits`` asks a yes/no question about a candidate set, and once the tracks
+    start together the tracks-aware answer is the honest one. It moves the
+    boundary in both directions: a station set that a single timeline called
+    small enough really is not, and a service set it called too big really does
+    fit.
+    """
+
+    def _select(self, runs, window, sequencing=SEQUENTIAL, slot=300.0, absorb=0.0):
+        return select(
+            runs,
+            window_seconds=window,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorb,
+        )
+
+    def test_a_shadowed_zone_rides_along_for_free(self):
+        # The station's 600 s sit entirely inside the classic track's 3600 s, so
+        # admitting it costs no window at all. A single timeline would charge
+        # 4200 against the 3600 s window and drop it, leaving capacity that
+        # nothing else could have used.
+        runs = [
+            _run(0, 3600, ratio=3.0),
+            _run(1, 600, ratio=1.5, track=TRACK_STATION),
+        ]
+        assert [r.zone_id for r in self._select(runs, 3600)] == [0, 1]
+
+    def test_stations_are_not_over_admitted_under_parallel(self):
+        # The dangerous direction: max(stations) under parallel says both fit,
+        # but the controller may chain them, and a run sized on the shorter of
+        # the two possible orderings finishes after its anchor.
+        runs = [
+            _run(0, 900, ratio=3.0, track=TRACK_STATION),
+            _run(1, 800, ratio=2.0, track=TRACK_STATION),
+        ]
+        assert [r.zone_id for r in self._select(runs, 1000, PARALLEL)] == [0]
+
+    def test_service_zones_are_not_under_admitted_under_sequential(self):
+        # The wasteful direction: the hardware closes each valve itself, so
+        # these open together and 900 s covers both.
+        runs = [
+            _run(0, 900, ratio=3.0, track=TRACK_SELF_CLOSING),
+            _run(1, 800, ratio=2.0, track=TRACK_SELF_CLOSING),
+        ]
+        assert [r.zone_id for r in self._select(runs, 1000)] == [0, 1]
+
+    def test_a_free_zone_never_displaces_a_drier_one(self):
+        # Zone 0 is the strict leader and does not fit; the always-include-the
+        # leader rule still returns it alone, and the shadowed station in the
+        # wetter group is not consulted. Dryness owns the window across groups
+        # whatever the tracks cost.
+        runs = [
+            _run(0, 2400, ratio=1.5),
+            _run(1, 600, ratio=1.2, track=TRACK_STATION),
+        ]
+        assert [r.zone_id for r in self._select(runs, 2000)] == [0]
+
+    def test_a_tie_group_packs_the_free_track_as_well(self):
+        # Within a tie there is no dryness argument between members, so the
+        # subset delivering the most watering seconds wins — and seconds on a
+        # track the classic zone already shadows are pure gain.
+        runs = [
+            _run(0, 1800, ratio=1.2, last=datetime.datetime(2026, 7, 30)),
+            _run(
+                1,
+                1500,
+                ratio=1.2,
+                last=datetime.datetime(2026, 7, 31),
+                track=TRACK_STATION,
+            ),
+        ]
+        assert [r.zone_id for r in self._select(runs, 1800)] == [0, 1]
+
+
 class TestBoundWallClock:
     """The duration-independent ceiling that fixes the decision point."""
 
@@ -401,6 +521,22 @@ class TestBoundWallClock:
             "min_absorption_seconds": 0,
         }
         assert bound_wall_clock(lo, **kwargs) == bound_wall_clock(hi, **kwargs) == 4800
+
+    def test_ceilings_are_reduced_per_track_too(self):
+        # Same ceilings as the sequential case above, but the second zone is a
+        # service zone: it opens alongside the classic one rather than after it,
+        # so the bound is the longer of the two, not their sum. Over-stating it
+        # would move the decision point earlier than the arm needs.
+        runs = [
+            _run(0, 100, maximum=4800),
+            _run(1, 100, maximum=3000, track=TRACK_SELF_CLOSING),
+        ]
+        assert bound_wall_clock(
+            runs,
+            sequencing=SEQUENTIAL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        ) == 4800
 
     def test_counts_rotating_absorption_structure(self):
         # 4800 s at 300 s slots with a 600 s pause is nothing like 4800 s.

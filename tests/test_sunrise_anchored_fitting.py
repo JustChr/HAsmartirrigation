@@ -15,7 +15,11 @@ import pytest
 from freezegun import freeze_time
 
 from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.run_window import ZoneRun
+from custom_components.smart_irrigation.run_window import (
+    TRACK_CLASSIC,
+    TRACK_SELF_CLOSING,
+    ZoneRun,
+)
 from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
 
 UTC = datetime.timezone.utc
@@ -53,12 +57,13 @@ def _manager(plan=(), sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL):
     return mgr
 
 
-def _run(zone_id, duration, ratio=2.0, maximum=None):
+def _run(zone_id, duration, ratio=2.0, maximum=None, track=TRACK_CLASSIC):
     return ZoneRun(
         zone_id=zone_id,
         duration=duration,
         depletion_ratio=ratio,
         maximum_duration=maximum,
+        track=track,
     )
 
 
@@ -355,6 +360,24 @@ class TestDecideAndArm:
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
         # 3600 s of demand, so the slack sits before the start and the run
         # still ends exactly on the target.
+        assert track.call_args[0][2] == datetime.datetime(2026, 6, 21, 5, 0, tzinfo=UTC)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_demand_is_the_longest_track_not_the_sum_of_all_of_them(self):
+        # The service zone's valve closes itself, so it opens alongside the
+        # classic zone rather than after it: 3600 s of wall clock, not 5400.
+        # Sizing the fire time on the sum starts the run 30 minutes early and
+        # arms on a length neither the estimate nor the dial reports.
+        mgr = _manager(
+            plan=[_run(0, 3600), _run(1, 1800, track=TRACK_SELF_CLOSING)],
+        )
+        target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        with patch(
+            "custom_components.smart_irrigation.scheduler."
+            "async_track_point_in_utc_time"
+        ) as track:
+            await mgr._decide_and_arm(_schedule(), target, None, commit=True)
         assert track.call_args[0][2] == datetime.datetime(2026, 6, 21, 5, 0, tzinfo=UTC)
 
     @pytest.mark.asyncio

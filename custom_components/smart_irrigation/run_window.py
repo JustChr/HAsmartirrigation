@@ -10,7 +10,8 @@ time, not wall clock: a single zone needing 600 s, sliced into 300 s slots with
 a 600 s absorption pause between them, occupies 1200 s of night. Sizing a
 finish-anchored run by the sum therefore starts it far too late, which is how a
 predicted deadline came to cut the pump mid-rotation. :func:`simulate_wall_clock`
-replays the runner's own loop instead.
+replays the runner's own loop instead, and :func:`concurrent_wall_clock` — what
+every caller outside this module reaches for — applies it per dispatch track.
 """
 
 from __future__ import annotations
@@ -263,6 +264,13 @@ def bound_wall_clock(
     not a derived value — so ``target - bound`` is a fixed point the scheduler
     can arm days ahead, before any deficit is known. That is what gives the
     two-stage arm somewhere to stand when no earliest-start floor is set.
+
+    The ceilings are combined through :func:`concurrent_wall_clock`, so the
+    reduction is the same one the run itself is priced by. Being an
+    over-estimate does not excuse the wrong rule: summing service zones that
+    open together moves the decision point hours earlier than the arm needs,
+    and taking the longest of stations the controller may chain moves it later
+    than it can afford.
     """
     ceilings = {}
     for r in runs:
@@ -272,7 +280,7 @@ def bound_wall_clock(
         except (TypeError, ValueError):
             cap = 0.0
         ceilings[r.zone_id] = cap if cap > 0 else float(RUN_CEILING_SECONDS)
-    return simulate_wall_clock(
+    return concurrent_wall_clock(
         runs,
         sequencing=sequencing,
         max_slot_seconds=max_slot_seconds,
@@ -293,8 +301,10 @@ def select(
 
     Take the largest ranked prefix whose *simulated* clock fits the window,
     then fill any residual gap with lower-ranked zones that still fit. Prefixes
-    are simulated rather than subtracted because the rotating clock is not a
-    running sum of durations — see :func:`simulate_wall_clock`.
+    are simulated rather than subtracted because the clock is not a running sum
+    of durations: under rotating it carries absorption pauses, and across
+    dispatch tracks a zone costs only what it adds to its own — see
+    :func:`concurrent_wall_clock`.
 
     Zones tied on depletion ratio (to :data:`RATIO_TIE_DECIMALS`) form one
     group, and within a group the subset that delivers the most watering
@@ -312,6 +322,18 @@ def select(
     loses the packing tonight dries past its group, becomes that strict leader,
     and the same rule then guarantees it water. Selection excludes; the
     deadline truncates.
+
+    Candidates are priced by :func:`concurrent_wall_clock`, so a zone costs
+    only what it adds to its OWN dispatch track. A station sitting inside a
+    longer classic track is therefore free, and is admitted: it genuinely does
+    fit, and refusing it would idle capacity no other zone could have claimed.
+    That reads as a wetter zone gaining on a drier one, and is not — the groups
+    are still settled driest first, so a wetter zone only ever fills what the
+    driest group left, and the leader rule above still hands the whole window
+    to a strict leader that could not fit. The packing score stays total
+    watering seconds for the same reason: with the fit already priced per
+    track, the most water delivered into a fixed wall clock is what a subset
+    should be judged on.
     """
     ranked = rank(runs)
     if not ranked:
@@ -319,7 +341,7 @@ def select(
 
     def fits(candidate: list[ZoneRun]) -> bool:
         return (
-            simulate_wall_clock(
+            concurrent_wall_clock(
                 candidate,
                 sequencing=sequencing,
                 max_slot_seconds=max_slot_seconds,

@@ -27,7 +27,7 @@ from .helpers import (
     normalize_azimuth_angle,
     normalize_zone_selection,
 )
-from .run_window import ZoneRun, bound_wall_clock, select, simulate_wall_clock
+from .run_window import ZoneRun, bound_wall_clock, concurrent_wall_clock, select
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1394,7 +1394,12 @@ class RecurringScheduleManager:
             deadline_desc=target,
         )
 
-        demand = simulate_wall_clock(
+        # Per dispatch track, longest track wins — the same reduction the
+        # estimate and the dial report, so the run this arms on is the run the
+        # schedule was drawn as. Summing the tracks instead would start it
+        # early; taking the longest of chained stations would start it late,
+        # and that direction finishes the irrigation past its anchor.
+        demand = concurrent_wall_clock(
             selection,
             sequencing=sequencing,
             max_slot_seconds=slot,
