@@ -20,10 +20,12 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation import opensprinkler
 from custom_components.smart_irrigation.opensprinkler import (
     observed_start_iso,
     queue_deadline_seconds,
     resolve_running_sensor,
+    station_facts,
     zone_watch_entity,
 )
 
@@ -199,6 +201,114 @@ async def test_watch_entity_falls_back_while_the_controller_is_unknown(hass):
         }
     )
     assert zone_watch_entity(hass, classic) == STATION
+
+
+# --------------------------------------------------------------------------- #
+# What the controller says about a station's sequencing
+# --------------------------------------------------------------------------- #
+CONTROLLER = "switch.opensprinkler_enabled"
+
+
+def _publish_controller(hass, entity_id=CONTROLLER, delay=0, state="on"):
+    hass.states.async_set(
+        entity_id,
+        state,
+        {
+            const.OPENSPRINKLER_ATTR_TYPE: const.OPENSPRINKLER_TYPE_CONTROLLER,
+            const.OPENSPRINKLER_ATTR_STATION_DELAY: delay,
+        },
+    )
+
+
+async def test_station_facts_read_the_group_and_the_delay(hass):
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 3}))
+    _publish_controller(hass, delay=5)
+    facts = station_facts(hass, _zone())
+    assert facts.group == 3
+    assert facts.delay_seconds == 5
+
+
+async def test_station_facts_read_the_parallel_group_unchanged(hass):
+    hass.states.async_set(
+        STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 255})
+    )
+    _publish_controller(hass)
+    assert station_facts(hass, _zone()).group == 255
+
+
+async def test_station_facts_group_is_unread_when_the_station_is_unavailable(hass):
+    """HA drops attributes while an entity is unavailable, and that means the
+    controller cannot be seen — never that the station is in group 0."""
+    hass.states.async_set(STATION, "unavailable", {})
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_group_is_unread_on_a_firmware_without_it(hass):
+    # Below v2.2.0(1) the OpenSprinkler integration omits the key entirely.
+    hass.states.async_set(STATION, "on", _attrs())
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_are_unread_when_no_controller_is_visible(hass):
+    """A group without its delay would partition the run and then under-charge
+    every boundary inside it, so half an answer is no answer."""
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_are_unread_when_the_controller_omits_the_delay(hass):
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    hass.states.async_set(
+        CONTROLLER, "on", {const.OPENSPRINKLER_ATTR_TYPE: "controller"}
+    )
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_keep_a_zero_delay_as_an_answer(hass):
+    """Nought seconds between stations is a real setting, not a missing one."""
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    _publish_controller(hass, delay=0)
+    facts = station_facts(hass, _zone())
+    assert facts.group == 0
+    assert facts.delay_seconds == 0.0
+    assert facts.controller_id is not None
+
+
+async def test_station_facts_read_a_negative_delay(hass):
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    _publish_controller(hass, delay=-15)
+    assert station_facts(hass, _zone()).delay_seconds == -15
+
+
+async def test_station_facts_are_none_for_a_zone_that_is_not_a_station(hass):
+    classic = _zone(**{const.ZONE_WATERING_MODE: const.WATERING_MODE_CLASSIC})
+    assert station_facts(hass, classic) is None
+
+
+async def test_station_facts_take_the_delay_from_the_stations_own_controller(
+    hass, monkeypatch
+):
+    """Two controllers repeat every station index, so the delay has to come from
+    the config entry the station itself belongs to, not from whichever
+    controller entity is found first."""
+    other = "switch.opensprinkler_2_enabled"
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    _publish_controller(hass, entity_id=other, delay=60)
+    _publish_controller(hass, entity_id=CONTROLLER, delay=5)
+
+    entries = {STATION: "entry_a", CONTROLLER: "entry_a", other: "entry_b"}
+    monkeypatch.setattr(
+        opensprinkler.er,
+        "async_get",
+        lambda _hass: Mock(
+            async_get=lambda entity_id: (
+                Mock(config_entry_id=entries[entity_id])
+                if entity_id in entries
+                else None
+            )
+        ),
+    )
+    assert station_facts(hass, _zone()).delay_seconds == 5
 
 
 # --------------------------------------------------------------------------- #

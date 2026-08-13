@@ -40,14 +40,21 @@ TRACK_STATION = "station"
 #     single loop and the hardware owns each close, so they open together.
 #   station  — sequential. Under sequential/rotating Smart Irrigation chains the
 #     stations itself; under parallel it hands the controller everything at once
-#     and whether a station waits for the ones queued ahead of it is a flag in
-#     the CONTROLLER's own configuration, which this integration cannot read.
-#     Both orderings are possible, and only the longer is safe to anchor on: an
+#     and the controller's own grouping decides. Where that grouping can be read
+#     off the station entities :func:`_grouped_station_wall_clock` prices it
+#     exactly; this is what the track falls back to when it cannot, because only
+#     the longer of the possible orderings is safe to anchor on — an
 #     under-estimate finishes the irrigation after the requested time.
 _TRACK_SEQUENCING = {
     TRACK_SELF_CLOSING: const.CONF_ZONE_SEQUENCING_PARALLEL,
     TRACK_STATION: const.CONF_ZONE_SEQUENCING_SEQUENTIAL,
 }
+
+# The station group id meaning "runs alongside everything". Below it, an id is a
+# sequential group: stations sharing one are serialised with each other, and
+# different groups run concurrently with each other. Per the controller's own
+# API reference; the ids are not the A-D labels its interface shows.
+PARALLEL_STATION_GROUP = 255
 
 # The runner's own safety cap for a zone with no usable maximum_duration
 # (irrigation.py applies `or 14400` in every slot/safety computation). Mirrored
@@ -72,6 +79,32 @@ MAX_TIE_GROUP_EXHAUSTIVE = 12
 
 
 @dataclass(frozen=True)
+class StationFacts:
+    """What the CONTROLLER says about one station, read off its entity.
+
+    ``group`` is the raw station group id (see :data:`PARALLEL_STATION_GROUP`),
+    or None when it cannot be read — a controller that is unavailable, a
+    firmware below v2.2.0(1), an OpenSprinkler integration too old to publish
+    it. None is the honest answer and is treated as such: it is never mistaken
+    for group 0, which would claim a chain the controller may not run.
+
+    ``delay_seconds`` is the controller-wide gap it inserts between two stations
+    that do run back to back, negative when they are deliberately overlapped. It
+    rides on the run rather than on the reduction's signature so that an install
+    with two controllers takes each station's delay from its own.
+
+    ``controller_id`` identifies which controller answered. Group ids are
+    numbered per controller, so two controllers each have a group 0 that have
+    nothing to do with each other; without this they would partition into one
+    chain and the run would be priced as twice as long as it is.
+    """
+
+    group: int | None = None
+    delay_seconds: float = 0.0
+    controller_id: str | None = None
+
+
+@dataclass(frozen=True)
 class ZoneRun:
     """One zone's candidacy for tonight's run.
 
@@ -90,6 +123,10 @@ class ZoneRun:
     ``track`` is which of the concurrent dispatch tracks the zone runs on — see
     :func:`track_for_zone`. It defaults to classic so a caller that builds a run
     without one prices it exactly as before.
+
+    ``station`` carries the controller's own answer for a station-track zone —
+    see :class:`StationFacts`. Absent means unread, which prices the track the
+    way it was priced before any of it could be read.
     """
 
     zone_id: int
@@ -98,6 +135,7 @@ class ZoneRun:
     last_irrigation: datetime.datetime | str | None = None
     maximum_duration: float | None = None
     track: str = TRACK_CLASSIC
+    station: StationFacts | None = None
 
 
 def track_for_zone(zone: dict) -> str:
@@ -159,6 +197,12 @@ def rank(runs: list[ZoneRun]) -> list[ZoneRun]:
     )
 
 
+def _budget(run: ZoneRun, durations: dict[int, float] | None) -> float:
+    """The watering seconds ``run`` is priced with: the caller's override for
+    that zone if it gave one, otherwise the run's own duration."""
+    return float((durations or {}).get(run.zone_id, run.duration) or 0.0)
+
+
 def simulate_wall_clock(
     runs: list[ZoneRun],
     *,
@@ -173,10 +217,7 @@ def simulate_wall_clock(
     :func:`bound_wall_clock` to price the configured maximums instead of the
     live durations); by default each zone's own ``duration`` is used.
     """
-    budget = {
-        r.zone_id: float((durations or {}).get(r.zone_id, r.duration) or 0.0)
-        for r in runs
-    }
+    budget = {r.zone_id: _budget(r, durations) for r in runs}
     work = [b for b in budget.values() if b > 0]
     if not work:
         return 0.0
@@ -211,6 +252,59 @@ def simulate_wall_clock(
     return clock
 
 
+def _grouped_station_wall_clock(
+    members: list[ZoneRun],
+    *,
+    durations: dict[int, float] | None = None,
+) -> float | None:
+    """Wall clock of the station track under the CONTROLLER's own grouping.
+
+    Returns None when the grouping cannot be applied, which the caller reads as
+    "price this track the old way". That is all-or-nothing on purpose: with one
+    member's group unknown, putting it in a unit of its own would let the track
+    come out SHORTER than the controller may run it, and short is the direction
+    that finishes after the deadline. Every other unknown here — an unavailable
+    entity, old firmware, an OpenSprinkler integration that does not publish the
+    attribute — arrives as the same None and takes the same branch.
+
+    Within a sequential group the stations chain, and the controller inserts its
+    station delay at each boundary — one fewer than the group has members, never
+    after the last one. Groups run alongside each other, so the track is the
+    longest of them. Members of :data:`PARALLEL_STATION_GROUP` serialise with
+    nothing, so each is a unit by itself.
+    """
+    units: dict[object, list[float]] = {}
+    delays: dict[object, float] = {}
+    for index, run in enumerate(members):
+        facts = run.station
+        if facts is None or facts.group is None:
+            return None
+        budget = _budget(run, durations)
+        if budget <= 0:
+            # Carries no water, so it occupies no slot in the controller's queue
+            # and adds no boundary for the delay to land on. ignore_demand plans
+            # are built entirely of these.
+            continue
+        # Keyed by controller as well as group: the ids are numbered per
+        # controller, so two controllers' group 0 are different groups and
+        # merging them would price two concurrent chains as one long one.
+        key = (
+            (facts.controller_id, "parallel", index)
+            if facts.group == PARALLEL_STATION_GROUP
+            else (facts.controller_id, "sequential", facts.group)
+        )
+        units.setdefault(key, []).append(budget)
+        # One controller per unit by construction of the key, so its members
+        # agree on the delay and the first is the unit's.
+        delays.setdefault(key, float(facts.delay_seconds or 0.0))
+
+    longest = 0.0
+    for key, work in units.items():
+        clock = sum(work) + delays[key] * (len(work) - 1)
+        longest = max(longest, max(0.0, clock))
+    return longest
+
+
 def concurrent_wall_clock(
     runs: list[ZoneRun],
     *,
@@ -239,16 +333,28 @@ def concurrent_wall_clock(
         tracks.setdefault(run.track or TRACK_CLASSIC, []).append(run)
     if not tracks:
         return 0.0
-    return max(
-        simulate_wall_clock(
-            members,
-            sequencing=_TRACK_SEQUENCING.get(track, sequencing),
-            max_slot_seconds=max_slot_seconds,
-            min_absorption_seconds=min_absorption_seconds,
-            durations=durations,
-        )
-        for track, members in tracks.items()
-    )
+
+    clocks = []
+    for track, members in tracks.items():
+        clock = None
+        if track == TRACK_STATION and sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL:
+            # Only parallel hands the controller a queue to schedule. Under
+            # sequential and rotating Smart Irrigation dispatches one station and
+            # holds the rest until it finalises — see
+            # ``async_dispatch_opensprinkler_zones`` — so the chain below is not
+            # an assumption there, it is what runs, and the grouping cannot
+            # change it.
+            clock = _grouped_station_wall_clock(members, durations=durations)
+        if clock is None:
+            clock = simulate_wall_clock(
+                members,
+                sequencing=_TRACK_SEQUENCING.get(track, sequencing),
+                max_slot_seconds=max_slot_seconds,
+                min_absorption_seconds=min_absorption_seconds,
+                durations=durations,
+            )
+        clocks.append(clock)
+    return max(clocks)
 
 
 def bound_wall_clock(
@@ -419,6 +525,7 @@ def nominal_demand_seconds(
     max_slot_seconds: float,
     min_absorption_seconds: float,
     metric: bool,
+    station_facts: dict[int, StationFacts] | None = None,
 ) -> float:
     """Wall-clock seconds a schedule's run takes on a typical night.
 
@@ -436,6 +543,13 @@ def nominal_demand_seconds(
     Zones are ordered by id, not by :func:`rank`: rank's tie-break reads
     ``last_irrigation``, a live value, and this projection is meant to hold
     steady across anything except a configuration change.
+
+    ``station_facts`` maps zone id to what the controller says about that
+    zone's station — this module cannot read an entity, so its HA-side callers
+    supply it. Omitted, every station is unread and the station track is priced
+    as a chain, which is what it was priced as before any of it could be read.
+    A controller's grouping is configuration too, so using it here does not
+    make the projection any less steady than the sequencing already does.
     """
     eligible = sorted(
         (z for z in zones if zone_eligible_for_demand(z)),
@@ -449,6 +563,7 @@ def nominal_demand_seconds(
             last_irrigation=None,
             maximum_duration=z.get(const.ZONE_MAXIMUM_DURATION),
             track=track_for_zone(z),
+            station=(station_facts or {}).get(int(z.get(const.ZONE_ID))),
         )
         for z in eligible
     ]

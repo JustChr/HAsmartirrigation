@@ -15,10 +15,12 @@ import datetime
 import logging
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation import opensprinkler
 from custom_components.smart_irrigation.run_window import ZoneRun
 from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
 
@@ -66,6 +68,110 @@ def _coord():
     coord.async_get_cached_zone_estimates = AsyncMock(return_value=estimates)
     coord.async_refresh_zone_estimates = AsyncMock(return_value=estimates)
     return coord
+
+
+class _FakeState:
+    def __init__(self, attributes, entity_id="switch.os"):
+        self.state = "on"
+        self.attributes = attributes
+        self.entity_id = entity_id
+
+
+def _station_coord(*, group=0, delay=5):
+    """A coordinator whose two zones are OpenSprinkler stations that ARE due.
+
+    ``group=None`` publishes a station carrying no group, which is what an
+    unavailable controller and a firmware below v2.2.0(1) both look like.
+    """
+    coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+    hass = Mock()
+    hass.config = Mock()
+    hass.config.units = METRIC_SYSTEM
+
+    station = {
+        const.OPENSPRINKLER_ATTR_TYPE: const.OPENSPRINKLER_TYPE_STATION,
+        const.OPENSPRINKLER_ATTR_INDEX: 0,
+    }
+    if group is not None:
+        station[const.OPENSPRINKLER_ATTR_GROUP] = group
+    controller = {
+        const.OPENSPRINKLER_ATTR_TYPE: const.OPENSPRINKLER_TYPE_CONTROLLER,
+        const.OPENSPRINKLER_ATTR_STATION_DELAY: delay,
+    }
+    hass.states.get = lambda entity_id: _FakeState(station)
+    hass.states.async_all = lambda domain: [_FakeState(controller)]
+    coord.hass = hass
+
+    zones = []
+    for zid in (0, 1):
+        zone = _zone(zid)
+        zone[const.ZONE_WATERING_MODE] = const.WATERING_MODE_OPENSPRINKLER
+        zone[const.ZONE_BUCKET] = -5.0
+        zones.append(zone)
+    coord.store = _FakeStore(zones, Mock(live_estimate_enabled=False))
+    return coord
+
+
+class TestStationGroupingIsSaidOnce:
+    """Which of the two pricings the run got, without attaching a debugger."""
+
+    @pytest.fixture(autouse=True)
+    def _no_entity_registry(self, monkeypatch):
+        """This harness has no registry, so every entity reads as unregistered.
+
+        That is the single-controller path: with nothing to attribute the
+        station to, every controller entity is a candidate for its delay.
+        """
+        monkeypatch.setattr(
+            opensprinkler.er,
+            "async_get",
+            lambda hass: Mock(async_get=lambda entity_id: None),
+        )
+
+    async def test_grouping_applied_is_announced(self, caplog):
+        caplog.set_level(logging.INFO)
+        await _station_coord().async_plan_zone_runs()
+        assert "from the controller's own station groups" in caplog.text
+
+    async def test_grouping_unavailable_is_announced(self, caplog):
+        caplog.set_level(logging.INFO)
+        await _station_coord(group=None).async_plan_zone_runs()
+        assert "station grouping is unavailable for 2 of 2" in caplog.text
+
+    async def test_the_same_answer_twice_is_not_two_lines(self, caplog):
+        # The plan is rebuilt on every estimate refresh and every re-arm; the
+        # grouping is a property of the controller, so it says the same thing
+        # every time and would otherwise be the loudest line in the log.
+        coord = _station_coord()
+        await coord.async_plan_zone_runs()
+        caplog.clear()
+        caplog.set_level(logging.DEBUG)
+        await coord.async_plan_zone_runs()
+        levels = [
+            r.levelno for r in caplog.records if "station groups" in r.getMessage()
+        ]
+        assert levels == [logging.DEBUG]
+
+    async def test_losing_the_controller_is_a_new_decision(self, caplog):
+        # The transition is exactly what the INFO line exists for: the run
+        # length changes underneath the user when the grouping goes away.
+        coord = _station_coord()
+        await coord.async_plan_zone_runs()
+        coord.hass.states.get = lambda entity_id: _FakeState(
+            {
+                const.OPENSPRINKLER_ATTR_TYPE: const.OPENSPRINKLER_TYPE_STATION,
+                const.OPENSPRINKLER_ATTR_INDEX: 0,
+            }
+        )
+        caplog.clear()
+        caplog.set_level(logging.INFO)
+        await coord.async_plan_zone_runs()
+        assert "station grouping is unavailable" in caplog.text
+
+    async def test_a_run_with_no_stations_says_nothing(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        await _coord().async_plan_zone_runs()
+        assert "station" not in caplog.text.lower()
 
 
 class TestProjectionIsQuiet:

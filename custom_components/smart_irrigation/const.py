@@ -928,6 +928,13 @@ OPENSPRINKLER_ATTR_PROGRAM_ID = "running_program_id"
 # controller's own start removes half of that error and all of its bias.
 OPENSPRINKLER_ATTR_START_TIME = "start_time"
 OPENSPRINKLER_TYPE_STATION = "station"
+OPENSPRINKLER_TYPE_CONTROLLER = "controller"
+# The station's sequential group id, and the controller-wide gap it inserts
+# between two stations that run back to back (negative = they overlap). Both
+# published from hass-opensprinkler v2.0.0; absent on anything older, and the
+# group is absent below controller firmware v2.2.0(1).
+OPENSPRINKLER_ATTR_GROUP = "group"
+OPENSPRINKLER_ATTR_STATION_DELAY = "station_delay"
 # How far the controller's reported start may sit outside the window the run
 # could plausibly occupy before it is discarded for dt_util.utcnow(). It is
 # derived from the controller's clock and its configured timezone offset, so a
