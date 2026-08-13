@@ -672,10 +672,34 @@ class SmartIrrigationWateringCalendarView(HomeAssistantView):
 
 @async_response
 async def websocket_get_schedules(hass: HomeAssistant, connection, msg):
-    """Return all recurring schedules."""
+    """Return all recurring schedules.
+
+    Each schedule carries its own ``nominal_demand_seconds`` — the wall clock
+    its run takes on a typical night, with every one of its zones priced as
+    exactly due rather than at its live bucket (see
+    ``run_window.nominal_demand_seconds``). Computed here rather than cached
+    on the schedule dict itself: it never changes with a zone's bucket, but it
+    does change with the zone's own configuration (threshold, throughput,
+    size, maximum duration) and the schedule's sequencing, so caching it would
+    need its own invalidation for no benefit over recomputing the pure
+    arithmetic on every read.
+    """
     coordinator = hass.data[const.DOMAIN]["coordinator"]
     schedules = coordinator.recurring_schedule_manager.get_schedules()
-    connection.send_result(msg["id"], schedules)
+    result = []
+    for schedule in schedules:
+        # get_schedules() returns the manager's own dict objects (shallow
+        # copy of the list, not of each entry) — copy before adding a field
+        # that must never leak into what actually gets persisted.
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+        enriched = {
+            **schedule,
+            "nominal_demand_seconds": await coordinator.async_nominal_demand_seconds(
+                zones
+            ),
+        }
+        result.append(enriched)
+    connection.send_result(msg["id"], result)
 
 
 @websocket_api.require_admin

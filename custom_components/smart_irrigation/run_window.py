@@ -19,6 +19,7 @@ import datetime
 from dataclasses import dataclass
 
 from . import const
+from .duration_math import zone_run_duration
 from .opensprinkler import is_opensprinkler_zone
 from .self_closing import is_self_closing_zone
 
@@ -353,6 +354,88 @@ def select(
             return [ranked[0]]
         chosen = [*chosen, *subset]
     return chosen
+
+
+def nominal_zone_duration(zone: dict, metric: bool) -> float:
+    """Seconds ``zone`` would need on a night it is exactly due (ratio 1.0).
+
+    Prices the zone's own allowed depletion — its ``bucket_threshold``, the
+    depth at which ``bucket / bucket_threshold`` reaches 1.0 and the zone
+    triggers — through the same :func:`duration_math.zone_run_duration` a
+    real run prices its live deficit with, so the precipitation-rate math and
+    the maximum-duration cap are identical to what a real run applies, not a
+    second guess at them. Unlike a real duration this never reads the zone's
+    live ``bucket``: the threshold is configuration, so the answer does not
+    move when the bucket does. Mirrors ``duration_from_deficit``'s own
+    ``deficit >= 0`` guard for a non-negative (never-gating) threshold.
+    """
+    threshold = zone.get(const.ZONE_BUCKET_THRESHOLD) or 0
+    return float(zone_run_duration(zone, threshold, metric))
+
+
+def zone_eligible_for_demand(zone: dict) -> bool:
+    """Whether ``zone`` counts toward nominal (or planned) demand.
+
+    Mirrors the filter in ``IrrigationMixin.async_plan_zone_runs``: a
+    disabled zone is never run, and a distributor member waters through its
+    distributor's own cycle rather than directly, so neither belongs in a
+    schedule's own wall clock. A standalone predicate rather than inlined
+    into :func:`nominal_demand_seconds` so the live plan and the nominal
+    projection apply literally the same test instead of two hand-written
+    copies of it.
+    """
+    return (
+        zone.get(const.ZONE_DISTRIBUTOR_ID) is None
+        and zone.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+    )
+
+
+def nominal_demand_seconds(
+    zones: list[dict],
+    *,
+    sequencing: str,
+    max_slot_seconds: float,
+    min_absorption_seconds: float,
+    metric: bool,
+) -> float:
+    """Wall-clock seconds a schedule's run takes on a typical night.
+
+    "Typical" means every eligible zone is priced as if it were exactly due
+    (depletion ratio 1.0) rather than at its actual live bucket — see
+    :func:`nominal_zone_duration`. The per-zone durations are combined exactly
+    as a real run would combine them, through :func:`concurrent_wall_clock` —
+    each dispatch track under its own sequencing, including rotating's
+    absorption pauses, and the longest track winning. That is the same
+    reduction the finish anchor uses, which is the point: the run length the
+    dial draws is the wall clock the schedule actually reserves. The result
+    never reads a live bucket, so it does not change when one does — that is
+    the property distinguishing it from demand.
+
+    Zones are ordered by id, not by :func:`rank`: rank's tie-break reads
+    ``last_irrigation``, a live value, and this projection is meant to hold
+    steady across anything except a configuration change.
+    """
+    eligible = sorted(
+        (z for z in zones if zone_eligible_for_demand(z)),
+        key=lambda z: int(z.get(const.ZONE_ID)),
+    )
+    runs = [
+        ZoneRun(
+            zone_id=int(z.get(const.ZONE_ID)),
+            duration=nominal_zone_duration(z, metric),
+            depletion_ratio=1.0,
+            last_irrigation=None,
+            maximum_duration=z.get(const.ZONE_MAXIMUM_DURATION),
+            track=track_for_zone(z),
+        )
+        for z in eligible
+    ]
+    return concurrent_wall_clock(
+        runs,
+        sequencing=sequencing,
+        max_slot_seconds=max_slot_seconds,
+        min_absorption_seconds=min_absorption_seconds,
+    )
 
 
 def _best_fitting_subset(chosen, group, fits):
