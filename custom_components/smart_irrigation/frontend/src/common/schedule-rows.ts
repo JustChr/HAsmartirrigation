@@ -205,7 +205,18 @@ export type HelpKey =
   | "exact"
   | "demand_floored"
   | "exact_deferred"
-  | "demand_capped_deferred";
+  | "demand_capped_deferred"
+  | "unreachable_no_run"
+  | "unreachable_ignored";
+
+/** Which ends carry a bound the sun never reaches, so cannot be resolved to a
+ * time. Only solar_azimuth ends can be unresolvable; supplied by the caller
+ * because resolving a bearing needs a location and a clock, neither of which
+ * belongs in this module. */
+export interface UnresolvableEnds {
+  start?: boolean;
+  finish?: boolean;
+}
 
 export interface WindowHelp {
   start: HelpKey;
@@ -223,21 +234,73 @@ export interface WindowHelp {
  * always lands on the Finish cell — that's the end the window actually
  * closes on, whether Finish is the exact/pinned end or the flexible one.
  */
-export function describeWindow(rows: ScheduleRows): WindowHelp {
+export function describeWindow(
+  rows: ScheduleRows,
+  unresolvable?: UnresolvableEnds,
+): WindowHelp {
   const startBounded = rows.start.mode !== SCHEDULE_BOUND_MODE_NONE;
   const finishBounded = rows.finish.mode !== SCHEDULE_BOUND_MODE_NONE;
 
   if (!startBounded && !finishBounded) {
     return { start: "error", finish: "error", valid: false };
   }
-  if (!startBounded) {
-    return { start: "demand_open", finish: "exact", valid: true };
-  }
-  if (!finishBounded) {
-    return { start: "exact", finish: "demand_open", valid: true };
-  }
-  if (rows.anchor === SCHEDULE_ANCHOR_FINISH) {
-    return { start: "demand_floored", finish: "exact_deferred", valid: true };
-  }
-  return { start: "exact", finish: "demand_capped_deferred", valid: true };
+  const help: WindowHelp = !startBounded
+    ? { start: "demand_open", finish: "exact", valid: true }
+    : !finishBounded
+      ? { start: "exact", finish: "demand_open", valid: true }
+      : rows.anchor === SCHEDULE_ANCHOR_FINISH
+        ? { start: "demand_floored", finish: "exact_deferred", valid: true }
+        : { start: "exact", finish: "demand_capped_deferred", valid: true };
+
+  return applyUnresolvable(rows, help, unresolvable);
+}
+
+/**
+ * Replaces an unresolvable end's help with what the scheduler will actually
+ * do with it, which differs by whether that end governs the run:
+ *
+ *  - the governing end (the anchor when both are bounded, otherwise the only
+ *    bounded end) cannot be resolved, so no occurrence can be computed and
+ *    `_setup_resolved_one_shot` declines to arm the schedule at all — it
+ *    never runs.
+ *  - the paired end cannot be resolved, so `_paired_bound_time` returns None
+ *    and the run proceeds governed by the other end — the limit is simply
+ *    not applied.
+ *
+ * Saving stays permitted either way: the backend accepts the schedule and
+ * warns, and a bearing that is unreachable today can be reachable at another
+ * latitude or another time of year, so this is a warning about what will
+ * happen rather than a rejection.
+ */
+function applyUnresolvable(
+  rows: ScheduleRows,
+  help: WindowHelp,
+  unresolvable: UnresolvableEnds | undefined,
+): WindowHelp {
+  if (!unresolvable?.start && !unresolvable?.finish) return help;
+
+  const startBounded = rows.start.mode !== SCHEDULE_BOUND_MODE_NONE;
+  const finishBounded = rows.finish.mode !== SCHEDULE_BOUND_MODE_NONE;
+  const governing =
+    startBounded && finishBounded
+      ? rows.anchor
+      : startBounded
+        ? SCHEDULE_ANCHOR_START
+        : SCHEDULE_ANCHOR_FINISH;
+
+  const keyFor = (end: Anchor): HelpKey =>
+    end === governing ? "unreachable_no_run" : "unreachable_ignored";
+
+  return {
+    ...help,
+    start: unresolvable.start ? keyFor(SCHEDULE_ANCHOR_START) : help.start,
+    finish: unresolvable.finish ? keyFor(SCHEDULE_ANCHOR_FINISH) : help.finish,
+  };
+}
+
+/** Whether a help state is a warning about behavior the user probably did
+ * not intend, as opposed to ordinary description or a hard error. Drives the
+ * dialog's amber styling; kept here so the set stays with the keys. */
+export function isWarningHelp(key: HelpKey): boolean {
+  return key === "unreachable_no_run" || key === "unreachable_ignored";
 }

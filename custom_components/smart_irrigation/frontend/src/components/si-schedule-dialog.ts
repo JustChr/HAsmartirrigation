@@ -21,12 +21,16 @@ import {
   scheduleToRows,
   rowsToSchedule,
   describeWindow,
+  isWarningHelp,
+  HelpKey,
+  UnresolvableEnds,
   defaultRowForMode,
   DEFAULT_AZIMUTH,
   BoundMode,
   Anchor,
 } from "../common/schedule-rows";
 import { summarizeSchedule } from "../common/schedule-summary";
+import { azimuthResolverFromLocation } from "../common/solar-azimuth";
 import "./si-run-window-dial";
 
 const DAYS = [
@@ -408,7 +412,7 @@ export class SiScheduleDialog extends LitElement {
   private _renderWindowRow(
     end: BoundEnd,
     row: EndRow,
-    helpKey: string,
+    helpKey: HelpKey,
     onChange: (row: EndRow) => void,
   ) {
     const lang = this.hass.language;
@@ -433,7 +437,13 @@ export class SiScheduleDialog extends LitElement {
         </select>
         ${this._renderRowStepper(row, onChange)}
       </div>
-      <div class="window-row-help ${helpKey === "error" ? "is-error" : ""}">
+      <div
+        class="window-row-help ${helpKey === "error"
+          ? "is-error"
+          : isWarningHelp(helpKey)
+            ? "is-warning"
+            : ""}"
+      >
         <span class="help-arrow" aria-hidden="true">↳</span>
         <span class="help-text"
           >${localize(`panels.schedules.help.${helpKey}`, lang)}</span
@@ -477,11 +487,32 @@ export class SiScheduleDialog extends LitElement {
    * row — all three sourced from the one pure rows<->fields mapping
    * (../common/schedule-rows.ts). Interval has no time of day and
    * therefore no window: none of these rows apply to it. */
+  /**
+   * Which bounded ends name a bearing the sun never reaches at this location
+   * (GitLab #34). Resolved through the same module the dial draws with, so
+   * the faded end and the amber help text can never disagree about it.
+   *
+   * Only solar_azimuth ends can be unresolvable; every other mode always has
+   * a time. An unknown location yields no resolver, and an unknown answer is
+   * not a warning, so nothing is flagged in that case.
+   */
+  private _unresolvableEnds(rows: ScheduleRows): UnresolvableEnds {
+    const resolve = azimuthResolverFromLocation(this.hass?.config, new Date());
+    if (!resolve) return {};
+    const unreachable = (row: EndRow) =>
+      row.mode === SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH &&
+      resolve(row.azimuth ?? DEFAULT_AZIMUTH) === null;
+    return {
+      start: unreachable(rows.start),
+      finish: unreachable(rows.finish),
+    };
+  }
+
   private _renderWindowRows() {
     const s = this.schedule;
     if (s.recurrence === SCHEDULE_RECURRENCE_INTERVAL) return html``;
     const rows = scheduleToRows(s);
-    const help = describeWindow(rows);
+    const help = describeWindow(rows, this._unresolvableEnds(rows));
     const patch = (next: ScheduleRows) =>
       this._emitChanged(rowsToSchedule(next));
     const bothBounded =
@@ -868,11 +899,16 @@ export class SiScheduleDialog extends LitElement {
         .window-row-help.is-error .help-text {
           color: var(--error-color, #db4437);
         }
-        /* Placeholder layout only — GitLab #30 is concurrently reshaping
-           this dialog into WHEN/ZONES/SEASON cards, whose WHEN card's
-           right-hand column is where si-run-window-dial is meant to live.
-           Until that lands, sit the dial beside the Start/Finish/pinned-end
-           rows so it is visibly wired in rather than orphaned. */
+        /* Amber, not red: an unreachable bearing still saves and the backend
+           still accepts it — the schedule just will not behave the way the
+           row reads. See describeWindow's unresolvable handling. */
+        .window-row-help.is-warning .help-text {
+          color: var(--warning-color, #ffa600);
+        }
+        /* Two-column layout inside the WHEN card (GitLab #31): the
+           Start/Finish/pinned-end rows on the left, the run-window dial in
+           a fixed-width right column, collapsing to one column on narrow
+           dialogs. */
         .when-row {
           display: flex;
           flex-wrap: wrap;

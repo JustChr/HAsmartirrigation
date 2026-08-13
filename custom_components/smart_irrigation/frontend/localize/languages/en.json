@@ -277,7 +277,9 @@
         "exact": "Exact.",
         "demand_floored": "Set by demand, but never before this.",
         "exact_deferred": "Exact. Zones that don't fit are deferred.",
-        "demand_capped_deferred": "Set by demand, but never later than this. Zones that don't fit are deferred."
+        "demand_capped_deferred": "Set by demand, but never later than this. Zones that don't fit are deferred.",
+        "unreachable_no_run": "The sun never reaches this bearing here, so this schedule will not run.",
+        "unreachable_ignored": "The sun never reaches this bearing here, so this limit is ignored."
       },
       "dial": {
         "aria_label": "Run window on a 24 hour dial",

@@ -3,10 +3,11 @@ import {
   SCHEDULE_BOUND_MODE_TIME,
   SCHEDULE_BOUND_MODE_SUNRISE,
   SCHEDULE_BOUND_MODE_SUNSET,
+  SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
   SCHEDULE_ANCHOR_FINISH,
   SCHEDULE_RECURRENCE_INTERVAL,
 } from "../const";
-import { EndRow, ScheduleRows } from "./schedule-rows";
+import { DEFAULT_AZIMUTH, EndRow, ScheduleRows } from "./schedule-rows";
 
 /**
  * Pure geometry + planning for the WHEN section's 24-hour dial (GitLab #31).
@@ -172,20 +173,29 @@ function parseHM(hm: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
+/** Resolves a solar-azimuth bearing to a clock-minute. Supplied by the
+ * caller rather than imported here so this module stays free of Date and
+ * timezone handling: si-run-window-dial.ts owns every conversion between a
+ * real instant and the minute-of-day this module draws in, for the sun glyph
+ * and an azimuth bound alike. `null` for a bearing the sun never reaches. */
+export type AzimuthResolver = (azimuth: number) => number | null;
+
 /**
  * A row's absolute clock-minute, given real sunrise/sunset. `null` means
  * "no bound to draw" — either the row is genuinely unbounded (mode "none"),
- * or (solar_azimuth) resolving it needs a sun-position ephemeris this
- * frontend does not have. An azimuth-bounded row therefore renders on the
- * dial the same way an open end does: faded rather than a hard edge. This
- * only affects the dial's drawing, not save validity (describeWindow in
- * schedule-rows.ts, which drives the Save button, treats azimuth as bounded
- * regardless).
+ * or it is azimuth-bounded and no resolver was supplied, or the resolver
+ * reported a bearing the sun never reaches (which is what the scheduler
+ * makes of it too: `_resolve_event_instant` returns None and the bound goes
+ * unresolved). Such a row renders the same way an open end does: faded
+ * rather than a hard edge. This only affects the dial's drawing, not save
+ * validity (describeWindow in schedule-rows.ts, which drives the Save
+ * button, treats azimuth as bounded regardless).
  */
 export function resolveAbsMinutes(
   row: EndRow,
   sunriseMinutes: number,
   sunsetMinutes: number,
+  azimuthResolver?: AzimuthResolver,
 ): number | null {
   switch (row.mode) {
     case SCHEDULE_BOUND_MODE_TIME:
@@ -194,6 +204,11 @@ export function resolveAbsMinutes(
       return clampMinutes(sunriseMinutes + (row.offset ?? 0));
     case SCHEDULE_BOUND_MODE_SUNSET:
       return clampMinutes(sunsetMinutes + (row.offset ?? 0));
+    case SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH: {
+      if (!azimuthResolver) return null;
+      const minutes = azimuthResolver(row.azimuth ?? DEFAULT_AZIMUTH);
+      return minutes === null ? null : clampMinutes(minutes);
+    }
     case SCHEDULE_BOUND_MODE_NONE:
     default:
       return null;
@@ -281,6 +296,8 @@ export interface DialInput {
   nominalDemandMinutes: number;
   sunriseMinutes: number;
   sunsetMinutes: number;
+  /** Optional; omitted, an azimuth-bounded end draws as an open one. */
+  azimuthResolver?: AzimuthResolver;
 }
 
 function runBar(a: number, b: number): RunBar {
@@ -301,6 +318,7 @@ export function buildDial(input: DialInput): DialModel {
     nominalDemandMinutes,
     sunriseMinutes,
     sunsetMinutes,
+    azimuthResolver,
   } = input;
 
   const trackPath = arcPath(DIAL_RADIUS, 0, MINUTES_PER_DAY);
@@ -367,11 +385,17 @@ export function buildDial(input: DialInput): DialModel {
     };
   }
 
-  const startAbs = resolveAbsMinutes(rows.start, sunriseMinutes, sunsetMinutes);
+  const startAbs = resolveAbsMinutes(
+    rows.start,
+    sunriseMinutes,
+    sunsetMinutes,
+    azimuthResolver,
+  );
   const finishAbs = resolveAbsMinutes(
     rows.finish,
     sunriseMinutes,
     sunsetMinutes,
+    azimuthResolver,
   );
   const noEnds = startAbs === null && finishAbs === null;
 

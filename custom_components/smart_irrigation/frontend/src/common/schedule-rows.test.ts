@@ -3,6 +3,8 @@ import {
   scheduleToRows,
   rowsToSchedule,
   describeWindow,
+  isWarningHelp,
+  HelpKey,
   defaultRowForMode,
   BoundMode,
   Anchor,
@@ -284,6 +286,89 @@ describe("describeWindow", () => {
       finish: "demand_capped_deferred",
       valid: true,
     });
+  });
+
+  it("unreachable bearing on the governing end: that end warns the run will not happen", () => {
+    // Only one end bounded, so it governs. The scheduler cannot compute an
+    // occurrence and declines to arm the schedule at all.
+    const rows: ScheduleRows = {
+      start: { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 90 },
+      finish: { mode: "none" },
+      anchor: SCHEDULE_ANCHOR_START,
+    };
+    expect(describeWindow(rows, { start: true })).toEqual({
+      start: "unreachable_no_run",
+      finish: "demand_open",
+      valid: true,
+    });
+  });
+
+  it("unreachable bearing on the paired end: that limit is reported as ignored", () => {
+    const rows: ScheduleRows = {
+      start: { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 90 },
+      finish: { mode: "time", time: "20:00" },
+      anchor: SCHEDULE_ANCHOR_FINISH,
+    };
+    expect(describeWindow(rows, { start: true })).toEqual({
+      start: "unreachable_ignored",
+      finish: "exact_deferred",
+      valid: true,
+    });
+  });
+
+  it("follows the anchor when both ends are bounded and the anchored one is unreachable", () => {
+    const rows: ScheduleRows = {
+      start: { mode: "time", time: "06:00" },
+      finish: { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 90 },
+      anchor: SCHEDULE_ANCHOR_FINISH,
+    };
+    expect(describeWindow(rows, { finish: true }).finish).toBe(
+      "unreachable_no_run",
+    );
+    expect(
+      describeWindow(
+        { ...rows, anchor: SCHEDULE_ANCHOR_START },
+        { finish: true },
+      ).finish,
+    ).toBe("unreachable_ignored");
+  });
+
+  it("still allows saving an unreachable bearing", () => {
+    // The backend accepts it and warns, and a bearing unreachable here can be
+    // reachable elsewhere or later in the year — a warning, not a rejection.
+    const rows: ScheduleRows = {
+      start: { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 90 },
+      finish: { mode: "none" },
+      anchor: SCHEDULE_ANCHOR_START,
+    };
+    expect(describeWindow(rows, { start: true }).valid).toBe(true);
+  });
+
+  it("is unchanged when nothing is unresolvable", () => {
+    const rows: ScheduleRows = {
+      start: { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 90 },
+      finish: { mode: "time", time: "20:00" },
+      anchor: SCHEDULE_ANCHOR_FINISH,
+    };
+    expect(describeWindow(rows, {})).toEqual(describeWindow(rows));
+    expect(describeWindow(rows, { start: false, finish: false })).toEqual(
+      describeWindow(rows),
+    );
+  });
+
+  it("marks exactly the two unreachable states as warnings", () => {
+    expect(isWarningHelp("unreachable_no_run")).toBe(true);
+    expect(isWarningHelp("unreachable_ignored")).toBe(true);
+    for (const key of [
+      "error",
+      "exact",
+      "demand_open",
+      "demand_floored",
+      "exact_deferred",
+      "demand_capped_deferred",
+    ] as HelpKey[]) {
+      expect(isWarningHelp(key)).toBe(false);
+    }
   });
 
   it("covers all five states across every non-none mode pairing", () => {

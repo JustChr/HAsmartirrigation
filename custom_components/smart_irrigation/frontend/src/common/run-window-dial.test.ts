@@ -11,12 +11,13 @@ import {
   DIAL_RADIUS,
   DIAL_MIN_VISIBLE_MINUTES,
 } from "./run-window-dial";
-import { ScheduleRows } from "./schedule-rows";
+import { DEFAULT_AZIMUTH, ScheduleRows } from "./schedule-rows";
 import {
   SCHEDULE_BOUND_MODE_NONE,
   SCHEDULE_BOUND_MODE_TIME,
   SCHEDULE_BOUND_MODE_SUNRISE,
   SCHEDULE_BOUND_MODE_SUNSET,
+  SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
   SCHEDULE_ANCHOR_START,
   SCHEDULE_ANCHOR_FINISH,
   SCHEDULE_RECURRENCE_DAILY,
@@ -100,6 +101,93 @@ describe("resolveAbsMinutes", () => {
         SUNSET,
       ),
     ).toBe(SUNSET + 30);
+  });
+
+  it("resolves 'solar_azimuth' through the supplied resolver", () => {
+    expect(
+      resolveAbsMinutes(
+        { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 135 },
+        SUNRISE,
+        SUNSET,
+        (angle) => (angle === 135 ? 9 * 60 + 20 : null),
+      ),
+    ).toBe(9 * 60 + 20);
+  });
+
+  it("resolves 'solar_azimuth' to null with no resolver, or an unreachable bearing", () => {
+    expect(
+      resolveAbsMinutes(
+        { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 135 },
+        SUNRISE,
+        SUNSET,
+      ),
+    ).toBeNull();
+    expect(
+      resolveAbsMinutes(
+        { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 135 },
+        SUNRISE,
+        SUNSET,
+        () => null,
+      ),
+    ).toBeNull();
+  });
+
+  it("falls back to the row default when an azimuth row carries no angle", () => {
+    const seen: number[] = [];
+    resolveAbsMinutes(
+      { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH },
+      SUNRISE,
+      SUNSET,
+      (angle) => {
+        seen.push(angle);
+        return 0;
+      },
+    );
+    expect(seen).toEqual([DEFAULT_AZIMUTH]);
+  });
+
+  it("wraps a resolved azimuth minute into the day, like every other mode", () => {
+    expect(
+      resolveAbsMinutes(
+        { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 10 },
+        SUNRISE,
+        SUNSET,
+        () => 1500,
+      ),
+    ).toBe(60);
+  });
+});
+
+describe("buildDial: solar-azimuth bounds", () => {
+  const azimuthRows = rows(
+    { mode: SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH, azimuth: 90 },
+    { mode: SCHEDULE_BOUND_MODE_TIME, time: "20:00" },
+  );
+
+  it("draws a hard-edged window when the bearing resolves", () => {
+    const model = buildDial({
+      rows: azimuthRows,
+      recurrence: SCHEDULE_RECURRENCE_DAILY,
+      nominalDemandMinutes: 30,
+      sunriseMinutes: SUNRISE,
+      sunsetMinutes: SUNSET,
+      azimuthResolver: () => 7 * 60,
+    });
+    expect(model.windowArc?.kind).toBe("solid");
+    expect(model.centre).toEqual({ kind: "window", minutes: 13 * 60 });
+  });
+
+  it("draws the azimuth end open when the bearing cannot be resolved", () => {
+    const model = buildDial({
+      rows: azimuthRows,
+      recurrence: SCHEDULE_RECURRENCE_DAILY,
+      nominalDemandMinutes: 30,
+      sunriseMinutes: SUNRISE,
+      sunsetMinutes: SUNSET,
+      azimuthResolver: () => null,
+    });
+    expect(model.windowArc?.kind).toBe("faded");
+    expect(model.centre.kind).toBe("run");
   });
 });
 

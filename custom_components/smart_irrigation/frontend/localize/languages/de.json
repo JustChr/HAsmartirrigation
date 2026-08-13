@@ -692,7 +692,9 @@
         "exact": "Exakt.",
         "demand_floored": "Nach Bedarf festgelegt, aber nicht vor diesem Zeitpunkt.",
         "exact_deferred": "Exakt. Zonen, die nicht hineinpassen, werden verschoben.",
-        "demand_capped_deferred": "Nach Bedarf festgelegt, aber nicht nach diesem Zeitpunkt. Zonen, die nicht hineinpassen, werden verschoben."
+        "demand_capped_deferred": "Nach Bedarf festgelegt, aber nicht nach diesem Zeitpunkt. Zonen, die nicht hineinpassen, werden verschoben.",
+        "unreachable_no_run": "Die Sonne erreicht diesen Azimut hier nie, daher wird dieser Zeitplan nicht ausgeführt.",
+        "unreachable_ignored": "Die Sonne erreicht diesen Azimut hier nie, daher wird diese Grenze ignoriert."
       },
       "dial": {
         "aria_label": "Laufzeitfenster auf einer 24-Stunden-Uhr",

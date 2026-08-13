@@ -692,7 +692,9 @@
         "exact": "Nøyaktig.",
         "demand_floored": "Angitt etter behov, men aldri før dette.",
         "exact_deferred": "Nøyaktig. Soner som ikke får plass, utsettes.",
-        "demand_capped_deferred": "Angitt etter behov, men aldri senere enn dette. Soner som ikke får plass, utsettes."
+        "demand_capped_deferred": "Angitt etter behov, men aldri senere enn dette. Soner som ikke får plass, utsettes.",
+        "unreachable_no_run": "Solen når aldri denne azimuten her, så denne tidsplanen kjøres ikke.",
+        "unreachable_ignored": "Solen når aldri denne azimuten her, så denne grensen ignoreres."
       },
       "dial": {
         "aria_label": "Vanningsvindu på en 24-timers klokke",

@@ -692,7 +692,9 @@
         "exact": "Exact.",
         "demand_floored": "Défini selon la demande, mais jamais avant cela.",
         "exact_deferred": "Exact. Les zones qui ne rentrent pas sont reportées.",
-        "demand_capped_deferred": "Défini selon la demande, mais jamais après cela. Les zones qui ne rentrent pas sont reportées."
+        "demand_capped_deferred": "Défini selon la demande, mais jamais après cela. Les zones qui ne rentrent pas sont reportées.",
+        "unreachable_no_run": "Le soleil n'atteint jamais cet azimut ici, cette planification ne sera donc pas exécutée.",
+        "unreachable_ignored": "Le soleil n'atteint jamais cet azimut ici, cette limite est donc ignorée."
       },
       "dial": {
         "aria_label": "Fenêtre d'irrigation sur une horloge de 24 heures",

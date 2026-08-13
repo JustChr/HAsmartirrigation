@@ -14,9 +14,11 @@ import {
   buildDial,
   fmtClock,
   fmtDuration,
+  AzimuthResolver,
   DialModel,
   RunBar,
 } from "../common/run-window-dial";
+import { azimuthResolverFromLocation } from "../common/solar-azimuth";
 
 // Tiny glyphs, drawn in a 24x24 box and scaled onto the ring's outside —
 // verbatim from the settled prototype (plans/prototypes/schedule-ui.html).
@@ -42,9 +44,11 @@ const DROP_PATH = svg`<path d="M12,2.6C12,2.6 18.6,9.4 18.6,13.7A6.6,6.6 0 0,1 5
  * inlined into either rewrite of the dialog's render method.
  *
  * All geometry/planning is delegated to ../common/run-window-dial.ts (pure,
- * unit-tested); this component's own job is only to resolve sunrise/sunset
- * from `hass`, localize hover text and the centre label, and wrap the
- * returned path data in svg/html templates.
+ * unit-tested); this component's own job is only to turn `hass` into the
+ * dial's minute-of-day frame — sunrise/sunset from `sun.sun`, solar-azimuth
+ * bounds via ../common/solar-azimuth.ts — plus localizing hover text and the
+ * centre label and wrapping the returned path data in svg/html templates.
+ * Both conversions into that frame live here so they cannot drift apart.
  */
 @customElement("si-run-window-dial")
 export class SiRunWindowDial extends LitElement {
@@ -74,6 +78,23 @@ export class SiRunWindowDial extends LitElement {
       sunrise: toMinutes(rising, 6 * 60),
       sunset: toMinutes(setting, 20 * 60),
     };
+  }
+
+  /**
+   * Resolves a solar-azimuth bound to the same minute-of-day frame the sun
+   * glyph above uses (GitLab #34). The math lives in ../common/solar-azimuth
+   * and is a port of the backend's own resolver, so the dial draws the bound
+   * the scheduler will actually fire on rather than a second opinion about
+   * where the sun is.
+   *
+   * Latitude/longitude come from `hass.config`, the same values
+   * `_resolve_event_instant` reads server-side. Missing config (never true on
+   * a live instance, possible mid-startup) yields no resolver at all, which
+   * degrades to drawing that end open rather than to a bound at 0 degrees
+   * somewhere off the equator.
+   */
+  private _azimuthResolver(): AzimuthResolver | undefined {
+    return azimuthResolverFromLocation(this.hass?.config, new Date());
   }
 
   private _renderRun(run: RunBar, lang: string): SVGTemplateResult {
@@ -148,6 +169,7 @@ export class SiRunWindowDial extends LitElement {
       nominalDemandMinutes: this.nominalDemandSeconds / 60,
       sunriseMinutes: sunrise,
       sunsetMinutes: sunset,
+      azimuthResolver: this._azimuthResolver(),
     });
     const { val, lbl } = this._centreText(model, lang);
 

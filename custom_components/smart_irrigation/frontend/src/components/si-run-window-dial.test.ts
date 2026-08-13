@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 
 // Same DOM-free shim as si-schedule-dialog.test.ts / si-distributor-form.test.ts:
 // enough for the LitElement subclass to be defined and instantiated without a
@@ -66,6 +74,14 @@ function makeDial(overrides: Partial<Record<string, any>> = {}) {
       },
       ...(overrides.states ?? {}),
     },
+    config:
+      "config" in overrides
+        ? overrides.config
+        : {
+            latitude: 33.45,
+            longitude: -112.07,
+            time_zone: "America/Phoenix",
+          },
   };
   el.rows = overrides.rows ?? {
     start: { mode: "time", time: "06:00" },
@@ -222,5 +238,81 @@ describe("si-run-window-dial: run bar is fed from nominal demand, not a live pla
     // nominalDemandSeconds — no zone/bucket field exists to feed instead.
     expect(Object.keys(short)).not.toContain("bucket");
     expect(Object.keys(short)).not.toContain("zones");
+  });
+});
+
+describe("si-run-window-dial: solar-azimuth bounds (GitLab #34)", () => {
+  const azimuthRows = (azimuth: number) => ({
+    start: { mode: "solar_azimuth", azimuth },
+    finish: { mode: "time", time: "20:00" },
+    anchor: "finish",
+  });
+
+  // A solar bound depends on the day it is resolved on, so the clock is
+  // pinned to the date the goldens in solar-azimuth.test.ts were generated
+  // for. Home Assistant sits in Phoenix throughout; the browser stays in
+  // whatever zone the runner uses, which is the point of the frame test.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-21T12:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("draws an azimuth-bounded end as a hard edge, not an open one", () => {
+    const el = makeDial({ rows: azimuthRows(270) });
+    const { values } = flatten(el.render());
+    // A resolved window reports its duration in the centre; an unresolved end
+    // would leave the run duration there instead.
+    expect(values).toContain("window");
+  });
+
+  it("puts an azimuth bound on the viewer's clock, like the sun glyph", () => {
+    // Home Assistant in Phoenix, browser wherever the runner is. The backend
+    // resolver puts 270 degrees at 07:46 Phoenix wall clock on this date (see
+    // solar-azimuth.test.ts's goldens); the dial has to draw that instant on
+    // the viewer's clock, the same conversion sun.sun's timestamps get, or
+    // the two sit an offset apart on one dial.
+    const el = makeDial({ rows: azimuthRows(270) });
+    const { values } = flatten(el.render());
+    const crossing = new Date("2026-06-21T07:46:00-07:00");
+    const startMinutes = crossing.getHours() * 60 + crossing.getMinutes();
+    const span = (((20 * 60 - startMinutes) % 1440) + 1440) % 1440;
+    expect(values).toContain(
+      `${Math.floor(span / 60)}h ${span % 60}m`, // the centre's window duration
+    );
+  });
+
+  it("moves the bound with Home Assistant's zone, not the browser's", () => {
+    const phoenix = flatten(makeDial({ rows: azimuthRows(270) }).render()).text;
+    const tokyo = flatten(
+      makeDial({
+        rows: azimuthRows(270),
+        config: {
+          latitude: 33.45,
+          longitude: -112.07,
+          time_zone: "Asia/Tokyo",
+        },
+      }).render(),
+    ).text;
+    // Same bearing, same coordinates, same viewer: only the zone the wall
+    // clock belongs to differs, so the drawn bound must differ too.
+    expect(tokyo).not.toBe(phoenix);
+  });
+
+  it("draws the end open when a bearing the sun never reaches is set", () => {
+    const el = makeDial({
+      rows: azimuthRows(90),
+      config: { latitude: 0, longitude: 0, time_zone: "UTC" },
+    });
+    const { values } = flatten(el.render());
+    expect(values).toContain("run");
+  });
+
+  it("draws the end open when hass carries no location", () => {
+    const el = makeDial({ rows: azimuthRows(270), config: undefined });
+    const { values } = flatten(el.render());
+    expect(values).toContain("run");
   });
 });

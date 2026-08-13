@@ -732,7 +732,9 @@
         "exact": "Esatto.",
         "demand_floored": "Impostato in base alla domanda, ma mai prima di questo.",
         "exact_deferred": "Esatto. Le zone che non rientrano vengono rinviate.",
-        "demand_capped_deferred": "Impostato in base alla domanda, ma mai dopo questo. Le zone che non rientrano vengono rinviate."
+        "demand_capped_deferred": "Impostato in base alla domanda, ma mai dopo questo. Le zone che non rientrano vengono rinviate.",
+        "unreachable_no_run": "Il sole non raggiunge mai questo azimut qui, quindi questa pianificazione non verrà eseguita.",
+        "unreachable_ignored": "Il sole non raggiunge mai questo azimut qui, quindi questo limite viene ignorato."
       },
       "dial": {
         "aria_label": "Finestra di irrigazione su un quadrante di 24 ore",

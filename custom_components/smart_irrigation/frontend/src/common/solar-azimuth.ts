@@ -1,0 +1,328 @@
+/**
+ * Solar azimuth resolution for the run-window dial (GitLab #34).
+ *
+ * ⚠️ This is a deliberate line-by-line port of the backend's
+ * `calculate_solar_azimuth` / `find_next_solar_azimuth_time` /
+ * `_azimuth_crossed_target` / `_refine_azimuth_time` in
+ * `custom_components/smart_irrigation/helpers.py`. A change to either side
+ * must be made to both, or the dial silently draws a bound at a different
+ * time than the scheduler fires on. The Python definitions carry a matching
+ * cross-reference comment. `solar-azimuth.test.ts` pins this port against
+ * values generated from the Python functions themselves.
+ *
+ * ⚠️ The formula it reproduces is NOT an accurate ephemeris, and this module
+ * does not try to fix that. It uses Cooper's declination approximation, no
+ * equation-of-time term, and applies its longitude correction with the
+ * opposite sign to conventional local-solar-time (so at Phoenix the sun is
+ * "at" 301 degrees at 12:00 local, not 180). The dial's job is to show where
+ * the scheduler will actually put the bound, so matching the backend is the
+ * requirement and a "correction" here would put the drawing out of step with
+ * the run. Fixing the underlying math is a backend change with real user
+ * impact - it moves when existing azimuth-bounded schedules fire.
+ *
+ * NAIVE WALL CLOCK. The backend feeds `find_next_solar_azimuth_time` a naive
+ * local datetime (`scheduler.py`'s `_resolve_event_instant`, which does
+ * `dt_util.as_local(...).replace(tzinfo=None)`), so a crossing it returns is
+ * a wall-clock time in Home Assistant's configured zone. This module keeps
+ * that frame: every `Date` flowing through the resolver carries a wall clock
+ * in its UTC fields (`getUTCHours()` etc.) and has no timezone meaning of its
+ * own. `wallClockNowInZone` / `wallClockToBrowserMinutes` are the only two
+ * places a real instant exists, and they are what keeps an azimuth bound in
+ * the same frame as the dial's sunrise/sunset glyphs (which come from
+ * `sun.sun`'s absolute timestamps rendered in the browser's zone).
+ */
+
+/** Mirrors helpers.py's `normalize_azimuth_angle`, but non-negative for a
+ * negative input - JS `%` keeps the sign of the dividend where Python's does
+ * not, and a bearing of -30 has to mean 330 on both sides. */
+export function normalizeAzimuthAngle(angle: number): number {
+  return ((angle % 360) + 360) % 360;
+}
+
+function dayOfYear(wall: Date): number {
+  const start = Date.UTC(wall.getUTCFullYear(), 0, 1);
+  const today = Date.UTC(
+    wall.getUTCFullYear(),
+    wall.getUTCMonth(),
+    wall.getUTCDate(),
+  );
+  return Math.floor((today - start) / 86400000) + 1;
+}
+
+const RAD = Math.PI / 180;
+
+/**
+ * Solar azimuth in degrees (0=N, 90=E, 180=S, 270=W) for a wall-clock time.
+ * Port of `helpers.calculate_solar_azimuth`.
+ *
+ * Sub-second precision is dropped on purpose: Python reads `timestamp.second`
+ * and never `.microsecond`, and `_refine_azimuth_time` hands it instants with
+ * fractional seconds, so keeping milliseconds here would diverge from the
+ * backend on exactly the values the refinement produces.
+ */
+export function solarAzimuthDegrees(
+  latitude: number,
+  longitude: number,
+  wall: Date,
+): number {
+  const latRad = latitude * RAD;
+  const declination =
+    23.45 * Math.sin(((360 * (284 + dayOfYear(wall))) / 365) * RAD) * RAD;
+
+  const timeDecimal =
+    wall.getUTCHours() +
+    wall.getUTCMinutes() / 60 +
+    wall.getUTCSeconds() / 3600;
+  const solarTime = timeDecimal - longitude / 15;
+  const hourAngle = (solarTime - 12) * 15 * RAD;
+
+  const azimuth = Math.atan2(
+    Math.sin(hourAngle),
+    Math.cos(hourAngle) * Math.sin(latRad) -
+      Math.tan(declination) * Math.cos(latRad),
+  );
+  return normalizeAzimuthAngle(azimuth / RAD + 180);
+}
+
+/** Port of `helpers._azimuth_crossed_target`. */
+export function azimuthCrossedTarget(
+  prevAzimuth: number,
+  currentAzimuth: number,
+  target: number,
+): boolean {
+  if (Math.abs(prevAzimuth - currentAzimuth) > 180) {
+    if (prevAzimuth > currentAzimuth) {
+      return target >= prevAzimuth || target <= currentAzimuth;
+    }
+    return target <= prevAzimuth || target >= currentAzimuth;
+  }
+  return (
+    Math.min(prevAzimuth, currentAzimuth) <= target &&
+    target <= Math.max(prevAzimuth, currentAzimuth)
+  );
+}
+
+const SEARCH_INTERVAL_MS = 15 * 60 * 1000;
+
+/** Port of `helpers._refine_azimuth_time` - binary search to the minute. */
+function refineAzimuthTime(
+  latitude: number,
+  longitude: number,
+  targetAzimuth: number,
+  startMs: number,
+  endMs: number,
+): Date {
+  let lo = startMs;
+  let hi = endMs;
+  while (hi - lo > 60000) {
+    const mid = lo + (hi - lo) / 2;
+    const midAzimuth = solarAzimuthDegrees(latitude, longitude, new Date(mid));
+    const loAzimuth = solarAzimuthDegrees(latitude, longitude, new Date(lo));
+    if (azimuthCrossedTarget(loAzimuth, midAzimuth, targetAzimuth)) {
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return new Date(lo);
+}
+
+/**
+ * The next wall-clock time at or after `startWall` when the sun reaches
+ * `targetAzimuth`, or null if it does not within `maxDays`. Port of
+ * `helpers.find_next_solar_azimuth_time`.
+ *
+ * Null is a real outcome, not just an error path: with this formula there are
+ * latitude/target pairs the azimuth curve never crosses (the equator against
+ * a due-east target is one), and the backend treats that as "no bound".
+ */
+export function findNextSolarAzimuthWallClock(
+  latitude: number,
+  longitude: number,
+  targetAzimuth: number,
+  startWall: Date,
+  maxDays = 1,
+): Date | null {
+  const startMs = startWall.getTime();
+  const maxMs = startMs + maxDays * 86400000;
+
+  let currentMs = startMs;
+  let prevAzimuth = solarAzimuthDegrees(latitude, longitude, startWall);
+
+  while (currentMs < maxMs) {
+    currentMs += SEARCH_INTERVAL_MS;
+    const currentAzimuth = solarAzimuthDegrees(
+      latitude,
+      longitude,
+      new Date(currentMs),
+    );
+    if (azimuthCrossedTarget(prevAzimuth, currentAzimuth, targetAzimuth)) {
+      return refineAzimuthTime(
+        latitude,
+        longitude,
+        targetAzimuth,
+        currentMs - SEARCH_INTERVAL_MS,
+        currentMs,
+      );
+    }
+    prevAzimuth = currentAzimuth;
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Frame bridging: naive wall clock <-> real instants.                 *
+ * ------------------------------------------------------------------ */
+
+const ZONE_PART_FORMAT: Intl.DateTimeFormatOptions = {
+  hour12: false,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+};
+
+/** `instant` as a wall clock in `timeZone`, carried in a Date's UTC fields.
+ * Falls back to the browser's own zone when the zone is missing or rejected
+ * by Intl, which collapses to an identity for the ordinary case where Home
+ * Assistant and the browser agree. */
+export function wallClockNowInZone(
+  timeZone: string | undefined,
+  instant: Date,
+): Date {
+  if (!timeZone) return browserWallClock(instant);
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-US", {
+      ...ZONE_PART_FORMAT,
+      timeZone,
+    }).formatToParts(instant);
+  } catch {
+    return browserWallClock(instant);
+  }
+  const get = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+  // hourCycle h24 renders midnight as hour "24" on the day it starts, which
+  // Date.UTC would roll forward into the NEXT day — a whole day out, and only
+  // in the hour either side of midnight.
+  const hour = get("hour") % 24;
+  return new Date(
+    Date.UTC(
+      get("year"),
+      get("month") - 1,
+      get("day"),
+      hour,
+      get("minute"),
+      get("second"),
+    ),
+  );
+}
+
+function browserWallClock(instant: Date): Date {
+  return new Date(
+    Date.UTC(
+      instant.getFullYear(),
+      instant.getMonth(),
+      instant.getDate(),
+      instant.getHours(),
+      instant.getMinutes(),
+      instant.getSeconds(),
+    ),
+  );
+}
+
+/**
+ * A wall clock in `timeZone` rendered as a minute-of-day on the browser's own
+ * clock - the frame the dial draws in, and the one `sun.sun`'s next_rising /
+ * next_setting already land in.
+ *
+ * When the two zones agree this is just the wall clock's own hour and minute.
+ * When they do not, the shift is what keeps an azimuth bound consistent with
+ * the sunrise glyph beside it rather than an hour off it.
+ */
+export function wallClockToBrowserMinutes(
+  wall: Date,
+  timeZone: string | undefined,
+): number {
+  let instantMs = wall.getTime();
+  // Two passes: the zone's offset is itself a function of the instant, so the
+  // first guess (offset at the wall clock read as UTC) is refined once against
+  // the instant it produces. Enough everywhere except inside a DST fold, where
+  // no answer is right anyway.
+  for (let i = 0; i < 2; i++) {
+    const offsetMs =
+      wallClockNowInZone(timeZone, new Date(instantMs)).getTime() - instantMs;
+    instantMs = wall.getTime() - offsetMs;
+  }
+  const local = new Date(instantMs);
+  return local.getHours() * 60 + local.getMinutes();
+}
+
+/**
+ * Minute-of-day, on the browser's clock, at which the sun next reaches
+ * `azimuth` - the whole module in one call, for the dial. Null when the sun
+ * never reaches that bearing.
+ *
+ * Resolution starts from midnight of the current day in Home Assistant's
+ * zone rather than from "now", so the dial does not redraw a bound to
+ * tomorrow's crossing as the day passes: the dial shows a schedule's shape,
+ * not the next firing.
+ */
+/** The subset of `hass.config` this module reads. Declared structurally
+ * rather than imported so the module keeps no dependency on the frontend's
+ * types or on Lit. */
+export interface SolarLocation {
+  latitude?: number;
+  longitude?: number;
+  time_zone?: string;
+}
+
+/**
+ * A resolver bound to one location and one moment, or undefined when the
+ * location is unknown — never true on a live instance, possible mid-startup.
+ * Callers treat undefined as "cannot resolve", which draws an end open rather
+ * than pinning it to 0 degrees somewhere off the equator.
+ *
+ * Shared by the dial and the dialog's help text so the two cannot disagree
+ * about whether a bearing resolves.
+ */
+export function azimuthResolverFromLocation(
+  config: SolarLocation | undefined,
+  now: Date,
+): ((azimuth: number) => number | null) | undefined {
+  if (
+    typeof config?.latitude !== "number" ||
+    typeof config?.longitude !== "number"
+  )
+    return undefined;
+  const { latitude, longitude, time_zone: timeZone } = config;
+  return (azimuth: number) =>
+    azimuthBoundMinutes(latitude, longitude, azimuth, timeZone, now);
+}
+
+export function azimuthBoundMinutes(
+  latitude: number,
+  longitude: number,
+  azimuth: number,
+  timeZone: string | undefined,
+  now: Date,
+): number | null {
+  const nowWall = wallClockNowInZone(timeZone, now);
+  const midnight = new Date(
+    Date.UTC(
+      nowWall.getUTCFullYear(),
+      nowWall.getUTCMonth(),
+      nowWall.getUTCDate(),
+    ),
+  );
+  const crossing = findNextSolarAzimuthWallClock(
+    latitude,
+    longitude,
+    normalizeAzimuthAngle(azimuth),
+    midnight,
+  );
+  if (crossing === null) return null;
+  return wallClockToBrowserMinutes(crossing, timeZone);
+}

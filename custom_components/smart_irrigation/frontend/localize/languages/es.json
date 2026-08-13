@@ -692,7 +692,9 @@
         "exact": "Exacto.",
         "demand_floored": "Establecido según demanda, pero nunca antes de esto.",
         "exact_deferred": "Exacto. Las zonas que no caben se posponen.",
-        "demand_capped_deferred": "Establecido según demanda, pero nunca después de esto. Las zonas que no caben se posponen."
+        "demand_capped_deferred": "Establecido según demanda, pero nunca después de esto. Las zonas que no caben se posponen.",
+        "unreachable_no_run": "El sol nunca alcanza este azimut aquí, por lo que este programa no se ejecutará.",
+        "unreachable_ignored": "El sol nunca alcanza este azimut aquí, por lo que este límite se ignora."
       },
       "dial": {
         "aria_label": "Ventana de riego en un reloj de 24 horas",

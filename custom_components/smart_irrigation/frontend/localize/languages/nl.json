@@ -692,7 +692,9 @@
         "exact": "Exact.",
         "demand_floored": "Ingesteld op basis van vraag, maar nooit eerder dan dit.",
         "exact_deferred": "Exact. Zones die niet passen worden uitgesteld.",
-        "demand_capped_deferred": "Ingesteld op basis van vraag, maar nooit later dan dit. Zones die niet passen worden uitgesteld."
+        "demand_capped_deferred": "Ingesteld op basis van vraag, maar nooit later dan dit. Zones die niet passen worden uitgesteld.",
+        "unreachable_no_run": "De zon bereikt dit azimut hier nooit, dus dit schema wordt niet uitgevoerd.",
+        "unreachable_ignored": "De zon bereikt dit azimut hier nooit, dus deze grens wordt genegeerd."
       },
       "dial": {
         "aria_label": "Bewateringsvenster op een 24-uursklok",
