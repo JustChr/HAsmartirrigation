@@ -154,6 +154,77 @@ class TestTheModeIsRecognisedEverywhereItMustBe:
         assert batch_watch_entity({}) is None
 
 
+class TestTheRunnerRoutesBatchZonesToTheBatchDispatcher:
+    """The wiring, which the direct-dispatch tests below cannot see.
+
+    ``_dispatch_by_mode`` is where a due zone is sent down the path its mode
+    needs, and a batch zone reaching any of the other branches would be actuated
+    one call at a time or driven directly.
+    """
+
+    async def test_a_batch_zone_reaches_the_batch_dispatcher(self, hass):
+        c = _coord(hass)
+        c.async_dispatch_batch_zones = AsyncMock()
+        c.async_run_self_closing = AsyncMock()
+        c.async_dispatch_opensprinkler_zones = AsyncMock()
+        c._dispatch_sequencing = AsyncMock()
+
+        zones = _register(c, _zone(1, VALVE_A), _zone(2, VALVE_B))
+        await c._dispatch_by_mode(zones, trigger="schedule")
+
+        c.async_dispatch_batch_zones.assert_awaited_once()
+        sent = c.async_dispatch_batch_zones.await_args.args[0]
+        assert [z[const.ZONE_ID] for z in sent] == [1, 2]
+        # And down none of the other paths.
+        c.async_run_self_closing.assert_not_awaited()
+        c._dispatch_sequencing.assert_not_awaited()
+
+    async def test_an_install_with_no_batch_zones_never_enters_the_mode(self, hass):
+        """Which is every install today, so this is the regression guard."""
+        c = _coord(hass)
+        c.async_dispatch_batch_zones = AsyncMock()
+        c.async_run_self_closing = AsyncMock()
+        c.async_dispatch_opensprinkler_zones = AsyncMock()
+        c._dispatch_sequencing = AsyncMock()
+
+        classic = {
+            const.ZONE_ID: 9,
+            const.ZONE_NAME: "Lawn",
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_CLASSIC,
+            const.ZONE_LINKED_ENTITY: "switch.lawn",
+            const.ZONE_DURATION: 300,
+        }
+        await c._dispatch_by_mode([classic], trigger="schedule")
+
+        c.async_dispatch_batch_zones.assert_not_awaited()
+        c._dispatch_sequencing.assert_awaited_once()
+
+    async def test_batch_and_classic_zones_go_their_separate_ways(self, hass):
+        c = _coord(hass)
+        c.async_dispatch_batch_zones = AsyncMock()
+        c.async_run_self_closing = AsyncMock()
+        c.async_dispatch_opensprinkler_zones = AsyncMock()
+        c._dispatch_sequencing = AsyncMock()
+
+        batch_zone = _zone(1, VALVE_A)
+        classic = {
+            const.ZONE_ID: 9,
+            const.ZONE_NAME: "Lawn",
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_CLASSIC,
+            const.ZONE_LINKED_ENTITY: "switch.lawn",
+            const.ZONE_DURATION: 300,
+        }
+        _register(c, batch_zone)
+        await c._dispatch_by_mode([batch_zone, classic], trigger="schedule")
+
+        assert [
+            z[const.ZONE_ID] for z in c.async_dispatch_batch_zones.await_args.args[0]
+        ] == [1]
+        assert [
+            z[const.ZONE_ID] for z in c._dispatch_sequencing.await_args.args[0]
+        ] == [9]
+
+
 class TestDispatch:
     async def test_the_whole_plan_goes_out_as_one_call_in_order(self, hass):
         c = _coord(hass)
