@@ -726,6 +726,25 @@ RUN_OBSERVED_START = "observed_start"
 # reads state attributes, and the integration that owns them may not have loaded
 # yet when Smart Irrigation reconciles.
 RUN_WATCH_ENTITY = "watch_entity"
+# --- Segmented run time (issue #88) ----------------------------------------
+# A run is normally one contiguous stretch of watering, so its length is simply
+# "now minus the observed start". That breaks for a controller that can PAUSE:
+# the ESPHome sprinkler component turns the valve switch off on a pause and keeps
+# the remaining time itself, so a twenty-minute pause inside a run would be
+# charged as twenty minutes of water — over-crediting the bucket and finishing
+# the run early.
+#
+# So a run in a mode that can pause records the SUM OF ITS WATERING SEGMENTS
+# instead: RUN_WATERED_SECONDS accumulates the segments that have closed, and
+# RUN_SEGMENT_STARTED holds the start of the one currently open (absent while
+# paused). Both are persisted, so a restart mid-pause still adds up.
+#
+# Written ONLY by a mode whose WatchPolicy is ``segmented``, and read only when
+# present — so the OpenSprinkler mode, whose controller has no pause, keeps the
+# contiguous-window timing it has always had, down to preferring the
+# controller's own reported start over the observation instant.
+RUN_WATERED_SECONDS = "watered_seconds"
+RUN_SEGMENT_STARTED = "segment_started"
 
 # Per-run events (new in this feature)
 EVENT_IRRIGATE_STARTED = "irrigation_started"

@@ -60,6 +60,10 @@ class Watcher:
     accepted: bool = False
     unsub: object | None = None
     cancel: object | None = None
+    # A pending "the valve went off — is this a pause or the end?" timer, kept
+    # apart from ``cancel`` because that one arms giving up on a run that never
+    # watered, and the two can never be confused for one another safely.
+    finish_cancel: object | None = None
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,12 @@ class WatchPolicy:
     # with no acknowledgement has nothing to wait for, so its only backstop must
     # be long enough to cover the zones queued ahead of this one.
     queue_deadline_at_start: bool = False
+    # Whether this mode's controller can PAUSE a run — turning the valve off
+    # while keeping the remaining time — so the run has to be timed as the sum of
+    # its watering segments rather than as one stretch from the observed start.
+    # See const.RUN_WATERED_SECONDS. Off for every mode that cannot pause, which
+    # keeps their runs on the contiguous timing they were written with.
+    segmented: bool = False
 
 
 def is_acknowledged(state) -> bool:
@@ -177,6 +187,9 @@ class RunWatchMixin:
         cancel = watcher.cancel
         if cancel is not None:
             cancel()
+        finish_cancel = watcher.finish_cancel
+        if finish_cancel is not None:
+            finish_cancel()
 
     def _watch_arm_timer(self, zone_id, delay: float, reason: str) -> None:
         """(Re)arm the watcher's single timer."""
@@ -207,6 +220,73 @@ class RunWatchMixin:
             return watch_policy_for(run.get(const.RUN_MODE))
         zone = self.store.get_zone(int(zone_id)) or {}
         return watch_policy_for(zone.get(const.ZONE_WATERING_MODE))
+
+    # --- persisted run edits + watering segments -----------------------------
+
+    async def _watch_update_run(self, zone_id, changes: dict) -> dict | None:
+        """Apply ``changes`` to one zone's persisted run record.
+
+        Re-reads the list rather than editing a caller's copy, because the record
+        is persisted config and several paths hold stale copies of it. Returns
+        the updated record, or None if the run has already been finalised.
+        """
+        zid = int(zone_id)
+        runs = await self._sc_active_runs()
+        updated = None
+        out = []
+        for r in runs:
+            if isinstance(r, dict) and r.get(const.RUN_ZONE_ID) == zid:
+                updated = {**r, **changes}
+                out.append(updated)
+            else:
+                out.append(r)
+        if updated is None:
+            return None
+        await self._sc_persist_runs(out)
+        return updated
+
+    async def _watch_segment_open(self, zone_id, run: dict | None = None) -> None:
+        """Start a watering segment (the run began, or resumed after a pause)."""
+        await self._watch_update_run(
+            zone_id, {const.RUN_SEGMENT_STARTED: dt_util.utcnow().isoformat()}
+        )
+
+    async def _watch_segment_close(self, zone_id) -> float:
+        """Close the open watering segment, folding it into the accumulator.
+
+        Returns the run's total watered seconds afterwards. A no-op returning the
+        existing total when no segment is open, so a duplicate pause observation
+        (HA can replay a state change) cannot bank the same seconds twice.
+        """
+        zid = int(zone_id)
+        run = await self._sc_find_run(zid)
+        if run is None:
+            return 0.0
+        try:
+            total = float(run.get(const.RUN_WATERED_SECONDS) or 0)
+        except (TypeError, ValueError):
+            total = 0.0
+        segment = run.get(const.RUN_SEGMENT_STARTED)
+        if not segment:
+            return total
+        total += self._sc_elapsed(segment)
+        await self._watch_update_run(
+            zid,
+            {
+                const.RUN_WATERED_SECONDS: total,
+                const.RUN_SEGMENT_STARTED: None,
+            },
+        )
+        return total
+
+    async def _watch_paused(self, zone_id, run: dict) -> bool:
+        """True while this run's controller is paused.
+
+        A paused controller turns the valve off and keeps the remaining time, so
+        the valve going off must not be read as the end of the run. The default
+        is False — a mode with no pause concept never asks the question.
+        """
+        return False
 
     async def _watch_observed_start_iso(self, zone_id, run: dict, entity: str) -> str:
         """When watering began, ISO-8601 UTC, for RUN_OBSERVED_START.
@@ -291,19 +371,32 @@ class RunWatchMixin:
 
         running = state.state in RUNNING_STATES
         observed_start = run.get(const.RUN_OBSERVED_START)
+        policy = self._watch_policy(zid, run)
 
         if running:
             if observed_start is None:
                 await self._watch_observed_start(zid, run)
+            elif policy.segmented and run.get(const.RUN_SEGMENT_STARTED) is None:
+                # Watering again after a pause: open the next segment.
+                await self._watch_resume(zid, run)
             return
 
         if observed_start is not None:
+            if await self._watch_paused(zid, run):
+                # A pause, not the end. The controller is holding the remaining
+                # time; bank what has been delivered and wait.
+                await self._watch_pause(zid, run)
+                return
             # The zone stopped. The controller ended the run, on time or early;
-            # either way it is over now.
-            await self._watch_finish(zid, run)
+            # either way it is over now — unless this mode's pause indicator may
+            # simply not have caught up yet, in which case decide in a moment.
+            delay = await self._watch_finish_delay(zid, run)
+            if delay > 0:
+                await self._watch_defer_finish(zid, run, delay)
+            else:
+                await self._watch_finish(zid, run)
             return
 
-        policy = self._watch_policy(zid, run)
         if not policy.acknowledges:
             # Nothing to reconcile against: an entity that is simply off is a run
             # still waiting its turn. Only the deadline ends it.
@@ -348,15 +441,14 @@ class RunWatchMixin:
             const.RUN_WATCH_ENTITY
         )
         started = await self._watch_observed_start_iso(zid, run, entity)
-        runs = [
-            (
-                dict(r, **{const.RUN_OBSERVED_START: started})
-                if r.get(const.RUN_ZONE_ID) == run.get(const.RUN_ZONE_ID)
-                else r
-            )
-            for r in await self._sc_active_runs()
-        ]
-        await self._sc_persist_runs(runs)
+        changes = {const.RUN_OBSERVED_START: started}
+        if self._watch_policy(zid, run).segmented:
+            # Open the first watering segment. Anchored to the same instant as
+            # the observed start, so an unpaused run's segment total and its
+            # contiguous elapsed agree exactly.
+            changes[const.RUN_WATERED_SECONDS] = 0.0
+            changes[const.RUN_SEGMENT_STARTED] = started
+        await self._watch_update_run(zid, changes)
 
         # The suppression window taken at dispatch is measured from dispatch, so
         # for a queued run it has already expired — and observed watching is now
@@ -381,6 +473,101 @@ class RunWatchMixin:
             self._watch_policy(zid, run).mode,
             planned,
         )
+
+    # --- pause / resume ------------------------------------------------------
+
+    async def _watch_finish_delay(self, zone_id, run: dict) -> float:
+        """Seconds to wait before reading a valve-off as the end of the run.
+
+        Zero for every mode that cannot pause, so their runs finish on the
+        transition exactly as before. A mode that CAN pause has a race to settle:
+        a pause turns the valve off and raises the paused indicator, and nothing
+        orders those two updates. Waiting a moment lets the indicator catch up,
+        which is the difference between resuming a run and having settled it as a
+        partial with its credit already reversed.
+        """
+        return 0.0
+
+    async def _watch_pause(self, zone_id, run: dict) -> None:
+        """The controller paused: bank the segment, keep everything else."""
+        zid = int(zone_id)
+        watcher = self._watchers().get(zid)
+        if watcher is not None and watcher.finish_cancel is not None:
+            # A valve-off already started the "is this the end?" countdown and the
+            # indicator has now answered it.
+            watcher.finish_cancel()
+            watcher.finish_cancel = None
+        total = await self._watch_segment_close(zid)
+        # The cosmetic-finish backstop was armed for a contiguous window that is
+        # no longer running. It is re-armed for the remainder on resume.
+        self._sc_cancel_cleanup(zid)
+        await self._watch_pause_started(zid, run, total)
+        _LOGGER.info(
+            "Zone %s: the controller paused it after %.0fs of watering", zid, total
+        )
+
+    async def _watch_resume(self, zone_id, run: dict) -> None:
+        """The controller resumed: open the next segment, re-arm the backstop."""
+        zid = int(zone_id)
+        watcher = self._watchers().get(zid)
+        if watcher is not None and watcher.finish_cancel is not None:
+            watcher.finish_cancel()
+            watcher.finish_cancel = None
+        # Measured BEFORE the new segment opens, so "delivered so far" is the
+        # banked total and not that total plus a few microseconds of the segment
+        # this method is about to start.
+        remaining = max(0.0, planned_seconds(run) - self._sc_run_elapsed(run))
+        await self._watch_segment_open(zid, run)
+        # Re-armed for what is LEFT rather than the whole window: the backstop
+        # exists to end a run whose off-transition is missed, and anchoring it to
+        # the observed start again would push it out by the length of the pause
+        # every time.
+        self._sc_schedule_cleanup(zid, remaining)
+        await self._watch_pause_ended(zid, run)
+        _LOGGER.info("Zone %s: the controller resumed it (%.0fs left)", zid, remaining)
+
+    async def _watch_pause_started(self, zone_id, run: dict, watered: float) -> None:
+        """Hook: a pause began. Modes bound the pause from here."""
+        return None
+
+    async def _watch_pause_ended(self, zone_id, run: dict) -> None:
+        """Hook: a pause ended. Modes drop their pause bound from here."""
+        return None
+
+    async def _watch_defer_finish(self, zone_id, run: dict, delay: float) -> None:
+        """Hold a valve-off open briefly in case it turns out to be a pause.
+
+        The segment is closed immediately — the water has stopped either way, and
+        no run may be credited for the interval spent deciding what the stop
+        meant.
+        """
+        zid = int(zone_id)
+        await self._watch_segment_close(zid)
+        watcher = self._watchers().get(zid)
+        if watcher is None:
+            return
+        if watcher.finish_cancel is not None:
+            watcher.finish_cancel()
+
+        async def _decide(_now):
+            w = self._watchers().get(zid)
+            if w is not None:
+                w.finish_cancel = None
+            fresh = await self._sc_find_run(zid)
+            if fresh is None:
+                return
+            if await self._watch_paused(zid, fresh):
+                # The indicator caught up during the wait; treat it as the pause
+                # it was, including the bookkeeping _watch_pause does.
+                await self._watch_pause(zid, fresh)
+                return
+            if fresh.get(const.RUN_SEGMENT_STARTED):
+                # It started watering again without ever reporting a pause, so
+                # the stop was a blip rather than the end of the run.
+                return
+            await self._watch_finish(zid, fresh)
+
+        watcher.finish_cancel = async_call_later(self.hass, max(0.0, delay), _decide)
 
     async def _watch_finish(self, zone_id, run: dict) -> None:
         """Watering stopped. Settle the run against what it actually delivered."""

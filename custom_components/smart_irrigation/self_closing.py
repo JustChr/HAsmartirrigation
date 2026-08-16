@@ -515,13 +515,48 @@ class SelfClosingMixin:
         for it RUN_STARTED bounds nothing: before the station is observed running
         the delivered volume is zero, however long ago the run was dispatched.
         Every other mode opens its valve at dispatch, so the two coincide.
+
+        A run that can be PAUSED is not one contiguous stretch at all, and those
+        record their watering as segments instead (see RUN_WATERED_SECONDS). The
+        segment fields are consulted only when the run actually carries them, so
+        every mode that cannot pause keeps the contiguous timing below unchanged
+        — which for OpenSprinkler matters beyond tidiness, because its observed
+        start is the controller's own reported one rather than the instant the
+        transition was seen.
         """
+        if (
+            const.RUN_WATERED_SECONDS in run
+            or run.get(const.RUN_SEGMENT_STARTED) is not None
+        ):
+            return self._sc_segmented_elapsed(run)
         observed = run.get(const.RUN_OBSERVED_START)
         if observed:
             return self._sc_elapsed(observed)
         if run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER:
             return 0.0
         return self._sc_elapsed(run.get(const.RUN_STARTED))
+
+    def _sc_segmented_elapsed(self, run: dict) -> float:
+        """Watering seconds for a run recorded as segments.
+
+        The segments that have closed, plus the one currently open if there is
+        one. While the controller is paused no segment is open, so the total
+        simply stops advancing — which is the whole point of the model.
+
+        Tolerant of a malformed accumulator rather than raising: this feeds run
+        finalisation, and a run that cannot compute its own length would other-
+        wise never settle, holding its zone and the pump indefinitely. A bad
+        value reads as zero, which settles the run as having delivered nothing
+        and reverses its optimistic credit — the safe direction.
+        """
+        try:
+            total = float(run.get(const.RUN_WATERED_SECONDS) or 0)
+        except (TypeError, ValueError):
+            total = 0.0
+        segment = run.get(const.RUN_SEGMENT_STARTED)
+        if segment:
+            total += self._sc_elapsed(segment)
+        return max(0.0, total)
 
     async def _sc_find_run(self, zone_id):
         for r in await self._sc_active_runs():
