@@ -381,7 +381,8 @@
         "watering_modes": {
           "classic": "Classique (HASI ouvre et ferme la vanne)",
           "service": "Service auto-fermant (la vanne se ferme d'elle-même)",
-          "opensprinkler": "Station OpenSprinkler (le contrôleur traite la file)"
+          "opensprinkler": "Station OpenSprinkler (le contrôleur traite la file)",
+          "batch": "Contrôleur groupé / à file (un appel pour tout le cycle)"
         },
         "run_service": "Service de démarrage",
         "run_service_help": "Service appelé par HASI pour démarrer l'exécution (p. ex. un script.* ou un service switch/valve). Il reçoit le champ de durée ci-dessous ainsi que zone_id et zone_name.",
@@ -429,7 +430,10 @@
         "outlet_number": "Numéro de sortie",
         "distributor_managed_note": "Cette zone est arrosée via un distributeur (sortie ci-dessus). Sa vanne, la commande d'entrée et le capteur de débit sont gérés par le distributeur et masqués ici ; seuls les réglages de calcul et de veto d'humidité du sol restent. Pour redonner à la zone sa propre vanne, sélectionnez ci-dessus « Aucun (vanne propre) ».",
         "outlet_number_readonly_help": "Quelle sortie du distributeur alimente cette zone. Se règle sur la page du distributeur — ouvrez-la avec le bouton.",
-        "configure_on_distributor": "Régler sur le distributeur"
+        "configure_on_distributor": "Régler sur le distributeur",
+        "batch_valve": "Interrupteur de vanne",
+        "batch_valve_help": "Obligatoire. L'entité active pendant que CETTE zone arrose — l'interrupteur de vanne du contrôleur, ou tout assistant qui le reflète. En mode groupé, c'est la seule chose qui puisse démarrer et terminer le passage : le temps court à partir du moment où cela s'allume, jamais de l'envoi du plan. Une zone qui attend son tour dans la file ne se voit donc pas créditer d'une eau qu'elle n'a pas encore reçue.",
+        "batch_valve_missing": "Cette zone n'a pas d'interrupteur de vanne et ne peut donc pas entrer dans un envoi groupé. Définissez-en un ci-dessus, sinon elle sera refusée au moment de l'arrosage."
       },
       "no_items": "Il n'y a pas encore de zone définie.",
       "title": "Zones",
@@ -807,8 +811,14 @@
         "set_outlet": "Définir la sortie actuelle",
         "set_outlet_help": "Lisez le numéro de sortie affiché dans la fenêtre de l'appareil et saisissez-le ici pour resynchroniser la position suivie.",
         "resync_home": "Réinitialiser à la sortie 1",
-        "confirm_resync": { "title": "Réinitialiser à la sortie 1 ?", "body": "Ceci règle la position suivie sur la sortie 1. Ne confirmez que si l'appareil est physiquement sur la sortie 1 — sinon le distributeur arrosera les mauvaises sorties (désynchronisation non détectée)." },
-        "confirm_set_outlet": { "title": "Définir la sortie actuelle ?", "body": "Ceci marque le distributeur comme synchronisé sur la sortie saisie. Ne confirmez que si la fenêtre de l'appareil affiche physiquement cette sortie MAINTENANT — une valeur erronée arrose silencieusement les mauvaises sorties." },
+        "confirm_resync": {
+          "title": "Réinitialiser à la sortie 1 ?",
+          "body": "Ceci règle la position suivie sur la sortie 1. Ne confirmez que si l'appareil est physiquement sur la sortie 1 — sinon le distributeur arrosera les mauvaises sorties (désynchronisation non détectée)."
+        },
+        "confirm_set_outlet": {
+          "title": "Définir la sortie actuelle ?",
+          "body": "Ceci marque le distributeur comme synchronisé sur la sortie saisie. Ne confirmez que si la fenêtre de l'appareil affiche physiquement cette sortie MAINTENANT — une valeur erronée arrose silencieusement les mauvaises sorties."
+        },
         "confirmed": "Mise en service confirmée",
         "confirmed_help": "Arme le distributeur pour les cycles automatiques et manuels. Ne peut être activé que lorsque la position est synchronisée et se désactive automatiquement si la position devient incertaine.",
         "needs_sync": "Synchronisez la position avant de pouvoir armer ce distributeur.",
@@ -1097,5 +1107,22 @@
       "keep": "Continuer",
       "close": "Fermer"
     }
+  },
+  "batch": {
+    "title": "Envoi groupé (contrôleurs à file d'attente)",
+    "description": "Confie au contrôleur l'arrosage complet en un seul appel — une liste ordonnée de zones et de durées — et le laisse dérouler cette liste depuis sa propre file d'attente. Prévu pour les contrôleurs dotés d'une vraie file comme le composant sprinkler d'ESPHome, mais rien ici ne lui est propre : de simples assistants Home Assistant conviennent tout autant. Une file n'arrose qu'une vanne à la fois : les zones groupées passent donc toujours dans l'ordre et le réglage d'enchaînement des zones ne s'y applique pas.",
+    "run_service": "Script de démarrage",
+    "run_service_help": "Le script qui reçoit le plan, dans un champ unique nommé zones contenant une liste ordonnée de {zone_id, zone_name, duration}. Si votre contrôleur propose un multiplicateur ou des répétitions, omettez-les ou laissez-les neutres (multiplicateur 1, répétition 0) : ils remettraient à l'échelle des durées déjà calculées, et Smart Irrigation ne peut pas les détecter.",
+    "stop_service": "Script d'arrêt",
+    "stop_service_help": "Le script qui arrête l'arrosage ET vide la file d'attente. Les deux comptent. Sur un contrôleur ESPHome, c'est sprinkler.shutdown puis sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Sans script d'arrêt, le contrôleur ne peut pas être arrêté ni sa file vidée. Arrêter une zone corrigera bien la comptabilité ici, mais toute zone encore en file arrosera plus tard sans rien pour la surveiller.",
+    "paused_entity": "Indicateur de pause",
+    "paused_entity_help": "Facultatif, un par contrôleur. Une entité active tant que l'arrosage est en pause. Une pause coupe la vanne alors que le contrôleur conserve le temps restant : sans cet indicateur, une pause est indiscernable d'un arrêt anticipé par le contrôleur — le passage serait soldé comme partiel, son crédit d'eau annulé, puis le contrôleur reprendrait l'arrosage d'une zone déjà clôturée.",
+    "pause_timeout": "Délai de pause",
+    "pause_timeout_unit": "secondes",
+    "pause_timeout_help": "Durée maximale d'une pause avant que le passage ne soit soldé sur ce qu'il a réellement délivré. Laissez 0 pour une limite par défaut généreuse. Une pause n'est volontairement pas illimitée : un passage qui ne se termine jamais bloque sa zone pour tout arrosage futur, retient la pompe et conserve un crédit pour de l'eau jamais tombée — la zone apparaît arrosée alors qu'elle est sèche.",
+    "pause_timeout_service": "À l'expiration de la pause",
+    "pause_timeout_service_help": "Script facultatif appelé lorsqu'une pause dépasse son délai, pour que vous décidiez de ce que renoncer signifie sur votre matériel — reprendre, tout couper ou vider la file. Le passage est soldé dans tous les cas.",
+    "master_warning": "Si votre contrôleur commande lui-même sa pompe, ne configurez pas en plus un interrupteur principal ici. La même pompe aurait alors deux propriétaires indépendants décidant chacun de sa mise en marche. Choisissez l'un ou l'autre."
   }
 }

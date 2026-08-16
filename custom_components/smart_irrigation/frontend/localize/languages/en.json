@@ -539,7 +539,8 @@
         "watering_modes": {
           "classic": "Classic (HASI opens & closes the valve)",
           "service": "Self-closing service (valve closes itself)",
-          "opensprinkler": "OpenSprinkler station (controller runs the queue)"
+          "opensprinkler": "OpenSprinkler station (controller runs the queue)",
+          "batch": "Batch / queue controller (one call for the whole cycle)"
         },
         "run_service": "Run service",
         "run_service_help": "Service HASI calls to start the run (e.g. a script.* or a switch/valve service). It receives the duration field below plus zone_id and zone_name.",
@@ -589,7 +590,10 @@
         "outlet_number": "Outlet number",
         "distributor_managed_note": "This zone is watered through a distributor (outlet above). Its valve, inlet control and flow sensor are managed by the distributor and hidden here — only the calculation and soil-moisture veto settings remain. To give the zone its own valve again, set the distributor above to “None (own valve)”.",
         "outlet_number_readonly_help": "Which outlet of the distributor feeds this zone. Set on the distributor page — open it with the button.",
-        "configure_on_distributor": "Configure on distributor"
+        "configure_on_distributor": "Configure on distributor",
+        "batch_valve": "Valve switch",
+        "batch_valve_help": "Required. The entity that is on while THIS zone is watering — the controller's valve switch, or any helper that mirrors it. In batch mode this is the only thing that can start or end the run: the zone's water is timed from the moment this turns on, never from when the plan was sent, so a zone waiting its turn in the queue is not credited for water it has not had yet.",
+        "batch_valve_missing": "This zone has no valve switch, so it cannot be included in a batch. Set one above, or it will be refused when the irrigation runs."
       },
       "no_items": "There are no zones defined yet.",
       "title": "Zones",
@@ -807,8 +811,14 @@
         "set_outlet": "Set current outlet",
         "set_outlet_help": "Read the outlet number shown in the device window and set it here to re-sync the tracked position.",
         "resync_home": "Reset to outlet 1",
-        "confirm_resync": { "title": "Reset to outlet 1?", "body": "This sets the tracked position to outlet 1. Only confirm if the device is physically at outlet 1 — otherwise the distributor will water the wrong outlets (an undetected desync)." },
-        "confirm_set_outlet": { "title": "Set current outlet?", "body": "This marks the distributor as synced at the outlet you entered. Only confirm if the device's window physically shows that outlet right now — a wrong value silently waters the wrong outlets." },
+        "confirm_resync": {
+          "title": "Reset to outlet 1?",
+          "body": "This sets the tracked position to outlet 1. Only confirm if the device is physically at outlet 1 — otherwise the distributor will water the wrong outlets (an undetected desync)."
+        },
+        "confirm_set_outlet": {
+          "title": "Set current outlet?",
+          "body": "This marks the distributor as synced at the outlet you entered. Only confirm if the device's window physically shows that outlet right now — a wrong value silently waters the wrong outlets."
+        },
         "confirmed": "Commissioning confirmed",
         "confirmed_help": "Arms the distributor for automatic and manual cycles. Can only be set while the position is synced, and drops to off automatically if the position ever becomes uncertain.",
         "needs_sync": "Set the position to synced before you can arm this distributor.",
@@ -1097,5 +1107,22 @@
       "keep": "Keep editing",
       "close": "Close"
     }
+  },
+  "batch": {
+    "title": "Batch dispatch (queue controllers)",
+    "description": "Hand a controller the whole irrigation in one call, as an ordered list of zones and durations, and let it run that list from its own queue. Intended for controllers with a real queue such as the ESPHome sprinkler component, but nothing here is specific to it — ordinary Home Assistant helpers work just as well. A queue waters one valve at a time, so batch zones always run in order and the zone sequencing setting does not apply to them.",
+    "run_service": "Run service",
+    "run_service_help": "The script handed the plan. It receives one field, zones, holding an ordered list of {zone_id, zone_name, duration}. If your controller supports a duration multiplier or repeat, leave them out or set them to neutral values (multiplier 1, repeat 0) — they would rescale durations that have already been calculated, and Smart Irrigation cannot detect them.",
+    "stop_service": "Stop service",
+    "stop_service_help": "The script that stops the irrigation AND clears the queue. Both halves matter. On an ESPHome controller that is sprinkler.shutdown followed by sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Without a stop service the controller cannot be stopped and its queue cannot be cleared. Stopping a zone will correct the accounting here, but any zone still queued will water later with nothing supervising it.",
+    "paused_entity": "Paused indicator",
+    "paused_entity_help": "Optional, one per controller. An entity that reads on while the irrigation is paused. A pause turns the valve off while the controller keeps the remaining time, so without this a pause is indistinguishable from the controller ending the run early — the run would be settled as partial and its water credit reversed, and the controller would then resume watering a zone already closed out.",
+    "pause_timeout": "Pause timeout",
+    "pause_timeout_unit": "seconds",
+    "pause_timeout_help": "How long a pause may last before the run is settled for what it actually delivered. Leave at 0 for a generous default backstop. A pause is not left unbounded: a run that never ends holds its zone against any future run, holds the pump, and keeps a water credit for water that never fell, so the zone reads as watered while it is dry.",
+    "pause_timeout_service": "On pause timeout",
+    "pause_timeout_service_help": "Optional script called when a pause outlives its timeout, so you decide what giving up means on your hardware — resume, shut down, or clear the queue. The run is settled either way.",
+    "master_warning": "If your controller switches its own pump, do not also configure a master switch here. That would give one pump two independent owners, each deciding when it runs. Use one or the other."
   }
 }

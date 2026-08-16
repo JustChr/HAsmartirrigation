@@ -381,7 +381,8 @@
         "watering_modes": {
           "classic": "Klassisch (HASI öffnet & schließt das Ventil)",
           "service": "Selbstschließend per Service (Ventil schließt selbst)",
-          "opensprinkler": "OpenSprinkler-Station (Steuerung arbeitet die Warteschlange ab)"
+          "opensprinkler": "OpenSprinkler-Station (Steuerung arbeitet die Warteschlange ab)",
+          "batch": "Sammel-/Warteschlangen-Steuerung (ein Aufruf für den ganzen Zyklus)"
         },
         "run_service": "Start-Service",
         "run_service_help": "Service, den HASI zum Starten des Laufs aufruft (z. B. ein script.* oder ein Schalter-/Ventil-Service). Er erhält das Dauer-Feld unten sowie zone_id und zone_name.",
@@ -429,7 +430,10 @@
         "outlet_number": "Abgangsnummer",
         "distributor_managed_note": "Diese Zone wird über einen Verteiler bewässert (Abgang oben). Ihr Ventil, die Ansteuerung und der Durchflusssensor werden vom Verteiler verwaltet und hier ausgeblendet — nur die Berechnungs- und Bodenfeuchte-Veto-Einstellungen bleiben. Um der Zone wieder ein eigenes Ventil zu geben, oben „Keiner (eigenes Ventil)“ wählen.",
         "outlet_number_readonly_help": "Welcher Abgang des Verteilers diese Zone versorgt. Wird auf der Verteilerseite eingestellt — mit dem Button dorthin wechseln.",
-        "configure_on_distributor": "Am Verteiler einstellen"
+        "configure_on_distributor": "Am Verteiler einstellen",
+        "batch_valve": "Ventil-Schalter",
+        "batch_valve_help": "Erforderlich. Die Entität, die an ist, solange DIESE Zone bewässert — der Ventilschalter der Steuerung oder ein Helfer, der ihn abbildet. Im Sammel-Modus ist das das Einzige, was den Lauf beginnen und beenden kann: die Zeit zählt ab dem Moment, in dem das hier angeht, nie ab dem Absenden des Plans. Eine Zone, die noch in der Warteschlange wartet, bekommt so kein Wasser gutgeschrieben, das sie noch nicht hatte.",
+        "batch_valve_missing": "Diese Zone hat keinen Ventil-Schalter und kann deshalb nicht in einen Sammel-Lauf aufgenommen werden. Lege oben einen fest, sonst wird sie beim Bewässern abgelehnt."
       },
       "no_items": "Es ist noch keine Zone vorhanden.",
       "title": "Zonen",
@@ -807,8 +811,14 @@
         "set_outlet": "Aktuellen Abgang setzen",
         "set_outlet_help": "Die im Gerätefenster angezeigte Abgangsnummer ablesen und hier eintragen, um die verfolgte Position neu zu synchronisieren.",
         "resync_home": "Auf Abgang 1 zurücksetzen",
-        "confirm_resync": { "title": "Auf Abgang 1 zurücksetzen?", "body": "Dies setzt die verfolgte Position auf Abgang 1. Nur bestätigen, wenn das Gerät physisch auf Abgang 1 steht — sonst wässert der Verteiler die falschen Ausgänge (unbemerkter Desync)." },
-        "confirm_set_outlet": { "title": "Aktuellen Abgang setzen?", "body": "Das markiert den Verteiler als synchron auf dem eingegebenen Abgang. Bestätige nur, wenn das Gerätefenster JETZT genau diesen Abgang zeigt — ein falscher Wert wässert still die falschen Ausgänge." },
+        "confirm_resync": {
+          "title": "Auf Abgang 1 zurücksetzen?",
+          "body": "Dies setzt die verfolgte Position auf Abgang 1. Nur bestätigen, wenn das Gerät physisch auf Abgang 1 steht — sonst wässert der Verteiler die falschen Ausgänge (unbemerkter Desync)."
+        },
+        "confirm_set_outlet": {
+          "title": "Aktuellen Abgang setzen?",
+          "body": "Das markiert den Verteiler als synchron auf dem eingegebenen Abgang. Bestätige nur, wenn das Gerätefenster JETZT genau diesen Abgang zeigt — ein falscher Wert wässert still die falschen Ausgänge."
+        },
         "confirmed": "Inbetriebnahme bestätigt",
         "confirmed_help": "Schaltet den Verteiler für automatische und manuelle Zyklen scharf. Kann nur bei synchroner Position gesetzt werden und schaltet sich automatisch ab, sobald die Position unsicher wird.",
         "needs_sync": "Setze die Position auf synchron, bevor du diesen Verteiler scharfschalten kannst.",
@@ -1097,5 +1107,22 @@
       "keep": "Weiter bearbeiten",
       "close": "Schließen"
     }
+  },
+  "batch": {
+    "title": "Sammel-Start (Warteschlangen-Steuerungen)",
+    "description": "Übergibt der Steuerung die gesamte Bewässerung in einem einzigen Aufruf — als geordnete Liste aus Zonen und Laufzeiten — und lässt sie diese Liste aus ihrer eigenen Warteschlange abarbeiten. Gedacht für Steuerungen mit echter Warteschlange wie die ESPHome-Sprinkler-Komponente, aber nichts davon ist darauf festgelegt: gewöhnliche Home-Assistant-Helfer funktionieren genauso. Eine Warteschlange bewässert immer nur ein Ventil, deshalb laufen Sammel-Zonen stets der Reihe nach und die Einstellung zur Zonenabfolge gilt für sie nicht.",
+    "run_service": "Start-Skript",
+    "run_service_help": "Das Skript, das den Plan erhält. Es bekommt ein Feld namens zones mit einer geordneten Liste aus {zone_id, zone_name, duration}. Falls deine Steuerung einen Multiplikator oder Wiederholungen kennt: weglassen oder neutral setzen (Multiplikator 1, Wiederholung 0) — sie würden bereits berechnete Laufzeiten erneut skalieren, und Smart Irrigation kann das nicht erkennen.",
+    "stop_service": "Stopp-Skript",
+    "stop_service_help": "Das Skript, das die Bewässerung stoppt UND die Warteschlange leert. Beides ist nötig. Bei einer ESPHome-Steuerung sind das sprinkler.shutdown und anschließend sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Ohne Stopp-Skript kann die Steuerung nicht gestoppt und ihre Warteschlange nicht geleert werden. Ein Zonen-Stopp korrigiert hier zwar die Buchhaltung, aber jede noch eingereihte Zone bewässert später, ohne dass etwas sie überwacht.",
+    "paused_entity": "Pause-Anzeige",
+    "paused_entity_help": "Optional, eine pro Steuerung. Eine Entität, die an ist, solange die Bewässerung pausiert. Eine Pause schaltet das Ventil aus, während die Steuerung die Restzeit behält — ohne diese Anzeige ist eine Pause nicht davon zu unterscheiden, dass die Steuerung den Lauf vorzeitig beendet: der Lauf würde als Teillauf abgerechnet, seine Wassergutschrift zurückgenommen, und die Steuerung würde danach eine Zone weiterbewässern, die bereits abgeschlossen war.",
+    "pause_timeout": "Pause-Zeitlimit",
+    "pause_timeout_unit": "Sekunden",
+    "pause_timeout_help": "Wie lange eine Pause dauern darf, bevor der Lauf mit der tatsächlich gelieferten Menge abgerechnet wird. 0 bedeutet einen großzügigen Standardwert. Eine Pause bleibt bewusst nicht unbegrenzt: ein Lauf, der nie endet, blockiert seine Zone für jeden weiteren Lauf, hält die Pumpe und behält eine Gutschrift für Wasser, das nie geflossen ist — die Zone gilt dann als bewässert, obwohl sie trocken ist.",
+    "pause_timeout_service": "Bei Pause-Zeitüberschreitung",
+    "pause_timeout_service_help": "Optionales Skript, das aufgerufen wird, wenn eine Pause ihr Zeitlimit überschreitet. So entscheidest du selbst, was Aufgeben für deine Hardware heißt — fortsetzen, abschalten oder die Warteschlange leeren. Der Lauf wird in jedem Fall abgerechnet.",
+    "master_warning": "Wenn deine Steuerung ihre Pumpe selbst schaltet, konfiguriere hier keinen zusätzlichen Hauptschalter. Sonst hätte dieselbe Pumpe zwei unabhängige Besitzer, die beide über ihren Betrieb entscheiden. Nutze das eine oder das andere."
   }
 }

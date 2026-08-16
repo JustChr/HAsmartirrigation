@@ -421,7 +421,8 @@
         "watering_modes": {
           "classic": "Classica (HASI apre e chiude la valvola)",
           "service": "Servizio autochiudente (la valvola si chiude da sola)",
-          "opensprinkler": "Stazione OpenSprinkler (la centralina smaltisce la coda)"
+          "opensprinkler": "Stazione OpenSprinkler (la centralina smaltisce la coda)",
+          "batch": "Centralina a blocco/coda (una chiamata per l'intero ciclo)"
         },
         "run_service": "Servizio di avvio",
         "run_service_help": "Servizio che HASI chiama per avviare l'irrigazione (ad es. uno script.* o un servizio switch/valve). Riceve il campo durata sottostante più zone_id e zone_name.",
@@ -469,7 +470,10 @@
         "outlet_number": "Numero di uscita",
         "distributor_managed_note": "Questa zona viene irrigata tramite un distributore (uscita sopra). La sua valvola, il controllo dell'ingresso e il sensore di flusso sono gestiti dal distributore e nascosti qui; restano solo le impostazioni di calcolo e di veto dell'umidità del suolo. Per ridare alla zona la propria valvola, seleziona sopra «Nessuno (valvola propria)».",
         "outlet_number_readonly_help": "Quale uscita del distributore alimenta questa zona. Si imposta nella pagina del distributore: aprila con il pulsante.",
-        "configure_on_distributor": "Configura sul distributore"
+        "configure_on_distributor": "Configura sul distributore",
+        "batch_valve": "Interruttore della valvola",
+        "batch_valve_help": "Obbligatorio. L'entità attiva mentre QUESTA zona irriga — l'interruttore della valvola della centralina, o un helper che lo rispecchia. In modalità a blocco è l'unica cosa che possa iniziare e terminare il turno: il tempo decorre da quando questo si accende, mai da quando il piano è stato inviato, così una zona ancora in coda non riceve credito per acqua che non ha ancora avuto.",
+        "batch_valve_missing": "Questa zona non ha un interruttore della valvola e non può quindi entrare in un blocco. Impostane uno qui sopra, altrimenti verrà rifiutata al momento dell'irrigazione."
       },
       "no_items": "Non ci sono ancora zone definite.",
       "title": "Zone",
@@ -807,8 +811,14 @@
         "set_outlet": "Imposta uscita corrente",
         "set_outlet_help": "Leggi il numero di uscita mostrato nella finestra del dispositivo e impostalo qui per risincronizzare la posizione tracciata.",
         "resync_home": "Reimposta all'uscita 1",
-        "confirm_resync": { "title": "Reimpostare all'uscita 1?", "body": "Questo imposta la posizione tracciata sull'uscita 1. Conferma solo se il dispositivo è fisicamente sull'uscita 1 — altrimenti il distributore irrigherà le uscite sbagliate (disallineamento non rilevato)." },
-        "confirm_set_outlet": { "title": "Impostare l'uscita attuale?", "body": "Questo segna il distributore come sincronizzato sull'uscita inserita. Conferma solo se la finestra del dispositivo mostra fisicamente quell'uscita ADESSO — un valore errato irriga silenziosamente le uscite sbagliate." },
+        "confirm_resync": {
+          "title": "Reimpostare all'uscita 1?",
+          "body": "Questo imposta la posizione tracciata sull'uscita 1. Conferma solo se il dispositivo è fisicamente sull'uscita 1 — altrimenti il distributore irrigherà le uscite sbagliate (disallineamento non rilevato)."
+        },
+        "confirm_set_outlet": {
+          "title": "Impostare l'uscita attuale?",
+          "body": "Questo segna il distributore come sincronizzato sull'uscita inserita. Conferma solo se la finestra del dispositivo mostra fisicamente quell'uscita ADESSO — un valore errato irriga silenziosamente le uscite sbagliate."
+        },
         "confirmed": "Messa in servizio confermata",
         "confirmed_help": "Attiva il distributore per i cicli automatici e manuali. Può essere impostato solo quando la posizione è sincronizzata e si disattiva automaticamente se la posizione diventa incerta.",
         "needs_sync": "Sincronizza la posizione prima di poter attivare questo distributore.",
@@ -1097,5 +1107,22 @@
       "keep": "Continua",
       "close": "Chiudi"
     }
+  },
+  "batch": {
+    "title": "Invio in blocco (centraline con coda)",
+    "description": "Affida alla centralina l'intera irrigazione in una sola chiamata — un elenco ordinato di zone e durate — e la lascia eseguire quell'elenco dalla propria coda. Pensato per centraline con una coda vera come il componente sprinkler di ESPHome, ma nulla qui è legato a esso: anche i normali helper di Home Assistant vanno benissimo. Una coda irriga una valvola alla volta, quindi le zone in blocco procedono sempre in ordine e l'impostazione di sequenza delle zone non si applica.",
+    "run_service": "Script di avvio",
+    "run_service_help": "Lo script che riceve il piano, in un unico campo chiamato zones contenente un elenco ordinato di {zone_id, zone_name, duration}. Se la centralina prevede un moltiplicatore o delle ripetizioni, omettili o lasciali neutri (moltiplicatore 1, ripetizione 0): riscalerebbero durate già calcolate e Smart Irrigation non può accorgersene.",
+    "stop_service": "Script di arresto",
+    "stop_service_help": "Lo script che ferma l'irrigazione E svuota la coda. Servono entrambe le cose. Su una centralina ESPHome sono sprinkler.shutdown seguito da sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Senza script di arresto la centralina non può essere fermata né la sua coda svuotata. Fermare una zona correggerà la contabilità qui, ma ogni zona ancora in coda irrigherà più tardi senza nulla che la sorvegli.",
+    "paused_entity": "Indicatore di pausa",
+    "paused_entity_help": "Facoltativo, uno per centralina. Un'entità attiva finché l'irrigazione è in pausa. Una pausa spegne la valvola mentre la centralina conserva il tempo residuo: senza questo indicatore una pausa è indistinguibile da una chiusura anticipata — il turno verrebbe chiuso come parziale, il credito d'acqua annullato, e la centralina riprenderebbe poi a irrigare una zona già conclusa.",
+    "pause_timeout": "Limite di pausa",
+    "pause_timeout_unit": "secondi",
+    "pause_timeout_help": "Quanto può durare una pausa prima che il turno venga chiuso per quanto ha davvero erogato. Lascia 0 per un limite predefinito generoso. Una pausa non resta illimitata di proposito: un turno che non finisce mai blocca la sua zona per ogni irrigazione futura, tiene impegnata la pompa e conserva un credito per acqua mai caduta — la zona risulta irrigata mentre è asciutta.",
+    "pause_timeout_service": "Alla scadenza della pausa",
+    "pause_timeout_service_help": "Script facoltativo richiamato quando una pausa supera il proprio limite, così decidi tu cosa significhi rinunciare sul tuo impianto — riprendere, spegnere o svuotare la coda. Il turno viene comunque chiuso.",
+    "master_warning": "Se la centralina comanda da sé la pompa, non configurare qui anche un interruttore principale. La stessa pompa avrebbe due proprietari indipendenti, ciascuno a decidere quando farla girare. Usa l'uno o l'altro."
   }
 }

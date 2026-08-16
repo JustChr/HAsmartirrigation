@@ -381,7 +381,8 @@
         "watering_modes": {
           "classic": "Clásico (HASI abre y cierra la válvula)",
           "service": "Servicio autocerrable (la válvula se cierra sola)",
-          "opensprinkler": "Estación OpenSprinkler (el controlador gestiona la cola)"
+          "opensprinkler": "Estación OpenSprinkler (el controlador gestiona la cola)",
+          "batch": "Controlador por lotes/cola (una llamada para todo el ciclo)"
         },
         "run_service": "Servicio de inicio",
         "run_service_help": "Servicio que HASI llama para iniciar el riego (p. ej. un script.* o un servicio de interruptor/válvula). Recibe el campo de duración de abajo junto con zone_id y zone_name.",
@@ -429,7 +430,10 @@
         "outlet_number": "Número de salida",
         "distributor_managed_note": "Esta zona se riega a través de un distribuidor (salida arriba). Su válvula, el control de entrada y el sensor de caudal los gestiona el distribuidor y se ocultan aquí; solo permanecen los ajustes de cálculo y de veto por humedad del suelo. Para devolver a la zona su propia válvula, selecciona arriba «Ninguno (válvula propia)».",
         "outlet_number_readonly_help": "Qué salida del distribuidor alimenta esta zona. Se configura en la página del distribuidor: ábrela con el botón.",
-        "configure_on_distributor": "Configurar en el distribuidor"
+        "configure_on_distributor": "Configurar en el distribuidor",
+        "batch_valve": "Interruptor de válvula",
+        "batch_valve_help": "Obligatorio. La entidad que está encendida mientras ESTA zona riega — el interruptor de válvula del controlador, o cualquier ayudante que lo refleje. En modo por lotes es lo único que puede iniciar y terminar el riego: el tiempo cuenta desde que esto se enciende, nunca desde que se envió el plan, así que una zona que espera turno en la cola no recibe crédito por agua que aún no ha tenido.",
+        "batch_valve_missing": "Esta zona no tiene interruptor de válvula, por lo que no puede incluirse en un lote. Define uno arriba o será rechazada cuando se riegue."
       },
       "no_items": "Aún no hay zonas definidas.",
       "title": "Zonas",
@@ -807,8 +811,14 @@
         "set_outlet": "Fijar salida actual",
         "set_outlet_help": "Lee el número de salida que aparece en la ventana del dispositivo y ponlo aquí para volver a sincronizar la posición registrada.",
         "resync_home": "Restablecer a la salida 1",
-        "confirm_resync": { "title": "¿Restablecer a la salida 1?", "body": "Esto ajusta la posición seguida a la salida 1. Confirma solo si el dispositivo está físicamente en la salida 1 — de lo contrario el distribuidor regará las salidas equivocadas (desincronización no detectada)." },
-        "confirm_set_outlet": { "title": "¿Establecer la salida actual?", "body": "Esto marca el distribuidor como sincronizado en la salida introducida. Confirma solo si la ventana del dispositivo muestra físicamente esa salida AHORA — un valor erróneo riega en silencio las salidas equivocadas." },
+        "confirm_resync": {
+          "title": "¿Restablecer a la salida 1?",
+          "body": "Esto ajusta la posición seguida a la salida 1. Confirma solo si el dispositivo está físicamente en la salida 1 — de lo contrario el distribuidor regará las salidas equivocadas (desincronización no detectada)."
+        },
+        "confirm_set_outlet": {
+          "title": "¿Establecer la salida actual?",
+          "body": "Esto marca el distribuidor como sincronizado en la salida introducida. Confirma solo si la ventana del dispositivo muestra físicamente esa salida AHORA — un valor erróneo riega en silencio las salidas equivocadas."
+        },
         "confirmed": "Puesta en marcha confirmada",
         "confirmed_help": "Arma el distribuidor para ciclos automáticos y manuales. Solo puede activarse cuando la posición está sincronizada y se desactiva automáticamente si la posición pasa a ser incierta.",
         "needs_sync": "Sincroniza la posición antes de poder armar este distribuidor.",
@@ -1097,5 +1107,22 @@
       "keep": "Seguir editando",
       "close": "Cerrar"
     }
+  },
+  "batch": {
+    "title": "Envío por lotes (controladores con cola)",
+    "description": "Entrega al controlador el riego completo en una sola llamada — una lista ordenada de zonas y duraciones — y deja que la recorra desde su propia cola. Pensado para controladores con una cola real como el componente sprinkler de ESPHome, aunque nada de esto es exclusivo suyo: los ayudantes normales de Home Assistant sirven igual. Una cola riega una válvula cada vez, así que las zonas por lotes van siempre en orden y el ajuste de secuencia de zonas no se les aplica.",
+    "run_service": "Script de inicio",
+    "run_service_help": "El script que recibe el plan, en un único campo llamado zones con una lista ordenada de {zone_id, zone_name, duration}. Si tu controlador admite multiplicador o repeticiones, omítelos o déjalos neutros (multiplicador 1, repetición 0): reescalarían duraciones ya calculadas y Smart Irrigation no puede detectarlo.",
+    "stop_service": "Script de parada",
+    "stop_service_help": "El script que detiene el riego Y vacía la cola. Ambas cosas importan. En un controlador ESPHome son sprinkler.shutdown seguido de sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Sin script de parada no se puede detener el controlador ni vaciar su cola. Detener una zona corregirá la contabilidad aquí, pero cualquier zona aún en cola regará más tarde sin nada que la supervise.",
+    "paused_entity": "Indicador de pausa",
+    "paused_entity_help": "Opcional, uno por controlador. Una entidad encendida mientras el riego está en pausa. Una pausa apaga la válvula mientras el controlador conserva el tiempo restante: sin esto, una pausa no se distingue de un fin anticipado — el riego se liquidaría como parcial, se revertiría su crédito de agua y el controlador reanudaría una zona ya cerrada.",
+    "pause_timeout": "Límite de pausa",
+    "pause_timeout_unit": "segundos",
+    "pause_timeout_help": "Cuánto puede durar una pausa antes de liquidar el riego por lo realmente entregado. Déjalo en 0 para un límite predeterminado generoso. Una pausa no queda sin límite a propósito: un riego que nunca termina bloquea su zona para cualquier riego futuro, retiene la bomba y mantiene crédito por agua que nunca cayó — la zona figura como regada estando seca.",
+    "pause_timeout_service": "Al agotarse la pausa",
+    "pause_timeout_service_help": "Script opcional que se llama cuando una pausa supera su límite, para que decidas qué significa rendirse en tu instalación — reanudar, apagar o vaciar la cola. El riego se liquida en cualquier caso.",
+    "master_warning": "Si tu controlador acciona su propia bomba, no configures además un interruptor principal aquí. La misma bomba tendría dos dueños independientes decidiendo cuándo funciona. Usa uno u otro."
   }
 }

@@ -56,6 +56,7 @@ import {
   ZONE_STATE,
   ZONE_THROUGHPUT,
   ZONE_LINKED_ENTITY,
+  WATERING_MODE_BATCH,
   WATERING_MODE_OPENSPRINKLER,
   OPENSPRINKLER_ATTR_TYPE,
   OPENSPRINKLER_ATTR_IS_MASTER,
@@ -1094,9 +1095,62 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                               this.hass.language,
                             )}
                           </option>
+                          <option
+                            value="${WATERING_MODE_BATCH}"
+                            ?selected="${zone.watering_mode ===
+                            WATERING_MODE_BATCH}"
+                          >
+                            ${localize(
+                              "panels.zones.labels.watering_modes.batch",
+                              this.hass.language,
+                            )}
+                          </option>
                         </select>
                       </ha-settings-row>
 
+                      ${zone.watering_mode === WATERING_MODE_BATCH
+                        ? html`
+                            <ha-settings-row>
+                              <span slot="heading"
+                                >${localize(
+                                  "panels.zones.labels.batch_valve",
+                                  this.hass.language,
+                                )}</span
+                              >
+                              <span slot="description"
+                                >${localize(
+                                  "panels.zones.labels.batch_valve_help",
+                                  this.hass.language,
+                                )}</span
+                              >
+                              <ha-entity-picker
+                                .hass="${this.hass}"
+                                .value="${zone.confirm_entity || ""}"
+                                .includeDomains="${[
+                                  "valve",
+                                  "switch",
+                                  "input_boolean",
+                                  "binary_sensor",
+                                ]}"
+                                allow-custom-entity
+                                @value-changed="${(e: CustomEvent) =>
+                                  this.handleEditZone(index, {
+                                    ...zone,
+                                    [ZONE_CONFIRM_ENTITY]:
+                                      e.detail.value || null,
+                                  })}"
+                              ></ha-entity-picker>
+                            </ha-settings-row>
+                            ${!zone.confirm_entity
+                              ? html`<div class="zone-warning">
+                                  ${localize(
+                                    "panels.zones.labels.batch_valve_missing",
+                                    this.hass.language,
+                                  )}
+                                </div>`
+                              : ""}
+                          `
+                        : ""}
                       ${zone.watering_mode === "service"
                         ? html`
                             <ha-settings-row>
@@ -2234,6 +2288,19 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
       }
       .history-observed {
         background: #00897b;
+      }
+
+      /* Batch mode: the valve switch is the ONLY thing that can start or end
+         the run, so a zone without one cannot be dispatched at all. Said here
+         rather than left to fail silently at run time. */
+      .zone-warning {
+        margin: 4px 0 12px;
+        padding: 8px 12px;
+        border-left: 3px solid var(--warning-color, #f9a825);
+        background: rgba(249, 168, 37, 0.12);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: var(--primary-text-color);
       }
 
       /* Auto-save status chip */

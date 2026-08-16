@@ -91,6 +91,12 @@ export class SmartIrrigationConfig {
   distributors_enabled: boolean;
   log_no_demand: boolean;
   master_entity?: string | null;
+  // Batch/queue dispatch (#88). Unset on every install that does not use it.
+  batch_run_service?: string | null;
+  batch_stop_service?: string | null;
+  batch_paused_entity?: string | null;
+  batch_pause_timeout?: number;
+  batch_pause_timeout_service?: string | null;
   master_settle_seconds: number;
   master_kick_enabled: boolean;
   master_kick_pause_seconds: number;
@@ -143,6 +149,11 @@ export class SmartIrrigationConfig {
     this.distributors_enabled = false;
     this.log_no_demand = false;
     this.master_entity = null;
+    this.batch_run_service = null;
+    this.batch_stop_service = null;
+    this.batch_paused_entity = null;
+    this.batch_pause_timeout = 0;
+    this.batch_pause_timeout_service = null;
     this.master_settle_seconds = 10;
     this.master_kick_enabled = false;
     this.master_kick_pause_seconds = 1.0;

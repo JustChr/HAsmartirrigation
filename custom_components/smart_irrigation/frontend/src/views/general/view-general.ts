@@ -42,6 +42,11 @@ import {
   CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
   CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
   CONF_WEATHER_SERVICE_OPENMETEO,
+  CONF_BATCH_PAUSE_TIMEOUT,
+  CONF_BATCH_PAUSE_TIMEOUT_SERVICE,
+  CONF_BATCH_PAUSED_ENTITY,
+  CONF_BATCH_RUN_SERVICE,
+  CONF_BATCH_STOP_SERVICE,
   CONF_MASTER_ENTITY,
   CONF_MASTER_SETTLE_SECONDS,
   CONF_MASTER_KICK_ENABLED,
@@ -228,6 +233,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
           ${this._renderWeatherSkipCard()} ${this._renderSection("watering")}
           ${this._renderDaysBetweenIrrigationCard()}
           ${this._renderZoneSequencingCard()} ${this._renderMasterSwitchCard()}
+          ${this._renderBatchCard()}
         `;
       default:
         return html`
@@ -239,6 +245,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
           ${this._renderSection("watering")}
           ${this._renderDaysBetweenIrrigationCard()}
           ${this._renderZoneSequencingCard()} ${this._renderMasterSwitchCard()}
+          ${this._renderBatchCard()}
         `;
     }
   }
@@ -1147,6 +1154,163 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
     `;
   }
 
+  private _renderBatchCard(): TemplateResult {
+    if (!this.hass || !this.config) return html``;
+    const configured = !!this.config.batch_run_service;
+    const paused = this.config.batch_paused_entity;
+    return html`
+      <ha-card header="${localize("batch.title", this.hass.language)}">
+        <div class="card-content description-text">
+          ${localize("batch.description", this.hass.language)}
+        </div>
+        <div class="card-content">
+          <div class="setting-row">
+            <label>${localize("batch.run_service", this.hass.language)}</label>
+            <ha-entity-picker
+              .hass="${this.hass}"
+              .value="${this.config.batch_run_service || ""}"
+              .includeDomains="${["script"]}"
+              allow-custom-entity
+              @value-changed="${(e: CustomEvent) =>
+                this.handleConfigChange({
+                  [CONF_BATCH_RUN_SERVICE]: e.detail.value || null,
+                })}"
+            ></ha-entity-picker>
+          </div>
+          <div class="description-text">
+            ${localize("batch.run_service_help", this.hass.language)}
+          </div>
+          ${configured
+            ? html`
+                <div class="setting-row">
+                  <label
+                    >${localize(
+                      "batch.stop_service",
+                      this.hass.language,
+                    )}</label
+                  >
+                  <ha-entity-picker
+                    .hass="${this.hass}"
+                    .value="${this.config.batch_stop_service || ""}"
+                    .includeDomains="${["script"]}"
+                    allow-custom-entity
+                    @value-changed="${(e: CustomEvent) =>
+                      this.handleConfigChange({
+                        [CONF_BATCH_STOP_SERVICE]: e.detail.value || null,
+                      })}"
+                  ></ha-entity-picker>
+                </div>
+                <div class="description-text">
+                  ${localize("batch.stop_service_help", this.hass.language)}
+                </div>
+                ${!this.config.batch_stop_service
+                  ? html`<div class="batch-warning">
+                      ${localize(
+                        "batch.stop_service_missing",
+                        this.hass.language,
+                      )}
+                    </div>`
+                  : ""}
+                <div class="setting-row">
+                  <label
+                    >${localize(
+                      "batch.paused_entity",
+                      this.hass.language,
+                    )}</label
+                  >
+                  <ha-entity-picker
+                    .hass="${this.hass}"
+                    .value="${paused || ""}"
+                    .includeDomains="${[
+                      "binary_sensor",
+                      "switch",
+                      "input_boolean",
+                    ]}"
+                    allow-custom-entity
+                    @value-changed="${(e: CustomEvent) =>
+                      this.handleConfigChange({
+                        [CONF_BATCH_PAUSED_ENTITY]: e.detail.value || null,
+                      })}"
+                  ></ha-entity-picker>
+                </div>
+                <div class="description-text">
+                  ${localize("batch.paused_entity_help", this.hass.language)}
+                </div>
+                ${paused
+                  ? html`
+                      <div class="setting-row">
+                        <label>
+                          ${localize("batch.pause_timeout", this.hass.language)}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="60"
+                          .value="${String(
+                            this.config.batch_pause_timeout ?? 0,
+                          )}"
+                          @change="${(e: Event) => {
+                            const v = parseInt(
+                              (e.target as HTMLInputElement).value,
+                              10,
+                            );
+                            if (!isNaN(v))
+                              this.handleConfigChange({
+                                [CONF_BATCH_PAUSE_TIMEOUT]: Math.max(0, v),
+                              });
+                          }}"
+                        />
+                        <span class="unit-label">
+                          ${localize(
+                            "batch.pause_timeout_unit",
+                            this.hass.language,
+                          )}
+                        </span>
+                      </div>
+                      <div class="description-text">
+                        ${localize(
+                          "batch.pause_timeout_help",
+                          this.hass.language,
+                        )}
+                      </div>
+                      <div class="setting-row">
+                        <label>
+                          ${localize(
+                            "batch.pause_timeout_service",
+                            this.hass.language,
+                          )}
+                        </label>
+                        <ha-entity-picker
+                          .hass="${this.hass}"
+                          .value="${this.config.batch_pause_timeout_service ||
+                          ""}"
+                          .includeDomains="${["script"]}"
+                          allow-custom-entity
+                          @value-changed="${(e: CustomEvent) =>
+                            this.handleConfigChange({
+                              [CONF_BATCH_PAUSE_TIMEOUT_SERVICE]:
+                                e.detail.value || null,
+                            })}"
+                        ></ha-entity-picker>
+                      </div>
+                      <div class="description-text">
+                        ${localize(
+                          "batch.pause_timeout_service_help",
+                          this.hass.language,
+                        )}
+                      </div>
+                    `
+                  : ""}
+                <div class="batch-warning">
+                  ${localize("batch.master_warning", this.hass.language)}
+                </div>
+              `
+            : ""}
+        </div>
+      </ha-card>
+    `;
+  }
+
   private _renderMasterSwitchCard(): TemplateResult {
     if (!this.hass || !this.config) return html``;
     const kick = !!this.config.master_kick_enabled;
@@ -1379,6 +1543,20 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
         font-size: 0.875rem;
         color: var(--secondary-text-color);
         padding-bottom: 4px;
+      }
+
+      /* Batch mode notes that are safety matters rather than tips: a missing
+         stop service leaves queued zones to water unsupervised, and a master
+         configured alongside a controller that runs its own pump gives that
+         pump two independent owners. */
+      .batch-warning {
+        margin: 8px 0;
+        padding: 8px 12px;
+        border-left: 3px solid var(--warning-color, #f9a825);
+        background: rgba(249, 168, 37, 0.12);
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: var(--primary-text-color);
       }
 
       .setting-row {

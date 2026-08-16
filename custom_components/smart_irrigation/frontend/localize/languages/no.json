@@ -381,7 +381,8 @@
         "watering_modes": {
           "classic": "Klassisk (HASI åpner og lukker ventilen)",
           "service": "Selvlukkende tjeneste (ventilen lukker seg selv)",
-          "opensprinkler": "OpenSprinkler-stasjon (styringen tar køen i tur)"
+          "opensprinkler": "OpenSprinkler-stasjon (styringen tar køen i tur)",
+          "batch": "Samlet/kø-styring (én forespørsel for hele syklusen)"
         },
         "run_service": "Kjøretjeneste",
         "run_service_help": "Tjenesten HASI kaller for å starte kjøringen (f.eks. en script.* eller en switch/valve-tjeneste). Den mottar varighetsfeltet nedenfor pluss zone_id og zone_name.",
@@ -429,7 +430,10 @@
         "outlet_number": "Uttaksnummer",
         "distributor_managed_note": "Denne sonen vannes via en fordeler (uttak over). Ventilen, innløpsstyringen og strømningssensoren styres av fordeleren og skjules her — bare beregnings- og jordfuktighet-veto-innstillingene blir igjen. For å gi sonen sin egen ventil igjen, velg «Ingen (egen ventil)» over.",
         "outlet_number_readonly_help": "Hvilket uttak på fordeleren som mater denne sonen. Angis på fordelersiden — åpne den med knappen.",
-        "configure_on_distributor": "Angi på fordeleren"
+        "configure_on_distributor": "Angi på fordeleren",
+        "batch_valve": "Ventilbryter",
+        "batch_valve_help": "Påkrevd. Enheten som er på mens DENNE sonen vanner — styringens ventilbryter, eller en hjelper som speiler den. I samlet modus er dette det eneste som kan starte og avslutte kjøringen: tiden løper fra dette slår seg på, aldri fra planen ble sendt, slik at en sone som venter på tur i køen ikke krediteres vann den ennå ikke har fått.",
+        "batch_valve_missing": "Denne sonen har ingen ventilbryter og kan derfor ikke være med i en samlet utsending. Angi en over, ellers blir den avvist når vanningen kjører."
       },
       "no_items": "Det er ingen definerte soner ennå.",
       "title": "Soner",
@@ -807,8 +811,14 @@
         "set_outlet": "Angi gjeldende uttak",
         "set_outlet_help": "Les av uttaksnummeret som vises i enhetsvinduet, og angi det her for å synkronisere den sporede posisjonen på nytt.",
         "resync_home": "Tilbakestill til uttak 1",
-        "confirm_resync": { "title": "Tilbakestille til uttak 1?", "body": "Dette setter den sporede posisjonen til uttak 1. Bekreft bare hvis enheten fysisk står på uttak 1 — ellers vanner fordeleren feil uttak (uoppdaget desynkronisering)." },
-        "confirm_set_outlet": { "title": "Sette gjeldende uttak?", "body": "Dette markerer fordeleren som synkronisert på uttaket du oppga. Bekreft bare hvis enhetens vindu fysisk viser akkurat det uttaket NÅ — en feil verdi vanner stille feil uttak." },
+        "confirm_resync": {
+          "title": "Tilbakestille til uttak 1?",
+          "body": "Dette setter den sporede posisjonen til uttak 1. Bekreft bare hvis enheten fysisk står på uttak 1 — ellers vanner fordeleren feil uttak (uoppdaget desynkronisering)."
+        },
+        "confirm_set_outlet": {
+          "title": "Sette gjeldende uttak?",
+          "body": "Dette markerer fordeleren som synkronisert på uttaket du oppga. Bekreft bare hvis enhetens vindu fysisk viser akkurat det uttaket NÅ — en feil verdi vanner stille feil uttak."
+        },
         "confirmed": "Idriftsettelse bekreftet",
         "confirmed_help": "Aktiverer fordeleren for automatiske og manuelle sykluser. Kan bare settes når posisjonen er synkronisert, og slås automatisk av hvis posisjonen blir usikker.",
         "needs_sync": "Sett posisjonen til synkronisert før du kan aktivere denne fordeleren.",
@@ -1097,5 +1107,22 @@
       "keep": "Fortsett",
       "close": "Lukk"
     }
+  },
+  "batch": {
+    "title": "Samlet utsending (kø-styringer)",
+    "description": "Gir styringen hele vanningen i én forespørsel — en ordnet liste med soner og varigheter — og lar den kjøre listen fra sin egen kø. Ment for styringer med en ekte kø, som ESPHome sprinkler-komponenten, men ingenting her er bundet til den: vanlige Home Assistant-hjelpere fungerer like godt. En kø vanner én ventil om gangen, så samlede soner går alltid i rekkefølge og innstillingen for sonerekkefølge gjelder ikke for dem.",
+    "run_service": "Startskript",
+    "run_service_help": "Skriptet som får planen. Det mottar ett felt, zones, med en ordnet liste av {zone_id, zone_name, duration}. Hvis styringen din har multiplikator eller gjentakelser: utelat dem eller sett dem nøytralt (multiplikator 1, gjentakelse 0) — de ville skalert om varigheter som allerede er beregnet, og Smart Irrigation kan ikke oppdage det.",
+    "stop_service": "Stoppskript",
+    "stop_service_help": "Skriptet som stopper vanningen OG tømmer køen. Begge deler teller. På en ESPHome-styring er det sprinkler.shutdown etterfulgt av sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Uten stoppskript kan ikke styringen stoppes og køen ikke tømmes. Å stoppe en sone retter opp regnskapet her, men enhver sone som fortsatt står i kø vil vanne senere uten at noe overvåker den.",
+    "paused_entity": "Pauseindikator",
+    "paused_entity_help": "Valgfritt, én per styring. En enhet som er på så lenge vanningen er satt på pause. En pause slår av ventilen mens styringen beholder gjenstående tid — uten dette kan ikke en pause skilles fra at styringen avslutter tidlig: kjøringen ville blitt gjort opp som delvis, vannkreditten reversert, og styringen ville deretter fortsatt å vanne en sone som allerede var avsluttet.",
+    "pause_timeout": "Pausegrense",
+    "pause_timeout_unit": "sekunder",
+    "pause_timeout_help": "Hvor lenge en pause kan vare før kjøringen gjøres opp for det den faktisk leverte. La stå på 0 for en romslig standardgrense. En pause er bevisst ikke ubegrenset: en kjøring som aldri tar slutt blokkerer sonen for all fremtidig vanning, holder pumpen, og beholder kreditt for vann som aldri falt — sonen fremstår som vannet mens den er tørr.",
+    "pause_timeout_service": "Ved utløpt pause",
+    "pause_timeout_service_help": "Valgfritt skript som kalles når en pause overskrider grensen, slik at du bestemmer hva det å gi opp betyr for ditt utstyr — fortsette, slå av, eller tømme køen. Kjøringen gjøres opp uansett.",
+    "master_warning": "Hvis styringen slår sin egen pumpe, skal du ikke også sette opp en hovedbryter her. Da ville samme pumpe hatt to uavhengige eiere som hver bestemmer når den går. Bruk det ene eller det andre."
   }
 }

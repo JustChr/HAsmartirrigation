@@ -194,6 +194,12 @@ export const CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME =
 
 // Master switch / pump control (instance-level, all optional)
 export const CONF_MASTER_ENTITY = "master_entity";
+// Batch/queue dispatch (#88), instance-level.
+export const CONF_BATCH_RUN_SERVICE = "batch_run_service";
+export const CONF_BATCH_STOP_SERVICE = "batch_stop_service";
+export const CONF_BATCH_PAUSED_ENTITY = "batch_paused_entity";
+export const CONF_BATCH_PAUSE_TIMEOUT = "batch_pause_timeout";
+export const CONF_BATCH_PAUSE_TIMEOUT_SERVICE = "batch_pause_timeout_service";
 export const CONF_MASTER_SETTLE_SECONDS = "master_settle_seconds";
 export const CONF_MASTER_KICK_ENABLED = "master_kick_enabled";
 export const CONF_MASTER_KICK_PAUSE_SECONDS = "master_kick_pause_seconds";
@@ -233,6 +239,10 @@ export const DISTRIBUTOR_WATCH_MODES = ["count", "warn", "ignore"] as const;
 export const WATERING_MODE_CLASSIC = "classic";
 export const WATERING_MODE_SERVICE = "service";
 export const WATERING_MODE_OPENSPRINKLER = "opensprinkler";
+// Batch/queue dispatch (#88): one call hands the controller the whole ordered
+// plan. Inherently sequential — a queue runs one valve at a time — so the
+// zone_sequencing setting does not reach it.
+export const WATERING_MODE_BATCH = "batch";
 
 // OpenSprinkler station entities carry these in their state attributes; the
 // station picker filters on them rather than on the switch's device_class,

@@ -381,7 +381,8 @@
         "watering_modes": {
           "classic": "Klasický (HASI otvára a zatvára ventil)",
           "service": "Samozatváracia služba (ventil sa zatvorí sám)",
-          "opensprinkler": "Stanica OpenSprinkler (ovládač spracúva frontu)"
+          "opensprinkler": "Stanica OpenSprinkler (ovládač spracúva frontu)",
+          "batch": "Dávkový/frontový ovládač (jedno volanie pre celý cyklus)"
         },
         "run_service": "Služba spustenia",
         "run_service_help": "Služba, ktorú HASI zavolá na spustenie behu (napr. script.* alebo služba prepínača/ventilu). Dostane pole trvania nižšie plus zone_id a zone_name.",
@@ -429,7 +430,10 @@
         "outlet_number": "Číslo výstupu",
         "distributor_managed_note": "Táto zóna sa zavlažuje cez rozvádzač (výstup vyššie). Jej ventil, ovládanie vstupu a senzor prietoku spravuje rozvádzač a sú tu skryté — zostávajú len nastavenia výpočtu a veta podľa vlhkosti pôdy. Ak chcete zóne vrátiť vlastný ventil, vyberte vyššie „Žiadny (vlastný ventil)“.",
         "outlet_number_readonly_help": "Ktorý výstup rozvádzača napája túto zónu. Nastavuje sa na stránke rozvádzača — otvorte ju tlačidlom.",
-        "configure_on_distributor": "Nastaviť na rozvádzači"
+        "configure_on_distributor": "Nastaviť na rozvádzači",
+        "batch_valve": "Spínač ventilu",
+        "batch_valve_help": "Povinné. Entita, ktorá je zapnutá, kým TÁTO zóna zavlažuje — spínač ventilu ovládača alebo pomocník, ktorý ho zrkadlí. V dávkovom režime je to jediné, čo dokáže beh začať a ukončiť: čas beží od okamihu, keď sa toto zapne, nikdy nie od odoslania plánu — zóna čakajúca vo fronte tak nedostane kredit za vodu, ktorú ešte nedostala.",
+        "batch_valve_missing": "Táto zóna nemá spínač ventilu, a preto ju nemožno zaradiť do dávky. Nastavte ho vyššie, inak bude pri závlahe odmietnutá."
       },
       "no_items": "Zatiaľ nie sú definované žiadne zóny.",
       "title": "Zóny",
@@ -807,8 +811,14 @@
         "set_outlet": "Nastaviť aktuálny výstup",
         "set_outlet_help": "Prečítajte číslo výstupu zobrazené v okienku zariadenia a zadajte ho sem na opätovnú synchronizáciu sledovanej polohy.",
         "resync_home": "Obnoviť na výstup 1",
-        "confirm_resync": { "title": "Obnoviť na výstup 1?", "body": "Toto nastaví sledovanú pozíciu na výstup 1. Potvrďte len ak je zariadenie fyzicky na výstupe 1 — inak rozvádzač zavlaží nesprávne výstupy (nezistená desynchronizácia)." },
-        "confirm_set_outlet": { "title": "Nastaviť aktuálny výstup?", "body": "Toto označí rozvádzač ako synchronizovaný na zadanom výstupe. Potvrďte len ak okno zariadenia PRÁVE TERAZ fyzicky zobrazuje tento výstup — nesprávna hodnota potichu zavlaží nesprávne výstupy." },
+        "confirm_resync": {
+          "title": "Obnoviť na výstup 1?",
+          "body": "Toto nastaví sledovanú pozíciu na výstup 1. Potvrďte len ak je zariadenie fyzicky na výstupe 1 — inak rozvádzač zavlaží nesprávne výstupy (nezistená desynchronizácia)."
+        },
+        "confirm_set_outlet": {
+          "title": "Nastaviť aktuálny výstup?",
+          "body": "Toto označí rozvádzač ako synchronizovaný na zadanom výstupe. Potvrďte len ak okno zariadenia PRÁVE TERAZ fyzicky zobrazuje tento výstup — nesprávna hodnota potichu zavlaží nesprávne výstupy."
+        },
         "confirmed": "Uvedenie do prevádzky potvrdené",
         "confirmed_help": "Aktivuje rozvádzač pre automatické a manuálne cykly. Dá sa nastaviť len pri synchronizovanej polohe a automaticky sa vypne, keď sa poloha stane neistou.",
         "needs_sync": "Pred aktiváciou tohto rozvádzača nastavte polohu na synchronizovanú.",
@@ -1097,5 +1107,22 @@
       "keep": "Pokračovať",
       "close": "Zavrieť"
     }
+  },
+  "batch": {
+    "title": "Dávkové odoslanie (ovládače s frontom)",
+    "description": "Odovzdá ovládaču celú závlahu jediným volaním — ako usporiadaný zoznam zón a dĺžok — a nechá ho tento zoznam vykonať z vlastného frontu. Určené pre ovládače so skutočným frontom, ako je komponent sprinkler v ESPHome, ale nič z toho naň nie je viazané: bežní pomocníci Home Assistant poslúžia rovnako. Front zavlažuje vždy len jeden ventil, takže dávkové zóny idú vždy po poradí a nastavenie poradia zón sa na ne nevzťahuje.",
+    "run_service": "Spúšťací skript",
+    "run_service_help": "Skript, ktorý dostane plán. Prijme jediné pole zones s usporiadaným zoznamom {zone_id, zone_name, duration}. Ak váš ovládač pozná násobiteľa alebo opakovania, vynechajte ich alebo nastavte neutrálne (násobiteľ 1, opakovanie 0) — prepočítali by už vypočítané dĺžky a Smart Irrigation to nedokáže zistiť.",
+    "stop_service": "Zastavovací skript",
+    "stop_service_help": "Skript, ktorý zastaví závlahu A vyprázdni front. Záleží na oboch. Pri ovládači ESPHome sú to sprinkler.shutdown a následne sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Bez zastavovacieho skriptu sa ovládač nedá zastaviť a jeho front vyprázdniť. Zastavenie zóny tu opraví účtovanie, ale každá zóna, ktorá zostáva vo fronte, bude zavlažovať neskôr bez akéhokoľvek dohľadu.",
+    "paused_entity": "Indikátor pauzy",
+    "paused_entity_help": "Voliteľné, jeden na ovládač. Entita, ktorá je zapnutá, kým je závlaha pozastavená. Pauza vypne ventil, zatiaľ čo si ovládač ponecháva zvyšný čas — bez toho sa pauza nedá odlíšiť od predčasného ukončenia: beh by sa uzavrel ako čiastočný, jeho vodný kredit by sa vrátil späť a ovládač by potom pokračoval v zavlažovaní zóny, ktorá už bola uzavretá.",
+    "pause_timeout": "Limit pauzy",
+    "pause_timeout_unit": "sekúnd",
+    "pause_timeout_help": "Ako dlho môže pauza trvať, kým sa beh uzavrie podľa toho, čo skutočne dodal. Ponechajte 0 pre veľkorysý predvolený limit. Pauza zámerne nie je neobmedzená: beh, ktorý nikdy neskončí, blokuje svoju zónu pre každú ďalšiu závlahu, drží čerpadlo a ponecháva si kredit za vodu, ktorá nikdy nepritiekla — zóna sa tvári ako zavlažovaná, hoci je suchá.",
+    "pause_timeout_service": "Pri vypršaní pauzy",
+    "pause_timeout_service_help": "Voliteľný skript volaný, keď pauza prekročí svoj limit, aby ste sami určili, čo znamená vzdať sa na vašom zariadení — pokračovať, vypnúť alebo vyprázdniť front. Beh sa uzavrie tak či tak.",
+    "master_warning": "Ak váš ovládač spína vlastné čerpadlo, nenastavujte tu navyše hlavný spínač. To isté čerpadlo by malo dvoch nezávislých vlastníkov, z ktorých každý rozhoduje, kedy beží. Použite jedno alebo druhé."
   }
 }

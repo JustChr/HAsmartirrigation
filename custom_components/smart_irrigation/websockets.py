@@ -152,6 +152,13 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_MANUAL_LATITUDE): vol.Or(float, int, None),
                 vol.Optional(const.CONF_MANUAL_LONGITUDE): vol.Or(float, int, None),
                 vol.Optional(const.CONF_MANUAL_ELEVATION): vol.Or(float, int, None),
+                # Batch/queue dispatch (#88), all optional and all None by
+                # default, so an install that does not use the mode is unchanged.
+                vol.Optional(const.CONF_BATCH_RUN_SERVICE): vol.Or(str, None),
+                vol.Optional(const.CONF_BATCH_STOP_SERVICE): vol.Or(str, None),
+                vol.Optional(const.CONF_BATCH_PAUSED_ENTITY): vol.Or(str, None),
+                vol.Optional(const.CONF_BATCH_PAUSE_TIMEOUT): vol.Coerce(int),
+                vol.Optional(const.CONF_BATCH_PAUSE_TIMEOUT_SERVICE): vol.Or(str, None),
             },
             extra=vol.ALLOW_EXTRA,
         )

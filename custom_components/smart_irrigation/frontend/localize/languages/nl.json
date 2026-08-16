@@ -381,7 +381,8 @@
         "watering_modes": {
           "classic": "Klassiek (HASI opent & sluit de klep)",
           "service": "Zelfsluitende service (klep sluit zichzelf)",
-          "opensprinkler": "OpenSprinkler-station (de controller werkt de wachtrij af)"
+          "opensprinkler": "OpenSprinkler-station (de controller werkt de wachtrij af)",
+          "batch": "Batch-/wachtrijregelaar (één aanroep voor de hele cyclus)"
         },
         "run_service": "Startservice",
         "run_service_help": "Service die HASI aanroept om de cyclus te starten (bijv. een script.* of een switch/valve-service). Deze ontvangt het onderstaande duurveld plus zone_id en zone_name.",
@@ -429,7 +430,10 @@
         "outlet_number": "Uitgangsnummer",
         "distributor_managed_note": "Deze zone wordt via een verdeler bewaterd (uitgang hierboven). De klep, de inlaatbesturing en de debietsensor worden door de verdeler beheerd en hier verborgen — alleen de bereken- en bodemvocht-veto-instellingen blijven. Om de zone weer een eigen klep te geven, kies hierboven “Geen (eigen klep)”.",
         "outlet_number_readonly_help": "Welke uitgang van de verdeler deze zone voedt. Wordt ingesteld op de verdelerpagina — open die met de knop.",
-        "configure_on_distributor": "Op verdeler instellen"
+        "configure_on_distributor": "Op verdeler instellen",
+        "batch_valve": "Klepschakelaar",
+        "batch_valve_help": "Verplicht. De entiteit die aan staat terwijl DEZE zone beregent — de klepschakelaar van de regelaar, of een helper die hem weerspiegelt. In batchmodus is dit het enige dat de beurt kan starten en beëindigen: de tijd loopt vanaf het moment dat dit aangaat, nooit vanaf het versturen van het plan. Een zone die nog in de wachtrij staat krijgt zo geen water toegerekend dat ze nog niet gehad heeft.",
+        "batch_valve_missing": "Deze zone heeft geen klepschakelaar en kan daarom niet in een batch mee. Stel er hierboven een in, anders wordt ze bij het beregenen geweigerd."
       },
       "no_items": "Er zijn nog geen zones.",
       "title": "Zones",
@@ -807,8 +811,14 @@
         "set_outlet": "Huidige uitgang instellen",
         "set_outlet_help": "Lees het uitgangsnummer af in het venster van het apparaat en stel het hier in om de bijgehouden positie opnieuw te synchroniseren.",
         "resync_home": "Terugzetten naar uitgang 1",
-        "confirm_resync": { "title": "Terugzetten naar uitgang 1?", "body": "Dit zet de gevolgde positie op uitgang 1. Bevestig alleen als het apparaat fysiek op uitgang 1 staat — anders bewatert de verdeler de verkeerde uitgangen (onopgemerkte desynchronisatie)." },
-        "confirm_set_outlet": { "title": "Huidige uitgang instellen?", "body": "Dit markeert de verdeler als gesynchroniseerd op de ingevoerde uitgang. Bevestig alleen als het apparaatvenster NU precies die uitgang toont — een verkeerde waarde bewatert ongemerkt de verkeerde uitgangen." },
+        "confirm_resync": {
+          "title": "Terugzetten naar uitgang 1?",
+          "body": "Dit zet de gevolgde positie op uitgang 1. Bevestig alleen als het apparaat fysiek op uitgang 1 staat — anders bewatert de verdeler de verkeerde uitgangen (onopgemerkte desynchronisatie)."
+        },
+        "confirm_set_outlet": {
+          "title": "Huidige uitgang instellen?",
+          "body": "Dit markeert de verdeler als gesynchroniseerd op de ingevoerde uitgang. Bevestig alleen als het apparaatvenster NU precies die uitgang toont — een verkeerde waarde bewatert ongemerkt de verkeerde uitgangen."
+        },
         "confirmed": "Ingebruikname bevestigd",
         "confirmed_help": "Schakelt de verdeler in voor automatische en handmatige cycli. Kan alleen worden ingesteld als de positie gesynchroniseerd is en gaat automatisch uit zodra de positie onzeker wordt.",
         "needs_sync": "Synchroniseer de positie voordat je deze verdeler kunt inschakelen.",
@@ -1097,5 +1107,22 @@
       "keep": "Doorgaan",
       "close": "Sluiten"
     }
+  },
+  "batch": {
+    "title": "Batchopdracht (wachtrij-regelaars)",
+    "description": "Geef de regelaar de hele beregening in één aanroep — een geordende lijst van zones en looptijden — en laat hem die lijst uit zijn eigen wachtrij afwerken. Bedoeld voor regelaars met een echte wachtrij zoals de ESPHome sprinkler-component, maar niets hiervan is daaraan gebonden: gewone Home Assistant-helpers werken net zo goed. Een wachtrij beregent één klep tegelijk, dus batchzones lopen altijd op volgorde en de instelling voor zonevolgorde geldt niet voor hen.",
+    "run_service": "Startscript",
+    "run_service_help": "Het script dat het plan krijgt. Het ontvangt één veld, zones, met een geordende lijst van {zone_id, zone_name, duration}. Als je regelaar een vermenigvuldiger of herhaling kent: laat ze weg of zet ze neutraal (vermenigvuldiger 1, herhaling 0) — ze zouden al berekende looptijden opnieuw schalen, en Smart Irrigation kan dat niet zien.",
+    "stop_service": "Stopscript",
+    "stop_service_help": "Het script dat de beregening stopt ÉN de wachtrij leegmaakt. Beide zijn nodig. Bij een ESPHome-regelaar is dat sprinkler.shutdown gevolgd door sprinkler.clear_queued_valves.",
+    "stop_service_missing": "Zonder stopscript kan de regelaar niet gestopt worden en kan zijn wachtrij niet geleegd worden. Een zone stoppen corrigeert hier wel de administratie, maar elke nog wachtende zone gaat later beregenen zonder dat iets erop toeziet.",
+    "paused_entity": "Pauze-indicator",
+    "paused_entity_help": "Optioneel, één per regelaar. Een entiteit die aan staat zolang de beregening gepauzeerd is. Een pauze zet de klep uit terwijl de regelaar de resterende tijd bewaart — zonder dit is een pauze niet te onderscheiden van een regelaar die de beurt vroegtijdig beëindigt: de beurt zou als gedeeltelijk worden afgerekend en het waterkrediet teruggedraaid, waarna de regelaar een al afgesloten zone verder zou beregenen.",
+    "pause_timeout": "Pauzelimiet",
+    "pause_timeout_unit": "seconden",
+    "pause_timeout_help": "Hoe lang een pauze mag duren voordat de beurt wordt afgerekend op wat er werkelijk geleverd is. Laat op 0 voor een ruime standaardgrens. Een pauze blijft bewust niet onbegrensd: een beurt die nooit eindigt blokkeert zijn zone voor elke volgende beurt, houdt de pomp vast en behoudt krediet voor water dat nooit gevallen is — de zone lijkt dan beregend terwijl hij droog staat.",
+    "pause_timeout_service": "Bij pauzelimiet",
+    "pause_timeout_service_help": "Optioneel script dat wordt aangeroepen als een pauze zijn limiet overschrijdt, zodat jij bepaalt wat opgeven betekent voor jouw hardware — hervatten, uitschakelen of de wachtrij legen. De beurt wordt hoe dan ook afgerekend.",
+    "master_warning": "Als je regelaar zijn eigen pomp schakelt, stel hier dan geen hoofdschakelaar in. Dan zou dezelfde pomp twee onafhankelijke eigenaren hebben die elk beslissen wanneer hij draait. Gebruik het een of het ander."
   }
 }
