@@ -205,6 +205,8 @@ class TestFinishTargetMemoryIsPruned:
         mgr = RecurringScheduleManager.__new__(RecurringScheduleManager)
         mgr.hass = Mock()
         mgr.coordinator = Mock()
+        # Pruning now reaches the persisted copy of the map too.
+        mgr.coordinator.store.async_update_config = AsyncMock()
         mgr._schedules = schedules
         mgr._schedule_trackers = {}
         mgr._finish_last_target = {}
