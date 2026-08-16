@@ -137,9 +137,16 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     this._stopCountdownTicker();
   }
 
-  /** Run a 1s ticker only while at least one zone has an in-progress run. */
+  /** Run a 1s ticker only while at least one zone has an in-progress run.
+   *
+   * Zones a chain has claimed but not started are excluded: they render a
+   * static label, so ticking for them would re-render the whole view every
+   * second for the entire length of a chain.
+   */
   private _syncCountdownTicker(): void {
-    const hasActive = Object.keys(this._outlook?.active_runs ?? {}).length > 0;
+    const hasActive = Object.values(this._outlook?.active_runs ?? {}).some(
+      (run) => run.queued !== true,
+    );
     if (hasActive && this._countdownTimer === null) {
       this._countdownTimer = window.setInterval(() => {
         this._now = Date.now();
@@ -1159,16 +1166,27 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     // While a run is in progress, replace the duration picker + Run button with
     // a live countdown (or a "watering…" label for volume-bounded flow runs)
     // and a Stop button.
+    //
+    // A zone a sequential or rotating chain has claimed but not reached yet is
+    // in the same registry and gets the same Stop button — stopping it drops it
+    // from the chain before its valve ever opens — but it must not claim to be
+    // watering, or every zone of a chain reads as watering from the moment the
+    // chain starts.
     const active = this._activeRun(zone);
     if (active) {
-      const left = this._runSecondsLeft(active);
+      const queued = active.queued === true;
+      const left = queued ? null : this._runSecondsLeft(active);
       return html`
-        <div class="run-zone-control running">
+        <div class="run-zone-control running ${queued ? "queued" : ""}">
           <span class="run-zone-countdown">
-            <ha-icon icon="mdi:water-pump"></ha-icon>
-            ${left === null
-              ? localize("panels.zones.stop_zone.watering", lang)
-              : this._formatCountdown(left)}
+            <ha-icon
+              icon="${queued ? "mdi:tray-full" : "mdi:water-pump"}"
+            ></ha-icon>
+            ${queued
+              ? localize("panels.zones.stop_zone.queued", lang)
+              : left === null
+                ? localize("panels.zones.stop_zone.watering", lang)
+                : this._formatCountdown(left)}
           </span>
           <button
             class="action-btn stop-btn"
@@ -1754,6 +1772,13 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
       .run-zone-countdown ha-icon {
         --mdc-icon-size: 18px;
+      }
+
+      /* Claimed by a chain but not watering yet: same row, but muted so it does
+         not read as the accent-coloured "water is flowing" state. */
+      .run-zone-control.queued .run-zone-countdown {
+        font-weight: 500;
+        color: var(--secondary-text-color);
       }
 
       .action-btn.stop-btn {

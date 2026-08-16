@@ -614,6 +614,7 @@
       "stop_zone": {
         "stop": "Ferma",
         "watering": "Irrigazione…",
+        "queued": "In coda…",
         "toast_stopped": "Irrigazione fermata"
       }
     },
