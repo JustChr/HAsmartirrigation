@@ -108,7 +108,53 @@ class RecurringScheduleManager:
     @callback
     def _on_config_updated(self, *_args) -> None:
         """React to config/duration changes by re-arming finish schedules."""
-        self.hass.async_create_task(self.async_rearm_finish_schedules())
+        self.hass.async_create_task(self._async_handle_config_updated())
+
+    async def _async_handle_config_updated(self) -> None:
+        """Reload the schedules if the stored list changed, else just re-arm.
+
+        ``self._schedules`` is in-memory state that only ``async_load_schedules``
+        assigns from the store, and everything reads through it — including
+        ``get_schedules()``, which backs the ``smart_irrigation/schedules``
+        websocket command. A writer that puts ``recurring_schedules`` straight
+        into the config document therefore left the store and the running
+        manager disagreeing: the schedule was persisted and correct on disk, but
+        no tracker was ever registered so it never fired, and it was absent from
+        the panel until a config entry reload rebuilt the manager. Nothing
+        errored in either direction. The panel is not such a writer — it calls
+        ``schedule_save``, which routes to ``async_create_schedule`` /
+        ``async_update_schedule`` and arms its own tracker — but the REST and
+        websocket config endpoints are, and so is anything replaying a stored
+        configuration document.
+
+        The diff is a correctness requirement, not an optimisation. This handler
+        is wired to ``_config_updated``, which fires on every calculate, and
+        every few seconds when continuous updates are enabled. Rebuilding
+        unconditionally would tear down and re-arm every tracker on that cadence,
+        and re-arming a finish tracker is exactly the operation that can re-fire
+        an occurrence. So an undiffed rebuild would not merely be wasteful.
+        Same diff-then-rebuild shape as ObservedWateringMixin's tracked entity
+        set.
+        """
+        config = await self.coordinator.store.async_get_config()
+        stored = config.get(const.CONF_RECURRING_SCHEDULES) or []
+        if stored == self._schedules:
+            await self.async_rearm_finish_schedules()
+            return
+
+        _LOGGER.debug(
+            "Recurring schedules changed outside the schedule manager "
+            "(%s stored, %s armed); reloading",
+            len(stored),
+            len(self._schedules),
+        )
+        # Rebuilds every tracker, so no separate re-arm afterwards: a redundant
+        # finish re-arm is the re-fire operation described above.
+        await self.async_load_schedules()
+        # schedule_save sends this so the next-irrigation sensors recompute; a
+        # writer that bypassed the manager did not, leaving those sensors as
+        # stale as the trackers were.
+        async_dispatcher_send(self.hass, const.DOMAIN + "_schedules_updated")
 
     async def async_rearm_finish_schedules(self) -> None:
         """Recompute and re-arm start times for finish-anchored schedules."""
