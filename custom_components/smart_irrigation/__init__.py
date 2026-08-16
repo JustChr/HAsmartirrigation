@@ -46,6 +46,7 @@ from homeassistant.helpers.event import (
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .batch import BatchMixin
 from .calculation import CalculationMixin
 from .config_resolver import resolve_weather_config
 from .continuous_update import ContinuousUpdateMixin
@@ -225,6 +226,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             )
             return
         await coordinator.async_abort_opensprinkler_runs("Home Assistant is stopping")
+        # Sharper for batch mode than for stations: that controller KEEPS its
+        # queue across a stop, so leaving it alone strands both the zone that is
+        # watering and every zone still queued behind it.
+        await coordinator.async_abort_batch_runs("Home Assistant is stopping")
 
     coordinator._stop_listener_unsub = hass.bus.async_listen_once(
         EVENT_HOMEASSISTANT_STOP, _async_stop_runs_on_shutdown
@@ -401,6 +406,9 @@ async def async_unload_entry(hass: HomeAssistant, entry):
             await coordinator.async_abort_opensprinkler_runs(
                 "the Smart Irrigation config entry is being disabled"
             )
+            await coordinator.async_abort_batch_runs(
+                "the Smart Irrigation config entry is being disabled"
+            )
         await coordinator.async_unload()
     return True
 
@@ -427,6 +435,9 @@ async def async_remove_entry(hass: HomeAssistant, entry):
             await coordinator.async_abort_opensprinkler_runs(
                 "the Smart Irrigation config entry is being removed", settle=False
             )
+            await coordinator.async_abort_batch_runs(
+                "the Smart Irrigation config entry is being removed", settle=False
+            )
             await coordinator.async_delete_config()
         del hass.data[const.DOMAIN]
 
@@ -445,8 +456,13 @@ class SmartIrrigationCoordinator(
     ContinuousUpdateMixin,
     SelfClosingMixin,
     OpenSprinklerMixin,
-    # After OpenSprinklerMixin: that mode refines one of the engine's hooks
-    # (_watch_observed_start_iso) and must win the MRO to do it.
+    # Before RunWatchMixin for the same reason OpenSprinklerMixin is: batch mode
+    # refines the engine's pause hooks (_watch_paused, _watch_finish_delay,
+    # _watch_pause_started / _watch_pause_ended) and must win the MRO to do it.
+    BatchMixin,
+    # After the mode mixins: OpenSprinkler refines _watch_observed_start_iso and
+    # batch refines the pause hooks, and each must be reached before the engine's
+    # own default.
     RunWatchMixin,
     MasterMixin,
     DistributorMixin,
@@ -1865,6 +1881,9 @@ class SmartIrrigationCoordinator(
         # A surviving one would observe a station against this dead coordinator
         # and finalise a run in the store the new one is also reconciling.
         self.async_teardown_opensprinkler_watchers()
+        # Same for the batch controller: its paused-indicator subscription and
+        # any pending pause bound would otherwise fire against a dead coordinator.
+        self.async_teardown_batch_watchers()
 
         # Cancel the continuous-update sensor subscription AND its pending
         # debounce timers — a surviving async_call_later would fire against this

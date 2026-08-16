@@ -666,6 +666,24 @@ WATERING_MODE_SERVICE = "service"  # fire a service, valve self-closes
 # controller owns the close), but the run is QUEUED — the controller waters one
 # station at a time — so nothing about the run may be timed from dispatch.
 WATERING_MODE_OPENSPRINKLER = "opensprinkler"
+# Batch/queue dispatch (issue #88): hand a controller ONE service call carrying
+# the whole irrigation as an ordered list of (zone, duration), and let it run the
+# list from its own queue. The motivating hardware is the ESPHome sprinkler
+# component, but nothing here is ESPHome-specific — the mode is a contract about
+# what each configured entity must MEAN, so plain Home Assistant helpers serve
+# just as well.
+#
+# Like OpenSprinkler this is a self-closing contract with a queue, so nothing
+# about a run may be timed from dispatch. Unlike OpenSprinkler the controller can
+# PAUSE, which is why runs in this mode are timed as segments
+# (see RUN_WATERED_SECONDS) and why a valve going off is not automatically the
+# end of a run.
+#
+# A queue runs one valve at a time, so this mode is inherently SEQUENTIAL:
+# ``parallel`` cannot be expressed in it. Order comes from the order of the list,
+# and a rotation is expressed by listing a zone more than once with a slice of
+# its duration.
+WATERING_MODE_BATCH = "batch"
 
 # 'service' adapter per-zone config. Device specifics live in the run_service
 # script (see the shipped valve blueprints), not here.
@@ -753,6 +771,50 @@ EVENT_ZONE_PROBLEM = "zone_problem"
 EVENT_ZONE_SKIPPED = "zone_skipped"  # per-zone soil-moisture veto (carries
 # zone_id, zone, entity_id, reason, observed, threshold)
 
+# --- Batch/queue dispatch, instance-level config (issue #88) ----------------
+# The service handed the whole plan. Receives one key, BATCH_FIELD_ZONES, whose
+# value is the ordered list of {zone_id, zone_name, duration} the controller
+# should queue and run.
+CONF_BATCH_RUN_SERVICE = "batch_run_service"
+# The service that stops the irrigation AND CLEARS THE QUEUE. Both halves are
+# required and it is deliberately ONE user-supplied script rather than a
+# hard-coded pair: the ESPHome spelling is sprinkler.shutdown +
+# sprinkler.clear_queued_valves, but the mode must not know that.
+#
+# Clearing the queue is a safety requirement, not tidiness. Stopping one zone
+# stops the cycle but LEAVES THE QUEUE INTACT, so zones already queued would
+# start watering later with nothing supervising them — the same unsupervised-run
+# failure the OpenSprinkler teardown was fixed for.
+CONF_BATCH_STOP_SERVICE = "batch_stop_service"
+# Optional. ONE indicator per controller that reads on while the irrigation is
+# paused. A queue waters one valve at a time, so the paused zone is unambiguously
+# the one with an observed start and no finish — no per-zone sensor is needed.
+# Without it a pause is indistinguishable from the controller ending the run.
+CONF_BATCH_PAUSED_ENTITY = "batch_paused_entity"
+# Optional bound on a pause, in seconds, and an optional service called when it
+# expires so the user decides what giving up means on their hardware (resume,
+# shut down, clear the queue). Smart Irrigation settles the run for what was
+# actually delivered either way.
+CONF_BATCH_PAUSE_TIMEOUT = "batch_pause_timeout"
+CONF_BATCH_PAUSE_TIMEOUT_SERVICE = "batch_pause_timeout_service"
+# Key the plan is passed under in the run service's data.
+BATCH_FIELD_ZONES = "zones"
+# What an UNSET pause timeout means. Deliberately a generous bounded backstop
+# rather than "no bound at all": an unbounded pause is harmless to the controller
+# but not to this integration's bookkeeping, where a run that never ends holds
+# its zone against re-dispatch, holds the master, and keeps an optimistic bucket
+# credit for water that never fell — so the zone reads as watered while it is
+# dry, indefinitely. Pause deliberately for an hour and nothing happens; leave it
+# paused for a week and the integration eventually stops believing the zone was
+# watered.
+BATCH_PAUSE_BACKSTOP_SECONDS = 6 * 3600
+# How long a valve going off is held open as possibly-a-pause before it is
+# treated as the end of the run. A pause turns the valve off and raises the
+# paused indicator, and nothing orders those two updates; without this the
+# ordering decides whether a paused run is resumed or settled as a partial with
+# its credit already reversed. Only applied when a paused entity is configured.
+BATCH_PAUSE_SETTLE_SECONDS = 5
+
 # --- Master switch / pump control (instance-level, fully optional) ----------
 CONF_MASTER_ENTITY = "master_entity"  # switch/valve/input_boolean, or None
 CONF_MASTER_SETTLE_SECONDS = "master_settle_seconds"  # wait after on before zone 1
@@ -832,6 +894,23 @@ PROBLEM_STATION_WRONG_MODE = "station_wrong_mode"
 # run-log detail for this), so they are free to diverge without one silently
 # changing the other's copy.
 RUN_DETAIL_STATION_NEVER_RAN = "station_never_ran"
+
+# --- Batch mode fault + run-log codes (issue #88) ---------------------------
+# The controller never watered this zone: it was queued, its turn never came (or
+# the queue was cleared under it), and the give-up deadline expired.
+PROBLEM_ZONE_NEVER_RAN = "zone_never_ran"
+# The zone has no confirm_entity, which in batch mode is the valve switch and the
+# ONLY thing that can start or end the run. Refused rather than dispatched: a run
+# with nothing to observe would credit the bucket and never finalise.
+PROBLEM_BATCH_NO_WATCH_ENTITY = "batch_no_watch_entity"
+# No batch run service is configured, so there is nothing to hand the plan to.
+PROBLEM_BATCH_NOT_CONFIGURED = "batch_not_configured"
+# Run-log details. Separate names from the problem codes above for the same
+# reason RUN_DETAIL_STATION_NEVER_RAN is: different panel lookups read them.
+RUN_DETAIL_ZONE_NEVER_RAN = "zone_never_ran"
+# The controller stayed paused past its bound, so the run was settled for what it
+# had actually delivered.
+RUN_DETAIL_BATCH_PAUSE_TIMEOUT = "batch_pause_timeout"
 
 # --- Gardena Wasserverteiler automatic (distributor) -------------------------
 # Position-state of the open-loop outlet counter. A distributor only waters via

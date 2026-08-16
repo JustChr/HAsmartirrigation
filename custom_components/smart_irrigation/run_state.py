@@ -35,6 +35,7 @@ from homeassistant.util import dt as dt_util
 
 from . import const
 from .opensprinkler import queue_deadline_seconds
+from .run_watch import run_is_queue_bound
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,10 +89,7 @@ class RunStateMixin:
             if planned <= 0:
                 return True
             observed = run.get(const.RUN_OBSERVED_START)
-            queued = (
-                observed is None
-                and run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER
-            )
+            queued = run_is_queue_bound(run)
             window = queue_deadline_seconds(runs, run) if queued else planned
             anchor = dt_util.parse_datetime(
                 (observed or run.get(const.RUN_STARTED)) or ""

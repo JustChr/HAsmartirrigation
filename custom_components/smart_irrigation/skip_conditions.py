@@ -12,6 +12,7 @@ import logging
 import homeassistant.util.dt as dt_util
 
 from . import const
+from .batch import is_batch_zone
 from .helpers import normalize_zone_selection
 from .opensprinkler import is_opensprinkler_zone
 from .self_closing import is_self_closing_zone
@@ -420,7 +421,7 @@ class SkipConditionsMixin:
         selection = normalize_zone_selection(zone_ids)
         target = None if selection is None else {int(z) for z in selection}
 
-        classic, self_closing, stations = [], [], []
+        classic, self_closing, stations, batched = [], [], [], []
         for zone in zones:
             if zone.get(const.ZONE_STATE) not in (
                 const.ZONE_STATE_AUTOMATIC,
@@ -436,6 +437,8 @@ class SkipConditionsMixin:
                 continue
             if is_opensprinkler_zone(zone):
                 stations.append(duration)
+            elif is_batch_zone(zone):
+                batched.append(duration)
             elif is_self_closing_zone(zone):
                 self_closing.append(duration)
             else:
@@ -479,9 +482,14 @@ class SkipConditionsMixin:
         sc_track = max(self_closing) if self_closing else 0
         # Always sum: see the station-track note above.
         station_track = sum(stations)
+        # Always sum, and with no ambiguity to hedge against: a queue runs one
+        # valve at a time by construction, so a batch of zones takes as long as
+        # all of them put together. This is the one track whose serialisation is
+        # a property of the mode rather than of a setting or a controller flag.
+        batch_track = sum(batched)
         # Every track is started without being waited on, so the wall-clock is
         # the longest of them rather than their total.
-        return int(max(classic_track, sc_track, station_track, dist_track))
+        return int(max(classic_track, sc_track, station_track, batch_track, dist_track))
 
     async def _increment_days_since_irrigation(self):
         """Increment the counter for days since last irrigation."""

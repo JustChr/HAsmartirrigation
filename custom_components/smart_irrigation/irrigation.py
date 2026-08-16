@@ -18,6 +18,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .batch import is_batch_zone
 from .calculation import duration_from_deficit
 from .flow_metering import (
     FlowMeter,
@@ -29,6 +30,7 @@ from .flow_metering import (
 from .helpers import convert_between
 from .localize import localize
 from .opensprinkler import entity_is_station, is_opensprinkler_zone
+from .run_watch import run_is_queue_bound
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -199,10 +201,7 @@ class IrrigationRunnerMixin:
         if started is None:
             return None, None
         started = dt_util.as_local(started)
-        queued = (
-            not observed
-            and record.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER
-        )
+        queued = run_is_queue_bound(record)
         planned = float(record.get(const.RUN_PLANNED_SECONDS) or 0)
         ends_at = (
             (started + timedelta(seconds=planned)).isoformat()
@@ -687,12 +686,22 @@ class IrrigationRunnerMixin:
         await self.async_master_acquire(cycle_token)
         try:
             self_closing = [z for z in zones if self._sc_is_self_closing(z)]
-            for z in [z for z in self_closing if not is_opensprinkler_zone(z)]:
+            for z in self_closing:
+                if is_opensprinkler_zone(z) or is_batch_zone(z):
+                    continue
                 await self.async_run_self_closing(z, trigger=trigger)
             await self.async_dispatch_opensprinkler_zones(
                 [z for z in self_closing if is_opensprinkler_zone(z)],
                 trigger=trigger,
             )
+            # Batch zones go out as ONE call carrying the whole ordered plan, so
+            # they are handed over as a set rather than looped over here. Guarded
+            # on the set being non-empty, like the linked-entity branch below: an
+            # install with no batch zones — which is every install today — never
+            # enters this mode's code at all.
+            batched = [z for z in self_closing if is_batch_zone(z)]
+            if batched:
+                await self.async_dispatch_batch_zones(batched, trigger=trigger)
             linked = [z for z in zones if not self._sc_is_self_closing(z)]
             if linked:
                 await self._dispatch_sequencing(linked)

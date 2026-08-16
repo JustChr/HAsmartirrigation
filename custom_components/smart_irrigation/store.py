@@ -24,6 +24,11 @@ from .const import (
     CONF_AUTO_UPDATE_INTERVAL,
     CONF_AUTO_UPDATE_SCHEDULE,
     CONF_AZIMUTH_BEARING_CORRECTED,
+    CONF_BATCH_PAUSE_TIMEOUT,
+    CONF_BATCH_PAUSE_TIMEOUT_SERVICE,
+    CONF_BATCH_PAUSED_ENTITY,
+    CONF_BATCH_RUN_SERVICE,
+    CONF_BATCH_STOP_SERVICE,
     CONF_CALC_TIME,
     CONF_CONTINUOUS_UPDATES,
     CONF_DAYS_BETWEEN_IRRIGATION,
@@ -424,6 +429,15 @@ class Config:
     master_kick_enabled = attr.ib(type=bool, default=False)
     master_kick_pause_seconds = attr.ib(type=float, default=1.0)
     master_off_after = attr.ib(type=bool, default=False)
+    # Batch/queue dispatch (issue #88), instance-level and fully optional. With
+    # no run service configured the mode is unreachable, so an install that does
+    # not use it is byte-identical. Hydrated with .get defaults below rather than
+    # through a migration, so STORAGE_VERSION stays put — see the note there.
+    batch_run_service = attr.ib(type=str, default=None)
+    batch_stop_service = attr.ib(type=str, default=None)
+    batch_paused_entity = attr.ib(type=str, default=None)
+    batch_pause_timeout = attr.ib(type=int, default=0)
+    batch_pause_timeout_service = attr.ib(type=str, default=None)
 
 
 @attr.s(slots=True, frozen=True)
@@ -939,6 +953,16 @@ class SmartIrrigationStorage:
                 # bucket correction), and the next config write dropped the
                 # persisted record. See tests/test_store_self_closing.py.
                 active_valve_runs=data["config"].get(CONF_ACTIVE_VALVE_RUNS, []),
+                # Batch mode (#88). Hydrated with defaults, like the #66/#74/#77
+                # flags above, so no STORAGE_VERSION bump is needed — the storage
+                # key is shared with the other forks of this integration.
+                batch_run_service=data["config"].get(CONF_BATCH_RUN_SERVICE, None),
+                batch_stop_service=data["config"].get(CONF_BATCH_STOP_SERVICE, None),
+                batch_paused_entity=data["config"].get(CONF_BATCH_PAUSED_ENTITY, None),
+                batch_pause_timeout=data["config"].get(CONF_BATCH_PAUSE_TIMEOUT, 0),
+                batch_pause_timeout_service=data["config"].get(
+                    CONF_BATCH_PAUSE_TIMEOUT_SERVICE, None
+                ),
             )
 
             if "zones" in data:

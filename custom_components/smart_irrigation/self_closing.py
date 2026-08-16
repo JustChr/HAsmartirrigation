@@ -16,7 +16,9 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.util import dt as dt_util
 
 from . import const
+from .batch import is_batch_zone
 from .opensprinkler import is_opensprinkler_zone
+from .run_watch import run_is_queue_bound
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,6 +34,7 @@ def is_self_closing_zone(zone: dict) -> bool:
     return isinstance(zone, dict) and zone.get(const.ZONE_WATERING_MODE) in (
         const.WATERING_MODE_SERVICE,
         const.WATERING_MODE_OPENSPRINKLER,
+        const.WATERING_MODE_BATCH,
     )
 
 
@@ -532,7 +535,7 @@ class SelfClosingMixin:
         observed = run.get(const.RUN_OBSERVED_START)
         if observed:
             return self._sc_elapsed(observed)
-        if run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER:
+        if run_is_queue_bound(run):
             return 0.0
         return self._sc_elapsed(run.get(const.RUN_STARTED))
 
@@ -707,6 +710,12 @@ class SelfClosingMixin:
             if run.get(const.RUN_MODE) == const.WATERING_MODE_OPENSPRINKLER:
                 await self._os_resume_run(run)
                 continue
+            # Same reasoning for a batch run, which is also queued: its elapsed
+            # is segment-based and its valve, not the clock, says whether it is
+            # still watering. It is re-adopted, never re-dispatched.
+            if run.get(const.RUN_MODE) == const.WATERING_MODE_BATCH:
+                await self._batch_resume_run(run)
+                continue
             elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
             if elapsed >= planned:
                 await self._sc_finish_run(zone_id)
@@ -734,5 +743,12 @@ class SelfClosingMixin:
         zone = self.store.get_zone(zone_id) or {}
         if not self._sc_is_self_closing(zone):
             return False
+        if is_batch_zone(zone):
+            # Batch stopping is not a per-zone action and cannot be made into
+            # one: the controller stops the whole cycle, and the zones still
+            # queued behind this one stay queued. So the stop clears the queue
+            # and every run in flight is settled. See batch.async_stop_batch.
+            await self.async_stop_batch(zone_id)
+            return True
         await self.async_stop_self_closing(zone_id)
         return True

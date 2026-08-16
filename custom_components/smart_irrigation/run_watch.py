@@ -44,6 +44,24 @@ NO_INFO_STATES = ("unavailable", "unknown")
 # The watch entity is a binary_sensor / switch / valve; these are its "watering"
 # states.
 RUNNING_STATES = ("on", "open", "opening")
+# The modes whose runs sit in a controller's QUEUE between dispatch and water.
+# For these, and only these, RUN_STARTED bounds nothing: a zone behind three
+# others opens hours after it was dispatched, so anything measured from dispatch
+# would finalise a run that has not started. Every other mode opens its valve as
+# it dispatches, so the two instants coincide.
+QUEUE_BOUND_MODES = (
+    const.WATERING_MODE_OPENSPRINKLER,
+    const.WATERING_MODE_BATCH,
+)
+
+
+def run_is_queue_bound(run: dict) -> bool:
+    """True while a run is still waiting its turn in a controller's queue."""
+    return (
+        isinstance(run, dict)
+        and run.get(const.RUN_OBSERVED_START) is None
+        and run.get(const.RUN_MODE) in QUEUE_BOUND_MODES
+    )
 
 
 @dataclass
@@ -98,6 +116,21 @@ class WatchPolicy:
     # See const.RUN_WATERED_SECONDS. Off for every mode that cannot pause, which
     # keeps their runs on the contiguous timing they were written with.
     segmented: bool = False
+    # Whether a watcher armed for a run that ALREADY has an observed start still
+    # arms the give-up timer.
+    #
+    # It should not: the give-up timer exists to end a run that never watered,
+    # and a run with an observed start has watered. Only ``_watch_observed_start``
+    # cancels it, and that is skipped on this path, so nothing takes it back down
+    # — a resumed run with more time left than the deadline is written off while
+    # its valve is still open, its credit reversed and a fault raised.
+    #
+    # It defaults to True regardless, because that is what the OpenSprinkler mode
+    # did before this engine was extracted from it and its timing is deliberately
+    # preserved byte-for-byte (the defect is real, reproduced against the
+    # pre-extraction code, and is being fixed separately rather than smuggled in
+    # here). A mode written after the extraction should set this False.
+    arm_give_up_after_start: bool = True
 
 
 def is_acknowledged(state) -> bool:
@@ -321,7 +354,12 @@ class RunWatchMixin:
         # mode arms the short grace here in both cases, including the resume path
         # — preserving the behaviour this engine was extracted from; see the
         # note on ``queue_deadline_at_start``.
-        if policy.queue_deadline_at_start:
+        already_watering = (run or {}).get(const.RUN_OBSERVED_START) is not None
+        if already_watering and not policy.arm_give_up_after_start:
+            # Nothing to give up on — this run has watered. It is bounded by the
+            # cosmetic-finish backstop (and, while paused, by the pause bound).
+            pass
+        elif policy.queue_deadline_at_start:
             runs = await self._sc_active_runs()
             self._watch_arm_timer(
                 zid,
