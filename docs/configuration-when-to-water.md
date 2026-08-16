@@ -100,6 +100,8 @@ When multiple zones have a [linked entity](configuration-my-zones.md#linked-enti
 - **Parallel** (default): all linked entities open simultaneously. Each closes after its own calculated duration.
 - **Sequential**: zones run one after another. The integration waits for each zone to finish before starting the next. Zones with 0 seconds calculated duration are skipped automatically.
 
+> **This setting only reaches zones the integration actuates itself.** *Self-closing service* zones are all dispatched together whatever it is set to — the hardware owns each close, so there is nothing to wait for. *OpenSprinkler station* zones are sequenced by the integration, because whether two stations run at once is a flag in the controller's own configuration. *Batch / queue controller* zones are always sequential by construction: a queue waters one valve at a time, and their order comes from the order they are sent in. See [Watering mode](configuration-my-zones.md#watering-mode).
+
 ### Pump / master switch {#master-switch}
 
 If a pump or main valve must be powered before any zone can water, configure an optional **master switch** here. The sub-settings only appear once a master entity is set.
@@ -110,6 +112,8 @@ If a pump or main valve must be powered before any zone can water, configure an 
 - **Turn off after irrigation** *(optional, default off)* — off = the master stays powered (a self-monitoring pump); on = the integration turns it off after the last zone's planned end, and only once no run is still active.
 
 The master applies to every path (scheduled, *Irrigate now*, and manual runs) and to both classic and self-closing zones.
+
+> **Do not configure a master here if your controller switches its own pump.** A [batch / queue controller](configuration-my-zones.md#watering-mode) such as an ESPHome sprinkler component usually drives its pump alongside its valves. Setting a master switch as well gives the same pump two independent owners, each deciding when it runs — which is the failure this master model exists to prevent. Use one or the other.
 
 > **Crash caveat:** with *Turn off after irrigation* enabled, a Home Assistant outage after the master turns on but before the scheduled off leaves the master on — a non-self-protecting pump could dead-head or run dry. The integration can't prevent this alone; the master device must carry its own protection (dry-run cutoff, max-on timer). This is exactly why the option is off by default — a self-monitoring pump omits it and carries no crash exposure.
 

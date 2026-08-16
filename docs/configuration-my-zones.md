@@ -58,7 +58,7 @@ Open **Setup → My Zones**. Each zone's settings are shown directly under its n
   - _Disabled_: The zone is disabled. No updating and calculation of that zone. Setting a [module](configuration-modules.md) and [sensor group](configuration-sensor-groups.md) on the zone is optional.
 - **Module**: Choose the [calculation module](configuration-modules.md) that should be used to calculate irrigation for the zone.
 - **Sensor group**: Choose the [sensor group](configuration-sensor-groups.md) that provides the weather data for this zone.
-- **Watering mode**: How the integration actuates the zone — *Classic* (opens and closes a linked entity itself with a software timer), *Self-closing service* (sends the run duration to a self-closing valve and lets the hardware close it) or *OpenSprinkler station* (hands the run to an OpenSprinkler controller, which owns both the queue and the valve). See [Watering mode](#watering-mode) below.
+- **Watering mode**: How the integration actuates the zone — *Classic* (opens and closes a linked entity itself with a software timer), *Self-closing service* (sends the run duration to a self-closing valve and lets the hardware close it), *OpenSprinkler station* (hands the run to an OpenSprinkler controller, which owns both the queue and the valve) or *Batch / queue controller* (hands the whole irrigation to a queue-based controller in a single call). See [Watering mode](#watering-mode) below.
 - **Linked switch/valve/helper entity**: Optionally control a valve directly (used by the *Classic* [watering mode](#watering-mode); in *OpenSprinkler station* mode the same field names the station instead) — see [Linked entity](#linked-entity) below.
 - **Flow meter sensor** (optional): A sensor reporting the zone's actual water flow. When set, irrigation can run until the measured volume is reached instead of relying purely on the calculated time.
 - **Bucket**: Either calculated or manually set. The zone needs irrigation when the bucket falls below its **minimum deficit to irrigate** (see below; a 10 mm deficit by default) — a bucket of 0 or above never needs watering. See [automations](usage-automations.md) for examples on how to use this value.
@@ -108,6 +108,86 @@ To make self-closing setup painless, three **script blueprints** ship with the i
 **Setup:** create a script from the blueprint under **Settings → Automations & Scenes → Blueprints** (fill in your valve's MQTT topic or entities), then in the zone set **Watering mode = Self-closing service** and pick that script as the **Run service**. Each blueprint's script opens on `duration > 0` and closes on `duration = 0`, so the same script also works as the **Stop service**.
 
 > Blueprints only cover common cases. Any script that accepts a `duration` field works — the device specifics live in the script, so the same mechanism drives Z2M, ZHA, ESPHome or anything else.
+
+- **Batch / queue controller** — the **whole irrigation** is handed over in a **single service call**, as an ordered list of zones and durations, and the controller runs that list from its **own queue**. Where *Self-closing service* sends one call per zone and *OpenSprinkler station* talks to one specific product, this mode is for any controller that can accept a plan and work through it — the [ESPHome sprinkler component](https://esphome.io/components/sprinkler/) is the motivating example, but nothing about the mode is specific to it. It is described entirely in terms of what each entity you configure must **mean**, so ordinary Home Assistant helpers satisfy it just as well.
+
+  A queue waters **one valve at a time**, so batch zones are inherently **sequential**. Order comes from the order of the zone list, and the [zone sequencing](configuration-when-to-water.md#zone-sequencing) setting does not apply to them — `parallel` simply cannot be expressed in a queue. (A rotation is expressible: list a zone more than once with a slice of its duration.)
+
+  Per zone you set only the **valve switch**, in the **Confirm entity** field. In the other modes that field is an optional extra check; here it is **required**, because it is the only thing that can start or end the run. The zone's water is timed from the moment that entity turns **on** — never from when the plan was sent — so a zone still waiting its turn in the queue is not credited with water it has not had yet, and a zone the controller never reaches is written off with its moisture credit reversed and a zone problem raised.
+
+  Everything else is configured **once**, under **General settings → Batch dispatch**:
+
+  | Setting | Required | What it is |
+  |---------|----------|------------|
+  | **Run service** | yes | The script handed the plan. It receives one field, `zones`, holding an ordered list of `{zone_id, zone_name, duration}`. |
+  | **Stop service** | yes in practice | The script that stops the irrigation **and clears the queue**. |
+  | **Paused indicator** | optional | One entity per controller, on while the irrigation is paused. |
+  | **Pause timeout** | optional | How long a pause may last before the run is settled for what it delivered. |
+  | **On pause timeout** | optional | A script called when that timeout expires, so you decide what to do. |
+
+> **The stop service must also clear the queue.** On a real controller, stopping one zone stops the whole cycle — but **the queue survives it**. Zones that were queued and never started stay queued, and will water on the next manual start, with Smart Irrigation having already closed its books on them. That is why the stop script has to do both, and why stopping any one batch zone settles *every* batch run in flight rather than pretending it is a per-zone action. The same applies when the integration is disabled or removed, or Home Assistant shuts down: each of those stops the controller and clears the queue too. On an ESPHome controller the script is `sprinkler.shutdown` followed by `sprinkler.clear_queued_valves`.
+
+> **If your controller switches its own pump, do not configure a master switch here.** ESPHome's sprinkler component has its own pump handling, which switches the pump along with the valves. A [master switch](configuration-when-to-water.md) configured in Smart Irrigation as well would give one pump **two independent owners**, each deciding when it runs — exactly the failure the master model exists to prevent. Use one or the other. (Note that the pump interaction is **unverified in the field**: the only person able to test this mode has no pump.)
+
+> **Leave the controller's multiplier and repeat out.** If your controller can scale run times or repeat a cycle, those would rescale durations Smart Irrigation has *already* calculated. They are optional in the ESPHome configuration — omit them, or set them to neutral values (multiplier 1, repeat 0). Smart Irrigation cannot detect them, so this is a precondition rather than something it can enforce.
+
+#### Pausing {#batch-pause}
+
+Some controllers can **pause** an irrigation: the valve switch turns **off** while the controller keeps the remaining time, ready to resume. Without being told about it, Smart Irrigation would read that as the controller cutting the run short — settling the run as partial, reversing the part of the moisture credit it believed had not been delivered, and then watching the controller resume a zone it had already closed the books on.
+
+Configure a **paused indicator** and that is handled: while it reads on, a valve going off is a pause rather than a finish, and the run simply **stops accumulating watering time**. Run time in this mode is the **sum of the watering segments** rather than one stretch from the start, so a twenty-minute pause costs nothing — and because the total is persisted, a restart in the middle of a pause still adds up correctly.
+
+A pause is always **bounded**. Leave the **pause timeout** at 0 and a generous default backstop applies. This is deliberate: an unbounded pause is harmless to the controller, but a run that never ends holds its zone against any future run, holds the pump, and keeps a moisture credit for water that never fell — so the zone reads as watered while it is dry, and stays that way until someone notices. If you set an **On pause timeout** script it is called when the bound expires, so you decide what giving up means on your hardware (resume, shut down, clear the queue); the run is settled for what it actually delivered either way.
+
+#### A worked example (ESPHome) {#batch-example}
+
+The run script receives the plan and queues it. `zones` is a list, so it is walked with a repeat:
+
+```yaml
+alias: Irrigation - run batch
+mode: single
+fields:
+  zones:
+    description: Ordered list of {zone_id, zone_name, duration} from Smart Irrigation.
+    required: true
+sequence:
+  # Start from a known state, or a leftover queue would run alongside this plan.
+  - action: esphome.sprinkler_clear_queued_valves
+  - repeat:
+      for_each: "{{ zones }}"
+      sequence:
+        - action: esphome.sprinkler_queue_valve
+          data:
+            # Map the Smart Irrigation zone id to the controller's valve number.
+            valve_number: "{{ repeat.item.zone_id }}"
+            run_duration: "{{ repeat.item.duration | int }}"
+  - action: esphome.sprinkler_start_from_queue
+```
+
+The stop script must do both halves:
+
+```yaml
+alias: Irrigation - stop batch
+mode: single
+sequence:
+  - action: esphome.sprinkler_shutdown
+  - action: esphome.sprinkler_clear_queued_valves
+```
+
+The optional paused indicator, as an ESPHome template binary sensor:
+
+```yaml
+binary_sensor:
+  - platform: template
+    name: "Controller paused"
+    lambda: |-
+      return id(sprinkler_controller).paused_valve().has_value();
+```
+
+Then, per zone: **Watering mode = Batch / queue controller**, and **Confirm entity** = that zone's valve switch (`switch.<zone>_valve`). Durations are sent in each zone's own **Duration unit**, so set that to whatever your controller expects.
+
+> None of this requires ESPHome. Any script that accepts a `zones` list works, and the paused indicator can be an `input_boolean` your own automation sets. The mode describes what the entities must mean, not where they come from.
+
 
 ### Linked entity {#linked-entity}
 
