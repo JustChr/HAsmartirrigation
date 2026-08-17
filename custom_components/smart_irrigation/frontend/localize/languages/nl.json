@@ -574,6 +574,7 @@
       "stop_zone": {
         "stop": "Stop",
         "watering": "Bewatering…",
+        "queued": "In wachtrij…",
         "toast_stopped": "Run gestopt"
       }
     },

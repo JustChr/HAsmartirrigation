@@ -223,12 +223,16 @@ export interface RunLogEntry {
   detail: string | null;
 }
 
-/** A zone whose valve is currently being held open by the runner. */
+/** A zone claimed by a run in flight: watering now, or waiting its turn. */
 export interface ActiveRun {
   started_at: string;
   // ISO datetime the run is expected to finish; null for flow-metered
   // (volume-bounded) runs whose finish time is unknown.
   ends_at: string | null;
+  // True while a sequential/rotating chain has claimed this zone but its valve
+  // is not open yet. Such a zone is still stoppable, and stopping it drops it
+  // from the chain, but no water is flowing.
+  queued?: boolean;
 }
 
 export interface IrrigationOutlook {

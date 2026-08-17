@@ -136,17 +136,31 @@ class IrrigationRunnerMixin:
             reg = self._active_runs = {}
         return reg
 
-    def _register_active_run(self, zone_id, duration_seconds, *, has_end: bool):
+    def _register_active_run(
+        self, zone_id, duration_seconds, *, has_end: bool, queued: bool = False
+    ):
         """Mark a zone's run as in-progress; return its stop ``asyncio.Event``.
 
         ``has_end`` is True for time-bounded (synthetic / manual) runs, so the
         dashboard can render a countdown to ``ends_at``; flow-metered runs are
         volume-bounded (unknown finish time) and register without an end.
         Dispatches ``_config_updated`` so the panel surfaces the Stop control.
+
+        ``queued`` marks an entry that a chain has claimed but whose valve is not
+        open yet, so the panel can say so instead of claiming water is flowing.
+        The default is False because every caller that opens a valve wants the
+        entry to read as watering, including the one overwriting a claim.
+
+        A zone claimed by a chain (:meth:`_claim_chain_zones`) is already in the
+        registry when its own turn comes, so the existing stop event is carried
+        over rather than replaced. Minting a fresh one here would discard a stop
+        the user requested while the zone was still queued, and the valve would
+        then open anyway.
         """
         reg = self._active_run_registry()
         zid = int(zone_id)
-        event = asyncio.Event()
+        existing = reg.get(zid)
+        event = existing["stop"] if existing else asyncio.Event()
         now = dt_util.now()
         ends_at = (
             (now + timedelta(seconds=duration_seconds)).isoformat()
@@ -157,9 +171,68 @@ class IrrigationRunnerMixin:
             "stop": event,
             "started_at": now.isoformat(),
             "ends_at": ends_at,
+            "queued": queued,
         }
         async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zid)
         return event
+
+    def _set_run_queued(self, zone_id, queued: bool) -> None:
+        """Flip a tracked run between claimed-and-waiting and valve-open.
+
+        A rotation returns to the same zone for slot after slot, so its entry
+        alternates rather than being registered once. Mutates in place — going
+        through :meth:`_register_active_run` would restamp ``started_at`` on
+        every slot boundary and the panel would show the run beginning again.
+        Only dispatches on a real change, so an unchanged state costs nothing.
+        """
+        reg = getattr(self, "_active_runs", None) or {}
+        entry = reg.get(int(zone_id))
+        if entry is None or bool(entry.get("queued")) is queued:
+            return
+        entry["queued"] = queued
+        async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", int(zone_id))
+
+    def _claim_chain_zones(self, zones: list) -> list:
+        """Register every zone a chain is about to walk, and return their ids.
+
+        ``_active_runs`` answers "does this zone have a run in flight?" for the
+        duplicate-dispatch guard, and a sequential (or rotating) chain only ever
+        holds ONE valve open. Registering at valve-open therefore made the zones
+        queued behind the open one invisible to that guard: a second dispatch
+        arriving mid-chain skipped only the zone currently watering and started a
+        second concurrent chain over all the rest, watering each of them twice.
+
+        So the registry means "claimed by an in-flight run", not "valve open
+        now". Each zone clears as it completes (``_run_valve_metered``'s finally,
+        or the rotation's own per-zone clears); the chain sweeps the remainder,
+        so a chain cut short or one that raises leaves nothing claimed.
+
+        Claims register as ``queued``. The registry drives the panel as well as
+        the guard, and there it had always meant "valve open now" — without the
+        distinction a seven-zone sequential chain shows all seven zones watering
+        from the moment it starts.
+        """
+        claimed = []
+        for zone in zones:
+            zid = int(zone[const.ZONE_ID])
+            self._register_active_run(zid, 0, has_end=False, queued=True)
+            claimed.append(zid)
+        return claimed
+
+    async def _release_chain_zones(self, zone_ids) -> None:
+        """Clear any claim a chain still holds (already-finished zones are gone).
+
+        A claimed zone defers its calculation (``async_calculate_zone`` gives way
+        to a run in flight), and for a zone the chain reaches the run's own
+        teardown picks that deferral back up. A zone the chain never reaches — a
+        stop, or an exception — has no teardown, so the deferral is run here once
+        the claim is gone. Skipping it left the zone's duration stale until the
+        next scheduled calculate.
+        """
+        for zid in zone_ids:
+            self._unregister_active_run(zid)
+        for zid in zone_ids:
+            await self.async_run_deferred_calculation(zid)
 
     def _unregister_active_run(self, zone_id) -> None:
         """Clear a zone's in-progress marker (run finished or was stopped)."""
@@ -212,7 +285,7 @@ class IrrigationRunnerMixin:
         return started.isoformat(), ends_at
 
     def get_active_runs(self) -> dict:
-        """Return ``{zone_id: {started_at, ends_at}}`` for runs in progress.
+        """Return ``{zone_id: {started_at, ends_at, queued}}`` for runs in progress.
 
         TWO registries feed this, and for a long time only one of them did. The
         metered/classic runner tracks its zones in the in-memory
@@ -224,10 +297,22 @@ class IrrigationRunnerMixin:
         no Stop button, no remaining duration — while the valve was open, even
         though ``binary_sensor.<zone>_watering_now`` (which watches the linked
         entity directly) correctly read on. See issue #83.
+
+        The ``queued`` flag separates the two things the in-memory registry has
+        held since a chain started claiming its whole zone list up front: a zone
+        whose valve is open, and one waiting its turn behind it. Both must be in
+        here — the guard reads this and so does ``async_stop_all_zones``, which
+        has to reach a queued zone — but the panel renders them differently. A
+        persisted self-closing run is never queued in this sense: the hardware
+        owns its schedule, so its record only exists once it is dispatched.
         """
         reg = getattr(self, "_active_runs", None) or {}
         runs = {
-            str(zid): {"started_at": d["started_at"], "ends_at": d["ends_at"]}
+            str(zid): {
+                "started_at": d["started_at"],
+                "ends_at": d["ends_at"],
+                "queued": bool(d.get("queued")),
+            }
             for zid, d in reg.items()
         }
         for record in self._persisted_self_closing_runs():
@@ -239,7 +324,11 @@ class IrrigationRunnerMixin:
             started_at, ends_at = self._self_closing_run_window(record)
             if started_at is None:
                 continue
-            runs[str(zone_id)] = {"started_at": started_at, "ends_at": ends_at}
+            runs[str(zone_id)] = {
+                "started_at": started_at,
+                "ends_at": ends_at,
+                "queued": False,
+            }
         return runs
 
     def _run_stopped(self, zone_id) -> bool:
@@ -1376,9 +1465,11 @@ class IrrigationRunnerMixin:
         up-front estimate (2×600 s with a 10 min absorption really ends at
         1920 s, not 1200 s), and a predicted deadline cut the pump mid-rotation.
         """
+        claimed = self._claim_chain_zones(zones)
         try:
             await self._run_rotation(zones)
         finally:
+            await self._release_chain_zones(claimed)
             if master_token:
                 await self.async_master_release(master_token)
 
@@ -1453,12 +1544,12 @@ class IrrigationRunnerMixin:
         recorded: set = set()  # zones whose completion has been logged once
         loop = asyncio.get_running_loop()
 
-        # Register every zone so a Stop can interrupt the rotation and the
-        # dashboard surfaces the control. A rotation has no single finish time,
-        # so no countdown end is set (has_end=False). Markers are cleared as each
-        # zone finishes and swept at the end.
-        for zid in zone_order:
-            self._register_active_run(zid, 0, has_end=False)
+        # Every zone is already claimed by the caller (_irrigate_zones_rotating),
+        # which is what lets a Stop interrupt the rotation, surfaces the control
+        # on the dashboard, and keeps a second dispatch off the whole plan rather
+        # than off the one zone currently open. A rotation has no single finish
+        # time, so no countdown end is set. Markers are cleared as each zone
+        # finishes and the caller sweeps the remainder.
 
         def _timed_done(zid):
             return timed_remaining.get(zid, 0) <= 0
@@ -1519,6 +1610,12 @@ class IrrigationRunnerMixin:
                             wait,
                         )
                         await asyncio.sleep(wait)
+
+                # This zone's slot starts here, so it stops reading as queued
+                # until the slot ends. A rotation holds a zone's claim across the
+                # whole cycle, and most of that time its valve is shut: between
+                # slots, and through every absorption wait above.
+                self._set_run_queued(zid, False)
 
                 if is_flow:
                     z = flow_by_id[zid]
@@ -1692,12 +1789,15 @@ class IrrigationRunnerMixin:
                             trigger=self._run_trigger(zid),
                         )
 
+                # Slot over, valve shut: back to queued until the zone's next
+                # turn. A no-op for a zone whose marker was just cleared, and for
+                # a finished one it only holds until the caller's sweep.
+                self._set_run_queued(zid, True)
                 last_finish[zid] = loop.time()
 
-        # Clear any remaining in-progress markers (zones that finished normally,
-        # or a stop during an absorption wait).
-        for zid in zone_order:
-            self._unregister_active_run(zid)
+        # Remaining in-progress markers (zones that finished normally, or a stop
+        # during an absorption wait) are swept by the caller's finally, so they
+        # are cleared on the exception path too.
 
     # --- Live-estimate watering: trigger + size from the live deficit
     #     (experimental, opt-in)
@@ -2147,8 +2247,20 @@ class IrrigationRunnerMixin:
         the per-zone valve-confirm polling and any flow zone that outruns its
         nominal duration — none of which a predicted deadline could size.
         """
+        claimed = self._claim_chain_zones(zones)
         try:
             for zone in zones:
+                if self._run_stopped(zone[const.ZONE_ID]):
+                    # Stopped while it was still queued. The claim carries the
+                    # stop event, so honour it here rather than opening the valve
+                    # and closing it again one poll later.
+                    _LOGGER.info(
+                        "Sequential irrigation: zone %s was stopped before its "
+                        "turn came; skipping it",
+                        zone[const.ZONE_ID],
+                    )
+                    self._unregister_active_run(zone[const.ZONE_ID])
+                    continue
                 entity_id = zone[const.ZONE_LINKED_ENTITY]
                 real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
                 _LOGGER.info(
@@ -2164,6 +2276,9 @@ class IrrigationRunnerMixin:
                 )
                 _LOGGER.info("Sequential irrigation: finished %s", entity_id)
         finally:
+            # Zones the chain never reached (a stop, or an exception) are still
+            # claimed; drop them or they block that zone's runs for good.
+            await self._release_chain_zones(claimed)
             if master_token:
                 await self.async_master_release(master_token)
 

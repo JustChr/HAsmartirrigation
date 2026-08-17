@@ -574,6 +574,7 @@
       "stop_zone": {
         "stop": "Detener",
         "watering": "Regando…",
+        "queued": "En cola…",
         "toast_stopped": "Riego detenido"
       }
     },
