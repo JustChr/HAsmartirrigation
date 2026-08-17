@@ -8,6 +8,8 @@ tests cannot see — that there is now ONE implementation rather than two, and t
 policy switches that keep OpenSprinkler on its original timings.
 """
 
+from unittest.mock import Mock
+
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.opensprinkler import OpenSprinklerMixin
 from custom_components.smart_irrigation.run_watch import (
@@ -63,21 +65,40 @@ class TestThePolicyKeepsOpenSprinklerOnItsOriginalTimings:
         assert policy.acknowledges is True
         assert policy.accept_seconds == const.OPENSPRINKLER_ACCEPT_SECONDS
 
-    def test_a_freshly_armed_station_waits_the_acceptance_grace_not_the_queue(self):
-        """Pins the pre-extraction behaviour deliberately, bug and all.
+    def test_a_queued_station_waits_the_acceptance_grace_not_the_queue(self):
+        """A station with no observed start yet uses the SHORT grace.
 
-        ``_os_start_watch`` armed OPENSPRINKLER_ACCEPT_SECONDS unconditionally —
-        including on the resume path, where the run already has an observed start
-        and nothing cancels the timer. A run with more than 300 s left after a
-        restart is therefore written off while its station is still watering
-        (reproduced against the pre-extraction code, 2026-08-12).
-
-        The extraction preserved that exactly rather than quietly fixing it, so
-        this asserts the CURRENT behaviour. When the fix lands, this test is the
-        one that should be changed, on purpose.
+        This is a genuine timing choice and is preserved from before the
+        extraction: the controller acknowledges a queued run within a poll, so
+        the grace only has to absorb a transient communication failure. Once the
+        acknowledgement arrives, ``_watch_evaluate`` re-arms to the long
+        queue-derived deadline.
         """
         assert (
             watch_policy_for(const.WATERING_MODE_OPENSPRINKLER).queue_deadline_at_start
+            is False
+        )
+
+    def test_a_station_that_is_already_watering_is_not_given_up_on(self):
+        """The one thing here that was a defect rather than a timing choice.
+
+        ``_os_start_watch`` armed the acceptance grace unconditionally, including
+        on the resume path — where the run already has an observed start, so
+        ``_watch_observed_start`` (the only thing that cancels that timer) never
+        runs. Any station with more than the grace left when Home Assistant
+        restarted was therefore written off five minutes later while it was
+        still watering: settled as a partial, its bucket credit reversed, and a
+        station_never_ran fault raised against a zone that was delivering water
+        at that moment.
+
+        Reproduced against the pre-extraction code (2026-08-12) and deliberately
+        preserved through the #88 extraction so the 93 existing OpenSprinkler
+        tests stayed a byte-identical oracle for that refactor. Fixed once that
+        work was done. ``test_the_resume_path_does_not_arm_a_give_up_timer``
+        below is the behavioural half of this.
+        """
+        assert (
+            watch_policy_for(const.WATERING_MODE_OPENSPRINKLER).arm_give_up_after_start
             is False
         )
 
@@ -86,6 +107,81 @@ class TestThePolicyKeepsOpenSprinklerOnItsOriginalTimings:
         observed to an end, and waiting for a signal beats assuming it is live."""
         policy = watch_policy_for("a-mode-from-the-future")
         assert policy.acknowledges is True
+
+
+class TestTheResumePathDoesNotWriteOffAStationThatIsWatering:
+    """The behavioural half of the policy assertion above.
+
+    Driven through ``_watch_start`` rather than by reading the policy, because
+    the defect was never in the policy — it was that the arming branch did not
+    consult the run at all. A test that only pinned a flag would go green against
+    an arming branch that ignored it.
+    """
+
+    def _host(self, run):
+        class _Host(OpenSprinklerMixin, RunWatchMixin):
+            def __init__(self):
+                self.armed = []
+                self.hass = Mock()
+                self.hass.states.get = Mock(return_value=None)
+
+            def _watch_arm_timer(self, zone_id, delay, reason):
+                self.armed.append((int(zone_id), delay, reason))
+
+            async def _sc_find_run(self, zone_id):
+                return run
+
+            async def _sc_active_runs(self):
+                return [run] if run else []
+
+        host = _Host()
+        # The subscription and the dispatcher are HA plumbing, not the subject.
+        host._watch_cancel = Mock()
+        host._watchers = Mock(return_value={})
+        return host
+
+    async def _arm(self, monkeypatch, run):
+        monkeypatch.setattr(
+            "custom_components.smart_irrigation.run_watch."
+            "async_track_state_change_event",
+            Mock(return_value=Mock()),
+        )
+        monkeypatch.setattr(
+            "custom_components.smart_irrigation.run_watch.async_dispatcher_send", Mock()
+        )
+        host = self._host(run)
+        # _watchers is stubbed, so the trailing evaluation finds no watcher and
+        # returns immediately — the arming decision is all this exercises.
+        await host._watch_start(1, "binary_sensor.s", 3600, accepted=True)
+        return host
+
+    async def test_a_resumed_station_still_watering_is_left_alone(self, monkeypatch):
+        """An hour-long run restarted into must not be written off in five minutes."""
+        run = {
+            const.RUN_ZONE_ID: 1,
+            const.RUN_MODE: const.WATERING_MODE_OPENSPRINKLER,
+            const.RUN_PLANNED_SECONDS: 3600,
+            const.RUN_STARTED: "2026-08-17T09:00:00+00:00",
+            const.RUN_OBSERVED_START: "2026-08-17T09:00:05+00:00",
+        }
+        host = await self._arm(monkeypatch, run)
+        assert host.armed == [], (
+            "a give-up timer was armed for a station that is already watering; "
+            f"nothing cancels it, so the run dies in {host.armed[0][1]}s"
+        )
+
+    async def test_a_station_still_waiting_its_turn_keeps_its_grace(self, monkeypatch):
+        """The counterfactual: the acceptance grace is untouched for a queued run."""
+        run = {
+            const.RUN_ZONE_ID: 1,
+            const.RUN_MODE: const.WATERING_MODE_OPENSPRINKLER,
+            const.RUN_PLANNED_SECONDS: 3600,
+            const.RUN_STARTED: "2026-08-17T09:00:00+00:00",
+        }
+        host = await self._arm(monkeypatch, run)
+        assert host.armed == [
+            (1, const.OPENSPRINKLER_ACCEPT_SECONDS, const.PROBLEM_STATION_NEVER_RAN)
+        ]
 
 
 class TestTheGiveUpDeadlineCountsTheRightRunsAhead:

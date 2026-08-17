@@ -68,6 +68,18 @@ WATCH_POLICY = WatchPolicy(
     acknowledges=True,
     give_up_problem=const.PROBLEM_STATION_NEVER_RAN,
     accept_seconds=const.OPENSPRINKLER_ACCEPT_SECONDS,
+    # A station that is ALREADY watering has nothing to give up on. Arming the
+    # acceptance grace on the resume path was a real defect, not a timing choice:
+    # only _watch_observed_start cancels that timer, and the resume path skips it
+    # because the run already has an observed start. So any station with more
+    # than the grace left when Home Assistant restarted was written off five
+    # minutes later while it was still watering — settled as a partial, its
+    # bucket credit reversed, and a station_never_ran fault raised against a zone
+    # that was at that moment delivering water. Irrigation runs are routinely
+    # longer than five minutes, so "restart during a cycle" was the whole
+    # trigger. A resumed run is bounded by its cosmetic-finish backstop, which
+    # _os_resume_run arms for the remaining time.
+    arm_give_up_after_start=False,
 )
 register_watch_policy(WATCH_POLICY)
 
