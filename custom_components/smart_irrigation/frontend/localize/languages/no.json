@@ -578,6 +578,7 @@
       "stop_zone": {
         "stop": "Stopp",
         "watering": "Vanner…",
+        "queued": "I kø…",
         "toast_stopped": "Kjøring stoppet"
       }
     },

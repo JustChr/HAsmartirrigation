@@ -74,6 +74,7 @@ from .const import (
     CONF_DEFAULT_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
     CONF_DEFAULT_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
     CONF_DISTRIBUTORS_ENABLED,
+    CONF_FIRED_OCCURRENCES,
     CONF_FORECAST_WEIGHTING_ENABLED,
     CONF_FREEZE_THRESHOLD,
     CONF_HOURLY_CALCULATION,
@@ -422,6 +423,12 @@ class Config:
     # Persisted in-flight self-closing valve runs (reboot resilience); list of
     # dicts, see const.CONF_ACTIVE_VALVE_RUNS.
     active_valve_runs = attr.ib(type=list, factory=list)
+    # schedule id -> ISO target of the occurrence last fired for it. Held here
+    # rather than on the schedule dict because three writers touch that list
+    # (async_update_schedule's dict.update, the wholesale azimuth rewrite, the
+    # config endpoint) and any of them can silently drop a key the frontend does
+    # not round-trip. A safety interlock cannot live somewhere that fragile.
+    fired_occurrences = attr.ib(type=dict, factory=dict)
     # Master switch / pump control (instance-level, fully optional). No entity =
     # HASI never touches the master. off_after=False leaves it powered.
     master_entity = attr.ib(type=str, default=None)
@@ -696,6 +703,8 @@ class MigratableStore(Store):
                 data["config"][
                     CONF_HOURLY_CALCULATION
                 ] = CONF_DEFAULT_HOURLY_CALCULATION
+            if CONF_FIRED_OCCURRENCES not in data["config"]:
+                data["config"][CONF_FIRED_OCCURRENCES] = {}
 
             # Get valid field names from Config class to filter out unrecognized keys
             valid_fields = set(attr.fields_dict(Config).keys())
@@ -963,6 +972,11 @@ class SmartIrrigationStorage:
                 batch_pause_timeout_service=data["config"].get(
                     CONF_BATCH_PAUSE_TIMEOUT_SERVICE, None
                 ),
+                # Fired-occurrence markers. Hydrated with .get so a store
+                # written before this key loads unchanged and STORAGE_VERSION
+                # stays 13 — which matters because the storage key is shared
+                # with the other forks of this integration.
+                fired_occurrences=data["config"].get(CONF_FIRED_OCCURRENCES, {}),
             )
 
             if "zones" in data:

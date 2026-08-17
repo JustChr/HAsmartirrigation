@@ -578,6 +578,7 @@
       "stop_zone": {
         "stop": "Zastaviť",
         "watering": "Zavlažuje…",
+        "queued": "Čaká…",
         "toast_stopped": "Beh zastavený"
       }
     },

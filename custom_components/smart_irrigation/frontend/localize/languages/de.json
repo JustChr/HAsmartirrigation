@@ -578,6 +578,7 @@
       "stop_zone": {
         "stop": "Stopp",
         "watering": "Bewässert…",
+        "queued": "Wartet…",
         "toast_stopped": "Lauf gestoppt"
       }
     },

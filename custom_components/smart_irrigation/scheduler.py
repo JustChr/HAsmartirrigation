@@ -45,12 +45,26 @@ class RecurringScheduleManager:
         # (ISO string). Lets the self-rescheduling finish tracker advance past an
         # occurrence it already ran instead of busy-looping its start→finish
         # window (which re-fired irrigation every ~2s). Keyed by schedule id.
+        #
+        # Mirrored to const.CONF_FIRED_OCCURRENCES in the config document and
+        # rehydrated in async_load_schedules. Holding it only here made the
+        # tracker's own catch-up branch unsound: a config entry reload builds a
+        # new manager, so a reload inside the start→finish window left the fresh
+        # manager unable to tell "never ran this occurrence" from "ran it eleven
+        # minutes ago", and it watered the occurrence a second time in full.
+        # This dict stays the authority while the manager lives; the stored copy
+        # only has to be right by the time a NEW manager reads it.
         self._finish_last_target: dict[str, str] = {}
 
     async def async_load_schedules(self) -> None:
         """Load recurring schedules from configuration."""
         config = await self.coordinator.store.async_get_config()
         self._schedules = config.get(const.CONF_RECURRING_SCHEDULES, [])
+        # Anything already in memory wins: a fire records its marker
+        # synchronously and persists it in a task, so for a moment the stored
+        # copy is behind. Stale ids are dropped by _setup_schedule_trackers.
+        stored = config.get(const.CONF_FIRED_OCCURRENCES) or {}
+        self._finish_last_target = {**stored, **self._finish_last_target}
         await self._setup_schedule_trackers()
 
         # Re-arm finish-anchored schedules whenever durations may have changed
@@ -84,13 +98,63 @@ class RecurringScheduleManager:
         if self._unsub_rearm is not None:
             self._unsub_rearm()
             self._unsub_rearm = None
-        # Fired-occurrence memory is per-manager; a fresh manager re-derives it.
-        self._finish_last_target.clear()
+        # Deliberately NOT clearing _finish_last_target. It is no longer
+        # per-manager memory a fresh manager can re-derive — it is the record
+        # that stops a reload inside the start→finish window from watering the
+        # same occurrence twice. Clearing it here would also let a persistence
+        # task created just before teardown write an empty map back to the
+        # store, which is precisely the state the fix exists to avoid.
 
     @callback
     def _on_config_updated(self, *_args) -> None:
         """React to config/duration changes by re-arming finish schedules."""
-        self.hass.async_create_task(self.async_rearm_finish_schedules())
+        self.hass.async_create_task(self._async_handle_config_updated())
+
+    async def _async_handle_config_updated(self) -> None:
+        """Reload the schedules if the stored list changed, else just re-arm.
+
+        ``self._schedules`` is in-memory state that only ``async_load_schedules``
+        assigns from the store, and everything reads through it — including
+        ``get_schedules()``, which backs the ``smart_irrigation/schedules``
+        websocket command. A writer that puts ``recurring_schedules`` straight
+        into the config document therefore left the store and the running
+        manager disagreeing: the schedule was persisted and correct on disk, but
+        no tracker was ever registered so it never fired, and it was absent from
+        the panel until a config entry reload rebuilt the manager. Nothing
+        errored in either direction. The panel is not such a writer — it calls
+        ``schedule_save``, which routes to ``async_create_schedule`` /
+        ``async_update_schedule`` and arms its own tracker — but the REST and
+        websocket config endpoints are, and so is anything replaying a stored
+        configuration document.
+
+        The diff is a correctness requirement, not an optimisation. This handler
+        is wired to ``_config_updated``, which fires on every calculate, and
+        every few seconds when continuous updates are enabled. Rebuilding
+        unconditionally would tear down and re-arm every tracker on that cadence,
+        and re-arming a finish tracker is exactly the operation that can re-fire
+        an occurrence. So an undiffed rebuild would not merely be wasteful.
+        Same diff-then-rebuild shape as ObservedWateringMixin's tracked entity
+        set.
+        """
+        config = await self.coordinator.store.async_get_config()
+        stored = config.get(const.CONF_RECURRING_SCHEDULES) or []
+        if stored == self._schedules:
+            await self.async_rearm_finish_schedules()
+            return
+
+        _LOGGER.debug(
+            "Recurring schedules changed outside the schedule manager "
+            "(%s stored, %s armed); reloading",
+            len(stored),
+            len(self._schedules),
+        )
+        # Rebuilds every tracker, so no separate re-arm afterwards: a redundant
+        # finish re-arm is the re-fire operation described above.
+        await self.async_load_schedules()
+        # schedule_save sends this so the next-irrigation sensors recompute; a
+        # writer that bypassed the manager did not, leaving those sensors as
+        # stale as the trackers were.
+        async_dispatcher_send(self.hass, const.DOMAIN + "_schedules_updated")
 
     async def async_rearm_finish_schedules(self) -> None:
         """Recompute and re-arm start times for finish-anchored schedules."""
@@ -182,20 +246,22 @@ class RecurringScheduleManager:
                 tracker()
         self._schedule_trackers.clear()
 
-        # Drop fired-occurrence memory for schedules that no longer exist. It
-        # was only ever cleared wholesale on unload, so deleting a schedule left
-        # its entry behind for the life of the manager. Harmless as pure memory,
-        # but the key is the schedule id: if an id is ever reused, a NEW
-        # finish-anchored schedule would inherit the old one's "already fired"
-        # marker and skip its first occurrence, silently and once only — the
-        # worst kind of bug to reproduce.
+        # Drop fired-occurrence markers for schedules that no longer exist. The
+        # key is the schedule id: if an id is ever reused, a NEW finish-anchored
+        # schedule would inherit the old one's "already fired" marker and skip
+        # its first occurrence, silently and once only — the worst kind of bug
+        # to reproduce. Now that the map is persisted, pruning must reach the
+        # store too, or a stale marker outlives every restart.
         live_ids = {
             s[const.SCHEDULE_CONF_ID]
             for s in self._schedules
             if const.SCHEDULE_CONF_ID in s
         }
-        for stale in set(self._finish_last_target) - live_ids:
+        stale_ids = set(self._finish_last_target) - live_ids
+        for stale in stale_ids:
             del self._finish_last_target[stale]
+        if stale_ids:
+            await self._persist_fired_occurrences(dict(self._finish_last_target))
 
         # Set up trackers for enabled schedules
         for schedule in self._schedules:
@@ -537,13 +603,41 @@ class RecurringScheduleManager:
 
         def finish_callback(now, s=schedule, fired=target):
             # Remember which occurrence we fired so the re-arm advances past it.
+            # Recorded at DISPATCH, not at completion, and synchronously here so
+            # a re-arm racing the persistence task below still sees it. A run cut
+            # short by a restart therefore does not re-fire: skipping a partial
+            # run costs a night's watering, repeating one costs a double dose.
             self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
             self._execute_schedule(s, now)
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task,
+                self._persist_fired_occurrences(dict(self._finish_last_target)),
+            )
             self.hass.loop.call_soon_threadsafe(
                 self.hass.async_create_task, self._reregister_tracker(s)
             )
 
         return async_track_point_in_utc_time(self.hass, finish_callback, fire_time)
+
+    async def _persist_fired_occurrences(self, markers: dict[str, str]) -> None:
+        """Write the fired-occurrence map to the config document.
+
+        Takes a snapshot rather than reading ``self._finish_last_target`` when
+        the task runs: a teardown between scheduling and running this would
+        otherwise persist whatever the dict had become.
+
+        ``async_update_config`` only schedules a delayed save, but the in-memory
+        ``Config`` is evolved immediately and the ``Store`` is cached for the
+        lifetime of ``hass``, so a config entry reload — which does not re-read
+        from disk — sees the marker at once. The residual gap is an unclean
+        shutdown inside ``SAVE_DELAY``; that is left open deliberately, since
+        forcing an immediate save here would reserialise every reading buffer on
+        every schedule fire, and the outcome in that case is only today's
+        behaviour in a case that already involves a power cut.
+        """
+        await self.coordinator.store.async_update_config(
+            {const.CONF_FIRED_OCCURRENCES: markers}
+        )
 
     async def _reregister_tracker(self, schedule: dict[str, Any]) -> None:
         """Cancel and rebuild a schedule's tracker (used by self-rescheduling

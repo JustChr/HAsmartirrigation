@@ -145,7 +145,13 @@ async def test_manager_unload_cancels_every_tracker_and_the_rearm():
     rearm.assert_called_once_with()
     assert manager._schedule_trackers == {}
     assert manager._unsub_rearm is None
-    assert manager._finish_last_target == {}
+    # Everything else is released; the fired-occurrence record is deliberately
+    # NOT. It is what stops a reload inside a finish schedule's start->finish
+    # window from watering the same occurrence a second time, and clearing it
+    # here would also let a persistence task created just before teardown write
+    # an emptied map back to the store. See
+    # tests/test_schedule_fired_occurrence_persistence.py.
+    assert manager._finish_last_target == {"daily": "2026-07-31T06:00:00+00:00"}
 
 
 @pytest.mark.asyncio

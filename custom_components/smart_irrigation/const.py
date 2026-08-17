@@ -167,6 +167,12 @@ CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION = 0
 CONF_RECURRING_SCHEDULES = "recurring_schedules"
 CONF_DEFAULT_RECURRING_SCHEDULES = []
 
+# schedule id -> ISO-8601 target of the occurrence that schedule last fired for.
+# Runtime state rather than configuration, kept in the config document for the
+# same reason as CONF_ACTIVE_VALVE_RUNS: it is a fact about a run that has to
+# outlive the object holding it. See RecurringScheduleManager.
+CONF_FIRED_OCCURRENCES = "fired_occurrences"
+
 # Recurring Schedule Configuration
 SCHEDULE_TYPE_DAILY = "daily"
 SCHEDULE_TYPE_WEEKLY = "weekly"
