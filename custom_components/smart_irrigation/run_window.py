@@ -20,6 +20,7 @@ import datetime
 from dataclasses import dataclass
 
 from . import const
+from .batch import is_batch_zone
 from .duration_math import zone_run_duration
 from .opensprinkler import is_opensprinkler_zone
 from .self_closing import is_self_closing_zone
@@ -31,9 +32,10 @@ from .self_closing import is_self_closing_zone
 TRACK_CLASSIC = "classic"
 TRACK_SELF_CLOSING = "service"
 TRACK_STATION = "station"
+TRACK_BATCH = "batch"
 
 # The sequencing each non-classic track behaves as, whatever zone_sequencing
-# says. Expressed as a sequencing rather than as max()/sum() so all three tracks
+# says. Expressed as a sequencing rather than as max()/sum() so all four tracks
 # price through the one simulate_wall_clock, including its rotating model.
 #
 #   service  — parallel. _dispatch_by_mode fires every service-mode zone in a
@@ -45,9 +47,26 @@ TRACK_STATION = "station"
 #     exactly; this is what the track falls back to when it cannot, because only
 #     the longer of the possible orderings is safe to anchor on — an
 #     under-estimate finishes the irrigation after the requested time.
+#   batch    — sequential, and the one track whose serialisation is a property
+#     of the mode rather than of a setting or a controller flag: the whole
+#     irrigation is handed over as one queue, and a queue waters one valve at a
+#     time. There is nothing to hedge and nothing to read off the hardware.
+#
+#     Sequential rather than rotating even when zone_sequencing says rotating: a
+#     rotation is only expressible in a queue by listing a zone repeatedly with a
+#     slice of its duration, which is a change to the PLAN and not just to its
+#     pricing. Until the dispatcher emits that, pricing a rotation the queue will
+#     not perform would size the window for absorption pauses that never happen.
+#
+#     A batch zone is also self-closing by ``is_self_closing_zone``, so this
+#     track only takes effect because :func:`track_for_zone` tests it first —
+#     falling through to ``service`` would price a queue as PARALLEL, i.e. the
+#     longest zone rather than all of them, and anchor a finish-governed run
+#     hours late.
 _TRACK_SEQUENCING = {
     TRACK_SELF_CLOSING: const.CONF_ZONE_SEQUENCING_PARALLEL,
     TRACK_STATION: const.CONF_ZONE_SEQUENCING_SEQUENTIAL,
+    TRACK_BATCH: const.CONF_ZONE_SEQUENCING_SEQUENTIAL,
 }
 
 # The station group id meaning "runs alongside everything". Below it, an id is a
@@ -141,11 +160,14 @@ class ZoneRun:
 def track_for_zone(zone: dict) -> str:
     """Which dispatch track ``zone`` runs on.
 
-    Station first: an OpenSprinkler zone is self-closing too, and its own track
-    is the more specific answer.
+    Station and batch first: both are self-closing too, and their own tracks are
+    the more specific answer. Order matters — see :data:`_TRACK_SEQUENCING` for
+    what a batch zone falling through to ``service`` would cost.
     """
     if is_opensprinkler_zone(zone):
         return TRACK_STATION
+    if is_batch_zone(zone):
+        return TRACK_BATCH
     if is_self_closing_zone(zone):
         return TRACK_SELF_CLOSING
     return TRACK_CLASSIC

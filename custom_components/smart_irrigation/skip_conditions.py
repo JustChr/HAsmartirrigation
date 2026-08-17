@@ -421,8 +421,12 @@ class SkipConditionsMixin:
             (see opensprinkler.py's header). Serialised is the longer of the two
             possibilities, and only an over-estimate is safe here — an
             under-estimate finishes the irrigation after the anchor.
+          * batch track — batch/queue zones, always sum(duration). The whole
+            irrigation is handed over as one queue and a queue waters one valve
+            at a time, so unlike the station track there is no ambiguity to
+            hedge: the serialisation is a property of the mode itself.
 
-            All three come from the shared :meth:`async_plan_zone_runs`
+            All four come from the shared :meth:`async_plan_zone_runs`
             projection and are reduced through
             :func:`run_window.concurrent_wall_clock`, which owns the per-track
             sequencing.

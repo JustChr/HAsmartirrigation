@@ -876,6 +876,13 @@ class IrrigationRunnerMixin:
         Self-closing zones and stations have handed the close to their own
         hardware by then, so a run of theirs that the selection could not fit
         runs to its full length and finishes past the target.
+
+        ⚠️ ``zones`` arrives in the fitted run's PRIORITY ORDER (driest first)
+        and every split below preserves it, which is load-bearing for batch: the
+        controller runs the plan in the order it is sent, so this ordering is
+        the only thing that decides which zones water first and, when a queue is
+        stopped part-way, which ones lose their water. Sorting or grouping any
+        of these lists by anything else would silently reorder the night.
         """
         cycle_token = f"cycle:{uuid.uuid4().hex[:8]}"
         await self.async_master_acquire(cycle_token)
