@@ -987,6 +987,23 @@ class RecurringScheduleManager:
         if schedule_type not in const.SCHEDULE_TYPES:
             raise ValueError(f"Invalid schedule type: {schedule_type}")
 
+        # The store has never kept a non-irrigate schedule, so accepting one
+        # here produced something that armed, ran, and vanished at the next
+        # restart with nothing logged. Refuse it instead. Unreachable from the
+        # panel and the setup wizard: neither offers an action control and both
+        # send "irrigate", and the one-time removal runs before anything can
+        # list a schedule, so no stored legacy row can reach the edit path
+        # either.
+        action = schedule_data.get(
+            const.SCHEDULE_CONF_ACTION, const.SCHEDULE_ACTION_IRRIGATE
+        )
+        if action not in const.SCHEDULE_SUPPORTED_ACTIONS:
+            raise ValueError(
+                f"Invalid schedule action: {action}. Recurring schedules are "
+                "irrigation-only; calculation and weather updates are driven by "
+                "the daily settings"
+            )
+
         # Validate time format if provided
         if const.SCHEDULE_CONF_TIME in schedule_data:
             time_str = schedule_data[const.SCHEDULE_CONF_TIME]
