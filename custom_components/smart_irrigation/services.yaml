@@ -238,17 +238,6 @@ create_recurring_schedule:
       description: "Zone IDs to include or 'all'"
       selector:
         text:
-    action:
-      required: false
-      example: "calculate"
-      default: "calculate"
-      description: "Action to perform (calculate, update, irrigate)"
-      selector:
-        select:
-          options:
-            - "calculate"
-            - "update"
-            - "irrigate"
 
 update_recurring_schedule:
   name: Update recurring schedule
