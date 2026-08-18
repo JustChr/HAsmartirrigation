@@ -25,7 +25,6 @@ from . import const
 from .helpers import (
     find_next_solar_azimuth_time,
     normalize_azimuth_angle,
-    normalize_zone_selection,
 )
 from .run_window import ZoneRun, bound_wall_clock, concurrent_wall_clock, select
 
@@ -362,10 +361,9 @@ class RecurringScheduleManager:
             )
             return
 
-        action = schedule.get(const.SCHEDULE_CONF_ACTION)
-        if paired is not None and action == "irrigate":
+        if paired is not None:
             tracker = await self._setup_bounded_tracker(schedule, governing)
-        elif governing == const.SCHEDULE_ANCHOR_FINISH and action == "irrigate":
+        elif governing == const.SCHEDULE_ANCHOR_FINISH:
             tracker = await self._setup_finish_tracker(schedule, fitted=False)
         else:
             tracker = await self._setup_governing_tracker(schedule, governing)
@@ -781,13 +779,14 @@ class RecurringScheduleManager:
             if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
                 continue
             recurrence = schedule.get(const.SCHEDULE_CONF_RECURRENCE)
-            action = schedule.get(const.SCHEDULE_CONF_ACTION, "calculate")
             zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
 
             entry = {
                 "schedule_id": schedule[const.SCHEDULE_CONF_ID],
                 "name": schedule.get(const.SCHEDULE_CONF_NAME),
-                "action": action,
+                # Constant, kept in the payload because the panel and any
+                # automation reading it predate schedules being irrigation-only.
+                "action": const.SCHEDULE_ACTION_IRRIGATE,
                 "zones": zones,
                 "recurrence": recurrence,
                 "next_run_utc": None,
@@ -823,7 +822,7 @@ class RecurringScheduleManager:
                 continue
 
             next_run = target
-            if governing == const.SCHEDULE_ANCHOR_FINISH and action == "irrigate":
+            if governing == const.SCHEDULE_ANCHOR_FINISH:
                 duration = await self._estimate_duration(schedule)
                 entry["duration_seconds"] = int(duration)
                 next_run = target - datetime.timedelta(seconds=duration)
@@ -845,11 +844,7 @@ class RecurringScheduleManager:
                     # point the start is armed and no longer moves. Without
                     # marking the difference the drift reads as a defect.
                     entry["estimated"] = dt_util.utcnow() < decision_point
-            elif (
-                governing == const.SCHEDULE_ANCHOR_START
-                and paired is not None
-                and action == "irrigate"
-            ):
+            elif governing == const.SCHEDULE_ANCHOR_START and paired is not None:
                 finish = await self._paired_bound_time(
                     schedule, const.SCHEDULE_ANCHOR_FINISH, target
                 )
@@ -869,12 +864,12 @@ class RecurringScheduleManager:
 
     async def _setup_governing_tracker(self, schedule: dict[str, Any], end: str) -> Any:
         """Fire exactly at ``end``'s resolved instant; no truncation, whatever
-        is due runs to completion (or, for calculate/update, the action just
-        fires). Uses HA's own native tracker wherever the old code did —
-        unchanged mechanism for every combination this ticket must not change
-        the behaviour of — and a resolver-driven one-shot only where no native
-        tracker could ever express it: a sun-relative bound on a weekly or
-        monthly recurrence, which is the exact gap GitLab #27 closes.
+        is due runs to completion. Uses HA's own native tracker wherever the
+        old code did — unchanged mechanism for every combination this ticket
+        must not change the behaviour of — and a resolver-driven one-shot only
+        where no native tracker could ever express it: a sun-relative bound on
+        a weekly or monthly recurrence, which is the exact gap GitLab #27
+        closes.
         """
         mode_key, time_key, offset_key, _azimuth_key = _BOUND_FIELDS[end]
         mode = schedule.get(mode_key)
@@ -1613,13 +1608,10 @@ class RecurringScheduleManager:
             if now > end_dt:
                 return
 
-        action = schedule.get(const.SCHEDULE_CONF_ACTION, "calculate")
         zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
         schedule_name = schedule.get(const.SCHEDULE_CONF_NAME, "Unnamed Schedule")
 
-        _LOGGER.info(
-            "Executing recurring schedule: %s (action: %s)", schedule_name, action
-        )
+        _LOGGER.info("Executing recurring schedule: %s", schedule_name)
 
         # Fire event
         self.hass.bus.fire(
@@ -1627,7 +1619,8 @@ class RecurringScheduleManager:
             {
                 "schedule_id": schedule[const.SCHEDULE_CONF_ID],
                 "schedule_name": schedule_name,
-                "action": action,
+                # Constant; see async_get_upcoming_runs.
+                "action": const.SCHEDULE_ACTION_IRRIGATE,
                 "zones": zones,
                 # Normalised to LOCAL. `now` reaches us from whichever tracker
                 # armed this schedule, and they disagree: async_track_time_change
@@ -1644,8 +1637,7 @@ class RecurringScheduleManager:
 
         self.hass.loop.call_soon_threadsafe(
             self.hass.async_create_task,
-            self._perform_schedule_action(
-                action,
+            self._perform_scheduled_irrigation(
                 zones,
                 schedule_name,
                 order=order,
@@ -1654,9 +1646,8 @@ class RecurringScheduleManager:
             ),
         )
 
-    async def _perform_schedule_action(
+    async def _perform_scheduled_irrigation(
         self,
-        action: str,
         zones: str | list[str],
         schedule_name: str,
         *,
@@ -1664,99 +1655,76 @@ class RecurringScheduleManager:
         deadline=None,
         pre_committed=False,
     ) -> None:
-        """Perform the scheduled action."""
-        # None = every zone. Only the two loops below need this; the irrigate
-        # branch passes `zones` through unchanged because each of its consumers
-        # already accepts the raw "all"/list shape. See normalize_zone_selection
-        # for why iterating the raw value is unsafe.
-        selection = normalize_zone_selection(zones)
-        try:
-            if action == "calculate":
-                if selection is None:
-                    await self.coordinator._async_calculate_all()
-                else:
-                    # Per-zone calculate must aggregate the mapping's weather data
-                    # first; route through async_update_zone_config (ATTR_CALCULATE),
-                    # which does the aggregation + forecast fetch before calculating.
-                    for zone_id in selection:
-                        await self.coordinator.async_update_zone_config(
-                            zone_id, {const.ATTR_CALCULATE: True}
-                        )
-            elif action == "update":
-                if selection is None:
-                    await self.coordinator._async_update_all()
-                else:
-                    for zone_id in selection:
-                        await self.coordinator._async_update_zone(zone_id)
-            elif action == "irrigate":
-                # "Before each irrigation run" means when the run is PLANNED,
-                # which is two different moments internally: a two-stage
-                # schedule commits at its decision point, so the selection and
-                # the start time are both computed on the fresh ledger;
-                # everything else commits here, immediately before dispatch.
-                if not pre_committed:
-                    await self.coordinator.async_commit_pre_run_calculation(zones)
-                # Check skip conditions (same as trigger-based irrigation)
-                if await self.coordinator._check_skip_conditions():
-                    _LOGGER.info(
-                        "Schedule '%s': irrigation skipped due to conditions",
-                        schedule_name,
-                    )
-                    evaluation = (
-                        getattr(self.coordinator, "_last_skip_evaluation", None) or {}
-                    )
-                    reasons = [
-                        c["id"]
-                        for c in evaluation.get("checks", [])
-                        if c.get("enabled") and c.get("would_skip")
-                    ]
-                    await self.coordinator._record_skipped_run(
-                        zones, ",".join(reasons) if reasons else None
-                    )
-                    return
-                # Fire irrigation event for backward compatibility
-                event_data = {
-                    "triggered_by": "recurring_schedule",
-                    "schedule_name": schedule_name,
-                    "zones": zones,
-                }
-                self.hass.bus.fire(
-                    f"{const.DOMAIN}_{const.EVENT_IRRIGATE_START}", event_data
-                )
-                # Directly control linked entities (restricted to the schedule's
-                # target zones), then reset counter
-                watered = await self.coordinator._irrigate_linked_entities(
-                    zones, order=order, deadline=deadline
-                )
-                # Plan G: also run distributor cycles for due member zones. Members
-                # are excluded from _irrigate_linked_entities (irrigation.py:462), so
-                # this is their sole automatic driver, and it runs even when no
-                # non-member zone is due (that path early-returns at irrigation.py:476).
-                watered_members = await self.coordinator._dispatch_distributor_cycles(
-                    zones
-                )
-                # review finding A — days-since reset stranded zones dry on
-                # rain-delay / all-vetoed / no-demand runs: both dispatch helpers
-                # deliver NO water on those paths (rain delay, every zone soil-
-                # vetoed, or nothing due), yet the reset used to fire
-                # unconditionally, fooling the days_between_irrigation guard into
-                # skipping the next due run. Only reset when water was actually
-                # delivered.
-                #
-                # This resets the GLOBAL counter only. Per-zone counters are
-                # reset as each zone's water is credited, because a fitted run
-                # waters a prefix of the priority order and this call happens at
-                # dispatch, long before a sequential or rotating run has
-                # finished — so it cannot know which zones were reached.
-                if watered or watered_members:
-                    await self.coordinator._reset_days_since_irrigation()
+        """Irrigate the schedule's zones.
 
-            _LOGGER.info(
-                "Successfully executed schedule action: %s for zones: %s", action, zones
+        ``zones`` is passed through in its raw "all"/list shape, because every
+        consumer below already accepts it.
+        """
+        try:
+            # "Before each irrigation run" means when the run is PLANNED, which is
+            # two different moments internally: a two-stage schedule commits at its
+            # decision point, so the selection and the start time are both computed
+            # on the fresh ledger; everything else commits here, immediately before
+            # dispatch.
+            if not pre_committed:
+                await self.coordinator.async_commit_pre_run_calculation(zones)
+            # Check skip conditions (same as trigger-based irrigation)
+            if await self.coordinator._check_skip_conditions():
+                _LOGGER.info(
+                    "Schedule '%s': irrigation skipped due to conditions",
+                    schedule_name,
+                )
+                evaluation = (
+                    getattr(self.coordinator, "_last_skip_evaluation", None) or {}
+                )
+                reasons = [
+                    c["id"]
+                    for c in evaluation.get("checks", [])
+                    if c.get("enabled") and c.get("would_skip")
+                ]
+                await self.coordinator._record_skipped_run(
+                    zones, ",".join(reasons) if reasons else None
+                )
+                return
+            # Fire irrigation event for backward compatibility
+            event_data = {
+                "triggered_by": "recurring_schedule",
+                "schedule_name": schedule_name,
+                "zones": zones,
+            }
+            self.hass.bus.fire(
+                f"{const.DOMAIN}_{const.EVENT_IRRIGATE_START}", event_data
             )
+            # Directly control linked entities (restricted to the schedule's
+            # target zones), then reset counter
+            watered = await self.coordinator._irrigate_linked_entities(
+                zones, order=order, deadline=deadline
+            )
+            # Plan G: also run distributor cycles for due member zones. Members
+            # are excluded from _irrigate_linked_entities (irrigation.py:462), so
+            # this is their sole automatic driver, and it runs even when no
+            # non-member zone is due (that path early-returns at irrigation.py:476).
+            watered_members = await self.coordinator._dispatch_distributor_cycles(zones)
+            # review finding A — days-since reset stranded zones dry on
+            # rain-delay / all-vetoed / no-demand runs: both dispatch helpers
+            # deliver NO water on those paths (rain delay, every zone soil-
+            # vetoed, or nothing due), yet the reset used to fire
+            # unconditionally, fooling the days_between_irrigation guard into
+            # skipping the next due run. Only reset when water was actually
+            # delivered.
+            #
+            # This resets the GLOBAL counter only. Per-zone counters are reset as
+            # each zone's water is credited, because a fitted run waters a prefix
+            # of the priority order and this call happens at dispatch, long before
+            # a sequential or rotating run has finished — so it cannot know which
+            # zones were reached.
+            if watered or watered_members:
+                await self.coordinator._reset_days_since_irrigation()
+
+            _LOGGER.info("Successfully irrigated schedule zones: %s", zones)
 
         except Exception as e:
-            _LOGGER.error("Error executing schedule action %s: %s", action, e)
+            _LOGGER.error("Error irrigating schedule zones %s: %s", zones, e)
             raise
 
     async def _save_schedules(self) -> None:

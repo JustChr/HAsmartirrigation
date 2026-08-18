@@ -1,15 +1,12 @@
-"""Behavioral tests for RecurringScheduleManager._perform_schedule_action.
+"""Behavioral tests for RecurringScheduleManager._perform_scheduled_irrigation.
 
-Locks the fix for the scheduler signature bug. The 'calculate' action used to
-call coordinator methods with the wrong arguments:
-  - ``_async_calculate_all()`` with no ``delete_weather_data`` (required), and
-  - ``async_calculate_zone(zone_id)`` with no ``weatherdata`` (required),
-which raised ``TypeError`` at runtime — silently swallowed by the surrounding
-try/except, so scheduled calculations never ran.
+A recurring schedule only ever irrigates, so this covers the one dispatch path
+and the conditions under which it delivers no water.
 
-These tests use ``create_autospec`` so the mock enforces the *real* method
-signatures; a regression to the broken call shape raises ``TypeError`` inside
-``_perform_schedule_action`` (which re-raises) and fails the test.
+These tests use ``create_autospec`` so the mock enforces the *real* coordinator
+method signatures; a call built with the wrong arguments raises ``TypeError``
+inside ``_perform_scheduled_irrigation`` (which re-raises) and fails the test,
+rather than being swallowed by the surrounding try/except as it once was.
 """
 
 from datetime import timedelta
@@ -35,47 +32,10 @@ def _make_manager():
 
 
 @pytest.mark.asyncio
-async def test_calculate_all_calls_calculate_all():
-    manager, coordinator = _make_manager()
-    await manager._perform_schedule_action("calculate", "all", "sched")
-    # Per-zone consumption: no wholesale clear flag any more.
-    coordinator._async_calculate_all.assert_awaited_once_with()
-
-
-@pytest.mark.asyncio
-async def test_calculate_specific_zones_routes_through_aggregation():
-    manager, coordinator = _make_manager()
-    await manager._perform_schedule_action("calculate", ["1", "2"], "sched")
-    assert coordinator.async_update_zone_config.await_count == 2
-    coordinator.async_update_zone_config.assert_any_await(
-        "1", {const.ATTR_CALCULATE: True}
-    )
-    coordinator.async_update_zone_config.assert_any_await(
-        "2", {const.ATTR_CALCULATE: True}
-    )
-    # the broken direct-calc path must not be used
-    coordinator.async_calculate_zone.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_update_all_calls_update_all():
-    manager, coordinator = _make_manager()
-    await manager._perform_schedule_action("update", "all", "sched")
-    coordinator._async_update_all.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_update_specific_zones_calls_update_zone():
-    manager, coordinator = _make_manager()
-    await manager._perform_schedule_action("update", ["3"], "sched")
-    coordinator._async_update_zone.assert_awaited_once_with("3")
-
-
-@pytest.mark.asyncio
 async def test_irrigate_skips_when_conditions_met():
     manager, coordinator = _make_manager()
     coordinator._check_skip_conditions.return_value = True
-    await manager._perform_schedule_action("irrigate", "all", "sched")
+    await manager._perform_scheduled_irrigation("all", "sched")
     coordinator._irrigate_linked_entities.assert_not_awaited()
 
 
@@ -86,7 +46,7 @@ async def test_irrigate_runs_and_resets_counter_when_not_skipped():
     # review finding A: the reset is now gated on water actually being delivered,
     # so the linked-entity dispatch must report True for the reset to fire.
     coordinator._irrigate_linked_entities = AsyncMock(return_value=True)
-    await manager._perform_schedule_action("irrigate", "all", "sched")
+    await manager._perform_scheduled_irrigation("all", "sched")
     coordinator._irrigate_linked_entities.assert_awaited_once()
     coordinator._reset_days_since_irrigation.assert_awaited_once()
 
@@ -101,7 +61,7 @@ async def test_irrigate_does_not_reset_counter_when_no_water_delivered():
     coordinator._check_skip_conditions = AsyncMock(return_value=False)
     coordinator._irrigate_linked_entities = AsyncMock(return_value=False)
     coordinator._dispatch_distributor_cycles = AsyncMock(return_value=False)
-    await manager._perform_schedule_action("irrigate", "all", "sched")
+    await manager._perform_scheduled_irrigation("all", "sched")
     coordinator._irrigate_linked_entities.assert_awaited_once()
     coordinator._dispatch_distributor_cycles.assert_awaited_once()
     coordinator._reset_days_since_irrigation.assert_not_awaited()
@@ -154,7 +114,7 @@ async def test_upcoming_runs_resolves_clock_and_marks_interval():
             const.SCHEDULE_CONF_NAME: "Every 6h",
             const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_INTERVAL,
             const.SCHEDULE_CONF_INTERVAL_HOURS: 6,
-            const.SCHEDULE_CONF_ACTION: "update",
+            const.SCHEDULE_CONF_ACTION: "irrigate",
             const.SCHEDULE_CONF_ENABLED: True,
         },
         {

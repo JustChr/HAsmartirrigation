@@ -190,7 +190,8 @@ export interface SkipPreview {
 export interface UpcomingRun {
   schedule_id: string;
   name: string;
-  action: "irrigate" | "calculate" | "update" | string;
+  /** Always "irrigate": a recurring schedule cannot carry anything else. */
+  action: string;
   zones: "all" | number[];
   recurrence: string;
   /** Which end of the window governs this occurrence's timing. Absent for
