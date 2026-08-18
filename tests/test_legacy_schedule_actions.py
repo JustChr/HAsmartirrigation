@@ -24,11 +24,14 @@ from custom_components.smart_irrigation.store import Config
 
 
 def _sched(sid="s1", name="probe", action="irrigate"):
+    """A start-anchored daily schedule, the shape the store keeps."""
     return {
         const.SCHEDULE_CONF_ID: sid,
         const.SCHEDULE_CONF_NAME: name,
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_DAILY,
-        const.SCHEDULE_CONF_TIME: "22:00",
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+        const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+        const.SCHEDULE_CONF_START_TIME: "22:00",
+        const.SCHEDULE_CONF_FINISH_MODE: const.SCHEDULE_BOUND_MODE_NONE,
         const.SCHEDULE_CONF_ACTION: action,
         const.SCHEDULE_CONF_ZONES: "all",
         const.SCHEDULE_CONF_ENABLED: True,
@@ -132,19 +135,24 @@ class TestRejectionOnTheWayIn:
         mgr._validate_schedule_data(
             {
                 const.SCHEDULE_CONF_NAME: "",
-                const.SCHEDULE_CONF_TYPE: "daily",
+                const.SCHEDULE_CONF_RECURRENCE: "daily",
                 const.SCHEDULE_CONF_ENABLED: True,
-                const.SCHEDULE_CONF_TIME: "06:00",
+                const.SCHEDULE_CONF_START_MODE: "time",
+                const.SCHEDULE_CONF_START_TIME: "06:00",
+                const.SCHEDULE_CONF_FINISH_MODE: "none",
                 const.SCHEDULE_CONF_ACTION: "irrigate",
                 const.SCHEDULE_CONF_ZONES: "all",
             }
         )
-        # The setup wizard's payload.
+        # The setup wizard's payload, which builds its own dict rather than
+        # calling emptySchedule() and so can drift from it independently.
         mgr._validate_schedule_data(
             {
                 const.SCHEDULE_CONF_NAME: "Daily watering",
-                const.SCHEDULE_CONF_TYPE: "daily",
-                const.SCHEDULE_CONF_TIME: "06:00",
+                const.SCHEDULE_CONF_RECURRENCE: "daily",
+                const.SCHEDULE_CONF_START_MODE: "time",
+                const.SCHEDULE_CONF_START_TIME: "06:00",
+                const.SCHEDULE_CONF_FINISH_MODE: "none",
                 const.SCHEDULE_CONF_ACTION: "irrigate",
                 const.SCHEDULE_CONF_ZONES: "all",
                 const.SCHEDULE_CONF_ENABLED: True,
