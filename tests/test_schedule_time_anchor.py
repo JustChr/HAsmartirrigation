@@ -1,4 +1,4 @@
-"""Tests for the Start/Finish bound reshape (GitLab #27) + sequencing-aware
+"""Tests for the Start/Finish bound reshape + sequencing-aware
 duration + bucket reset introduced for the irrigation-timer work."""
 
 import datetime
@@ -114,7 +114,7 @@ class TestRecurrenceDayMatches:
         )
 
     def test_weekly_with_a_sun_relative_bound_still_matches_by_day(self):
-        """The gap GitLab #27 closes: recurrence and time-of-day are
+        """The gap the reshape closes: recurrence and time-of-day are
         independent, so weekday filtering applies no matter which bound mode
         produced the candidate instant — a sun-relative Finish on a weekly
         recurrence is restricted to its chosen days exactly like a clock time
@@ -726,8 +726,8 @@ class TestSolarScheduleMatrix:
 
 class TestStartPinnedBothBounded:
     """Both ends bounded, anchor=start: a genuinely new combination no v13
-    shape could ever express (only a Finish anchor could be fitted before
-    GitLab #27), reached when the dialog's own anchor selector picks Start
+    shape could ever express (only a Finish anchor could be fitted before the
+    reshape), reached when the dialog's own anchor selector picks Start
     with both a Start and a Finish bound configured. Fires exactly at the
     Start bound (no decision-point wait, unlike the Finish-pinned arm) and
     passes the resolved Finish through as a hard deadline."""

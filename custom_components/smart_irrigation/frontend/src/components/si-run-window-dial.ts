@@ -25,7 +25,7 @@ import {
 } from "../common/solar-azimuth";
 
 // Tiny glyphs, drawn in a 24x24 box and scaled onto the ring's outside —
-// verbatim from the settled prototype (plans/prototypes/schedule-ui.html).
+// verbatim from the settled prototype.
 const SUN_PATH = svg`<circle cx="12" cy="12" r="4.4" />
   ${Array.from({ length: 8 }, (_, i) => {
     const a = (i * Math.PI) / 4;
@@ -39,12 +39,12 @@ const MOON_PATH = svg`<path d="M13.5,2.5A9.5,9.5 0 1,0 21.5,14 7.6,7.6 0 0,1 13.
 const DROP_PATH = svg`<path d="M12,2.6C12,2.6 18.6,9.4 18.6,13.7A6.6,6.6 0 0,1 5.4,13.7C5.4,9.4 12,2.6 12,2.6Z" />`;
 
 /**
- * The WHEN section's 24-hour dial (GitLab #31): a 156px SVG showing the
- * window a user is designing and whether the schedule's nominal demand fits
- * inside it. Self-contained and narrow-input on purpose — GitLab #30 is
- * concurrently restructuring si-schedule-dialog.ts's markup into WHEN/
- * ZONES/SEASON cards, so this element is written to be dropped into
- * whichever container that lands in with a single import + tag, rather than
+ * The WHEN section's 24-hour dial: a 156px SVG showing the window a user is
+ * designing and whether the schedule's nominal demand fits inside it.
+ * Self-contained and narrow-input on purpose — si-schedule-dialog.ts's markup
+ * is grouped into WHEN/ZONES/SEASON cards, so this element is written to be
+ * dropped into whichever container it lands in with a single import + tag,
+ * rather than
  * inlined into either rewrite of the dialog's render method.
  *
  * All geometry/planning is delegated to ../common/run-window-dial.ts (pure,
@@ -62,7 +62,7 @@ export class SiRunWindowDial extends LitElement {
   @property({ attribute: false }) intervalHours?: number;
   @property({ attribute: false }) intervalStartTime?: string;
   /** Nominal demand for the schedule's zones under normal sequencing
-   * (GitLab #26's `nominal_demand_seconds`), never tonight's live plan — a
+   * (`nominal_demand_seconds`), never tonight's live plan — a
    * schedule is a long-lived object and one night is a sample of one. */
   @property({ attribute: false }) nominalDemandSeconds = 0;
 
@@ -95,7 +95,7 @@ export class SiRunWindowDial extends LitElement {
 
   /**
    * Resolves a solar-azimuth bound to the same minute-of-day frame the sun
-   * glyph above uses (GitLab #34). The math lives in ../common/solar-azimuth
+   * glyph above uses. The math lives in ../common/solar-azimuth
    * and is a port of the backend's own resolver, so the dial draws the bound
    * the scheduler will actually fire on rather than a second opinion about
    * where the sun is.

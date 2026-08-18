@@ -19,7 +19,7 @@ import {
 
 /**
  * The subset of a schedule this module reads to build the read-only summary
- * sentence (GitLab #30). Declared locally rather than imported from
+ * sentence. Declared locally rather than imported from
  * si-schedule-dialog.ts, matching schedule-rows.ts's own zero-dependency-on-
  * the-rendering-layer convention.
  */
@@ -42,14 +42,14 @@ export interface ScheduleSummary {
 /**
  * Builds the plain-language sentence restating a schedule end to end: the
  * summary at the top of the dialog and the one heading each card in the
- * schedule list (GitLab #30) are both this same sentence, so there is only
+ * schedule list are both this same sentence, so there is only
  * one place that can get the wording wrong.
  *
  * Deliberately describes the schedule's own configuration only — recurrence,
  * zones, and the Start/Finish window (../common/schedule-rows.ts) — never
  * live bucket/weather state. A schedule is a long-lived object; a sentence
  * that changed because tonight's forecast changed would be describing
- * something the user never configured. See GitLab #30.
+ * something the user never configured.
  */
 export function summarizeSchedule(
   s: SummarySchedule,

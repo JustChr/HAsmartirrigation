@@ -1,5 +1,5 @@
 /**
- * Solar azimuth resolution for the run-window dial (GitLab #34).
+ * Solar azimuth resolution for the run-window dial.
  *
  * ⚠️ This is a deliberate line-by-line port of the backend's
  * `calculate_solar_azimuth` / `find_next_solar_azimuth_time` /

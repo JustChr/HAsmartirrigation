@@ -327,8 +327,8 @@ class RecurringScheduleManager:
     async def _setup_schedule_tracker(self, schedule: dict[str, Any]) -> None:
         """Set up a tracker for a single schedule.
 
-        A run's window is two independently bounded ends, Start and Finish
-        (GitLab #27/#21). Interval recurrence has neither — it free-runs on
+        A run's window is two independently bounded ends, Start and Finish.
+        Interval recurrence has neither — it free-runs on
         its own clock. Otherwise:
 
           - only one end bounded → that end IS the schedule's anchor; fires
@@ -868,8 +868,7 @@ class RecurringScheduleManager:
         old code did — unchanged mechanism for every combination this ticket
         must not change the behaviour of — and a resolver-driven one-shot only
         where no native tracker could ever express it: a sun-relative bound on
-        a weekly or monthly recurrence, which is the exact gap GitLab #27
-        closes.
+        a weekly or monthly recurrence.
         """
         mode_key, time_key, offset_key, _azimuth_key = _BOUND_FIELDS[end]
         mode = schedule.get(mode_key)

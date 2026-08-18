@@ -166,7 +166,7 @@ describe("si-schedule-dialog", () => {
   });
 });
 
-describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
+describe("si-schedule-dialog: Start/Finish rows", () => {
   it("offers all five modes on both the Start and Finish rows", () => {
     const { el } = makeDialog({
       schedule: { ...emptySchedule(), start_mode: "none", finish_mode: "none" },
@@ -407,7 +407,7 @@ describe("si-schedule-dialog: Start/Finish rows (GitLab #29)", () => {
   });
 });
 
-describe("si-schedule-dialog: unreachable solar-azimuth bearings (GitLab #34)", () => {
+describe("si-schedule-dialog: unreachable solar-azimuth bearings", () => {
   /** On the equator the backend's azimuth curve never crosses due east, so
    * 90 degrees is unresolvable there — the same case the dial draws open. */
   const atEquator = (schedule: Record<string, any>) => {

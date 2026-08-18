@@ -236,7 +236,7 @@ describe("si-run-window-dial: run bar is fed from nominal demand, not a live pla
   });
 });
 
-describe("si-run-window-dial: solar-azimuth bounds (GitLab #34)", () => {
+describe("si-run-window-dial: solar-azimuth bounds", () => {
   const azimuthRows = (azimuth: number) => ({
     start: { mode: "solar_azimuth", azimuth },
     finish: { mode: "time", time: "20:00" },

@@ -22,7 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def _translate_legacy_schedule_fields(schedule_data: dict) -> dict:
     """Adapt the public create/update-schedule service call onto the v14
-    storage shape (GitLab #27).
+    storage shape.
 
     ``services.yaml`` still publishes ``type``/``time`` — the fields any
     existing YAML automation already calls this service with — so those keep

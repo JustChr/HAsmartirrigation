@@ -35,7 +35,7 @@ def _mcoord(**master_cfg):
 
 def test_storage_version_is_14():
     # v14 reshapes recurring schedules: the old `type` field is split into
-    # `recurrence` plus independent Start/Finish bounds (GitLab #27; see
+    # `recurrence` plus independent Start/Finish bounds (see
     # tests/test_schedule_migration_v14.py).
     assert STORAGE_VERSION == 14
 

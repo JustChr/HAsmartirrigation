@@ -514,7 +514,7 @@ def _migrate_schedule_to_v14(old: dict) -> dict:
     bound only whichever end ``time_anchor`` pointed at. v14 separates them:
     ``recurrence`` is daily/weekly/monthly/interval, and Start and Finish are
     each independently none/time/sunrise/sunset/solar_azimuth. Every v13
-    shape has an exact v14 equivalent (GitLab #27).
+    shape has an exact v14 equivalent.
     """
     new = dict(old)
     old_type = new.pop("type", None)

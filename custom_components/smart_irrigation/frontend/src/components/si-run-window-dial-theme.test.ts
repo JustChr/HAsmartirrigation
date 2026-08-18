@@ -24,8 +24,8 @@ beforeAll(async () => {
 
 /**
  * "Colors resolve correctly in both light and dark themes, verified by
- * reading computed values rather than by eye" (GitLab #31 acceptance
- * criterion). vitest here runs in a bare-node environment with no real CSSOM
+ * reading computed values rather than by eye" is the acceptance criterion
+ * here. vitest runs in a bare-node environment with no real CSSOM
  * — there is no `getComputedStyle` that can actually resolve `color-mix()`
  * against a `--card-background-color` custom property the way a browser
  * would, so a literal "render once per theme, read the resolved pixel"

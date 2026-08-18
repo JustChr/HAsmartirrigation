@@ -6106,7 +6106,7 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
           color: var(--primary-text-color);
           cursor: pointer;
         }
-        /* The read-only summary sentence (GitLab #30): describes the
+        /* The read-only summary sentence: describes the
            schedule's own configuration only, never live bucket/weather
            state — see schedule-summary.ts. */
         .summary {
@@ -6127,7 +6127,7 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
             transparent
           );
         }
-        /* WHEN/ZONES/SEASON cards (GitLab #30): the heading is small-caps
+        /* WHEN/ZONES/SEASON cards: the heading is small-caps
            and doubles as the label for whatever unlabeled control sits
            directly under it. */
         .sect-card {
@@ -6232,7 +6232,7 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
           color: var(--primary-text-color);
           font-size: 0.8125rem;
         }
-        /* Two-column layout inside the WHEN card (GitLab #31): the
+        /* Two-column layout inside the WHEN card: the
            Start/Finish/pinned-end rows on the left, the run-window dial in
            a fixed-width right column, collapsing to one column on narrow
            dialogs. */
@@ -6413,7 +6413,7 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
             `)}
     `:Z``}static get styles(){return[nn,r`
         /* Same read-only summary sentence as si-schedule-dialog.ts's own
-           ".summary" (GitLab #30) — a schedule can be read without opening
+           ".summary" — a schedule can be read without opening
            it. Kept as a second copy of the CSS rather than a shared style
            module because these two components don't otherwise share
            styling infrastructure; the text itself comes from the one

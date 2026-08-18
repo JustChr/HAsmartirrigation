@@ -3,7 +3,7 @@
 Covers the scheduling half of a bounded run window: deciding late enough that
 the demand is current, refusing to start before the Start bound, and cutting a
 run at its Finish bound rather than watering past it. Fitting is derived from
-both ends being bounded rather than configured (GitLab #27), so reaching
+both ends being bounded rather than configured, so reaching
 ``_decide_and_arm`` at all implies it and no test opts into it separately.
 """
 
@@ -281,8 +281,8 @@ class TestResolveEventInstant:
 
     @pytest.mark.asyncio
     async def test_solar_azimuth_backward_is_reachable(self):
-        # Wired to a Start bound whenever it is paired against a Finish
-        # (GitLab #27), but exercised directly here too so the seam is proven
+        # Wired to a Start bound whenever it is paired against a Finish,
+        # but exercised directly here too so the seam is proven
         # to work in both directions. A clear day near the summer solstice
         # guarantees the sun crosses 90 degrees (due east) sometime that
         # morning, so a backward search from local noon must find it rather
@@ -343,7 +343,7 @@ class TestDurationBound:
 class TestDecideAndArm:
     """The second stage: read demand, select, arm the real start.
 
-    Only reached when both ends are bounded, so — unlike before GitLab #27 —
+    Only reached when both ends are bounded, so — unlike before the reshape —
     a schedule need not opt into anything extra to exercise this: reaching
     ``_decide_and_arm`` at all already implies fitting.
     """

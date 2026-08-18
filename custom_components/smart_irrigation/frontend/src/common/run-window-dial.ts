@@ -10,7 +10,7 @@ import {
 import { DEFAULT_AZIMUTH, EndRow, ScheduleRows } from "./schedule-rows";
 
 /**
- * Pure geometry + planning for the WHEN section's 24-hour dial (GitLab #31).
+ * Pure geometry + planning for the WHEN section's 24-hour dial.
  * No Lit, no DOM: every function here returns plain numbers, path-data
  * strings or descriptor objects, so the exact numeric/geometric acceptance
  * criteria (15-degree minimum arc, butt-cap fades, wrap fade, centre value
@@ -18,12 +18,11 @@ import { DEFAULT_AZIMUTH, EndRow, ScheduleRows } from "./schedule-rows";
  * by eyeballing rendered SVG. The Lit component (si-run-window-dial.ts) only
  * wraps this module's output in svg/html templates and localizes copy.
  *
- * Ported from the throwaway prototype at
- * plans/prototypes/schedule-ui.html (design/schedule-ui-prototype), which
- * settled every visual constant below. Two differences from the prototype,
- * both because the real data shape differs from its mock:
+ * Ported from a throwaway prototype that settled every visual constant
+ * below. Two differences from it, both because the real data shape differs
+ * from its mock:
  *  - The prototype fed the run bar from a mock "tonight" plan. Here the run
- *    length always comes from nominal demand (GitLab #26), independent of
+ *    length always comes from nominal demand, independent of
  *    any zone's live bucket, per the ticket's explicit requirement that a
  *    long-lived schedule not be visualized from a one-night sample.
  *  - The prototype's FLIP toggle (an earlier iteration that could render

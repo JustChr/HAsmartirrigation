@@ -1,9 +1,8 @@
 """v13 -> v14: the old `type` field conflated recurrence with time-of-day and
 could only bound whichever end `time_anchor` pointed at. v14 replaces it with
-an independent `recurrence` and two first-class Start/Finish bounds (GitLab
-#27). This is a destructive migration — retired keys must be gone afterward —
-so every shape the old fields could express is exercised here, matching the
-exhaustive matrix the ticket's acceptance criteria call for.
+an independent `recurrence` and two first-class Start/Finish bounds. This is
+a destructive migration — retired keys must be gone afterward — so every shape
+the old fields could express is exercised here.
 """
 
 import pytest

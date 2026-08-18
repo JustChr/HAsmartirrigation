@@ -10,9 +10,9 @@ import {
 
 /**
  * Pure mapping between a schedule's Start/Finish window as it is stored
- * (GitLab #27's independent start_mode/start_time/start_offset/
- * start_azimuth/finish_.../anchor fields) and as the dialog's Start/Finish
- * rows render it (GitLab #29): one control per row, whose kind matches the
+ * (the independent start_mode/start_time/start_offset/start_azimuth/
+ * finish_.../anchor fields) and as the dialog's Start/Finish rows render
+ * it: one control per row, whose kind matches the
  * quantity that row's mode carries. No Lit, no DOM, no localize — this
  * module never renders anything and returns semantic help-state keys
  * rather than copy, so the rendering layer owns all text.
@@ -195,7 +195,7 @@ export function rowsToSchedule(rows: ScheduleRows): ScheduleWindowFields {
 }
 
 /**
- * Help-state keys for the Start/Finish help cells (GitLab #29's table).
+ * Help-state keys for the Start/Finish help cells.
  * These are semantic tokens, not copy — the rendering layer maps each to
  * `panels.schedules.help.<key>` via localize().
  */
@@ -228,8 +228,8 @@ export interface WindowHelp {
 
 /**
  * Derive both help cells (and overall validity) from the two rows' bounded
- * state and, when both are bounded, which end is pinned. See GitLab #29's
- * table: "Exact." vs "Set by demand, but never before this." is the pair
+ * state and, when both are bounded, which end is pinned. "Exact." vs
+ * "Set by demand, but never before this." is the pair
  * doing the real work, and the "Zones that don't fit are deferred." note
  * always lands on the Finish cell — that's the end the window actually
  * closes on, whether Finish is the exact/pinned end or the flexible one.

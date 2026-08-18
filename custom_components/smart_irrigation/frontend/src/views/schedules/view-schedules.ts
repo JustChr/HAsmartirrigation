@@ -396,7 +396,7 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
       globalStyle,
       css`
         /* Same read-only summary sentence as si-schedule-dialog.ts's own
-           ".summary" (GitLab #30) — a schedule can be read without opening
+           ".summary" — a schedule can be read without opening
            it. Kept as a second copy of the CSS rather than a shared style
            module because these two components don't otherwise share
            styling infrastructure; the text itself comes from the one

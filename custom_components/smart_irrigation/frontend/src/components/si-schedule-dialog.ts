@@ -43,7 +43,7 @@ const DAYS = [
   "sunday",
 ];
 
-// A run's window is two independently bounded ends — see GitLab #27. `recurrence`
+// A run's window is two independently bounded ends. `recurrence`
 // (daily/weekly/monthly/interval) is independent of where in the day it lands,
 // which is the Start/Finish bound below. `anchor` only matters when both ends
 // are bounded, naming which one the run is pinned to.
@@ -69,7 +69,7 @@ export interface Schedule {
   start_date?: string;
   end_date?: string;
   // Total seconds the schedule's zones nominally demand under normal
-  // sequencing, independent of any zone's live bucket (GitLab #26). For a
+  // sequencing, independent of any zone's live bucket. For a
   // saved schedule this arrives with the schedules websocket response; for
   // one still being drafted, view-schedules.ts fetches it directly
   // (schedule_nominal_demand) whenever the zone selection changes, so the
@@ -130,15 +130,14 @@ type BoundEnd = "start" | "finish";
  * view-schedules.ts's `_save`, which only closes the dialog after a
  * successful `saveSchedule` result.
  *
- * This reads and writes the reshaped storage fields (GitLab #27: recurrence
- * plus independent Start/Finish bounds) through the two Start/Finish rows
- * plus their help text and the pinned-end row (GitLab #29) — all sourced
- * from the pure mapping in ../common/schedule-rows.ts, which is also where
- * the rows<->fields round trip is tested. Fields are grouped into WHEN/
- * ZONES/SEASON cards with a read-only summary sentence at the top (GitLab
- * #30, ../common/schedule-summary.ts — the same sentence heads each card in
- * view-schedules.ts's list). The 24-hour run-window dial is a later ticket
- * (GitLab #31).
+ * This reads and writes the reshaped storage fields (recurrence plus
+ * independent Start/Finish bounds) through the two Start/Finish rows plus
+ * their help text and the pinned-end row — all sourced from the pure mapping
+ * in ../common/schedule-rows.ts, which is also where the rows<->fields round
+ * trip is tested. Fields are grouped into WHEN/ZONES/SEASON cards with a
+ * read-only summary sentence at the top (../common/schedule-summary.ts — the
+ * same sentence heads each card in view-schedules.ts's list), and the WHEN
+ * card carries the 24-hour run-window dial.
  */
 @customElement("si-schedule-dialog")
 export class SiScheduleDialog extends LitElement {
@@ -508,7 +507,7 @@ export class SiScheduleDialog extends LitElement {
    * therefore no window: none of these rows apply to it. */
   /**
    * Which bounded ends name a bearing the sun never reaches at this location
-   * (GitLab #34). Resolved through the same module the dial draws with, so
+   * Resolved through the same module the dial draws with, so
    * the faded end and the amber help text can never disagree about it.
    *
    * Only solar_azimuth ends can be unresolvable; every other mode always has
@@ -848,7 +847,7 @@ export class SiScheduleDialog extends LitElement {
           color: var(--primary-text-color);
           cursor: pointer;
         }
-        /* The read-only summary sentence (GitLab #30): describes the
+        /* The read-only summary sentence: describes the
            schedule's own configuration only, never live bucket/weather
            state — see schedule-summary.ts. */
         .summary {
@@ -869,7 +868,7 @@ export class SiScheduleDialog extends LitElement {
             transparent
           );
         }
-        /* WHEN/ZONES/SEASON cards (GitLab #30): the heading is small-caps
+        /* WHEN/ZONES/SEASON cards: the heading is small-caps
            and doubles as the label for whatever unlabeled control sits
            directly under it. */
         .sect-card {
@@ -974,7 +973,7 @@ export class SiScheduleDialog extends LitElement {
           color: var(--primary-text-color);
           font-size: 0.8125rem;
         }
-        /* Two-column layout inside the WHEN card (GitLab #31): the
+        /* Two-column layout inside the WHEN card: the
            Start/Finish/pinned-end rows on the left, the run-window dial in
            a fixed-width right column, collapsing to one column on narrow
            dialogs. */
