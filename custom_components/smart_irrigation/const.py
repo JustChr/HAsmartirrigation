@@ -147,6 +147,9 @@ CONF_DEFAULT_RAIN_DELAY_UNTIL = None
 # repaired after the issue #81 sign fix? See coordinator
 # async_correct_solar_azimuth_bearings.
 CONF_AZIMUTH_BEARING_CORRECTED = "azimuth_bearing_corrected"
+# One-shot latch: has this store had its legacy calculate/update recurring
+# schedules removed? See coordinator async_drop_legacy_schedule_actions.
+CONF_LEGACY_SCHEDULE_ACTIONS_REMOVED = "legacy_schedule_actions_removed"
 # Run-log / skip detail token recorded when a scheduled run is held back by the
 # rain delay (surfaced in the run history + outlook like the other skip ids).
 SKIP_REASON_PAUSED = "paused"
@@ -204,7 +207,16 @@ SCHEDULE_CONF_START_TIME = "start_time"  # Optional HH:MM clock anchor for inter
 SCHEDULE_CONF_START_DATE = "start_date"
 SCHEDULE_CONF_END_DATE = "end_date"
 SCHEDULE_CONF_ZONES = "zones"  # List of zone IDs or "all"
-SCHEDULE_CONF_ACTION = "action"  # "calculate", "update", or "irrigate"
+SCHEDULE_CONF_ACTION = "action"
+SCHEDULE_ACTION_IRRIGATE = "irrigate"
+# The only action a recurring schedule may carry. "calculate" and "update" were
+# retired when the global daily settings took over deciding when a calculation
+# runs; two independent things owning that produced duplicated work. The store
+# has never kept them, so a schedule carrying one is refused on the way in
+# rather than accepted and dropped later. See
+# RecurringScheduleManager._validate_schedule_data and
+# SmartIrrigationCoordinator.async_drop_legacy_schedule_actions.
+SCHEDULE_SUPPORTED_ACTIONS = (SCHEDULE_ACTION_IRRIGATE,)
 SCHEDULE_CONF_OFFSET_MINUTES = "offset_minutes"
 SCHEDULE_CONF_ACCOUNT_FOR_DURATION = "account_for_duration"  # legacy; see time_anchor
 SCHEDULE_CONF_AZIMUTH_ANGLE = "azimuth_angle"

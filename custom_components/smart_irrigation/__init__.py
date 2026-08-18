@@ -284,6 +284,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Finish up by setting factory defaults if needed for zones, mappings and modules
     await store.set_up_factory_defaults()
 
+    # Ordered BEFORE the azimuth repair and the schedule load: a legacy row is
+    # going away, so there is no point correcting its bearing first, and nothing
+    # downstream should ever see one.
+    await coordinator.async_drop_legacy_schedule_actions()
+
     # Ordered BEFORE the schedules are loaded so the manager reads the repaired
     # angles rather than having to be told about them afterwards (issue #81).
     await coordinator.async_correct_solar_azimuth_bearings()
@@ -844,6 +849,59 @@ class SmartIrrigationCoordinator(
             updates[const.CONF_RECURRING_SCHEDULES] = schedules
         await self.store.async_update_config(updates)
 
+    async def async_drop_legacy_schedule_actions(self):
+        """Remove stored recurring schedules whose action is not irrigation.
+
+        Recurring schedules became irrigation-only when the global daily
+        settings took over deciding when a calculation runs. The store enforced
+        that by filtering non-irrigate rows out on every load, which meant a
+        legacy schedule was never visible and its removal was never reported;
+        it also meant nothing on the write side had to enforce the rule, so
+        schedules the store would never keep could be created and armed.
+
+        Rejection now happens on the way in, so this runs once to clear whatever
+        the filter was hiding, and each removal is logged at WARNING naming the
+        schedule. A user who had one finds out it existed rather than watching
+        it evaporate.
+
+        Latched by ``CONF_LEGACY_SCHEDULE_ACTIONS_REMOVED``. A fresh install
+        latches it with nothing to remove. Ordered before the schedules are
+        loaded, so no legacy row can reach the manager, the panel, or the edit
+        path that would now be refused by validation.
+        """
+        config = await self.store.async_get_config()
+        if config.get(const.CONF_LEGACY_SCHEDULE_ACTIONS_REMOVED):
+            return
+        schedules = config.get(const.CONF_RECURRING_SCHEDULES) or []
+        keep = []
+        for schedule in schedules:
+            # Read strictly, with no default. A write that omits the action is
+            # taken as irrigate, since that is the only legal value, but a
+            # STORED row without one is a legacy artefact that the load filter
+            # has been discarding all along. Defaulting it here would turn a
+            # schedule that has never watered into one that does, which is a run
+            # the user never configured.
+            action = schedule.get(const.SCHEDULE_CONF_ACTION)
+            if action in const.SCHEDULE_SUPPORTED_ACTIONS:
+                keep.append(schedule)
+                continue
+            _LOGGER.warning(
+                "Schedule '%s' (action: %s) has been removed. Recurring "
+                "schedules are irrigation-only; calculation and weather updates "
+                "are driven by the daily settings under Setup. This schedule "
+                "was already being discarded at every startup, so nothing it "
+                "describes has run for some time",
+                schedule.get(const.SCHEDULE_CONF_NAME)
+                or schedule.get(const.SCHEDULE_CONF_ID),
+                action if action is not None else "not set",
+            )
+        updates = {const.CONF_LEGACY_SCHEDULE_ACTIONS_REMOVED: True}
+        # Only rewrite the list when something actually goes, so a store with
+        # nothing to repair latches the flag without touching the schedules.
+        if len(keep) != len(schedules):
+            updates[const.CONF_RECURRING_SCHEDULES] = keep
+        await self.store.async_update_config(updates)
+
     async def async_reconcile_stored_unit_system(self):
         """Convert stored zone values when the unit system has changed (issue #67).
 
@@ -946,6 +1004,26 @@ class SmartIrrigationCoordinator(
 
     async def async_update_config(self, data):  # noqa: D102
         _LOGGER.debug("[async_update_config]: config changed: %s", data)
+
+        # Recurring schedules reach the config endpoint through the schema's
+        # extra=vol.ALLOW_EXTRA, and the value goes unchecked. An action the
+        # store will not keep therefore used to be accepted, armed and run until
+        # the next restart, then disappear. Refuse it here, where the write is
+        # applied, rather than by giving recurring_schedules a schema entry:
+        # every other unlisted Config field reaches this point the same way, and
+        # singling the key out would reject legitimate payloads too. What is
+        # rejected here is a value that has never worked.
+        if const.CONF_RECURRING_SCHEDULES in data:
+            for schedule in data[const.CONF_RECURRING_SCHEDULES] or []:
+                action = schedule.get(
+                    const.SCHEDULE_CONF_ACTION, const.SCHEDULE_ACTION_IRRIGATE
+                )
+                if action not in const.SCHEDULE_SUPPORTED_ACTIONS:
+                    raise ValueError(
+                        f"Invalid schedule action: {action}. Recurring "
+                        "schedules are irrigation-only; calculation and weather "
+                        "updates are driven by the daily settings"
+                    )
 
         # Handle precipitation threshold unit conversion
         # Always store internally in mm, but convert from user units if needed

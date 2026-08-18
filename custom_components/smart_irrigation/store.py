@@ -81,6 +81,7 @@ from .const import (
     CONF_IMPERIAL,
     CONF_LEGACY_FRESH_DURATION_ENABLED,
     CONF_LEGACY_LIVE_DURATION_ENABLED,
+    CONF_LEGACY_SCHEDULE_ACTIONS_REMOVED,
     CONF_LIVE_ESTIMATE_ENABLED,
     CONF_LOG_NO_DEMAND,
     CONF_METRIC,
@@ -137,7 +138,6 @@ from .const import (
     MODULE_NAME,
     MODULE_SCHEMA,
     RETRIEVED_AT,
-    SCHEDULE_CONF_ACTION,
     UNIT_SYSTEM_METRIC,
     UNIT_SYSTEM_US_CUSTOMARY,
     ZONE_BUCKET,
@@ -420,6 +420,10 @@ class Config:
     # every store that predates it, which is exactly the set needing the
     # repair; a fresh install latches it on first setup with nothing to fix.
     azimuth_bearing_corrected = attr.ib(type=bool, default=False)
+    # One-shot latch for the legacy calculate/update schedule removal. Same
+    # shape and for the same reason: False on every store that predates it, and
+    # a fresh install latches it on first setup with nothing to remove.
+    legacy_schedule_actions_removed = attr.ib(type=bool, default=False)
     # Persisted in-flight self-closing valve runs (reboot resilience); list of
     # dicts, see const.CONF_ACTIVE_VALVE_RUNS.
     active_valve_runs = attr.ib(type=list, factory=list)
@@ -936,17 +940,24 @@ class SmartIrrigationStorage:
                 azimuth_bearing_corrected=data["config"].get(
                     CONF_AZIMUTH_BEARING_CORRECTED, False
                 ),
-                # Recurring schedules are irrigation-only now; calculate/update
-                # are handled by the global daily settings. Drop any legacy
-                # calculate/update schedules on load (they would just duplicate
-                # the global tasks).
-                recurring_schedules=[
-                    s
-                    for s in data["config"].get(
-                        CONF_RECURRING_SCHEDULES, CONF_DEFAULT_RECURRING_SCHEDULES
-                    )
-                    if s.get(SCHEDULE_CONF_ACTION) == "irrigate"
-                ],
+                # Loaded as stored. Legacy calculate/update schedules used to be
+                # filtered out here, which made them impossible to see and
+                # impossible to report: the filter ran on every load, could not
+                # tell a legacy row from one written a minute ago, and dropping
+                # a row silently is what let write paths that never enforced the
+                # rule go unnoticed. Rejection now happens on the way in, and
+                # existing rows are removed once by
+                # async_drop_legacy_schedule_actions, which says what it dropped.
+                recurring_schedules=data["config"].get(
+                    CONF_RECURRING_SCHEDULES, CONF_DEFAULT_RECURRING_SCHEDULES
+                ),
+                # .get with a False default rather than a migration, same
+                # precedent as the flag above: a store written before this
+                # repair has no key, and False is exactly the "not yet repaired"
+                # answer, so STORAGE_VERSION stays put.
+                legacy_schedule_actions_removed=data["config"].get(
+                    CONF_LEGACY_SCHEDULE_ACTIONS_REMOVED, False
+                ),
                 master_entity=data["config"].get("master_entity", None),
                 master_settle_seconds=data["config"].get("master_settle_seconds", 10),
                 master_kick_enabled=data["config"].get("master_kick_enabled", False),

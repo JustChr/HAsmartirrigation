@@ -10,8 +10,16 @@ from custom_components.smart_irrigation.store import SmartIrrigationStorage
 
 
 @pytest.mark.asyncio
-async def test_load_drops_non_irrigate_schedules(hass):
-    """Recurring schedules are irrigation-only; calculate/update/legacy drop."""
+async def test_load_keeps_every_stored_schedule(hass):
+    """Load no longer filters by action.
+
+    Recurring schedules are still irrigation-only, but the rule is enforced when
+    a schedule is written and legacy rows are removed once by
+    ``async_drop_legacy_schedule_actions``, which reports each removal. Filtering
+    here instead made a legacy schedule impossible to see and its disappearance
+    impossible to report, and left the write paths free to accept one.
+    See tests/test_legacy_schedule_actions.py.
+    """
     store = SmartIrrigationStorage(hass)
     store._store.async_load = AsyncMock(
         return_value={
@@ -20,7 +28,7 @@ async def test_load_drops_non_irrigate_schedules(hass):
                     {"id": "1", "action": "irrigate", "name": "water"},
                     {"id": "2", "action": "calculate", "name": "calc"},
                     {"id": "3", "action": "update", "name": "upd"},
-                    {"id": "4", "name": "no-action"},  # missing action -> drop
+                    {"id": "4", "name": "no-action"},
                 ],
             },
             "zones": [],
@@ -30,7 +38,7 @@ async def test_load_drops_non_irrigate_schedules(hass):
     )
     await store.async_load()
     kept = store.get_config()[const.CONF_RECURRING_SCHEDULES]
-    assert [s["id"] for s in kept] == ["1"]
+    assert [s["id"] for s in kept] == ["1", "2", "3", "4"]
 
 
 class TestSmartIrrigationStorageBasics:

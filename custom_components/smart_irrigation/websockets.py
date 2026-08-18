@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+from http import HTTPStatus
 
 import voluptuous as vol
 from dateutil import parser as dateutil_parser
@@ -168,7 +169,14 @@ class SmartIrrigationConfigView(HomeAssistantView):
         _LOGGER.debug("[websocket]: request: %s %s", request, data)
         hass = request.app["hass"]
         coordinator = hass.data[const.DOMAIN]["coordinator"]
-        await coordinator.async_update_config(data)
+        try:
+            await coordinator.async_update_config(data)
+        except ValueError as err:
+            # A rejected value must reach the caller as a rejection. Letting it
+            # escape gives a 500 and a stack trace, which reads as a fault in
+            # the integration rather than a fault in the payload.
+            _LOGGER.warning("[websocket]: config update rejected: %s", err)
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         async_dispatcher_send(hass, const.DOMAIN + "_update_frontend")
         return self.json({"success": True})
 
