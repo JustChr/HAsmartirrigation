@@ -121,7 +121,7 @@ To make self-closing setup painless, three **script blueprints** ship with the i
   |---------|----------|------------|
   | **Run service** | yes | The script handed the plan. It receives one field, `zones`, holding an ordered list of `{zone_id, zone_name, duration}`. |
   | **Stop service** | yes in practice | The script that stops the irrigation **and clears the queue**. |
-  | **Paused indicator** | optional | One entity per controller, on while the irrigation is paused. |
+  | **Paused indicator** | **yes, if your controller can pause** | One entity per controller, on while the irrigation is paused. Without it a pause is indistinguishable from a stop — see [Pausing](#batch-pause). |
   | **Pause timeout** | optional | How long a pause may last before the run is settled for what it delivered. |
   | **On pause timeout** | optional | A script called when that timeout expires, so you decide what to do. |
 
@@ -137,7 +137,11 @@ To make self-closing setup painless, three **script blueprints** ship with the i
 
 Some controllers can **pause** an irrigation: the valve switch turns **off** while the controller keeps the remaining time, ready to resume. Without being told about it, Smart Irrigation would read that as the controller cutting the run short — settling the run as partial, reversing the part of the moisture credit it believed had not been delivered, and then watching the controller resume a zone it had already closed the books on.
 
-Configure a **paused indicator** and that is handled: while it reads on, a valve going off is a pause rather than a finish, and the run simply **stops accumulating watering time**. Run time in this mode is the **sum of the watering segments** rather than one stretch from the start, so a twenty-minute pause costs nothing — and because the total is persisted, a restart in the middle of a pause still adds up correctly.
+**Without a paused indicator there is nothing to tell the two apart**, and that is exactly what happens: the first pause settles the run, reverses part of the credit, and the zone reads as finished while the controller is still holding water for it. If your controller has a pause button, configure one.
+
+Configure a **paused indicator** and that is handled: while it reads on, a valve going off is a pause rather than a finish, and the run simply **stops accumulating watering time**. The panel stops counting down too — a paused run shows its Stop control without a remaining time, because only the controller knows when it will hand the rest back. Run time in this mode is the **sum of the watering segments** rather than one stretch from the start, so a twenty-minute pause costs nothing — and because the total is persisted, a restart in the middle of a pause still adds up correctly.
+
+An indicator that stops reporting — the usual case being a controller still reconnecting after a Home Assistant restart — counts as **paused**, not as stopped. Smart Irrigation never reads "cannot see the controller" as "the run ended", so a restart in the middle of a pause keeps the run and picks the water back up when the controller resumes.
 
 A pause is always **bounded**. Leave the **pause timeout** at 0 and a generous default backstop applies. This is deliberate: an unbounded pause is harmless to the controller, but a run that never ends holds its zone against any future run, holds the pump, and keeps a moisture credit for water that never fell — so the zone reads as watered while it is dry, and stays that way until someone notices. If you set an **On pause timeout** script it is called when the bound expires, so you decide what giving up means on your hardware (resume, shut down, clear the queue); the run is settled for what it actually delivered either way.
 

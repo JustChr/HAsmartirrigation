@@ -45,6 +45,7 @@ from homeassistant.util import dt as dt_util
 
 from . import const
 from .run_watch import (
+    NO_INFO_STATES,
     RUNNING_STATES,
     WatchPolicy,
     planned_seconds,
@@ -301,6 +302,22 @@ class BatchMixin:
         Gated on the RUN's mode rather than the zone's: the run carries the mode
         it was dispatched under and is still right when the zone has since been
         edited or deleted.
+
+        An indicator that carries NO INFORMATION reads as paused, not as
+        running. This is the same rule ``_watch_evaluate`` already applies to the
+        watch entity — never mistake "cannot see the controller" for a state
+        change — and it was missing here, which is what a restart mid-pause
+        walked straight into (issue #88, reported from the field against
+        v2026.08.13). The indicator is unavailable for as long as its controller
+        takes to reconnect, and reading that as "not paused" settled the run,
+        reversed its credit, and left nothing watching the valve for the water
+        the controller then went on to deliver.
+
+        Answering "paused" is the recoverable direction and is not open-ended:
+        the moment the indicator publishes anything the subscription re-evaluates
+        the run against it (``_batch_reevaluate_runs``), and a pause that never
+        resolves is ended by its bound like any other. A run wrongly settled has
+        no such second chance.
         """
         if run.get(const.RUN_MODE) != const.WATERING_MODE_BATCH:
             return await super()._watch_paused(zone_id, run)
@@ -308,7 +325,15 @@ class BatchMixin:
         if not entity:
             return False
         state = self.hass.states.get(entity)
-        return state is not None and state.state in RUNNING_STATES
+        if state is None or state.state in NO_INFO_STATES:
+            _LOGGER.debug(
+                "Zone %s: the paused indicator %s is not reporting, so the run "
+                "is held open as paused rather than settled",
+                zone_id,
+                entity,
+            )
+            return True
+        return state.state in RUNNING_STATES
 
     async def _watch_finish_delay(self, zone_id, run: dict) -> float:
         """Hold a valve-off open briefly, but only when a pause is possible.

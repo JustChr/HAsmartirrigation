@@ -64,6 +64,25 @@ def run_is_queue_bound(run: dict) -> bool:
     )
 
 
+def run_is_segmented(run: dict) -> bool:
+    """True if this run records its watering as segments rather than a stretch.
+
+    The same test ``_sc_run_elapsed`` uses to decide which timing a run gets,
+    named once so the panel's countdown cannot answer it differently from the
+    accounting — which is exactly how the two came apart (issue #88): the
+    accounting summed the segments while the countdown still ran from the
+    observed start, so a pause was displayed as if it were water.
+
+    Keyed on the record carrying the fields rather than on the mode, so a run
+    dispatched before this mode existed, or under a mode this build no longer
+    knows, is timed the way it was actually recorded.
+    """
+    return isinstance(run, dict) and (
+        const.RUN_WATERED_SECONDS in run
+        or run.get(const.RUN_SEGMENT_STARTED) is not None
+    )
+
+
 @dataclass
 class Watcher:
     """One zone's live subscription, plus at most one pending timer.

@@ -14,6 +14,7 @@ who can actually run it.
 from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
 
+from freezegun import freeze_time
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
@@ -724,3 +725,149 @@ class TestGivingUp:
         # to the pre-run bucket.
         c.async_write_watered_bucket.assert_awaited_with(1, -20.0)
         c._set_zone_fault.assert_any_call(1, const.PROBLEM_ZONE_NEVER_RAN)
+
+
+class TestWhatTheFieldTestFound:
+    """The two things a real controller did that the suite had not.
+
+    @pnaklicki ran v2026.08.13 against an ESPHome sprinkler — the first time this
+    mode touched hardware. Dispatch, stopping and the bucket arithmetic held.
+    These two did not, and neither was reachable through the assertions above:
+    one lives in the panel payload rather than in the engine, and the other only
+    appears while the controller's own entities are still reconnecting.
+    """
+
+    async def _paused_mid_run(self, hass):
+        """A run that watered for a minute and is now paused."""
+        c = _coord(hass, **{const.CONF_BATCH_PAUSED_ENTITY: PAUSED})
+        zones = _register(c, _zone(1, VALVE_A, 600))
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "off")
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+        await _set(hass, VALVE_A, "on")
+        await _advance(hass, 60)
+        await _set(hass, PAUSED, "on")
+        await _set(hass, VALVE_A, "off")
+        await _settle(hass)
+        assert c._runs, "precondition: the pause did not settle the run"
+        return c
+
+    async def test_the_countdown_stops_when_the_controller_pauses(self, hass):
+        """A pause was charged to the panel as if it were water.
+
+        The accounting had always been segment-based; the panel's ``ends_at`` was
+        still observed_start + planned, so the number the user watches kept
+        counting down through a pause and came back from it ahead of the
+        controller by the whole length of the pause. Asserted on the payload
+        rather than on the run record, because the record was never wrong.
+
+        The clock is frozen and stepped rather than merely fired, which the rest
+        of this file does not need to do. ``async_fire_time_changed`` runs due
+        timers without moving ``utcnow``, so a run "watered" that way banks zero
+        seconds — and against a zero-length segment the broken projection and the
+        correct one give the same answer. Real watering time is the whole point
+        of the assertion.
+        """
+        with freeze_time("2026-08-19 06:00:00") as frozen:
+            c = _coord(hass, **{const.CONF_BATCH_PAUSED_ENTITY: PAUSED})
+            zones = _register(c, _zone(1, VALVE_A, 600))
+            await _set(hass, PAUSED, "off")
+            await _set(hass, VALVE_A, "off")
+            await c.async_dispatch_batch_zones(zones, trigger="schedule")
+            await _set(hass, VALVE_A, "on")
+
+            frozen.tick(60)  # a minute of actual water
+            await _set(hass, PAUSED, "on")
+            await _set(hass, VALVE_A, "off")
+            frozen.tick(const.BATCH_PAUSE_SETTLE_SECONDS + 1)
+            async_fire_time_changed(hass, dt_util.utcnow())
+            await hass.async_block_till_done()
+
+            assert c._runs, "precondition: the pause did not settle the run"
+            banked = c._runs[0][const.RUN_WATERED_SECONDS]
+            assert 59 <= banked <= 61, f"expected ~60s banked, got {banked}"
+
+            assert c.get_active_runs()["1"]["ends_at"] is None, (
+                "a paused run has no predictable finish — the controller decides "
+                "when it hands the remaining time back"
+            )
+            frozen.tick(300)
+            assert (
+                c.get_active_runs()["1"]["ends_at"] is None
+            ), "five minutes of pause moved the finish"
+
+            # On resume the countdown is the REMAINDER, not the original window.
+            await _set(hass, PAUSED, "off")
+            await _set(hass, VALVE_A, "on")
+            await hass.async_block_till_done()
+            ends = dt_util.parse_datetime(c.get_active_runs()["1"]["ends_at"])
+            left = (ends - dt_util.now()).total_seconds()
+            assert (
+                535 <= left <= 545
+            ), f"expected ~540s left (600 planned - 60 watered), got {left:.0f}s"
+
+    async def test_an_indicator_that_is_not_reporting_does_not_settle_the_run(
+        self, hass
+    ):
+        """A restart mid-pause lost the run, and with it the rest of the water.
+
+        The engine's rule for the watch entity — no information is never a state
+        change — was not applied to the paused indicator, and a restart is
+        exactly when that indicator is unavailable: its controller is still
+        reconnecting. Reading that as "not paused" settled the run, reversed the
+        credit for water the controller then went on to deliver, and left nothing
+        watching the valve when it reopened.
+        """
+        c = await self._paused_mid_run(hass)
+        persisted = [dict(r) for r in c._runs]
+
+        # Home Assistant comes back up. Its own state survives; the controller's
+        # entities do not, until the device reconnects.
+        c2 = _coord(hass, **{const.CONF_BATCH_PAUSED_ENTITY: PAUSED})
+        c2._runs = persisted
+        c2.store.config.active_valve_runs = c2._runs
+        c2._sc_active_runs = AsyncMock(side_effect=lambda: [dict(r) for r in c2._runs])
+        _register(c2, _zone(1, VALVE_A, 600))
+        await _set(hass, VALVE_A, "unavailable")
+        await _set(hass, PAUSED, "unavailable")
+
+        await c2.async_resume_self_closing_runs()
+        # The valve reports first; the indicator is still catching up.
+        await _set(hass, VALVE_A, "off")
+        await _settle(hass)
+        assert c2._runs, "the run was settled while the indicator was silent"
+        assert c2._record_run.await_count == 0
+
+        # The controller resumes: the water must be picked back up.
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "on")
+        await hass.async_block_till_done()
+        assert c2._runs[0].get(
+            const.RUN_SEGMENT_STARTED
+        ), "the valve is open again and nothing is recording it"
+
+    async def test_a_silent_indicator_still_settles_a_run_that_really_ended(self, hass):
+        """The counterfactual: holding the run open must not become never ending.
+
+        Once the indicator reports and says the controller is NOT paused, the
+        valve-off it was covering for is read as the end of the run after all.
+        """
+        c = await self._paused_mid_run(hass)
+        persisted = [dict(r) for r in c._runs]
+        c2 = _coord(hass, **{const.CONF_BATCH_PAUSED_ENTITY: PAUSED})
+        c2._runs = persisted
+        c2.store.config.active_valve_runs = c2._runs
+        c2._sc_active_runs = AsyncMock(side_effect=lambda: [dict(r) for r in c2._runs])
+        _register(c2, _zone(1, VALVE_A, 600))
+        await _set(hass, VALVE_A, "unavailable")
+        await _set(hass, PAUSED, "unavailable")
+        await c2.async_resume_self_closing_runs()
+        await _set(hass, VALVE_A, "off")
+        await _settle(hass)
+        assert c2._runs
+
+        # The controller is back and the cycle is over, not paused.
+        await _set(hass, PAUSED, "off")
+        await _settle(hass)
+        assert c2._runs == [], "the ended run was held open indefinitely"
+        assert c2._record_run.await_count == 1

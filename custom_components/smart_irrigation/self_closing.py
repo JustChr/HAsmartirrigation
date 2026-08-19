@@ -18,7 +18,7 @@ from homeassistant.util import dt as dt_util
 from . import const
 from .batch import is_batch_zone
 from .opensprinkler import is_opensprinkler_zone
-from .run_watch import run_is_queue_bound
+from .run_watch import run_is_queue_bound, run_is_segmented
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -527,10 +527,7 @@ class SelfClosingMixin:
         start is the controller's own reported one rather than the instant the
         transition was seen.
         """
-        if (
-            const.RUN_WATERED_SECONDS in run
-            or run.get(const.RUN_SEGMENT_STARTED) is not None
-        ):
+        if run_is_segmented(run):
             return self._sc_segmented_elapsed(run)
         observed = run.get(const.RUN_OBSERVED_START)
         if observed:

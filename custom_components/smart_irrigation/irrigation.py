@@ -30,7 +30,7 @@ from .flow_metering import (
 from .helpers import convert_between
 from .localize import localize
 from .opensprinkler import entity_is_station, is_opensprinkler_zone
-from .run_watch import run_is_queue_bound
+from .run_watch import run_is_queue_bound, run_is_segmented
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -267,6 +267,15 @@ class IrrigationRunnerMixin:
         there is no finish to count down to. ``ends_at`` is None there, which
         the panel already renders as a Stop control without a countdown — the
         same shape a volume-bounded flow run registers with.
+
+        A run recorded as SEGMENTS is not one contiguous stretch, so its finish
+        cannot be worked out from its start either. Counting down from the
+        observed start charged a pause to the user as if it were water: the
+        panel kept ticking while the valve was shut, and after a resume it was
+        ahead of the controller by the whole length of the pause. Reported from
+        the field against v2026.08.13 (issue #88). The accounting was always
+        right — ``_sc_run_elapsed`` sums the watering segments — and only this,
+        the number the user actually looks at, was still contiguous.
         """
         observed = record.get(const.RUN_OBSERVED_START)
         started_raw = observed or record.get(const.RUN_STARTED)
@@ -276,12 +285,24 @@ class IrrigationRunnerMixin:
         started = dt_util.as_local(started)
         queued = run_is_queue_bound(record)
         planned = float(record.get(const.RUN_PLANNED_SECONDS) or 0)
-        ends_at = (
-            (started + timedelta(seconds=planned)).isoformat()
-            if planned > 0 and not queued
-            else None
-        )
-        return started.isoformat(), ends_at
+        if planned <= 0 or queued:
+            return started.isoformat(), None
+        if run_is_segmented(record):
+            if not record.get(const.RUN_SEGMENT_STARTED):
+                # Paused: no segment is open, the controller is holding the
+                # remaining time, and nothing here can say when it will hand it
+                # back. No countdown rather than a wrong one — the same shape a
+                # queued run and a volume-bounded run already register with.
+                return started.isoformat(), None
+            # Watering: the finish is whatever is LEFT, measured from now. The
+            # segments already banked are behind us in wall-clock terms, so they
+            # cannot be projected forward from the observed start.
+            remaining = max(0.0, planned - self._sc_run_elapsed(record))
+            return (
+                started.isoformat(),
+                (dt_util.now() + timedelta(seconds=remaining)).isoformat(),
+            )
+        return started.isoformat(), (started + timedelta(seconds=planned)).isoformat()
 
     def get_active_runs(self) -> dict:
         """Return ``{zone_id: {started_at, ends_at, queued}}`` for runs in progress.
