@@ -115,6 +115,9 @@ class SmartIrrigationConfigView(HomeAssistantView):
                 vol.Optional(const.CONF_CALC_TIME): cv.string,
                 vol.Optional(const.CONF_UNITS): cv.string,
                 vol.Optional(const.CONF_AUTO_CALC_ENABLED): cv.boolean,
+                vol.Optional(const.CONF_AUTO_CALC_MODE): vol.In(
+                    const.CONF_AUTO_CALC_MODES
+                ),
                 vol.Optional(const.CONF_AUTO_UPDATE_ENABLED): cv.boolean,
                 vol.Optional(const.CONF_AUTO_UPDATE_SCHEDULE): cv.string,
                 vol.Optional(const.CONF_AUTO_UPDATE_DELAY): cv.string,

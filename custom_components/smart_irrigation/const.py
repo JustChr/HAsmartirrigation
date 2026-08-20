@@ -264,6 +264,20 @@ CONF_CALC_TIME = "calctime"
 CONF_DEFAULT_CALC_TIME = "23:00"
 CONF_AUTO_CALC_ENABLED = "autocalcenabled"
 CONF_DEFAULT_AUTO_CALC_ENABLED = True
+# When the automatic calculation runs. "fixed_time" keeps calctime's original
+# meaning; "before_run" calculates when each irrigate schedule plans its run, so
+# the run is sized from a ledger minutes old rather than one committed hours
+# earlier. Existing installs migrate to fixed_time with their current calctime.
+CONF_AUTO_CALC_MODE = "autocalcmode"
+CONF_AUTO_CALC_MODE_FIXED_TIME = "fixed_time"
+CONF_AUTO_CALC_MODE_BEFORE_RUN = "before_run"
+CONF_AUTO_CALC_MODES = [CONF_AUTO_CALC_MODE_FIXED_TIME, CONF_AUTO_CALC_MODE_BEFORE_RUN]
+CONF_DEFAULT_AUTO_CALC_MODE = CONF_AUTO_CALC_MODE_FIXED_TIME
+# Under "before_run" a night with no run commits nothing, and after seven days
+# the replay window outruns BUFFER_RETENTION and the live estimate silently
+# falls back to a week-old bucket. The midnight tracker holds the invariant
+# instead of guarding the cases: the ledger is never more than this stale.
+AUTO_CALC_MAX_LEDGER_AGE_HOURS = 24
 CONF_AUTO_UPDATE_ENABLED = "autoupdateenabled"
 CONF_AUTO_UPDATE_SCHEDULE = "autoupdateschedule"
 CONF_AUTO_UPDATE_MINUTELY = "minutes"
