@@ -1104,6 +1104,14 @@ class CalculationMixin:
                 and zone.get(const.ZONE_MAXIMUM_DURATION) >= 0
                 and duration > zone.get(const.ZONE_MAXIMUM_DURATION)
             ):
+                # The clamp emits nothing on its own: the shortfall is simply
+                # never watered, so deepening bucket_threshold past what the cap
+                # can deliver is silently ignored and the zone drifts drier
+                # every cycle. The explanation below says so, but nobody reads a
+                # zone's explanation until something is already wrong.
+                self._warn_duration_clamped(
+                    zone, zone.get(const.ZONE_MAXIMUM_DURATION), duration
+                )
                 duration = zone.get(const.ZONE_MAXIMUM_DURATION)
                 explanation += (
                     ", "
