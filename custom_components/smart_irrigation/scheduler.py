@@ -25,10 +25,24 @@ from . import const
 from .helpers import (
     find_next_solar_azimuth_time,
     normalize_azimuth_angle,
-    normalize_zone_selection,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_BOUND_FIELDS = {
+    const.SCHEDULE_ANCHOR_START: (
+        const.SCHEDULE_CONF_START_MODE,
+        const.SCHEDULE_CONF_START_TIME,
+        const.SCHEDULE_CONF_START_OFFSET,
+        const.SCHEDULE_CONF_START_AZIMUTH,
+    ),
+    const.SCHEDULE_ANCHOR_FINISH: (
+        const.SCHEDULE_CONF_FINISH_MODE,
+        const.SCHEDULE_CONF_FINISH_TIME,
+        const.SCHEDULE_CONF_FINISH_OFFSET,
+        const.SCHEDULE_CONF_FINISH_AZIMUTH,
+    ),
+}
 
 
 class RecurringScheduleManager:
@@ -41,19 +55,21 @@ class RecurringScheduleManager:
         self._schedule_trackers = {}
         self._schedules = []
         self._unsub_rearm = None
-        # Per finish-anchored schedule, the target occurrence we last fired for
-        # (ISO string). Lets the self-rescheduling finish tracker advance past an
-        # occurrence it already ran instead of busy-looping its start→finish
-        # window (which re-fired irrigation every ~2s). Keyed by schedule id.
+        # Per finish-governed schedule, the target occurrence we last fired for
+        # (ISO string). Lets the self-rescheduling tracker advance past an
+        # occurrence it already ran instead of busy-looping its window (which
+        # re-fired irrigation every ~2s). Keyed by schedule id. Shared by
+        # every governed-tracker flavour (finish-only, both-bounded pinned to
+        # either end) since only one can be armed for a schedule at a time.
         #
         # Mirrored to const.CONF_FIRED_OCCURRENCES in the config document and
         # rehydrated in async_load_schedules. Holding it only here made the
         # tracker's own catch-up branch unsound: a config entry reload builds a
-        # new manager, so a reload inside the start→finish window left the fresh
-        # manager unable to tell "never ran this occurrence" from "ran it eleven
-        # minutes ago", and it watered the occurrence a second time in full.
-        # This dict stays the authority while the manager lives; the stored copy
-        # only has to be right by the time a NEW manager reads it.
+        # new manager, so a reload inside the window left the fresh manager
+        # unable to tell "never ran this occurrence" from "ran it eleven minutes
+        # ago", and it watered the occurrence a second time in full. This dict
+        # stays the authority while the manager lives; the stored copy only has
+        # to be right by the time a NEW manager reads it.
         self._finish_last_target: dict[str, str] = {}
 
     async def async_load_schedules(self) -> None:
@@ -67,7 +83,7 @@ class RecurringScheduleManager:
         self._finish_last_target = {**stored, **self._finish_last_target}
         await self._setup_schedule_trackers()
 
-        # Re-arm finish-anchored schedules whenever durations may have changed
+        # Re-arm finish-governed schedules whenever durations may have changed
         # (a calculate dispatches _config_updated). This keeps the computed
         # start time (target − duration) fresh without polling.
         if getattr(self, "_unsub_rearm", None) is None:
@@ -157,13 +173,21 @@ class RecurringScheduleManager:
         async_dispatcher_send(self.hass, const.DOMAIN + "_schedules_updated")
 
     async def async_rearm_finish_schedules(self) -> None:
-        """Recompute and re-arm start times for finish-anchored schedules."""
+        """Recompute and re-arm start times for finish-governed schedules.
+
+        A schedule's fire time depends on the estimated duration exactly when
+        its Finish bound is the governing end; a Start bound fires at a fixed
+        instant regardless of duration, so it does not need re-arming here.
+        """
         for schedule in self._schedules:
             if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
                 continue
-            if self._time_anchor(schedule) != const.SCHEDULE_TIME_ANCHOR_FINISH:
+            if (
+                schedule.get(const.SCHEDULE_CONF_RECURRENCE)
+                == const.SCHEDULE_RECURRENCE_INTERVAL
+            ):
                 continue
-            if schedule[const.SCHEDULE_CONF_TYPE] == const.SCHEDULE_TYPE_INTERVAL:
+            if self._governing_end(schedule) != const.SCHEDULE_ANCHOR_FINISH:
                 continue
             await self._reregister_tracker(schedule)
 
@@ -246,12 +270,14 @@ class RecurringScheduleManager:
                 tracker()
         self._schedule_trackers.clear()
 
-        # Drop fired-occurrence markers for schedules that no longer exist. The
-        # key is the schedule id: if an id is ever reused, a NEW finish-anchored
-        # schedule would inherit the old one's "already fired" marker and skip
-        # its first occurrence, silently and once only — the worst kind of bug
-        # to reproduce. Now that the map is persisted, pruning must reach the
-        # store too, or a stale marker outlives every restart.
+        # Drop fired-occurrence markers for schedules that no longer exist. It
+        # was only ever cleared wholesale on unload, so deleting a schedule left
+        # its entry behind for the life of the manager. The key is the schedule
+        # id: if an id is ever reused, a NEW finish-governed schedule would
+        # inherit the old one's "already fired" marker and skip its first
+        # occurrence, silently and once only — the worst kind of bug to
+        # reproduce. Now that the map is persisted, pruning must reach the store
+        # too, or a stale marker outlives every restart.
         live_ids = {
             s[const.SCHEDULE_CONF_ID]
             for s in self._schedules
@@ -269,78 +295,212 @@ class RecurringScheduleManager:
                 await self._setup_schedule_tracker(schedule)
 
     async def _setup_schedule_tracker(self, schedule: dict[str, Any]) -> None:
-        """Set up a tracker for a single schedule."""
+        """Set up a tracker for a single schedule.
+
+        A run's window is two independently bounded ends, Start and Finish.
+        Interval recurrence has neither — it free-runs on its own clock.
+        Otherwise the governing end is whichever is bounded:
+
+          - Start → fire there directly, unbounded on the other side.
+          - Finish → fire at (target − estimated duration), so the run
+            ends at the bound.
+        """
         if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
             return
 
         schedule_id = schedule[const.SCHEDULE_CONF_ID]
-        schedule_type = schedule[const.SCHEDULE_CONF_TYPE]
+        recurrence = schedule.get(const.SCHEDULE_CONF_RECURRENCE)
 
-        # "Finish at time" needs a dynamic start (target − duration), so it uses
-        # a one-shot, self-rescheduling tracker. Only meaningful for an irrigate
-        # action (calculate/update have no run to finish) and for types with a
-        # fixed target time (not interval).
-        if (
-            self._time_anchor(schedule) == const.SCHEDULE_TIME_ANCHOR_FINISH
-            and schedule_type != const.SCHEDULE_TYPE_INTERVAL
-            and schedule.get(const.SCHEDULE_CONF_ACTION) == "irrigate"
-        ):
-            tracker = await self._setup_finish_tracker(schedule)
-        elif schedule_type == const.SCHEDULE_TYPE_DAILY:
-            tracker = await self._setup_daily_tracker(schedule)
-        elif schedule_type == const.SCHEDULE_TYPE_WEEKLY:
-            tracker = await self._setup_weekly_tracker(schedule)
-        elif schedule_type == const.SCHEDULE_TYPE_MONTHLY:
-            tracker = await self._setup_monthly_tracker(schedule)
-        elif schedule_type == const.SCHEDULE_TYPE_INTERVAL:
+        if recurrence == const.SCHEDULE_RECURRENCE_INTERVAL:
             tracker = await self._setup_interval_tracker(schedule)
-        elif schedule_type == const.SCHEDULE_TYPE_SUNRISE:
-            tracker = await self._setup_sunrise_tracker(schedule)
-        elif schedule_type == const.SCHEDULE_TYPE_SUNSET:
-            tracker = await self._setup_sunset_tracker(schedule)
-        elif schedule_type == const.SCHEDULE_TYPE_SOLAR_AZIMUTH:
-            tracker = await self._setup_azimuth_tracker(schedule)
-        else:
-            _LOGGER.warning("Unknown schedule type: %s", schedule_type)
+            self._schedule_trackers[schedule_id] = tracker
             return
+
+        governing = self._governing_end(schedule)
+        if governing is None:
+            _LOGGER.warning(
+                "Schedule '%s': neither Start nor Finish is bounded; not armed",
+                schedule.get(const.SCHEDULE_CONF_NAME),
+            )
+            return
+
+        if governing == const.SCHEDULE_ANCHOR_FINISH:
+            tracker = await self._setup_finish_tracker(schedule)
+        else:
+            tracker = await self._setup_governing_tracker(schedule, governing)
 
         self._schedule_trackers[schedule_id] = tracker
 
-    # --- "finish at time" anchoring -----------------------------------------
+    # --- window bounds: which end(s), and resolving one -----------------------
 
     @staticmethod
-    def _time_anchor(schedule: dict[str, Any]) -> str:
-        """Resolve a schedule's time anchor ('start' | 'finish').
+    def _governing_end(schedule: dict[str, Any]) -> str | None:
+        """Which end of the window the run is pinned to, or None if neither.
 
-        Falls back to the legacy ``account_for_duration`` flag, which only ever
-        affected solar schedules.
+        With one end bounded, that end IS the governing one and ``anchor`` is
+        irrelevant. With both bounded, ``anchor`` names it. ``None`` means
+        neither is bounded — invalid, rejected at save time by
+        ``_validate_schedule_data``.
         """
-        anchor = schedule.get(const.SCHEDULE_CONF_TIME_ANCHOR)
-        if anchor in (
-            const.SCHEDULE_TIME_ANCHOR_START,
-            const.SCHEDULE_TIME_ANCHOR_FINISH,
-        ):
-            return anchor
-        if schedule.get(const.SCHEDULE_CONF_TYPE) in (
-            const.SCHEDULE_TYPE_SUNRISE,
-            const.SCHEDULE_TYPE_SUNSET,
-            const.SCHEDULE_TYPE_SOLAR_AZIMUTH,
-        ) and schedule.get(const.SCHEDULE_CONF_ACCOUNT_FOR_DURATION, True):
-            return const.SCHEDULE_TIME_ANCHOR_FINISH
-        return const.SCHEDULE_TIME_ANCHOR_START
+        start_mode = schedule.get(
+            const.SCHEDULE_CONF_START_MODE, const.SCHEDULE_DEFAULT_BOUND_MODE
+        )
+        finish_mode = schedule.get(
+            const.SCHEDULE_CONF_FINISH_MODE, const.SCHEDULE_DEFAULT_BOUND_MODE
+        )
+        start_bounded = start_mode != const.SCHEDULE_BOUND_MODE_NONE
+        finish_bounded = finish_mode != const.SCHEDULE_BOUND_MODE_NONE
 
-    async def _estimate_duration(self, schedule: dict[str, Any]) -> int:
-        """Estimated wall-clock run length (seconds) for the schedule's zones."""
-        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
-        return await self.coordinator.get_total_irrigation_duration(zones)
+        if start_bounded and finish_bounded:
+            anchor = schedule.get(const.SCHEDULE_CONF_ANCHOR)
+            if anchor not in const.SCHEDULE_ANCHORS:
+                anchor = const.SCHEDULE_DEFAULT_ANCHOR
+            return anchor
+        if finish_bounded:
+            return const.SCHEDULE_ANCHOR_FINISH
+        if start_bounded:
+            return const.SCHEDULE_ANCHOR_START
+        return None
+
+    async def _resolve_bound(self, schedule: dict[str, Any], end: str, reference_utc):
+        """Resolve one end ('start' or 'finish') of a schedule's window.
+
+        Thin adapter from a schedule's mode/time/offset/azimuth fields onto
+        the shared ``_resolve_event_instant`` seam, so a Start bound and a
+        Finish bound in the same mode resolve through identical math rather
+        than the two drifting apart.
+        """
+        mode_key, time_key, offset_key, azimuth_key = _BOUND_FIELDS[end]
+        mode = schedule.get(mode_key, const.SCHEDULE_DEFAULT_BOUND_MODE)
+        if mode == const.SCHEDULE_BOUND_MODE_NONE:
+            return None
+
+        hour = minute = angle = None
+        if mode == const.SCHEDULE_BOUND_MODE_TIME:
+            raw = schedule.get(time_key)
+            try:
+                hour, minute = (int(x) for x in str(raw).split(":"))
+            except (ValueError, TypeError, AttributeError):
+                _LOGGER.warning(
+                    "Schedule '%s': %s time '%s' is not HH:MM; that bound is "
+                    "unresolvable",
+                    schedule.get(const.SCHEDULE_CONF_NAME),
+                    end,
+                    raw,
+                )
+                return None
+        offset = datetime.timedelta(minutes=schedule.get(offset_key, 0) or 0)
+        if mode == const.SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH:
+            angle = schedule.get(azimuth_key, 90)
+
+        kind = "clock" if mode == const.SCHEDULE_BOUND_MODE_TIME else mode
+        return await self._resolve_event_instant(
+            kind,
+            reference_utc,
+            hour=hour,
+            minute=minute,
+            angle=angle,
+            offset=offset,
+        )
+
+    async def _resolve_event_instant(
+        self,
+        kind: str,
+        reference_utc,
+        *,
+        hour: int | None = None,
+        minute: int | None = None,
+        angle: float | None = None,
+        offset: datetime.timedelta = datetime.timedelta(0),
+    ):
+        """Resolve the next occurrence of a schedule's time source after
+        ``reference_utc`` — the shared seam every bound resolves through.
+
+        ``kind`` is one of "clock" (needs ``hour``/``minute``), "sunrise",
+        "sunset", or "solar_azimuth" (needs ``angle``). ``offset`` shifts the
+        resolved instant before it is compared against ``reference_utc``, so a
+        negative offset that lands on or before the reference retries with the
+        following occurrence rather than returning a moment already past.
+
+        Returns None when the occurrence cannot be resolved — a polar sunset/
+        sunrise, a malformed clock spec, or an azimuth the sun never reaches —
+        rather than raising, matching every caller's "no bound" contract.
+        """
+        if kind == "clock":
+            if hour is None or minute is None:
+                return None
+            local_ref = dt_util.as_local(reference_utc)
+            candidate = local_ref.replace(
+                hour=hour, minute=minute, second=0, microsecond=0
+            )
+            if candidate <= local_ref:
+                candidate += datetime.timedelta(days=1)
+            return dt_util.as_utc(candidate)
+
+        if kind in ("sunrise", "sunset"):
+            ev = get_astral_event_next(self.hass, kind, reference_utc)
+            candidate = ev + offset
+            # A NEGATIVE offset shifts the target before its sun event, so it
+            # can land on/before the reference while the raw event is still in
+            # the future. Advance to the following event until the shifted
+            # candidate is strictly after the reference. Bounded so a
+            # pathological offset can't spin. See
+            # test_schedule_time_anchor::TestFinishTrackerAdvance.
+            guard = 0
+            while candidate <= reference_utc and guard < 8:
+                ev = get_astral_event_next(self.hass, kind, ev)
+                candidate = ev + offset
+                guard += 1
+            return candidate
+
+        if kind == "solar_azimuth":
+            if angle is None:
+                return None
+            ha_cfg = self.hass.config.as_dict()
+            lat = ha_cfg.get(CONF_LATITUDE, 45.0)
+            lon = ha_cfg.get(CONF_LONGITUDE, 0.0)
+            norm_angle = normalize_azimuth_angle(angle)
+            # UTC, aware, end to end. calculate_solar_azimuth documents (and
+            # reads) UTC and takes a naive value AS UTC, so handing it naive
+            # local time put the zone offset on top of the sign error the
+            # helper itself had — see issue #81. dt_util.as_utc on an
+            # already-UTC value is a no-op, so the offset arithmetic around
+            # each crossing is unchanged.
+            ref = reference_utc
+            # Same negative-offset advance as sunrise/sunset above: step past
+            # the found occurrence until the offset-shifted candidate is
+            # strictly after the reference, so the finish tracker doesn't
+            # busy-loop.
+            guard = 0
+            while True:
+                next_time = find_next_solar_azimuth_time(lat, lon, norm_angle, ref)
+                if next_time is None:
+                    return None
+                candidate = dt_util.as_utc(next_time) + offset
+                if candidate > reference_utc or guard >= 8:
+                    return candidate
+                # find_next_solar_azimuth_time samples in 15-min steps, so a
+                # tiny step re-detects the SAME crossing. Step past a full
+                # search interval so the next search lands on the following
+                # crossing.
+                ref = next_time + datetime.timedelta(minutes=16)
+                guard += 1
+
+        return None
 
     @staticmethod
-    def _clock_day_matches(schedule: dict[str, Any], dt_local) -> bool:
-        """Whether a clock-type schedule should run on dt_local's day."""
-        stype = schedule[const.SCHEDULE_CONF_TYPE]
-        if stype == const.SCHEDULE_TYPE_DAILY:
+    def _recurrence_day_matches(schedule: dict[str, Any], dt_local) -> bool:
+        """Whether a daily/weekly/monthly schedule should run on dt_local's day.
+
+        Switches on ``recurrence``, independent of which bound mode produced
+        the candidate instant — this is what lets a weekly schedule carry a
+        sun-relative bound: recurrence and time-of-day are orthogonal, so
+        weekday filtering applies no matter which kind of bound is in play.
+        """
+        recurrence = schedule.get(const.SCHEDULE_CONF_RECURRENCE)
+        if recurrence == const.SCHEDULE_RECURRENCE_DAILY:
             return True
-        if stype == const.SCHEDULE_TYPE_WEEKLY:
+        if recurrence == const.SCHEDULE_RECURRENCE_WEEKLY:
             day_map = {
                 "monday": 0,
                 "tuesday": 1,
@@ -354,98 +514,41 @@ class RecurringScheduleManager:
                 d.lower() for d in schedule.get(const.SCHEDULE_CONF_DAYS_OF_WEEK, [])
             ]
             return any(day_map.get(d) == dt_local.weekday() for d in days)
-        if stype == const.SCHEDULE_TYPE_MONTHLY:
+        if recurrence == const.SCHEDULE_RECURRENCE_MONTHLY:
             return dt_local.day == schedule.get(const.SCHEDULE_CONF_DAY_OF_MONTH, 1)
         return False
 
-    async def _next_target_time(self, schedule: dict[str, Any], reference_utc=None):
-        """Next UTC datetime the schedule's configured time occurs.
+    async def _next_governing_time(
+        self, schedule: dict[str, Any], end: str, reference_utc=None
+    ):
+        """Next UTC instant the schedule's governing ``end`` occurs.
 
-        This is the anchor-agnostic *target* (e.g. sunrise, or 06:00 on a
-        matching day) plus any configured offset. Returns None if it can't be
-        determined.
+        Honours day-matching for daily/weekly/monthly recurrence: the resolver
+        gives the next raw occurrence of the bound; re-anchor on it and ask
+        again until the day matches, so weekday/day-of-month filtering wraps
+        the shared resolver rather than duplicating its clock/sun math. For a
+        "daily" recurrence every candidate matches, so this returns the first
+        one, same as calling the resolver directly.
 
-        ``reference_utc`` is the moment the "next" occurrence must fall strictly
-        after; it defaults to now. Pass a prior target to get the occurrence
-        *after* it (used by the finish tracker to advance past an occurrence it
-        already fired instead of re-deriving the same one).
+        ``reference_utc`` is the moment the "next" occurrence must fall
+        strictly after; defaults to now. Pass a prior target to get the
+        occurrence *after* it (used to advance past one already fired).
         """
-        stype = schedule[const.SCHEDULE_CONF_TYPE]
-        offset = datetime.timedelta(
-            minutes=schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
-        )
         now_utc = reference_utc or dt_util.utcnow()
-
-        if stype in (const.SCHEDULE_TYPE_SUNRISE, const.SCHEDULE_TYPE_SUNSET):
-            event = "sunrise" if stype == const.SCHEDULE_TYPE_SUNRISE else "sunset"
-            ev = get_astral_event_next(self.hass, event, now_utc)
-            candidate = ev + offset
-            # A NEGATIVE offset shifts the target *before* its sun event, so the
-            # offset-adjusted target can land on/before the reference while the
-            # raw event is still in the future (the |offset|-wide window between
-            # target and the event). Advance to the following event until the
-            # shifted target is strictly after the reference. Without this the
-            # finish tracker — which re-arms with reference_utc=target to skip the
-            # occurrence it just fired — re-derives the SAME target (the next
-            # event after target is that same event, because target < event) and
-            # busy-loops the "run ASAP" (now+2s) branch for the whole offset
-            # window (live 2026-07-04: ~2s skips for ~30 min). Bounded so a
-            # pathological offset can't spin. See test_schedule_time_anchor::
-            # TestFinishTrackerAdvance::test_rearm_advances_for_negative_offset_sunrise.
-            guard = 0
-            while candidate <= now_utc and guard < 8:
-                ev = get_astral_event_next(self.hass, event, ev)
-                candidate = ev + offset
-                guard += 1
-            return candidate
-        if stype == const.SCHEDULE_TYPE_SOLAR_AZIMUTH:
-            ha_cfg = self.hass.config.as_dict()
-            lat = ha_cfg.get(CONF_LATITUDE, 45.0)
-            lon = ha_cfg.get(CONF_LONGITUDE, 0.0)
-            angle = normalize_azimuth_angle(
-                schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
-            )
-            # UTC, aware, end to end. This used to hand over naive LOCAL time
-            # while calculate_solar_azimuth documented (and read) UTC, so the
-            # zone offset landed on top of the sign error the helper already
-            # had — see issue #81. dt_util.as_utc on an already-UTC value below
-            # is a no-op, so the surrounding offset arithmetic is unchanged.
-            ref = now_utc
-            # Same negative-offset advance as sunrise/sunset above: step past the
-            # found occurrence until the offset-shifted target is strictly after
-            # the reference, so the finish tracker doesn't busy-loop.
-            guard = 0
-            while True:
-                next_time = find_next_solar_azimuth_time(lat, lon, angle, ref)
-                if next_time is None:
-                    return None
-                candidate = dt_util.as_utc(next_time) + offset
-                if candidate > now_utc or guard >= 8:
-                    return candidate
-                # find_next_solar_azimuth_time samples in 15-min steps, so a tiny
-                # step re-detects the SAME crossing (the azimuth is still within a
-                # sample of the target a moment later). Step past a full search
-                # interval so the next search lands on the following crossing.
-                ref = next_time + datetime.timedelta(minutes=16)
-                guard += 1
-
-        if stype == const.SCHEDULE_TYPE_INTERVAL:
-            # Only an interval with an explicit start_time has a fixed clock
-            # target; an un-anchored interval free-runs from HA start and has no
-            # derivable next time (returns None, handled by the caller).
-            return self._next_interval_target(schedule, now_utc)
-
-        # Clock types: next local HH:MM that falls on a matching day.
-        hour, minute = map(
-            int, schedule.get(const.SCHEDULE_CONF_TIME, "06:00").split(":")
-        )
-        local_now = dt_util.as_local(now_utc)
-        candidate = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        candidate_ref = now_utc
         for _ in range(367):
-            if candidate > local_now and self._clock_day_matches(schedule, candidate):
-                return dt_util.as_utc(candidate)
-            candidate += datetime.timedelta(days=1)
+            candidate = await self._resolve_bound(schedule, end, candidate_ref)
+            if candidate is None:
+                return None
+            if self._recurrence_day_matches(schedule, dt_util.as_local(candidate)):
+                return candidate
+            candidate_ref = candidate
         return None
+
+    async def _estimate_duration(self, schedule: dict[str, Any]) -> int:
+        """Estimated wall-clock run length (seconds) for the schedule's zones."""
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+        return await self.coordinator.get_total_irrigation_duration(zones)
 
     def _next_interval_target(self, schedule: dict[str, Any], reference_utc):
         """Next UTC fire time for an interval schedule anchored to ``start_time``.
@@ -488,41 +591,36 @@ class RecurringScheduleManager:
     async def async_get_upcoming_runs(self) -> list[dict[str, Any]]:
         """Compute the next fire time for each enabled schedule (for the dashboard).
 
-        Reuses the same target/anchor math the trackers use:
-          - start anchor → next_run = target
-          - finish anchor (irrigate only) → next_run = target − estimated duration
-        Interval schedules with a ``start_time`` report the next anchored clock
-        target; un-anchored intervals have no fixed target (phase depends on when
-        HA started), so they report ``next_run_utc=None`` plus ``interval_hours``.
+        Reuses the same bound/anchor math the trackers use. Interval schedules
+        with a ``start_time`` report the next anchored clock target;
+        un-anchored intervals have no fixed target (phase depends on when HA
+        started), so they report ``next_run_utc=None`` plus ``interval_hours``.
         Sorted soonest-first; entries that can't be resolved are dropped.
         """
         runs: list[dict[str, Any]] = []
         for schedule in self._schedules:
             if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
                 continue
-            stype = schedule[const.SCHEDULE_CONF_TYPE]
-            action = schedule.get(const.SCHEDULE_CONF_ACTION, "calculate")
+            recurrence = schedule.get(const.SCHEDULE_CONF_RECURRENCE)
             zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
-            anchor = self._time_anchor(schedule)
 
             entry = {
                 "schedule_id": schedule[const.SCHEDULE_CONF_ID],
                 "name": schedule.get(const.SCHEDULE_CONF_NAME),
-                "action": action,
+                # Constant, kept in the payload because the panel and any
+                # automation reading it predate schedules being irrigation-only.
+                "action": const.SCHEDULE_ACTION_IRRIGATE,
                 "zones": zones,
-                "type": stype,
-                "time_anchor": anchor,
+                "recurrence": recurrence,
                 "next_run_utc": None,
                 "target_utc": None,
                 "duration_seconds": 0,
             }
 
-            if stype == const.SCHEDULE_TYPE_INTERVAL:
+            if recurrence == const.SCHEDULE_RECURRENCE_INTERVAL:
                 entry["interval_hours"] = schedule.get(
                     const.SCHEDULE_CONF_INTERVAL_HOURS, 24
                 )
-                # A start_time anchor gives a real clock target; without one the
-                # interval free-runs and stays next_run_utc=None.
                 target = self._next_interval_target(schedule, dt_util.utcnow())
                 if target is not None:
                     entry["next_run_utc"] = target.isoformat()
@@ -530,53 +628,187 @@ class RecurringScheduleManager:
                 runs.append(entry)
                 continue
 
-            target = await self._next_target_time(schedule)
+            governing = self._governing_end(schedule)
+            if governing is None:
+                continue
+            entry["anchor"] = governing
+
+            target = await self._next_governing_time(schedule, governing)
             if target is None:
                 continue
 
             next_run = target
-            if anchor == const.SCHEDULE_TIME_ANCHOR_FINISH and action == "irrigate":
+            if governing == const.SCHEDULE_ANCHOR_FINISH:
                 duration = await self._estimate_duration(schedule)
                 entry["duration_seconds"] = int(duration)
                 next_run = target - datetime.timedelta(seconds=duration)
 
             entry["next_run_utc"] = next_run.isoformat()
-            entry["target_utc"] = target.isoformat()
+            if entry["target_utc"] is None:
+                entry["target_utc"] = target.isoformat()
             runs.append(entry)
 
         runs.sort(key=lambda r: r["next_run_utc"] or "9999")
         return runs
 
+    # --- single bound: fire exactly there ------------------------------------
+
+    async def _setup_governing_tracker(self, schedule: dict[str, Any], end: str) -> Any:
+        """Fire exactly at ``end``'s resolved instant; no truncation, whatever
+        is due runs to completion. Uses HA's own native tracker for every
+        combination that had one before the reshape, so the mechanism behind
+        those is unchanged, and a resolver-driven one-shot only where no native
+        tracker could ever express the combination: a sun-relative bound on a
+        weekly or monthly recurrence.
+        """
+        mode_key, time_key, offset_key, _azimuth_key = _BOUND_FIELDS[end]
+        mode = schedule.get(mode_key)
+        recurrence = schedule.get(const.SCHEDULE_CONF_RECURRENCE)
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+
+        if mode == const.SCHEDULE_BOUND_MODE_TIME:
+            time_str = schedule.get(time_key, "06:00")
+            try:
+                hour, minute = map(int, time_str.split(":"))
+            except (ValueError, TypeError, AttributeError):
+                _LOGGER.warning(
+                    "Schedule '%s': %s time '%s' is not HH:MM; not armed",
+                    name,
+                    end,
+                    time_str,
+                )
+                return None
+
+            if recurrence == const.SCHEDULE_RECURRENCE_DAILY:
+                return async_track_time_change(
+                    self.hass,
+                    lambda now: self._execute_schedule(schedule, now),
+                    hour=hour,
+                    minute=minute,
+                    second=0,
+                )
+            if recurrence in (
+                const.SCHEDULE_RECURRENCE_WEEKLY,
+                const.SCHEDULE_RECURRENCE_MONTHLY,
+            ):
+
+                def check_and_execute(now, s=schedule):
+                    if self._recurrence_day_matches(s, now):
+                        self._execute_schedule(s, now)
+
+                return async_track_time_change(
+                    self.hass, check_and_execute, hour=hour, minute=minute, second=0
+                )
+            return None
+
+        if (
+            mode
+            in (const.SCHEDULE_BOUND_MODE_SUNRISE, const.SCHEDULE_BOUND_MODE_SUNSET)
+            and recurrence == const.SCHEDULE_RECURRENCE_DAILY
+        ):
+            offset_minutes = schedule.get(offset_key, 0) or 0
+            _LOGGER.info(
+                "Registered %s schedule '%s' (%s, offset %s min)",
+                mode,
+                name,
+                end,
+                offset_minutes,
+            )
+            track_fn = (
+                async_track_sunrise
+                if mode == const.SCHEDULE_BOUND_MODE_SUNRISE
+                else async_track_sunset
+            )
+            # HA invokes the sunrise/sunset callback with NO arguments
+            # (async_run_hass_job on a Callable[[], None]), unlike
+            # async_track_point_in_utc_time / async_track_time_change which
+            # pass `now`. A one-arg lambda would raise TypeError at fire time
+            # and the schedule would silently never run, so supply it here.
+            return track_fn(
+                self.hass,
+                lambda: self._execute_schedule(schedule, dt_util.utcnow()),
+                datetime.timedelta(minutes=offset_minutes),
+            )
+
+        # Everything else — solar azimuth at any recurrence, or a sun-relative
+        # bound on weekly/monthly — has no native HA tracker that can express
+        # it, so it gets a resolver-driven, self-rescheduling one-shot.
+        return await self._setup_resolved_one_shot(schedule, end)
+
+    async def _setup_resolved_one_shot(self, schedule: dict[str, Any], end: str) -> Any:
+        """One-shot tracker at ``end``'s next resolved+day-matched instant,
+        that re-arms itself for the following occurrence after each fire."""
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        target = await self._next_governing_time(schedule, end)
+        if target is None:
+            _LOGGER.warning(
+                "Schedule '%s': could not resolve its next %s occurrence",
+                name,
+                end,
+            )
+            return None
+
+        def fire(now, s=schedule):
+            self._execute_schedule(s, now)
+            # Re-register for next occurrence — thread-safe wrapper required
+            # because async_track_point_in_utc_time callbacks may fire outside
+            # the event loop.
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task, self._reregister_tracker(s)
+            )
+
+        _LOGGER.info("Registered schedule '%s' (%s) at %s", name, end, target)
+        return async_track_point_in_utc_time(self.hass, fire, target)
+
+    async def _advance_past_fired_occurrence(
+        self, schedule: dict[str, Any], end: str, target
+    ):
+        """``target``, or the occurrence after it when this one already ran.
+
+        A schedule that re-arms from its own fire callback re-derives a target
+        that is still in the future, recomputes a start that is now in the
+        past, and takes the "run ASAP" branch again. Left alone that fires
+        every two seconds for the whole window.
+
+        Returns None when the schedule cannot be advanced off the occurrence it
+        just ran, which leaves it unarmed until the next config write or
+        restart — better than arming it on a target it has already watered.
+        """
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        if self._finish_last_target.get(sid) != target.isoformat():
+            return target
+
+        nxt = await self._next_governing_time(schedule, end, reference_utc=target)
+        if nxt is None:
+            _LOGGER.warning(
+                "Schedule '%s': could not resolve its %s bound after %s",
+                schedule.get(const.SCHEDULE_CONF_NAME),
+                end,
+                target,
+            )
+            return None
+        return nxt
+
+    # --- finish-governed: fires at (target − duration) -----------------------
+
     async def _setup_finish_tracker(self, schedule: dict[str, Any]) -> Any:
         """One-shot tracker that fires at (target − duration) so the run ends at
-        the configured time. Re-arms itself for the next occurrence."""
+        the configured Finish bound. Re-arms itself for the next occurrence."""
         name = schedule.get(const.SCHEDULE_CONF_NAME)
-        sid = schedule[const.SCHEDULE_CONF_ID]
-        target = await self._next_target_time(schedule)
+        target = await self._next_governing_time(schedule, const.SCHEDULE_ANCHOR_FINISH)
         if target is None:
             _LOGGER.warning(
                 "Finish schedule '%s': could not determine next target time", name
             )
             return None
 
+        target = await self._advance_past_fired_occurrence(
+            schedule, const.SCHEDULE_ANCHOR_FINISH, target
+        )
+        if target is None:
+            return None
+
         duration = await self._estimate_duration(schedule)
-
-        # If we already fired this occurrence (the run just happened and we're
-        # re-arming), advance to the NEXT occurrence. Without this the tracker
-        # re-derives the same still-future target, recomputes a start that is now
-        # in the past, and busy-loops the "run ASAP" branch every ~2s for the
-        # whole start→finish window — re-firing irrigation thousands of times.
-        if self._finish_last_target.get(sid) == target.isoformat():
-            nxt = await self._next_target_time(schedule, reference_utc=target)
-            if nxt is None:
-                _LOGGER.warning(
-                    "Finish schedule '%s': could not determine next target after %s",
-                    name,
-                    target,
-                )
-                return None
-            target = nxt
-
         fire_time = target - datetime.timedelta(seconds=duration)
         now_utc = dt_util.utcnow()
         if fire_time <= now_utc:
@@ -649,73 +881,17 @@ class RecurringScheduleManager:
             self._schedule_trackers[schedule_id] = None
         await self._setup_schedule_tracker(schedule)
 
-    async def _setup_daily_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Set up a daily schedule tracker."""
-        time_str = schedule[const.SCHEDULE_CONF_TIME]
-        hour, minute = map(int, time_str.split(":"))
-
-        return async_track_time_change(
-            self.hass,
-            lambda now: self._execute_schedule(schedule, now),
-            hour=hour,
-            minute=minute,
-            second=0,
-        )
-
-    async def _setup_weekly_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Set up a weekly schedule tracker."""
-        time_str = schedule[const.SCHEDULE_CONF_TIME]
-        hour, minute = map(int, time_str.split(":"))
-        days_of_week = schedule.get(const.SCHEDULE_CONF_DAYS_OF_WEEK, [])
-
-        # Convert day names to numbers (0=Monday, 6=Sunday)
-        day_mapping = {
-            "monday": 0,
-            "tuesday": 1,
-            "wednesday": 2,
-            "thursday": 3,
-            "friday": 4,
-            "saturday": 5,
-            "sunday": 6,
-        }
-
-        def check_and_execute(now):
-            current_weekday = now.weekday()
-            day_names = [day.lower() for day in days_of_week]
-            if any(
-                day_mapping.get(day_name) == current_weekday for day_name in day_names
-            ):
-                self._execute_schedule(schedule, now)
-
-        return async_track_time_change(
-            self.hass, check_and_execute, hour=hour, minute=minute, second=0
-        )
-
-    async def _setup_monthly_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Set up a monthly schedule tracker."""
-        time_str = schedule[const.SCHEDULE_CONF_TIME]
-        hour, minute = map(int, time_str.split(":"))
-        day_of_month = schedule.get(const.SCHEDULE_CONF_DAY_OF_MONTH, 1)
-
-        def check_and_execute(now):
-            if now.day == day_of_month:
-                self._execute_schedule(schedule, now)
-
-        return async_track_time_change(
-            self.hass, check_and_execute, hour=hour, minute=minute, second=0
-        )
-
     async def _setup_interval_tracker(self, schedule: dict[str, Any]) -> Any:
         """Set up an interval-based schedule tracker.
 
         With a ``start_time`` anchor the interval is phase-locked to that clock
         time: it uses a one-shot, self-rescheduling point-in-time tracker (the
-        same pattern as the azimuth/finish trackers) so each fire re-arms on the
-        next anchored occurrence. Without a start_time it free-runs every
+        same pattern as the resolved-bound trackers) so each fire re-arms on
+        the next anchored occurrence. Without a start_time it free-runs every
         ``interval_hours`` from now — the original behaviour, unchanged.
         """
         if schedule.get(const.SCHEDULE_CONF_START_TIME):
-            target = await self._next_target_time(schedule)
+            target = self._next_interval_target(schedule, dt_util.utcnow())
             if target is None:
                 _LOGGER.warning(
                     "Could not calculate next interval time for schedule '%s'",
@@ -727,7 +903,7 @@ class RecurringScheduleManager:
                 self._execute_schedule(s, now)
                 # Re-register for the next occurrence — thread-safe wrapper
                 # because async_track_point_in_utc_time callbacks may fire
-                # outside the event loop (mirrors the azimuth tracker).
+                # outside the event loop (mirrors the resolved-bound trackers).
                 self.hass.loop.call_soon_threadsafe(
                     self.hass.async_create_task,
                     self._reregister_tracker(s),
@@ -748,70 +924,6 @@ class RecurringScheduleManager:
         return async_track_time_interval(
             self.hass, lambda now: self._execute_schedule(schedule, now), interval_delta
         )
-
-    async def _setup_sunrise_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Sunrise schedule tracker (start anchor). Finish anchor goes through
-        _setup_finish_tracker."""
-        offset_minutes = schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
-        _LOGGER.info(
-            "Registered sunrise schedule '%s' (start, offset %s min)",
-            schedule.get(const.SCHEDULE_CONF_NAME),
-            offset_minutes,
-        )
-        # HA invokes the sunrise/sunset callback with NO arguments
-        # (async_run_hass_job on a Callable[[], None]), unlike
-        # async_track_point_in_utc_time / async_track_time_change which pass
-        # `now`. A one-arg lambda would raise TypeError at fire time and the
-        # schedule would silently never run, so supply the fire time ourselves.
-        return async_track_sunrise(
-            self.hass,
-            lambda: self._execute_schedule(schedule, dt_util.utcnow()),
-            datetime.timedelta(minutes=offset_minutes),
-        )
-
-    async def _setup_sunset_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Sunset schedule tracker (start anchor). Finish anchor goes through
-        _setup_finish_tracker."""
-        offset_minutes = schedule.get(const.SCHEDULE_CONF_OFFSET_MINUTES, 0)
-        _LOGGER.info(
-            "Registered sunset schedule '%s' (start, offset %s min)",
-            schedule.get(const.SCHEDULE_CONF_NAME),
-            offset_minutes,
-        )
-        # See _setup_sunrise_tracker: HA calls this callback with no arguments,
-        # so a one-arg lambda would raise and the schedule would never run.
-        return async_track_sunset(
-            self.hass,
-            lambda: self._execute_schedule(schedule, dt_util.utcnow()),
-            datetime.timedelta(minutes=offset_minutes),
-        )
-
-    async def _setup_azimuth_tracker(self, schedule: dict[str, Any]) -> Any:
-        """Solar azimuth schedule tracker (start anchor; one-shot, self-rescheduling).
-        Finish anchor goes through _setup_finish_tracker."""
-        target = await self._next_target_time(schedule)
-        if target is None:
-            _LOGGER.warning(
-                "Could not calculate next azimuth time for schedule '%s'",
-                schedule.get(const.SCHEDULE_CONF_NAME),
-            )
-            return None
-
-        def azimuth_callback(now, s=schedule):
-            self._execute_schedule(s, now)
-            # Re-register for next occurrence — thread-safe wrapper required because
-            # async_track_point_in_utc_time callbacks may fire outside the event loop
-            self.hass.loop.call_soon_threadsafe(
-                self.hass.async_create_task,
-                self._reregister_tracker(s),
-            )
-
-        _LOGGER.info(
-            "Registered azimuth schedule '%s' (start) at %s",
-            schedule.get(const.SCHEDULE_CONF_NAME),
-            target,
-        )
-        return async_track_point_in_utc_time(self.hass, azimuth_callback, target)
 
     async def _remove_schedule_tracker(self, schedule_id: str) -> None:
         """Remove a schedule tracker."""
@@ -851,13 +963,10 @@ class RecurringScheduleManager:
             if now > end_dt:
                 return
 
-        action = schedule.get(const.SCHEDULE_CONF_ACTION, "calculate")
         zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
         schedule_name = schedule.get(const.SCHEDULE_CONF_NAME, "Unnamed Schedule")
 
-        _LOGGER.info(
-            "Executing recurring schedule: %s (action: %s)", schedule_name, action
-        )
+        _LOGGER.info("Executing recurring schedule: %s", schedule_name)
 
         # Fire event
         self.hass.bus.fire(
@@ -865,7 +974,8 @@ class RecurringScheduleManager:
             {
                 "schedule_id": schedule[const.SCHEDULE_CONF_ID],
                 "schedule_name": schedule_name,
-                "action": action,
+                # Constant; see async_get_upcoming_runs.
+                "action": const.SCHEDULE_ACTION_IRRIGATE,
                 "zones": zones,
                 # Normalised to LOCAL. `now` reaches us from whichever tracker
                 # armed this schedule, and they disagree: async_track_time_change
@@ -882,90 +992,67 @@ class RecurringScheduleManager:
 
         self.hass.loop.call_soon_threadsafe(
             self.hass.async_create_task,
-            self._perform_schedule_action(action, zones, schedule_name),
+            self._perform_scheduled_irrigation(zones, schedule_name),
         )
 
-    async def _perform_schedule_action(
-        self, action: str, zones: str | list[str], schedule_name: str
+    async def _perform_scheduled_irrigation(
+        self, zones: str | list[str], schedule_name: str
     ) -> None:
-        """Perform the scheduled action."""
-        # None = every zone. Only the two loops below need this; the irrigate
-        # branch passes `zones` through unchanged because each of its consumers
-        # already accepts the raw "all"/list shape. See normalize_zone_selection
-        # for why iterating the raw value is unsafe.
-        selection = normalize_zone_selection(zones)
-        try:
-            if action == "calculate":
-                if selection is None:
-                    await self.coordinator._async_calculate_all()
-                else:
-                    # Per-zone calculate must aggregate the mapping's weather data
-                    # first; route through async_update_zone_config (ATTR_CALCULATE),
-                    # which does the aggregation + forecast fetch before calculating.
-                    for zone_id in selection:
-                        await self.coordinator.async_update_zone_config(
-                            zone_id, {const.ATTR_CALCULATE: True}
-                        )
-            elif action == "update":
-                if selection is None:
-                    await self.coordinator._async_update_all()
-                else:
-                    for zone_id in selection:
-                        await self.coordinator._async_update_zone(zone_id)
-            elif action == "irrigate":
-                # Check skip conditions (same as trigger-based irrigation)
-                if await self.coordinator._check_skip_conditions():
-                    _LOGGER.info(
-                        "Schedule '%s': irrigation skipped due to conditions",
-                        schedule_name,
-                    )
-                    evaluation = (
-                        getattr(self.coordinator, "_last_skip_evaluation", None) or {}
-                    )
-                    reasons = [
-                        c["id"]
-                        for c in evaluation.get("checks", [])
-                        if c.get("enabled") and c.get("would_skip")
-                    ]
-                    await self.coordinator._record_skipped_run(
-                        zones, ",".join(reasons) if reasons else None
-                    )
-                    return
-                # Fire irrigation event for backward compatibility
-                event_data = {
-                    "triggered_by": "recurring_schedule",
-                    "schedule_name": schedule_name,
-                    "zones": zones,
-                }
-                self.hass.bus.fire(
-                    f"{const.DOMAIN}_{const.EVENT_IRRIGATE_START}", event_data
-                )
-                # Directly control linked entities (restricted to the schedule's
-                # target zones), then reset counter
-                watered = await self.coordinator._irrigate_linked_entities(zones)
-                # Plan G: also run distributor cycles for due member zones. Members
-                # are excluded from _irrigate_linked_entities (irrigation.py:462), so
-                # this is their sole automatic driver, and it runs even when no
-                # non-member zone is due (that path early-returns at irrigation.py:476).
-                watered_members = await self.coordinator._dispatch_distributor_cycles(
-                    zones
-                )
-                # review finding A — days-since reset stranded zones dry on
-                # rain-delay / all-vetoed / no-demand runs: both dispatch helpers
-                # deliver NO water on those paths (rain delay, every zone soil-
-                # vetoed, or nothing due), yet the reset used to fire
-                # unconditionally, fooling the days_between_irrigation guard into
-                # skipping the next due run. Only reset when water was actually
-                # delivered.
-                if watered or watered_members:
-                    await self.coordinator._reset_days_since_irrigation()
+        """Irrigate the schedule's zones.
 
-            _LOGGER.info(
-                "Successfully executed schedule action: %s for zones: %s", action, zones
+        ``zones`` is passed through in its raw "all"/list shape, because every
+        consumer below already accepts it.
+        """
+        try:
+            # Check skip conditions (same as trigger-based irrigation)
+            if await self.coordinator._check_skip_conditions():
+                _LOGGER.info(
+                    "Schedule '%s': irrigation skipped due to conditions",
+                    schedule_name,
+                )
+                evaluation = (
+                    getattr(self.coordinator, "_last_skip_evaluation", None) or {}
+                )
+                reasons = [
+                    c["id"]
+                    for c in evaluation.get("checks", [])
+                    if c.get("enabled") and c.get("would_skip")
+                ]
+                await self.coordinator._record_skipped_run(
+                    zones, ",".join(reasons) if reasons else None
+                )
+                return
+            # Fire irrigation event for backward compatibility
+            event_data = {
+                "triggered_by": "recurring_schedule",
+                "schedule_name": schedule_name,
+                "zones": zones,
+            }
+            self.hass.bus.fire(
+                f"{const.DOMAIN}_{const.EVENT_IRRIGATE_START}", event_data
             )
+            # Directly control linked entities (restricted to the schedule's
+            # target zones), then reset counter
+            watered = await self.coordinator._irrigate_linked_entities(zones)
+            # Plan G: also run distributor cycles for due member zones. Members
+            # are excluded from _irrigate_linked_entities (irrigation.py:462), so
+            # this is their sole automatic driver, and it runs even when no
+            # non-member zone is due (that path early-returns at irrigation.py:476).
+            watered_members = await self.coordinator._dispatch_distributor_cycles(zones)
+            # review finding A — days-since reset stranded zones dry on
+            # rain-delay / all-vetoed / no-demand runs: both dispatch helpers
+            # deliver NO water on those paths (rain delay, every zone soil-
+            # vetoed, or nothing due), yet the reset used to fire
+            # unconditionally, fooling the days_between_irrigation guard into
+            # skipping the next due run. Only reset when water was actually
+            # delivered.
+            if watered or watered_members:
+                await self.coordinator._reset_days_since_irrigation()
+
+            _LOGGER.info("Successfully irrigated schedule zones: %s", zones)
 
         except Exception as e:
-            _LOGGER.error("Error executing schedule action %s: %s", action, e)
+            _LOGGER.error("Error irrigating schedule zones %s: %s", zones, e)
             raise
 
     async def _save_schedules(self) -> None:
@@ -977,15 +1064,19 @@ class RecurringScheduleManager:
         async_dispatcher_send(self.hass, const.DOMAIN + "_schedules_updated")
 
     def _validate_schedule_data(self, schedule_data: dict[str, Any]) -> None:
-        """Validate schedule data."""
-        required_fields = [const.SCHEDULE_CONF_NAME, const.SCHEDULE_CONF_TYPE]
+        """Validate schedule data.
+
+        Schedules have no voluptuous schema (websocket_save_schedule hands the
+        raw dict straight through), so this is the only gate on the shape.
+        """
+        required_fields = [const.SCHEDULE_CONF_NAME, const.SCHEDULE_CONF_RECURRENCE]
         for field in required_fields:
             if field not in schedule_data:
                 raise ValueError(f"Missing required field: {field}")
 
-        schedule_type = schedule_data[const.SCHEDULE_CONF_TYPE]
-        if schedule_type not in const.SCHEDULE_TYPES:
-            raise ValueError(f"Invalid schedule type: {schedule_type}")
+        recurrence = schedule_data[const.SCHEDULE_CONF_RECURRENCE]
+        if recurrence not in const.SCHEDULE_RECURRENCES:
+            raise ValueError(f"Invalid recurrence: {recurrence}")
 
         # The store has never kept a non-irrigate schedule, so accepting one
         # here produced something that armed, ran, and vanished at the next
@@ -1004,17 +1095,9 @@ class RecurringScheduleManager:
                 "the daily settings"
             )
 
-        # Validate time format if provided
-        if const.SCHEDULE_CONF_TIME in schedule_data:
-            time_str = schedule_data[const.SCHEDULE_CONF_TIME]
-            try:
-                datetime.datetime.strptime(time_str, "%H:%M")
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid time format: {time_str}. Expected HH:MM"
-                ) from e
-
-        # Validate the optional interval start_time anchor the same way.
+        # Interval's own optional clock anchor, shared with the Start bound's
+        # "time" mode value but validated the same way regardless of which one
+        # is in play.
         start_time_str = schedule_data.get(const.SCHEDULE_CONF_START_TIME)
         if start_time_str:
             try:
@@ -1023,6 +1106,81 @@ class RecurringScheduleManager:
                 raise ValueError(
                     f"Invalid start time format: {start_time_str}. Expected HH:MM"
                 ) from e
+
+        if recurrence == const.SCHEDULE_RECURRENCE_INTERVAL:
+            # Interval has no time of day and therefore no window — Start and
+            # Finish bounds do not apply.
+            return
+
+        start_mode = schedule_data.get(
+            const.SCHEDULE_CONF_START_MODE, const.SCHEDULE_DEFAULT_BOUND_MODE
+        )
+        finish_mode = schedule_data.get(
+            const.SCHEDULE_CONF_FINISH_MODE, const.SCHEDULE_DEFAULT_BOUND_MODE
+        )
+        for label, mode in (("start", start_mode), ("finish", finish_mode)):
+            if mode not in const.SCHEDULE_BOUND_MODES:
+                raise ValueError(
+                    f"Invalid {label} mode: {mode}. Expected one of "
+                    f"{const.SCHEDULE_BOUND_MODES}"
+                )
+
+        # A floor is the only thing that keeps a schedule watering at all — a
+        # schedule with neither end bounded describes no time whatsoever.
+        # Rejected here rather than shrugged off at arm time.
+        if (
+            start_mode == const.SCHEDULE_BOUND_MODE_NONE
+            and finish_mode == const.SCHEDULE_BOUND_MODE_NONE
+        ):
+            raise ValueError(
+                "A schedule needs a Start or a Finish bound; both are unbounded"
+            )
+
+        for end, mode, time_key, offset_key, azimuth_key in (
+            ("start", start_mode, *_BOUND_FIELDS[const.SCHEDULE_ANCHOR_START][1:]),
+            ("finish", finish_mode, *_BOUND_FIELDS[const.SCHEDULE_ANCHOR_FINISH][1:]),
+        ):
+            if mode == const.SCHEDULE_BOUND_MODE_TIME:
+                time_val = schedule_data.get(time_key)
+                try:
+                    datetime.datetime.strptime(time_val, "%H:%M")
+                except (ValueError, TypeError) as e:
+                    raise ValueError(
+                        f"Invalid {end} time: {time_val}. Expected HH:MM"
+                    ) from e
+            if mode in (
+                const.SCHEDULE_BOUND_MODE_SUNRISE,
+                const.SCHEDULE_BOUND_MODE_SUNSET,
+                const.SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
+            ):
+                offset = schedule_data.get(offset_key, 0)
+                try:
+                    int(offset or 0)
+                except (ValueError, TypeError) as e:
+                    raise ValueError(
+                        f"Invalid {end} offset: {offset}. Expected minutes"
+                    ) from e
+            if (
+                mode == const.SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH
+                and azimuth_key in schedule_data
+            ):
+                try:
+                    float(schedule_data[azimuth_key])
+                except (ValueError, TypeError) as e:
+                    raise ValueError(
+                        f"Invalid {end} azimuth: {schedule_data[azimuth_key]}. "
+                        "Expected degrees"
+                    ) from e
+
+        if (
+            start_mode != const.SCHEDULE_BOUND_MODE_NONE
+            and finish_mode != const.SCHEDULE_BOUND_MODE_NONE
+        ):
+            anchor = schedule_data.get(const.SCHEDULE_CONF_ANCHOR)
+            if anchor is not None and anchor not in const.SCHEDULE_ANCHORS:
+                raise ValueError(
+                    f"Invalid anchor: {anchor}. Expected one of {const.SCHEDULE_ANCHORS}"
+                )
 
     def _generate_schedule_id(self) -> str:
         """Generate a unique schedule ID."""

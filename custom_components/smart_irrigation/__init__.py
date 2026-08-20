@@ -799,6 +799,13 @@ class SmartIrrigationCoordinator(
 
         Latched by ``CONF_AZIMUTH_BEARING_CORRECTED`` so it runs exactly once.
         A fresh install latches it with nothing to repair.
+
+        Applied per BOUND, not per schedule. A schedule no longer has one time
+        source: Start and Finish each carry their own mode, so a schedule can
+        hold two azimuth bearings, one, or none, and each needs its own repair.
+        The storage migration that split the old single ``type`` into the two
+        bounds runs first, so every schedule reaching here is already in that
+        shape whatever it was stored as.
         """
         config = await self.store.async_get_config()
         if config.get(const.CONF_AZIMUTH_BEARING_CORRECTED):
@@ -807,43 +814,55 @@ class SmartIrrigationCoordinator(
         latitude = self.hass.config.latitude
         longitude = self.hass.config.longitude
         now = dt_util.utcnow()
+        bounds = (
+            (
+                const.SCHEDULE_ANCHOR_START,
+                const.SCHEDULE_CONF_START_MODE,
+                const.SCHEDULE_CONF_START_AZIMUTH,
+            ),
+            (
+                const.SCHEDULE_ANCHOR_FINISH,
+                const.SCHEDULE_CONF_FINISH_MODE,
+                const.SCHEDULE_CONF_FINISH_AZIMUTH,
+            ),
+        )
         changed = False
         for schedule in schedules:
-            if (
-                schedule.get(const.SCHEDULE_CONF_TYPE)
-                != const.SCHEDULE_TYPE_SOLAR_AZIMUTH
-            ):
-                continue
-            old_angle = normalize_azimuth_angle(
-                schedule.get(const.SCHEDULE_CONF_AZIMUTH_ANGLE, 90)
-            )
-            bearing, fire_time = corrected_azimuth_bearing(
-                latitude, longitude, old_angle, now
-            )
-            if bearing is None:
-                _LOGGER.warning(
-                    "Schedule '%s': its solar azimuth of %s deg produced no "
-                    "crossing to anchor to, so the angle is left as it is. It "
-                    "was measured against a bearing calculation that has been "
-                    "corrected (issue #81), so please check when it now runs",
-                    schedule.get(const.SCHEDULE_CONF_NAME),
-                    old_angle,
+            for end, mode_key, angle_key in bounds:
+                if schedule.get(mode_key) != const.SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH:
+                    continue
+                old_angle = normalize_azimuth_angle(schedule.get(angle_key, 90))
+                bearing, fire_time = corrected_azimuth_bearing(
+                    latitude, longitude, old_angle, now
                 )
-                continue
-            new_angle = round(bearing)
-            if new_angle == old_angle:
-                continue
-            schedule[const.SCHEDULE_CONF_AZIMUTH_ANGLE] = new_angle
-            changed = True
-            _LOGGER.warning(
-                "Schedule '%s': solar azimuth corrected from %s deg to %s deg "
-                "so it keeps running at %s. The old value never corresponded to "
-                "a real compass bearing (issue #81); the new one does",
-                schedule.get(const.SCHEDULE_CONF_NAME),
-                old_angle,
-                new_angle,
-                dt_util.as_local(fire_time).strftime("%H:%M"),
-            )
+                if bearing is None:
+                    _LOGGER.warning(
+                        "Schedule '%s': its %s solar azimuth of %s deg produced "
+                        "no crossing to anchor to, so the angle is left as it "
+                        "is. It was measured against a bearing calculation that "
+                        "has been corrected (issue #81), so please check when it "
+                        "now runs",
+                        schedule.get(const.SCHEDULE_CONF_NAME),
+                        end,
+                        old_angle,
+                    )
+                    continue
+                new_angle = round(bearing)
+                if new_angle == old_angle:
+                    continue
+                schedule[angle_key] = new_angle
+                changed = True
+                _LOGGER.warning(
+                    "Schedule '%s': %s solar azimuth corrected from %s deg to "
+                    "%s deg so it keeps running at %s. The old value never "
+                    "corresponded to a real compass bearing (issue #81); the "
+                    "new one does",
+                    schedule.get(const.SCHEDULE_CONF_NAME),
+                    end,
+                    old_angle,
+                    new_angle,
+                    dt_util.as_local(fire_time).strftime("%H:%M"),
+                )
         updates = {const.CONF_AZIMUTH_BEARING_CORRECTED: True}
         if changed:
             updates[const.CONF_RECURRING_SCHEDULES] = schedules
