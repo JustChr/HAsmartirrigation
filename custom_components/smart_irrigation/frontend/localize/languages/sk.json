@@ -118,7 +118,15 @@
           "description": "Výpočet berie zhromaždené údaje o počasí až do tohto bodu a aktualizuje vedro pre každú automatickú zónu. Potom sa trvanie upraví na základe novej hodnoty segmentu a zhromaždené údaje o počasí sa odstránia.",
           "labels": {
             "auto-calc-enabled": "Automaticky vypočítajte trvanie zón",
-            "calc-time": "Vypočítať o"
+            "calc-time": "Vypočítať o",
+            "calc-mode": "Vypočítať"
+          },
+          "modes": {
+            "fixed_time": "V pevnom čase",
+            "before_run": "Pred každým zavlažovaním"
+          },
+          "help": {
+            "before-run": "Trvania sa vypočítajú vtedy, keď každý plán zavlažovania pripravuje svoje spustenie, takže spustenie vychádza z údajov o počasí starých minúty namiesto hodín."
           }
         },
         "run-history-logging": {

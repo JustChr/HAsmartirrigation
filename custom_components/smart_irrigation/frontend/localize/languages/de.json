@@ -118,7 +118,15 @@
           "description": "Die Berechnung berücksichtigt die bis zu diesem Zeitpunkt gesammelten Wetterdaten und aktualisiert den Vorrat für jede automatische Zone. Anschließend wird die Dauer basierend auf dem neuen Vorrat angepasst und die gesammelten Wetterdaten entfernt.",
           "labels": {
             "auto-calc-enabled": "Automatische Berechnung der Dauer pro Zone",
-            "calc-time": "Berechnen um"
+            "calc-time": "Berechnen um",
+            "calc-mode": "Berechnen"
+          },
+          "modes": {
+            "fixed_time": "Zu einer festen Uhrzeit",
+            "before_run": "Vor jedem Bewässerungslauf"
+          },
+          "help": {
+            "before-run": "Die Dauern werden berechnet, wenn ein Bewässerungszeitplan seinen Lauf plant — der Lauf wird also aus Wetterdaten bemessen, die Minuten statt Stunden alt sind."
           }
         },
         "run-history-logging": {

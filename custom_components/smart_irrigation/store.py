@@ -19,6 +19,7 @@ from .const import (
     ATTR_NEW_MULTIPLIER_VALUE,
     CONF_ACTIVE_VALVE_RUNS,
     CONF_AUTO_CALC_ENABLED,
+    CONF_AUTO_CALC_MODE,
     CONF_AUTO_UPDATE_DELAY,
     CONF_AUTO_UPDATE_ENABLED,
     CONF_AUTO_UPDATE_INTERVAL,
@@ -34,6 +35,7 @@ from .const import (
     CONF_DAYS_BETWEEN_IRRIGATION,
     CONF_DAYS_SINCE_LAST_IRRIGATION,
     CONF_DEFAULT_AUTO_CALC_ENABLED,
+    CONF_DEFAULT_AUTO_CALC_MODE,
     CONF_DEFAULT_AUTO_UPDATE_DELAY,
     CONF_DEFAULT_AUTO_UPDATE_ENABLED,
     CONF_DEFAULT_AUTO_UPDATE_INTERVAL,
@@ -346,6 +348,7 @@ class Config:
     use_weather_service = attr.ib(type=bool, default=CONF_DEFAULT_WEATHER_SERVICE)
     weather_service = attr.ib(type=str, default=None)
     autocalcenabled = attr.ib(type=bool, default=CONF_AUTO_CALC_ENABLED)
+    autocalcmode = attr.ib(type=str, default=CONF_DEFAULT_AUTO_CALC_MODE)
     autoupdateenabled = attr.ib(type=bool, default=CONF_AUTO_UPDATE_ENABLED)
     autoupdateschedule = attr.ib(type=str, default=CONF_DEFAULT_AUTO_UPDATE_SCHEDULE)
     autoupdatedelay = attr.ib(type=str, default=CONF_DEFAULT_AUTO_UPDATE_DELAY)
@@ -782,6 +785,12 @@ class MigratableStore(Store):
                 data["config"][CONF_WIND_THRESHOLD] = CONF_DEFAULT_WIND_THRESHOLD
             if CONF_RAIN_SENSOR not in data["config"]:
                 data["config"][CONF_RAIN_SENSOR] = CONF_DEFAULT_RAIN_SENSOR
+            # Existing installs keep calctime's meaning: they migrate to the
+            # fixed-time mode holding the value they already have. Without this
+            # setdefault the key is filtered out against attr.fields_dict(Config)
+            # on every load and the mode silently reverts.
+            if CONF_AUTO_CALC_MODE not in data["config"]:
+                data["config"][CONF_AUTO_CALC_MODE] = CONF_DEFAULT_AUTO_CALC_MODE
             # Continuous updates: MANDATORY here, not merely nice to have. The
             # allowlist strip below drops any key absent from Config, and a key
             # absent from the stored config is simply never hydrated — so without
@@ -877,6 +886,7 @@ class SmartIrrigationStorage:
             use_weather_service=CONF_DEFAULT_USE_WEATHER_SERVICE,
             weather_service=CONF_DEFAULT_WEATHER_SERVICE,
             autocalcenabled=CONF_DEFAULT_AUTO_CALC_ENABLED,
+            autocalcmode=CONF_DEFAULT_AUTO_CALC_MODE,
             autoupdateenabled=CONF_DEFAULT_AUTO_UPDATE_ENABLED,
             autoupdateschedule=CONF_DEFAULT_AUTO_UPDATE_SCHEDULE,
             autoupdatedelay=CONF_DEFAULT_AUTO_UPDATE_DELAY,
@@ -907,6 +917,9 @@ class SmartIrrigationStorage:
                 ),
                 autocalcenabled=data["config"].get(
                     CONF_AUTO_CALC_ENABLED, CONF_DEFAULT_AUTO_CALC_ENABLED
+                ),
+                autocalcmode=data["config"].get(
+                    CONF_AUTO_CALC_MODE, CONF_DEFAULT_AUTO_CALC_MODE
                 ),
                 autoupdateenabled=data["config"].get(
                     CONF_AUTO_UPDATE_ENABLED, CONF_DEFAULT_AUTO_UPDATE_ENABLED

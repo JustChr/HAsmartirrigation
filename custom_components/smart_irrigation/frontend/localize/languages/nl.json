@@ -118,7 +118,15 @@
           "description": "Bij het berekenen wordt de verzamelde weersinformatie gebruikt om the voorraad en irrigatieduur per zone aan te passen. Daarna wordt de verzamelde weersinformatie verwijderd.",
           "labels": {
             "auto-calc-enabled": "Automatisch irrigatietijd berekening voor elke zone",
-            "calc-time": "Berekenen om"
+            "calc-time": "Berekenen om",
+            "calc-mode": "Berekenen"
+          },
+          "modes": {
+            "fixed_time": "Op een vast tijdstip",
+            "before_run": "Voor elke bewateringsbeurt"
+          },
+          "help": {
+            "before-run": "De duur wordt berekend wanneer elk irrigatieschema zijn beurt plant, zodat de beurt wordt bepaald met weersinformatie van minuten in plaats van uren oud."
           }
         },
         "run-history-logging": {

@@ -5,7 +5,11 @@ from custom_components.smart_irrigation.scheduler import RecurringScheduleManage
 
 def _sched():
     """A schedule manager with a fully-mocked hass + coordinator."""
-    return RecurringScheduleManager(Mock(), Mock())
+    sched = RecurringScheduleManager(Mock(), Mock())
+    # The pre-run calculation commit is a no-op unless the "before each run"
+    # calc mode is on, but it is still awaited on every scheduled irrigate.
+    sched.coordinator.async_commit_pre_run_calculation = AsyncMock()
+    return sched
 
 
 async def test_scheduled_irrigate_orders_linked_then_dispatch_then_reset():

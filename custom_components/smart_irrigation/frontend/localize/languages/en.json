@@ -118,7 +118,15 @@
           "description": "Calculation takes collected weather data up to that point and updates the bucket for each automatic zone. Then, the duration is adjusted based on the new bucket value and the collected weather data is removed.",
           "labels": {
             "auto-calc-enabled": "Automatically calculate irrigation durations",
-            "calc-time": "Calculate at"
+            "calc-time": "Calculate at",
+            "calc-mode": "Calculate"
+          },
+          "modes": {
+            "fixed_time": "At a fixed time",
+            "before_run": "Before each irrigation run"
+          },
+          "help": {
+            "before-run": "Durations are calculated when each irrigation schedule plans its run, so a run is sized from weather data minutes old instead of hours old."
           }
         },
         "run-history-logging": {

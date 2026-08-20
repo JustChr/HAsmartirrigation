@@ -1004,6 +1004,10 @@ class RecurringScheduleManager:
         consumer below already accepts it.
         """
         try:
+            # "Before each irrigation run" means when the run is PLANNED,
+            # which is here: immediately before dispatch, so the deficit
+            # driving the run is minutes old rather than hours.
+            await self.coordinator.async_commit_pre_run_calculation(zones)
             # Check skip conditions (same as trigger-based irrigation)
             if await self.coordinator._check_skip_conditions():
                 _LOGGER.info(

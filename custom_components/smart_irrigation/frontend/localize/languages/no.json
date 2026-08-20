@@ -117,7 +117,15 @@
           "header": "Automatisk varighetsberegning",
           "labels": {
             "auto-calc-enabled": "Beregn sonevarigheter automatisk",
-            "calc-time": "Beregn kl."
+            "calc-time": "Beregn kl.",
+            "calc-mode": "Beregn"
+          },
+          "modes": {
+            "fixed_time": "På et fast tidspunkt",
+            "before_run": "Før hver vanningskjøring"
+          },
+          "help": {
+            "before-run": "Varighetene beregnes når hver vanningsplan planlegger kjøringen sin, slik at kjøringen dimensjoneres ut fra værdata som er minutter og ikke timer gamle."
           },
           "description": "Beregningen bruker værdataene som er samlet inn frem til da, og oppdaterer bøtten for hver automatiske sone. Deretter justeres varigheten basert på den nye bøtteverdien, og de innsamlede værdataene fjernes."
         },

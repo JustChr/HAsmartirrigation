@@ -117,7 +117,15 @@
           "header": "Cálculo automático de la duración",
           "labels": {
             "auto-calc-enabled": "Cálculo automático de la duración de las zonas",
-            "calc-time": "Calcular a las"
+            "calc-time": "Calcular a las",
+            "calc-mode": "Calcular"
+          },
+          "modes": {
+            "fixed_time": "A una hora fija",
+            "before_run": "Antes de cada riego"
+          },
+          "help": {
+            "before-run": "Las duraciones se calculan cuando cada programa de riego planifica su ejecución, por lo que el riego se dimensiona con datos meteorológicos de minutos en lugar de horas."
           },
           "description": "El cálculo toma los datos meteorológicos recopilados hasta ese momento y actualiza el depósito de cada zona automática. Después, la duración se ajusta según el nuevo valor del depósito y se eliminan los datos meteorológicos recopilados."
         },
