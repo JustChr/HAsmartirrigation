@@ -664,6 +664,53 @@ class TestBoundIsAnUpperBound:
         )
 
 
+class TestSimulateWallClockDuplicateIds:
+    def test_two_runs_sharing_a_zone_id_are_not_collapsed(self):
+        # Budget was keyed by zone_id, so a duplicate silently vanished and the
+        # clock came out short. Short is the unsafe direction here.
+        runs = [_run(1, 300), _run(1, 300)]
+        assert _sim(runs, SEQUENTIAL) == 600
+
+    def test_duplicate_ids_take_the_longer_ceiling_not_the_last(self):
+        # The overrides are keyed by zone id, so a collision resolves to one
+        # entry, while the runs themselves are priced positionally. Both are
+        # counted, each at the LONGER cap: 2 x 600, not 600 + 60. Short is
+        # the direction that overruns the finish.
+        runs = [
+            _run(1, 300, ratio=5.0, maximum=600),
+            _run(1, 300, ratio=5.0, maximum=60),
+        ]
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=SEQUENTIAL,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == 1200
+        )
+
+
+class TestPricedInDispatchOrder:
+    """The model has to price the order the runner actually dispatches.
+
+    ``_run_rotation`` builds its ring from ``timed_zones + flow_zones``, so a
+    flow zone is always served last however the plan is ordered. Pricing the
+    caller's order instead moves the rotating clock, and that clock is what a
+    finish anchor is worked back from.
+    """
+
+    def test_a_flow_zone_is_priced_last_whatever_order_it_arrives_in(self):
+        kw = dict(
+            sequencing=ROTATING, max_slot_seconds=300, min_absorption_seconds=600
+        )
+        flow_first = [_run(0, 900, flow=True), _run(1, 300), _run(2, 300)]
+        flow_last = [_run(1, 300), _run(2, 300), _run(0, 900, flow=True)]
+        assert concurrent_wall_clock(flow_first, **kw) == concurrent_wall_clock(
+            flow_last, **kw
+        )
+
+
 class TestPackingOptimality:
     """The packing claim, brute-forced rather than asserted on chosen cases.
 

@@ -223,8 +223,16 @@ def simulate_wall_clock(
     :func:`bound_wall_clock` to price the configured maximums instead of the
     live durations); by default each zone's own ``duration`` is used.
     """
-    budget = {r.zone_id: _budget(r, durations) for r in runs}
-    work = [b for b in budget.values() if b > 0]
+    # Flow zones last, whatever order the caller passed. ``_run_rotation``
+    # builds its ring from ``timed_zones + flow_zones``, so a flow zone is
+    # always served after the timed ones; pricing the caller's order instead
+    # moves the rotating clock by an absorption pause or more, and that clock
+    # is what a finish anchor is worked back from.
+    ordered = [r for r in runs if not r.flow] + [r for r in runs if r.flow]
+    # Positional, not keyed by zone_id: two runs sharing an id used to collapse
+    # into one and the clock came out short, which is the unsafe direction.
+    budgets = [_budget(r, durations) for r in ordered]
+    work = [b for b in budgets if b > 0]
     if not work:
         return 0.0
 
@@ -238,23 +246,22 @@ def simulate_wall_clock(
     # a completed zone never charges a trailing pause.
     slot_cap = max(MIN_SLOT_SECONDS, float(max_slot_seconds or 0.0))
     absorption = max(0.0, float(min_absorption_seconds or 0.0))
-    remaining = {zid: b for zid, b in budget.items() if b > 0}
-    order = [r.zone_id for r in runs if remaining.get(r.zone_id, 0.0) > 0]
+    remaining = [b for b in budgets if b > 0]
     last_finish: dict[int, float] = {}
     clock = 0.0
 
-    while any(v > 0 for v in remaining.values()):
-        for zid in order:
-            if remaining[zid] <= 0:
+    while any(v > 0 for v in remaining):
+        for i in range(len(remaining)):
+            if remaining[i] <= 0:
                 continue
-            if absorption > 0 and zid in last_finish:
-                wait = absorption - (clock - last_finish[zid])
+            if absorption > 0 and i in last_finish:
+                wait = absorption - (clock - last_finish[i])
                 if wait > 0:
                     clock += wait
-            slot = min(remaining[zid], slot_cap)
+            slot = min(remaining[i], slot_cap)
             clock += slot
-            remaining[zid] -= slot
-            last_finish[zid] = clock
+            remaining[i] -= slot
+            last_finish[i] = clock
     return clock
 
 
