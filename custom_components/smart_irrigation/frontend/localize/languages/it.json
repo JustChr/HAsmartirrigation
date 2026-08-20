@@ -118,7 +118,15 @@
           "description": "Il calcolo prende i dati meteorologici raccolti fino a quel momento e aggiorna il bucket per ciascuna zona automatica. Quindi, la durata viene regolata in base al nuovo valore del segmento e i dati meteorologici raccolti vengono rimossi.",
           "labels": {
             "auto-calc-enabled": "Calcola automaticamente la durata delle zone",
-            "calc-time": "Calcola alle"
+            "calc-time": "Calcola alle",
+            "calc-mode": "Calcola"
+          },
+          "modes": {
+            "fixed_time": "A un orario fisso",
+            "before_run": "Prima di ogni irrigazione"
+          },
+          "help": {
+            "before-run": "Le durate vengono calcolate quando ogni pianificazione di irrigazione prepara la sua esecuzione, quindi l'esecuzione è dimensionata su dati meteorologici vecchi di minuti anziché di ore."
           }
         },
         "run-history-logging": {

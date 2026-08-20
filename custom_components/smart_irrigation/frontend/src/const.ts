@@ -30,6 +30,16 @@ export const AVAILABLE_LANGUAGES = [
 
 export const CONF_CALC_TIME = "calctime";
 export const CONF_AUTO_CALC_ENABLED = "autocalcenabled";
+// When the automatic calculation runs. "fixed_time" keeps calctime's meaning;
+// "before_run" calculates when each irrigate schedule plans its run. Values
+// match CONF_AUTO_CALC_MODE_* in const.py.
+export const CONF_AUTO_CALC_MODE = "autocalcmode";
+export const CONF_AUTO_CALC_MODE_FIXED_TIME = "fixed_time";
+export const CONF_AUTO_CALC_MODE_BEFORE_RUN = "before_run";
+export const CONF_AUTO_CALC_MODES = [
+  CONF_AUTO_CALC_MODE_FIXED_TIME,
+  CONF_AUTO_CALC_MODE_BEFORE_RUN,
+];
 export const CONF_AUTO_UPDATE_ENABLED = "autoupdateenabled";
 export const CONF_AUTO_UPDATE_SCHEDULE = "autoupdateschedule";
 export const CONF_AUTO_UPDATE_TIME = "autoupdatefirsttime";

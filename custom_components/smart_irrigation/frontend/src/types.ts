@@ -58,6 +58,8 @@ export class SmartIrrigationConfig {
   use_weather_service: boolean;
   units: string;
   autocalcenabled: boolean;
+  /** "fixed_time" (calctime applies) | "before_run". */
+  autocalcmode: string;
   autoupdateenabled: boolean;
   autoupdateschedule: string;
   autoupdatedelay: number;
@@ -111,6 +113,7 @@ export class SmartIrrigationConfig {
     this.use_weather_service = false;
     this.units = "";
     this.autocalcenabled = true;
+    this.autocalcmode = "fixed_time";
     this.autoupdateenabled = true;
     this.autoupdateschedule = "";
     this.autoupdatedelay = 0;
