@@ -13,12 +13,7 @@ import {
 import { SubscribeMixin } from "../../subscribe-mixin";
 import { localize } from "../../../localize/localize";
 import { globalStyle } from "../../styles/global-style";
-import {
-  DOMAIN,
-  SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
-  SCHEDULE_BOUND_MODE_SUNRISE,
-  SCHEDULE_BOUND_MODE_SUNSET,
-} from "../../const";
+import { DOMAIN } from "../../const";
 import { SmartIrrigationZone } from "../../types";
 import { showErrorToast } from "../../helpers";
 import {
@@ -26,16 +21,12 @@ import {
   toEditable,
   toStored,
 } from "../../common/schedule-shape";
+import {
+  Schedule,
+  emptySchedule,
+  typeLabel,
+} from "../../components/si-schedule-dialog";
 
-const DAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-];
 const MONTHS = [
   "Jan",
   "Feb",
@@ -51,39 +42,8 @@ const MONTHS = [
   "Dec",
 ];
 
-interface Schedule {
-  id?: string;
-  name: string;
-  type: string;
-  enabled: boolean;
-  time?: string;
-  days_of_week?: string[];
-  day_of_month?: number;
-  interval_hours?: number;
-  start_time?: string; // optional HH:MM clock anchor for interval schedules
-  offset_minutes?: number;
-  account_for_duration?: boolean; // legacy; superseded by time_anchor
-  time_anchor?: string; // "start" | "finish"
-  azimuth_angle?: number;
-  action: string;
-  zones: string | string[];
-  start_date?: string;
-  end_date?: string;
-}
-
-function emptySchedule(): Schedule {
-  return {
-    name: "",
-    type: "daily",
-    enabled: true,
-    time: "06:00",
-    action: "irrigate",
-    zones: "all",
-  };
-}
-
 @customElement("smart-irrigation-view-schedules")
-class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
+export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
   @property({ attribute: false }) public hass!: HomeAssistant;
 
   @state() private _schedules: Schedule[] = [];
@@ -161,13 +121,8 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     }
   }
 
-  private _update(changes: Partial<Schedule>) {
-    this._editingSchedule = { ...this._editingSchedule, ...changes };
-  }
-
-  private _typeLabel(type: string) {
-    const l = localize(`panels.schedules.types.${type}`, this.hass.language);
-    return l || type;
+  private _onScheduleChanged(e: CustomEvent) {
+    this._editingSchedule = e.detail.value;
   }
 
   private _zonesLabel(zones: string | string[]) {
@@ -185,469 +140,10 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return String(zones);
   }
 
-  private _renderZonePicker() {
-    const allSelected =
-      this._editingSchedule.zones === "all" ||
-      !Array.isArray(this._editingSchedule.zones);
-    const selectedIds: string[] = allSelected
-      ? []
-      : (this._editingSchedule.zones as string[]).map(String);
-
-    return html`
-      <div class="field">
-        <label
-          >${localize(
-            "panels.schedules.fields.zones",
-            this.hass.language,
-          )}</label
-        >
-        <div class="switch-container">
-          <input
-            type="radio"
-            id="zones_all"
-            name="zones_mode"
-            ?checked="${allSelected}"
-            @change=${() => this._update({ zones: "all" })}
-          />
-          <label for="zones_all"
-            >${localize(
-              "panels.schedules.zones_all",
-              this.hass.language,
-            )}</label
-          >
-          <input
-            type="radio"
-            id="zones_specific"
-            name="zones_mode"
-            ?checked="${!allSelected}"
-            @change=${() => this._update({ zones: [] })}
-          />
-          <label for="zones_specific"
-            >${localize(
-              "panels.schedules.zones_specific",
-              this.hass.language,
-            )}</label
-          >
-        </div>
-        ${!allSelected
-          ? html`
-              <div class="zone-checkboxes">
-                ${this._zones.map(
-                  (z) => html`
-                    <label class="zone-check">
-                      <input
-                        type="checkbox"
-                        ?checked="${selectedIds.includes(String(z.id))}"
-                        @change=${(e: Event) => {
-                          const checked = (e.target as HTMLInputElement)
-                            .checked;
-                          const id = String(z.id);
-                          const cur = Array.isArray(this._editingSchedule.zones)
-                            ? [...(this._editingSchedule.zones as string[])]
-                            : [];
-                          const next = checked
-                            ? [...cur, id]
-                            : cur.filter((x) => x !== id);
-                          this._update({ zones: next });
-                        }}
-                      />
-                      ${z.name}
-                    </label>
-                  `,
-                )}
-              </div>
-            `
-          : ""}
-      </div>
-    `;
-  }
-
-  private _renderTypeFields() {
-    const s = this._editingSchedule;
-    switch (s.type) {
-      case "daily":
-        return html`
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.time",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="time"
-              .value="${s.time || "06:00"}"
-              @change=${(e: Event) =>
-                this._update({ time: (e.target as HTMLInputElement).value })}
-            />
-          </div>
-        `;
-      case "weekly":
-        return html`
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.time",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="time"
-              .value="${s.time || "06:00"}"
-              @change=${(e: Event) =>
-                this._update({ time: (e.target as HTMLInputElement).value })}
-            />
-          </div>
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.days_of_week",
-                this.hass.language,
-              )}</label
-            >
-            <div class="day-checkboxes">
-              ${DAYS.map(
-                (day) => html`
-                  <label class="day-check">
-                    <input
-                      type="checkbox"
-                      ?checked="${(s.days_of_week || []).includes(day)}"
-                      @change=${(e: Event) => {
-                        const checked = (e.target as HTMLInputElement).checked;
-                        const cur = s.days_of_week || [];
-                        const next = checked
-                          ? [...cur, day]
-                          : cur.filter((d) => d !== day);
-                        this._update({ days_of_week: next });
-                      }}
-                    />
-                    ${localize(
-                      `panels.schedules.days.${day}`,
-                      this.hass.language,
-                    )}
-                  </label>
-                `,
-              )}
-            </div>
-          </div>
-        `;
-      case "monthly":
-        return html`
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.time",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="time"
-              .value="${s.time || "06:00"}"
-              @change=${(e: Event) =>
-                this._update({ time: (e.target as HTMLInputElement).value })}
-            />
-          </div>
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.day_of_month",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="number"
-              min="1"
-              max="31"
-              .value="${String(s.day_of_month || 1)}"
-              @input=${(e: Event) =>
-                this._update({
-                  day_of_month: parseInt((e.target as HTMLInputElement).value),
-                })}
-            />
-          </div>
-        `;
-      case "interval":
-        return html`
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.interval_hours",
-                this.hass.language,
-              )}</label
-            >
-            <div class="input-suffix-row">
-              <input
-                type="number"
-                min="1"
-                .value="${String(s.interval_hours || 24)}"
-                @input=${(e: Event) =>
-                  this._update({
-                    interval_hours: parseInt(
-                      (e.target as HTMLInputElement).value,
-                    ),
-                  })}
-              />
-              <span class="suffix"
-                >${localize("panels.schedules.hours", this.hass.language)}</span
-              >
-            </div>
-          </div>
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.start_time",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="time"
-              .value="${s.start_time || ""}"
-              @change=${(e: Event) =>
-                this._update({
-                  start_time: (e.target as HTMLInputElement).value || undefined,
-                })}
-            />
-          </div>
-        `;
-      case SCHEDULE_BOUND_MODE_SUNRISE:
-      case SCHEDULE_BOUND_MODE_SUNSET:
-        return html`${this._renderSunOffsetFields()}`;
-      case SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH:
-        return html`
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.azimuth_angle",
-                this.hass.language,
-              )}</label
-            >
-            <div class="input-suffix-row">
-              <input
-                type="number"
-                min="0"
-                max="359"
-                step="1"
-                .value="${String(s.azimuth_angle ?? 90)}"
-                @input=${(e: Event) =>
-                  this._update({
-                    azimuth_angle: parseInt(
-                      (e.target as HTMLInputElement).value,
-                    ),
-                  })}
-              />
-              <span class="suffix">°</span>
-            </div>
-          </div>
-          ${this._renderSunOffsetFields()}
-        `;
-      default:
-        return html``;
-    }
-  }
-
-  private _renderSunOffsetFields() {
-    const s = this._editingSchedule;
-    return html`
-      <div class="field">
-        <label
-          >${localize(
-            "panels.schedules.fields.offset_minutes",
-            this.hass.language,
-          )}</label
-        >
-        <div class="input-suffix-row">
-          <input
-            type="number"
-            step="1"
-            .value="${String(s.offset_minutes ?? 0)}"
-            @input=${(e: Event) =>
-              this._update({
-                offset_minutes: parseInt((e.target as HTMLInputElement).value),
-              })}
-          />
-          <span class="suffix"
-            >${localize("panels.schedules.minutes", this.hass.language)}</span
-          >
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Start-vs-finish anchor. Only meaningful for an irrigate action on a type
-   * with a fixed target time (everything except interval). "Finish" fires the
-   * run early enough that it ends at the configured time, using the live
-   * estimated duration.
-   */
-  private _renderTimeAnchorField() {
-    const s = this._editingSchedule;
-    if (s.action !== "irrigate" || s.type === "interval") return html``;
-    // Mirror the backend's legacy resolution: only solar schedules ever honored
-    // account_for_duration (True => finish); everything else defaults to start.
-    const isSolar = ["sunrise", "sunset", "solar_azimuth"].includes(s.type);
-    const legacyFinish = isSolar && s.account_for_duration !== false;
-    const current = s.time_anchor ?? (legacyFinish ? "finish" : "start");
-    return html`
-      <div class="field">
-        <label
-          >${localize(
-            "panels.schedules.fields.time_anchor",
-            this.hass.language,
-          )}</label
-        >
-        <select
-          @change=${(e: Event) =>
-            this._update({
-              time_anchor: (e.target as HTMLSelectElement).value,
-            })}
-        >
-          ${["start", "finish"].map(
-            (a) => html`
-              <option value="${a}" ?selected="${current === a}">
-                ${localize(
-                  `panels.schedules.time_anchor.${a}`,
-                  this.hass.language,
-                )}
-              </option>
-            `,
-          )}
-        </select>
-      </div>
-    `;
-  }
-
-  private _renderDialog() {
-    if (!this._showDialog) return html``;
-    const s = this._editingSchedule;
-    const title = this._editingId
+  private _dialogTitle(): string {
+    return this._editingId
       ? localize("panels.schedules.dialog.edit_title", this.hass.language)
       : localize("panels.schedules.dialog.add_title", this.hass.language);
-
-    return html`
-      <ha-dialog open .heading=${true} @closed=${this._closeDialog}>
-        <div slot="heading">
-          <ha-header-bar>
-            <ha-icon-button
-              slot="navigationIcon"
-              .path=${"M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"}
-            ></ha-icon-button>
-            <span slot="title">${title}</span>
-          </ha-header-bar>
-        </div>
-
-        <div class="dialog-content">
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.name",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="text"
-              .value="${s.name}"
-              @input=${(e: Event) =>
-                this._update({ name: (e.target as HTMLInputElement).value })}
-              required
-            />
-          </div>
-
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.type",
-                this.hass.language,
-              )}</label
-            >
-            <select
-              @change=${(e: Event) =>
-                this._update({
-                  type: (e.target as HTMLSelectElement).value,
-                })}
-            >
-              ${[
-                "daily",
-                "weekly",
-                "monthly",
-                "interval",
-                "sunrise",
-                "sunset",
-                "solar_azimuth",
-              ].map(
-                (t) => html`
-                  <option value="${t}" ?selected="${s.type === t}">
-                    ${this._typeLabel(t)}
-                  </option>
-                `,
-              )}
-            </select>
-          </div>
-
-          ${this._renderTypeFields()} ${this._renderTimeAnchorField()}
-          ${this._renderZonePicker()}
-
-          <div class="field-row">
-            <label
-              >${localize(
-                "panels.schedules.fields.enabled",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="checkbox"
-              ?checked="${s.enabled}"
-              @change=${(e: Event) =>
-                this._update({
-                  enabled: (e.target as HTMLInputElement).checked,
-                })}
-            />
-          </div>
-
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.start_date",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="date"
-              .value="${s.start_date || ""}"
-              @change=${(e: Event) =>
-                this._update({
-                  start_date: (e.target as HTMLInputElement).value || undefined,
-                })}
-            />
-          </div>
-
-          <div class="field">
-            <label
-              >${localize(
-                "panels.schedules.fields.end_date",
-                this.hass.language,
-              )}</label
-            >
-            <input
-              type="date"
-              .value="${s.end_date || ""}"
-              @change=${(e: Event) =>
-                this._update({
-                  end_date: (e.target as HTMLInputElement).value || undefined,
-                })}
-            />
-          </div>
-        </div>
-
-        <div class="dialog-footer">
-          <button class="dialog-btn" @click=${this._closeDialog}>
-            ${localize("common.actions.cancel", this.hass.language)}
-          </button>
-          <button class="dialog-btn dialog-btn-primary" @click=${this._save}>
-            ${localize("common.actions.save", this.hass.language)}
-          </button>
-        </div>
-      </ha-dialog>
-    `;
   }
 
   render(): TemplateResult {
@@ -666,7 +162,19 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     }
 
     return html`
-      ${this._renderDialog()}
+      ${this._showDialog
+        ? html`
+            <si-schedule-dialog
+              .hass=${this.hass}
+              .schedule=${this._editingSchedule}
+              .zones=${this._zones}
+              .heading=${this._dialogTitle()}
+              @schedule-changed=${this._onScheduleChanged}
+              @save=${this._save}
+              @cancel=${this._closeDialog}
+            ></si-schedule-dialog>
+          `
+        : ""}
 
       <ha-card
         header="${localize("panels.schedules.title", this.hass.language)}"
@@ -703,7 +211,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                         this.hass.language,
                       )}:</span
                     >
-                    <span>${this._typeLabel(s.type)}</span>
+                    <span>${typeLabel(s.type, this.hass.language)}</span>
                   </div>
                   ${s.time && ["daily", "weekly", "monthly"].includes(s.type)
                     ? html`
@@ -820,83 +328,6 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return [
       globalStyle,
       css`
-        .dialog-content {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          padding: 4px 0;
-          color: var(--primary-text-color);
-        }
-        .field {
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-        }
-        .field label,
-        .field-row label {
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: var(--secondary-text-color);
-        }
-        .field input[type="text"],
-        .field input[type="time"],
-        .field input[type="date"],
-        .field input[type="number"],
-        .field select {
-          padding: 8px 10px;
-          border: 1px solid var(--divider-color, #e0e0e0);
-          border-radius: 4px;
-          background: var(--card-background-color, #fff);
-          color: var(--primary-text-color);
-          font-size: 1rem;
-          font-family: inherit;
-          box-sizing: border-box;
-        }
-        .field-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          min-height: 36px;
-        }
-        .field-row input[type="checkbox"] {
-          width: 18px;
-          height: 18px;
-          accent-color: var(--primary-color);
-        }
-        .day-checkboxes,
-        .zone-checkboxes {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 4px;
-        }
-        .day-check,
-        .zone-check {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.875rem;
-          cursor: pointer;
-        }
-        .input-suffix-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .input-suffix-row input {
-          flex: 1;
-          padding: 8px 10px;
-          border: 1px solid var(--divider-color, #e0e0e0);
-          border-radius: 4px;
-          background: var(--card-background-color, #fff);
-          color: var(--primary-text-color);
-          font-size: 1rem;
-          font-family: inherit;
-        }
-        .suffix {
-          color: var(--secondary-text-color);
-          font-size: 0.875rem;
-        }
         .info-row {
           display: flex;
           gap: 8px;
