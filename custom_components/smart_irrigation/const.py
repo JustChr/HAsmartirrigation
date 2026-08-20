@@ -718,6 +718,12 @@ ZONE_CONFIRM_ENTITY = "confirm_entity"
 # runs of a service/self-closing zone (which has no linked_entity). Distinct from
 # confirm_entity (run confirmation). Only consulted when observed_watering_enabled.
 ZONE_OBSERVED_ENTITY = "observed_entity"
+# An observed (external) run can credit no more water than SI itself would ever
+# run this valve for: cap its counted seconds at the zone's maximum_duration plus
+# a small margin so a legitimate external run finishing just past the cap is not
+# clipped. Guards non-flow zones (no sensor to contradict a stuck-open valve) and
+# is the sanity ceiling on measured flow too. See ObservedWateringMixin.
+OBSERVED_CAP_MARGIN_SECONDS = 30
 # Per-member flow-calibration advisory (distributor can't-stop members only). A
 # member whose valve can't early-stop runs a fixed window; if the configured
 # throughput is wrong it silently over/under-waters. We keep a rolling list of

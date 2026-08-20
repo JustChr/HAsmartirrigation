@@ -211,6 +211,10 @@ def _observer_coordinator(monkeypatch, *, loop_time=1000.0):
     coord.hass = hass
     coord.store = Mock()
     coord.store.async_update_zone = AsyncMock()
+    # Default to a real (flow-sensor-less) zone dict: the open edge now reads
+    # store.get_zone to decide whether to start the flow sampler, so an auto-Mock
+    # would look like a zone with a flow sensor. Credit tests override this.
+    coord.store.get_zone = Mock(return_value={})
     coord._si_driven_until = {}
     coord._observed_on_since = {}
     coord._observed_zone_by_entity = {"switch.valve": 1}
