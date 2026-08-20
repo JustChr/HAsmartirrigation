@@ -9,11 +9,11 @@ the guard silently never runs.
 """
 
 import datetime
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import homeassistant.util.dt as dt_util
 
-from custom_components.smart_irrigation import const
+from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation.auto_calc import AutoCalcMixin
 
 
@@ -42,39 +42,158 @@ def _ago(hours):
     return (dt_util.now().replace(tzinfo=None) - datetime.timedelta(hours=hours)).isoformat()
 
 
-class TestReArmGating:
-    """Which config payloads re-arm the fixed-time tracker.
+class TestFixedTimeReArm:
+    """set_up_auto_calc_time against a calctime nothing validates on the way in.
 
-    All three keys have to, and merged supplies the two a payload omits. The
-    panel sends each of them alone: the time field on its own, the switch on
-    its own, the mode selector on its own.
+    The panel's time field is free text and the config endpoint accepts it as
+    cv.string, so a typo reaches the store intact. Before calctime joined the
+    re-arm gate, a save carrying only the time never reached this function and
+    the armed tracker kept running; now it does reach it, so tearing the working
+    schedule down before knowing the replacement is usable would leave NO
+    calculation armed, traced only by a warning.
     """
 
     @staticmethod
-    def _touches_auto_calc(data):
-        """The condition in _config_updated, isolated from the coordinator."""
-        return (
-            const.CONF_AUTO_CALC_ENABLED in data
-            or const.CONF_AUTO_CALC_MODE in data
-            or const.CONF_CALC_TIME in data
+    def _host(armed=True, mode=const.CONF_AUTO_CALC_MODE_FIXED_TIME):
+        host = Mock()
+        host._track_auto_calc_time_unsub = Mock() if armed else None
+        host.store = Mock()
+        host.store.config = Mock(autocalcmode=mode)
+        # The disable branch persists through the store before returning.
+        host.store.async_update_config = AsyncMock()
+        host.hass = Mock()
+        host._WeatherServiceClient = None
+        return host
+
+    @staticmethod
+    async def _run(host, data):
+        with patch(
+            "custom_components.smart_irrigation.async_track_time_change"
+        ) as track:
+            await SmartIrrigationCoordinator.set_up_auto_calc_time(host, data)
+        return track
+
+    async def test_a_malformed_time_keeps_the_previous_schedule(self):
+        host = self._host()
+        previous = host._track_auto_calc_time_unsub
+        await self._run(
+            host,
+            {
+                const.CONF_AUTO_CALC_ENABLED: True,
+                const.CONF_CALC_TIME: "not a time",
+            },
         )
+        previous.assert_not_called()
+        assert host._track_auto_calc_time_unsub is previous
 
-    def test_editing_only_the_time_re_arms(self):
-        # The standing bug: this stored the new time and left the tracker on
-        # the old one until a restart.
-        assert self._touches_auto_calc({const.CONF_CALC_TIME: "04:00"})
+    async def test_a_valid_time_still_replaces_the_schedule(self):
+        # The guard must not block the ordinary case it sits in front of.
+        host = self._host()
+        previous = host._track_auto_calc_time_unsub
+        track = await self._run(
+            host,
+            {const.CONF_AUTO_CALC_ENABLED: True, const.CONF_CALC_TIME: "04:37"},
+        )
+        previous.assert_called_once()
+        track.assert_called_once()
+        assert host._track_auto_calc_time_unsub is track.return_value
 
-    def test_editing_only_the_mode_re_arms(self):
-        assert self._touches_auto_calc(
+    async def test_switching_to_before_run_is_not_blocked_by_a_bad_stored_time(self):
+        """The mode switch must not be held hostage by an unrelated bad value.
+
+        before_run does not read calctime at all, so validating it here would
+        strand an install that has a typo stored: it could never leave the
+        fixed-time mode to escape it.
+        """
+        host = self._host()
+        previous = host._track_auto_calc_time_unsub
+        await self._run(
+            host,
+            {
+                const.CONF_AUTO_CALC_ENABLED: True,
+                const.CONF_AUTO_CALC_MODE: const.CONF_AUTO_CALC_MODE_BEFORE_RUN,
+                const.CONF_CALC_TIME: "not a time",
+            },
+        )
+        previous.assert_called_once()
+        assert host._track_auto_calc_time_unsub is None
+
+    async def test_disabling_is_not_blocked_by_a_bad_stored_time(self):
+        host = self._host()
+        previous = host._track_auto_calc_time_unsub
+        await self._run(
+            host,
+            {
+                const.CONF_AUTO_CALC_ENABLED: False,
+                const.CONF_CALC_TIME: "not a time",
+            },
+        )
+        previous.assert_called_once()
+        assert host._track_auto_calc_time_unsub is None
+
+
+class TestReArmGating:
+    """Which config payloads re-arm the fixed-time tracker.
+
+    Driven through async_update_config rather than by restating its condition,
+    because a test that re-implements the check it is guarding passes happily
+    while the real one is deleted. This is that test rewritten after a mutation
+    of the real condition survived the whole suite.
+    """
+
+    @staticmethod
+    def _host():
+        host = Mock()
+        host.store = Mock()
+        host.store.async_update_config = AsyncMock()
+        host.store.config = Mock(
+            autocalcenabled=True,
+            autocalcmode=const.CONF_AUTO_CALC_MODE_FIXED_TIME,
+            calctime="02:00",
+        )
+        host.set_up_auto_calc_time = AsyncMock()
+        host.set_up_auto_update_time = AsyncMock()
+        host.hass = Mock()
+        return host
+
+    @classmethod
+    async def _save(cls, data):
+        host = cls._host()
+        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+            await SmartIrrigationCoordinator.async_update_config(host, data)
+        return host
+
+    async def test_editing_only_the_time_re_arms(self):
+        # The standing bug: this stored the new time and left the tracker armed
+        # on the old one until a restart.
+        host = await self._save({const.CONF_CALC_TIME: "04:00"})
+        host.set_up_auto_calc_time.assert_awaited_once()
+
+    async def test_editing_only_the_mode_re_arms(self):
+        host = await self._save(
             {const.CONF_AUTO_CALC_MODE: const.CONF_AUTO_CALC_MODE_BEFORE_RUN}
         )
+        host.set_up_auto_calc_time.assert_awaited_once()
 
-    def test_editing_only_the_switch_re_arms(self):
-        assert self._touches_auto_calc({const.CONF_AUTO_CALC_ENABLED: False})
+    async def test_editing_only_the_switch_re_arms(self):
+        host = await self._save({const.CONF_AUTO_CALC_ENABLED: False})
+        host.set_up_auto_calc_time.assert_awaited_once()
 
-    def test_an_unrelated_save_does_not_re_arm(self):
+    async def test_an_unrelated_save_does_not_re_arm(self):
         # A partial save from another tab must not disturb an armed tracker.
-        assert not self._touches_auto_calc({"sensor_debounce": 30})
+        host = await self._save({const.CONF_SENSOR_DEBOUNCE: 30})
+        host.set_up_auto_calc_time.assert_not_awaited()
+
+    async def test_the_merged_payload_carries_all_three_keys(self):
+        """Whichever key the payload omits is supplied from the stored config.
+
+        Without this, set_up_auto_calc_time reads data[CONF_AUTO_CALC_ENABLED]
+        on a payload that never carried it.
+        """
+        host = await self._save({const.CONF_CALC_TIME: "04:00"})
+        merged = host.set_up_auto_calc_time.await_args.args[0]
+        assert merged[const.CONF_CALC_TIME] == "04:00"
+        assert merged[const.CONF_AUTO_CALC_ENABLED] is True
 
 
 class TestLedgerStaleness:

@@ -1105,16 +1105,32 @@ class SmartIrrigationCoordinator(
 
     async def set_up_auto_calc_time(self, data):
         """Set up the automatic calculation time for Smart Irrigation based on configuration data."""
-        # unsubscribe from any existing track_time_changes
-        if self._track_auto_calc_time_unsub:
-            self._track_auto_calc_time_unsub()
-            self._track_auto_calc_time_unsub = None
         mode = data.get(
             const.CONF_AUTO_CALC_MODE,
             getattr(
                 self.store.config, "autocalcmode", const.CONF_DEFAULT_AUTO_CALC_MODE
             ),
         )
+        # Nothing validates calctime on the way in: the panel's field is free
+        # text and the config endpoint takes it as cv.string, so a typo reaches
+        # here intact. Tearing the working schedule down before discovering the
+        # replacement is unusable would leave NO calculation armed at all, and
+        # the only trace is the warning below. Keep the old one instead.
+        if (
+            data[const.CONF_AUTO_CALC_ENABLED]
+            and mode != const.CONF_AUTO_CALC_MODE_BEFORE_RUN
+            and not check_time(data[const.CONF_CALC_TIME])
+        ):
+            _LOGGER.warning(
+                "Scheduled auto calculate time is not valid: %s; keeping the "
+                "previously scheduled time",
+                data[const.CONF_CALC_TIME],
+            )
+            return
+        # unsubscribe from any existing track_time_changes
+        if self._track_auto_calc_time_unsub:
+            self._track_auto_calc_time_unsub()
+            self._track_auto_calc_time_unsub = None
         if data[const.CONF_AUTO_CALC_ENABLED] and (
             mode == const.CONF_AUTO_CALC_MODE_BEFORE_RUN
         ):
