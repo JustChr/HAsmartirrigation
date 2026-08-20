@@ -627,6 +627,7 @@
         "stop": "Ferma",
         "watering": "Irrigazione…",
         "queued": "In coda…",
+        "paused": "In pausa…",
         "toast_stopped": "Irrigazione fermata"
       }
     },

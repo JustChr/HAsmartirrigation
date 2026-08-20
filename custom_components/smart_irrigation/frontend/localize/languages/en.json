@@ -747,6 +747,7 @@
         "stop": "Stop",
         "watering": "Watering…",
         "queued": "Queued…",
+        "paused": "Paused…",
         "toast_stopped": "Stopped run"
       }
     },

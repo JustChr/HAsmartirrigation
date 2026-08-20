@@ -587,6 +587,7 @@
         "stop": "Stop",
         "watering": "Bewatering…",
         "queued": "In wachtrij…",
+        "paused": "Gepauzeerd…",
         "toast_stopped": "Run gestopt"
       }
     },

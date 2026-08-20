@@ -587,6 +587,7 @@
         "stop": "Arrêter",
         "watering": "Arrosage…",
         "queued": "En attente…",
+        "paused": "En pause…",
         "toast_stopped": "Arrosage arrêté"
       }
     },

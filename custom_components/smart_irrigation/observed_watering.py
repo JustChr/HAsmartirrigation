@@ -17,11 +17,15 @@ Methods live on a mixin the SmartIrrigationCoordinator inherits, so they use
 """
 
 import logging
+from datetime import timedelta
 
 import homeassistant.util.dt as dt_util
 from homeassistant.core import Event, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_time_interval,
+)
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
@@ -69,11 +73,21 @@ class ObservedWateringMixin:
         # principle be reassigned to the same entity string).
         self._observed_zone_by_entity = entity_map
         if entities == self._observed_entities:
+            # Known, accepted edge case: if a zone id is remapped to the SAME entity
+            # string while an external run is in flight, this no-op path skips the
+            # meter-cancel below and the meter stays keyed under the old zone id (a
+            # leaked 15-s timer + one uncredited run). It self-heals on the next
+            # entity-set change, the zone's next external open (single-flight cancel),
+            # or teardown; the trigger (a set-preserving remap during an active run) is
+            # exotic, so it is left unhandled rather than complicate the hot path.
             return
 
         if self._observed_unsub is not None:
             self._observed_unsub()
             self._observed_unsub = None
+        # Never leak an in-flight flow sampler across a subscription rebuild.
+        for zone_id in list(self._observed_meters()):
+            self._observed_cancel_meter(zone_id)
         self._observed_on_since = {}
         self._observed_entities = entities
 
@@ -91,6 +105,9 @@ class ObservedWateringMixin:
         if getattr(self, "_observed_unsub", None) is not None:
             self._observed_unsub()
             self._observed_unsub = None
+        # Cancel any in-flight flow samplers so a reload/unload can't leak a timer.
+        for zone_id in list(self._observed_meters()):
+            self._observed_cancel_meter(zone_id)
         self._observed_on_since = {}
         self._observed_entities = frozenset()
 
@@ -128,24 +145,211 @@ class ObservedWateringMixin:
                 return
             self._observed_on_since[zone_id] = dt_util.utcnow()
             _LOGGER.debug("Observed watering: zone %s valve opened (external)", zone_id)
+            # Flow-sensor zones: start measuring the external run's real flow so the
+            # close edge credits the MEASURED volume, not time × throughput (which a
+            # valve stuck reporting open inflates without bound).
+            zone = self.store.get_zone(zone_id) or {}
+            if zone.get(const.ZONE_FLOW_SENSOR):
+                # Start the sampler SYNCHRONOUSLY (its body is non-blocking) so a
+                # rapid open->close flap can't close before a scheduled start ran,
+                # which would leak a meter+timer and miss the measured credit.
+                self._observed_start_flow_sampling(zone)
         elif old_on and not new_on:
             started = self._observed_on_since.pop(zone_id, None)
+            # Finalise the sampler BEFORE the started-None early return so an
+            # untracked close (SI-driven, or on-at-subscribe) can never leak an
+            # in-flight sampler. Returns (None, False) when there was none.
+            measured, sensor_present = self._observed_finish_flow(zone_id)
             if started is None:
                 # We weren't tracking this run (SI-driven, or it was already on
                 # when we subscribed).
                 return
             seconds = (dt_util.utcnow() - started).total_seconds()
             self.hass.async_create_task(
-                self._credit_observed_watering(zone_id, seconds)
+                self._credit_observed_watering(
+                    zone_id, seconds, measured_l=measured, sensor_present=sensor_present
+                )
             )
 
-    async def _credit_observed_watering(self, zone_id: int, seconds: float) -> None:
+    # --- Measured-flow sampling (mirror of the self-closing sampler) --------
+
+    def _observed_meters(self) -> dict:
+        """Per-zone in-flight flow meters: {zone_id: (meter, cancel, open_l, started)}."""
+        m = getattr(self, "_observed_meters_state", None)
+        if m is None:
+            m = self._observed_meters_state = {}
+        return m
+
+    def _observed_cancel_meter(self, zone_id) -> None:
+        """Cancel and drop a zone's in-flight flow sampler, if any (else a no-op)."""
+        entry = self._observed_meters().pop(zone_id, None)
+        if entry is not None:
+            entry[1]()  # the cancel handle
+
+    def _observed_start_flow_sampling(self, zone: dict) -> None:
+        """Start NON-blocking interval sampling of an external run's flow_sensor.
+
+        Mirrors :meth:`_sc_start_flow_sampling`: build a per-zone FlowMeter (counter
+        type resolved from the stored streak), seed it at the valve-open reading and
+        poll every ``FLOW_POLL_INTERVAL`` seconds; :meth:`_observed_finish_flow`
+        finalises it on close. No-op when the zone has no flow_sensor. Single-flight:
+        a re-open cancels a prior in-flight sampler for the same zone first.
+
+        Synchronous (its body only reads state and installs a timer): the open-edge
+        callback calls it directly, so it cannot race a same-batch close. Unlike
+        self-closing's sampler this is not a coroutine — it is never awaited.
+        """
+        sensor = zone.get(const.ZONE_FLOW_SENSOR)
+        if not sensor:
+            return
+        zone_id = zone.get(const.ZONE_ID)
+        self._observed_cancel_meter(zone_id)  # single-flight: drop any prior sampler
+        sample = self._read_flow_sample(sensor)
+        meter, open_start_l = self._flow_build_meter(zone, sample)  # seeds at open
+        started = dt_util.utcnow()
+
+        async def _tick(now):
+            self._observed_sample_flow(zone_id, (now - started).total_seconds())
+
+        cancel = async_track_time_interval(
+            self.hass, _tick, timedelta(seconds=const.FLOW_POLL_INTERVAL)
+        )
+        self._observed_meters()[zone_id] = (meter, cancel, open_start_l, started)
+
+    def _observed_sample_flow(self, zone_id, at: float) -> None:
+        """Feed the in-flight meter one reading at monotonic ``at`` (also the test seam)."""
+        entry = self._observed_meters().get(zone_id)
+        if not entry:
+            return
+        meter = entry[0]
+        zone = self.store.get_zone(zone_id) or {}
+        sample = self._read_flow_sample(zone.get(const.ZONE_FLOW_SENSOR))
+        if sample is not None:
+            meter.sample(*sample, at=at)
+
+    def _observed_finish_flow(self, zone_id):
+        """Cancel sampling; return ``(measured_l | None, sensor_present)``.
+
+        Unlike self-closing (:meth:`_sc_finish_flow`, which collapses a ``0.0``
+        live-but-dry meter to ``None`` so the caller keeps its time-based volume),
+        observed returns ``0.0`` AS ``0.0`` — a valve that reported ``open`` but
+        delivered no measurable flow must credit ZERO, not fall back to a time
+        estimate (the phantom-open incident). ``None`` means the sensor produced no
+        numeric reading at all (dead/misconfigured) → the caller falls back to the
+        capped time estimate and flags the sensor.
+
+        observed deliberately does NOT persist cross-run learning (``flow_last_end`` /
+        ``flow_reset_streak``): interleaved external opens would poison the SI
+        runner's clean-sequence convergence. It only CONSUMES the learned counter
+        type via :meth:`_flow_build_meter`. (Distributor precedent, irrigation.py.)
+        """
+        entry = self._observed_meters().pop(zone_id, None)
+        if not entry:
+            return None, False
+        meter, cancel, _open_start_l, started = entry
+        cancel()
+        zone = self.store.get_zone(zone_id) or {}
+        sensor = zone.get(const.ZONE_FLOW_SENSOR)
+        final = self._read_flow_sample(sensor)
+        if final is not None:
+            meter.sample(*final, at=(dt_util.utcnow() - started).total_seconds())
+        d = meter.delivered()
+        # 0.0 AND a mid-run reset observed = a hold-until-reset (per_run) counter that
+        # was resolved as ``lifetime`` (observed never persists the learned streak), so
+        # the reset read like a glitch and nothing was credited despite real flow.
+        # Report it as ``None`` (dead/unusable measurement) so the caller falls back to
+        # the capped time estimate, NOT as 0.0 (which credits zero). A genuine
+        # phantom-open dry valve never trips saw_reset, so the phantom-open fix stands.
+        if d == 0.0 and meter.saw_reset():
+            return None, bool(sensor)
+        return d, bool(sensor)
+
+    def _observed_flag_dead_sensor(self, zone_id, sensor) -> None:
+        """Surface a flow-sensor zone with no usable measurement on an external run.
+
+        Reached when :meth:`_observed_finish_flow` returns ``None`` — either the sensor
+        gave no numeric reading (dead/misconfigured) or it reset mid-run as a mis-typed
+        per_run counter. Mirrors the self-closing dead-sensor handling
+        (:meth:`_sc_finish_flow`): the 15-s polls are DEBUG, so this would otherwise
+        silently degrade an observed run to the time-based estimate. Warn ONCE per run
+        so it is visible. Log-only by design — a zone has no per-run transient problem
+        flag, and self-closing does the same.
+        """
+        _LOGGER.warning(
+            "Observed watering: zone %s flow sensor '%s' produced no usable "
+            "measurement this external run; credited the capped time-based estimate "
+            "instead",
+            zone_id,
+            sensor,
+        )
+
+    def _observed_capped_seconds(self, zone: dict, seconds: float) -> float:
+        """Bound external-run seconds at maximum_duration + margin.
+
+        An external open can be as long as a stuck-open valve is willing to
+        report; SI would never run this valve longer than its maximum_duration,
+        so an observed run credits no more than that (plus a small margin for a
+        legitimate run finishing just past the cap). See OBSERVED_CAP_MARGIN_SECONDS.
+
+        A non-positive maximum_duration deliberately does NOT mirror the SI calc
+        path, despite the resemblance. There, the `>= 0` guard (calculation.py)
+        makes a negative value mean "do not cap SI's own computed duration" —
+        a statement about how long SI may run the valve, which says nothing about
+        how long an EXTERNAL open can plausibly be. Mirroring it literally would
+        hand a stuck-open valve back its unbounded credit on exactly the zones
+        that have no ceiling left to fall back on, which is the bug this module
+        exists to prevent. So a non-positive value falls back to the default
+        plausibility ceiling instead.
+
+        That substituted ceiling is tighter than anything the zone's owner chose,
+        so it under-credits a genuinely long external run — bucket too low, SI
+        waters more than it needed to. Water wasted is the milder failure than
+        water withheld, which is why the fallback errs this way, but it is not
+        free: warn whenever the substituted ceiling actually binds, so it is
+        visible rather than silent. Reachable only by hand-editing the store or
+        by calling the websocket API directly — the panel's field is `min="0"`.
+        """
+        max_dur = zone.get(const.ZONE_MAXIMUM_DURATION)
+        substituted = not max_dur or max_dur < 0
+        if substituted:
+            max_dur = const.CONF_DEFAULT_MAXIMUM_DURATION
+        capped = min(float(seconds), float(max_dur) + const.OBSERVED_CAP_MARGIN_SECONDS)
+        if substituted and capped < float(seconds):
+            _LOGGER.warning(
+                "Observed watering: zone %s has no usable maximum_duration (%s), "
+                "so its external run of %.0f s was credited as only %.0f s using "
+                "the default ceiling of %s s. Set a maximum_duration on the zone "
+                "to have the full run credited",
+                zone.get(const.ZONE_ID),
+                zone.get(const.ZONE_MAXIMUM_DURATION),
+                float(seconds),
+                capped,
+                const.CONF_DEFAULT_MAXIMUM_DURATION,
+            )
+        return capped
+
+    async def _credit_observed_watering(
+        self,
+        zone_id: int,
+        seconds: float,
+        measured_l: float | None = None,
+        sensor_present: bool = False,
+    ) -> None:
         """Credit a zone's bucket for an externally-driven run of ``seconds``.
 
-        Applied depth is estimated from run time × configured throughput, so it
-        needs both a size and a throughput. The bucket can rise into surplus
-        (capped at maximum_bucket) — unlike an SI run, external watering can
-        legitimately overshoot the deficit.
+        Needs a size and a throughput. On a flow-sensor zone the applied depth
+        comes from the MEASURED volume (``measured_l``, from the open/close flow
+        sampler; ``sensor_present`` says the zone has a sensor); otherwise, and
+        when the sensor gave no reading, it is estimated from run time × configured
+        throughput. Either way the counted seconds are capped at the zone's
+        maximum_duration + margin (:meth:`_observed_capped_seconds`) so a valve
+        stuck reporting ``open`` cannot book unbounded water, and the measured
+        volume is itself capped at that time ceiling. The credited depth is the
+        actual applied depth (litres / m²), NOT divided by the zone multiplier:
+        external water genuinely raised soil moisture by that depth, unlike an SI
+        timed run whose duration is inflated by the multiplier. The bucket can rise
+        into surplus (capped at maximum_bucket) — unlike an SI run, external
+        watering can legitimately overshoot the deficit.
         """
         if seconds <= 0:
             return
@@ -172,7 +376,29 @@ class ObservedWateringMixin:
             else convert_between(const.UNIT_GPM, const.UNIT_LPM, throughput)
         )
 
-        volume_l = tput_lpm * (seconds / 60.0)
+        # Cap the counted seconds: an external run credits no more than SI itself
+        # would run this valve (see OBSERVED_CAP_MARGIN_SECONDS). Bounds the
+        # time-based volume AND is the sanity ceiling on measured flow.
+        capped_s = self._observed_capped_seconds(zone, seconds)
+        time_volume_l = tput_lpm * (capped_s / 60.0)
+
+        # Route the credit:
+        #  * flow sensor + a reading  -> the MEASURED volume, floored at 0 and capped
+        #    at the time ceiling. measured may be 0.0 (a valve that reported open but
+        #    delivered nothing — the phantom-open incident) -> credit ZERO. The floor
+        #    stops a net-negative rate reading (backflow/sign glitch) DRAINING the
+        #    bucket; the ceiling stops a sensor stuck at a constant nonzero reading
+        #    booking more than a nameplate run for the same (capped) window.
+        #  * flow sensor + NO usable measurement -> dead sensor, or a reset counter we
+        #    could not measure; fall back to the capped time estimate and surface it.
+        #  * no flow sensor           -> the capped time estimate.
+        if sensor_present and measured_l is not None:
+            volume_l = min(max(0.0, float(measured_l)), time_volume_l)
+        elif sensor_present and measured_l is None:
+            volume_l = time_volume_l
+            self._observed_flag_dead_sensor(zone_id, zone.get(const.ZONE_FLOW_SENSOR))
+        else:
+            volume_l = time_volume_l
         applied_mm = volume_l / size_m2  # litres / m² == mm
         applied_native = (
             applied_mm
@@ -194,7 +420,7 @@ class ObservedWateringMixin:
             zone_id,
             result=const.RUN_RESULT_OBSERVED,
             volume_l=volume_l,
-            actual_s=round(seconds),
+            actual_s=round(capped_s),
             trigger=const.RUN_TRIGGER_OBSERVED,
             add_to_total=True,
         )

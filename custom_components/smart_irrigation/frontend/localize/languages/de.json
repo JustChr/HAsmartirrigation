@@ -587,6 +587,7 @@
         "stop": "Stopp",
         "watering": "Bewässert…",
         "queued": "Wartet…",
+        "paused": "Pausiert…",
         "toast_stopped": "Lauf gestoppt"
       }
     },

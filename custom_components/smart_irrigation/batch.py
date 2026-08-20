@@ -50,6 +50,7 @@ from .run_watch import (
     WatchPolicy,
     planned_seconds,
     register_watch_policy,
+    run_is_queue_bound,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -361,6 +362,8 @@ class BatchMixin:
             return await super()._watch_pause_started(zone_id, run, watered)
         zid = int(zone_id)
         self._batch_cancel_pause_timer(zid)
+        # A pause stops the whole queue, not just the zone that was watering.
+        await self._batch_freeze_queued_deadlines(True)
         config = await self._batch_config()
         try:
             timeout = float(config.get(const.CONF_BATCH_PAUSE_TIMEOUT) or 0)
@@ -385,6 +388,52 @@ class BatchMixin:
         if run.get(const.RUN_MODE) != const.WATERING_MODE_BATCH:
             return await super()._watch_pause_ended(zone_id, run)
         self._batch_cancel_pause_timer(zone_id)
+        await self._batch_freeze_queued_deadlines(False)
+
+    async def _batch_freeze_queued_deadlines(self, frozen: bool) -> None:
+        """Stop (or restart) the give-up clock of every zone still queued.
+
+        A queued run's only backstop is a deadline derived from the watering time
+        of the zones ahead of it (``queue_deadline_seconds``). That budget is
+        spent in wall-clock time, and it assumes the controller is spending that
+        time watering — which is exactly what a PAUSE suspends.
+
+        So an ordinary in-bounds pause used to write off every zone behind it:
+        the runs were dropped, their optimistic bucket credit reversed and a
+        ``zone_never_ran`` fault raised, and then the controller resumed and
+        watered them with nothing left watching the valve. The user sees a zone
+        water for precisely the duration Smart Irrigation asked for, and a bucket
+        that never moves. Reported from the field against v2026.08.14 (#88).
+
+        Applied to queue-bound runs only: a run that has started watering is
+        bounded by its own finish backstop and, while paused, by the pause bound,
+        and neither of those is a give-up timer. Every exit from a pause restarts
+        these — a resume, and the pause outliving its bound — so a suspension
+        cannot outlast the pause that caused it.
+        """
+        for run in await self._sc_active_runs():
+            if not isinstance(run, dict):
+                continue
+            if run.get(const.RUN_MODE) != const.WATERING_MODE_BATCH:
+                continue
+            if not run_is_queue_bound(run):
+                continue
+            zone_id = run.get(const.RUN_ZONE_ID)
+            if zone_id is None:
+                continue
+            if frozen:
+                if self._watch_suspend_timer(zone_id):
+                    _LOGGER.debug(
+                        "Zone %s: the controller is paused, so its wait for the "
+                        "queue is not counting down",
+                        zone_id,
+                    )
+            elif self._watch_resume_timer(zone_id):
+                _LOGGER.debug(
+                    "Zone %s: the controller resumed; its wait for the queue is "
+                    "counting down again",
+                    zone_id,
+                )
 
     async def _batch_pause_expired(self, zone_id) -> None:
         """A pause outlived its bound: hand over, then settle for what was given."""
@@ -416,6 +465,10 @@ class BatchMixin:
         await self.async_stop_self_closing(
             zid, close_valve=False, detail=const.RUN_DETAIL_BATCH_PAUSE_TIMEOUT
         )
+        # The pause is over as far as this integration is concerned, however it
+        # ended. Restart the queued zones' clocks or a suspension taken at the
+        # start of the pause would outlive it and hold them indefinitely.
+        await self._batch_freeze_queued_deadlines(False)
 
     async def _batch_subscribe_paused(self) -> None:
         """Subscribe to the paused indicator, once, while batch runs are live."""

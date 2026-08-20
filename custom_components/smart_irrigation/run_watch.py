@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import timedelta
 
 from homeassistant.core import Event, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -83,6 +84,28 @@ def run_is_segmented(run: dict) -> bool:
     )
 
 
+def run_is_paused(run: dict) -> bool:
+    """True while this run's controller is holding it PAUSED.
+
+    A segmented run that has started watering but has no segment open is, by
+    definition of the segment model, not watering right now — and the only way
+    a started run stops without ending is a pause (``_watch_pause`` closes the
+    segment; ``_watch_resume`` opens the next one).
+
+    Derived from the record rather than re-read from the paused indicator on
+    purpose. The indicator answers "is the CONTROLLER paused", which is one
+    answer for the whole queue, while this answers "is THIS zone's water on
+    hold" — and those differ for every zone the controller has not reached yet.
+    A queued zone is not paused, it is queued, and reading the indicator would
+    label all of them paused the moment the controller pauses.
+    """
+    return (
+        run_is_segmented(run)
+        and run.get(const.RUN_OBSERVED_START) is not None
+        and not run.get(const.RUN_SEGMENT_STARTED)
+    )
+
+
 @dataclass
 class Watcher:
     """One zone's live subscription, plus at most one pending timer.
@@ -101,6 +124,12 @@ class Watcher:
     # apart from ``cancel`` because that one arms giving up on a run that never
     # watered, and the two can never be confused for one another safely.
     finish_cancel: object | None = None
+    # When ``cancel`` is due to fire, and what it would raise. Kept so the
+    # give-up clock can be STOPPED and restarted with the time it had left
+    # rather than a fresh full deadline — see ``_watch_suspend_timer``.
+    deadline_at: object | None = None
+    deadline_reason: str | None = None
+    deadline_left: float | None = None
 
 
 @dataclass(frozen=True)
@@ -255,7 +284,57 @@ class RunWatchMixin:
         async def _expired(_now):
             await self._watch_give_up(zone_id, reason)
 
-        watcher.cancel = async_call_later(self.hass, max(0.0, delay), _expired)
+        delay = max(0.0, delay)
+        watcher.cancel = async_call_later(self.hass, delay, _expired)
+        watcher.deadline_at = dt_util.utcnow() + timedelta(seconds=delay)
+        watcher.deadline_reason = reason
+        watcher.deadline_left = None
+
+    def _watch_suspend_timer(self, zone_id) -> bool:
+        """Stop the give-up clock, keeping the time it had left.
+
+        The give-up timer measures how long a run may wait for its controller to
+        reach it. That is wall-clock time only while the controller is actually
+        working through its queue — a controller that has PAUSED is not making
+        progress, so every zone still queued behind the pause is being charged
+        for time in which its turn could not possibly have come.
+
+        Left running, an ordinary in-bounds pause writes those zones off: the
+        run is dropped, its optimistic bucket credit reversed and a fault raised,
+        and then the controller resumes and waters them with nothing supervising
+        the valve — so the water is delivered and never credited. Reported from
+        the field against v2026.08.14 (issue #88).
+
+        Stops the clock rather than extending the deadline, so a run cannot be
+        held open longer than the pauses it actually sat through. Returns True if
+        a timer was suspended.
+        """
+        watcher = self._watchers().get(int(zone_id))
+        if watcher is None or watcher.cancel is None:
+            return False
+        watcher.cancel()
+        watcher.cancel = None
+        deadline = watcher.deadline_at
+        if deadline is None:
+            watcher.deadline_left = None
+            return True
+        watcher.deadline_left = max(0.0, (deadline - dt_util.utcnow()).total_seconds())
+        return True
+
+    def _watch_resume_timer(self, zone_id) -> bool:
+        """Restart a suspended give-up clock with the time it had left.
+
+        A no-op when the timer was never suspended, so a resume that arrives
+        without a matching pause cannot hand a run a second full deadline.
+        """
+        watcher = self._watchers().get(int(zone_id))
+        if watcher is None or watcher.cancel is not None:
+            return False
+        left = watcher.deadline_left
+        if left is None or watcher.deadline_reason is None:
+            return False
+        self._watch_arm_timer(zone_id, left, watcher.deadline_reason)
+        return True
 
     # --- policy -------------------------------------------------------------
 
@@ -521,6 +600,13 @@ class RunWatchMixin:
             if cancel is not None:
                 cancel()
             watcher.cancel = None
+            # And the clock is not merely stopped, it is gone: this run has
+            # watered, so there is no longer anything to give up on. Leaving a
+            # suspended deadline behind would let a later resume re-arm a
+            # write-off against a run whose valve is open.
+            watcher.deadline_at = None
+            watcher.deadline_left = None
+            watcher.deadline_reason = None
         # Backstop only. The entity going off is the primary finish signal; this
         # covers a missed transition.
         self._sc_schedule_cleanup(zid, planned)

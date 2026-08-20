@@ -587,6 +587,7 @@
         "stop": "Zastaviť",
         "watering": "Zavlažuje…",
         "queued": "Čaká…",
+        "paused": "Pozastavené…",
         "toast_stopped": "Beh zastavený"
       }
     },

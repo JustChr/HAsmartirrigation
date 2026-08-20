@@ -143,6 +143,8 @@ Configure a **paused indicator** and that is handled: while it reads on, a valve
 
 An indicator that stops reporting — the usual case being a controller still reconnecting after a Home Assistant restart — counts as **paused**, not as stopped. Smart Irrigation never reads "cannot see the controller" as "the run ended", so a restart in the middle of a pause keeps the run and picks the water back up when the controller resumes.
 
+**A pause holds the whole queue, and the zones behind it keep their place.** Smart Irrigation gives every queued zone a deadline by which its turn should have come, so a zone the controller silently drops does not sit claimed forever. That deadline is measured against time the controller spends *watering*, so it stops while the controller is paused and picks up with the time it had left when the cycle resumes — a long pause cannot write off the zones still waiting behind it. On the dashboard those zones read **Queued…**, distinct from the paused one, which reads **Paused…**.
+
 A pause is always **bounded**. Leave the **pause timeout** at 0 and a generous default backstop applies. This is deliberate: an unbounded pause is harmless to the controller, but a run that never ends holds its zone against any future run, holds the pump, and keeps a moisture credit for water that never fell — so the zone reads as watered while it is dry, and stays that way until someone notices. If you set an **On pause timeout** script it is called when the bound expires, so you decide what giving up means on your hardware (resume, shut down, clear the queue); the run is settled for what it actually delivered either way.
 
 #### A worked example (ESPHome) {#batch-example}

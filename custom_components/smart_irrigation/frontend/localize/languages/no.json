@@ -587,6 +587,7 @@
         "stop": "Stopp",
         "watering": "Vanner…",
         "queued": "I kø…",
+        "paused": "Pauset…",
         "toast_stopped": "Kjøring stoppet"
       }
     },
