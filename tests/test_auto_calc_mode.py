@@ -305,3 +305,53 @@ class TestPreRunCommit:
         await host.async_commit_pre_run_calculation("all")
         host._async_calculate_all.assert_not_awaited()
         host.async_update_zone_config.assert_not_awaited()
+
+
+class TestTheScheduleActuallyCommitsBeforeItRuns:
+    """The wiring, not the helper.
+
+    ``async_commit_pre_run_calculation`` is exercised directly above, but
+    nothing asserted that a scheduled irrigation calls it — which is the
+    feature's only production call site. Deleting that line left the whole
+    suite green, so it is pinned here, and pinned BEFORE the skip-conditions
+    check: the point of the mode is that the deficit deciding the run is
+    minutes old rather than hours, and a commit after the veto is evaluated
+    would be too late to affect it.
+    """
+
+    @staticmethod
+    def _manager(hass, skip=False):
+        from custom_components.smart_irrigation.scheduler import (
+            RecurringScheduleManager,
+        )
+
+        mgr = RecurringScheduleManager(hass, Mock())
+        calls = []
+        mgr.coordinator.async_commit_pre_run_calculation = AsyncMock(
+            side_effect=lambda *a, **k: calls.append("commit")
+        )
+        mgr.coordinator._check_skip_conditions = AsyncMock(
+            side_effect=lambda *a, **k: calls.append("skip_check") or skip
+        )
+        mgr.coordinator._last_skip_evaluation = {"checks": []}
+        mgr.coordinator._record_skipped_run = AsyncMock()
+        mgr.coordinator._irrigate_linked_entities = AsyncMock(return_value=True)
+        mgr.coordinator._dispatch_distributor_cycles = AsyncMock(return_value=False)
+        mgr.coordinator._reset_days_since_irrigation = AsyncMock()
+        return mgr, calls
+
+    async def test_a_scheduled_run_commits_a_calculation_first(self, hass):
+        mgr, calls = self._manager(hass)
+        await mgr._perform_scheduled_irrigation("all", "Morning")
+        mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once_with("all")
+        assert calls[:2] == ["commit", "skip_check"]
+
+    async def test_the_commit_happens_even_when_the_run_is_vetoed(self, hass):
+        # The bucket is still worth updating on a skipped run: the veto is a
+        # decision about watering, not a reason to leave the ledger stale.
+        mgr, calls = self._manager(hass, skip=True)
+        await mgr._perform_scheduled_irrigation([1, 2], "Morning")
+        mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once_with(
+            [1, 2]
+        )
+        mgr.coordinator._irrigate_linked_entities.assert_not_awaited()

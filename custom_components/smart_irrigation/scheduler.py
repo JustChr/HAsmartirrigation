@@ -227,13 +227,22 @@ class RecurringScheduleManager:
         if schedule_index is None:
             raise ValueError(f"Schedule with ID {schedule_id} not found")
 
-        # Validate updated data
-        self._validate_schedule_data(schedule_data)
+        # Validate what the schedule will BE, not the fragment that changes it.
+        # An update is a merge, and a partial payload cannot satisfy the shape
+        # rules on its own: {name, recurrence, enabled} carries no bound, so
+        # validating it in isolation fails with "both are unbounded" even
+        # though the stored schedule it is merging into is perfectly bounded.
+        # Validating the fragment is also what pushed the service boundary into
+        # materialising a Start bound it had no business inventing.
+        merged = {**self._schedules[schedule_index], **schedule_data}
+        self._validate_schedule_data(merged)
 
         # Remove old tracker
         await self._remove_schedule_tracker(schedule_id)
 
-        # Update schedule
+        # Update schedule. Mutated in place rather than replaced by ``merged``:
+        # identical content either way, but nothing else has to be checked for
+        # holding a reference to the dict.
         self._schedules[schedule_index].update(schedule_data)
 
         # Save configuration

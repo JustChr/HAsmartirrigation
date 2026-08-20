@@ -20,9 +20,20 @@ from .const import SmartIrrigationError
 _LOGGER = logging.getLogger(__name__)
 
 
-def _translate_legacy_schedule_fields(schedule_data: dict) -> dict:
+def _translate_legacy_schedule_fields(
+    schedule_data: dict, *, materialize_time: bool = True
+) -> dict:
     """Adapt the public create/update-schedule service call onto the v14
     storage shape.
+
+    ``materialize_time`` is the difference between the two callers. Creating a
+    schedule with no ``time`` has to write the 06:00 the old resolver supplied,
+    or the schedule reaches storage with a Start bound in "time" mode and no
+    time, which is not a bound at all. UPDATING one must not: the update
+    handler merges its payload into the stored schedule, so materialising a
+    default there rewrites a start time the caller never mentioned. See
+    ``async_update_schedule``, which validates the merged schedule precisely so
+    a payload that omits the bound is legal here.
 
     ``services.yaml`` still publishes ``type``/``time`` — the fields any
     existing YAML automation already calls this service with — so those keep
@@ -40,6 +51,14 @@ def _translate_legacy_schedule_fields(schedule_data: dict) -> dict:
         schedule_data[const.SCHEDULE_CONF_RECURRENCE] = old_type
         return schedule_data
     schedule_data[const.SCHEDULE_CONF_RECURRENCE] = old_type
+    if old_time is None and not materialize_time:
+        # An update that never mentioned a time: leave the stored bound exactly
+        # where it is. Writing a Start bound here would move a 21:15 schedule to
+        # 06:00 on a call that only meant to rename it or switch it off, which
+        # is what every legacy automation's update call looks like — the
+        # validator has always required `name` and the recurrence, so `type` is
+        # present on all of them and they all reach this translation.
+        return schedule_data
     schedule_data[const.SCHEDULE_CONF_START_MODE] = const.SCHEDULE_BOUND_MODE_TIME
     # ``time`` is published as optional, and on the old shape omitting it meant
     # 06:00 by way of the resolver's own default. A Start bound in "time" mode
@@ -348,7 +367,9 @@ class ServiceHandlersMixin:
     async def handle_update_recurring_schedule(self, call):
         """Update recurring schedule service handler."""
         schedule_id = call.data.get("schedule_id")
-        schedule_data = _translate_legacy_schedule_fields(dict(call.data))
+        schedule_data = _translate_legacy_schedule_fields(
+            dict(call.data), materialize_time=False
+        )
         schedule_data.pop("schedule_id", None)
 
         _LOGGER.info("Update recurring schedule service called for ID: %s", schedule_id)
