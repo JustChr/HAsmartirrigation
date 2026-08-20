@@ -205,9 +205,41 @@ export const CONF_MASTER_KICK_ENABLED = "master_kick_enabled";
 export const CONF_MASTER_KICK_PAUSE_SECONDS = "master_kick_pause_seconds";
 export const CONF_MASTER_OFF_AFTER = "master_off_after";
 
-export const SCHEDULE_TYPE_SUNRISE = "sunrise";
-export const SCHEDULE_TYPE_SUNSET = "sunset";
-export const SCHEDULE_TYPE_SOLAR_AZIMUTH = "solar_azimuth";
+// Recurrence: how often a schedule comes round. Independent of where in the
+// day it lands (the Start/Finish bound below) — mirrors the backend
+// SCHEDULE_RECURRENCE_* constants (const.py).
+export const SCHEDULE_RECURRENCE_DAILY = "daily";
+export const SCHEDULE_RECURRENCE_WEEKLY = "weekly";
+export const SCHEDULE_RECURRENCE_MONTHLY = "monthly";
+export const SCHEDULE_RECURRENCE_INTERVAL = "interval";
+export const SCHEDULE_RECURRENCES = [
+  SCHEDULE_RECURRENCE_DAILY,
+  SCHEDULE_RECURRENCE_WEEKLY,
+  SCHEDULE_RECURRENCE_MONTHLY,
+  SCHEDULE_RECURRENCE_INTERVAL,
+];
+
+// A run's window is two bounded ends, Start and Finish, each independently
+// "none" (unbounded) or one of a clock time / sunrise / sunset / solar
+// azimuth. Mirrors the backend SCHEDULE_BOUND_MODE_* constants;
+// _validate_schedule_data rejects anything else.
+export const SCHEDULE_BOUND_MODE_NONE = "none";
+export const SCHEDULE_BOUND_MODE_TIME = "time";
+export const SCHEDULE_BOUND_MODE_SUNRISE = "sunrise";
+export const SCHEDULE_BOUND_MODE_SUNSET = "sunset";
+export const SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH = "solar_azimuth";
+export const SCHEDULE_BOUND_MODES = [
+  SCHEDULE_BOUND_MODE_NONE,
+  SCHEDULE_BOUND_MODE_TIME,
+  SCHEDULE_BOUND_MODE_SUNRISE,
+  SCHEDULE_BOUND_MODE_SUNSET,
+  SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
+];
+
+// Which end the run is pinned to. Only meaningful when both Start and Finish
+// are bounded — with a single bound, that bound is unambiguously the anchor.
+export const SCHEDULE_ANCHOR_START = "start";
+export const SCHEDULE_ANCHOR_FINISH = "finish";
 
 // ---------------------------------------------------------------------------
 // Gardena water distributor (Plan F). Field keys mirror the backend

@@ -33,6 +33,8 @@ import {
   MAPPING_CONF_SOURCE,
   MAPPING_CONF_SOURCE_WEATHER_SERVICE,
   MAPPING_CONF_SOURCE_NONE,
+  SCHEDULE_BOUND_MODE_TIME,
+  SCHEDULE_BOUND_MODE_NONE,
 } from "../../const";
 import "../../components/si-field";
 import "../../components/si-weather-source-config";
@@ -336,9 +338,11 @@ export class SiSetupWizard extends LitElement {
       const lang = this.hass?.language ?? "en";
       await saveSchedule(this.hass, {
         name: localize("wizard.steps.done.schedule_name", lang) || "Daily",
-        type: "daily",
+        recurrence: "daily",
         enabled: true,
-        time: this._scheduleTime || "06:00",
+        start_mode: SCHEDULE_BOUND_MODE_TIME,
+        start_time: this._scheduleTime || "06:00",
+        finish_mode: SCHEDULE_BOUND_MODE_NONE,
         action: "irrigate",
         zones: "all",
       });

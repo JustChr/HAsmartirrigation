@@ -15,12 +15,17 @@ import { localize } from "../../../localize/localize";
 import { globalStyle } from "../../styles/global-style";
 import {
   DOMAIN,
-  SCHEDULE_TYPE_SUNRISE,
-  SCHEDULE_TYPE_SUNSET,
-  SCHEDULE_TYPE_SOLAR_AZIMUTH,
+  SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
+  SCHEDULE_BOUND_MODE_SUNRISE,
+  SCHEDULE_BOUND_MODE_SUNSET,
 } from "../../const";
 import { SmartIrrigationZone } from "../../types";
 import { showErrorToast } from "../../helpers";
+import {
+  StoredSchedule,
+  toEditable,
+  toStored,
+} from "../../common/schedule-shape";
 
 const DAYS = [
   "monday",
@@ -104,7 +109,9 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
         fetchSchedules(this.hass),
         fetchZones(this.hass),
       ]);
-      this._schedules = schedules || [];
+      this._schedules = ((schedules || []) as StoredSchedule[]).map(
+        (s) => toEditable(s) as unknown as Schedule,
+      );
       this._zones = zones || [];
     } catch (e) {
       console.error("Failed to load schedules", e);
@@ -135,7 +142,7 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     if (this._editingId) schedule.id = this._editingId;
     // Convert zones: if "all" keep as string, else keep as array
     try {
-      await saveSchedule(this.hass, schedule);
+      await saveSchedule(this.hass, toStored(schedule));
       this._closeDialog();
       await this._load();
     } catch (e) {
@@ -402,10 +409,10 @@ class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
             />
           </div>
         `;
-      case SCHEDULE_TYPE_SUNRISE:
-      case SCHEDULE_TYPE_SUNSET:
+      case SCHEDULE_BOUND_MODE_SUNRISE:
+      case SCHEDULE_BOUND_MODE_SUNSET:
         return html`${this._renderSunOffsetFields()}`;
-      case SCHEDULE_TYPE_SOLAR_AZIMUTH:
+      case SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH:
         return html`
           <div class="field">
             <label
