@@ -7,7 +7,11 @@ this module exists: under rotating, ``sum(durations)`` is not the wall clock.
 """
 
 import datetime
+import itertools
 import math
+import random
+
+import pytest
 
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.duration_math import duration_from_deficit
@@ -564,6 +568,47 @@ class TestBoundWallClock:
         assert bound == 4800 + 15 * 600
 
 
+class TestSelectLeaderIsTieBroken:
+    """When nothing in the driest group fits, WHICH zone gets the window."""
+
+    def _r(self, zone_id, ratio, days_ago):
+        return _run(
+            zone_id,
+            3600,
+            ratio=ratio,
+            last=datetime.datetime(2026, 8, 1) - datetime.timedelta(days=days_ago),
+        )
+
+    def test_leader_is_the_tie_broken_one_not_the_float_residue_one(self):
+        # Both ratios round to 1.20, so they are one tie group. Zone 1 is the
+        # longest unwatered and is therefore the group's tie-broken leader.
+        # Zone 0 leads only on sub-quantum residue, which is exactly what the
+        # rounding exists to discard.
+        runs = [self._r(0, 1.203, 1), self._r(1, 1.201, 5)]
+        assert [r.zone_id for r in rank(runs)] == [0, 1]
+        chosen = select(
+            runs,
+            window_seconds=60,
+            sequencing=SEQUENTIAL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+        assert [r.zone_id for r in chosen] == [1]
+
+    def test_a_strict_leader_is_still_the_leader(self):
+        # No tie: zone 0 is strictly driest, so it takes the window whatever
+        # the last-irrigation order says.
+        runs = [self._r(0, 5.0, 1), self._r(1, 1.2, 5)]
+        chosen = select(
+            runs,
+            window_seconds=60,
+            sequencing=SEQUENTIAL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+        assert [r.zone_id for r in chosen] == [0]
+
+
 class TestBoundIsAnUpperBound:
     """The bound has to cover what the runner would really do.
 
@@ -617,3 +662,75 @@ class TestBoundIsAnUpperBound:
             )
             == math.inf
         )
+
+
+class TestPackingOptimality:
+    """The packing claim, brute-forced rather than asserted on chosen cases.
+
+    ``select``'s docstring says the subset of a tie group delivering the most
+    watering seconds into the window wins. The existing tests demonstrate that
+    on hand-built examples, which cannot distinguish "the rule holds" from
+    "the rule holds on the examples someone thought of".
+    """
+
+    def _clock(self, subset, sequencing, absorb):
+        return concurrent_wall_clock(
+            subset,
+            sequencing=sequencing,
+            max_slot_seconds=300,
+            min_absorption_seconds=absorb,
+        )
+
+    def _brute_force_best(self, runs, window, sequencing, absorb):
+        """Most watering seconds any subset can deliver, priced the way the
+        run would actually execute.
+
+        Each candidate is ordered by the tie-break before pricing, because
+        that is the order the run is committed to and under rotating the
+        clock depends on it: the same three zones cost 1050 s in one order
+        and 1650 s in another, so a brute force free to reorder would be
+        measuring a packer this one deliberately is not.
+        """
+        best = 0.0
+        for size in range(1, len(runs) + 1):
+            for subset in itertools.combinations(runs, size):
+                ordered = sorted(subset, key=lambda r: (r.last_irrigation, r.zone_id))
+                if self._clock(ordered, sequencing, absorb) <= window:
+                    best = max(best, sum(r.duration for r in subset))
+        return best
+
+    @pytest.mark.parametrize("seed", range(25))
+    def test_one_tie_group_packs_the_window_optimally(self, seed):
+        rng = random.Random(seed)
+        runs = [
+            _run(
+                i,
+                rng.choice([120, 300, 450, 600, 900]),
+                ratio=1.5,
+                last=datetime.datetime(2026, 8, 1) - datetime.timedelta(days=i),
+            )
+            for i in range(rng.randint(2, 6))
+        ]
+        window = rng.uniform(0.3, 0.9) * sum(r.duration for r in runs)
+
+        for sequencing, absorb in (
+            (SEQUENTIAL, 0.0),
+            (PARALLEL, 0.0),
+            (ROTATING, 600.0),
+        ):
+            chosen = select(
+                runs,
+                window_seconds=window,
+                sequencing=sequencing,
+                max_slot_seconds=300,
+                min_absorption_seconds=absorb,
+            )
+            best = self._brute_force_best(runs, window, sequencing, absorb)
+            delivered = sum(r.duration for r in chosen)
+            if best == 0:
+                # Nothing fits at all, so the leader runs anyway and the
+                # deadline cuts it. That is the starvation-relief branch, not
+                # a packing decision.
+                assert len(chosen) == 1
+            else:
+                assert delivered == best

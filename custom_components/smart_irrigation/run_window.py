@@ -451,7 +451,14 @@ def select(
         if index == 0 and not subset:
             # Nothing in the driest group fits at all — the leader runs anyway
             # and the deadline truncates it. Lower groups are NOT consulted.
-            return [ranked[0]]
+            #
+            # The group's own leader, not ``ranked[0]``. Members were re-sorted
+            # by the tie-break a few lines above precisely so sub-quantum ratio
+            # residue could not decide execution order, and ``ranked[0]`` is
+            # that residue. This branch hands the entire window to one zone on
+            # the tightest nights, so it is the last place that should be
+            # settled by the noise the grouping exists to discard.
+            return [groups[0][0]]
         chosen = [*chosen, *subset]
     return chosen
 
