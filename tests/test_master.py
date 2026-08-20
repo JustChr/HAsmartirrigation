@@ -33,11 +33,11 @@ def _mcoord(**master_cfg):
     return c
 
 
-def test_storage_version_is_13():
-    # v13 records which unit system the stored zone values were written under,
-    # so a metric<->imperial flip is detectable across a restart (issue #67, see
-    # tests/test_unit_system_migration.py).
-    assert STORAGE_VERSION == 13
+def test_storage_version_is_14():
+    # v14 reshapes recurring schedules: the old `type` field is split into
+    # `recurrence` plus independent Start/Finish bounds (see
+    # tests/test_schedule_migration_v14.py).
+    assert STORAGE_VERSION == 14
 
 
 def test_config_has_master_defaults():

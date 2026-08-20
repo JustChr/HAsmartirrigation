@@ -28,9 +28,11 @@ def _finish_sched(sid="s1", time="06:00"):
     return {
         const.SCHEDULE_CONF_ID: sid,
         const.SCHEDULE_CONF_NAME: "restart probe",
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_DAILY,
-        const.SCHEDULE_CONF_TIME: time,
-        const.SCHEDULE_CONF_TIME_ANCHOR: const.SCHEDULE_TIME_ANCHOR_FINISH,
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+        const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_NONE,
+        const.SCHEDULE_CONF_FINISH_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+        const.SCHEDULE_CONF_FINISH_TIME: time,
+        const.SCHEDULE_CONF_ANCHOR: const.SCHEDULE_ANCHOR_FINISH,
         const.SCHEDULE_CONF_ACTION: "irrigate",
         const.SCHEDULE_CONF_ZONES: "all",
         const.SCHEDULE_CONF_ENABLED: True,
@@ -154,7 +156,7 @@ class TestMarkerSurvivesANewManager:
         await mgr.async_load_schedules()
         await _fire(hass, mgr, arms, monkeypatch)
 
-        target = await mgr._next_target_time(sched)
+        target = await mgr._next_governing_time(sched, const.SCHEDULE_ANCHOR_FINISH)
         assert store.config.fired_occurrences == {"s1": target.isoformat()}
 
     @pytest.mark.asyncio

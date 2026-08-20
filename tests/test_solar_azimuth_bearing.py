@@ -170,10 +170,12 @@ def _coord(schedules, corrected=False, lat=33.45, lon=-112.07):
 
 
 def _schedule(**over):
+    # A schedule carries a mode per BOUND, so the repair runs per bound rather
+    # than per schedule. This one is azimuth-bounded at its Start.
     s = {
         const.SCHEDULE_CONF_NAME: "Morning",
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_SOLAR_AZIMUTH,
-        const.SCHEDULE_CONF_AZIMUTH_ANGLE: 90,
+        const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
+        const.SCHEDULE_CONF_START_AZIMUTH: 90,
     }
     s.update(over)
     return s
@@ -185,7 +187,7 @@ async def test_the_stored_angle_is_rewritten_and_latched():
 
     await coord.async_correct_solar_azimuth_bearings()
 
-    assert schedules[0][const.SCHEDULE_CONF_AZIMUTH_ANGLE] != 90
+    assert schedules[0][const.SCHEDULE_CONF_START_AZIMUTH] != 90
     written = coord.store.updates[-1]
     assert written[const.CONF_AZIMUTH_BEARING_CORRECTED] is True
     assert written[const.CONF_RECURRING_SCHEDULES] is schedules
@@ -197,14 +199,16 @@ async def test_it_runs_only_once():
 
     await coord.async_correct_solar_azimuth_bearings()
 
-    assert schedules[0][const.SCHEDULE_CONF_AZIMUTH_ANGLE] == 90
+    assert schedules[0][const.SCHEDULE_CONF_START_AZIMUTH] == 90
     assert coord.store.updates == []
 
 
 async def test_non_azimuth_schedules_are_untouched():
     other = {
         const.SCHEDULE_CONF_NAME: "Daily",
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_DAILY,
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+        const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+        const.SCHEDULE_CONF_START_TIME: "06:00",
     }
     schedules = [dict(other)]
     coord = _coord(schedules)
@@ -227,7 +231,7 @@ async def test_a_greenwich_utc_install_sees_no_change():
         mp.setattr(dt_util, "DEFAULT_TIME_ZONE", datetime.UTC)
         await coord.async_correct_solar_azimuth_bearings()
 
-    assert schedules[0][const.SCHEDULE_CONF_AZIMUTH_ANGLE] == 90
+    assert schedules[0][const.SCHEDULE_CONF_START_AZIMUTH] == 90
     assert const.CONF_RECURRING_SCHEDULES not in coord.store.updates[-1]
 
 

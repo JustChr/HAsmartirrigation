@@ -39,8 +39,10 @@ def _sched(sid="s1", name="cfg probe", time="22:00"):
     return {
         const.SCHEDULE_CONF_ID: sid,
         const.SCHEDULE_CONF_NAME: name,
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_DAILY,
-        const.SCHEDULE_CONF_TIME: time,
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
+        const.SCHEDULE_CONF_START_MODE: const.SCHEDULE_BOUND_MODE_TIME,
+        const.SCHEDULE_CONF_START_TIME: time,
+        const.SCHEDULE_CONF_FINISH_MODE: const.SCHEDULE_BOUND_MODE_NONE,
         const.SCHEDULE_CONF_ACTION: "irrigate",
         const.SCHEDULE_CONF_ZONES: "all",
         const.SCHEDULE_CONF_ENABLED: True,

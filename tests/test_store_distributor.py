@@ -75,11 +75,11 @@ async def test_zone_membership_survives_reload(hass):
     assert z["outlet_number"] == 3
 
 
-def test_storage_version_is_13():
-    # v13 records which unit system the stored zone values were written under,
-    # so a metric<->imperial flip is detectable across a restart (issue #67, see
-    # tests/test_unit_system_migration.py).
-    assert STORAGE_VERSION == 13
+def test_storage_version_is_14():
+    # v14 reshapes recurring schedules: the old `type` field is split into
+    # `recurrence` plus independent Start/Finish bounds (see
+    # tests/test_schedule_migration_v14.py).
+    assert STORAGE_VERSION == 14
 
 
 async def test_migration_v10_adds_distributors_and_zone_fields(hass):

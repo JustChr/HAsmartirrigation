@@ -176,30 +176,10 @@ CONF_DEFAULT_RECURRING_SCHEDULES = []
 # outlive the object holding it. See RecurringScheduleManager.
 CONF_FIRED_OCCURRENCES = "fired_occurrences"
 
-# Recurring Schedule Configuration
-SCHEDULE_TYPE_DAILY = "daily"
-SCHEDULE_TYPE_WEEKLY = "weekly"
-SCHEDULE_TYPE_MONTHLY = "monthly"
-SCHEDULE_TYPE_INTERVAL = "interval"
-SCHEDULE_TYPE_SUNRISE = "sunrise"
-SCHEDULE_TYPE_SUNSET = "sunset"
-SCHEDULE_TYPE_SOLAR_AZIMUTH = "solar_azimuth"
-SCHEDULE_TYPES = [
-    SCHEDULE_TYPE_DAILY,
-    SCHEDULE_TYPE_WEEKLY,
-    SCHEDULE_TYPE_MONTHLY,
-    SCHEDULE_TYPE_INTERVAL,
-    SCHEDULE_TYPE_SUNRISE,
-    SCHEDULE_TYPE_SUNSET,
-    SCHEDULE_TYPE_SOLAR_AZIMUTH,
-]
-
 # Recurring Schedule Keys
 SCHEDULE_CONF_ID = "id"
 SCHEDULE_CONF_NAME = "name"
-SCHEDULE_CONF_TYPE = "type"
 SCHEDULE_CONF_ENABLED = "enabled"
-SCHEDULE_CONF_TIME = "time"
 SCHEDULE_CONF_DAYS_OF_WEEK = "days_of_week"
 SCHEDULE_CONF_DAY_OF_MONTH = "day_of_month"
 SCHEDULE_CONF_INTERVAL_HOURS = "interval_hours"
@@ -217,15 +197,60 @@ SCHEDULE_ACTION_IRRIGATE = "irrigate"
 # RecurringScheduleManager._validate_schedule_data and
 # SmartIrrigationCoordinator.async_drop_legacy_schedule_actions.
 SCHEDULE_SUPPORTED_ACTIONS = (SCHEDULE_ACTION_IRRIGATE,)
-SCHEDULE_CONF_OFFSET_MINUTES = "offset_minutes"
-SCHEDULE_CONF_ACCOUNT_FOR_DURATION = "account_for_duration"  # legacy; see time_anchor
-SCHEDULE_CONF_AZIMUTH_ANGLE = "azimuth_angle"
-# Whether the schedule's time marks when irrigation STARTS or when it FINISHES.
-# "finish" fires early enough (time − estimated duration) that the run ends at
-# the configured time. Supersedes account_for_duration for all schedule types.
-SCHEDULE_CONF_TIME_ANCHOR = "time_anchor"
-SCHEDULE_TIME_ANCHOR_START = "start"
-SCHEDULE_TIME_ANCHOR_FINISH = "finish"
+
+# Recurrence: how often a schedule comes round. Independent of where in the
+# day it lands — that is the Start/Finish bound below. Closes the old gap
+# where a sun-relative schedule could not be restricted to weekdays.
+SCHEDULE_RECURRENCE_DAILY = "daily"
+SCHEDULE_RECURRENCE_WEEKLY = "weekly"
+SCHEDULE_RECURRENCE_MONTHLY = "monthly"
+SCHEDULE_RECURRENCE_INTERVAL = "interval"
+SCHEDULE_RECURRENCES = [
+    SCHEDULE_RECURRENCE_DAILY,
+    SCHEDULE_RECURRENCE_WEEKLY,
+    SCHEDULE_RECURRENCE_MONTHLY,
+    SCHEDULE_RECURRENCE_INTERVAL,
+]
+SCHEDULE_CONF_RECURRENCE = "recurrence"
+
+# A run's window is two bounded ends, Start and Finish, each independently
+# "none" (unbounded) or one of a clock time / sunrise / sunset / solar
+# azimuth. Not meaningful for an interval recurrence, which has no time of
+# day and therefore no window.
+SCHEDULE_BOUND_MODE_NONE = "none"
+SCHEDULE_BOUND_MODE_TIME = "time"
+SCHEDULE_BOUND_MODE_SUNRISE = "sunrise"
+SCHEDULE_BOUND_MODE_SUNSET = "sunset"
+SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH = "solar_azimuth"
+SCHEDULE_BOUND_MODES = [
+    SCHEDULE_BOUND_MODE_NONE,
+    SCHEDULE_BOUND_MODE_TIME,
+    SCHEDULE_BOUND_MODE_SUNRISE,
+    SCHEDULE_BOUND_MODE_SUNSET,
+    SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
+]
+SCHEDULE_DEFAULT_BOUND_MODE = SCHEDULE_BOUND_MODE_NONE
+
+SCHEDULE_CONF_START_MODE = "start_mode"
+# SCHEDULE_CONF_START_TIME (above) doubles as the HH:MM value when
+# start_mode = "time" — the same key an interval schedule's own optional
+# clock anchor already used, which never collides since a schedule is never
+# both interval and start/finish-bounded at once.
+SCHEDULE_CONF_START_OFFSET = "start_offset"  # signed minutes, sun-relative modes
+SCHEDULE_CONF_START_AZIMUTH = "start_azimuth"  # degrees, start_mode = solar_azimuth
+
+SCHEDULE_CONF_FINISH_MODE = "finish_mode"
+SCHEDULE_CONF_FINISH_TIME = "finish_time"  # HH:MM, finish_mode = "time"
+SCHEDULE_CONF_FINISH_OFFSET = "finish_offset"  # signed minutes, sun-relative modes
+SCHEDULE_CONF_FINISH_AZIMUTH = "finish_azimuth"  # degrees, finish_mode = solar_azimuth
+
+# Which end the run is pinned to. Only meaningful when both Start and Finish
+# are bounded — with a single bound, that bound is unambiguously the anchor.
+SCHEDULE_CONF_ANCHOR = "anchor"
+SCHEDULE_ANCHOR_START = "start"
+SCHEDULE_ANCHOR_FINISH = "finish"
+SCHEDULE_ANCHORS = [SCHEDULE_ANCHOR_START, SCHEDULE_ANCHOR_FINISH]
+SCHEDULE_DEFAULT_ANCHOR = SCHEDULE_ANCHOR_FINISH
 
 CONF_WEATHER_SERVICE = "weather_service"
 CONF_WEATHER_SERVICE_API_KEY = (

@@ -187,10 +187,13 @@ export interface SkipPreview {
 export interface UpcomingRun {
   schedule_id: string;
   name: string;
-  action: "irrigate" | "calculate" | "update" | string;
+  /** Always "irrigate": a recurring schedule cannot carry anything else. */
+  action: string;
   zones: "all" | number[];
-  type: string;
-  time_anchor: "start" | "finish" | string;
+  recurrence: string;
+  /** Which end of the window governs this occurrence's timing. Absent for
+   * an interval schedule, which has no Start/Finish bound. */
+  anchor?: "start" | "finish" | string;
   next_run_utc: string | null;
   target_utc: string | null;
   duration_seconds: number;

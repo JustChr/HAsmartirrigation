@@ -1,7 +1,8 @@
-"""Tests for the start/finish time anchor + sequencing-aware duration + bucket
-reset introduced for the irrigation-timer work."""
+"""Tests for the Start/Finish bound reshape + sequencing-aware
+duration + bucket reset introduced for the irrigation-timer work."""
 
 import datetime
+import logging
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -10,6 +11,9 @@ from freezegun import freeze_time
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation import scheduler as scheduler_module
 from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+
+UTC = datetime.timezone.utc
+
 
 WEEKDAYS = [
     "monday",
@@ -26,72 +30,105 @@ def _sched(**kw):
     base = {
         const.SCHEDULE_CONF_ID: "s1",
         const.SCHEDULE_CONF_NAME: "x",
-        const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_DAILY,
+        const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_DAILY,
     }
     base.update(kw)
     return base
 
 
-class TestTimeAnchor:
-    """`_time_anchor` resolves explicit value, else the legacy flag."""
+class TestGoverningEnd:
+    """`_governing_end` resolves which end of the window the run is pinned
+    to, and which one wins when both are bounded."""
 
-    def test_explicit_wins(self):
+    def test_only_finish_bounded_is_governing(self):
         assert (
-            RecurringScheduleManager._time_anchor(_sched(time_anchor="finish"))
-            == const.SCHEDULE_TIME_ANCHOR_FINISH
-        )
-        assert (
-            RecurringScheduleManager._time_anchor(_sched(time_anchor="start"))
-            == const.SCHEDULE_TIME_ANCHOR_START
-        )
-
-    def test_legacy_solar_account_for_duration(self):
-        finish = _sched(type=const.SCHEDULE_TYPE_SUNRISE, account_for_duration=True)
-        start = _sched(type=const.SCHEDULE_TYPE_SUNSET, account_for_duration=False)
-        assert (
-            RecurringScheduleManager._time_anchor(finish)
-            == const.SCHEDULE_TIME_ANCHOR_FINISH
-        )
-        assert (
-            RecurringScheduleManager._time_anchor(start)
-            == const.SCHEDULE_TIME_ANCHOR_START
+            RecurringScheduleManager._governing_end(
+                _sched(finish_mode=const.SCHEDULE_BOUND_MODE_TIME, finish_time="06:00")
+            )
+            == const.SCHEDULE_ANCHOR_FINISH
         )
 
-    def test_legacy_clock_always_start(self):
-        # Clock types never honored account_for_duration, so they stay "start"
-        # even with the legacy flag set, to preserve existing behavior.
-        s = _sched(type=const.SCHEDULE_TYPE_DAILY, account_for_duration=True)
+    def test_only_start_bounded_is_governing(self):
         assert (
-            RecurringScheduleManager._time_anchor(s) == const.SCHEDULE_TIME_ANCHOR_START
+            RecurringScheduleManager._governing_end(
+                _sched(start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="06:00")
+            )
+            == const.SCHEDULE_ANCHOR_START
         )
 
+    def test_both_bounded_explicit_anchor_wins(self):
+        assert (
+            RecurringScheduleManager._governing_end(
+                _sched(
+                    start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
+                    finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
+                    anchor=const.SCHEDULE_ANCHOR_START,
+                )
+            )
+            == const.SCHEDULE_ANCHOR_START
+        )
 
-class TestClockDayMatches:
+    def test_both_bounded_default_anchor_is_finish(self):
+        assert (
+            RecurringScheduleManager._governing_end(
+                _sched(
+                    start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
+                    finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
+                )
+            )
+            == const.SCHEDULE_ANCHOR_FINISH
+        )
+
+    def test_neither_bounded_returns_none(self):
+        assert RecurringScheduleManager._governing_end(_sched()) is None
+
+
+class TestRecurrenceDayMatches:
     def test_daily_always(self):
         dt = datetime.datetime(2026, 6, 10)
-        assert RecurringScheduleManager._clock_day_matches(
-            _sched(type=const.SCHEDULE_TYPE_DAILY), dt
+        assert RecurringScheduleManager._recurrence_day_matches(
+            _sched(recurrence=const.SCHEDULE_RECURRENCE_DAILY), dt
         )
 
     def test_weekly(self):
         dt = datetime.datetime(2026, 6, 10)
         today = WEEKDAYS[dt.weekday()]
         other = WEEKDAYS[(dt.weekday() + 1) % 7]
-        assert RecurringScheduleManager._clock_day_matches(
-            _sched(type=const.SCHEDULE_TYPE_WEEKLY, days_of_week=[today]), dt
+        assert RecurringScheduleManager._recurrence_day_matches(
+            _sched(recurrence=const.SCHEDULE_RECURRENCE_WEEKLY, days_of_week=[today]),
+            dt,
         )
-        assert not RecurringScheduleManager._clock_day_matches(
-            _sched(type=const.SCHEDULE_TYPE_WEEKLY, days_of_week=[other]), dt
+        assert not RecurringScheduleManager._recurrence_day_matches(
+            _sched(recurrence=const.SCHEDULE_RECURRENCE_WEEKLY, days_of_week=[other]),
+            dt,
         )
 
     def test_monthly(self):
         dt = datetime.datetime(2026, 6, 10)
-        assert RecurringScheduleManager._clock_day_matches(
-            _sched(type=const.SCHEDULE_TYPE_MONTHLY, day_of_month=10), dt
+        assert RecurringScheduleManager._recurrence_day_matches(
+            _sched(recurrence=const.SCHEDULE_RECURRENCE_MONTHLY, day_of_month=10), dt
         )
-        assert not RecurringScheduleManager._clock_day_matches(
-            _sched(type=const.SCHEDULE_TYPE_MONTHLY, day_of_month=11), dt
+        assert not RecurringScheduleManager._recurrence_day_matches(
+            _sched(recurrence=const.SCHEDULE_RECURRENCE_MONTHLY, day_of_month=11), dt
         )
+
+    def test_weekly_with_a_sun_relative_bound_still_matches_by_day(self):
+        """The gap the reshape closes: recurrence and time-of-day are
+        independent, so weekday filtering applies no matter which bound mode
+        produced the candidate instant — a sun-relative Finish on a weekly
+        recurrence is restricted to its chosen days exactly like a clock time
+        would be."""
+        dt = datetime.datetime(2026, 6, 10)  # a Wednesday
+        today = WEEKDAYS[dt.weekday()]
+        other = WEEKDAYS[(dt.weekday() + 1) % 7]
+        sched = _sched(
+            recurrence=const.SCHEDULE_RECURRENCE_WEEKLY,
+            finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
+            days_of_week=[today],
+        )
+        assert RecurringScheduleManager._recurrence_day_matches(sched, dt)
+        sched[const.SCHEDULE_CONF_DAYS_OF_WEEK] = [other]
+        assert not RecurringScheduleManager._recurrence_day_matches(sched, dt)
 
 
 @pytest.fixture
@@ -294,9 +331,9 @@ class TestFinishTrackerAdvance:
     @staticmethod
     def _finish_sched():
         return _sched(
-            type=const.SCHEDULE_TYPE_DAILY,
-            time="06:00",
-            time_anchor=const.SCHEDULE_TIME_ANCHOR_FINISH,
+            recurrence=const.SCHEDULE_RECURRENCE_DAILY,
+            finish_mode=const.SCHEDULE_BOUND_MODE_TIME,
+            finish_time="06:00",
             action="irrigate",
             zones="all",
         )
@@ -320,8 +357,10 @@ class TestFinishTrackerAdvance:
 
         # Re-arming for an occurrence we already fired must jump to the NEXT
         # occurrence's start (a future time), never the ~now+2s loop value.
-        target1 = await mgr._next_target_time(sched)
-        target2 = await mgr._next_target_time(sched, reference_utc=target1)
+        target1 = await mgr._next_governing_time(sched, const.SCHEDULE_ANCHOR_FINISH)
+        target2 = await mgr._next_governing_time(
+            sched, const.SCHEDULE_ANCHOR_FINISH, reference_utc=target1
+        )
         assert target2 - target1 == datetime.timedelta(days=1)
 
         mgr._finish_last_target[sid] = target1.isoformat()
@@ -347,7 +386,9 @@ class TestFinishTrackerAdvance:
         # the past, so a fresh arm is the "missed start" case (tz-agnostic).
         finish = dt_util.now() + datetime.timedelta(minutes=30)
         sched = self._finish_sched()
-        sched[const.SCHEDULE_CONF_TIME] = f"{finish.hour:02d}:{finish.minute:02d}"
+        sched[const.SCHEDULE_CONF_FINISH_TIME] = (
+            f"{finish.hour:02d}:{finish.minute:02d}"
+        )
         sid = sched[const.SCHEDULE_CONF_ID]
 
         captured: list = []
@@ -363,7 +404,7 @@ class TestFinishTrackerAdvance:
 
         # After the catch-up fires, the re-arm advances to the next occurrence
         # instead of scheduling another ASAP catch-up (the busy loop).
-        target = await mgr._next_target_time(sched)
+        target = await mgr._next_governing_time(sched, const.SCHEDULE_ANCHOR_FINISH)
         mgr._finish_last_target[sid] = target.isoformat()
         await mgr._setup_finish_tracker(sched)
         assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
@@ -384,17 +425,19 @@ class TestFinishTrackerAdvance:
         mgr = RecurringScheduleManager(coordinator.hass, coordinator)
         mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=300)
         sched = _sched(
-            type=const.SCHEDULE_TYPE_SUNRISE,
-            time_anchor=const.SCHEDULE_TIME_ANCHOR_FINISH,
+            recurrence=const.SCHEDULE_RECURRENCE_DAILY,
+            finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
+            finish_offset=-30,
             action="irrigate",
             zones="all",
-            offset_minutes=-30,
         )
 
         # The core regression: advancing past the fired occurrence must land on
         # the NEXT sunrise (~1 day later), never re-derive the same target.
-        target1 = await mgr._next_target_time(sched)
-        target2 = await mgr._next_target_time(sched, reference_utc=target1)
+        target1 = await mgr._next_governing_time(sched, const.SCHEDULE_ANCHOR_FINISH)
+        target2 = await mgr._next_governing_time(
+            sched, const.SCHEDULE_ANCHOR_FINISH, reference_utc=target1
+        )
         assert target2 > target1
         assert (
             datetime.timedelta(hours=20)
@@ -416,63 +459,73 @@ class TestFinishTrackerAdvance:
 
 
 class TestSolarScheduleMatrix:
-    """Full matrix: the three solar schedule types x {zero, negative, positive}
+    """Full matrix: the three solar bound modes x {zero, negative, positive}
     offset x {finish, start} anchor = 18 cases. Guards the negative-offset
     busy-loop regression (live 2026-07-04) across every combination and confirms
     each one advances past a fired occurrence and arms a single FUTURE run — no
     ~2s "run ASAP" catch-up loop.
 
     Anchor dispatch (scheduler.py):
-      - finish (all three types) -> _setup_finish_tracker (point-in-time,
-        _next_target_time + _finish_last_target guard);
+      - finish (all three modes) -> _setup_finish_tracker (point-in-time,
+        _next_governing_time + _finish_last_target guard);
       - start sunrise/sunset     -> async_track_sunrise/sunset (offset-based HA
         primitive, structurally loop-free);
-      - start azimuth            -> _setup_azimuth_tracker (point-in-time,
-        _next_target_time-based, so the same fix protects it).
+      - start azimuth            -> the resolver-driven one-shot
+        (_setup_resolved_one_shot, _next_governing_time-based, so the same fix
+        protects it).
     """
 
-    SOLAR_TYPES = [
-        const.SCHEDULE_TYPE_SUNRISE,
-        const.SCHEDULE_TYPE_SUNSET,
-        const.SCHEDULE_TYPE_SOLAR_AZIMUTH,
+    SOLAR_MODES = [
+        const.SCHEDULE_BOUND_MODE_SUNRISE,
+        const.SCHEDULE_BOUND_MODE_SUNSET,
+        const.SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH,
     ]
     OFFSETS = [0, -30, 45]
     ANCHORS = [
-        const.SCHEDULE_TIME_ANCHOR_FINISH,
-        const.SCHEDULE_TIME_ANCHOR_START,
+        const.SCHEDULE_ANCHOR_FINISH,
+        const.SCHEDULE_ANCHOR_START,
     ]
 
-    @pytest.mark.parametrize("stype", SOLAR_TYPES)
+    @staticmethod
+    def _solar_sched(mode, anchor, offset):
+        end_prefix = "start" if anchor == const.SCHEDULE_ANCHOR_START else "finish"
+        other_prefix = "finish" if end_prefix == "start" else "start"
+        sched = _sched(
+            recurrence=const.SCHEDULE_RECURRENCE_DAILY,
+            action="irrigate",
+            zones="all",
+        )
+        sched[f"{end_prefix}_mode"] = mode
+        sched[f"{end_prefix}_offset"] = offset
+        if mode == const.SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH:
+            sched[f"{end_prefix}_azimuth"] = 90
+        sched[f"{other_prefix}_mode"] = const.SCHEDULE_BOUND_MODE_NONE
+        return sched
+
+    @pytest.mark.parametrize("mode", SOLAR_MODES)
     @pytest.mark.parametrize("offset", OFFSETS)
     @pytest.mark.parametrize("anchor", ANCHORS)
     @pytest.mark.asyncio
     @freeze_time("2026-06-10 06:00:00")
     async def test_solar_matrix_no_busy_loop(
-        self, coordinator, monkeypatch, stype, offset, anchor
+        self, coordinator, monkeypatch, mode, offset, anchor
     ):
         import homeassistant.util.dt as dt_util
 
         mgr = RecurringScheduleManager(coordinator.hass, coordinator)
         mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=300)
-        sched = _sched(
-            type=stype,
-            time_anchor=anchor,
-            action="irrigate",
-            zones="all",
-            offset_minutes=offset,
-            azimuth_angle=90,
-        )
+        sched = self._solar_sched(mode, anchor, offset)
 
         # (1) Advance invariant — the root of the busy-loop. Re-arming past the
         # occurrence just fired must land on the NEXT one (~1 day later), never
         # re-derive the same target. A negative offset defeated this before the
         # fix (target2 == target1 -> now+2s loop).
-        t1 = await mgr._next_target_time(sched)
-        t2 = await mgr._next_target_time(sched, reference_utc=t1)
-        assert t2 > t1, f"{stype}/{offset}/{anchor}: no advance -> busy-loop"
+        t1 = await mgr._next_governing_time(sched, anchor)
+        t2 = await mgr._next_governing_time(sched, anchor, reference_utc=t1)
+        assert t2 > t1, f"{mode}/{offset}/{anchor}: no advance -> busy-loop"
         assert (
             datetime.timedelta(hours=20) < t2 - t1 < datetime.timedelta(hours=28)
-        ), f"{stype}/{offset}/{anchor}: advance {t2 - t1} not ~1 day"
+        ), f"{mode}/{offset}/{anchor}: advance {t2 - t1} not ~1 day"
 
         # (2) The anchor's tracker is armed once, at a FUTURE time — never an
         # immediate/now+2s catch-up.
@@ -497,28 +550,28 @@ class TestSolarScheduleMatrix:
         await mgr._setup_schedule_tracker(sched)
 
         off_delta = datetime.timedelta(minutes=offset)
-        if anchor == const.SCHEDULE_TIME_ANCHOR_FINISH:
-            # All three solar types finish via the point-in-time finish tracker.
+        if anchor == const.SCHEDULE_ANCHOR_FINISH:
+            # All three solar modes finish via the point-in-time finish tracker.
             assert len(point) == 1 and not sunrise and not sunset
             assert point[0] > dt_util.utcnow()  # future start, not now+2s
-        elif stype == const.SCHEDULE_TYPE_SUNRISE:
+        elif mode == const.SCHEDULE_BOUND_MODE_SUNRISE:
             assert sunrise == [off_delta] and not point and not sunset
-        elif stype == const.SCHEDULE_TYPE_SUNSET:
+        elif mode == const.SCHEDULE_BOUND_MODE_SUNSET:
             assert sunset == [off_delta] and not point and not sunrise
         else:  # solar azimuth, start anchor -> self-rescheduling point-in-time
             assert len(point) == 1 and not sunrise and not sunset
             assert point[0] > dt_util.utcnow()
 
     @pytest.mark.parametrize(
-        "stype,track_name",
+        "mode,track_name",
         [
-            (const.SCHEDULE_TYPE_SUNRISE, "async_track_sunrise"),
-            (const.SCHEDULE_TYPE_SUNSET, "async_track_sunset"),
+            (const.SCHEDULE_BOUND_MODE_SUNRISE, "async_track_sunrise"),
+            (const.SCHEDULE_BOUND_MODE_SUNSET, "async_track_sunset"),
         ],
     )
     @pytest.mark.asyncio
     async def test_start_solar_callback_fires_with_no_args(
-        self, coordinator, monkeypatch, stype, track_name
+        self, coordinator, monkeypatch, mode, track_name
     ):
         """Regression: HA invokes the sunrise/sunset callback with NO arguments
         (Callable[[], None] via async_run_hass_job), unlike the point-in-time /
@@ -540,11 +593,12 @@ class TestSolarScheduleMatrix:
         )
 
         sched = _sched(
-            type=stype,
-            time_anchor=const.SCHEDULE_TIME_ANCHOR_START,
+            recurrence=const.SCHEDULE_RECURRENCE_DAILY,
+            start_mode=mode,
+            start_offset=60,
+            finish_mode=const.SCHEDULE_BOUND_MODE_NONE,
             action="irrigate",
             zones="all",
-            offset_minutes=60,
         )
         await mgr._setup_schedule_tracker(sched)
 
@@ -565,7 +619,7 @@ class TestIntervalStartTime:
         base = {
             const.SCHEDULE_CONF_ID: "i1",
             const.SCHEDULE_CONF_NAME: "pots",
-            const.SCHEDULE_CONF_TYPE: const.SCHEDULE_TYPE_INTERVAL,
+            const.SCHEDULE_CONF_RECURRENCE: const.SCHEDULE_RECURRENCE_INTERVAL,
             const.SCHEDULE_CONF_INTERVAL_HOURS: 12,
             const.SCHEDULE_CONF_ACTION: "irrigate",
             const.SCHEDULE_CONF_ZONES: "all",
@@ -652,10 +706,12 @@ class TestIntervalStartTime:
     async def test_rearm_advances_not_double_fire(self, coordinator):
         """Re-arming from the just-fired target must jump to the next occurrence,
         not re-derive the same time (which would immediately re-fire)."""
+        import homeassistant.util.dt as dt_util
+
         mgr = RecurringScheduleManager(coordinator.hass, coordinator)
         sched = self._sched(start_time="07:00")
-        target1 = await mgr._next_target_time(sched)
-        target2 = await mgr._next_target_time(sched, reference_utc=target1)
+        target1 = mgr._next_interval_target(sched, dt_util.utcnow())
+        target2 = mgr._next_interval_target(sched, target1)
         assert target2 - target1 == datetime.timedelta(hours=12)
 
     @pytest.mark.asyncio
