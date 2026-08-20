@@ -26,8 +26,15 @@ class _Host(AutoCalcMixin):
         self.async_update_zone_config = AsyncMock()
 
 
-def _zone(zid, last_calculated):
-    return {const.ZONE_ID: zid, const.ZONE_LAST_CALCULATED: last_calculated}
+def _zone(zid, last_calculated, state=const.ZONE_STATE_AUTOMATIC):
+    """A stored zone. ``state`` defaults to automatic because ZoneEntry.state
+    does: a real zone always carries one, and the guard only considers the
+    zones a calculation can actually advance."""
+    return {
+        const.ZONE_ID: zid,
+        const.ZONE_LAST_CALCULATED: last_calculated,
+        const.ZONE_STATE: state,
+    }
 
 
 def _ago(hours):
@@ -41,6 +48,45 @@ class TestLedgerStaleness:
         # on one raises TypeError, the midnight task dies unretrieved, and the
         # ledger is left to rot until the replay window outruns the buffer.
         host = _Host([_zone(0, _ago(2)), _zone(1, _ago(30))])
+        await host.async_guard_ledger_staleness()
+        host._async_calculate_all.assert_awaited_once()
+
+    async def test_a_disabled_zone_does_not_latch_the_guard(self):
+        """A stale stamp on a zone the commit skips must not trigger one.
+
+        _async_calculate_all only touches automatic zones, so a disabled zone's
+        stamp never advances. Counting it as stale would fire the guard every
+        midnight forever, turning the before-run mode into a midnight mode and
+        leaving the guard unable to tell a rotting ledger from a parked zone.
+        """
+        host = _Host(
+            [
+                _zone(0, _ago(1)),
+                _zone(1, None, state=const.ZONE_STATE_DISABLED),
+            ]
+        )
+        await host.async_guard_ledger_staleness()
+        host._async_calculate_all.assert_not_awaited()
+
+    async def test_a_manual_zone_does_not_latch_the_guard(self):
+        host = _Host(
+            [
+                _zone(0, _ago(1)),
+                _zone(1, _ago(500), state=const.ZONE_STATE_MANUAL),
+            ]
+        )
+        await host.async_guard_ledger_staleness()
+        host._async_calculate_all.assert_not_awaited()
+
+    async def test_a_stale_automatic_zone_still_triggers_one(self):
+        """The filter must not swallow the case the guard exists for."""
+        host = _Host(
+            [
+                _zone(0, _ago(1)),
+                _zone(1, _ago(500)),
+                _zone(2, None, state=const.ZONE_STATE_DISABLED),
+            ]
+        )
         await host.async_guard_ledger_staleness()
         host._async_calculate_all.assert_awaited_once()
 

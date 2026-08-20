@@ -88,9 +88,20 @@ class AutoCalcMixin:
         cutoff = dt_util.now().replace(tzinfo=None) - timedelta(
             hours=const.AUTO_CALC_MAX_LEDGER_AGE_HOURS
         )
-        if not self._any_zone_ledger_older_than(
-            await self.store.async_get_zones(), cutoff
-        ):
+        # Only the zones the commit can actually advance. _async_calculate_all
+        # skips anything not automatic, so counting a disabled or manual zone as
+        # stale latches the guard permanently: its stamp is old, the calculation
+        # never touches it, and every following midnight sees the same stale
+        # stamp. The guard would then fire nightly forever whether or not the
+        # ledger were rotting, which both makes the before-run mode a
+        # midnight-calculation mode and destroys the guard's ability to observe
+        # the condition it exists for.
+        automatic = [
+            zone
+            for zone in await self.store.async_get_zones()
+            if zone.get(const.ZONE_STATE) == const.ZONE_STATE_AUTOMATIC
+        ]
+        if not self._any_zone_ledger_older_than(automatic, cutoff):
             return
         _LOGGER.info(
             "No calculation committed in %sh under the before-run calculation "
