@@ -976,3 +976,97 @@ class TestWhatThePanelIsToldAboutEachZone:
             "rather than paused itself"
         )
         assert runs["2"]["queued"] is True
+
+
+class TestAPauseStopsTheWholeQueue:
+    """Issue #88, reported from the field against v2026.08.14.
+
+    "Valve run for exact time calculated by integration, but bucket still showed
+    -7 mm." A queued run's only backstop is a deadline derived from the watering
+    time of the zones ahead of it, and that budget is spent in wall-clock time —
+    which assumes the controller is spending that time watering. A pause is
+    exactly the case where it is not.
+
+    So an in-bounds pause wrote off every zone queued behind it: run dropped,
+    optimistic credit reversed, ``zone_never_ran`` raised. Then the controller
+    resumed and watered them anyway, with nothing left watching the valve. The
+    water is delivered and never credited, which is precisely what that bucket
+    reading is.
+    """
+
+    async def _paused_with_one_queued(self, hass):
+        """Zone 1 watering then paused; zone 2 still waiting its turn."""
+        c = _coord(hass, **{const.CONF_BATCH_PAUSED_ENTITY: PAUSED})
+        zones = _register(c, _zone(1, VALVE_A, 600), _zone(2, VALVE_B, 600))
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "off")
+        await _set(hass, VALVE_B, "off")
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+        await _set(hass, VALVE_A, "on")
+        await _advance(hass, 60)
+        await _set(hass, PAUSED, "on")
+        await _set(hass, VALVE_A, "off")
+        await _settle(hass)
+        assert [r[const.RUN_ZONE_ID] for r in c._runs] == [1, 2]
+        return c
+
+    async def test_a_queued_zone_is_not_written_off_during_a_pause(self, hass):
+        c = await self._paused_with_one_queued(hass)
+
+        # An hour of pause — well inside BATCH_PAUSE_BACKSTOP_SECONDS, and past
+        # zone 2's whole queue deadline (accept + 600 ahead + 600 own + margin).
+        await _advance(hass, 3600)
+
+        assert any(r[const.RUN_ZONE_ID] == 2 for r in c._runs), (
+            "zone 2 was written off while the controller was paused and its turn "
+            "could not possibly have come"
+        )
+        assert const.PROBLEM_ZONE_NEVER_RAN not in [
+            call.args[1] for call in c._set_zone_fault.call_args_list
+        ], "a paused controller is not a controller that never watered the zone"
+
+    async def test_the_zone_still_waters_and_credits_after_the_pause(self, hass):
+        """The consequence the user actually sees, end to end."""
+        c = await self._paused_with_one_queued(hass)
+        await _advance(hass, 3600)
+
+        # The controller comes back and works through the rest of the queue.
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "on")
+        await hass.async_block_till_done()
+        await _set(hass, VALVE_A, "off")
+        await _settle(hass)
+        await _set(hass, VALVE_B, "on")
+        await hass.async_block_till_done()
+
+        run = next(r for r in c._runs if r[const.RUN_ZONE_ID] == 2)
+        assert run.get(const.RUN_OBSERVED_START) is not None, (
+            "nothing was watching zone 2's valve, so its water is delivered and "
+            "never accounted for"
+        )
+
+    async def test_the_clock_is_stopped_rather_than_the_deadline_extended(self, hass):
+        """A pause must not buy a queued run an unbounded new wait.
+
+        The deadline resumes with the time it had LEFT, so the total wait is the
+        original budget plus the pauses actually sat through — not a fresh full
+        deadline for every pause a controller takes.
+        """
+        c = await self._paused_with_one_queued(hass)
+        watcher = c._watchers()[2]
+        assert watcher.cancel is None, "the clock is not stopped"
+        left = watcher.deadline_left
+        assert left is not None and left > 0
+
+        await _advance(hass, 3600)
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "on")
+        await hass.async_block_till_done()
+        assert c._watchers()[2].cancel is not None, "the clock never restarted"
+
+        # And it is still the ORIGINAL remainder, so it can still expire.
+        await _advance(hass, left + 60)
+        assert not any(r[const.RUN_ZONE_ID] == 2 for r in c._runs), (
+            "a zone the controller never reaches must still be written off; "
+            "suspending the clock must not become never ending"
+        )
