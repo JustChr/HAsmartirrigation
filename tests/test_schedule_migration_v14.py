@@ -358,6 +358,87 @@ class TestMissingOrMalformedType:
         _assert_no_retired_keys(new)
 
 
+class TestAnUnrecognizedTimeAnchor:
+    """v13 read `time_anchor` through a membership test and fell back when it
+    matched neither value, and nothing on the write side ever validated it:
+    the panel sent it, the service schema did not expose it, and
+    `_validate_schedule_data` did not check it. So a stored v13 schedule can
+    carry any string there, and it fired perfectly well.
+
+    The migration has to reproduce that tolerance, because the alternative is
+    not an error. Taking the raw value as the bound prefix writes keys like
+    `middle_mode`, leaves both real ends unbounded, and the schedule is then
+    dropped at arm time with a warning nobody reads. That is the exact failure
+    this reshape exists to prevent, arriving through the migration meant to
+    prevent it.
+    """
+
+    @pytest.mark.parametrize("junk", ["middle", "", "START", 0, True, None])
+    def test_a_clock_type_falls_back_to_a_bounded_start(self, junk):
+        new = _migrate_schedule_to_v14(
+            {
+                "id": "s1",
+                "name": "x",
+                "type": "daily",
+                "time": "06:00",
+                "time_anchor": junk,
+            }
+        )
+        assert new["start_mode"] == "time"
+        assert new["start_time"] == "06:00"
+        assert new["finish_mode"] == "none"
+        assert new["anchor"] == "start"
+        _assert_no_retired_keys(new)
+
+    @pytest.mark.parametrize("junk", ["middle", "", "FINISH", 0, True, None])
+    def test_a_solar_type_falls_back_to_the_legacy_flag(self, junk):
+        """Not to start: on the solar types the fallback v13 applied was
+        `account_for_duration`, which defaults to a finish anchor."""
+        new = _migrate_schedule_to_v14(
+            {"id": "s1", "name": "x", "type": "sunrise", "time_anchor": junk}
+        )
+        assert new["finish_mode"] == "sunrise"
+        assert new["start_mode"] == "none"
+        assert new["anchor"] == "finish"
+        _assert_no_retired_keys(new)
+
+    def test_a_solar_type_with_the_flag_off_falls_back_to_start(self):
+        new = _migrate_schedule_to_v14(
+            {
+                "id": "s1",
+                "name": "x",
+                "type": "sunset",
+                "time_anchor": "middle",
+                "account_for_duration": False,
+            }
+        )
+        assert new["start_mode"] == "sunset"
+        assert new["finish_mode"] == "none"
+        assert new["anchor"] == "start"
+
+    @pytest.mark.parametrize("junk", ["middle", 0, None])
+    def test_no_bound_key_is_named_after_the_junk_value(self, junk):
+        """The property underneath all of the above, stated directly: only
+        `start_` and `finish_` keys are ever written."""
+        for old_type in ("daily", "sunrise", "solar_azimuth"):
+            new = _migrate_schedule_to_v14(
+                {
+                    "id": "s1",
+                    "name": "x",
+                    "type": old_type,
+                    "time": "06:00",
+                    "time_anchor": junk,
+                }
+            )
+            stray = [
+                k
+                for k in new
+                if k.endswith(("_mode", "_time", "_offset", "_azimuth"))
+                and not k.startswith(("start_", "finish_"))
+            ]
+            assert not stray, f"{old_type}: migration invented {stray}"
+
+
 class TestFullMigrationPipeline:
     """Through `_async_migrate_func`, not just the pure per-schedule helper."""
 
