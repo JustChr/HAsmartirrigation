@@ -41,8 +41,14 @@ def _translate_legacy_schedule_fields(schedule_data: dict) -> dict:
         return schedule_data
     schedule_data[const.SCHEDULE_CONF_RECURRENCE] = old_type
     schedule_data[const.SCHEDULE_CONF_START_MODE] = const.SCHEDULE_BOUND_MODE_TIME
-    if old_time is not None:
-        schedule_data[const.SCHEDULE_CONF_START_TIME] = old_time
+    # ``time`` is published as optional, and on the old shape omitting it meant
+    # 06:00 by way of the resolver's own default. A Start bound in "time" mode
+    # with no time is not a bound at all, so the value that default produced is
+    # written out here, exactly as the storage migration does for a stored
+    # schedule that omitted it.
+    schedule_data[const.SCHEDULE_CONF_START_TIME] = (
+        old_time if old_time is not None else "06:00"
+    )
     return schedule_data
 
 

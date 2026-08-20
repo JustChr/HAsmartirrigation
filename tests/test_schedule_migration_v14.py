@@ -5,9 +5,14 @@ a destructive migration — retired keys must be gone afterward — so every sha
 the old fields could express is exercised here.
 """
 
+import datetime
+from unittest.mock import AsyncMock, Mock
+
 import pytest
+from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
+from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
 from custom_components.smart_irrigation.store import (
     STORAGE_VERSION,
     MigratableStore,
@@ -417,3 +422,151 @@ class TestFullMigrationPipeline:
         dist_schedule = migrated["distributors"][0]["schedules"][0]
         assert dist_schedule["recurrence"] == "daily"
         _assert_no_retired_keys(dist_schedule)
+
+
+# --- migration + resolver, composed -----------------------------------------
+
+# Frozen so every expected instant below is a fixed number rather than a
+# re-derivation of the code under test. The test harness's Home Assistant runs
+# on US/Pacific at San Diego's coordinates, which is where the local-to-UTC
+# offsets and the sun events come from.
+_FROZEN = "2026-06-10 12:00:00"
+
+
+def _v13(**kw):
+    base = {
+        "id": "s1",
+        "name": "probe",
+        "enabled": True,
+        "action": "irrigate",
+        "zones": "all",
+    }
+    base.update(kw)
+    return base
+
+
+class TestAMigratedScheduleStillFiresWhenItUsedTo:
+    """The property an existing install actually cares about, which neither
+    half of the suite covers on its own.
+
+    The migration tests above assert the stored SHAPE is right. The resolver
+    tests in test_schedule_time_anchor assert the tracker behaves correctly on
+    hand-authored v14 shapes. Nothing else composes the two, so a migration
+    that produced a well-formed schedule pointing at the wrong moment would
+    pass both and still move every existing install's watering.
+
+    Each case here starts from a v13 dict, runs the real migration, and
+    resolves the result through the real tracker path
+    (``async_get_upcoming_runs`` -> ``_governing_end`` -> ``_next_governing_time``
+    -> ``_resolve_bound`` -> ``_resolve_event_instant``), then asserts the UTC
+    instant v13 would have produced.
+
+    Clock cases are asserted exactly. Sun-relative cases are asserted to within
+    a minute, because their sub-second value comes from astral and would
+    otherwise re-pin on an unrelated library upgrade. A minute is far tighter
+    than any failure this guards against: a dropped offset moves the instant by
+    30 minutes, a flipped anchor by the run duration, a lost recurrence by a
+    day.
+    """
+
+    DURATION = 1800
+
+    async def _resolve(self, hass, *v13_schedules):
+        mgr = RecurringScheduleManager(hass, Mock())
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(
+            return_value=self.DURATION
+        )
+        mgr._schedules = [_migrate_schedule_to_v14(s) for s in v13_schedules]
+        return {r["schedule_id"]: r for r in await mgr.async_get_upcoming_runs()}
+
+    @staticmethod
+    def _close(iso, expected, tolerance_seconds=60):
+        actual = datetime.datetime.fromisoformat(iso)
+        want = datetime.datetime.fromisoformat(expected)
+        assert (
+            abs((actual - want).total_seconds()) < tolerance_seconds
+        ), f"resolved {actual}, expected within {tolerance_seconds}s of {want}"
+
+    @pytest.mark.asyncio
+    @freeze_time(_FROZEN)
+    async def test_a_clock_start_fires_at_the_same_local_time(self, hass):
+        runs = await self._resolve(
+            hass, _v13(type="daily", time="06:00", time_anchor="start")
+        )
+        # 06:00 local, and the run begins there.
+        assert runs["s1"]["anchor"] == "start"
+        assert runs["s1"]["target_utc"] == "2026-06-10T13:00:00+00:00"
+        assert runs["s1"]["next_run_utc"] == "2026-06-10T13:00:00+00:00"
+
+    @pytest.mark.asyncio
+    @freeze_time(_FROZEN)
+    async def test_a_clock_finish_still_starts_a_run_length_early(self, hass):
+        runs = await self._resolve(
+            hass, _v13(type="daily", time="05:30", time_anchor="finish")
+        )
+        # 05:30 local is the moment watering ENDS, so the run begins
+        # DURATION earlier. An anchor lost in migration shows up here as
+        # next_run == target.
+        assert runs["s1"]["anchor"] == "finish"
+        assert runs["s1"]["target_utc"] == "2026-06-10T12:30:00+00:00"
+        assert runs["s1"]["next_run_utc"] == "2026-06-10T12:00:00+00:00"
+        assert runs["s1"]["duration_seconds"] == self.DURATION
+
+    @pytest.mark.asyncio
+    @freeze_time(_FROZEN)
+    async def test_a_schedule_stored_without_a_time_still_fires_at_0600(self, hass):
+        """The highest-value case here. `time` was optional and v13 supplied
+        06:00 from the resolver; v14 has no such default, so if the migration
+        stopped materialising it this schedule would silently never fire again
+        rather than failing loudly."""
+        runs = await self._resolve(hass, _v13(type="daily"))
+        assert runs["s1"]["next_run_utc"] == "2026-06-10T13:00:00+00:00"
+
+    @pytest.mark.asyncio
+    @freeze_time(_FROZEN)
+    async def test_a_weekly_schedule_still_lands_on_its_own_weekday(self, hass):
+        """Recurrence and time-of-day are separate fields now, so a lost
+        recurrence would resolve this to tonight instead of Thursday."""
+        runs = await self._resolve(
+            hass,
+            _v13(type="weekly", time="22:00", days_of_week=["thursday"]),
+        )
+        # 22:00 local on Thursday 2026-06-11.
+        assert runs["s1"]["next_run_utc"] == "2026-06-12T05:00:00+00:00"
+
+    @pytest.mark.asyncio
+    @freeze_time(_FROZEN)
+    async def test_a_sunrise_schedule_keeps_its_implicit_finish_anchor(self, hass):
+        """`account_for_duration` absent meant a finish anchor on the solar
+        types, so this must still end at sunrise minus 30, not begin there."""
+        runs = await self._resolve(hass, _v13(type="sunrise", offset_minutes=-30))
+        assert runs["s1"]["anchor"] == "finish"
+        self._close(runs["s1"]["target_utc"], "2026-06-10T12:10:20+00:00")
+        self._close(runs["s1"]["next_run_utc"], "2026-06-10T11:40:20+00:00")
+
+    @pytest.mark.asyncio
+    @freeze_time(_FROZEN)
+    async def test_an_explicit_account_for_duration_false_still_means_start(self, hass):
+        """The other half of the legacy fallback: explicitly False meant the
+        run BEGINS at the event, so next_run must equal target."""
+        runs = await self._resolve(
+            hass,
+            _v13(type="sunset", offset_minutes=15, account_for_duration=False),
+        )
+        assert runs["s1"]["anchor"] == "start"
+        self._close(runs["s1"]["target_utc"], "2026-06-11T03:11:42+00:00")
+        assert runs["s1"]["next_run_utc"] == runs["s1"]["target_utc"]
+
+    @pytest.mark.asyncio
+    @freeze_time(_FROZEN)
+    async def test_an_interval_schedule_keeps_its_anchored_phase(self, hass):
+        """An interval's `start_time` is its own clock anchor, not a window
+        bound, and the migration leaves it alone."""
+        runs = await self._resolve(
+            hass, _v13(type="interval", interval_hours=6, start_time="03:00")
+        )
+        assert runs["s1"]["recurrence"] == "interval"
+        assert runs["s1"]["interval_hours"] == 6
+        # 03:00 local phase-locked every 6h; the next occurrence after
+        # 05:00 local is 09:00 local.
+        assert runs["s1"]["next_run_utc"] == "2026-06-10T16:00:00+00:00"
