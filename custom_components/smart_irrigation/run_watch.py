@@ -83,6 +83,28 @@ def run_is_segmented(run: dict) -> bool:
     )
 
 
+def run_is_paused(run: dict) -> bool:
+    """True while this run's controller is holding it PAUSED.
+
+    A segmented run that has started watering but has no segment open is, by
+    definition of the segment model, not watering right now — and the only way
+    a started run stops without ending is a pause (``_watch_pause`` closes the
+    segment; ``_watch_resume`` opens the next one).
+
+    Derived from the record rather than re-read from the paused indicator on
+    purpose. The indicator answers "is the CONTROLLER paused", which is one
+    answer for the whole queue, while this answers "is THIS zone's water on
+    hold" — and those differ for every zone the controller has not reached yet.
+    A queued zone is not paused, it is queued, and reading the indicator would
+    label all of them paused the moment the controller pauses.
+    """
+    return (
+        run_is_segmented(run)
+        and run.get(const.RUN_OBSERVED_START) is not None
+        and not run.get(const.RUN_SEGMENT_STARTED)
+    )
+
+
 @dataclass
 class Watcher:
     """One zone's live subscription, plus at most one pending timer.

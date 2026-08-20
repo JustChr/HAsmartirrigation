@@ -579,6 +579,7 @@
         "stop": "Detener",
         "watering": "Regando…",
         "queued": "En cola…",
+        "paused": "En pausa…",
         "toast_stopped": "Riego detenido"
       }
     },

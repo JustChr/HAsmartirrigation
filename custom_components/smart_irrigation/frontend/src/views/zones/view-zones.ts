@@ -141,11 +141,14 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
    *
    * Zones a chain has claimed but not started are excluded: they render a
    * static label, so ticking for them would re-render the whole view every
-   * second for the entire length of a chain.
+   * second for the entire length of a chain. A PAUSED zone is excluded for the
+   * same reason and matters more — a controller pause is bounded in hours, so
+   * ticking through one would re-render the view every second for the whole
+   * pause to redraw a label that cannot change.
    */
   private _syncCountdownTicker(): void {
     const hasActive = Object.values(this._outlook?.active_runs ?? {}).some(
-      (run) => run.queued !== true,
+      (run) => run.queued !== true && run.paused !== true,
     );
     if (hasActive && this._countdownTimer === null) {
       this._countdownTimer = window.setInterval(() => {
@@ -1171,22 +1174,37 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     // in the same registry and gets the same Stop button — stopping it drops it
     // from the chain before its valve ever opens — but it must not claim to be
     // watering, or every zone of a chain reads as watering from the moment the
-    // chain starts.
+    // chain starts. The same is true of a zone a queue-based controller has not
+    // reached, and of one the controller has PAUSED: in all three the run is in
+    // flight and stoppable, and in none of them is water flowing.
     const active = this._activeRun(zone);
     if (active) {
       const queued = active.queued === true;
-      const left = queued ? null : this._runSecondsLeft(active);
+      // Queued wins if both are somehow set: a zone that has not started cannot
+      // be mid-pause, and "queued" is the more informative of the two.
+      const paused = !queued && active.paused === true;
+      const waiting = queued || paused;
+      const left = waiting ? null : this._runSecondsLeft(active);
+      const icon = queued
+        ? "mdi:tray-full"
+        : paused
+          ? "mdi:pause-circle-outline"
+          : "mdi:water-pump";
       return html`
-        <div class="run-zone-control running ${queued ? "queued" : ""}">
+        <div
+          class="run-zone-control running ${queued ? "queued" : ""} ${paused
+            ? "paused-run"
+            : ""}"
+        >
           <span class="run-zone-countdown">
-            <ha-icon
-              icon="${queued ? "mdi:tray-full" : "mdi:water-pump"}"
-            ></ha-icon>
+            <ha-icon icon="${icon}"></ha-icon>
             ${queued
               ? localize("panels.zones.stop_zone.queued", lang)
-              : left === null
-                ? localize("panels.zones.stop_zone.watering", lang)
-                : this._formatCountdown(left)}
+              : paused
+                ? localize("panels.zones.stop_zone.paused", lang)
+                : left === null
+                  ? localize("panels.zones.stop_zone.watering", lang)
+                  : this._formatCountdown(left)}
           </span>
           <button
             class="action-btn stop-btn"
@@ -1779,6 +1797,13 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       .run-zone-control.queued .run-zone-countdown {
         font-weight: 500;
         color: var(--secondary-text-color);
+      }
+
+      /* Paused by the controller: not flowing, so not the accent colour — but
+         not merely waiting its turn either, so it takes the same warning colour
+         the rain-delay hold uses rather than the muted queued grey. */
+      .run-zone-control.paused-run .run-zone-countdown {
+        color: var(--warning-color, #ed6c02);
       }
 
       .action-btn.stop-btn {

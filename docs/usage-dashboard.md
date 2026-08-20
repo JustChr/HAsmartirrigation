@@ -52,6 +52,17 @@ Next to each zone's actions is a small **Run for N min** control: enter a number
 
 While **any** run is in progress (a custom run, *Irrigate now*, or a scheduled run), the **Run for N min** control is replaced by a live **countdown** and a **Stop** button. Press **Stop** to end that zone's run immediately — the valve closes and the water already delivered is kept (the run is logged as *partial*). The same action is available as the [`stop_zone`](usage-services.md) service for automations.
 
+Not every zone with a run in flight is watering, and the control says which is which:
+
+| Shown | What it means |
+| --- | --- |
+| A **countdown** | The valve is open and this is the time left. |
+| **Watering…** | The valve is open, but the finish is set by a volume rather than a clock (a [flow-metered](configuration-my-zones.md) run), so there is no time to count. |
+| **Queued…** | The run is claimed but this zone's valve has not opened yet — it is waiting its turn behind another zone in a [sequential or rotating chain](configuration-when-to-water.md#zone-sequencing), or in the queue of an [OpenSprinkler or batch controller](configuration-my-zones.md#watering-mode). No water is flowing. |
+| **Paused…** | The controller has started this zone and is holding the rest of its time — see [pausing a batch cycle](configuration-my-zones.md#batch-pause). No water is flowing, and no time is being lost. |
+
+**Stop** works in all four, and stopping a queued zone drops it from the chain or the queue before its valve ever opens.
+
 ## Rain delay / vacation hold {#rain-delay}
 
 Above the zone cards, a **Pause watering** control lets you stop all *automatic and scheduled* irrigation for a while — for a rainy spell, a holiday, or while you work on the system. Tap **Delay 24 h** or **Delay 48 h** for a quick hold; while a hold is active the banner shows **“Paused until …”** with a **Resume** button to lift it early.

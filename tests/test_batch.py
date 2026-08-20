@@ -871,3 +871,108 @@ class TestWhatTheFieldTestFound:
         await _settle(hass)
         assert c2._runs == [], "the ended run was held open indefinitely"
         assert c2._record_run.await_count == 1
+
+
+class TestWhatThePanelIsToldAboutEachZone:
+    """Issue #97: queued, watering and paused are three different things.
+
+    Batch dispatch records a run for EVERY zone the moment the plan is sent,
+    because a queued zone's water may be hours away and the run has to hold the
+    zone until then. ``get_active_runs`` reported all of them as plain watering,
+    so a five-zone irrigation read as five zones watering at once — and a zone
+    the controller had paused was indistinguishable from one that was flowing.
+
+    Asserted on the payload, which is the only place the distinction exists: the
+    accounting has always known which zone is which, and none of these flags
+    changes it. All three states stay stoppable and all three still hold the zone
+    against a second dispatch.
+    """
+
+    async def test_only_the_zone_the_controller_reached_reads_as_watering(self, hass):
+        c = _coord(hass)
+        zones = _register(c, _zone(1, VALVE_A, 600), _zone(2, VALVE_B, 600))
+        await _set(hass, VALVE_A, "off")
+        await _set(hass, VALVE_B, "off")
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        runs = c.get_active_runs()
+        assert set(runs) == {"1", "2"}, "both zones must stay in flight"
+        assert runs["1"]["queued"] is True, "nothing is watering yet"
+        assert runs["2"]["queued"] is True
+
+        await _set(hass, VALVE_A, "on")
+        runs = c.get_active_runs()
+        assert runs["1"]["queued"] is False, "this zone's valve is open"
+        assert runs["1"]["paused"] is False
+        assert runs["2"]["queued"] is True, (
+            "zone 2 is waiting its turn behind zone 1; reporting it as watering "
+            "is what made a whole batch read as watering at once"
+        )
+        assert runs["1"]["ends_at"] is not None, "a watering zone counts down"
+        assert runs["2"]["ends_at"] is None, "a queued zone has nothing to count"
+
+    async def test_a_paused_zone_is_paused_and_not_queued(self, hass):
+        """The state a chain does not have, and the one pnaklicki asked for.
+
+        A paused run is neither watering nor waiting its turn: the controller
+        started it and is holding the rest of its time. Distinguishing it from
+        queued matters because the two mean opposite things about what the user
+        should do — a queued zone is fine, a paused one may need attention.
+        """
+        c = _coord(hass, **{const.CONF_BATCH_PAUSED_ENTITY: PAUSED})
+        zones = _register(c, _zone(1, VALVE_A, 600))
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "off")
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+        await _set(hass, VALVE_A, "on")
+        assert c.get_active_runs()["1"]["paused"] is False
+
+        await _advance(hass, 60)
+        await _set(hass, PAUSED, "on")
+        await _set(hass, VALVE_A, "off")
+        await _settle(hass)
+        assert c._runs, "precondition: the pause settled the run"
+
+        runs = c.get_active_runs()
+        assert runs["1"]["paused"] is True, (
+            "a paused zone read as watering, with no countdown and nothing "
+            "saying why — the gap reported from the field"
+        )
+        assert runs["1"]["queued"] is False, "it has watered; it is not queued"
+
+        # And it goes back to watering on resume, rather than sticking.
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "on")
+        await hass.async_block_till_done()
+        runs = c.get_active_runs()
+        assert runs["1"]["paused"] is False
+        assert runs["1"]["ends_at"] is not None, "the countdown is back"
+
+    async def test_a_queued_zone_is_not_reported_as_paused(self, hass):
+        """The discrimination the naive implementation gets wrong.
+
+        "Paused" is one answer for the whole controller, so reading the paused
+        indicator to answer it per zone labels every queued zone paused the
+        moment the controller pauses. The run record is what actually knows: a
+        zone with no observed start has not begun, whatever the controller is
+        doing.
+        """
+        c = _coord(hass, **{const.CONF_BATCH_PAUSED_ENTITY: PAUSED})
+        zones = _register(c, _zone(1, VALVE_A, 600), _zone(2, VALVE_B, 600))
+        await _set(hass, PAUSED, "off")
+        await _set(hass, VALVE_A, "off")
+        await _set(hass, VALVE_B, "off")
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+        await _set(hass, VALVE_A, "on")
+        await _advance(hass, 60)
+        await _set(hass, PAUSED, "on")
+        await _set(hass, VALVE_A, "off")
+        await _settle(hass)
+
+        runs = c.get_active_runs()
+        assert runs["1"]["paused"] is True
+        assert runs["2"]["paused"] is False, (
+            "zone 2 never started, so it is queued behind a paused controller "
+            "rather than paused itself"
+        )
+        assert runs["2"]["queued"] is True

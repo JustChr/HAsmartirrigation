@@ -241,9 +241,15 @@ export interface ActiveRun {
   // (volume-bounded) runs whose finish time is unknown.
   ends_at: string | null;
   // True while a sequential/rotating chain has claimed this zone but its valve
-  // is not open yet. Such a zone is still stoppable, and stopping it drops it
-  // from the chain, but no water is flowing.
+  // is not open yet, or while a queue-based controller (OpenSprinkler, batch
+  // dispatch) has taken the run on but has not reached this zone. Such a zone
+  // is still stoppable, and stopping it drops it from the chain or the queue,
+  // but no water is flowing.
   queued?: boolean;
+  // True while the controller has started this zone and is holding the rest of
+  // its time — a pause, not the end of the run. Water is not flowing, but the
+  // remaining duration has not been lost either, so the run stays in flight.
+  paused?: boolean;
 }
 
 export interface IrrigationOutlook {

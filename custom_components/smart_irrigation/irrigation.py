@@ -30,7 +30,7 @@ from .flow_metering import (
 from .helpers import convert_between
 from .localize import localize
 from .opensprinkler import entity_is_station, is_opensprinkler_zone
-from .run_watch import run_is_queue_bound, run_is_segmented
+from .run_watch import run_is_paused, run_is_queue_bound, run_is_segmented
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -322,9 +322,20 @@ class IrrigationRunnerMixin:
         held since a chain started claiming its whole zone list up front: a zone
         whose valve is open, and one waiting its turn behind it. Both must be in
         here — the guard reads this and so does ``async_stop_all_zones``, which
-        has to reach a queued zone — but the panel renders them differently. A
-        persisted self-closing run is never queued in this sense: the hardware
-        owns its schedule, so its record only exists once it is dispatched.
+        has to reach a queued zone — but the panel renders them differently.
+
+        A persisted run carries the same two states, plus a third. It is
+        ``queued`` while its controller has taken the run on but not reached the
+        zone (``run_is_queue_bound``), and ``paused`` while the controller has
+        started it and is holding the remaining time (``run_is_paused``). Both
+        were reported here as plain watering until issue #97: a batch dispatch
+        records a run for EVERY zone at once, so a seven-zone irrigation read as
+        seven zones watering simultaneously from the moment the plan was sent,
+        and a paused zone was indistinguishable from a watering one.
+
+        All three states are stoppable and all three still hold the zone against
+        a second dispatch — this changes what the panel is told, not what any
+        guard does with it.
         """
         reg = getattr(self, "_active_runs", None) or {}
         runs = {
@@ -332,6 +343,10 @@ class IrrigationRunnerMixin:
                 "started_at": d["started_at"],
                 "ends_at": d["ends_at"],
                 "queued": bool(d.get("queued")),
+                # The in-memory runner owns its own valve, so it has no pause to
+                # report: only a controller that keeps the remaining time can
+                # pause, and those runs live in the persisted list below.
+                "paused": False,
             }
             for zid, d in reg.items()
         }
@@ -347,7 +362,8 @@ class IrrigationRunnerMixin:
             runs[str(zone_id)] = {
                 "started_at": started_at,
                 "ends_at": ends_at,
-                "queued": False,
+                "queued": run_is_queue_bound(record),
+                "paused": run_is_paused(record),
             }
         return runs
 
