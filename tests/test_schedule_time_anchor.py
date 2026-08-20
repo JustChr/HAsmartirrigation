@@ -2,7 +2,6 @@
 duration + bucket reset introduced for the irrigation-timer work."""
 
 import datetime
-import logging
 from unittest.mock import AsyncMock, Mock
 
 import pytest
