@@ -1,5 +1,6 @@
 """Observed watering extended to service/self-closing zones (Phase 1)."""
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -400,14 +401,54 @@ async def test_flow_zone_negative_measured_credits_zero():
 
 
 def test_capped_seconds_rejects_negative_maximum_duration():
-    # A negative maximum_duration (hand-edited store) must not yield a NEGATIVE cap
-    # (which would drain the bucket); fall back to the default, like calculation.py.
+    # A negative maximum_duration (hand-edited store; the panel's field is min="0")
+    # must not yield a NEGATIVE cap, which would drain the bucket. It falls back to
+    # the default plausibility ceiling — deliberately NOT what calculation.py does
+    # with the same value, where `>= 0` makes it mean "don't cap SI's own duration".
+    # See _observed_capped_seconds' docstring for why the divergence is intended.
     coord = _obs_coord([])
     capped = coord._observed_capped_seconds({const.ZONE_MAXIMUM_DURATION: -100}, 99999)
     assert (
         capped
         == const.CONF_DEFAULT_MAXIMUM_DURATION + const.OBSERVED_CAP_MARGIN_SECONDS
     )
+
+
+def test_a_bound_substituted_ceiling_warns_rather_than_clipping_silently(caplog):
+    """The substituted ceiling is tighter than anything the owner configured, so
+    when it actually clips a run it must say so — under-crediting quietly is how
+    a zone ends up watered more than it needed with nothing in the log."""
+    coord = _obs_coord([])
+    zone = {const.ZONE_ID: 3, const.ZONE_MAXIMUM_DURATION: -1}
+    with caplog.at_level(logging.WARNING):
+        capped = coord._observed_capped_seconds(zone, 99999)
+    assert (
+        capped
+        == const.CONF_DEFAULT_MAXIMUM_DURATION + const.OBSERVED_CAP_MARGIN_SECONDS
+    )
+    assert "no usable maximum_duration" in caplog.text
+
+
+def test_a_substituted_ceiling_that_does_not_bind_stays_quiet(caplog):
+    """A short external run on the same zone is credited in full, so there is
+    nothing to warn about. A warning that fires on every run is noise."""
+    coord = _obs_coord([])
+    zone = {const.ZONE_ID: 3, const.ZONE_MAXIMUM_DURATION: -1}
+    with caplog.at_level(logging.WARNING):
+        capped = coord._observed_capped_seconds(zone, 120)
+    assert capped == 120
+    assert "no usable maximum_duration" not in caplog.text
+
+
+def test_a_configured_ceiling_that_binds_does_not_warn(caplog):
+    """The zone's OWN maximum_duration clipping a run is the designed behaviour,
+    not something the owner needs telling about."""
+    coord = _obs_coord([])
+    zone = {const.ZONE_ID: 3, const.ZONE_MAXIMUM_DURATION: 600}
+    with caplog.at_level(logging.WARNING):
+        capped = coord._observed_capped_seconds(zone, 99999)
+    assert capped == 600 + const.OBSERVED_CAP_MARGIN_SECONDS
+    assert "no usable maximum_duration" not in caplog.text
 
 
 async def test_observed_finish_flow_reset_on_lifetime_typed_counter_returns_none():

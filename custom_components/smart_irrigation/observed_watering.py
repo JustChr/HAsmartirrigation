@@ -290,14 +290,43 @@ class ObservedWateringMixin:
         report; SI would never run this valve longer than its maximum_duration,
         so an observed run credits no more than that (plus a small margin for a
         legitimate run finishing just past the cap). See OBSERVED_CAP_MARGIN_SECONDS.
+
+        A non-positive maximum_duration deliberately does NOT mirror the SI calc
+        path, despite the resemblance. There, the `>= 0` guard (calculation.py)
+        makes a negative value mean "do not cap SI's own computed duration" —
+        a statement about how long SI may run the valve, which says nothing about
+        how long an EXTERNAL open can plausibly be. Mirroring it literally would
+        hand a stuck-open valve back its unbounded credit on exactly the zones
+        that have no ceiling left to fall back on, which is the bug this module
+        exists to prevent. So a non-positive value falls back to the default
+        plausibility ceiling instead.
+
+        That substituted ceiling is tighter than anything the zone's owner chose,
+        so it under-credits a genuinely long external run — bucket too low, SI
+        waters more than it needed to. Water wasted is the milder failure than
+        water withheld, which is why the fallback errs this way, but it is not
+        free: warn whenever the substituted ceiling actually binds, so it is
+        visible rather than silent. Reachable only by hand-editing the store or
+        by calling the websocket API directly — the panel's field is `min="0"`.
         """
         max_dur = zone.get(const.ZONE_MAXIMUM_DURATION)
-        # `< 0` as well as falsy: a negative maximum_duration (hand-edited store) would
-        # otherwise yield a NEGATIVE cap -> negative volume -> a credit that DRAINS the
-        # bucket. Treat it as unset, mirroring the SI calc path (calculation.py).
-        if not max_dur or max_dur < 0:
+        substituted = not max_dur or max_dur < 0
+        if substituted:
             max_dur = const.CONF_DEFAULT_MAXIMUM_DURATION
-        return min(float(seconds), float(max_dur) + const.OBSERVED_CAP_MARGIN_SECONDS)
+        capped = min(float(seconds), float(max_dur) + const.OBSERVED_CAP_MARGIN_SECONDS)
+        if substituted and capped < float(seconds):
+            _LOGGER.warning(
+                "Observed watering: zone %s has no usable maximum_duration (%s), "
+                "so its external run of %.0f s was credited as only %.0f s using "
+                "the default ceiling of %s s. Set a maximum_duration on the zone "
+                "to have the full run credited",
+                zone.get(const.ZONE_ID),
+                zone.get(const.ZONE_MAXIMUM_DURATION),
+                float(seconds),
+                capped,
+                const.CONF_DEFAULT_MAXIMUM_DURATION,
+            )
+        return capped
 
     async def _credit_observed_watering(
         self,
