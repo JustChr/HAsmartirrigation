@@ -918,10 +918,15 @@ async def test_estimate_member_raw_duration_never_counted_in_normal_track():
     """
     c = _host()
     c.store.config.zone_sequencing = const.CONF_ZONE_SEQUENCING_SEQUENTIAL
+    # Both zones carry real demand: the estimate prices only zones the run would
+    # actually water, so a member with a satisfied bucket would be excluded for
+    # the wrong reason and the test would pass with member-exclusion deleted.
     big_normal = {
         "id": 1,
         "distributor_id": None,
         "duration": 10000,
+        "bucket": -1,
+        "bucket_threshold": 0,
         "state": "automatic",
     }
     member = {
@@ -929,6 +934,8 @@ async def test_estimate_member_raw_duration_never_counted_in_normal_track():
         "distributor_id": 0,
         "outlet_number": 1,
         "duration": 30,
+        "bucket": -1,
+        "bucket_threshold": 0,
         "state": "automatic",
     }
     c.store.async_get_zones = AsyncMock(return_value=[big_normal, member])

@@ -16,6 +16,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .calcmodules.pyeto import SOLRAD_behavior
+from .duration_math import duration_from_deficit, zone_run_duration  # noqa: F401
 from .et_estimate import (
     SiteGeometry,
     drained_over_window,
@@ -65,52 +66,6 @@ def pending_bucket_events(zone):
         if mm:
             out.append((stamp, mm))
     return out
-
-
-def duration_from_deficit(
-    deficit,
-    throughput,
-    size,
-    multiplier,
-    maximum_duration,
-    lead_time,
-    metric,
-):
-    """Irrigation run time (seconds) needed to replenish ``deficit``.
-
-    A pure mirror of the duration math in :meth:`CalculationMixin.calculate_module`
-    (precipitation-rate → raw seconds → multiplier → maximum-duration clamp →
-    lead time) so the irrigation runner can recompute a duration from the live
-    intra-day deficit at run time without duplicating — or drifting from — that
-    logic. ``deficit`` / ``throughput`` / ``size`` are in the user's display
-    units (mm, L/min, m² when metric; in, gal/min, ft² when imperial). Returns 0
-    when no irrigation is needed (``deficit`` >= 0) or the zone lacks a usable
-    throughput / size. ``test_live_duration`` pins this against
-    ``calculate_module`` to guard against drift.
-    """
-    if deficit is None or deficit >= 0:
-        return 0
-    tput = throughput or 0.0
-    sz = size or 0.0
-    deficit_mm = deficit
-    if not metric:
-        tput = convert_between(const.UNIT_GPM, const.UNIT_LPM, tput)
-        sz = convert_between(const.UNIT_SQ_FT, const.UNIT_M2, sz)
-        deficit_mm = convert_between(const.UNIT_INCH, const.UNIT_MM, deficit)
-    if not tput or not sz:
-        return 0
-    precipitation_rate = (tput * 60) / sz
-    duration = abs(deficit_mm) / precipitation_rate * 3600
-    duration = (multiplier if multiplier is not None else 1) * duration
-    if (
-        maximum_duration is not None
-        and maximum_duration >= 0
-        and duration > maximum_duration
-    ):
-        duration = maximum_duration
-    if duration > 0.0:
-        return round((lead_time or 0) + duration)
-    return round(duration)
 
 
 class CalculationMixin:
@@ -1149,6 +1104,14 @@ class CalculationMixin:
                 and zone.get(const.ZONE_MAXIMUM_DURATION) >= 0
                 and duration > zone.get(const.ZONE_MAXIMUM_DURATION)
             ):
+                # The clamp emits nothing on its own: the shortfall is simply
+                # never watered, so deepening bucket_threshold past what the cap
+                # can deliver is silently ignored and the zone drifts drier
+                # every cycle. The explanation below says so, but nobody reads a
+                # zone's explanation until something is already wrong.
+                self._warn_duration_clamped(
+                    zone, zone.get(const.ZONE_MAXIMUM_DURATION), duration
+                )
                 duration = zone.get(const.ZONE_MAXIMUM_DURATION)
                 explanation += (
                     ", "

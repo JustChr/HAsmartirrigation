@@ -18,11 +18,33 @@ from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation.calculation import duration_from_deficit
+from custom_components.smart_irrigation.helpers import convert_between
 
 
 # --------------------------------------------------------------------------- #
 # duration_from_deficit — the pure helper the runner reuses
 # --------------------------------------------------------------------------- #
+def test_the_inlined_conversions_match_the_shared_helper():
+    """The imperial branch of the deficit math converts three quantities inline
+    rather than through ``helpers.convert_between``, because that module sits
+    behind ``homeassistant.core`` imports at load time and importing it would
+    stop the deficit math being usable from the Home-Assistant-free wall-clock
+    model. Nothing else holds the two copies together, and a wrong unit here
+    surfaces as subtly wrong watering rather than as an exception, so pin them
+    against each other for the pairs the inlined branch uses.
+    """
+    for value in (0.0, 1.0, 3.5, 12.75, 1000.0):
+        assert value * const.GALLON_TO_LITER_FACTOR == pytest.approx(
+            convert_between(const.UNIT_GPM, const.UNIT_LPM, value)
+        )
+        assert value * const.SQ_FT_TO_M2_FACTOR == pytest.approx(
+            convert_between(const.UNIT_SQ_FT, const.UNIT_M2, value)
+        )
+        assert -value * const.INCH_TO_MM_FACTOR == pytest.approx(
+            convert_between(const.UNIT_INCH, const.UNIT_MM, -value)
+        )
+
+
 def test_duration_from_deficit_metric():
     """10 mm deficit at 60 mm/h precip rate == 600 s (matches calculate_module)."""
     # size 10 m², throughput 10 L/min -> precip rate = 10*60/10 = 60 mm/h
