@@ -7,10 +7,11 @@ this module exists: under rotating, ``sum(durations)`` is not the wall clock.
 """
 
 import datetime
+import math
 
 from custom_components.smart_irrigation import const
+from custom_components.smart_irrigation.duration_math import duration_from_deficit
 from custom_components.smart_irrigation.run_window import (
-    RUN_CEILING_SECONDS,
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,
     TRACK_STATION,
@@ -34,6 +35,9 @@ def _run(
     last=None,
     maximum=None,
     track=TRACK_CLASSIC,
+    lead_time=0.0,
+    ceiling=None,
+    flow=False,
 ):
     return ZoneRun(
         zone_id=zone_id,
@@ -42,6 +46,9 @@ def _run(
         last_irrigation=last,
         maximum_duration=maximum,
         track=track,
+        lead_time=lead_time,
+        ceiling=ceiling,
+        flow=flow,
     )
 
 
@@ -505,14 +512,17 @@ class TestBoundWallClock:
             min_absorption_seconds=0,
         ) == 7800
 
-    def test_an_unset_maximum_falls_back_to_the_runner_ceiling(self):
+    def test_an_unset_maximum_is_unbounded_rather_than_a_stand_in_number(self):
         runs = [_run(0, 100, maximum=None), _run(1, 100, maximum=0)]
-        assert bound_wall_clock(
-            runs,
-            sequencing=SEQUENTIAL,
-            max_slot_seconds=300,
-            min_absorption_seconds=0,
-        ) == 2 * RUN_CEILING_SECONDS
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=SEQUENTIAL,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == math.inf
+        )
 
     def test_ignores_the_live_duration_entirely(self):
         # The bound must be knowable days ahead, so it reads configuration only.
@@ -552,3 +562,58 @@ class TestBoundWallClock:
             min_absorption_seconds=600,
         )
         assert bound == 4800 + 15 * 600
+
+
+class TestBoundIsAnUpperBound:
+    """The bound has to cover what the runner would really do.
+
+    Every other bound test prices from ``maximum_duration`` and compares the
+    result against another expression of the same model. These drive the real
+    ``duration_from_deficit`` on both sides, which is the only way a gap
+    between the model and the runner shows up.
+    """
+
+    def _bound(self, run):
+        return bound_wall_clock(
+            [run],
+            sequencing=SEQUENTIAL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+
+    def test_the_bound_covers_the_lead_time_the_cap_does_not(self):
+        # duration_from_deficit clamps FIRST and adds lead_time after, so a
+        # zone capped at 600 s with a 120 s lead time really occupies 720 s.
+        real = duration_from_deficit(-100.0, 10, 10, 1, 600, 120, True)
+        assert real == 720
+        run = _run(1, real, ratio=5.0, maximum=600, lead_time=120)
+        assert self._bound(run) >= real
+
+    def test_a_zone_with_no_configured_cap_is_reported_unbounded(self):
+        # Nothing caps a TIMED zone with no maximum_duration: the `or 14400`
+        # sites are all flow-zone safety timeouts, and the deficit that sizes
+        # the run is not capped either, because maximum_bucket clamps the
+        # bucket's surplus side only. A plausible-looking number here would be
+        # worse than none, because a caller arming on `target - bound` has to
+        # tell "no fixed point exists" from "it is four hours back".
+        assert self._bound(_run(1, 300, ratio=5.0, maximum=None)) == math.inf
+
+    def test_a_caller_supplied_ceiling_bounds_an_uncapped_zone(self):
+        # 100 mm of deficit at a 60 mm/h precipitation rate.
+        real = duration_from_deficit(-100.0, 10, 10, 1, None, 0, True)
+        assert real == 6000
+        bound = self._bound(_run(1, real, ratio=5.0, maximum=None, ceiling=7200))
+        assert bound == 7200
+        assert bound >= real
+
+    def test_one_unbounded_zone_makes_the_whole_bound_unbounded(self):
+        runs = [_run(1, 300, ratio=5.0, maximum=600), _run(2, 300, ratio=5.0)]
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=SEQUENTIAL,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == math.inf
+        )

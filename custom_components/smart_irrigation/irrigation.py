@@ -2213,6 +2213,8 @@ class IrrigationRunnerMixin:
                     last_irrigation=zone.get(const.ZONE_LAST_IRRIGATION),
                     maximum_duration=zone.get(const.ZONE_MAXIMUM_DURATION),
                     track=track_for_zone(zone),
+                    lead_time=zone.get(const.ZONE_LEAD_TIME) or 0.0,
+                    flow=bool(zone.get(const.ZONE_FLOW_SENSOR)),
                 )
             )
         return planned
