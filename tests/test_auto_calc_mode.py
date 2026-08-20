@@ -42,6 +42,41 @@ def _ago(hours):
     return (dt_util.now().replace(tzinfo=None) - datetime.timedelta(hours=hours)).isoformat()
 
 
+class TestReArmGating:
+    """Which config payloads re-arm the fixed-time tracker.
+
+    All three keys have to, and merged supplies the two a payload omits. The
+    panel sends each of them alone: the time field on its own, the switch on
+    its own, the mode selector on its own.
+    """
+
+    @staticmethod
+    def _touches_auto_calc(data):
+        """The condition in _config_updated, isolated from the coordinator."""
+        return (
+            const.CONF_AUTO_CALC_ENABLED in data
+            or const.CONF_AUTO_CALC_MODE in data
+            or const.CONF_CALC_TIME in data
+        )
+
+    def test_editing_only_the_time_re_arms(self):
+        # The standing bug: this stored the new time and left the tracker on
+        # the old one until a restart.
+        assert self._touches_auto_calc({const.CONF_CALC_TIME: "04:00"})
+
+    def test_editing_only_the_mode_re_arms(self):
+        assert self._touches_auto_calc(
+            {const.CONF_AUTO_CALC_MODE: const.CONF_AUTO_CALC_MODE_BEFORE_RUN}
+        )
+
+    def test_editing_only_the_switch_re_arms(self):
+        assert self._touches_auto_calc({const.CONF_AUTO_CALC_ENABLED: False})
+
+    def test_an_unrelated_save_does_not_re_arm(self):
+        # A partial save from another tab must not disturb an armed tracker.
+        assert not self._touches_auto_calc({"sensor_debounce": 30})
+
+
 class TestLedgerStaleness:
     async def test_a_stale_string_stamp_triggers_a_calculation(self):
         # The regression: these arrive as strings. Calling .replace(tzinfo=...)

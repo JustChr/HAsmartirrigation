@@ -1054,11 +1054,18 @@ class SmartIrrigationCoordinator(
 
         # handle auto calc changes (only when the save actually touches them —
         # partial saves, e.g. the Experimental tab, omit these keys)
-        # The mode counts as touching auto-calc: switching to "before each run"
-        # has to CANCEL the fixed-time tracker, and switching back has to re-arm
-        # it. Gating only on CONF_AUTO_CALC_ENABLED would store the new mode
-        # while the old schedule stayed armed until the next restart.
-        if const.CONF_AUTO_CALC_ENABLED in data or const.CONF_AUTO_CALC_MODE in data:
+        # Any of the three re-arms. The mode has to, because switching to
+        # "before each run" CANCELS the fixed-time tracker and switching back
+        # re-arms it. calctime has to for the older reason: editing only the
+        # time stored the new value while the tracker stayed armed on the old
+        # one until the next restart, so the panel appeared to accept a change
+        # it would not act on that night. merged supplies whichever keys the
+        # payload omits, so none of the three can arrive alone and be misread.
+        if (
+            const.CONF_AUTO_CALC_ENABLED in data
+            or const.CONF_AUTO_CALC_MODE in data
+            or const.CONF_CALC_TIME in data
+        ):
             merged = {
                 const.CONF_AUTO_CALC_ENABLED: getattr(
                     self.store.config,
