@@ -39,8 +39,10 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
@@ -55,6 +57,9 @@ from .run_watch import (
     queue_deadline_seconds,
     register_watch_policy,
 )
+
+if TYPE_CHECKING:
+    from .run_window import StationFacts
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -161,6 +166,28 @@ def entity_is_station(hass, entity_id: str) -> bool:
     return station_attributes(hass, entity_id) is not None
 
 
+def _same_config_entry(hass, source_entity_id: str):
+    """Which controller ``source`` belongs to, and a predicate for its siblings.
+
+    A second controller repeats every station index and numbers its groups from
+    zero again, so the config entry is what makes any sibling lookup unique. An
+    entity missing from the registry cannot be attributed to either controller
+    and is rejected; an unregistered SOURCE has nothing to compare against, so
+    every candidate passes and a single-controller install still resolves.
+    """
+    registry = er.async_get(hass)
+    source = registry.async_get(source_entity_id)
+    want_entry = source.config_entry_id if source is not None else None
+
+    def matches(entity_id: str) -> bool:
+        if want_entry is None:
+            return True
+        entry = registry.async_get(entity_id)
+        return entry is not None and entry.config_entry_id == want_entry
+
+    return want_entry, matches
+
+
 def resolve_running_sensor(hass, station_entity_id: str) -> str | None:
     """The binary_sensor reporting whether this station is watering.
 
@@ -178,10 +205,7 @@ def resolve_running_sensor(hass, station_entity_id: str) -> str | None:
     if index is None:
         return None
 
-    registry = er.async_get(hass)
-    source = registry.async_get(station_entity_id)
-    want_entry = source.config_entry_id if source is not None else None
-
+    _, same_entry = _same_config_entry(hass, station_entity_id)
     for state in hass.states.async_all(BINARY_SENSOR_DOMAIN):
         candidate = state.attributes
         if candidate.get(const.OPENSPRINKLER_ATTR_TYPE) != (
@@ -190,15 +214,94 @@ def resolve_running_sensor(hass, station_entity_id: str) -> str | None:
             continue
         if candidate.get(const.OPENSPRINKLER_ATTR_INDEX) != index:
             continue
-        if want_entry is not None:
-            entry = registry.async_get(state.entity_id)
-            # A second controller would repeat every station index, so the config
-            # entry is what makes the match unique. An entity missing from the
-            # registry cannot be attributed to either and is skipped.
-            if entry is None or entry.config_entry_id != want_entry:
-                continue
+        if not same_entry(state.entity_id):
+            continue
         return state.entity_id
     return None
+
+
+def _controller_of(hass, station_entity_id: str) -> tuple[str, float] | None:
+    """The controller ``station_entity_id`` belongs to, and its station delay.
+
+    None when the controller cannot be seen — it is unavailable (Home Assistant
+    drops its attributes then), it is not registered, or the OpenSprinkler
+    integration is too old to publish the delay. The caller treats that as "the
+    controller did not answer" rather than substituting a delay of zero, which
+    would price a chain shorter than the controller runs it.
+    """
+    entry_id, same_entry = _same_config_entry(hass, station_entity_id)
+    for state in hass.states.async_all(SWITCH_DOMAIN):
+        if state.attributes.get(const.OPENSPRINKLER_ATTR_TYPE) != (
+            const.OPENSPRINKLER_TYPE_CONTROLLER
+        ):
+            continue
+        if not same_entry(state.entity_id):
+            continue
+        delay = state.attributes.get(const.OPENSPRINKLER_ATTR_STATION_DELAY)
+        if delay is None:
+            continue
+        try:
+            return (entry_id or state.entity_id, float(delay))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def station_facts(hass, zone: dict) -> StationFacts | None:
+    """What the controller says about ``zone``'s station, for the wall clock.
+
+    Returns a :class:`run_window.StationFacts`, or None for a zone that is not
+    an OpenSprinkler station at all, so a caller can ask about every zone it
+    plans. For a station zone the answer is always facts, whose group is None
+    when the controller did not fully answer — see there for why that is never
+    rounded down to a real group id.
+
+    Both halves have to be readable or neither is used. A group without its
+    delay would partition the run correctly and then under-charge every boundary
+    inside it, and an under-estimate is the direction that finishes after the
+    deadline.
+
+    Read per plan rather than cached, which is what makes a group changed in the
+    controller's own interface take effect on the next run without a restart.
+    """
+    # Imported here, not at module scope: run_window imports this module for
+    # is_opensprinkler_zone, so a top-level import back would be a cycle that
+    # fails whenever run_window is the one imported first.
+    from .run_window import StationFacts
+
+    if not is_opensprinkler_zone(zone):
+        return None
+    entity_id = zone.get(const.ZONE_LINKED_ENTITY)
+    attributes = station_attributes(hass, entity_id) or {}
+    group = attributes.get(const.OPENSPRINKLER_ATTR_GROUP)
+    try:
+        group = int(group) if group is not None else None
+    except (TypeError, ValueError):
+        group = None
+    controller = _controller_of(hass, entity_id) if group is not None else None
+    if controller is None:
+        _LOGGER.debug(
+            "Station %s did not answer with a group and a station delay; "
+            "pricing its dispatch track as a chain",
+            entity_id,
+        )
+        return StationFacts()
+    controller_id, delay = controller
+    return StationFacts(group=group, delay_seconds=delay, controller_id=controller_id)
+
+
+def station_facts_by_zone(hass, zones: list) -> dict:
+    """:func:`station_facts` for every station zone in ``zones``, by zone id.
+
+    The wall-clock module cannot read an entity, so anything pricing a run from
+    zone dicts alone gathers the controller's answers through here first.
+    """
+    facts = {}
+    for zone in zones:
+        answer = station_facts(hass, zone)
+        if answer is not None:
+            facts[int(zone.get(const.ZONE_ID))] = answer
+    return facts
 
 
 def observed_start_iso(hass, running_entity: str, planned_seconds: float) -> str:

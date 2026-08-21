@@ -30,9 +30,13 @@ from .flow_metering import (
 )
 from .helpers import convert_between, normalize_zone_selection
 from .localize import localize
-from .opensprinkler import entity_is_station, is_opensprinkler_zone
+from .opensprinkler import (
+    entity_is_station,
+    is_opensprinkler_zone,
+    station_facts,
+)
 from .run_watch import run_is_paused, run_is_queue_bound, run_is_segmented
-from .run_window import ZoneRun, track_for_zone
+from .run_window import TRACK_STATION, ZoneRun, track_for_zone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2213,9 +2217,46 @@ class IrrigationRunnerMixin:
                     last_irrigation=zone.get(const.ZONE_LAST_IRRIGATION),
                     maximum_duration=zone.get(const.ZONE_MAXIMUM_DURATION),
                     track=track_for_zone(zone),
+                    station=station_facts(self.hass, zone),
                 )
             )
+        self._log_station_grouping(planned)
         return planned
+
+    def _log_station_grouping(self, planned: list) -> None:
+        """Say, once, whether the controller's grouping priced the station track.
+
+        A run length nobody expected is usually the fallback: without the group
+        the track is priced as a chain, which is the longer answer, and nothing
+        else a user can read says which of the two they got.
+
+        Logged on change rather than per call because the plan is rebuilt on
+        every estimate refresh and every re-arm. The controller going
+        unavailable and coming back is exactly the transition worth an INFO
+        line.
+        """
+        stations = [p for p in planned if p.track == TRACK_STATION]
+        if not stations:
+            return
+        unread = [p for p in stations if p.station is None or p.station.group is None]
+        state = (len(stations), len(unread))
+        repeat = getattr(self, "_station_grouping_logged", None) == state
+        self._station_grouping_logged = state
+        log = _LOGGER.debug if repeat else _LOGGER.info
+        if unread:
+            log(
+                "Run window: the controller's station grouping is unavailable "
+                "for %d of %d station zone(s); pricing the station track as a "
+                "chain",
+                len(unread),
+                len(stations),
+            )
+        else:
+            log(
+                "Run window: pricing %d station zone(s) from the controller's "
+                "own station groups",
+                len(stations),
+            )
 
     def _warn_if_low_maximum_bucket(self, zone: dict, metric: bool) -> None:
         """Warn once per zone when live-estimate watering runs against a small

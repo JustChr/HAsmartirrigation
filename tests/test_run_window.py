@@ -10,10 +10,12 @@ import datetime
 
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.run_window import (
+    PARALLEL_STATION_GROUP,
     RUN_CEILING_SECONDS,
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,
     TRACK_STATION,
+    StationFacts,
     ZoneRun,
     bound_wall_clock,
     concurrent_wall_clock,
@@ -34,6 +36,7 @@ def _run(
     last=None,
     maximum=None,
     track=TRACK_CLASSIC,
+    station=None,
 ):
     return ZoneRun(
         zone_id=zone_id,
@@ -42,6 +45,23 @@ def _run(
         last_irrigation=last,
         maximum_duration=maximum,
         track=track,
+        station=station,
+    )
+
+
+def _station(
+    zone_id, duration, group, delay=0.0, ratio=1.0, maximum=None, controller="os_1"
+):
+    """A station-track run whose controller facts are known."""
+    return _run(
+        zone_id,
+        duration,
+        ratio=ratio,
+        maximum=maximum,
+        track=TRACK_STATION,
+        station=StationFacts(
+            group=group, delay_seconds=delay, controller_id=controller
+        ),
     )
 
 
@@ -155,6 +175,186 @@ class TestConcurrentWallClock:
 
     def test_no_runs_is_zero(self):
         assert self._conc([], SEQUENTIAL) == 0.0
+
+
+class TestStationGrouping:
+    """Pricing the station track from the controller's own grouping.
+
+    Every clock below is hand-computed. The grouping only applies under
+    parallel: sequential and rotating are chains Smart Irrigation enforces
+    itself, one station at a time, so the controller's queue never forms.
+    """
+
+    def _conc(self, runs, sequencing=None, slot=300.0, absorb=0.0):
+        return concurrent_wall_clock(
+            runs,
+            sequencing=sequencing or PARALLEL,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorb,
+        )
+
+    def test_one_sequential_group_chains(self):
+        runs = [_station(0, 300, group=0), _station(1, 600, group=0)]
+        assert self._conc(runs) == 900
+
+    def test_the_parallel_group_overlaps_entirely(self):
+        # 255 serializes with nothing, so each member is its own unit and the
+        # track costs the longest station rather than their sum.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP),
+            _station(1, 600, group=PARALLEL_STATION_GROUP),
+        ]
+        assert self._conc(runs) == 600
+
+    def test_two_sequential_groups_run_alongside_each_other(self):
+        # Group 0 chains to 900, group 1 chains to 700; they overlap, so 900.
+        runs = [
+            _station(0, 300, group=0),
+            _station(1, 600, group=0),
+            _station(2, 400, group=1),
+            _station(3, 300, group=1),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_the_delay_lands_between_members_not_after_the_last(self):
+        # Three in a chain is two boundaries: 300 + 600 + 120 + 2 * 15 = 1050.
+        runs = [
+            _station(0, 300, group=0, delay=15),
+            _station(1, 600, group=0, delay=15),
+            _station(2, 120, group=0, delay=15),
+        ]
+        assert self._conc(runs) == 1050
+
+    def test_a_lone_station_is_charged_no_delay(self):
+        assert self._conc([_station(0, 300, group=0, delay=15)]) == 300
+
+    def test_the_delay_never_crosses_a_group_boundary(self):
+        # One member each in two groups: no boundary anywhere, so no delay.
+        runs = [
+            _station(0, 300, group=0, delay=60),
+            _station(1, 600, group=1, delay=60),
+        ]
+        assert self._conc(runs) == 600
+
+    def test_a_negative_delay_overlaps_the_chain(self):
+        # Stations deliberately overlapped: 300 + 600 - 30 = 870.
+        runs = [
+            _station(0, 300, group=0, delay=-30),
+            _station(1, 600, group=0, delay=-30),
+        ]
+        assert self._conc(runs) == 870
+
+    def test_a_negative_delay_cannot_drive_the_clock_below_zero(self):
+        runs = [
+            _station(0, 60, group=0, delay=-600),
+            _station(1, 60, group=0, delay=-600),
+        ]
+        assert self._conc(runs) == 0.0
+
+    def test_one_unreadable_group_reverts_the_whole_track(self):
+        # A partial partition can only under-state the track, and under-stating
+        # is the direction that overshoots a deadline — so the track falls back
+        # to the chain it was priced as before any of this, delay included.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP, delay=15),
+            _run(1, 600, track=TRACK_STATION),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_facts_without_a_group_are_unreadable_too(self):
+        # An unavailable station entity carries no attributes at all.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP),
+            _run(1, 600, track=TRACK_STATION, station=StationFacts()),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_sequential_sequencing_is_untouched(self):
+        # Smart Irrigation holds each station back until the last finalises, so
+        # the grouping cannot make them overlap.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP, delay=15),
+            _station(1, 600, group=PARALLEL_STATION_GROUP, delay=15),
+        ]
+        assert self._conc(runs, SEQUENTIAL) == 900
+
+    def test_rotating_sequencing_is_untouched(self):
+        # The station track already overrides rotating with its own chain, so
+        # the absorption model never reaches it; the point here is that the
+        # grouping does not reach it either.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP, delay=15),
+            _station(1, 600, group=PARALLEL_STATION_GROUP, delay=15),
+        ]
+        assert self._conc(runs, ROTATING, slot=300, absorb=600) == 900
+
+    def test_a_zero_duration_member_charges_no_delay(self):
+        # ignore_demand plans carry zero-duration runs; they occupy no slot in
+        # the controller's queue, so they add no boundary either.
+        runs = [
+            _station(0, 300, group=0, delay=15),
+            _station(1, 0, group=0, delay=15),
+        ]
+        assert self._conc(runs) == 300
+
+    def test_two_controllers_do_not_share_a_group_number(self):
+        # Group ids are numbered per controller, so these are two independent
+        # chains of 900 running alongside each other, not one chain of 1800.
+        runs = [
+            _station(0, 300, group=0, controller="os_1"),
+            _station(1, 600, group=0, controller="os_1"),
+            _station(2, 400, group=0, controller="os_2"),
+            _station(3, 500, group=0, controller="os_2"),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_the_longest_track_still_wins_across_tracks(self):
+        # Stations collapse to 600 under the parallel group; the classic and
+        # self-closing tracks are priced under their own rules, and the longest
+        # of the three takes the answer rather than the three being added.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP),
+            _station(1, 600, group=PARALLEL_STATION_GROUP),
+            _run(2, 900),
+            _run(3, 300),
+            _run(4, 700, track=TRACK_SELF_CLOSING),
+            _run(5, 800, track=TRACK_SELF_CLOSING),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_grouping_reaches_the_bound(self):
+        # Configured ceilings, priced through the same reduction: two stations
+        # in the parallel group bound at the longer, not the sum.
+        runs = [
+            _station(0, 100, group=PARALLEL_STATION_GROUP, maximum=4800),
+            _station(1, 100, group=PARALLEL_STATION_GROUP, maximum=3000),
+        ]
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=PARALLEL,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == 4800
+        )
+
+    def test_grouping_admits_a_zone_the_chain_model_refused(self):
+        # 900 s of window. Chained, the pair costs 900 and the third station
+        # cannot fit; in the parallel group all three overlap and all three run.
+        runs = [
+            _station(0, 600, group=PARALLEL_STATION_GROUP, ratio=3.0),
+            _station(1, 500, group=PARALLEL_STATION_GROUP, ratio=2.0),
+            _station(2, 400, group=PARALLEL_STATION_GROUP, ratio=1.5),
+        ]
+        chosen = select(
+            runs,
+            window_seconds=900,
+            sequencing=PARALLEL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+        assert [r.zone_id for r in chosen] == [0, 1, 2]
 
 
 class TestRank:
