@@ -413,6 +413,12 @@ ZONE_LAST_CALCULATED = "last_calculated"
 ZONE_LAST_CONSUMED = "last_consumed_at"
 ZONE_LAST_UPDATED = "last_updated"
 ZONE_LAST_IRRIGATION = "last_irrigation"
+# Per-zone days-between-irrigation counter. The global counter it replaces was
+# reset by ANY watered run, so a run that only reached the first few zones still
+# told the guard everything had watered and the next night was skipped whole —
+# the tail of the priority order could never come up. Bumped at local midnight,
+# reset only for zones that actually received water.
+ZONE_DAYS_SINCE_IRRIGATION = "days_since_irrigation"
 ZONE_NUMBER_OF_DATA_POINTS = "number_of_data_points"
 ZONE_DRAINAGE_RATE = "drainage_rate"
 ZONE_CURRENT_DRAINAGE = "current_drainage"

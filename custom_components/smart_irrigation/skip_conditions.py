@@ -179,16 +179,39 @@ class SkipConditionsMixin:
         return result
 
     async def _eval_days_between(self, config) -> dict:
-        """Structured days-between-irrigation guard (pure config math)."""
+        """Structured days-between-irrigation guard.
+
+        The counter is per zone, so this whole-run guard reports the zone that
+        has waited LONGEST and skips only when no zone has waited long enough.
+        Reporting the global counter instead would skip the entire run whenever
+        the most recently watered zone was still in its wait, which is exactly
+        how a truncated run used to starve the tail of the priority order. The
+        per-zone decision is made in ``_zone_days_between_blocked``, applied as a
+        filter by the runner.
+        """
         days_between = config.get(
             const.CONF_DAYS_BETWEEN_IRRIGATION,
             const.CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
         )
-        days_since = config.get(
+        global_days = config.get(
             const.CONF_DAYS_SINCE_LAST_IRRIGATION,
             const.CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
         )
         enabled = days_between > 0
+        days_since = global_days
+        if enabled:
+            try:
+                per_zone = [
+                    z.get(const.ZONE_DAYS_SINCE_IRRIGATION)
+                    for z in await self.store.async_get_zones()
+                    if z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+                    and z.get(const.ZONE_DAYS_SINCE_IRRIGATION) is not None
+                ]
+            except Exception as e:  # noqa: BLE001 — preview must never raise
+                _LOGGER.debug("Skip preview: days-between eval failed: %s", e)
+                per_zone = []
+            if per_zone:
+                days_since = max(per_zone)
         return {
             "id": SKIP_DAYS_BETWEEN,
             "enabled": enabled,
@@ -482,7 +505,7 @@ class SkipConditionsMixin:
         return int(max(zone_track, dist_track))
 
     async def _increment_days_since_irrigation(self):
-        """Increment the counter for days since last irrigation."""
+        """Bump the days-since-irrigation counters (global and per zone)."""
         config = await self.store.async_get_config()
         current_days = config.get(
             const.CONF_DAYS_SINCE_LAST_IRRIGATION,
@@ -493,11 +516,63 @@ class SkipConditionsMixin:
         await self.store.async_update_config(
             {const.CONF_DAYS_SINCE_LAST_IRRIGATION: new_days}
         )
+        for zone in await self.store.async_get_zones():
+            days = zone.get(
+                const.ZONE_DAYS_SINCE_IRRIGATION,
+                const.CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
+            )
+            await self.store.async_update_zone(
+                zone.get(const.ZONE_ID),
+                {const.ZONE_DAYS_SINCE_IRRIGATION: (days or 0) + 1},
+            )
 
         _LOGGER.debug("Incremented days since last irrigation to %d", new_days)
 
     async def _reset_days_since_irrigation(self):
-        """Reset the counter for days since last irrigation to 0."""
+        """Reset the GLOBAL days-since-irrigation counter to 0.
+
+        Global only. Each zone's own counter is reset by
+        ``async_write_watered_bucket``, in the same write as the water it is
+        recording — the only place that knows which zones actually got water. A
+        sequential or rotating run is a background task that can still be
+        watering hours after this returns, so resetting per-zone counters here
+        would clear them for zones a deadline or a mid-run re-price never
+        reaches, which is exactly the starvation the per-zone counter exists to
+        prevent. The global value survives for the dashboard preview.
+        """
         await self.store.async_update_config({const.CONF_DAYS_SINCE_LAST_IRRIGATION: 0})
 
         _LOGGER.debug("Reset days since last irrigation to 0")
+
+    def _days_between_setting(self) -> int:
+        """The configured days-between-irrigation wait, 0 when off.
+
+        Read from the in-memory config off the runner's hot path, and coerced,
+        because an unreadable value here must leave the guard OFF rather than
+        raise inside a dispatch and cancel the night's watering.
+        """
+        try:
+            value = getattr(
+                self.store.config,
+                "days_between_irrigation",
+                const.CONF_DEFAULT_DAYS_BETWEEN_IRRIGATION,
+            )
+            return max(0, int(value))
+        except (AttributeError, TypeError, ValueError):
+            return 0
+
+    def _zone_days_between_blocked(self, zone: dict, days_between: int) -> bool:
+        """Whether the days-between guard still holds this zone back.
+
+        A zone with no per-zone counter yet (hydrated before the counter
+        existed, and not through a midnight since) reads as never watered, so it
+        is not held: erring towards watering is the safe direction for a guard
+        whose whole failure mode is stranding a dry zone.
+        """
+        days_since = zone.get(const.ZONE_DAYS_SINCE_IRRIGATION)
+        if days_since is None:
+            return False
+        try:
+            return int(days_since) < days_between
+        except (TypeError, ValueError):
+            return False

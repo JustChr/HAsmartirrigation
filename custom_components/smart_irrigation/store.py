@@ -145,6 +145,7 @@ from .const import (
     ZONE_BUCKET,
     ZONE_BUCKET_THRESHOLD,
     ZONE_CURRENT_DRAINAGE,
+    ZONE_DAYS_SINCE_IRRIGATION,
     ZONE_DELTA,
     ZONE_DRAINAGE_RATE,
     ZONE_DURATION,
@@ -250,6 +251,11 @@ class ZoneEntry:
     # When this zone last actually irrigated (set by the runner). Persisted so
     # the "Last irrigation" sensor survives restarts.
     last_irrigation = attr.ib(type=datetime, default=None)
+    # Per-zone days-between counter; see const.ZONE_DAYS_SINCE_IRRIGATION for
+    # why the global one could not stay the gate.
+    days_since_irrigation = attr.ib(
+        type=int, default=CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION
+    )
     number_of_data_points = attr.ib(type=int, default=0)
     drainage_rate = attr.ib(type=float, default=CONF_DEFAULT_DRAINAGE_RATE)
     current_drainage = attr.ib(type=float, default=0)
@@ -1133,6 +1139,17 @@ class SmartIrrigationStorage:
                         # Migration: existing zones have no recorded last
                         # irrigation until they next water.
                         last_irrigation=zone.get(ZONE_LAST_IRRIGATION, None),
+                        # Migration: a zone with no per-zone counter yet inherits
+                        # the global one, so an install mid-way through a
+                        # days-between wait keeps waiting rather than being
+                        # handed a fresh 0 and watering a day early.
+                        days_since_irrigation=zone.get(
+                            ZONE_DAYS_SINCE_IRRIGATION,
+                            data["config"].get(
+                                CONF_DAYS_SINCE_LAST_IRRIGATION,
+                                CONF_DEFAULT_DAYS_SINCE_LAST_IRRIGATION,
+                            ),
+                        ),
                         number_of_data_points=zone.get(
                             ZONE_NUMBER_OF_DATA_POINTS, None
                         ),
