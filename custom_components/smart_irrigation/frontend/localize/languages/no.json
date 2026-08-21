@@ -484,6 +484,10 @@
         "title": "Hoppet over",
         "soil_moisture": "Jordfuktighet {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Varighet begrenset",
+        "detail": "Denne sonen trenger mer enn sin maksimale varighet på {maximum}, så en del av underskuddet blir stående uvannet ved hver kjøring. Å senke bøtteterskelen har ingen virkning før grensen heves."
+      },
       "help": {
         "bucket": "Jordfuktighetsbalanse (bøtte). En negativ verdi betyr at jorda er tørr og sonen trenger vann.",
         "calculate": "Beregner hvor lenge det skal vannes ut fra de nyeste dataene. Kjør dette etter Oppdater.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Neste kjøring",
+        "estimated": "estimert",
+        "estimated_help": "Starttidspunktet er fortsatt et anslåg: kjøringen dimensjoneres ut fra vannbehovet som leses kort før den starter, så dette tidspunktet flytter seg fram til da.",
         "no_schedule": "Ingen automatisk tidsplan — soner vannes bare når du starter dem.",
         "setup_schedule": "Sett opp en tidsplan",
         "targets_all": "alle soner",

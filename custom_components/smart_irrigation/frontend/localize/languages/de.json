@@ -484,6 +484,10 @@
         "title": "Übersprungen",
         "soil_moisture": "Bodenfeuchte {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Dauer begrenzt",
+        "detail": "Diese Zone braucht länger als ihre maximale Dauer von {maximum}, daher bleibt bei jedem Lauf ein Teil des Defizits ungewässert. Ein tieferer Vorrat-Schwellwert wirkt erst, wenn die Begrenzung angehoben wird."
+      },
       "help": {
         "bucket": "Bodenfeuchte-Bilanz (Vorrat). Ein negativer Wert bedeutet, dass der Boden trocken ist und die Zone Wasser braucht.",
         "calculate": "Berechnet aus den neuesten Daten, wie lange bewässert wird. Nach dem Aktualisieren ausführen.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Nächster Lauf",
+        "estimated": "geschätzt",
+        "estimated_help": "Die Startzeit ist noch eine Prognose: Der Lauf wird aus dem kurz vor Beginn gemessenen Wasserbedarf bemessen, daher verschiebt sich diese Zeit bis dahin.",
         "no_schedule": "Kein automatischer Zeitplan — Zonen bewässern nur, wenn du sie auslöst.",
         "setup_schedule": "Zeitplan einrichten",
         "targets_all": "alle Zonen",

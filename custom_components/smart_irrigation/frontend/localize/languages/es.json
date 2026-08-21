@@ -484,6 +484,10 @@
         "title": "Omitido",
         "soil_moisture": "Humedad del suelo {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duración limitada",
+        "detail": "Esta zona necesita más que su duración máxima de {maximum}, así que en cada riego queda sin regar parte del déficit. Bajar el umbral del depósito no tiene efecto hasta que se suba el límite."
+      },
       "help": {
         "bucket": "Balance de humedad del suelo (cubo). Un valor negativo significa que el suelo está seco y la zona necesita agua.",
         "calculate": "Calcula cuánto tiempo regar a partir de los últimos datos. Ejecútalo después de Actualizar.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Próximo riego",
+        "estimated": "estimado",
+        "estimated_help": "La hora de inicio es todavía una proyección: el riego se dimensiona con la demanda de agua leída poco antes de empezar, así que esta hora se irá moviendo hasta entonces.",
         "no_schedule": "Sin horario automático — las zonas solo se riegan cuando lo activas tú.",
         "setup_schedule": "Configurar un horario",
         "targets_all": "todas las zonas",

@@ -681,6 +681,10 @@
         "title": "Skipped",
         "soil_moisture": "Soil moisture {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duration capped",
+        "detail": "This zone needs longer than its maximum duration of {maximum}, so part of the deficit is left unwatered on every run. Deepening the bucket threshold has no effect until the cap is raised."
+      },
       "help": {
         "bucket": "Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",
         "calculate": "Works out how long to water from the latest data. Run this after Update.",
@@ -692,6 +696,8 @@
       },
       "outlook": {
         "next_run": "Next run",
+        "estimated": "estimated",
+        "estimated_help": "The start time is still a projection: the run is sized from the water demand read shortly before it begins, so this time moves until then.",
         "no_schedule": "No automatic schedule — zones water only when you trigger them.",
         "setup_schedule": "Set up a schedule",
         "targets_all": "all zones",

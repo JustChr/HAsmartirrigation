@@ -484,6 +484,10 @@
         "title": "Overgeslagen",
         "soil_moisture": "Bodemvocht {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duur begrensd",
+        "detail": "Deze zone heeft meer nodig dan haar maximale duur van {maximum}, dus bij elke beurt blijft een deel van het tekort onbewaterd. Een lagere voorraaddrempel heeft pas effect als de begrenzing wordt verhoogd."
+      },
       "help": {
         "bucket": "Bodemvochtbalans (voorraad). Een negatieve waarde betekent dat de bodem droog is en de zone water nodig heeft.",
         "calculate": "Berekent op basis van de nieuwste gegevens hoe lang er bewaterd wordt. Voer dit uit na Bijwerken.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Volgende beurt",
+        "estimated": "geschat",
+        "estimated_help": "De starttijd is nog een voorspelling: de beurt wordt bepaald door de watervraag die kort voor aanvang wordt gelezen, dus deze tijd verschuift tot dat moment.",
         "no_schedule": "Geen automatisch schema — zones worden alleen bewaterd wanneer je ze handmatig start.",
         "setup_schedule": "Een schema instellen",
         "targets_all": "alle zones",

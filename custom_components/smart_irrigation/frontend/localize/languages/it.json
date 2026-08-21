@@ -524,6 +524,10 @@
         "title": "Saltato",
         "soil_moisture": "Umidità del suolo {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Durata limitata",
+        "detail": "Questa zona richiede più della sua durata massima di {maximum}, quindi a ogni esecuzione una parte del deficit resta non irrigata. Abbassare la soglia del bucket non ha effetto finché il limite non viene aumentato."
+      },
       "help": {
         "bucket": "Bilancio di umidità del suolo (secchio). Un valore negativo significa che il terreno è asciutto e la zona ha bisogno d'acqua.",
         "calculate": "Calcola la durata dell'irrigazione dai dati più recenti. Eseguilo dopo Aggiorna.",
@@ -535,6 +539,8 @@
       },
       "outlook": {
         "next_run": "Prossima esecuzione",
+        "estimated": "stimato",
+        "estimated_help": "L'orario di avvio è ancora una proiezione: l'esecuzione è dimensionata sul fabbisogno d'acqua letto poco prima dell'inizio, quindi questo orario si sposta fino ad allora.",
         "no_schedule": "Nessuna pianificazione automatica — le zone si irrigano solo quando le avvii tu.",
         "setup_schedule": "Configura una pianificazione",
         "targets_all": "tutte le zone",

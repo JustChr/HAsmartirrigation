@@ -484,6 +484,10 @@
         "title": "Ignoré",
         "soil_moisture": "Humidité du sol {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Durée plafonnée",
+        "detail": "Cette zone a besoin de plus que sa durée maximale de {maximum} : à chaque cycle, une partie du déficit n'est pas arrosée. Abaisser le seuil du seau (bucket) reste sans effet tant que le plafond n'est pas relevé."
+      },
       "help": {
         "bucket": "Bilan d'humidité du sol (seau). Une valeur négative signifie que le sol est sec et que la zone a besoin d'eau.",
         "calculate": "Calcule la durée d'arrosage à partir des dernières données. À lancer après Mettre à jour.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Prochain cycle",
+        "estimated": "estimé",
+        "estimated_help": "L'heure de démarrage n'est encore qu'une projection : le cycle est dimensionné d'après le besoin en eau relevé peu avant son démarrage, donc cette heure évolue jusque-là.",
         "no_schedule": "Aucun horaire automatique — les zones ne s'arrosent que lorsque vous les déclenchez.",
         "setup_schedule": "Configurer un horaire",
         "targets_all": "toutes les zones",
