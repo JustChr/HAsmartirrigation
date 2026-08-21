@@ -99,6 +99,14 @@ When multiple zones have a [linked entity](configuration-my-zones.md#linked-enti
 
 - **Parallel** (default): all linked entities open simultaneously. Each closes after its own calculated duration.
 - **Sequential**: zones run one after another. The integration waits for each zone to finish before starting the next. Zones with 0 seconds calculated duration are skipped automatically.
+- **Rotating**: zones take turns in short bursts instead of each running to completion in one go. A zone waters for up to the **maximum consecutive watering time**, then yields to the next zone and rejoins the rotation until its full duration is spent. This is for soil that cannot absorb a long run without pooling or running off: the same total water arrives in slices the ground has time to take up.
+
+When **Rotating** is selected, two further settings appear:
+
+- **Maximum consecutive watering time** (default 5 minutes) — the longest a zone waters before yielding its turn.
+- **Minimum absorption time** (default 0, disabled) — the least time that must pass before a zone's *next* turn, giving the water time to soak in. This is a wait between one zone's turns, not between zones, so other zones keep watering during it.
+
+> **Rotating takes much longer than the total watering time.** The absorption waits are wall-clock time on top of the watering itself: two zones needing 10 minutes each, in 5-minute slices with a 10-minute absorption time, occupy 25 minutes rather than 20. A [finish-anchored schedule](configuration-schedules.md#time-anchor) accounts for this and starts early enough, but it is worth knowing before setting a long absorption time on a narrow window.
 
 > **This setting only reaches zones the integration actuates itself.** *Self-closing service* zones are all dispatched together whatever it is set to — the hardware owns each close, so there is nothing to wait for. *OpenSprinkler station* zones are sequenced by the integration, because whether two stations run at once is a flag in the controller's own configuration. *Batch / queue controller* zones are always sequential by construction: a queue waters one valve at a time, and their order comes from the order they are sent in. See [Watering mode](configuration-my-zones.md#watering-mode).
 

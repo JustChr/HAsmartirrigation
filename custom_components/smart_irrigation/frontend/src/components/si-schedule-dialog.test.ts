@@ -29,7 +29,7 @@ type Handler = (e: any) => unknown;
 /**
  * Flatten a lit TemplateResult tree into concatenated static HTML plus the
  * list of dynamic values/handlers, mirroring si-distributor-form.test.ts's
- * helper - the dialog markup nests templates the same way.
+ * helper — the dialog markup nests templates the same way.
  */
 function flatten(node: any): {
   text: string;
@@ -84,6 +84,22 @@ describe("si-schedule-dialog", () => {
     expect(text).toContain("<ha-dialog");
     expect(text).toContain("Edit schedule");
     expect(text).toContain("Front lawn");
+    // The title goes through ha-dialog's own heading attribute rather than a
+    // custom "heading" slot: markup of ours in that slot sits inside the
+    // dialog's padding box and runs under both top corners.
+    expect(text).toContain("heading=");
+    expect(text).not.toContain('slot="heading"');
+  });
+
+  it("puts the enabled toggle in the actions row, not the heading", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), enabled: true },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain(
+      '<label slot="secondaryAction" class="enabled-toggle"',
+    );
+    expect(text).toContain("<ha-switch");
   });
 
   it("emits schedule-changed with the patched schedule when the name field changes", () => {
@@ -103,20 +119,20 @@ describe("si-schedule-dialog", () => {
       if (evt && evt.detail.value.name === "new name") {
         sawPatch = true;
         // The emitted value carries the rest of the schedule forward too.
-        expect(evt.detail.value.type).toBe("daily");
+        expect(evt.detail.value.recurrence).toBe("daily");
       }
     }
     expect(sawPatch).toBe(true);
   });
 
-  it("emits save with the current schedule when the Save button is clicked", () => {
+  it("emits save with the current schedule when the primaryAction button is clicked", () => {
     const schedule = { ...emptySchedule(), name: "Back yard" };
     const { el, emitted } = makeDialog({ schedule });
     const { handlers } = flatten(el.render());
-    // The Save button's @click is bound to the same function reference as
-    // the component's private _save - find it by identity in the rendered
-    // tree and invoke it as the browser would (via the click), rather than
-    // calling the private method by name.
+    // The primaryAction button's @click is bound to the same function
+    // reference as the component's private _save — find it by identity in
+    // the rendered tree and invoke it as the browser would (via the click),
+    // rather than calling the private method by name.
     const clickSave = handlers.find((h) => h === (el as any)._save);
     expect(clickSave).toBeDefined();
     clickSave!({});
@@ -125,11 +141,11 @@ describe("si-schedule-dialog", () => {
     expect(emitted[0].detail.value).toEqual(schedule);
   });
 
-  it("emits cancel from both the Cancel button and the host ha-dialog's own closed event", () => {
+  it("emits cancel from both the secondaryAction button and the host ha-dialog's own closed event", () => {
     // Both the explicit Cancel button and the ha-dialog's native "closed"
     // event (Escape / backdrop click) must drive the same cancel path, never
-    // save. The rendered tree binds both the button's @click and the
-    // ha-dialog's @closed to the identical _cancel function reference, so
+    // save. The rendered tree binds both @click (secondaryAction button) and
+    // @closed (ha-dialog) to the identical _cancel function reference, so
     // finding that reference twice in the handler list confirms both wiring
     // points, and invoking it exercises the actual bound handler.
     const { el, emitted } = makeDialog();
@@ -147,5 +163,246 @@ describe("si-schedule-dialog", () => {
     el.hass = { language: "en" };
     const { text } = flatten(el.render());
     expect(text).toBe("");
+  });
+});
+
+describe("si-schedule-dialog: Start/Finish rows", () => {
+  it("offers all five modes on both the Start and Finish rows", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), start_mode: "none", finish_mode: "none" },
+    });
+    const { text } = flatten(el.render());
+    for (const label of [
+      "No limit",
+      "At sunrise",
+      "At sunset",
+      "At solar azimuth",
+      "At a time",
+    ]) {
+      // Once per row (Start, Finish) — two <option> labels each.
+      const count = text.split(label).length - 1;
+      expect(count, `"${label}" should appear on both rows`).toBe(2);
+    }
+  });
+
+  it("renders a degrees stepper (not minutes) when a row's mode is solar_azimuth", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        start_mode: "solar_azimuth",
+        start_azimuth: 120,
+        finish_mode: "none",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("°");
+    // The azimuth input has no min/max (a bearing wraps rather than clamps —
+    // see the wraparound test below), so this only needs to confirm the
+    // localized minutes suffix never renders as text content here.
+    expect(text).not.toMatch(/\bmin\b(?!=)/);
+  });
+
+  it.each([
+    ["past the top", "400", 40],
+    ["past the bottom", "-10", 350],
+  ])(
+    "wraps the solar-azimuth stepper %s instead of clamping",
+    (_label, typed, wrapped) => {
+      const { el, emitted } = makeDialog({
+        schedule: {
+          ...emptySchedule(),
+          start_mode: "solar_azimuth",
+          start_azimuth: 120,
+          finish_mode: "none",
+        },
+      });
+      const { handlers } = flatten(el.render());
+      let sawWrap = false;
+      for (const h of handlers) {
+        emitted.length = 0;
+        try {
+          h({ target: { value: typed } });
+        } catch {
+          continue;
+        }
+        const evt = emitted.find((e) => e.type === "schedule-changed");
+        if (evt && evt.detail.value.start_azimuth === wrapped) {
+          sawWrap = true;
+        }
+      }
+      expect(sawWrap).toBe(true);
+    },
+  );
+
+  it("renders a signed minutes stepper for sunrise/sunset", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        start_mode: "sunrise",
+        start_offset: -15,
+        finish_mode: "none",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("offset");
+    expect(text).toContain("min");
+  });
+
+  it("does not render the pinned-end row when only one end is bounded", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), start_mode: "time", finish_mode: "none" },
+    });
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("Water as");
+  });
+
+  it("renders the pinned-end row only once both ends are bounded", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        start_mode: "time",
+        start_time: "06:00",
+        finish_mode: "time",
+        finish_time: "20:00",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("Water as");
+    expect(text).toContain("as possible in the window");
+    expect(text).toContain("late");
+  });
+
+  it("shows the error help on both rows and disables Save when both ends are unbounded", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), start_mode: "none", finish_mode: "none" },
+    });
+    const { text } = flatten(el.render());
+    const errorCount =
+      text.split("Must set either a start or finish condition").length - 1;
+    expect(errorCount).toBe(2);
+    expect((el as any)._canSave()).toBe(false);
+  });
+
+  it("help text matches the table for all five start/finish states", () => {
+    const lang = "en";
+    const cases: Array<[Partial<Record<string, any>>, string, string]> = [
+      [
+        { start_mode: "none", finish_mode: "time", finish_time: "20:00" },
+        "Set by demand. All zones run to completion.",
+        "Exact.",
+      ],
+      [
+        { start_mode: "time", start_time: "06:00", finish_mode: "none" },
+        "Exact.",
+        "Set by demand. All zones run to completion.",
+      ],
+      [
+        {
+          start_mode: "time",
+          start_time: "06:00",
+          finish_mode: "time",
+          finish_time: "20:00",
+          anchor: "finish",
+        },
+        "Set by demand, but never before this.",
+        "Exact. Zones that don't fit are deferred.",
+      ],
+      [
+        {
+          start_mode: "time",
+          start_time: "06:00",
+          finish_mode: "time",
+          finish_time: "20:00",
+          anchor: "start",
+        },
+        "Exact.",
+        "Set by demand, but never later than this. Zones that don't fit are deferred.",
+      ],
+    ];
+    for (const [patch, startHelp, finishHelp] of cases) {
+      const { el } = makeDialog({
+        schedule: { ...emptySchedule(), ...patch },
+      });
+      el.hass = { language: lang };
+      const { text } = flatten(el.render());
+      expect(text, JSON.stringify(patch)).toContain(startHelp);
+      expect(text, JSON.stringify(patch)).toContain(finishHelp);
+    }
+  });
+
+  it("leaves every mode functionally selectable on every recurrence, including weekly/monthly with a sun-relative finish", () => {
+    // "No option is disabled" is checked behaviorally here rather than by
+    // scanning rendered markup for a `disabled` attribute: the flatten()
+    // helper only walks the tagged-template AST, so a literal "disabled"
+    // substring from the unrelated Save button's `?disabled` binding is
+    // always present in the raw static strings regardless of its runtime
+    // value, making a text-search assertion meaningless. Instead, drive the
+    // Start mode <select>'s own change handler with every mode and confirm
+    // each one actually reaches a schedule-changed patch — which is exactly
+    // what "not disabled" means for a <select>.
+    for (const recurrence of ["daily", "weekly", "monthly"]) {
+      const { el, emitted } = makeDialog({
+        schedule: {
+          ...emptySchedule(),
+          recurrence,
+          days_of_week: ["monday"],
+          day_of_month: 1,
+          start_mode: "none",
+          finish_mode: "sunset",
+          finish_offset: 0,
+        },
+      });
+      const { handlers } = flatten(el.render());
+      for (const mode of [
+        "none",
+        "time",
+        "sunrise",
+        "sunset",
+        "solar_azimuth",
+      ]) {
+        let reached = false;
+        for (const h of handlers) {
+          emitted.length = 0;
+          try {
+            h({ target: { value: mode } });
+          } catch {
+            continue;
+          }
+          const evt = emitted.find((e) => e.type === "schedule-changed");
+          if (
+            evt &&
+            (evt.detail.value.start_mode === mode ||
+              evt.detail.value.finish_mode === mode)
+          ) {
+            reached = true;
+          }
+        }
+        expect(
+          reached,
+          `${recurrence}: mode "${mode}" should be reachable`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("hides the Start, Finish and pinned-end rows for an interval recurrence", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        recurrence: "interval",
+        interval_hours: 6,
+        start_mode: "time",
+        start_time: "06:00",
+        finish_mode: "time",
+        finish_time: "20:00",
+        anchor: "finish",
+      },
+    });
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("Water as");
+    expect(text).not.toContain("At sunrise");
+    expect(text).not.toContain("At solar azimuth");
+    // Interval always allows saving — it has no window to be unbounded.
+    expect((el as any)._canSave()).toBe(true);
   });
 });

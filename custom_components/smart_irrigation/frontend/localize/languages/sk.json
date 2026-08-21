@@ -604,10 +604,7 @@
         "daily": "Denne",
         "weekly": "Týždenne",
         "monthly": "Mesačne",
-        "interval": "Každých N hodín",
-        "sunrise": "Východ slnka",
-        "sunset": "Západ slnka",
-        "solar_azimuth": "Slnečný azimut"
+        "interval": "Každých N hodín"
       },
       "actions": {
         "calculate": "Vypočítať (aktualizovať dobu závlahy)",
@@ -625,29 +622,76 @@
       },
       "fields": {
         "name": "Názov",
-        "type": "Typ plánu",
+        "recurrence": "Opakovanie",
         "enabled": "Povolené",
-        "time": "Čas (HH:MM)",
         "days_of_week": "Dni v týždni",
         "day_of_month": "Deň v mesiaci",
-        "interval_hours": "Interval",
+        "interval_hours": "Každých",
         "action": "Akcia",
         "zones": "Zóny",
-        "start_time": "Čas začiatku (voliteľné)",
-        "start_date": "Dátum začiatku (voliteľné)",
-        "end_date": "Dátum konca (voliteľné)",
-        "offset_minutes": "Posun od východu/západu slnka",
-        "account_for_duration": "Spustiť skoro, aby závlaha skončila v cieľovom čase",
-        "azimuth_angle": "Uhol slnečného azimutu",
-        "time_anchor": "Čas označuje"
+        "start_mode": "Začiatok",
+        "start_time": "Prvý beh o",
+        "finish_mode": "Koniec",
+        "finish_time": "Čas konca (HH:MM)",
+        "anchor_prefix": "Zavlažovať čo",
+        "anchor_suffix": "najviac v rámci okna",
+        "offset_by": "posunuté"
       },
       "dialog": {
         "add_title": "Pridať plán",
         "edit_title": "Upraviť plán"
       },
-      "time_anchor": {
-        "start": "Začiatok zavlažovania",
-        "finish": "Koniec zavlažovania"
+      "sections": {
+        "when": "Kedy",
+        "zones": "Zóny",
+        "season": "Sezóna"
+      },
+      "season": {
+        "label": "Rozsah dátumov",
+        "to": "do",
+        "note": "Ak obe polia necháte prázdne, plán beží celý rok."
+      },
+      "summary": {
+        "invalid": "Tento plán nemá nastavený začiatok ani koniec, takže nikdy nebeží.",
+        "recurrence_daily": "Beží denne",
+        "recurrence_weekly": "Beží týždenne v tieto dni: {days}",
+        "recurrence_monthly": "Beží mesačne v deň {day}",
+        "recurrence_interval": "Beží každých {hours} hodín",
+        "recurrence_interval_at": "Beží každých {hours} hodín, so začiatkom o {time}",
+        "zones_all": "všetky zóny",
+        "zones_some": "{count, plural, one {# vybraná zóna} few {# vybrané zóny} other {# vybraných zón}}",
+        "watering": "zavlažuje {zones}",
+        "start_only": "začína o {when}; všetky zóny bežia do dokončenia",
+        "finish_only": "končí o {when}; všetky zóny bežia do dokončenia",
+        "anchor_finish": "končí o {finish}, začína čo najneskôr, ale nikdy pred {start}; zóny, ktoré sa nezmestia, čakajú na ďalší beh",
+        "anchor_start": "začína o {start}, končí najneskôr o {finish}; zóny, ktoré sa nezmestia, čakajú na ďalší beh",
+        "sunrise": "východ slnka",
+        "sunset": "západ slnka",
+        "offset_before": "{minutes} min pred {event}",
+        "offset_after": "{minutes} min po {event}",
+        "at_azimuth": "slnečný azimut {degrees}°"
+      },
+      "bound_mode": {
+        "none": "Bez obmedzenia",
+        "time": "V určenom čase",
+        "sunrise": "Pri východe slnka",
+        "sunset": "Pri západe slnka",
+        "solar_azimuth": "Pri slnečnom azimute"
+      },
+      "anchor": {
+        "start": "skoro",
+        "finish": "neskoro"
+      },
+      "help": {
+        "error": "Musíte nastaviť buď podmienku začiatku, alebo konca",
+        "interval_start": "Nechajte prázdne, ak sa má začať od uloženia plánu. Intervalový plán nemá cieľový čas dňa, takže nemá ani okno behu.",
+        "demand_open": "Nastavené podľa dopytu. Všetky zóny bežia do dokončenia.",
+        "exact": "Presne.",
+        "demand_floored": "Nastavené podľa dopytu, ale nikdy pred týmto.",
+        "exact_deferred": "Presne. Zóny, ktoré sa nezmestia, sú odložené.",
+        "demand_capped_deferred": "Nastavené podľa dopytu, ale nikdy neskôr než toto. Zóny, ktoré sa nezmestia, sú odložené.",
+        "unreachable_no_run": "Slnko tu nikdy nedosiahne tento azimut, takže tento plán sa nespustí.",
+        "unreachable_ignored": "Slnko tu nikdy nedosiahne tento azimut, takže tento limit sa ignoruje."
       }
     },
     "info": {

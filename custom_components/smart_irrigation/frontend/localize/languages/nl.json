@@ -604,10 +604,7 @@
         "daily": "Dagelijks",
         "weekly": "Wekelijks",
         "monthly": "Maandelijks",
-        "interval": "Elke N uur",
-        "sunrise": "Zonsopgang",
-        "sunset": "Zonsondergang",
-        "solar_azimuth": "Zonneazimut"
+        "interval": "Elke N uur"
       },
       "actions": {
         "calculate": "Berekenen (bewateringsduur bijwerken)",
@@ -625,29 +622,76 @@
       },
       "fields": {
         "name": "Naam",
-        "type": "Schematype",
+        "recurrence": "Herhaling",
         "enabled": "Ingeschakeld",
-        "time": "Tijd (HH:MM)",
         "days_of_week": "Weekdagen",
         "day_of_month": "Dag van de maand",
-        "interval_hours": "Interval",
+        "interval_hours": "Elke",
         "action": "Actie",
         "zones": "Zones",
-        "start_time": "Starttijd (optioneel)",
-        "start_date": "Startdatum (optioneel)",
-        "end_date": "Einddatum (optioneel)",
-        "offset_minutes": "Offset van zonsopgang/-ondergang",
-        "account_for_duration": "Vroeg starten zodat bewatering eindigt op doeltijd",
-        "azimuth_angle": "Zonneazimuthoek",
-        "time_anchor": "Tijd markeert het"
+        "start_mode": "Start",
+        "start_time": "Eerste beurt om",
+        "finish_mode": "Einde",
+        "finish_time": "Eindtijd (HH:MM)",
+        "anchor_prefix": "Water geven zo",
+        "anchor_suffix": "mogelijk binnen het venster",
+        "offset_by": "offset"
       },
       "dialog": {
         "add_title": "Schema toevoegen",
         "edit_title": "Schema bewerken"
       },
-      "time_anchor": {
-        "start": "Begin van de bewatering",
-        "finish": "Einde van de bewatering"
+      "sections": {
+        "when": "Wanneer",
+        "zones": "Zones",
+        "season": "Seizoen"
+      },
+      "season": {
+        "label": "Periode",
+        "to": "tot",
+        "note": "Beide leeg laten om het hele jaar door te draaien."
+      },
+      "summary": {
+        "invalid": "Dit schema heeft geen start of einde ingesteld, dus het draait nooit.",
+        "recurrence_daily": "Draait dagelijks",
+        "recurrence_weekly": "Draait wekelijks op {days}",
+        "recurrence_monthly": "Draait maandelijks op dag {day}",
+        "recurrence_interval": "Draait elke {hours} uur",
+        "recurrence_interval_at": "Draait elke {hours} uur, startend om {time}",
+        "zones_all": "alle zones",
+        "zones_some": "{count, plural, one {# geselecteerde zone} other {# geselecteerde zones}}",
+        "watering": "bewatert {zones}",
+        "start_only": "start om {when}; alle zones lopen tot ze klaar zijn",
+        "finish_only": "eindigt om {when}; alle zones lopen tot ze klaar zijn",
+        "anchor_finish": "eindigt om {finish}, start zo laat mogelijk maar nooit voor {start}; zones die niet passen wachten op de volgende keer",
+        "anchor_start": "start om {start}, eindigt uiterlijk om {finish}; zones die niet passen wachten op de volgende keer",
+        "sunrise": "zonsopgang",
+        "sunset": "zonsondergang",
+        "offset_before": "{minutes} min voor {event}",
+        "offset_after": "{minutes} min na {event}",
+        "at_azimuth": "zonneazimut {degrees}°"
+      },
+      "bound_mode": {
+        "none": "Geen limiet",
+        "time": "Op een tijdstip",
+        "sunrise": "Bij zonsopgang",
+        "sunset": "Bij zonsondergang",
+        "solar_azimuth": "Bij zonneazimut"
+      },
+      "anchor": {
+        "start": "vroeg",
+        "finish": "laat"
+      },
+      "help": {
+        "error": "Er moet een start- of eindvoorwaarde worden ingesteld",
+        "interval_start": "Laat leeg om te starten vanaf het moment dat het schema wordt opgeslagen. Een intervalschema heeft geen doeltijdstip en dus geen venster.",
+        "demand_open": "Ingesteld op basis van vraag. Alle zones worden volledig uitgevoerd.",
+        "exact": "Exact.",
+        "demand_floored": "Ingesteld op basis van vraag, maar nooit eerder dan dit.",
+        "exact_deferred": "Exact. Zones die niet passen worden uitgesteld.",
+        "demand_capped_deferred": "Ingesteld op basis van vraag, maar nooit later dan dit. Zones die niet passen worden uitgesteld.",
+        "unreachable_no_run": "De zon bereikt dit azimut hier nooit, dus dit schema wordt niet uitgevoerd.",
+        "unreachable_ignored": "De zon bereikt dit azimut hier nooit, dus deze grens wordt genegeerd."
       }
     },
     "info": {

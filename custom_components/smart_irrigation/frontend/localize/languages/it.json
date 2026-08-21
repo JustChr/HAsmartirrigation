@@ -644,10 +644,7 @@
         "daily": "Giornaliero",
         "weekly": "Settimanale",
         "monthly": "Mensile",
-        "interval": "Ogni N ore",
-        "sunrise": "Alba",
-        "sunset": "Tramonto",
-        "solar_azimuth": "Azimut solare"
+        "interval": "Ogni N ore"
       },
       "actions": {
         "calculate": "Calcola (aggiorna durata irrigazione)",
@@ -665,29 +662,76 @@
       },
       "fields": {
         "name": "Nome",
-        "type": "Tipo di pianificazione",
+        "recurrence": "Ricorrenza",
         "enabled": "Abilitato",
-        "time": "Ora (HH:MM)",
         "days_of_week": "Giorni della settimana",
         "day_of_month": "Giorno del mese",
-        "interval_hours": "Intervallo",
+        "interval_hours": "Ogni",
         "action": "Azione",
         "zones": "Zone",
-        "start_time": "Ora di inizio (opzionale)",
-        "start_date": "Data di inizio (opzionale)",
-        "end_date": "Data di fine (opzionale)",
-        "offset_minutes": "Offset dall'alba/tramonto",
-        "account_for_duration": "Iniziare prima affinché l'irrigazione finisca all'orario target",
-        "azimuth_angle": "Angolo di azimut solare",
-        "time_anchor": "Lorario indica"
+        "start_mode": "Inizio",
+        "start_time": "Prima irrigazione alle",
+        "finish_mode": "Fine",
+        "finish_time": "Ora di fine (HH:MM)",
+        "anchor_prefix": "Irrigare il più",
+        "anchor_suffix": "possibile nella finestra",
+        "offset_by": "offset"
       },
       "dialog": {
         "add_title": "Aggiungi pianificazione",
         "edit_title": "Modifica pianificazione"
       },
-      "time_anchor": {
-        "start": "Inizio dellirrigazione",
-        "finish": "Fine dellirrigazione"
+      "sections": {
+        "when": "Quando",
+        "zones": "Zone",
+        "season": "Stagione"
+      },
+      "season": {
+        "label": "Intervallo di date",
+        "to": "a",
+        "note": "Lasciare entrambe vuote per irrigare tutto l'anno."
+      },
+      "summary": {
+        "invalid": "Questa pianificazione non ha né inizio né fine impostati, quindi non viene mai eseguita.",
+        "recurrence_daily": "Viene eseguita ogni giorno",
+        "recurrence_weekly": "Viene eseguita ogni settimana il {days}",
+        "recurrence_monthly": "Viene eseguita ogni mese il giorno {day}",
+        "recurrence_interval": "Viene eseguita ogni {hours} ore",
+        "recurrence_interval_at": "Viene eseguita ogni {hours} ore, a partire da {time}",
+        "zones_all": "tutte le zone",
+        "zones_some": "{count, plural, one {# zona selezionata} other {# zone selezionate}}",
+        "watering": "irriga {zones}",
+        "start_only": "inizia a {when}; tutte le zone vengono completate",
+        "finish_only": "termina a {when}; tutte le zone vengono completate",
+        "anchor_finish": "termina a {finish}, iniziando il più tardi possibile ma mai prima di {start}; le zone che non rientrano attendono il prossimo ciclo",
+        "anchor_start": "inizia a {start}, termina al più tardi a {finish}; le zone che non rientrano attendono il prossimo ciclo",
+        "sunrise": "alba",
+        "sunset": "tramonto",
+        "offset_before": "{minutes} min prima {event}",
+        "offset_after": "{minutes} min dopo {event}",
+        "at_azimuth": "azimut solare {degrees}°"
+      },
+      "bound_mode": {
+        "none": "Nessun limite",
+        "time": "A un orario",
+        "sunrise": "All'alba",
+        "sunset": "Al tramonto",
+        "solar_azimuth": "All'azimut solare"
+      },
+      "anchor": {
+        "start": "presto",
+        "finish": "tardi"
+      },
+      "help": {
+        "error": "È necessario impostare una condizione di inizio o di fine",
+        "interval_start": "Lascia vuoto per partire da quando la pianificazione viene salvata. Una pianificazione a intervalli non ha un orario di riferimento, quindi nessuna finestra.",
+        "demand_open": "Impostato in base alla domanda. Tutte le zone vengono completate.",
+        "exact": "Esatto.",
+        "demand_floored": "Impostato in base alla domanda, ma mai prima di questo.",
+        "exact_deferred": "Esatto. Le zone che non rientrano vengono rinviate.",
+        "demand_capped_deferred": "Impostato in base alla domanda, ma mai dopo questo. Le zone che non rientrano vengono rinviate.",
+        "unreachable_no_run": "Il sole non raggiunge mai questo azimut qui, quindi questa pianificazione non verrà eseguita.",
+        "unreachable_ignored": "Il sole non raggiunge mai questo azimut qui, quindi questo limite viene ignorato."
       }
     },
     "setup": {
