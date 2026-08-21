@@ -34,9 +34,16 @@ from .opensprinkler import (
     entity_is_station,
     is_opensprinkler_zone,
     station_facts,
+    station_facts_by_zone,
 )
 from .run_watch import run_is_paused, run_is_queue_bound, run_is_segmented
-from .run_window import TRACK_STATION, ZoneRun, track_for_zone
+from .run_window import (
+    TRACK_STATION,
+    ZoneRun,
+    nominal_demand_seconds,
+    track_for_zone,
+    zone_eligible_for_demand,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2176,8 +2183,9 @@ class IrrigationRunnerMixin:
         eligible = [
             z
             for z in zones
-            if z.get(const.ZONE_DISTRIBUTOR_ID) is None
-            and z.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+            # Shared with the nominal projection rather than restated, so the
+            # two cannot drift into planning over different zone sets.
+            if zone_eligible_for_demand(z)
             and (target is None or int(z.get(const.ZONE_ID)) in target)
             and (
                 not runnable_only
@@ -2257,6 +2265,38 @@ class IrrigationRunnerMixin:
                 "own station groups",
                 len(stations),
             )
+
+    async def async_nominal_demand_seconds(self, zone_ids=None) -> float:
+        """Wall-clock seconds a schedule's run takes on a typical night.
+
+        Unlike :meth:`async_plan_zone_runs`, this never reads a zone's live
+        bucket or the live-estimate deficit — every eligible zone is priced as
+        if it had just crossed its own threshold (see
+        :func:`run_window.nominal_zone_duration`), so the answer holds steady
+        across calc cycles and is safe to publish before a schedule's own
+        estimate has ever run. ``zone_ids`` is the schedule's own ``zones``
+        selection (``"all"`` or a list), normalized the same way the run
+        planner normalizes it.
+        """
+        zones = await self.store.async_get_zones()
+        selection = normalize_zone_selection(zone_ids)
+        target = None if selection is None else {int(z) for z in selection}
+        in_scope = [
+            z for z in zones if target is None or int(z.get(const.ZONE_ID)) in target
+        ]
+        sequencing, slot_seconds, absorption_seconds = self.sequencing_timing()
+        metric = self.hass.config.units is METRIC_SYSTEM
+        # The projection module cannot read an entity, so the controller's own
+        # grouping is gathered here — without it the dial would draw a station
+        # chain the controller does not run.
+        return nominal_demand_seconds(
+            in_scope,
+            sequencing=sequencing,
+            max_slot_seconds=slot_seconds,
+            min_absorption_seconds=absorption_seconds,
+            metric=metric,
+            station_facts=station_facts_by_zone(self.hass, in_scope),
+        )
 
     def _warn_if_low_maximum_bucket(self, zone: dict, metric: bool) -> None:
         """Warn once per zone when live-estimate watering runs against a small

@@ -52,7 +52,8 @@ _LOGGER = logging.getLogger(__name__)
 #   irrigate_now, run_zone, stop_zone,
 #   set_rain_delay, clear_rain_delay                 (the card's actions mode)
 #   mappings, modules, allmodules,
-#   weather_records, weather_forecast, watering_calendar, schedules (reads)
+#   weather_records, weather_forecast, watering_calendar, schedules,
+#   schedule_nominal_demand (reads)
 #
 # NB the HTTP views below (POST /api/smart_irrigation/...) are a separate
 # surface and are NOT covered by this; they still only require authentication.
@@ -672,10 +673,49 @@ class SmartIrrigationWateringCalendarView(HomeAssistantView):
 
 @async_response
 async def websocket_get_schedules(hass: HomeAssistant, connection, msg):
-    """Return all recurring schedules."""
+    """Return all recurring schedules.
+
+    Each schedule carries its own ``nominal_demand_seconds`` — the wall clock
+    its run takes on a typical night, with every one of its zones priced as
+    exactly due rather than at its live bucket (see
+    ``run_window.nominal_demand_seconds``). Computed here rather than cached
+    on the schedule dict itself: it never changes with a zone's bucket, but it
+    does change with the zone's own configuration (threshold, throughput,
+    size, maximum duration) and the schedule's sequencing, so caching it would
+    need its own invalidation for no benefit over recomputing the pure
+    arithmetic on every read.
+    """
     coordinator = hass.data[const.DOMAIN]["coordinator"]
     schedules = coordinator.recurring_schedule_manager.get_schedules()
-    connection.send_result(msg["id"], schedules)
+    result = []
+    for schedule in schedules:
+        # get_schedules() returns the manager's own dict objects (shallow
+        # copy of the list, not of each entry) — copy before adding a field
+        # that must never leak into what actually gets persisted.
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+        enriched = {
+            **schedule,
+            "nominal_demand_seconds": await coordinator.async_nominal_demand_seconds(
+                zones
+            ),
+        }
+        result.append(enriched)
+    connection.send_result(msg["id"], result)
+
+
+@async_response
+async def websocket_get_nominal_demand(hass: HomeAssistant, connection, msg):
+    """Preview ``nominal_demand_seconds`` for a zone selection not yet saved.
+
+    Same computation ``websocket_get_schedules`` enriches each saved schedule
+    with, exposed standalone so the Add Schedule dialog's dial can show a
+    real run-length preview while the zone picker is still being edited,
+    instead of the 0 a not-yet-saved schedule has no other way to get.
+    """
+    coordinator = hass.data[const.DOMAIN]["coordinator"]
+    zones = msg.get("zones", "all")
+    seconds = await coordinator.async_nominal_demand_seconds(zones)
+    connection.send_result(msg["id"], {"nominal_demand_seconds": seconds})
 
 
 @websocket_api.require_admin
@@ -1157,6 +1197,20 @@ async def async_register_websockets(hass: HomeAssistant):
         websocket_get_schedules,
         websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
             {vol.Required("type"): const.DOMAIN + "/schedules"}
+        ),
+    )
+    async_register_command(
+        hass,
+        const.DOMAIN + "/schedule_nominal_demand",
+        websocket_get_nominal_demand,
+        websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
+            {
+                vol.Required("type"): const.DOMAIN + "/schedule_nominal_demand",
+                # "all" or a list of zone ids only - never a bare non-"all"
+                # string, which normalize_zone_selection would otherwise
+                # iterate character by character (see its own docstring).
+                vol.Optional("zones"): vol.Any("all", [vol.Coerce(str)]),
+            }
         ),
     )
     async_register_command(
