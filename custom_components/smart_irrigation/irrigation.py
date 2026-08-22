@@ -824,6 +824,34 @@ class IrrigationRunnerMixin:
             _LOGGER.debug("Live-estimate duration left no zones needing water")
             return False
 
+        # Days-between guard, per zone. Evaluated here rather than as a
+        # whole-run skip so a zone that has served its wait still waters when a
+        # zone watered more recently has not. Off by default
+        # (days_between_irrigation = 0), and the setting is read first so the
+        # default path costs nothing.
+        days_between = self._days_between_setting()
+        if days_between > 0:
+            held = [
+                z
+                for z in zones_to_irrigate
+                if self._zone_days_between_blocked(z, days_between)
+            ]
+            if held:
+                _LOGGER.info(
+                    "Days-between guard (%s days) holds zones %s back this run",
+                    days_between,
+                    [z.get(const.ZONE_ID) for z in held],
+                )
+                held_ids = {int(z.get(const.ZONE_ID)) for z in held}
+                zones_to_irrigate = [
+                    z
+                    for z in zones_to_irrigate
+                    if int(z.get(const.ZONE_ID)) not in held_ids
+                ]
+            if not zones_to_irrigate:
+                _LOGGER.debug("Days-between guard left no zones needing water")
+                return False
+
         await self._dispatch_by_mode(zones_to_irrigate, trigger="schedule")
         # Past the veto+live gates with a non-empty set: at least one real run
         # (self-closing and/or the sequencing task) was dispatched.
@@ -2309,6 +2337,17 @@ class IrrigationRunnerMixin:
             changes[const.ZONE_PENDING_BUCKET_EVENTS] = events[
                 -const.PENDING_BUCKET_EVENTS_MAX :
             ]
+        if delta > 0:
+            # This zone just received water, so its days-between wait restarts —
+            # here, in the same write as the credit, because this is the only
+            # place that knows it happened. The dispatcher cannot: a sequential
+            # or rotating run is a background task that can still be watering
+            # hours later, so anything reset at dispatch time is reset for zones
+            # a mid-run re-price will never actually water. That is precisely
+            # the starvation the per-zone counter exists to stop. Every credit
+            # path funnels through here (timed, flow, distributor, self-closing,
+            # and observed external runs), so all of them count.
+            changes[const.ZONE_DAYS_SINCE_IRRIGATION] = 0
         await self.store.async_update_zone(zone_id, changes)
 
     async def _commit_run_progress(
