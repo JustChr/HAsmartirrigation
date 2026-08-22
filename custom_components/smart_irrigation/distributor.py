@@ -461,6 +461,12 @@ class DistributorMixin:
                         dist.get("id"),
                         sorted(held),
                     )
+                    # No days_between run-log entry here, unlike the
+                    # linked-entity path. `held` is computed from every member
+                    # before the demand gate, so recording it would mark
+                    # members that had no deficit to water in the first place
+                    # as held by the guard. Recording accurately needs the
+                    # per-member demand decision, which is taken further in.
                     allowed = ready
             # H2 (review #11): the four static gates (position_state /
             # commissioning_confirmed / active_cycle / members-empty) plus the
