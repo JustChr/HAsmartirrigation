@@ -7,10 +7,15 @@ this module exists: under rotating, ``sum(durations)`` is not the wall clock.
 """
 
 import datetime
+import itertools
+import math
+import random
+
+import pytest
 
 from custom_components.smart_irrigation import const
+from custom_components.smart_irrigation.duration_math import duration_from_deficit
 from custom_components.smart_irrigation.run_window import (
-    RUN_CEILING_SECONDS,
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,
     TRACK_STATION,
@@ -34,6 +39,9 @@ def _run(
     last=None,
     maximum=None,
     track=TRACK_CLASSIC,
+    lead_time=0.0,
+    ceiling=None,
+    flow=False,
 ):
     return ZoneRun(
         zone_id=zone_id,
@@ -42,6 +50,9 @@ def _run(
         last_irrigation=last,
         maximum_duration=maximum,
         track=track,
+        lead_time=lead_time,
+        ceiling=ceiling,
+        flow=flow,
     )
 
 
@@ -505,14 +516,23 @@ class TestBoundWallClock:
             min_absorption_seconds=0,
         ) == 7800
 
-    def test_an_unset_maximum_falls_back_to_the_runner_ceiling(self):
+    @pytest.mark.parametrize("sequencing", [SEQUENTIAL, PARALLEL, ROTATING])
+    def test_an_unset_maximum_is_unbounded_rather_than_a_stand_in_number(
+        self, sequencing
+    ):
+        # Under every sequencing: an infinite budget has to come back out as
+        # one, including from the rotating replay, which cannot subtract its
+        # way down to zero from it.
         runs = [_run(0, 100, maximum=None), _run(1, 100, maximum=0)]
-        assert bound_wall_clock(
-            runs,
-            sequencing=SEQUENTIAL,
-            max_slot_seconds=300,
-            min_absorption_seconds=0,
-        ) == 2 * RUN_CEILING_SECONDS
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=sequencing,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == math.inf
+        )
 
     def test_ignores_the_live_duration_entirely(self):
         # The bound must be knowable days ahead, so it reads configuration only.
@@ -552,3 +572,227 @@ class TestBoundWallClock:
             min_absorption_seconds=600,
         )
         assert bound == 4800 + 15 * 600
+
+
+class TestSelectLeaderIsTieBroken:
+    """When nothing in the driest group fits, WHICH zone gets the window."""
+
+    def _r(self, zone_id, ratio, days_ago):
+        return _run(
+            zone_id,
+            3600,
+            ratio=ratio,
+            last=datetime.datetime(2026, 8, 1) - datetime.timedelta(days=days_ago),
+        )
+
+    def test_leader_is_the_tie_broken_one_not_the_float_residue_one(self):
+        # Both ratios round to 1.20, so they are one tie group. Zone 1 is the
+        # longest unwatered and is therefore the group's tie-broken leader.
+        # Zone 0 leads only on sub-quantum residue, which is exactly what the
+        # rounding exists to discard.
+        runs = [self._r(0, 1.203, 1), self._r(1, 1.201, 5)]
+        assert [r.zone_id for r in rank(runs)] == [0, 1]
+        chosen = select(
+            runs,
+            window_seconds=60,
+            sequencing=SEQUENTIAL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+        assert [r.zone_id for r in chosen] == [1]
+
+    def test_a_strict_leader_is_still_the_leader(self):
+        # No tie: zone 0 is strictly driest, so it takes the window whatever
+        # the last-irrigation order says.
+        runs = [self._r(0, 5.0, 1), self._r(1, 1.2, 5)]
+        chosen = select(
+            runs,
+            window_seconds=60,
+            sequencing=SEQUENTIAL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+        assert [r.zone_id for r in chosen] == [0]
+
+
+@pytest.mark.parametrize("sequencing", [SEQUENTIAL, PARALLEL, ROTATING])
+class TestBoundIsAnUpperBound:
+    """The bound has to cover what the runner would really do.
+
+    Every other bound test prices from ``maximum_duration`` and compares the
+    result against another expression of the same model. These drive the real
+    ``duration_from_deficit`` on both sides, which is the only way a gap
+    between the model and the runner shows up.
+
+    Every case runs under all three sequencings. A single zone occupies the
+    same wall clock under each of them with no absorption pause, so the
+    expectations do not move; what does move is which branch of
+    ``simulate_wall_clock`` answers. Pinning these to one sequencing hid a
+    rotating replay that could not terminate on an unbounded zone, because the
+    only assertions that reached an infinite budget took the sequential sum.
+    """
+
+    def _bound(self, run, sequencing):
+        return bound_wall_clock(
+            [run],
+            sequencing=sequencing,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+
+    def test_the_bound_covers_the_lead_time_the_cap_does_not(self, sequencing):
+        # duration_from_deficit clamps FIRST and adds lead_time after, so a
+        # zone capped at 600 s with a 120 s lead time really occupies 720 s.
+        real = duration_from_deficit(-100.0, 10, 10, 1, 600, 120, True)
+        assert real == 720
+        run = _run(1, real, ratio=5.0, maximum=600, lead_time=120)
+        assert self._bound(run, sequencing) >= real
+
+    def test_a_zone_with_no_configured_cap_is_reported_unbounded(self, sequencing):
+        # Nothing caps a TIMED zone with no maximum_duration: the `or 14400`
+        # sites are all flow-zone safety timeouts, and the deficit that sizes
+        # the run is not capped either, because maximum_bucket clamps the
+        # bucket's surplus side only. A plausible-looking number here would be
+        # worse than none, because a caller arming on `target - bound` has to
+        # tell "no fixed point exists" from "it is four hours back".
+        run = _run(1, 300, ratio=5.0, maximum=None)
+        assert self._bound(run, sequencing) == math.inf
+
+    def test_a_caller_supplied_ceiling_bounds_an_uncapped_zone(self, sequencing):
+        # 100 mm of deficit at a 60 mm/h precipitation rate.
+        real = duration_from_deficit(-100.0, 10, 10, 1, None, 0, True)
+        assert real == 6000
+        bound = self._bound(
+            _run(1, real, ratio=5.0, maximum=None, ceiling=7200), sequencing
+        )
+        assert bound == 7200
+        assert bound >= real
+
+    def test_one_unbounded_zone_makes_the_whole_bound_unbounded(self, sequencing):
+        runs = [_run(1, 300, ratio=5.0, maximum=600), _run(2, 300, ratio=5.0)]
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=sequencing,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == math.inf
+        )
+
+
+class TestSimulateWallClockDuplicateIds:
+    def test_two_runs_sharing_a_zone_id_are_not_collapsed(self):
+        # Budget was keyed by zone_id, so a duplicate silently vanished and the
+        # clock came out short. Short is the unsafe direction here.
+        runs = [_run(1, 300), _run(1, 300)]
+        assert _sim(runs, SEQUENTIAL) == 600
+
+    def test_duplicate_ids_take_the_longer_ceiling_not_the_last(self):
+        # The overrides are keyed by zone id, so a collision resolves to one
+        # entry, while the runs themselves are priced positionally. Both are
+        # counted, each at the LONGER cap: 2 x 600, not 600 + 60. Short is
+        # the direction that overruns the finish.
+        runs = [
+            _run(1, 300, ratio=5.0, maximum=600),
+            _run(1, 300, ratio=5.0, maximum=60),
+        ]
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=SEQUENTIAL,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == 1200
+        )
+
+
+class TestPricedInDispatchOrder:
+    """The model has to price the order the runner actually dispatches.
+
+    ``_run_rotation`` builds its ring from ``timed_zones + flow_zones``, so a
+    flow zone is always served last however the plan is ordered. Pricing the
+    caller's order instead moves the rotating clock, and that clock is what a
+    finish anchor is worked back from.
+    """
+
+    def test_a_flow_zone_is_priced_last_whatever_order_it_arrives_in(self):
+        kw = dict(sequencing=ROTATING, max_slot_seconds=300, min_absorption_seconds=600)
+        flow_first = [_run(0, 900, flow=True), _run(1, 300), _run(2, 300)]
+        flow_last = [_run(1, 300), _run(2, 300), _run(0, 900, flow=True)]
+        assert concurrent_wall_clock(flow_first, **kw) == concurrent_wall_clock(
+            flow_last, **kw
+        )
+
+
+class TestPackingOptimality:
+    """The packing claim, brute-forced rather than asserted on chosen cases.
+
+    ``select``'s docstring says the subset of a tie group delivering the most
+    watering seconds into the window wins. The existing tests demonstrate that
+    on hand-built examples, which cannot distinguish "the rule holds" from
+    "the rule holds on the examples someone thought of".
+    """
+
+    def _clock(self, subset, sequencing, absorb):
+        return concurrent_wall_clock(
+            subset,
+            sequencing=sequencing,
+            max_slot_seconds=300,
+            min_absorption_seconds=absorb,
+        )
+
+    def _brute_force_best(self, runs, window, sequencing, absorb):
+        """Most watering seconds any subset can deliver, priced the way the
+        run would actually execute.
+
+        Each candidate is ordered by the tie-break before pricing, because
+        that is the order the run is committed to and under rotating the
+        clock depends on it: the same three zones cost 1050 s in one order
+        and 1650 s in another, so a brute force free to reorder would be
+        measuring a packer this one deliberately is not.
+        """
+        best = 0.0
+        for size in range(1, len(runs) + 1):
+            for subset in itertools.combinations(runs, size):
+                ordered = sorted(subset, key=lambda r: (r.last_irrigation, r.zone_id))
+                if self._clock(ordered, sequencing, absorb) <= window:
+                    best = max(best, sum(r.duration for r in subset))
+        return best
+
+    @pytest.mark.parametrize("seed", range(25))
+    def test_one_tie_group_packs_the_window_optimally(self, seed):
+        rng = random.Random(seed)
+        runs = [
+            _run(
+                i,
+                rng.choice([120, 300, 450, 600, 900]),
+                ratio=1.5,
+                last=datetime.datetime(2026, 8, 1) - datetime.timedelta(days=i),
+            )
+            for i in range(rng.randint(2, 6))
+        ]
+        window = rng.uniform(0.3, 0.9) * sum(r.duration for r in runs)
+
+        for sequencing, absorb in (
+            (SEQUENTIAL, 0.0),
+            (PARALLEL, 0.0),
+            (ROTATING, 600.0),
+        ):
+            chosen = select(
+                runs,
+                window_seconds=window,
+                sequencing=sequencing,
+                max_slot_seconds=300,
+                min_absorption_seconds=absorb,
+            )
+            best = self._brute_force_best(runs, window, sequencing, absorb)
+            delivered = sum(r.duration for r in chosen)
+            if best == 0:
+                # Nothing fits at all, so the leader runs anyway and the
+                # deadline cuts it. That is the starvation-relief branch, not
+                # a packing decision.
+                assert len(chosen) == 1
+            else:
+                assert delivered == best
