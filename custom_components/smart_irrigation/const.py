@@ -159,6 +159,12 @@ SKIP_REASON_SOIL_MOISTURE = "soil_moisture"
 # No-demand skip (opt-in, CONF_LOG_NO_DEMAND): the zone/member simply had no
 # deficit this run. Localized in the run-log via panels.zones.outlook.checks.
 SKIP_REASON_NO_DEMAND = "no_demand"
+# Run-log / skip token recorded when the per-zone days-between guard holds a
+# zone back. Must stay equal to skip_conditions.SKIP_DAYS_BETWEEN: both name the
+# same panels.zones.outlook.checks key, and a mismatch renders the history entry
+# as a raw code. Pinned by
+# test_days_between_per_zone.py::test_the_detail_matches_the_id_the_frontend_localizes
+SKIP_REASON_DAYS_BETWEEN = "days_between"
 
 # Days between irrigation configuration
 CONF_DAYS_BETWEEN_IRRIGATION = "days_between_irrigation"
