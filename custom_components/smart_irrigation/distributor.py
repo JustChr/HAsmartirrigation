@@ -415,6 +415,16 @@ class DistributorMixin:
         # regardless of due-ness, so drop the demand gate here (require_due=False)
         # and tell the cycle to force-water the target (force_water=True). See
         # _dist_eligible_for_run and async_run_distributor_cycle.
+        # Days-between guard, per member zone (#106 follow-up). The whole-run
+        # gate in _eval_days_between reports the LONGEST-waiting zone, so it
+        # stops firing as soon as any ONE zone's wait matures. That is correct
+        # for the linked-entity path, which filters the rest per zone — but
+        # member zones never enter that path (irrigation.py drops every zone
+        # with a distributor_id), so this dispatcher is the only place the same
+        # filter can be applied to them. Without it a member waters on any
+        # night some unrelated zone came due. A manual run bypasses, as it does
+        # every other guard here.
+        days_between = 0 if manual else self._days_between_setting()
         watered = False
         for dist in await self.store.async_get_distributors():
             members = await self._dist_members(dist.get("id"))
@@ -422,6 +432,36 @@ class DistributorMixin:
                 int(m.get(const.ZONE_ID)) in target for m in members
             ):
                 continue
+            allowed = target
+            if days_between > 0:
+                held = {
+                    int(m.get(const.ZONE_ID))
+                    for m in members
+                    if self._zone_days_between_blocked(m, days_between)
+                }
+                # Only narrow when something is actually held: `only_zone_ids`
+                # of None is the legacy "every due member waters" ring, and an
+                # explicit list of every member is not the same call.
+                if held:
+                    ready = {int(m.get(const.ZONE_ID)) for m in members} - held
+                    if target is not None:
+                        ready &= target
+                    if not ready:
+                        _LOGGER.info(
+                            "Days-between guard (%s days) holds every targeted "
+                            "member of distributor %s back this run",
+                            days_between,
+                            dist.get("id"),
+                        )
+                        continue
+                    _LOGGER.info(
+                        "Days-between guard (%s days) holds distributor %s "
+                        "members %s back this run",
+                        days_between,
+                        dist.get("id"),
+                        sorted(held),
+                    )
+                    allowed = ready
             # H2 (review #11): the four static gates (position_state /
             # commissioning_confirmed / active_cycle / members-empty) plus the
             # any(_dist_needs_water) demand gate are now a single shared predicate,
@@ -436,7 +476,7 @@ class DistributorMixin:
             if await self.async_run_distributor_cycle(
                 dist,
                 concurrent=self._distributor_concurrent(dist),
-                only_zone_ids=None if target is None else list(target),
+                only_zone_ids=None if allowed is None else list(allowed),
                 duration_override=duration_override,
                 force_water=manual,
             ):

@@ -1617,3 +1617,88 @@ async def test_sweep_logs_completed_when_target_reached():
         )
     )
     assert credited["result"] == const.RUN_RESULT_COMPLETED
+
+
+# --- days-between guard for member zones (#106 follow-up) -------------------
+#
+# _eval_days_between reports the LONGEST-waiting zone, so the whole-run skip
+# stops firing as soon as any one zone's wait matures. _irrigate_linked_entities
+# compensates with a per-zone filter, but member zones never reach it — they are
+# dropped there for having a distributor_id. Without the same filter here, a
+# member waters on any night an unrelated zone came due.
+
+
+def _member(zone_id, days_since=None):
+    z = {
+        "id": zone_id,
+        const.ZONE_ID: zone_id,
+        "distributor_id": 0,
+        "outlet_number": zone_id,
+        const.ZONE_STATE: const.ZONE_STATE_AUTOMATIC,
+        const.ZONE_DURATION: 300,
+        const.ZONE_BUCKET: -5.0,
+        const.ZONE_BUCKET_THRESHOLD: -1.0,
+    }
+    if days_since is not None:
+        z[const.ZONE_DAYS_SINCE_IRRIGATION] = days_since
+    return z
+
+
+def _dist_host(members, days_between):
+    c = _host()
+    c.store.config.zone_sequencing = const.CONF_ZONE_SEQUENCING_SEQUENTIAL
+    c.store.config.days_between_irrigation = days_between
+    c._master_off_deadline = None
+    c.async_run_distributor_cycle = AsyncMock(return_value=True)
+    c._rain_delay_active = Mock(return_value=False)
+    c.store.async_get_distributors = AsyncMock(return_value=[_dist(id=0)])
+    c._dist_members = AsyncMock(return_value=members)
+    return c
+
+
+async def test_dispatch_holds_back_a_member_still_in_its_wait():
+    # days_between=3: outlet 1 watered yesterday, outlet 2 has served its wait.
+    c = _dist_host([_member(1, days_since=1), _member(2, days_since=3)], 3)
+    await c._dispatch_distributor_cycles("all")
+    c.async_run_distributor_cycle.assert_awaited_once()
+    assert c.async_run_distributor_cycle.await_args.kwargs["only_zone_ids"] == [2]
+
+
+async def test_dispatch_skips_a_distributor_whose_members_are_all_held():
+    c = _dist_host([_member(1, days_since=1), _member(2, days_since=0)], 3)
+    await c._dispatch_distributor_cycles("all")
+    c.async_run_distributor_cycle.assert_not_awaited()
+
+
+async def test_dispatch_is_unchanged_when_the_guard_is_off():
+    # The default install: days_between_irrigation = 0. only_zone_ids must stay
+    # None — the legacy "every due member waters" ring, not an explicit list.
+    c = _dist_host([_member(1, days_since=0), _member(2, days_since=0)], 0)
+    await c._dispatch_distributor_cycles("all")
+    c.async_run_distributor_cycle.assert_awaited_once()
+    assert c.async_run_distributor_cycle.await_args.kwargs["only_zone_ids"] is None
+
+
+async def test_dispatch_does_not_narrow_when_no_member_is_held():
+    c = _dist_host([_member(1, days_since=5), _member(2, days_since=4)], 3)
+    await c._dispatch_distributor_cycles("all")
+    c.async_run_distributor_cycle.assert_awaited_once()
+    assert c.async_run_distributor_cycle.await_args.kwargs["only_zone_ids"] is None
+
+
+async def test_a_manual_member_run_bypasses_the_days_between_guard():
+    c = _dist_host([_member(1, days_since=0)], 3)
+    await c._dispatch_distributor_cycles([1], duration_override=600)
+    c.async_run_distributor_cycle.assert_awaited_once()
+
+
+async def test_the_hold_intersects_with_the_schedules_target():
+    # Schedule targets outlets 1 and 2; outlet 1 is held, outlet 3 is ready but
+    # not targeted, so only 2 may water.
+    c = _dist_host(
+        [_member(1, days_since=0), _member(2, days_since=9), _member(3, days_since=9)],
+        3,
+    )
+    await c._dispatch_distributor_cycles([1, 2])
+    c.async_run_distributor_cycle.assert_awaited_once()
+    assert c.async_run_distributor_cycle.await_args.kwargs["only_zone_ids"] == [2]
