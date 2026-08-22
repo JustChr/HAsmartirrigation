@@ -201,6 +201,14 @@ export interface UpcomingRun {
   target_utc: string | null;
   duration_seconds: number;
   interval_hours?: number;
+  /**
+   * True while the shown start is only a projection: a finish-anchored run is
+   * sized from the demand read at its decision point, so before that moment the
+   * time drifts as deficits grow. False once the one-shot is armed.
+   */
+  estimated?: boolean;
+  /** Resolved Start bound for this occurrence, or null when unset. */
+  start_bound_utc?: string | null;
 }
 
 /** Read-only intra-day "live status" estimate for one zone. */

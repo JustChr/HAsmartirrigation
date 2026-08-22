@@ -17,15 +17,11 @@ import { DOMAIN } from "../../const";
 import { SmartIrrigationZone } from "../../types";
 import { showErrorToast } from "../../helpers";
 import {
-  StoredSchedule,
-  toEditable,
-  toStored,
-} from "../../common/schedule-shape";
-import {
   Schedule,
   emptySchedule,
-  typeLabel,
+  recurrenceLabel,
 } from "../../components/si-schedule-dialog";
+import { summarizeSchedule } from "../../common/schedule-summary";
 
 const MONTHS = [
   "Jan",
@@ -69,9 +65,7 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
         fetchSchedules(this.hass),
         fetchZones(this.hass),
       ]);
-      this._schedules = ((schedules || []) as StoredSchedule[]).map(
-        (s) => toEditable(s) as unknown as Schedule,
-      );
+      this._schedules = schedules || [];
       this._zones = zones || [];
     } catch (e) {
       console.error("Failed to load schedules", e);
@@ -102,7 +96,14 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     if (this._editingId) schedule.id = this._editingId;
     // Convert zones: if "all" keep as string, else keep as array
     try {
-      await saveSchedule(this.hass, toStored(schedule));
+      // The backend answers a rejected schedule with a *successful* websocket
+      // result carrying {success: false, error}, not an exception — so without
+      // this the dialog would close on a validation failure and the edit would
+      // silently vanish on the next reload.
+      const result = await saveSchedule(this.hass, schedule);
+      if (result && result.success === false) {
+        throw new Error(result.error || "");
+      }
       this._closeDialog();
       await this._load();
     } catch (e) {
@@ -204,25 +205,50 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
             (s) => html`
               <ha-card header="${s.name}">
                 <div class="card-content">
+                  <div class="summary">
+                    ${summarizeSchedule(s, this.hass.language).text}
+                  </div>
                   <div class="info-row">
                     <span class="info-label"
                       >${localize(
-                        "panels.schedules.fields.type",
+                        "panels.schedules.fields.recurrence",
                         this.hass.language,
                       )}:</span
                     >
-                    <span>${typeLabel(s.type, this.hass.language)}</span>
+                    <span
+                      >${recurrenceLabel(
+                        s.recurrence,
+                        this.hass.language,
+                      )}</span
+                    >
                   </div>
-                  ${s.time && ["daily", "weekly", "monthly"].includes(s.type)
+                  ${s.recurrence !== "interval" &&
+                  s.start_mode === "time" &&
+                  s.start_time
                     ? html`
                         <div class="info-row">
                           <span class="info-label"
                             >${localize(
-                              "panels.schedules.fields.time",
+                              "panels.schedules.fields.start_time",
                               this.hass.language,
                             )}:</span
                           >
-                          <span>${s.time}</span>
+                          <span>${s.start_time}</span>
+                        </div>
+                      `
+                    : ""}
+                  ${s.recurrence !== "interval" &&
+                  s.finish_mode === "time" &&
+                  s.finish_time
+                    ? html`
+                        <div class="info-row">
+                          <span class="info-label"
+                            >${localize(
+                              "panels.schedules.fields.finish_time",
+                              this.hass.language,
+                            )}:</span
+                          >
+                          <span>${s.finish_time}</span>
                         </div>
                       `
                     : ""}
@@ -245,7 +271,7 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
                         </div>
                       `
                     : ""}
-                  ${s.type === "interval" && s.start_time
+                  ${s.recurrence === "interval" && s.start_time
                     ? html`
                         <div class="info-row">
                           <span class="info-label"
@@ -328,6 +354,21 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return [
       globalStyle,
       css`
+        /* Same read-only summary sentence as si-schedule-dialog.ts's own
+           ".summary" — a schedule can be read without opening
+           it. Kept as a second copy of the CSS rather than a shared style
+           module because these two components don't otherwise share
+           styling infrastructure; the text itself comes from the one
+           shared schedule-summary.ts so the wording can't drift. */
+        .summary {
+          border-left: 3px solid var(--primary-color);
+          background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+          border-radius: 0 8px 8px 0;
+          padding: 11px 14px;
+          font-size: 0.90625rem;
+          line-height: 1.6;
+          margin-bottom: 10px;
+        }
         .info-row {
           display: flex;
           gap: 8px;

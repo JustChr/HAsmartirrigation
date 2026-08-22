@@ -484,6 +484,10 @@
         "title": "Hoppet over",
         "soil_moisture": "Jordfuktighet {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Varighet begrenset",
+        "detail": "Denne sonen trenger mer enn sin maksimale varighet på {maximum}, så en del av underskuddet blir stående uvannet ved hver kjøring. Å senke bøtteterskelen har ingen virkning før grensen heves."
+      },
       "help": {
         "bucket": "Jordfuktighetsbalanse (bøtte). En negativ verdi betyr at jorda er tørr og sonen trenger vann.",
         "calculate": "Beregner hvor lenge det skal vannes ut fra de nyeste dataene. Kjør dette etter Oppdater.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Neste kjøring",
+        "estimated": "estimert",
+        "estimated_help": "Starttidspunktet er fortsatt et anslåg: kjøringen dimensjoneres ut fra vannbehovet som leses kort før den starter, så dette tidspunktet flytter seg fram til da.",
         "no_schedule": "Ingen automatisk tidsplan — soner vannes bare når du starter dem.",
         "setup_schedule": "Sett opp en tidsplan",
         "targets_all": "alle soner",
@@ -604,10 +610,7 @@
         "daily": "Daglig",
         "weekly": "Ukentlig",
         "monthly": "Månedlig",
-        "interval": "Hver N time",
-        "sunrise": "Soloppgang",
-        "sunset": "Solnedgang",
-        "solar_azimuth": "Solazimutt"
+        "interval": "Hver N time"
       },
       "actions": {
         "calculate": "Beregn (oppdater vanningsvarighet)",
@@ -625,29 +628,76 @@
       },
       "fields": {
         "name": "Navn",
-        "type": "Tidsplantype",
+        "recurrence": "Gjentakelse",
         "enabled": "Aktivert",
-        "time": "Tid (HH:MM)",
         "days_of_week": "Ukedager",
         "day_of_month": "Dag i måneden",
-        "interval_hours": "Intervall",
+        "interval_hours": "Hver",
         "action": "Handling",
         "zones": "Soner",
-        "start_time": "Starttid (valgfritt)",
-        "start_date": "Startdato (valgfritt)",
-        "end_date": "Sluttdato (valgfritt)",
-        "offset_minutes": "Forskyvning fra soloppgang/-nedgang",
-        "account_for_duration": "Start tidlig slik at vanningen er ferdig til måltidspunktet",
-        "azimuth_angle": "Solazimutt-vinkel",
-        "time_anchor": "Tidspunktet angir"
+        "start_mode": "Start",
+        "start_time": "Første kjøring kl.",
+        "finish_mode": "Slutt",
+        "finish_time": "Sluttid (HH:MM)",
+        "anchor_prefix": "Vann så",
+        "anchor_suffix": "som mulig innenfor vinduet",
+        "offset_by": "forskjøvet"
       },
       "dialog": {
         "add_title": "Legg til tidsplan",
         "edit_title": "Rediger tidsplan"
       },
-      "time_anchor": {
-        "start": "Start på vanningen",
-        "finish": "Slutt på vanningen"
+      "sections": {
+        "when": "Når",
+        "zones": "Soner",
+        "season": "Sesong"
+      },
+      "season": {
+        "label": "Datoperiode",
+        "to": "til",
+        "note": "La begge stå tomme for å vanne hele året."
+      },
+      "summary": {
+        "invalid": "Denne tidsplanen har verken start eller slutt angitt, så den kjører aldri.",
+        "recurrence_daily": "Kjører daglig",
+        "recurrence_weekly": "Kjører ukentlig på {days}",
+        "recurrence_monthly": "Kjører månedlig på dag {day}",
+        "recurrence_interval": "Kjører hver {hours}. time",
+        "recurrence_interval_at": "Kjører hver {hours}. time, med start {time}",
+        "zones_all": "alle soner",
+        "zones_some": "{count, plural, one {# valgt sone} other {# valgte soner}}",
+        "watering": "vanner {zones}",
+        "start_only": "starter {when}; alle soner kjører til de er ferdige",
+        "finish_only": "slutter {when}; alle soner kjører til de er ferdige",
+        "anchor_finish": "slutter {finish}, starter så sent som mulig, men aldri før {start}; soner som ikke får plass venter til neste gang",
+        "anchor_start": "starter {start}, slutter senest {finish}; soner som ikke får plass venter til neste gang",
+        "sunrise": "soloppgang",
+        "sunset": "solnedgang",
+        "offset_before": "{minutes} min før {event}",
+        "offset_after": "{minutes} min etter {event}",
+        "at_azimuth": "solazimutt {degrees}°"
+      },
+      "bound_mode": {
+        "none": "Ingen grense",
+        "time": "På et tidspunkt",
+        "sunrise": "Ved soloppgang",
+        "sunset": "Ved solnedgang",
+        "solar_azimuth": "Ved solazimutt"
+      },
+      "anchor": {
+        "start": "tidlig",
+        "finish": "sent"
+      },
+      "help": {
+        "error": "Du må angi enten en start- eller sluttbetingelse",
+        "interval_start": "La stå tom for å starte fra når planen lagres. En intervallplan har ikke et måltidspunkt, og dermed ikke noe vindu.",
+        "demand_open": "Angitt etter behov. Alle soner kjører til de er ferdige.",
+        "exact": "Nøyaktig.",
+        "demand_floored": "Angitt etter behov, men aldri før dette.",
+        "exact_deferred": "Nøyaktig. Soner som ikke får plass, utsettes.",
+        "demand_capped_deferred": "Angitt etter behov, men aldri senere enn dette. Soner som ikke får plass, utsettes.",
+        "unreachable_no_run": "Solen når aldri denne azimuten her, så denne tidsplanen kjøres ikke.",
+        "unreachable_ignored": "Solen når aldri denne azimuten her, så denne grensen ignoreres."
       }
     },
     "info": {

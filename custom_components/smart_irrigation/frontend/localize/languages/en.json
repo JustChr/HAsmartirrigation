@@ -194,10 +194,7 @@
         "daily": "Daily",
         "weekly": "Weekly",
         "monthly": "Monthly",
-        "interval": "Every N hours",
-        "sunrise": "Sunrise",
-        "sunset": "Sunset",
-        "solar_azimuth": "Solar azimuth"
+        "interval": "Every N hours"
       },
       "actions": {
         "calculate": "Calculate (update irrigation duration)",
@@ -215,29 +212,76 @@
       },
       "fields": {
         "name": "Name",
-        "type": "Schedule type",
+        "recurrence": "Recurrence",
         "enabled": "Enabled",
-        "time": "Time (HH:MM)",
         "days_of_week": "Days of week",
         "day_of_month": "Day of month",
-        "interval_hours": "Interval",
+        "interval_hours": "Every",
         "action": "Action",
         "zones": "Zones",
-        "start_time": "Start time (optional)",
-        "start_date": "Start date (optional)",
-        "end_date": "End date (optional)",
-        "offset_minutes": "Offset from sunrise/sunset",
-        "account_for_duration": "Start early so irrigation finishes at trigger time",
-        "azimuth_angle": "Solar azimuth angle",
-        "time_anchor": "Time marks the"
+        "start_mode": "Start",
+        "start_time": "First run at",
+        "finish_mode": "Finish",
+        "finish_time": "Finish time (HH:MM)",
+        "anchor_prefix": "Water as",
+        "anchor_suffix": "as possible in the window",
+        "offset_by": "offset"
       },
       "dialog": {
         "add_title": "Add Schedule",
         "edit_title": "Edit Schedule"
       },
-      "time_anchor": {
-        "start": "Start of irrigation",
-        "finish": "End of irrigation"
+      "sections": {
+        "when": "When",
+        "zones": "Zones",
+        "season": "Season"
+      },
+      "season": {
+        "label": "Date range",
+        "to": "to",
+        "note": "Leave both blank to run all year."
+      },
+      "summary": {
+        "invalid": "This schedule has no start or finish set, so it never runs.",
+        "recurrence_daily": "Runs daily",
+        "recurrence_weekly": "Runs weekly on {days}",
+        "recurrence_monthly": "Runs monthly on day {day}",
+        "recurrence_interval": "Runs every {hours} hours",
+        "recurrence_interval_at": "Runs every {hours} hours, starting at {time}",
+        "zones_all": "all zones",
+        "zones_some": "{count, plural, one {# selected zone} other {# selected zones}}",
+        "watering": "watering {zones}",
+        "start_only": "starting at {when}; every zone runs to completion",
+        "finish_only": "finishing at {when}; every zone runs to completion",
+        "anchor_finish": "finishing at {finish}, starting as late as possible but never before {start}; zones that don't fit wait for the next run",
+        "anchor_start": "starting at {start}, finishing by {finish} at the latest; zones that don't fit wait for the next run",
+        "sunrise": "sunrise",
+        "sunset": "sunset",
+        "offset_before": "{minutes} min before {event}",
+        "offset_after": "{minutes} min after {event}",
+        "at_azimuth": "solar azimuth {degrees}°"
+      },
+      "bound_mode": {
+        "none": "No limit",
+        "time": "At a time",
+        "sunrise": "At sunrise",
+        "sunset": "At sunset",
+        "solar_azimuth": "At solar azimuth"
+      },
+      "anchor": {
+        "start": "early",
+        "finish": "late"
+      },
+      "help": {
+        "error": "Must set either a start or finish condition",
+        "interval_start": "Leave blank to start from when the schedule is saved. An interval schedule has no target time of day, so no run window.",
+        "demand_open": "Set by demand. All zones run to completion.",
+        "exact": "Exact.",
+        "demand_floored": "Set by demand, but never before this.",
+        "exact_deferred": "Exact. Zones that don't fit are deferred.",
+        "demand_capped_deferred": "Set by demand, but never later than this. Zones that don't fit are deferred.",
+        "unreachable_no_run": "The sun never reaches this bearing here, so this schedule will not run.",
+        "unreachable_ignored": "The sun never reaches this bearing here, so this limit is ignored."
       }
     },
     "setup": {
@@ -637,6 +681,10 @@
         "title": "Skipped",
         "soil_moisture": "Soil moisture {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duration capped",
+        "detail": "This zone needs longer than its maximum duration of {maximum}, so part of the deficit is left unwatered on every run. Deepening the bucket threshold has no effect until the cap is raised."
+      },
       "help": {
         "bucket": "Soil-moisture balance. A negative value means the soil is dry and the zone needs water.",
         "calculate": "Works out how long to water from the latest data. Run this after Update.",
@@ -648,6 +696,8 @@
       },
       "outlook": {
         "next_run": "Next run",
+        "estimated": "estimated",
+        "estimated_help": "The start time is still a projection: the run is sized from the water demand read shortly before it begins, so this time moves until then.",
         "no_schedule": "No automatic schedule — zones water only when you trigger them.",
         "setup_schedule": "Set up a schedule",
         "targets_all": "all zones",

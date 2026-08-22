@@ -484,6 +484,10 @@
         "title": "Übersprungen",
         "soil_moisture": "Bodenfeuchte {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Dauer begrenzt",
+        "detail": "Diese Zone braucht länger als ihre maximale Dauer von {maximum}, daher bleibt bei jedem Lauf ein Teil des Defizits ungewässert. Ein tieferer Vorrat-Schwellwert wirkt erst, wenn die Begrenzung angehoben wird."
+      },
       "help": {
         "bucket": "Bodenfeuchte-Bilanz (Vorrat). Ein negativer Wert bedeutet, dass der Boden trocken ist und die Zone Wasser braucht.",
         "calculate": "Berechnet aus den neuesten Daten, wie lange bewässert wird. Nach dem Aktualisieren ausführen.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Nächster Lauf",
+        "estimated": "geschätzt",
+        "estimated_help": "Die Startzeit ist noch eine Prognose: Der Lauf wird aus dem kurz vor Beginn gemessenen Wasserbedarf bemessen, daher verschiebt sich diese Zeit bis dahin.",
         "no_schedule": "Kein automatischer Zeitplan — Zonen bewässern nur, wenn du sie auslöst.",
         "setup_schedule": "Zeitplan einrichten",
         "targets_all": "alle Zonen",
@@ -599,15 +605,12 @@
       "zones_all": "Alle Zonen",
       "zones_specific": "Bestimmte Zonen",
       "hours": "Stunden",
-      "minutes": "Min",
+      "minutes": "Min.",
       "types": {
         "daily": "Täglich",
         "weekly": "Wöchentlich",
         "monthly": "Monatlich",
-        "interval": "Alle N Stunden",
-        "sunrise": "Sonnenaufgang",
-        "sunset": "Sonnenuntergang",
-        "solar_azimuth": "Sonnenazimut"
+        "interval": "Alle N Stunden"
       },
       "actions": {
         "calculate": "Berechnen (Bewässerungsdauer aktualisieren)",
@@ -625,29 +628,76 @@
       },
       "fields": {
         "name": "Name",
-        "type": "Zeitplantyp",
+        "recurrence": "Wiederholung",
         "enabled": "Aktiviert",
-        "time": "Uhrzeit (HH:MM)",
         "days_of_week": "Wochentage",
         "day_of_month": "Tag des Monats",
-        "interval_hours": "Intervall",
+        "interval_hours": "Alle",
         "action": "Aktion",
         "zones": "Zonen",
-        "start_time": "Startzeit (optional)",
-        "start_date": "Startdatum (optional)",
-        "end_date": "Enddatum (optional)",
-        "offset_minutes": "Versatz von Sonnenaufgang/-untergang",
-        "account_for_duration": "Früh starten, damit Bewässerung zur Zielzeit endet",
-        "azimuth_angle": "Sonnenazimutwinkel",
-        "time_anchor": "Zeitpunkt markiert"
+        "start_mode": "Start",
+        "start_time": "Erster Lauf um",
+        "finish_mode": "Ende",
+        "finish_time": "Endzeit (HH:MM)",
+        "anchor_prefix": "Bewässern so",
+        "anchor_suffix": "wie möglich im Zeitfenster",
+        "offset_by": "versetzt"
       },
       "dialog": {
         "add_title": "Zeitplan hinzufügen",
         "edit_title": "Zeitplan bearbeiten"
       },
-      "time_anchor": {
-        "start": "Beginn der Bewässerung",
-        "finish": "Ende der Bewässerung"
+      "sections": {
+        "when": "Wann",
+        "zones": "Zonen",
+        "season": "Saison"
+      },
+      "season": {
+        "label": "Zeitraum",
+        "to": "bis",
+        "note": "Beide Felder leer lassen, um ganzjährig zu laufen."
+      },
+      "summary": {
+        "invalid": "Für diesen Zeitplan ist weder Start noch Ende festgelegt, er läuft also nie.",
+        "recurrence_daily": "Läuft täglich",
+        "recurrence_weekly": "Läuft wöchentlich an {days}",
+        "recurrence_monthly": "Läuft monatlich am Tag {day}",
+        "recurrence_interval": "Läuft alle {hours} Stunden",
+        "recurrence_interval_at": "Läuft alle {hours} Stunden, beginnend um {time}",
+        "zones_all": "alle Zonen",
+        "zones_some": "{count, plural, one {# ausgewählte Zone} other {# ausgewählte Zonen}}",
+        "watering": "bewässert {zones}",
+        "start_only": "beginnt um {when}; alle Zonen laufen bis zum Abschluss",
+        "finish_only": "endet um {when}; alle Zonen laufen bis zum Abschluss",
+        "anchor_finish": "endet um {finish}, beginnt so spät wie möglich, aber nie vor {start}; Zonen, die nicht hineinpassen, warten auf den nächsten Durchlauf",
+        "anchor_start": "beginnt um {start}, endet spätestens um {finish}; Zonen, die nicht hineinpassen, warten auf den nächsten Durchlauf",
+        "sunrise": "Sonnenaufgang",
+        "sunset": "Sonnenuntergang",
+        "offset_before": "{minutes} Min. vor {event}",
+        "offset_after": "{minutes} Min. nach {event}",
+        "at_azimuth": "Sonnenazimut {degrees}°"
+      },
+      "bound_mode": {
+        "none": "Keine Begrenzung",
+        "time": "Zu einer Uhrzeit",
+        "sunrise": "Bei Sonnenaufgang",
+        "sunset": "Bei Sonnenuntergang",
+        "solar_azimuth": "Bei Sonnenazimut"
+      },
+      "anchor": {
+        "start": "früh",
+        "finish": "spät"
+      },
+      "help": {
+        "error": "Es muss entweder eine Start- oder Ende-Bedingung festgelegt werden",
+        "interval_start": "Leer lassen, um ab dem Speichern des Zeitplans zu starten. Ein Intervall-Zeitplan hat keine Zielzeit und damit kein Zeitfenster.",
+        "demand_open": "Nach Bedarf festgelegt. Alle Zonen laufen bis zum Abschluss.",
+        "exact": "Exakt.",
+        "demand_floored": "Nach Bedarf festgelegt, aber nicht vor diesem Zeitpunkt.",
+        "exact_deferred": "Exakt. Zonen, die nicht hineinpassen, werden verschoben.",
+        "demand_capped_deferred": "Nach Bedarf festgelegt, aber nicht nach diesem Zeitpunkt. Zonen, die nicht hineinpassen, werden verschoben.",
+        "unreachable_no_run": "Die Sonne erreicht diesen Azimut hier nie, daher wird dieser Zeitplan nicht ausgeführt.",
+        "unreachable_ignored": "Die Sonne erreicht diesen Azimut hier nie, daher wird diese Grenze ignoriert."
       }
     },
     "info": {

@@ -22,7 +22,7 @@ The integration fires the following Home Assistant events:
 
 > The `irrigation_started` / `irrigation_finished` events let you drive a pump, a light or a notification from your own automation. If you only need a pump powered before watering, the built-in [pump / master switch](configuration-when-to-water.md#master-switch) usually removes the need for a custom automation.
 
-> **Important:** the start event is fired **only by schedules** — if you have no irrigate schedule, it never fires. To reproduce the classic "irrigation finishes right at sunrise" behaviour, create a schedule of type **Sunrise** with the time anchor set to **Finish** (see [Schedules](configuration-schedules.md#time-anchor)); the schedule computes the start time from the estimated total duration for you.
+> **Important:** the start event is fired **only by schedules** — if you have no irrigate schedule, it never fires. To reproduce the classic "irrigation finishes right at sunrise" behaviour, create a schedule whose **Finish** row is *At sunrise*, leaving **Start** on *No limit* (see [Schedules](configuration-schedules.md#time-anchor)); the schedule computes the start time from the estimated run length for you.
 
 Note that **Irrigate Now** (the dashboard button) does **not** fire the schedule event `smart_irrigation_start_irrigation_all_zones` — it actuates the zone directly. For a [self-closing](configuration-my-zones.md#watering-mode) zone it still fires `smart_irrigation_irrigation_started`, because that event tracks the *run*, not the schedule.
 

@@ -553,6 +553,24 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     return formatWeekdayTime(d, lang);
   }
 
+  /**
+   * "Estimated" marker for a run whose start is still a projection. A
+   * finish-anchored run is sized from the demand read at its decision point, so
+   * until that moment the shown start moves as deficits grow — unmarked, that
+   * drift reads as a defect rather than as the schedule working.
+   */
+  private _renderEstimatedTag(run: UpcomingRun): TemplateResult {
+    if (!this.hass || !run.estimated) return html``;
+    const lang = this.hass.language;
+    return html`<span
+      class="estimate-tag"
+      title="${localize("panels.zones.outlook.estimated_help", lang)}"
+      >${localize("panels.zones.outlook.estimated", lang)}<ha-icon
+        icon="mdi:information-outline"
+      ></ha-icon
+    ></span>`;
+  }
+
   private _guardLabel(check: SkipCheck): string {
     return localize(
       `panels.zones.outlook.checks.${check.id}`,
@@ -668,6 +686,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
               >
               ${this._runActionLabel(nextRun)}
               ${this._formatRunTime(nextRun.next_run_utc)}
+              ${this._renderEstimatedTag(nextRun)}
               <span class="outlook-dim"
                 >· ${nextRun.name} · ${this._runTargetsLabel(nextRun)}</span
               >
@@ -806,6 +825,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     let text: string;
     let cls: string;
     let icon: string;
+    // The decision line carries the time in the common case and suppresses
+    // _renderZoneNextRun when it does, so the marker has to travel with it.
+    let estimatedRun: UpcomingRun | undefined;
 
     if (zone.state === SmartIrrigationZoneState.Disabled) {
       text = localize("panels.zones.status.decision_disabled", lang);
@@ -846,6 +868,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         );
         cls = "water";
         icon = "mdi:water";
+        estimatedRun = nextRun;
       } else {
         text = localize(
           "panels.zones.status.decision_water_no_schedule",
@@ -862,6 +885,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       <div class="zone-decision ${cls}">
         <ha-icon icon="${icon}"></ha-icon>
         <span>${text}</span>
+        ${estimatedRun ? this._renderEstimatedTag(estimatedRun) : ""}
       </div>
     `;
   }
@@ -937,6 +961,59 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   /**
+   * Whether this zone's computed duration was cut by its maximum_duration.
+   *
+   * Derived rather than reported, because the stored duration carries the clamp
+   * unambiguously: calculate_module clamps first and adds lead time afterwards
+   * (`round(lead_time + min(raw, maximum_duration))`, calculation.py), so a run
+   * that hit the cap is exactly `lead_time + maximum_duration`. Only automatic
+   * zones go through that path — a manual zone's duration is hand-set, so the
+   * comparison would mean nothing there.
+   */
+  private _durationClamped(zone: SmartIrrigationZone): boolean {
+    if (zone.state !== SmartIrrigationZoneState.Automatic) return false;
+    const cap = zone.maximum_duration;
+    if (cap == null || cap < 0) return false;
+    const duration = zone.duration ?? 0;
+    if (duration <= 0) return false;
+    return duration - (zone.lead_time ?? 0) >= cap;
+  }
+
+  /**
+   * Warning when the cap is what decided the run length. The clamp emits
+   * nothing on its own, so without this the shortfall is invisible: deepening
+   * bucket_threshold past what the cap can deliver is silently ignored and the
+   * zone drifts drier every cycle.
+   *
+   * The banner states the condition and keeps the explanation on hover, like
+   * the estimated marker. Spelled out inline it is three lines of standing
+   * configuration advice sitting above the zone's actual status on every
+   * render, which buries the thing the card exists to show.
+   */
+  private _renderDurationClamped(zone: SmartIrrigationZone): TemplateResult {
+    if (!this.hass || !this._durationClamped(zone)) return html``;
+    const lang = this.hass.language;
+    const detail = localize(
+      "panels.zones.clamped.detail",
+      lang,
+      "{maximum}",
+      formatDuration(zone.maximum_duration ?? 0),
+    );
+    return html`
+      <div class="zone-clamped" title="${detail}">
+        <ha-icon icon="mdi:timer-alert-outline"></ha-icon>
+        <span>
+          <strong>${localize("panels.zones.clamped.title", lang)}</strong>
+          <ha-icon
+            class="clamped-hint"
+            icon="mdi:information-outline"
+          ></ha-icon>
+        </span>
+      </div>
+    `;
+  }
+
+  /**
    * Read-only "live" deficit estimate chip for the status line. Distinct from
    * the official bucket (which drives irrigation) — this just shows the
    * estimated drift since the last calculation.
@@ -988,6 +1065,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       <span>
         ${localize("panels.zones.outlook.next_run", this.hass.language)}:
         <strong>${this._formatRunTime(run.next_run_utc)}</strong>
+        ${this._renderEstimatedTag(run)}
       </span>
     `;
   }
@@ -1037,6 +1115,9 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 
         <!-- SOIL-MOISTURE SKIP (wet-veto) -->
         ${this._renderZoneSkip(zone)}
+
+        <!-- DURATION CUT BY maximum_duration -->
+        ${this._renderDurationClamped(zone)}
 
         <!-- AT-A-GLANCE DECISION -->
         ${this._renderZoneDecision(zone)}
@@ -1582,6 +1663,42 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         --mdc-icon-size: 22px;
       }
 
+      /* Duration cut by maximum_duration — a standing configuration problem,
+         so warning-tinted rather than informational like the wet-veto chip. */
+      .zone-clamped {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 16px 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        line-height: 1.35;
+        background: rgba(var(--rgb-warning-color, 237, 108, 2), 0.1);
+        color: var(--warning-color, #ed6c02);
+        border-left: 4px solid var(--warning-color, #ed6c02);
+        cursor: help;
+      }
+
+      .zone-clamped ha-icon {
+        flex-shrink: 0;
+        --mdc-icon-size: 22px;
+      }
+
+      .zone-clamped span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* The hint, not the warning's own icon: sized to the text so the banner
+         still reads as one line rather than two competing symbols. */
+      .zone-clamped ha-icon.clamped-hint {
+        --mdc-icon-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+
       /* Global outlook banner — tinted like the per-zone status banners so the
          two read at the same visual weight. */
       .outlook-card {
@@ -1715,11 +1832,24 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         cursor: help;
       }
 
+      /* The marker carries an explanation on hover, so it needs to look like it
+         has one: bare uppercase text reads as a label nobody would think to
+         point at. Icon + cursor match how the rest of the panel signals help. */
       .estimate-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         opacity: 0.65;
+        cursor: help;
+      }
+
+      .estimate-tag ha-icon {
+        --mdc-icon-size: 14px;
+        width: 14px;
+        height: 14px;
       }
 
       /* Action bar */

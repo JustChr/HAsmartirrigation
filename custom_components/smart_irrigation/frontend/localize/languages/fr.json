@@ -484,6 +484,10 @@
         "title": "Ignoré",
         "soil_moisture": "Humidité du sol {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Durée plafonnée",
+        "detail": "Cette zone a besoin de plus que sa durée maximale de {maximum} : à chaque cycle, une partie du déficit n'est pas arrosée. Abaisser le seuil du seau (bucket) reste sans effet tant que le plafond n'est pas relevé."
+      },
       "help": {
         "bucket": "Bilan d'humidité du sol (seau). Une valeur négative signifie que le sol est sec et que la zone a besoin d'eau.",
         "calculate": "Calcule la durée d'arrosage à partir des dernières données. À lancer après Mettre à jour.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Prochain cycle",
+        "estimated": "estimé",
+        "estimated_help": "L'heure de démarrage n'est encore qu'une projection : le cycle est dimensionné d'après le besoin en eau relevé peu avant son démarrage, donc cette heure évolue jusque-là.",
         "no_schedule": "Aucun horaire automatique — les zones ne s'arrosent que lorsque vous les déclenchez.",
         "setup_schedule": "Configurer un horaire",
         "targets_all": "toutes les zones",
@@ -604,10 +610,7 @@
         "daily": "Quotidien",
         "weekly": "Hebdomadaire",
         "monthly": "Mensuel",
-        "interval": "Toutes les N heures",
-        "sunrise": "Lever du soleil",
-        "sunset": "Coucher du soleil",
-        "solar_azimuth": "Azimut solaire"
+        "interval": "Toutes les N heures"
       },
       "actions": {
         "calculate": "Calculer (mettre à jour la durée d'irrigation)",
@@ -625,29 +628,76 @@
       },
       "fields": {
         "name": "Nom",
-        "type": "Type de planification",
+        "recurrence": "Récurrence",
         "enabled": "Activé",
-        "time": "Heure (HH:MM)",
         "days_of_week": "Jours de la semaine",
         "day_of_month": "Jour du mois",
-        "interval_hours": "Intervalle",
+        "interval_hours": "Toutes les",
         "action": "Action",
         "zones": "Zones",
-        "start_time": "Heure de début (optionnel)",
-        "start_date": "Date de début (optionnel)",
-        "end_date": "Date de fin (optionnel)",
-        "offset_minutes": "Décalage par rapport au lever/coucher du soleil",
-        "account_for_duration": "Démarrer tôt pour que l'irrigation se termine à l'heure cible",
-        "azimuth_angle": "Angle d'azimut solaire",
-        "time_anchor": "Lheure correspond au"
+        "start_mode": "Début",
+        "start_time": "Premier passage à",
+        "finish_mode": "Fin",
+        "finish_time": "Heure de fin (HH:MM)",
+        "anchor_prefix": "Arroser le plus",
+        "anchor_suffix": "possible dans la fenêtre",
+        "offset_by": "décalé"
       },
       "dialog": {
         "add_title": "Ajouter une planification",
         "edit_title": "Modifier la planification"
       },
-      "time_anchor": {
-        "start": "Début de larrosage",
-        "finish": "Fin de larrosage"
+      "sections": {
+        "when": "Quand",
+        "zones": "Zones",
+        "season": "Saison"
+      },
+      "season": {
+        "label": "Plage de dates",
+        "to": "à",
+        "note": "Laissez les deux vides pour fonctionner toute l'année."
+      },
+      "summary": {
+        "invalid": "Cette planification n'a ni début ni fin définis, elle ne s'exécute donc jamais.",
+        "recurrence_daily": "S'exécute quotidiennement",
+        "recurrence_weekly": "S'exécute chaque semaine le {days}",
+        "recurrence_monthly": "S'exécute chaque mois le jour {day}",
+        "recurrence_interval": "S'exécute toutes les {hours} heures",
+        "recurrence_interval_at": "S'exécute toutes les {hours} heures, à partir de {time}",
+        "zones_all": "toutes les zones",
+        "zones_some": "{count, plural, one {# zone sélectionnée} other {# zones sélectionnées}}",
+        "watering": "irrigue {zones}",
+        "start_only": "débute à {when} ; toutes les zones vont jusqu'au bout",
+        "finish_only": "se termine à {when} ; toutes les zones vont jusqu'au bout",
+        "anchor_finish": "se termine à {finish}, en débutant le plus tard possible mais jamais avant {start} ; les zones qui ne rentrent pas attendent le prochain passage",
+        "anchor_start": "débute à {start}, se termine au plus tard à {finish} ; les zones qui ne rentrent pas attendent le prochain passage",
+        "sunrise": "lever du soleil",
+        "sunset": "coucher du soleil",
+        "offset_before": "{minutes} min avant {event}",
+        "offset_after": "{minutes} min après {event}",
+        "at_azimuth": "azimut solaire {degrees}°"
+      },
+      "bound_mode": {
+        "none": "Aucune limite",
+        "time": "À une heure",
+        "sunrise": "Au lever du soleil",
+        "sunset": "Au coucher du soleil",
+        "solar_azimuth": "À l'azimut solaire"
+      },
+      "anchor": {
+        "start": "tôt",
+        "finish": "tard"
+      },
+      "help": {
+        "error": "Une condition de début ou de fin doit être définie",
+        "interval_start": "Laisser vide pour partir du moment où la programmation est enregistrée. Une programmation par intervalle n'a pas d'heure cible, donc pas de fenêtre.",
+        "demand_open": "Défini selon la demande. Toutes les zones vont jusqu'au bout.",
+        "exact": "Exact.",
+        "demand_floored": "Défini selon la demande, mais jamais avant cela.",
+        "exact_deferred": "Exact. Les zones qui ne rentrent pas sont reportées.",
+        "demand_capped_deferred": "Défini selon la demande, mais jamais après cela. Les zones qui ne rentrent pas sont reportées.",
+        "unreachable_no_run": "Le soleil n'atteint jamais cet azimut ici, cette planification ne sera donc pas exécutée.",
+        "unreachable_ignored": "Le soleil n'atteint jamais cet azimut ici, cette limite est donc ignorée."
       }
     },
     "info": {

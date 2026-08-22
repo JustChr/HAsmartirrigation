@@ -484,6 +484,10 @@
         "title": "Omitido",
         "soil_moisture": "Humedad del suelo {observed} % > {threshold} %"
       },
+      "clamped": {
+        "title": "Duración limitada",
+        "detail": "Esta zona necesita más que su duración máxima de {maximum}, así que en cada riego queda sin regar parte del déficit. Bajar el umbral del depósito no tiene efecto hasta que se suba el límite."
+      },
       "help": {
         "bucket": "Balance de humedad del suelo (cubo). Un valor negativo significa que el suelo está seco y la zona necesita agua.",
         "calculate": "Calcula cuánto tiempo regar a partir de los últimos datos. Ejecútalo después de Actualizar.",
@@ -495,6 +499,8 @@
       },
       "outlook": {
         "next_run": "Próximo riego",
+        "estimated": "estimado",
+        "estimated_help": "La hora de inicio es todavía una proyección: el riego se dimensiona con la demanda de agua leída poco antes de empezar, así que esta hora se irá moviendo hasta entonces.",
         "no_schedule": "Sin horario automático — las zonas solo se riegan cuando lo activas tú.",
         "setup_schedule": "Configurar un horario",
         "targets_all": "todas las zonas",
@@ -604,10 +610,7 @@
         "daily": "Diario",
         "weekly": "Semanal",
         "monthly": "Mensual",
-        "interval": "Cada N horas",
-        "sunrise": "Amanecer",
-        "sunset": "Atardecer",
-        "solar_azimuth": "Azimut solar"
+        "interval": "Cada N horas"
       },
       "actions": {
         "calculate": "Calcular (actualizar duración de riego)",
@@ -625,29 +628,76 @@
       },
       "fields": {
         "name": "Nombre",
-        "type": "Tipo de programa",
+        "recurrence": "Frecuencia",
         "enabled": "Activado",
-        "time": "Hora (HH:MM)",
         "days_of_week": "Días de la semana",
         "day_of_month": "Día del mes",
-        "interval_hours": "Intervalo",
+        "interval_hours": "Cada",
         "action": "Acción",
         "zones": "Zonas",
-        "start_time": "Hora de inicio (opcional)",
-        "start_date": "Fecha de inicio (opcional)",
-        "end_date": "Fecha de fin (opcional)",
-        "offset_minutes": "Desplazamiento desde amanecer/atardecer",
-        "account_for_duration": "Iniciar antes para que el riego termine a la hora objetivo",
-        "azimuth_angle": "Ángulo de azimut solar",
-        "time_anchor": "La hora marca el"
+        "start_mode": "Inicio",
+        "start_time": "Primer riego a las",
+        "finish_mode": "Fin",
+        "finish_time": "Hora de fin (HH:MM)",
+        "anchor_prefix": "Regar lo más",
+        "anchor_suffix": "posible dentro de la ventana",
+        "offset_by": "desfase"
       },
       "dialog": {
         "add_title": "Añadir programa",
         "edit_title": "Editar programa"
       },
-      "time_anchor": {
-        "start": "Inicio del riego",
-        "finish": "Fin del riego"
+      "sections": {
+        "when": "Cuándo",
+        "zones": "Zonas",
+        "season": "Temporada"
+      },
+      "season": {
+        "label": "Rango de fechas",
+        "to": "a",
+        "note": "Deje ambas en blanco para regar todo el año."
+      },
+      "summary": {
+        "invalid": "Este programa no tiene inicio ni fin establecidos, por lo que nunca se ejecuta.",
+        "recurrence_daily": "Se ejecuta a diario",
+        "recurrence_weekly": "Se ejecuta semanalmente los {days}",
+        "recurrence_monthly": "Se ejecuta mensualmente el día {day}",
+        "recurrence_interval": "Se ejecuta cada {hours} horas",
+        "recurrence_interval_at": "Se ejecuta cada {hours} horas, comenzando a {time}",
+        "zones_all": "todas las zonas",
+        "zones_some": "{count, plural, one {# zona seleccionada} other {# zonas seleccionadas}}",
+        "watering": "regando {zones}",
+        "start_only": "comenzando a {when}; todas las zonas se ejecutan hasta completarse",
+        "finish_only": "terminando a {when}; todas las zonas se ejecutan hasta completarse",
+        "anchor_finish": "terminando a {finish}, comenzando lo más tarde posible pero nunca antes de {start}; las zonas que no caben esperan al siguiente riego",
+        "anchor_start": "comenzando a {start}, terminando como máximo a {finish}; las zonas que no caben esperan al siguiente riego",
+        "sunrise": "amanecer",
+        "sunset": "atardecer",
+        "offset_before": "{minutes} min antes de {event}",
+        "offset_after": "{minutes} min después de {event}",
+        "at_azimuth": "azimut solar {degrees}°"
+      },
+      "bound_mode": {
+        "none": "Sin límite",
+        "time": "A una hora",
+        "sunrise": "Al amanecer",
+        "sunset": "Al atardecer",
+        "solar_azimuth": "En azimut solar"
+      },
+      "anchor": {
+        "start": "pronto",
+        "finish": "tarde"
+      },
+      "help": {
+        "error": "Debe establecer una condición de inicio o de fin",
+        "interval_start": "Déjalo en blanco para empezar desde que se guarda la programación. Una programación por intervalo no tiene hora objetivo, así que no tiene ventana de riego.",
+        "demand_open": "Establecido según demanda. Todas las zonas se ejecutan hasta completarse.",
+        "exact": "Exacto.",
+        "demand_floored": "Establecido según demanda, pero nunca antes de esto.",
+        "exact_deferred": "Exacto. Las zonas que no caben se posponen.",
+        "demand_capped_deferred": "Establecido según demanda, pero nunca después de esto. Las zonas que no caben se posponen.",
+        "unreachable_no_run": "El sol nunca alcanza este azimut aquí, por lo que este programa no se ejecutará.",
+        "unreachable_ignored": "El sol nunca alcanza este azimut aquí, por lo que este límite se ignora."
       }
     },
     "info": {
