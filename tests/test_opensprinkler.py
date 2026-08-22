@@ -11,6 +11,7 @@ and the station's turn.
 """
 
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.util import dt as dt_util
@@ -20,12 +21,15 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation import opensprinkler
 from custom_components.smart_irrigation.opensprinkler import (
     observed_start_iso,
     queue_deadline_seconds,
     resolve_running_sensor,
+    station_facts,
     zone_watch_entity,
 )
+from custom_components.smart_irrigation.run_window import concurrent_wall_clock
 
 STATION = "switch.front_south_station_enabled"
 RUNNING = "binary_sensor.front_south_station_running"
@@ -199,6 +203,208 @@ async def test_watch_entity_falls_back_while_the_controller_is_unknown(hass):
         }
     )
     assert zone_watch_entity(hass, classic) == STATION
+
+
+# --------------------------------------------------------------------------- #
+# What the controller says about a station's sequencing
+# --------------------------------------------------------------------------- #
+CONTROLLER = "switch.opensprinkler_enabled"
+
+
+def _publish_controller(hass, entity_id=CONTROLLER, delay=0, state="on"):
+    hass.states.async_set(
+        entity_id,
+        state,
+        {
+            const.OPENSPRINKLER_ATTR_TYPE: const.OPENSPRINKLER_TYPE_CONTROLLER,
+            const.OPENSPRINKLER_ATTR_STATION_DELAY: delay,
+        },
+    )
+
+
+async def test_station_facts_read_the_group_and_the_delay(hass):
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 3}))
+    _publish_controller(hass, delay=5)
+    facts = station_facts(hass, _zone())
+    assert facts.group == 3
+    assert facts.delay_seconds == 5
+
+
+async def test_station_facts_read_the_parallel_group_unchanged(hass):
+    hass.states.async_set(
+        STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 255})
+    )
+    _publish_controller(hass)
+    assert station_facts(hass, _zone()).group == 255
+
+
+async def test_station_facts_group_is_unread_when_the_station_is_unavailable(hass):
+    """HA drops attributes while an entity is unavailable, and that means the
+    controller cannot be seen — never that the station is in group 0."""
+    hass.states.async_set(STATION, "unavailable", {})
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_group_is_unread_on_a_firmware_without_it(hass):
+    # Below v2.2.0(1) the OpenSprinkler integration omits the key entirely.
+    hass.states.async_set(STATION, "on", _attrs())
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_are_unread_when_no_controller_is_visible(hass):
+    """A group without its delay would partition the run and then under-charge
+    every boundary inside it, so half an answer is no answer."""
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_are_unread_when_the_controller_omits_the_delay(hass):
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    hass.states.async_set(
+        CONTROLLER, "on", {const.OPENSPRINKLER_ATTR_TYPE: "controller"}
+    )
+    assert station_facts(hass, _zone()).group is None
+
+
+async def test_station_facts_keep_a_zero_delay_as_an_answer(hass):
+    """Nought seconds between stations is a real setting, not a missing one."""
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    _publish_controller(hass, delay=0)
+    facts = station_facts(hass, _zone())
+    assert facts.group == 0
+    assert facts.delay_seconds == 0.0
+    assert facts.controller_id is not None
+
+
+async def test_station_facts_read_a_negative_delay(hass):
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    _publish_controller(hass, delay=-15)
+    assert station_facts(hass, _zone()).delay_seconds == -15
+
+
+async def test_station_facts_are_none_for_a_zone_that_is_not_a_station(hass):
+    classic = _zone(**{const.ZONE_WATERING_MODE: const.WATERING_MODE_CLASSIC})
+    assert station_facts(hass, classic) is None
+
+
+async def test_station_facts_take_the_delay_from_the_stations_own_controller(
+    hass, monkeypatch
+):
+    """Two controllers repeat every station index, so the delay has to come from
+    the config entry the station itself belongs to, not from whichever
+    controller entity is found first."""
+    other = "switch.opensprinkler_2_enabled"
+    hass.states.async_set(STATION, "on", _attrs(**{const.OPENSPRINKLER_ATTR_GROUP: 0}))
+    _publish_controller(hass, entity_id=other, delay=60)
+    _publish_controller(hass, entity_id=CONTROLLER, delay=5)
+
+    entries = {STATION: "entry_a", CONTROLLER: "entry_a", other: "entry_b"}
+    monkeypatch.setattr(
+        opensprinkler.er,
+        "async_get",
+        lambda _hass: Mock(
+            async_get=lambda entity_id: (
+                Mock(config_entry_id=entries[entity_id])
+                if entity_id in entries
+                else None
+            )
+        ),
+    )
+    assert station_facts(hass, _zone()).delay_seconds == 5
+
+
+# --------------------------------------------------------------------------- #
+# The grouping reaching the wall clock the runner is sized by
+# --------------------------------------------------------------------------- #
+#
+# The two halves above are tested apart: station_facts against a real hass, and
+# _grouped_station_wall_clock against hand-built facts. Neither can see the wire
+# between them. These drive the real plan builder against the real registry and
+# then price the plan it returns, so a station whose facts never reach ZoneRun
+# fails here even though both halves stay green on their own.
+STATION_B = "switch.back_lawn_station_enabled"
+
+
+def _plan_coord(hass, zones):
+    c = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+    c.hass = hass
+    c.store = Mock()
+    c.store.config = SimpleNamespace(live_estimate_enabled=False, log_no_demand=False)
+    c.store.async_get_zones = AsyncMock(side_effect=lambda: [dict(z) for z in zones])
+    c.store.async_get_distributors = AsyncMock(return_value=[])
+    return c
+
+
+def _price(plan):
+    return concurrent_wall_clock(
+        plan,
+        sequencing=const.CONF_ZONE_SEQUENCING_PARALLEL,
+        max_slot_seconds=300.0,
+        min_absorption_seconds=0.0,
+    )
+
+
+async def _two_station_plan(hass, *, group_b):
+    """Two 600 s stations, the second in ``group_b``, both on one controller."""
+    hass.states.async_set(
+        STATION, "on", _attrs(index=0, **{const.OPENSPRINKLER_ATTR_GROUP: 0})
+    )
+    hass.states.async_set(
+        STATION_B, "on", _attrs(index=1, **{const.OPENSPRINKLER_ATTR_GROUP: group_b})
+    )
+    _publish_controller(hass, delay=0)
+    zones = [
+        _zone(**{const.ZONE_ID: 1, const.ZONE_LINKED_ENTITY: STATION}),
+        _zone(
+            **{
+                const.ZONE_ID: 2,
+                const.ZONE_NAME: "Back Lawn",
+                const.ZONE_LINKED_ENTITY: STATION_B,
+            }
+        ),
+    ]
+    return await _plan_coord(hass, zones).async_plan_zone_runs()
+
+
+async def test_the_plan_carries_what_the_controller_said(hass):
+    plan = await _two_station_plan(hass, group_b=0)
+    assert [p.station.group for p in plan] == [0, 0]
+    assert all(p.station.controller_id is not None for p in plan)
+
+
+async def test_two_stations_in_one_group_price_as_a_chain(hass):
+    plan = await _two_station_plan(hass, group_b=0)
+    assert _price(plan) == 1200.0
+
+
+async def test_two_stations_in_different_groups_price_as_concurrent(hass):
+    """The whole point of reading the grouping. Priced without it, this run
+    reserves twice the time the controller actually takes."""
+    plan = await _two_station_plan(hass, group_b=1)
+    assert _price(plan) == 600.0
+
+
+async def test_an_unreadable_group_falls_back_to_the_chain(hass):
+    """Same two zones, same durations, controller silent about the second one:
+    the answer must go back UP to the safe over-estimate, not stay at 600."""
+    hass.states.async_set(
+        STATION, "on", _attrs(index=0, **{const.OPENSPRINKLER_ATTR_GROUP: 0})
+    )
+    hass.states.async_set(STATION_B, "on", _attrs(index=1))
+    _publish_controller(hass, delay=0)
+    zones = [
+        _zone(**{const.ZONE_ID: 1, const.ZONE_LINKED_ENTITY: STATION}),
+        _zone(
+            **{
+                const.ZONE_ID: 2,
+                const.ZONE_NAME: "Back Lawn",
+                const.ZONE_LINKED_ENTITY: STATION_B,
+            }
+        ),
+    ]
+    plan = await _plan_coord(hass, zones).async_plan_zone_runs()
+    assert plan[1].station.group is None
+    assert _price(plan) == 1200.0
 
 
 # --------------------------------------------------------------------------- #

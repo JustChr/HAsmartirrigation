@@ -10,16 +10,21 @@ import datetime
 
 from custom_components.smart_irrigation import const
 from custom_components.smart_irrigation.run_window import (
+    PARALLEL_STATION_GROUP,
     RUN_CEILING_SECONDS,
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,
     TRACK_STATION,
+    StationFacts,
     ZoneRun,
     bound_wall_clock,
     concurrent_wall_clock,
+    nominal_demand_seconds,
+    nominal_zone_duration,
     rank,
     select,
     simulate_wall_clock,
+    zone_eligible_for_demand,
 )
 
 SEQUENTIAL = const.CONF_ZONE_SEQUENCING_SEQUENTIAL
@@ -34,6 +39,7 @@ def _run(
     last=None,
     maximum=None,
     track=TRACK_CLASSIC,
+    station=None,
 ):
     return ZoneRun(
         zone_id=zone_id,
@@ -42,6 +48,23 @@ def _run(
         last_irrigation=last,
         maximum_duration=maximum,
         track=track,
+        station=station,
+    )
+
+
+def _station(
+    zone_id, duration, group, delay=0.0, ratio=1.0, maximum=None, controller="os_1"
+):
+    """A station-track run whose controller facts are known."""
+    return _run(
+        zone_id,
+        duration,
+        ratio=ratio,
+        maximum=maximum,
+        track=TRACK_STATION,
+        station=StationFacts(
+            group=group, delay_seconds=delay, controller_id=controller
+        ),
     )
 
 
@@ -155,6 +178,186 @@ class TestConcurrentWallClock:
 
     def test_no_runs_is_zero(self):
         assert self._conc([], SEQUENTIAL) == 0.0
+
+
+class TestStationGrouping:
+    """Pricing the station track from the controller's own grouping.
+
+    Every clock below is hand-computed. The grouping only applies under
+    parallel: sequential and rotating are chains Smart Irrigation enforces
+    itself, one station at a time, so the controller's queue never forms.
+    """
+
+    def _conc(self, runs, sequencing=None, slot=300.0, absorb=0.0):
+        return concurrent_wall_clock(
+            runs,
+            sequencing=sequencing or PARALLEL,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorb,
+        )
+
+    def test_one_sequential_group_chains(self):
+        runs = [_station(0, 300, group=0), _station(1, 600, group=0)]
+        assert self._conc(runs) == 900
+
+    def test_the_parallel_group_overlaps_entirely(self):
+        # 255 serializes with nothing, so each member is its own unit and the
+        # track costs the longest station rather than their sum.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP),
+            _station(1, 600, group=PARALLEL_STATION_GROUP),
+        ]
+        assert self._conc(runs) == 600
+
+    def test_two_sequential_groups_run_alongside_each_other(self):
+        # Group 0 chains to 900, group 1 chains to 700; they overlap, so 900.
+        runs = [
+            _station(0, 300, group=0),
+            _station(1, 600, group=0),
+            _station(2, 400, group=1),
+            _station(3, 300, group=1),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_the_delay_lands_between_members_not_after_the_last(self):
+        # Three in a chain is two boundaries: 300 + 600 + 120 + 2 * 15 = 1050.
+        runs = [
+            _station(0, 300, group=0, delay=15),
+            _station(1, 600, group=0, delay=15),
+            _station(2, 120, group=0, delay=15),
+        ]
+        assert self._conc(runs) == 1050
+
+    def test_a_lone_station_is_charged_no_delay(self):
+        assert self._conc([_station(0, 300, group=0, delay=15)]) == 300
+
+    def test_the_delay_never_crosses_a_group_boundary(self):
+        # One member each in two groups: no boundary anywhere, so no delay.
+        runs = [
+            _station(0, 300, group=0, delay=60),
+            _station(1, 600, group=1, delay=60),
+        ]
+        assert self._conc(runs) == 600
+
+    def test_a_negative_delay_overlaps_the_chain(self):
+        # Stations deliberately overlapped: 300 + 600 - 30 = 870.
+        runs = [
+            _station(0, 300, group=0, delay=-30),
+            _station(1, 600, group=0, delay=-30),
+        ]
+        assert self._conc(runs) == 870
+
+    def test_a_negative_delay_cannot_drive_the_clock_below_zero(self):
+        runs = [
+            _station(0, 60, group=0, delay=-600),
+            _station(1, 60, group=0, delay=-600),
+        ]
+        assert self._conc(runs) == 0.0
+
+    def test_one_unreadable_group_reverts_the_whole_track(self):
+        # A partial partition can only under-state the track, and under-stating
+        # is the direction that overshoots a deadline — so the track falls back
+        # to the chain it was priced as before any of this, delay included.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP, delay=15),
+            _run(1, 600, track=TRACK_STATION),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_facts_without_a_group_are_unreadable_too(self):
+        # An unavailable station entity carries no attributes at all.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP),
+            _run(1, 600, track=TRACK_STATION, station=StationFacts()),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_sequential_sequencing_is_untouched(self):
+        # Smart Irrigation holds each station back until the last finalises, so
+        # the grouping cannot make them overlap.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP, delay=15),
+            _station(1, 600, group=PARALLEL_STATION_GROUP, delay=15),
+        ]
+        assert self._conc(runs, SEQUENTIAL) == 900
+
+    def test_rotating_sequencing_is_untouched(self):
+        # The station track already overrides rotating with its own chain, so
+        # the absorption model never reaches it; the point here is that the
+        # grouping does not reach it either.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP, delay=15),
+            _station(1, 600, group=PARALLEL_STATION_GROUP, delay=15),
+        ]
+        assert self._conc(runs, ROTATING, slot=300, absorb=600) == 900
+
+    def test_a_zero_duration_member_charges_no_delay(self):
+        # ignore_demand plans carry zero-duration runs; they occupy no slot in
+        # the controller's queue, so they add no boundary either.
+        runs = [
+            _station(0, 300, group=0, delay=15),
+            _station(1, 0, group=0, delay=15),
+        ]
+        assert self._conc(runs) == 300
+
+    def test_two_controllers_do_not_share_a_group_number(self):
+        # Group ids are numbered per controller, so these are two independent
+        # chains of 900 running alongside each other, not one chain of 1800.
+        runs = [
+            _station(0, 300, group=0, controller="os_1"),
+            _station(1, 600, group=0, controller="os_1"),
+            _station(2, 400, group=0, controller="os_2"),
+            _station(3, 500, group=0, controller="os_2"),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_the_longest_track_still_wins_across_tracks(self):
+        # Stations collapse to 600 under the parallel group; the classic and
+        # self-closing tracks are priced under their own rules, and the longest
+        # of the three takes the answer rather than the three being added.
+        runs = [
+            _station(0, 300, group=PARALLEL_STATION_GROUP),
+            _station(1, 600, group=PARALLEL_STATION_GROUP),
+            _run(2, 900),
+            _run(3, 300),
+            _run(4, 700, track=TRACK_SELF_CLOSING),
+            _run(5, 800, track=TRACK_SELF_CLOSING),
+        ]
+        assert self._conc(runs) == 900
+
+    def test_grouping_reaches_the_bound(self):
+        # Configured ceilings, priced through the same reduction: two stations
+        # in the parallel group bound at the longer, not the sum.
+        runs = [
+            _station(0, 100, group=PARALLEL_STATION_GROUP, maximum=4800),
+            _station(1, 100, group=PARALLEL_STATION_GROUP, maximum=3000),
+        ]
+        assert (
+            bound_wall_clock(
+                runs,
+                sequencing=PARALLEL,
+                max_slot_seconds=300,
+                min_absorption_seconds=0,
+            )
+            == 4800
+        )
+
+    def test_grouping_admits_a_zone_the_chain_model_refused(self):
+        # 900 s of window. Chained, the pair costs 900 and the third station
+        # cannot fit; in the parallel group all three overlap and all three run.
+        runs = [
+            _station(0, 600, group=PARALLEL_STATION_GROUP, ratio=3.0),
+            _station(1, 500, group=PARALLEL_STATION_GROUP, ratio=2.0),
+            _station(2, 400, group=PARALLEL_STATION_GROUP, ratio=1.5),
+        ]
+        chosen = select(
+            runs,
+            window_seconds=900,
+            sequencing=PARALLEL,
+            max_slot_seconds=300,
+            min_absorption_seconds=0,
+        )
+        assert [r.zone_id for r in chosen] == [0, 1, 2]
 
 
 class TestRank:
@@ -552,3 +755,166 @@ class TestBoundWallClock:
             min_absorption_seconds=600,
         )
         assert bound == 4800 + 15 * 600
+
+
+def _zone(
+    zone_id,
+    *,
+    threshold=-10.0,
+    throughput=10.0,
+    size=10.0,
+    multiplier=1.0,
+    maximum=None,
+    lead_time=0,
+    bucket=0.0,
+    state=const.ZONE_STATE_AUTOMATIC,
+    distributor_id=None,
+    watering_mode=None,
+):
+    """A minimal zone dict — only the fields the duration math and the
+    eligibility filter read. Precipitation rate is fixed at 60 mm/h
+    (10 l/min over 10 m2) unless overridden, so a threshold of -N mm prices to
+    N/60*3600 = N*60 seconds — the numbers below are chosen to land on the
+    same wall-clock fixtures ``TestSimulateWallClock`` already pins by hand.
+    """
+    return {
+        const.ZONE_ID: zone_id,
+        const.ZONE_BUCKET_THRESHOLD: threshold,
+        const.ZONE_THROUGHPUT: throughput,
+        const.ZONE_SIZE: size,
+        const.ZONE_MULTIPLIER: multiplier,
+        const.ZONE_MAXIMUM_DURATION: maximum,
+        const.ZONE_LEAD_TIME: lead_time,
+        const.ZONE_BUCKET: bucket,
+        const.ZONE_STATE: state,
+        const.ZONE_DISTRIBUTOR_ID: distributor_id,
+        const.ZONE_WATERING_MODE: watering_mode,
+    }
+
+
+class TestNominalZoneDuration:
+    """Pricing a single zone's own allowed depletion at ratio 1.0."""
+
+    def test_prices_the_threshold_like_a_real_deficit(self):
+        # Same numbers as test_live_duration's duration_from_deficit(-10, 10,
+        # 10, 1.0, 36000, 0, metric=True) == 600 — nominal pricing must not
+        # diverge from the real duration math for the same deficit.
+        zone = _zone(0, threshold=-10.0, maximum=36000, lead_time=0)
+        assert nominal_zone_duration(zone, metric=True) == 600.0
+
+    def test_the_cap_bites_when_the_uncapped_duration_exceeds_it(self):
+        # Uncapped this threshold prices to 6000 s (100 mm at 60 mm/h); the
+        # 300 s maximum_duration must cut it, exactly as a real run's cap does.
+        zone = _zone(0, threshold=-100.0, maximum=300, lead_time=0)
+        assert nominal_zone_duration(zone, metric=True) == 300.0
+
+    def test_a_non_negative_threshold_never_gates(self):
+        zone = _zone(0, threshold=0.0)
+        assert nominal_zone_duration(zone, metric=True) == 0.0
+
+    def test_independent_of_the_zones_live_bucket(self):
+        # The property distinguishing nominal demand from demand: the same
+        # configuration prices to the same duration no matter what the zone's
+        # live bucket currently reads.
+        dry = _zone(0, threshold=-10.0, bucket=-9.9)
+        wet = _zone(0, threshold=-10.0, bucket=0.0)
+        assert nominal_zone_duration(dry, metric=True) == nominal_zone_duration(
+            wet, metric=True
+        )
+
+
+class TestZoneEligibleForDemand:
+    """Same exclusions ``async_plan_zone_runs`` applies."""
+
+    def test_a_disabled_zone_is_excluded(self):
+        zone = _zone(0, state=const.ZONE_STATE_DISABLED)
+        assert zone_eligible_for_demand(zone) is False
+
+    def test_a_distributor_member_is_excluded(self):
+        zone = _zone(0, distributor_id="dist_1")
+        assert zone_eligible_for_demand(zone) is False
+
+    def test_an_ordinary_automatic_zone_is_included(self):
+        zone = _zone(0, state=const.ZONE_STATE_AUTOMATIC)
+        assert zone_eligible_for_demand(zone) is True
+
+
+class TestNominalDemandSeconds:
+    """Combining nominal per-zone durations under the schedule's sequencing."""
+
+    def _kwargs(self, sequencing, slot=300.0, absorb=0.0):
+        return {
+            "sequencing": sequencing,
+            "max_slot_seconds": slot,
+            "min_absorption_seconds": absorb,
+            "metric": True,
+        }
+
+    def test_parallel_takes_the_longest_nominal_duration(self):
+        zones = [_zone(0, threshold=-10.0), _zone(1, threshold=-5.0)]
+        # thresholds -10/-5 mm at 60 mm/h price to 600/300 s.
+        assert nominal_demand_seconds(zones, **self._kwargs(PARALLEL)) == 600.0
+
+    def test_sequential_sums_nominal_durations(self):
+        zones = [_zone(0, threshold=-10.0), _zone(1, threshold=-5.0)]
+        assert nominal_demand_seconds(zones, **self._kwargs(SEQUENTIAL)) == 900.0
+
+    def test_rotating_replays_the_absorption_pause(self):
+        # Same 600 s / 300 s pair as
+        # TestSimulateWallClock.test_rotating_ring_partially_fills_the_pause:
+        # A 0-300, B 300-600 (done), A waits to 900, A 900-1200. == 1200.
+        zones = [_zone(0, threshold=-10.0), _zone(1, threshold=-5.0)]
+        assert (
+            nominal_demand_seconds(zones, **self._kwargs(ROTATING, slot=300, absorb=600))
+            == 1200.0
+        )
+
+    def test_excludes_disabled_and_distributor_zones_from_the_total(self):
+        zones = [
+            _zone(0, threshold=-10.0),
+            _zone(1, threshold=-5.0, state=const.ZONE_STATE_DISABLED),
+            _zone(2, threshold=-5.0, distributor_id="dist_1"),
+        ]
+        # Only zone 0 counts — the disabled zone and the distributor member
+        # are excluded on the same terms async_plan_zone_runs excludes them.
+        assert nominal_demand_seconds(zones, **self._kwargs(PARALLEL)) == 600.0
+
+    def test_the_cap_bites_inside_the_combined_total(self):
+        zones = [
+            _zone(0, threshold=-100.0, maximum=300),  # capped 6000 -> 300
+            _zone(1, threshold=-5.0),  # 300, uncapped
+        ]
+        assert nominal_demand_seconds(zones, **self._kwargs(SEQUENTIAL)) == 600.0
+
+    def test_station_grouping_reaches_the_projection(self):
+        # The dial draws this number, so it has to be the wall clock the run
+        # really reserves: two stations in the parallel group overlap.
+        zones = [
+            _zone(0, threshold=-10.0, watering_mode=const.WATERING_MODE_OPENSPRINKLER),
+            _zone(1, threshold=-5.0, watering_mode=const.WATERING_MODE_OPENSPRINKLER),
+        ]
+        facts = {
+            0: StationFacts(group=PARALLEL_STATION_GROUP),
+            1: StationFacts(group=PARALLEL_STATION_GROUP),
+        }
+        assert (
+            nominal_demand_seconds(zones, station_facts=facts, **self._kwargs(PARALLEL))
+            == 600.0
+        )
+
+    def test_the_projection_chains_stations_when_no_facts_are_supplied(self):
+        # An install whose controller cannot answer keeps the pricing it had.
+        zones = [
+            _zone(0, threshold=-10.0, watering_mode=const.WATERING_MODE_OPENSPRINKLER),
+            _zone(1, threshold=-5.0, watering_mode=const.WATERING_MODE_OPENSPRINKLER),
+        ]
+        assert nominal_demand_seconds(zones, **self._kwargs(PARALLEL)) == 900.0
+
+    def test_independent_of_every_zones_live_bucket(self):
+        dry = [_zone(0, threshold=-10.0, bucket=-9.9), _zone(1, threshold=-5.0, bucket=-4.9)]
+        wet = [_zone(0, threshold=-10.0, bucket=0.0), _zone(1, threshold=-5.0, bucket=0.0)]
+        for sequencing in (PARALLEL, SEQUENTIAL, ROTATING):
+            kwargs = self._kwargs(sequencing, slot=300, absorb=600)
+            assert nominal_demand_seconds(dry, **kwargs) == nominal_demand_seconds(
+                wet, **kwargs
+            )
