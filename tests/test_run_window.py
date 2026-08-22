@@ -516,12 +516,18 @@ class TestBoundWallClock:
             min_absorption_seconds=0,
         ) == 7800
 
-    def test_an_unset_maximum_is_unbounded_rather_than_a_stand_in_number(self):
+    @pytest.mark.parametrize("sequencing", [SEQUENTIAL, PARALLEL, ROTATING])
+    def test_an_unset_maximum_is_unbounded_rather_than_a_stand_in_number(
+        self, sequencing
+    ):
+        # Under every sequencing: an infinite budget has to come back out as
+        # one, including from the rotating replay, which cannot subtract its
+        # way down to zero from it.
         runs = [_run(0, 100, maximum=None), _run(1, 100, maximum=0)]
         assert (
             bound_wall_clock(
                 runs,
-                sequencing=SEQUENTIAL,
+                sequencing=sequencing,
                 max_slot_seconds=300,
                 min_absorption_seconds=0,
             )
@@ -609,6 +615,7 @@ class TestSelectLeaderIsTieBroken:
         assert [r.zone_id for r in chosen] == [0]
 
 
+@pytest.mark.parametrize("sequencing", [SEQUENTIAL, PARALLEL, ROTATING])
 class TestBoundIsAnUpperBound:
     """The bound has to cover what the runner would really do.
 
@@ -616,47 +623,57 @@ class TestBoundIsAnUpperBound:
     result against another expression of the same model. These drive the real
     ``duration_from_deficit`` on both sides, which is the only way a gap
     between the model and the runner shows up.
+
+    Every case runs under all three sequencings. A single zone occupies the
+    same wall clock under each of them with no absorption pause, so the
+    expectations do not move; what does move is which branch of
+    ``simulate_wall_clock`` answers. Pinning these to one sequencing hid a
+    rotating replay that could not terminate on an unbounded zone, because the
+    only assertions that reached an infinite budget took the sequential sum.
     """
 
-    def _bound(self, run):
+    def _bound(self, run, sequencing):
         return bound_wall_clock(
             [run],
-            sequencing=SEQUENTIAL,
+            sequencing=sequencing,
             max_slot_seconds=300,
             min_absorption_seconds=0,
         )
 
-    def test_the_bound_covers_the_lead_time_the_cap_does_not(self):
+    def test_the_bound_covers_the_lead_time_the_cap_does_not(self, sequencing):
         # duration_from_deficit clamps FIRST and adds lead_time after, so a
         # zone capped at 600 s with a 120 s lead time really occupies 720 s.
         real = duration_from_deficit(-100.0, 10, 10, 1, 600, 120, True)
         assert real == 720
         run = _run(1, real, ratio=5.0, maximum=600, lead_time=120)
-        assert self._bound(run) >= real
+        assert self._bound(run, sequencing) >= real
 
-    def test_a_zone_with_no_configured_cap_is_reported_unbounded(self):
+    def test_a_zone_with_no_configured_cap_is_reported_unbounded(self, sequencing):
         # Nothing caps a TIMED zone with no maximum_duration: the `or 14400`
         # sites are all flow-zone safety timeouts, and the deficit that sizes
         # the run is not capped either, because maximum_bucket clamps the
         # bucket's surplus side only. A plausible-looking number here would be
         # worse than none, because a caller arming on `target - bound` has to
         # tell "no fixed point exists" from "it is four hours back".
-        assert self._bound(_run(1, 300, ratio=5.0, maximum=None)) == math.inf
+        run = _run(1, 300, ratio=5.0, maximum=None)
+        assert self._bound(run, sequencing) == math.inf
 
-    def test_a_caller_supplied_ceiling_bounds_an_uncapped_zone(self):
+    def test_a_caller_supplied_ceiling_bounds_an_uncapped_zone(self, sequencing):
         # 100 mm of deficit at a 60 mm/h precipitation rate.
         real = duration_from_deficit(-100.0, 10, 10, 1, None, 0, True)
         assert real == 6000
-        bound = self._bound(_run(1, real, ratio=5.0, maximum=None, ceiling=7200))
+        bound = self._bound(
+            _run(1, real, ratio=5.0, maximum=None, ceiling=7200), sequencing
+        )
         assert bound == 7200
         assert bound >= real
 
-    def test_one_unbounded_zone_makes_the_whole_bound_unbounded(self):
+    def test_one_unbounded_zone_makes_the_whole_bound_unbounded(self, sequencing):
         runs = [_run(1, 300, ratio=5.0, maximum=600), _run(2, 300, ratio=5.0)]
         assert (
             bound_wall_clock(
                 runs,
-                sequencing=SEQUENTIAL,
+                sequencing=sequencing,
                 max_slot_seconds=300,
                 min_absorption_seconds=0,
             )
@@ -701,9 +718,7 @@ class TestPricedInDispatchOrder:
     """
 
     def test_a_flow_zone_is_priced_last_whatever_order_it_arrives_in(self):
-        kw = dict(
-            sequencing=ROTATING, max_slot_seconds=300, min_absorption_seconds=600
-        )
+        kw = dict(sequencing=ROTATING, max_slot_seconds=300, min_absorption_seconds=600)
         flow_first = [_run(0, 900, flow=True), _run(1, 300), _run(2, 300)]
         flow_last = [_run(1, 300), _run(2, 300), _run(0, 900, flow=True)]
         assert concurrent_wall_clock(flow_first, **kw) == concurrent_wall_clock(

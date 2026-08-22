@@ -244,6 +244,17 @@ def simulate_wall_clock(
     # Rotating: replay irrigation._run_rotation's loop. A zone that is finished
     # is skipped BEFORE its absorption wait is considered, exactly as there, so
     # a completed zone never charges a trailing pause.
+    #
+    # An unbounded zone is priced as math.inf (bound_wall_clock's "no fixed
+    # point exists here"), and the replay cannot converge on one: a slot takes
+    # a finite bite out of an infinite budget and leaves it infinite, so the
+    # loop below never exits. The rotation really has no end in that case, so
+    # answer with the infinity rather than hang on it. Only this branch needs
+    # the guard; parallel takes a max and sequential a sum, both of which
+    # propagate the infinity on their own.
+    if any(math.isinf(v) for v in work):
+        return math.inf
+
     slot_cap = max(MIN_SLOT_SECONDS, float(max_slot_seconds or 0.0))
     absorption = max(0.0, float(min_absorption_seconds or 0.0))
     remaining = [b for b in budgets if b > 0]
