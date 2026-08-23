@@ -28,10 +28,7 @@ import {
   BoundMode,
   Anchor,
 } from "../common/schedule-rows";
-import {
-  summarizeSchedule,
-  weeklyWithNoDays,
-} from "../common/schedule-summary";
+import { summarizeSchedule, scheduleProblem } from "../common/schedule-summary";
 
 const DAYS = [
   "monday",
@@ -176,7 +173,7 @@ export class SiScheduleDialog extends LitElement {
             type="radio"
             id="zones_all"
             name="zones_mode"
-            ?checked="${allSelected}"
+            .checked="${allSelected}"
             @change=${() => this._emitChanged({ zones: "all" })}
           />
           <label for="zones_all"
@@ -189,7 +186,7 @@ export class SiScheduleDialog extends LitElement {
             type="radio"
             id="zones_specific"
             name="zones_mode"
-            ?checked="${!allSelected}"
+            .checked="${!allSelected}"
             @change=${() => this._emitChanged({ zones: [] })}
           />
           <label for="zones_specific"
@@ -207,7 +204,7 @@ export class SiScheduleDialog extends LitElement {
                     <label class="zone-check">
                       <input
                         type="checkbox"
-                        ?checked="${selectedIds.includes(String(z.id))}"
+                        .checked="${selectedIds.includes(String(z.id))}"
                         @change=${(e: Event) => {
                           const checked = (e.target as HTMLInputElement)
                             .checked;
@@ -248,7 +245,7 @@ export class SiScheduleDialog extends LitElement {
                   <label class="day-check">
                     <input
                       type="checkbox"
-                      ?checked="${(s.days_of_week || []).includes(day)}"
+                      .checked="${(s.days_of_week || []).includes(day)}"
                       @change=${(e: Event) => {
                         const checked = (e.target as HTMLInputElement).checked;
                         const cur = s.days_of_week || [];
@@ -439,7 +436,7 @@ export class SiScheduleDialog extends LitElement {
           >
             ${SCHEDULE_BOUND_MODES.map(
               (m) => html`
-                <option value="${m}" ?selected="${row.mode === m}">
+                <option value="${m}" .selected="${row.mode === m}">
                   ${localize(`panels.schedules.bound_mode.${m}`, lang)}
                 </option>
               `,
@@ -486,7 +483,7 @@ export class SiScheduleDialog extends LitElement {
           >
             ${[SCHEDULE_ANCHOR_START, SCHEDULE_ANCHOR_FINISH].map(
               (a) => html`
-                <option value="${a}" ?selected="${rows.anchor === a}">
+                <option value="${a}" .selected="${rows.anchor === a}">
                   ${localize(`panels.schedules.anchor.${a}`, lang)}
                 </option>
               `,
@@ -525,21 +522,24 @@ export class SiScheduleDialog extends LitElement {
     `;
   }
 
-  /** Blocks Save on a schedule that can never fire.
+  /** Whether the name field is filled in. Its own check rather than part of
+   * `scheduleProblem`, because an unnamed schedule is not BROKEN — it waters
+   * exactly as configured — and that predicate also feeds the sentence
+   * heading every card in the list view, where calling it broken would
+   * misdescribe it. `<input required>` does not help here: it is inert
+   * outside a form, and the backend only checks the key is PRESENT. */
+  private _nameMissing(): boolean {
+    return !(this.schedule.name || "").trim();
+  }
+
+  /** Blocks Save on a schedule that could never do anything.
    *
-   * Two ways to describe no time at all, and both are unsatisfiable however
-   * good the rest of the schedule is:
-   *   - neither Start nor Finish bounded (interval is exempt — it has no
-   *     window);
-   *   - weekly with no weekday ticked, which is the state a schedule is in
-   *     the moment its recurrence is switched to weekly. Not exempt for
-   *     interval, because interval never reaches the weekly branch anyway.
-   */
+   * Delegates the behavioural question to `scheduleProblem`, which the
+   * summary sentence also asks, so the button cannot be enabled while the
+   * sentence says the schedule never runs. The name is the one condition
+   * checked here and not there — see `_nameMissing`. */
   private _canSave(): boolean {
-    const s = this.schedule;
-    if (weeklyWithNoDays(s)) return false;
-    if (s.recurrence === SCHEDULE_RECURRENCE_INTERVAL) return true;
-    return describeWindow(scheduleToRows(s)).valid;
+    return !this._nameMissing() && scheduleProblem(this.schedule) === null;
   }
 
   /** One bordered card: a small-caps heading (also the label for whatever
@@ -630,6 +630,14 @@ export class SiScheduleDialog extends LitElement {
                 })}
               required
             />
+            ${this._nameMissing()
+              ? html`<span class="field-help err"
+                  >${localize(
+                    "panels.schedules.help.name_required",
+                    lang,
+                  )}</span
+                >`
+              : ""}
           </div>
 
           ${this._renderSection(
@@ -649,7 +657,7 @@ export class SiScheduleDialog extends LitElement {
                 >
                   ${SCHEDULE_RECURRENCES.map(
                     (r) => html`
-                      <option value="${r}" ?selected="${s.recurrence === r}">
+                      <option value="${r}" .selected="${s.recurrence === r}">
                         ${recurrenceLabel(r, lang)}
                       </option>
                     `,

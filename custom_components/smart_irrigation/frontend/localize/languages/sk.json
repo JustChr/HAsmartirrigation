@@ -660,6 +660,7 @@
       "summary": {
         "invalid": "Tento plán nemá nastavený začiatok ani koniec, takže nikdy nebeží.",
         "no_days": "Tento plán je týždenný, ale nemá vybrané žiadne dni, takže sa nikdy nespustí.",
+        "no_zones": "Tento plán nemá vybrané žiadne zóny, takže nikdy nič nezavlažuje.",
         "recurrence_daily": "Beží denne",
         "recurrence_weekly": "Beží týždenne v tieto dni: {days}",
         "recurrence_monthly": "Beží mesačne v deň {day}",
@@ -692,6 +693,7 @@
       "help": {
         "error": "Musíte nastaviť buď podmienku začiatku, alebo konca",
         "interval_start": "Nechajte prázdne, ak sa má začať od uloženia plánu. Intervalový plán nemá cieľový čas dňa, takže nemá ani okno behu.",
+        "name_required": "Zadajte názov plánu.",
         "demand_open": "Nastavené podľa dopytu. Všetky zóny bežia do dokončenia.",
         "exact": "Presne.",
         "demand_floored": "Nastavené podľa dopytu, ale nikdy pred týmto.",

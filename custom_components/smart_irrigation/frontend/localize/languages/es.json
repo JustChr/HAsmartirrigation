@@ -660,6 +660,7 @@
       "summary": {
         "invalid": "Este programa no tiene inicio ni fin establecidos, por lo que nunca se ejecuta.",
         "no_days": "Este programa es semanal pero no tiene días seleccionados, por lo que nunca se ejecuta.",
+        "no_zones": "Este programa no tiene zonas seleccionadas, por lo que nunca riega nada.",
         "recurrence_daily": "Se ejecuta a diario",
         "recurrence_weekly": "Se ejecuta semanalmente los {days}",
         "recurrence_monthly": "Se ejecuta mensualmente el día {day}",
@@ -692,6 +693,7 @@
       "help": {
         "error": "Debe establecer una condición de inicio o de fin",
         "interval_start": "Déjalo en blanco para empezar desde que se guarda la programación. Una programación por intervalo no tiene hora objetivo, así que no tiene ventana de riego.",
+        "name_required": "Asigne un nombre al programa.",
         "demand_open": "Establecido según demanda. Todas las zonas se ejecutan hasta completarse.",
         "exact": "Exacto.",
         "demand_floored": "Establecido según demanda, pero nunca antes de esto.",

@@ -309,3 +309,51 @@ describe("summarizeSchedule: weekly with no days", () => {
     }
   });
 });
+
+describe("scheduleProblem", () => {
+  /**
+   * One source of truth for "can this schedule ever do anything", shared by
+   * the dialog's Save button and the summary sentence, so the two cannot
+   * disagree. Every one of these saved happily before.
+   */
+  it("reports an empty zone list", () => {
+    const s = summarizeSchedule(base({ zones: [] }), lang);
+    expect(s.isError).toBe(true);
+    expect(s.text).toContain("never waters anything");
+  });
+
+  it("reports an empty zone list on interval too, which has no window", () => {
+    const s = summarizeSchedule(
+      base({ recurrence: "interval", interval_hours: 6, zones: [] }),
+      lang,
+    );
+    expect(s.isError).toBe(true);
+  });
+
+  it("does not confuse 'all' with an empty selection", () => {
+    // "all" is a STRING, not a list; only a literal empty array means
+    // "specific zones, none ticked".
+    expect(summarizeSchedule(base({ zones: "all" }), lang).isError).toBe(false);
+    expect(summarizeSchedule(base({ zones: ["0"] }), lang).isError).toBe(false);
+  });
+
+  it("reports the when-problem before the what-problem", () => {
+    // A weekly schedule with neither days nor zones is broken both ways;
+    // the one that makes it describe no TIME is the more fundamental.
+    const s = summarizeSchedule(
+      base({ recurrence: "weekly", days_of_week: [], zones: [] }),
+      lang,
+    );
+    expect(s.text).toContain("no days selected");
+  });
+
+  it("still reports the unbounded window with its original wording", () => {
+    // This case predates the others and its string must not have moved.
+    const s = summarizeSchedule(
+      base({ start_mode: "none", finish_mode: "none" }),
+      lang,
+    );
+    expect(s.isError).toBe(true);
+    expect(s.text).toContain("no start or finish set");
+  });
+});

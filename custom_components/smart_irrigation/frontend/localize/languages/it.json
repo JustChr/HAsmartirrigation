@@ -700,6 +700,7 @@
       "summary": {
         "invalid": "Questa pianificazione non ha né inizio né fine impostati, quindi non viene mai eseguita.",
         "no_days": "Questa pianificazione è settimanale ma non ha giorni selezionati, quindi non viene mai eseguita.",
+        "no_zones": "Questa pianificazione non ha zone selezionate, quindi non irriga mai nulla.",
         "recurrence_daily": "Viene eseguita ogni giorno",
         "recurrence_weekly": "Viene eseguita ogni settimana il {days}",
         "recurrence_monthly": "Viene eseguita ogni mese il giorno {day}",
@@ -732,6 +733,7 @@
       "help": {
         "error": "È necessario impostare una condizione di inizio o di fine",
         "interval_start": "Lascia vuoto per partire da quando la pianificazione viene salvata. Una pianificazione a intervalli non ha un orario di riferimento, quindi nessuna finestra.",
+        "name_required": "Assegna un nome alla pianificazione.",
         "demand_open": "Impostato in base alla domanda. Tutte le zone vengono completate.",
         "exact": "Esatto.",
         "demand_floored": "Impostato in base alla domanda, ma mai prima di questo.",

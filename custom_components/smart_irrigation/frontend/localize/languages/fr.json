@@ -660,6 +660,7 @@
       "summary": {
         "invalid": "Cette planification n'a ni début ni fin définis, elle ne s'exécute donc jamais.",
         "no_days": "Cette planification est hebdomadaire mais aucun jour n'est sélectionné, elle ne s'exécute donc jamais.",
+        "no_zones": "Cette planification n'a aucune zone sélectionnée, elle n'arrose donc jamais rien.",
         "recurrence_daily": "S'exécute quotidiennement",
         "recurrence_weekly": "S'exécute chaque semaine le {days}",
         "recurrence_monthly": "S'exécute chaque mois le jour {day}",
@@ -692,6 +693,7 @@
       "help": {
         "error": "Une condition de début ou de fin doit être définie",
         "interval_start": "Laisser vide pour partir du moment où la programmation est enregistrée. Une programmation par intervalle n'a pas d'heure cible, donc pas de fenêtre.",
+        "name_required": "Donnez un nom à la planification.",
         "demand_open": "Défini selon la demande. Toutes les zones vont jusqu'au bout.",
         "exact": "Exact.",
         "demand_floored": "Défini selon la demande, mais jamais avant cela.",

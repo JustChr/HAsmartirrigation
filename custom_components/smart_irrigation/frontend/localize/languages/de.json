@@ -660,6 +660,7 @@
       "summary": {
         "invalid": "Für diesen Zeitplan ist weder Start noch Ende festgelegt, er läuft also nie.",
         "no_days": "Dieser Zeitplan läuft wöchentlich, aber es sind keine Tage ausgewählt, er läuft also nie.",
+        "no_zones": "Für diesen Zeitplan sind keine Zonen ausgewählt, er bewässert also nie etwas.",
         "recurrence_daily": "Läuft täglich",
         "recurrence_weekly": "Läuft wöchentlich an {days}",
         "recurrence_monthly": "Läuft monatlich am Tag {day}",
@@ -692,6 +693,7 @@
       "help": {
         "error": "Es muss entweder eine Start- oder Ende-Bedingung festgelegt werden",
         "interval_start": "Leer lassen, um ab dem Speichern des Zeitplans zu starten. Ein Intervall-Zeitplan hat keine Zielzeit und damit kein Zeitfenster.",
+        "name_required": "Geben Sie dem Zeitplan einen Namen.",
         "demand_open": "Nach Bedarf festgelegt. Alle Zonen laufen bis zum Abschluss.",
         "exact": "Exakt.",
         "demand_floored": "Nach Bedarf festgelegt, aber nicht vor diesem Zeitpunkt.",

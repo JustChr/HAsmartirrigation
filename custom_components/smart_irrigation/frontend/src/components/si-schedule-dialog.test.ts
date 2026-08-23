@@ -389,6 +389,7 @@ describe("si-schedule-dialog: Start/Finish rows", () => {
     const { el } = makeDialog({
       schedule: {
         ...emptySchedule(),
+        name: "Named",
         recurrence: "interval",
         interval_hours: 6,
         start_mode: "time",
@@ -541,6 +542,7 @@ describe("si-schedule-dialog: Save is blocked on a schedule that can never fire"
     const { el } = makeDialog({
       schedule: {
         ...emptySchedule(),
+        name: "Named",
         recurrence: "weekly",
         days_of_week: ["tuesday"],
       },
@@ -562,9 +564,91 @@ describe("si-schedule-dialog: Save is blocked on a schedule that can never fire"
     // ordinary schedules saving.
     for (const recurrence of ["daily", "monthly", "interval"]) {
       const { el } = makeDialog({
-        schedule: { ...emptySchedule(), recurrence },
+        schedule: { ...emptySchedule(), name: "Named", recurrence },
       });
       expect((el as any)._canSave()).toBe(true);
     }
+  });
+});
+
+describe("si-schedule-dialog: Save is blocked on an empty name or zone list", () => {
+  const named = (extra: Record<string, unknown> = {}) => ({
+    ...emptySchedule(),
+    name: "Named",
+    ...extra,
+  });
+
+  it("blocks Save on a schedule with no name", () => {
+    // `<input required>` is inert outside a form, and the backend only
+    // checks the key is PRESENT, not non-empty -- so a nameless schedule
+    // saved and showed as a blank row in the list.
+    const { el } = makeDialog({ schedule: { ...emptySchedule(), name: "" } });
+    expect((el as any)._canSave()).toBe(false);
+  });
+
+  it("treats whitespace as no name", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), name: "   " },
+    });
+    expect((el as any)._canSave()).toBe(false);
+  });
+
+  it("says why, rather than only greying the button", () => {
+    const { el } = makeDialog({ schedule: { ...emptySchedule(), name: "" } });
+    const { text } = flatten(el.render());
+    expect(text).toContain("Give the schedule a name");
+  });
+
+  it("stops saying so once a name is typed", () => {
+    const { el } = makeDialog({ schedule: named() });
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("Give the schedule a name");
+    expect((el as any)._canSave()).toBe(true);
+  });
+
+  it("blocks Save when specific zones are chosen but none are ticked", () => {
+    // Stores an empty LIST, which normalize_zone_selection returns as []
+    // rather than the None that means "all" -- so the run targeted nothing
+    // and watered nothing, silently.
+    const { el } = makeDialog({ schedule: named({ zones: [] }) });
+    expect((el as any)._canSave()).toBe(false);
+    const { text } = flatten(el.render());
+    expect(text).toContain("never waters anything");
+  });
+
+  it("allows Save with one zone ticked, and with 'all'", () => {
+    for (const zones of [["1"], "all"]) {
+      const { el } = makeDialog({ schedule: named({ zones }) });
+      expect((el as any)._canSave()).toBe(true);
+    }
+  });
+
+  it("blocks an empty zone list on an interval recurrence too", () => {
+    // Interval is exempt from the WINDOW check, not from having zones.
+    const { el } = makeDialog({
+      schedule: named({ recurrence: "interval", interval_hours: 6, zones: [] }),
+    });
+    expect((el as any)._canSave()).toBe(false);
+  });
+});
+
+describe("si-schedule-dialog: form controls bind properties, not attributes", () => {
+  it("uses .checked / .selected rather than ?checked / ?selected", () => {
+    // `?checked` sets the ATTRIBUTE, which maps to defaultChecked and stops
+    // tracking once the control is dirty, so a programmatic state change
+    // could leave the control showing the old value. No concrete failure was
+    // reproduced here -- the DOM is recreated in every transition that would
+    // expose it -- so this is hardening, pinned so it is not undone by
+    // copying the pattern back in from elsewhere in the codebase, where it
+    // is still the prevailing convention.
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), name: "Named", zones: ["1"] },
+      zones: [{ id: 1, name: "Front" }],
+    });
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("?checked=");
+    expect(text).not.toContain("?selected=");
+    expect(text).toContain(".checked=");
+    expect(text).toContain(".selected=");
   });
 });

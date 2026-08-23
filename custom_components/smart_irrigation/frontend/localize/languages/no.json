@@ -660,6 +660,7 @@
       "summary": {
         "invalid": "Denne tidsplanen har verken start eller slutt angitt, så den kjører aldri.",
         "no_days": "Denne tidsplanen er ukentlig, men ingen dager er valgt, så den kjører aldri.",
+        "no_zones": "Denne tidsplanen har ingen soner valgt, så den vanner aldri noe.",
         "recurrence_daily": "Kjører daglig",
         "recurrence_weekly": "Kjører ukentlig på {days}",
         "recurrence_monthly": "Kjører månedlig på dag {day}",
@@ -692,6 +693,7 @@
       "help": {
         "error": "Du må angi enten en start- eller sluttbetingelse",
         "interval_start": "La stå tom for å starte fra når planen lagres. En intervallplan har ikke et måltidspunkt, og dermed ikke noe vindu.",
+        "name_required": "Gi tidsplanen et navn.",
         "demand_open": "Angitt etter behov. Alle soner kjører til de er ferdige.",
         "exact": "Nøyaktig.",
         "demand_floored": "Angitt etter behov, men aldri før dette.",

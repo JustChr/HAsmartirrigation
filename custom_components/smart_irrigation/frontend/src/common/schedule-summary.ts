@@ -39,6 +39,61 @@ export interface ScheduleSummary {
   isError: boolean;
 }
 
+/** A configuration that makes the schedule unable to do anything, in the
+ * order they are reported. Each maps to `panels.schedules.summary.<key>`. */
+export type ScheduleProblem = "no_days" | "no_window" | "no_zones";
+
+/**
+ * The reason this schedule can never do anything, or null if it can.
+ *
+ * The single source of truth for that question: the dialog's Save button and
+ * the summary sentence both ask it here, so the button cannot be enabled
+ * while the sentence says the schedule never runs, or the reverse. Every one
+ * of these saved happily before — the schedule was accepted, listed, and
+ * shown as enabled, and simply never watered.
+ *
+ * Reported "when" before "what", since a schedule with no time at all is
+ * broken more fundamentally than one with a time and nothing to water:
+ *
+ *  - `no_days` — weekly with no weekday ticked. `_recurrence_day_matches`
+ *    answers `any([])`, false for every one of the 367 candidates
+ *    `_next_governing_time` tries. This is the state a schedule is in the
+ *    MOMENT its recurrence is switched to weekly, since nothing populates
+ *    `days_of_week`, so it is the default path rather than an edge case.
+ *    Absent and empty are the same condition.
+ *  - `no_window` — neither Start nor Finish bounded, which describes no time
+ *    whatsoever. Interval is exempt: it has no window, it free-runs.
+ *  - `no_zones` — "specific zones" with none ticked. This one stores an
+ *    empty LIST, which `normalize_zone_selection` returns as `[]` rather
+ *    than the `None` that means "all", so the run targets nothing and
+ *    waters nothing. Applies to interval too, which has zones like any
+ *    other recurrence.
+ *
+ * A missing NAME is deliberately not here. It blocks saving (see the
+ * dialog's `_canSave`) but it is not a behavioural fault, and this function
+ * also feeds the read-only sentence heading every card in the list view —
+ * where flagging an unnamed schedule as broken would misdescribe it.
+ */
+export function scheduleProblem(s: SummarySchedule): ScheduleProblem | null {
+  if (
+    s.recurrence === SCHEDULE_RECURRENCE_WEEKLY &&
+    (s.days_of_week || []).length === 0
+  ) {
+    return "no_days";
+  }
+  if (s.recurrence !== SCHEDULE_RECURRENCE_INTERVAL) {
+    const rows = scheduleToRows(s);
+    if (
+      rows.start.mode === SCHEDULE_BOUND_MODE_NONE &&
+      rows.finish.mode === SCHEDULE_BOUND_MODE_NONE
+    ) {
+      return "no_window";
+    }
+  }
+  if (Array.isArray(s.zones) && s.zones.length === 0) return "no_zones";
+  return null;
+}
+
 /**
  * Builds the plain-language sentence restating a schedule end to end: the
  * summary at the top of the dialog and the one heading each card in the
@@ -51,32 +106,19 @@ export interface ScheduleSummary {
  * that changed because tonight's forecast changed would be describing
  * something the user never configured.
  */
-/**
- * A weekly schedule with no weekday ticked. Checked before anything else
- * because it is unsatisfiable no matter how good the rest of the schedule
- * is: `_recurrence_day_matches` answers `any([])` — false for every one of
- * the 367 candidates `_next_governing_time` tries — so the schedule is
- * accepted, listed, shown as enabled, and never fires.
- *
- * This is the state a schedule is in the moment its recurrence is switched
- * to weekly, since nothing populates `days_of_week`, so it is the default
- * path rather than an edge case. Absent and empty are the same condition
- * and are treated as one.
- */
-export function weeklyWithNoDays(s: SummarySchedule): boolean {
-  return (
-    s.recurrence === SCHEDULE_RECURRENCE_WEEKLY &&
-    (s.days_of_week || []).length === 0
-  );
-}
-
 export function summarizeSchedule(
   s: SummarySchedule,
   language: string,
 ): ScheduleSummary {
-  if (weeklyWithNoDays(s)) {
+  const problem = scheduleProblem(s);
+  if (problem) {
     return {
-      text: localize("panels.schedules.summary.no_days", language),
+      // `no_window` keeps the key it has always had; the sentence is
+      // unchanged for the case that already reported it.
+      text: localize(
+        `panels.schedules.summary.${problem === "no_window" ? "invalid" : problem}`,
+        language,
+      ),
       isError: true,
     };
   }
@@ -94,16 +136,10 @@ export function summarizeSchedule(
     return { text: `${recurrence}, ${watering}.`, isError: false };
   }
 
+  // Both-unbounded is already handled above, by scheduleProblem.
   const rows = scheduleToRows(s);
   const startBounded = rows.start.mode !== SCHEDULE_BOUND_MODE_NONE;
   const finishBounded = rows.finish.mode !== SCHEDULE_BOUND_MODE_NONE;
-
-  if (!startBounded && !finishBounded) {
-    return {
-      text: localize("panels.schedules.summary.invalid", language),
-      isError: true,
-    };
-  }
 
   const watering = localize(
     "panels.schedules.summary.watering",
