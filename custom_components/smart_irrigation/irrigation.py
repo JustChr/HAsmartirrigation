@@ -20,7 +20,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .batch import is_batch_zone
-from .calculation import duration_from_deficit
+from .duration_math import zone_run_duration
 from .flow_metering import (
     FlowMeter,
     flow_is_totalizer,
@@ -2062,24 +2062,8 @@ class IrrigationRunnerMixin:
         can deliver is silently ignored and the zone drifts drier every cycle.
         Surface it instead of letting the zone quietly under-water.
         """
-        duration = duration_from_deficit(
-            deficit,
-            zone.get(const.ZONE_THROUGHPUT),
-            zone.get(const.ZONE_SIZE),
-            zone.get(const.ZONE_MULTIPLIER),
-            zone.get(const.ZONE_MAXIMUM_DURATION),
-            zone.get(const.ZONE_LEAD_TIME),
-            metric,
-        )
-        uncapped = duration_from_deficit(
-            deficit,
-            zone.get(const.ZONE_THROUGHPUT),
-            zone.get(const.ZONE_SIZE),
-            zone.get(const.ZONE_MULTIPLIER),
-            None,
-            zone.get(const.ZONE_LEAD_TIME),
-            metric,
-        )
+        duration = zone_run_duration(zone, deficit, metric)
+        uncapped = zone_run_duration(zone, deficit, metric, capped=False)
         if uncapped > duration:
             self._warn_duration_clamped(zone, duration, uncapped)
         return duration
@@ -2127,7 +2111,11 @@ class IrrigationRunnerMixin:
             const.CONF_ZONE_SEQUENCING_PARALLEL,
             const.CONF_ZONE_SEQUENCING_ROTATING,
         ):
-            sequencing = const.CONF_DEFAULT_ZONE_SEQUENCING
+            # Sequential, not CONF_DEFAULT_ZONE_SEQUENCING. The default is
+            # parallel, i.e. max(), the SHORTEST reduction, and this module's
+            # rule is that only an over-estimate is safe because an
+            # under-estimate finishes the irrigation after the requested time.
+            sequencing = const.CONF_ZONE_SEQUENCING_SEQUENTIAL
         slot_minutes = _number(
             getattr(config, "zone_sequencing_max_consecutive_duration", None) or 5, 5
         )
@@ -2213,6 +2201,8 @@ class IrrigationRunnerMixin:
                     last_irrigation=zone.get(const.ZONE_LAST_IRRIGATION),
                     maximum_duration=zone.get(const.ZONE_MAXIMUM_DURATION),
                     track=track_for_zone(zone),
+                    lead_time=zone.get(const.ZONE_LEAD_TIME) or 0.0,
+                    flow=bool(zone.get(const.ZONE_FLOW_SENSOR)),
                 )
             )
         return planned

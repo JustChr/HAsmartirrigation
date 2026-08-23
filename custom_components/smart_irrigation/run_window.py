@@ -17,6 +17,7 @@ every caller outside this module reaches for — applies it per dispatch track.
 from __future__ import annotations
 
 import datetime
+import math
 from dataclasses import dataclass
 
 from . import const
@@ -67,10 +68,14 @@ _TRACK_SEQUENCING = {
     TRACK_BATCH: const.CONF_ZONE_SEQUENCING_SEQUENTIAL,
 }
 
-# The runner's own safety cap for a zone with no usable maximum_duration
-# (irrigation.py applies `or 14400` in every slot/safety computation). Mirrored
-# here so the bound below never under-states a zone the runner would still run.
-RUN_CEILING_SECONDS = 14400
+# A zone with no ``maximum_duration`` has NO configuration-derived ceiling, and
+# there is no constant that can stand in for one. Every `or 14400` in
+# irrigation.py is a flow-zone safety timeout, so nothing caps a timed zone's
+# length; and the deficit that sizes it is not capped either, because
+# ``maximum_bucket`` clamps the bucket's SURPLUS side only (``calculation.py``:
+# `if bucket_plus_delta_capped > maximum_bucket`) and nothing clamps the
+# deficit side. A number here would be a policy cap wearing a bound's name,
+# which is the mistake this module already made once.
 
 # A rotating slot of zero would divide a zone into zero-length slots and never
 # terminate. The runner floors the configured minutes at 1 (`max(1, ...)`); this
@@ -108,6 +113,21 @@ class ZoneRun:
     ``track`` is which of the concurrent dispatch tracks the zone runs on — see
     :func:`track_for_zone`. It defaults to classic so a caller that builds a run
     without one prices it exactly as before.
+
+    ``lead_time`` is the zone's configured pre-roll. It is carried separately
+    because ``duration_from_deficit`` clamps to ``maximum_duration`` and adds
+    the lead time AFTER, so the cap alone under-states what the zone occupies
+    by exactly this much — see :func:`bound_wall_clock`.
+
+    ``ceiling`` is an upper bound on this zone's run length for a zone with no
+    ``maximum_duration``, supplied by a caller that has one to give. Nothing in
+    this integration does today, so it is normally absent and such a zone is
+    reported as unbounded. It is NOT derivable from ``maximum_bucket``: that
+    clamps the bucket's surplus side, not the deficit that sizes the run.
+
+    ``flow`` marks a zone that delivers to a measured volume. It changes no
+    arithmetic here, only the order: ``_run_rotation`` serves flow zones after
+    the timed ones whatever order the plan arrives in.
     """
 
     zone_id: int
@@ -116,6 +136,9 @@ class ZoneRun:
     last_irrigation: datetime.datetime | str | None = None
     maximum_duration: float | None = None
     track: str = TRACK_CLASSIC
+    lead_time: float = 0.0
+    ceiling: float | None = None
+    flow: bool = False
 
 
 def track_for_zone(zone: dict) -> str:
@@ -200,8 +223,16 @@ def simulate_wall_clock(
     :func:`bound_wall_clock` to price the configured maximums instead of the
     live durations); by default each zone's own ``duration`` is used.
     """
-    budget = {r.zone_id: _budget(r, durations) for r in runs}
-    work = [b for b in budget.values() if b > 0]
+    # Flow zones last, whatever order the caller passed. ``_run_rotation``
+    # builds its ring from ``timed_zones + flow_zones``, so a flow zone is
+    # always served after the timed ones; pricing the caller's order instead
+    # moves the rotating clock by an absorption pause or more, and that clock
+    # is what a finish anchor is worked back from.
+    ordered = [r for r in runs if not r.flow] + [r for r in runs if r.flow]
+    # Positional, not keyed by zone_id: two runs sharing an id used to collapse
+    # into one and the clock came out short, which is the unsafe direction.
+    budgets = [_budget(r, durations) for r in ordered]
+    work = [b for b in budgets if b > 0]
     if not work:
         return 0.0
 
@@ -213,25 +244,35 @@ def simulate_wall_clock(
     # Rotating: replay irrigation._run_rotation's loop. A zone that is finished
     # is skipped BEFORE its absorption wait is considered, exactly as there, so
     # a completed zone never charges a trailing pause.
+    #
+    # An unbounded zone is priced as math.inf (bound_wall_clock's "no fixed
+    # point exists here"), and the replay cannot converge on one: a slot takes
+    # a finite bite out of an infinite budget and leaves it infinite, so the
+    # loop below never exits. The rotation really has no end in that case, so
+    # answer with the infinity rather than hang on it. Only this branch needs
+    # the guard; parallel takes a max and sequential a sum, both of which
+    # propagate the infinity on their own.
+    if any(math.isinf(v) for v in work):
+        return math.inf
+
     slot_cap = max(MIN_SLOT_SECONDS, float(max_slot_seconds or 0.0))
     absorption = max(0.0, float(min_absorption_seconds or 0.0))
-    remaining = {zid: b for zid, b in budget.items() if b > 0}
-    order = [r.zone_id for r in runs if remaining.get(r.zone_id, 0.0) > 0]
+    remaining = [b for b in budgets if b > 0]
     last_finish: dict[int, float] = {}
     clock = 0.0
 
-    while any(v > 0 for v in remaining.values()):
-        for zid in order:
-            if remaining[zid] <= 0:
+    while any(v > 0 for v in remaining):
+        for i in range(len(remaining)):
+            if remaining[i] <= 0:
                 continue
-            if absorption > 0 and zid in last_finish:
-                wait = absorption - (clock - last_finish[zid])
+            if absorption > 0 and i in last_finish:
+                wait = absorption - (clock - last_finish[i])
                 if wait > 0:
                     clock += wait
-            slot = min(remaining[zid], slot_cap)
+            slot = min(remaining[i], slot_cap)
             clock += slot
-            remaining[zid] -= slot
-            last_finish[zid] = clock
+            remaining[i] -= slot
+            last_finish[i] = clock
     return clock
 
 
@@ -306,7 +347,35 @@ def bound_wall_clock(
             cap = float(cap) if cap is not None else 0.0
         except (TypeError, ValueError):
             cap = 0.0
-        ceilings[r.zone_id] = cap if cap > 0 else float(RUN_CEILING_SECONDS)
+        if cap > 0:
+            # duration_from_deficit clamps to maximum_duration and adds the
+            # lead time AFTER the clamp, so the cap alone under-states the
+            # zone by exactly its lead time. An under-estimate here finishes
+            # the irrigation after the requested time.
+            # A caller-supplied ceiling already folds the lead time in, so
+            # only this branch has to add it back.
+            try:
+                lead = float(r.lead_time or 0.0)
+            except (TypeError, ValueError):
+                lead = 0.0
+            cap += max(0.0, lead)
+        else:
+            # No configured cap, so this zone is genuinely unbounded unless the
+            # caller can supply a ceiling from somewhere this module cannot
+            # see. Infinity rather than a stand-in number: a caller arming a
+            # run against `target - bound` has to be able to tell "no fixed
+            # point exists here" from "the fixed point is 4 hours back", and a
+            # constant collapses those two into a wrong answer that looks fine.
+            try:
+                derived = float(r.ceiling) if r.ceiling is not None else 0.0
+            except (TypeError, ValueError):
+                derived = 0.0
+            cap = derived if derived > 0 else math.inf
+        # Keyed by zone id because that is ``durations``' contract, so two
+        # runs sharing an id land on one entry. Take the longer rather than
+        # letting the last one win: a collision that shortens the bound is
+        # the direction that overruns the finish.
+        ceilings[r.zone_id] = max(ceilings.get(r.zone_id, 0.0), cap)
     return concurrent_wall_clock(
         runs,
         sequencing=sequencing,
@@ -400,7 +469,14 @@ def select(
         if index == 0 and not subset:
             # Nothing in the driest group fits at all — the leader runs anyway
             # and the deadline truncates it. Lower groups are NOT consulted.
-            return [ranked[0]]
+            #
+            # The group's own leader, not ``ranked[0]``. Members were re-sorted
+            # by the tie-break a few lines above precisely so sub-quantum ratio
+            # residue could not decide execution order, and ``ranked[0]`` is
+            # that residue. This branch hands the entire window to one zone on
+            # the tightest nights, so it is the last place that should be
+            # settled by the noise the grouping exists to discard.
+            return [groups[0][0]]
         chosen = [*chosen, *subset]
     return chosen
 
