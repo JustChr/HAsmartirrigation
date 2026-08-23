@@ -36,6 +36,15 @@ from .run_window import ZoneRun, track_for_zone
 
 _LOGGER = logging.getLogger(__name__)
 
+# Skip markers the bounded run log may sacrifice to keep a real run. Both
+# repeat on a schedule the user did not ask to read about - the zone had no
+# deficit, or it is still inside its days-between wait - so one of each is as
+# informative as fifty. A skip carrying a FAULT is not here: that is a real
+# event and is bounded like a run. siehe _record_run.
+_EVICTABLE_SKIP_DETAILS = frozenset(
+    {const.SKIP_REASON_NO_DEMAND, const.SKIP_REASON_DAYS_BETWEEN}
+)
+
 # How long (seconds) a zone stays flagged as "Smart Irrigation is driving this
 # valve" after the runner opens it, so the experimental observed-watering
 # observer does not also credit the bucket for a run SI already accounts for.
@@ -843,6 +852,10 @@ class IrrigationRunnerMixin:
                     [z.get(const.ZONE_ID) for z in held],
                 )
                 held_ids = {int(z.get(const.ZONE_ID)) for z in held}
+                # Before the filter below drops them: past this point the run
+                # has no record that these zones ever wanted water, and every
+                # zone being held returns out of the guard entirely.
+                await self._record_days_between_skips(sorted(held_ids))
                 zones_to_irrigate = [
                     z
                     for z in zones_to_irrigate
@@ -2447,11 +2460,11 @@ class IrrigationRunnerMixin:
         }
         log = list(zone.get(const.ZONE_RUN_LOG) or [])
         log.insert(0, entry)
-        # Bound the log, but never let opt-in no_demand entries evict a REAL run
+        # Bound the log, but never let a routine skip marker evict a REAL run
         # (Option C, review of the no-demand feature): a zone that rarely waters
-        # would otherwise fill its whole history with no_demand rows and push the
+        # would otherwise fill its whole history with marker rows and push the
         # real runs — the very thing the user is trying to understand — out. Drop
-        # the OLDEST no_demand entries first; only if none remain do we fall back
+        # the OLDEST marker entries first; only if none remain do we fall back
         # to trimming the oldest overall. siehe
         # test_no_demand_logging.py::test_real_run_evicts_oldest_no_demand_before_a_real_run
         # Stop at index 1, NOT 0: index 0 is the entry we just inserted. Scanning
@@ -2473,7 +2486,7 @@ class IrrigationRunnerMixin:
                 e = log[i]
                 if (
                     e.get("result") == const.RUN_RESULT_SKIPPED
-                    and e.get("detail") == const.SKIP_REASON_NO_DEMAND
+                    and e.get("detail") in _EVICTABLE_SKIP_DETAILS
                 ):
                     del log[i]
                     overflow -= 1
@@ -2523,6 +2536,64 @@ class IrrigationRunnerMixin:
                 trigger=trigger,
             )
 
+    def _skip_logged_today(self, zone_id: int, detail: str) -> bool:
+        """Whether this zone already has a ``detail`` skip dated today.
+
+        Review finding H: dedup by SCANNING the log rather than checking log[0].
+        An intervening same-day run (e.g. a manual completed run between two
+        schedules) displaces the earlier marker out of the newest slot, so a
+        head-only check missed it and wrote a second entry the same calendar
+        day. Entries are newest-first, so stop at the first older-than-today ts.
+        siehe test_no_demand_logging.py::test_helper_dedups_same_day_with_intervening_run
+        """
+        today = dt_util.now().date().isoformat()
+        zone = self.store.get_zone(int(zone_id)) or {}
+        for entry in zone.get(const.ZONE_RUN_LOG) or []:
+            ts = str(entry.get("ts") or "")[:10]
+            if ts and ts < today:
+                break
+            if (
+                ts == today
+                and entry.get("result") == const.RUN_RESULT_SKIPPED
+                and entry.get("detail") == detail
+            ):
+                return True
+        return False
+
+    async def _record_once_daily_skips(self, zone_ids, detail: str) -> None:
+        """Record a routine skip marker for each zone, once per calendar day.
+
+        Shared by the two markers a schedule can repeat every night without the
+        zone's situation changing. Their gating differs and stays with the
+        caller; the dedup and the write are the same either way.
+
+        ``add_to_total=False`` — a skip delivers no water.
+        """
+        for zid in zone_ids:
+            if self._skip_logged_today(int(zid), detail):
+                continue
+            await self._record_run(
+                int(zid),
+                result=const.RUN_RESULT_SKIPPED,
+                detail=detail,
+                trigger="schedule",
+                add_to_total=False,
+            )
+
+    async def _record_days_between_skips(self, zone_ids) -> None:
+        """Record a per-zone days-between hold in the run history.
+
+        Not opt-in, unlike the no-demand marker: the guard itself is off by
+        default, so only an install that asked for the wait sees these at all,
+        and there the hold is the answer to "why did this zone not water".
+
+        One entry per zone per calendar day. A zone at ``days_between = 3`` is
+        held on every run for two days running, so an install with several
+        schedules a day would otherwise bury its real runs under repeats of the
+        same fact.
+        """
+        await self._record_once_daily_skips(zone_ids, const.SKIP_REASON_DAYS_BETWEEN)
+
     async def _record_no_demand_skips(self, zone_ids) -> None:
         """Record a per-zone "no demand" skip in the run history, if opted in.
 
@@ -2539,38 +2610,7 @@ class IrrigationRunnerMixin:
             return
         if self._rain_delay_active():
             return
-        today = dt_util.now().date().isoformat()
-        for zid in zone_ids:
-            zone = self.store.get_zone(int(zid)) or {}
-            log = zone.get(const.ZONE_RUN_LOG) or []
-            # Review finding H: dedup by SCANNING the log for any today-dated
-            # no_demand entry, not just log[0]. An intervening same-day run (e.g. a
-            # manual completed run between two schedules) displaces the earlier
-            # no_demand marker out of the newest slot, so the old log[0]-only check
-            # missed it and wrote a second no_demand entry the same calendar day.
-            # Entries are newest-first, so stop at the first older-than-today ts.
-            # siehe test_no_demand_logging.py::test_helper_dedups_same_day_with_intervening_run
-            already_logged = False
-            for entry in log:
-                ts = str(entry.get("ts") or "")[:10]
-                if ts and ts < today:
-                    break
-                if (
-                    ts == today
-                    and entry.get("result") == const.RUN_RESULT_SKIPPED
-                    and entry.get("detail") == const.SKIP_REASON_NO_DEMAND
-                ):
-                    already_logged = True
-                    break
-            if already_logged:
-                continue
-            await self._record_run(
-                int(zid),
-                result=const.RUN_RESULT_SKIPPED,
-                detail=const.SKIP_REASON_NO_DEMAND,
-                trigger="schedule",
-                add_to_total=False,
-            )
+        await self._record_once_daily_skips(zone_ids, const.SKIP_REASON_NO_DEMAND)
 
     async def _irrigate_zones_sequential(self, zones: list, *, master_token=None):
         """Irrigate zones one after another, skipping zones with no duration.

@@ -16,12 +16,18 @@ part that failed:
 - a zone's counter is reset only by water actually credited to that zone.
 """
 
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import homeassistant.util.dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation import (
+    SmartIrrigationCoordinator,
+    const,
+    skip_conditions,
+)
 from custom_components.smart_irrigation.store import (
     STORAGE_KEY,
     SmartIrrigationStorage,
@@ -252,3 +258,133 @@ class TestItSurvivesAStoreRoundTrip:
             reloaded.get_zone(zone[const.ZONE_ID])[const.ZONE_DAYS_SINCE_IRRIGATION]
             == 6
         )
+
+
+class TestAHeldZoneSaysSoInItsHistory:
+    """The hold was only ever an INFO log line, so from the panel a held zone
+    was indistinguishable from one that simply had nothing to do. It is
+    recorded as a skip so the zone's run history names the guard that held it.
+    """
+
+    def test_the_detail_matches_the_id_the_frontend_localizes(self):
+        """The run history renders a skip ``detail`` through
+        ``panels.zones.outlook.checks.<detail>``, and the guard already owns a
+        key there under the id in ``skip_conditions``. The two literals are
+        separate, so pin them together here rather than discovering the drift
+        as a raw code in the panel."""
+        assert const.SKIP_REASON_DAYS_BETWEEN == skip_conditions.SKIP_DAYS_BETWEEN
+
+    async def test_a_held_zone_records_a_skip_and_a_watered_zone_does_not(
+        self, monkeypatch
+    ):
+        zones = [_zone(1, days_since=0), _zone(2, days_since=3)]
+        coord = _coord(monkeypatch, zones, _cfg(days_between=3))
+        watered = _capture(monkeypatch, coord)
+
+        assert await coord._irrigate_linked_entities("all") is True
+
+        assert watered == [2]
+        held_log = coord.store.zones[1][const.ZONE_RUN_LOG]
+        assert len(held_log) == 1
+        assert held_log[0]["result"] == const.RUN_RESULT_SKIPPED
+        assert held_log[0]["detail"] == const.SKIP_REASON_DAYS_BETWEEN
+        assert coord.store.zones[2][const.ZONE_RUN_LOG] == []
+
+    async def test_every_zone_held_still_records_each_one(self, monkeypatch):
+        """The run returns False from inside the guard, so the record has to be
+        written before that return rather than after the dispatch."""
+        zones = [_zone(1, days_since=0), _zone(2, days_since=1)]
+        coord = _coord(monkeypatch, zones, _cfg(days_between=3))
+        _capture(monkeypatch, coord)
+
+        assert await coord._irrigate_linked_entities("all") is False
+
+        for zid in (1, 2):
+            log = coord.store.zones[zid][const.ZONE_RUN_LOG]
+            assert [e["detail"] for e in log] == [const.SKIP_REASON_DAYS_BETWEEN]
+
+    async def test_the_guard_being_off_records_nothing(self, monkeypatch):
+        zones = [_zone(1, days_since=0)]
+        coord = _coord(monkeypatch, zones, _cfg(days_between=0))
+        _capture(monkeypatch, coord)
+
+        await coord._irrigate_linked_entities("all")
+
+        assert coord.store.zones[1][const.ZONE_RUN_LOG] == []
+
+    async def test_a_second_run_the_same_day_does_not_log_the_hold_twice(
+        self, monkeypatch
+    ):
+        """A zone held at ``days_between = 3`` is held on every run for two
+        days running, so an install with several schedules a day would bury its
+        real runs. One entry per zone per calendar day, as the no-demand path
+        does."""
+        zones = [_zone(1, days_since=0)]
+        coord = _coord(monkeypatch, zones, _cfg(days_between=3))
+        _capture(monkeypatch, coord)
+
+        await coord._irrigate_linked_entities("all")
+        await coord._irrigate_linked_entities("all")
+
+        assert len(coord.store.zones[1][const.ZONE_RUN_LOG]) == 1
+
+    async def test_a_hold_on_a_later_day_is_logged_again(self, monkeypatch):
+        """Dedup is per calendar day, not once ever - otherwise the second day
+        of a three-day wait would show nothing at all."""
+        zones = [_zone(1, days_since=0)]
+        yesterday = (dt_util.now() - timedelta(days=1)).isoformat()
+        zones[0][const.ZONE_RUN_LOG] = [
+            {
+                "ts": yesterday,
+                "result": const.RUN_RESULT_SKIPPED,
+                "detail": const.SKIP_REASON_DAYS_BETWEEN,
+            }
+        ]
+        coord = _coord(monkeypatch, zones, _cfg(days_between=3))
+        _capture(monkeypatch, coord)
+
+        await coord._irrigate_linked_entities("all")
+
+        assert len(coord.store.zones[1][const.ZONE_RUN_LOG]) == 2
+
+    async def test_a_same_day_run_between_two_holds_does_not_defeat_the_dedup(
+        self, monkeypatch
+    ):
+        """Entries are newest-first, so a manual run recorded between the two
+        holds displaces the marker out of the newest slot. The scan has to walk
+        past it rather than only checking the head."""
+        zones = [_zone(1, days_since=0)]
+        coord = _coord(monkeypatch, zones, _cfg(days_between=3))
+        _capture(monkeypatch, coord)
+
+        await coord._irrigate_linked_entities("all")
+        await coord._record_run(1, result=const.RUN_RESULT_COMPLETED, trigger="manual")
+        await coord._irrigate_linked_entities("all")
+
+        details = [e["detail"] for e in coord.store.zones[1][const.ZONE_RUN_LOG]]
+        assert details.count(const.SKIP_REASON_DAYS_BETWEEN) == 1
+
+    async def test_a_hold_is_evicted_before_a_real_run(self, monkeypatch):
+        """A zone at ``days_between = 7`` records six holds a week against one
+        run, so without the same protection the no-demand marker already has,
+        adding these would push the real runs out of the bounded log - the very
+        entries the history exists for."""
+        log = [
+            {"ts": f"2026-08-{i:02d}", "result": const.RUN_RESULT_COMPLETED}
+            for i in range(1, const.RUN_LOG_MAX_ENTRIES + 1)
+        ]
+        log[-1]["ts"] = "oldest-real"
+        log[25] = {
+            "ts": "2026-08-26",
+            "result": const.RUN_RESULT_SKIPPED,
+            "detail": const.SKIP_REASON_DAYS_BETWEEN,
+        }
+        coord = _coord(monkeypatch, [_zone(1)], _cfg())
+        coord.store.zones[1][const.ZONE_RUN_LOG] = log
+
+        await coord._record_run(1, result=const.RUN_RESULT_COMPLETED)
+
+        out = coord.store.zones[1][const.ZONE_RUN_LOG]
+        assert len(out) == const.RUN_LOG_MAX_ENTRIES
+        assert any(e["ts"] == "oldest-real" for e in out)
+        assert not any(e.get("detail") == const.SKIP_REASON_DAYS_BETWEEN for e in out)
