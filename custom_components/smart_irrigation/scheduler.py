@@ -44,6 +44,13 @@ _BOUND_FIELDS = {
     ),
 }
 
+# Two resolved targets closer together than this are the same occurrence, not
+# two of them. Every recurrence a bound can carry — daily, weekly, monthly —
+# puts real occurrences at least a day apart, so the margin is enormous; it
+# exists only to be wider than the drift of a bound that does not resolve to
+# quite the same instant twice. See _advance_past_fired_occurrence.
+SAME_OCCURRENCE = datetime.timedelta(hours=1)
+
 
 class RecurringScheduleManager:
     """Manages recurring schedules for Smart Irrigation."""
@@ -239,6 +246,15 @@ class RecurringScheduleManager:
 
         # Remove old tracker
         await self._remove_schedule_tracker(schedule_id)
+
+        # Forget which occurrence was last fired. The memo exists so that a
+        # re-arm triggered by the schedule's own fire callback does not run the
+        # same occurrence twice, and it matches by proximity — but an edit is
+        # not a re-arm. Editing a schedule that has already run today to a time
+        # within that proximity would otherwise look like the occurrence just
+        # fired and skip a whole day: set 21:15, let it run, move it to 21:18,
+        # and the next run is tomorrow.
+        self._finish_last_target.pop(schedule_id, None)
 
         # Update schedule. Mutated in place rather than replaced by ``merged``:
         # identical content either way, but nothing else has to be checked for
@@ -789,21 +805,48 @@ class RecurringScheduleManager:
         past, and takes the "run ASAP" branch again. Left alone that fires
         every two seconds for the whole window.
 
+        The occurrence is matched by PROXIMITY, not by equality of the instant.
+        An equality test holds only while a bound resolves to the same instant
+        every time it is asked, and a solar azimuth near the wrap does not: it
+        answers a couple of seconds later on each call, so every re-arm looked
+        like a brand-new occurrence and the guard never engaged. Observed on a
+        bearing the sun never reaches, at 14 dispatches in 90 seconds.
+
         Returns None when the schedule cannot be advanced off the occurrence it
         just ran, which leaves it unarmed until the next config write or
-        restart — better than arming it on a target it has already watered.
+        restart. That is the right outcome for a bound this unstable: the
+        alternative is arming it on a target it has already watered.
         """
         sid = schedule[const.SCHEDULE_CONF_ID]
-        if self._finish_last_target.get(sid) != target.isoformat():
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        fired_iso = self._finish_last_target.get(sid)
+        if not fired_iso:
+            return target
+        try:
+            fired = datetime.datetime.fromisoformat(fired_iso)
+        except ValueError:
+            return target
+        if abs(target - fired) >= SAME_OCCURRENCE:
             return target
 
         nxt = await self._next_governing_time(schedule, end, reference_utc=target)
         if nxt is None:
             _LOGGER.warning(
                 "Schedule '%s': could not resolve its %s bound after %s",
-                schedule.get(const.SCHEDULE_CONF_NAME),
+                name,
                 end,
                 target,
+            )
+            return None
+        if nxt - fired < SAME_OCCURRENCE:
+            _LOGGER.warning(
+                "Schedule '%s': its %s bound will not advance past the "
+                "occurrence just run (%s then %s); leaving it unarmed until "
+                "the next configuration change or restart",
+                name,
+                end,
+                fired,
+                nxt,
             )
             return None
         return nxt
