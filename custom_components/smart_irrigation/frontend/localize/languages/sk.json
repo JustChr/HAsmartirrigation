@@ -701,6 +701,20 @@
         "demand_capped_deferred": "Nastavené podľa dopytu, ale nikdy neskôr než toto. Zóny, ktoré sa nezmestia, sú odložené.",
         "unreachable_no_run": "Slnko tu nikdy nedosiahne tento azimut, takže tento plán sa nespustí.",
         "unreachable_ignored": "Slnko tu nikdy nedosiahne tento azimut, takže tento limit sa ignoruje."
+      },
+      "dial": {
+        "aria_label": "Okno závlahy na 24-hodinovom ciferníku",
+        "sunrise": "Východ slnka {time}",
+        "sunset": "Západ slnka {time}",
+        "run": "Závlaha {from} až {to}",
+        "collision": "Prekrýva sa s predchádzajúcou závlahou, {from} až {to}: zóny, ktoré ešte zavlažujú, sa preskočia",
+        "collision_note": "Zóny, ktoré ešte zavlažujú, sa preskočia",
+        "runs_of": "{count} behov po {duration}",
+        "shortfall": "{duration} sa nezmestí",
+        "window_label": "okno",
+        "run_label": "závlaha",
+        "per_day": "{count}x denne",
+        "every_hours": "každých {hours}h"
       }
     },
     "info": {

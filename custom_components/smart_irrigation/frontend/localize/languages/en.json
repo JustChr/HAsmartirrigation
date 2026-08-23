@@ -285,6 +285,20 @@
         "demand_capped_deferred": "Set by demand, but never later than this. Zones that don't fit are deferred.",
         "unreachable_no_run": "The sun never reaches this bearing here, so this schedule will not run.",
         "unreachable_ignored": "The sun never reaches this bearing here, so this limit is ignored."
+      },
+      "dial": {
+        "aria_label": "Run window on a 24 hour dial",
+        "sunrise": "Sunrise {time}",
+        "sunset": "Sunset {time}",
+        "run": "Run {from} to {to}",
+        "collision": "Collides with the previous run, {from} to {to}: zones still watering are skipped",
+        "collision_note": "Zones still watering are skipped",
+        "runs_of": "{count} runs of {duration}",
+        "shortfall": "{duration} will not fit",
+        "window_label": "window",
+        "run_label": "run",
+        "per_day": "{count}x per day",
+        "every_hours": "every {hours}h"
       }
     },
     "setup": {

@@ -701,6 +701,20 @@
         "demand_capped_deferred": "Angitt etter behov, men aldri senere enn dette. Soner som ikke får plass, utsettes.",
         "unreachable_no_run": "Solen når aldri denne azimuten her, så denne tidsplanen kjøres ikke.",
         "unreachable_ignored": "Solen når aldri denne azimuten her, så denne grensen ignoreres."
+      },
+      "dial": {
+        "aria_label": "Vanningsvindu på en 24-timers klokke",
+        "sunrise": "Soloppgang {time}",
+        "sunset": "Solnedgang {time}",
+        "run": "Vanning {from} til {to}",
+        "collision": "Kolliderer med forrige vanning, {from} til {to}: soner som fortsatt vannes hoppes over",
+        "collision_note": "Soner som fortsatt vanner hoppes over",
+        "runs_of": "{count} kjøringer på {duration}",
+        "shortfall": "{duration} får ikke plass",
+        "window_label": "vindu",
+        "run_label": "vanning",
+        "per_day": "{count}x per dag",
+        "every_hours": "hver {hours}h"
       }
     },
     "info": {
