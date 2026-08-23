@@ -9,6 +9,7 @@ import {
   saveSchedule,
   deleteSchedule,
   fetchZones,
+  fetchNominalDemandSeconds,
 } from "../../data/websockets";
 import { SubscribeMixin } from "../../subscribe-mixin";
 import { localize } from "../../../localize/localize";
@@ -79,6 +80,11 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     this._editingSchedule = emptySchedule();
     this._editingId = null;
     this._showDialog = true;
+    // A new schedule has no nominal_demand_seconds yet (it only ever arrives
+    // via the schedules websocket's per-schedule enrichment, which requires
+    // a saved id) - fetch the preview for its default "all zones" selection
+    // so the dial isn't stuck at 0 until the first save.
+    this._refreshNominalDemand();
   }
 
   private _openEdit(s: Schedule) {
@@ -123,7 +129,42 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
   }
 
   private _onScheduleChanged(e: CustomEvent) {
+    const previousZones = this._editingSchedule.zones;
     this._editingSchedule = e.detail.value;
+    // Nominal demand depends only on which zones are in scope, never on the
+    // rest of the schedule (start/finish time, recurrence, ...), so refetch
+    // only when the zone selection itself actually changed - not on every
+    // keystroke in the name field.
+    if (
+      JSON.stringify(previousZones) !==
+      JSON.stringify(this._editingSchedule.zones)
+    ) {
+      this._refreshNominalDemand();
+    }
+  }
+
+  private async _refreshNominalDemand() {
+    const zones = this._editingSchedule.zones;
+    try {
+      const { nominal_demand_seconds } = await fetchNominalDemandSeconds(
+        this.hass,
+        zones === "all" ? "all" : (zones as string[]),
+      );
+      // The dialog may have moved on to a different schedule (or closed)
+      // while this was in flight - only apply the result if it is still
+      // asking about the same zone selection.
+      if (
+        this._showDialog &&
+        JSON.stringify(this._editingSchedule.zones) === JSON.stringify(zones)
+      ) {
+        this._editingSchedule = {
+          ...this._editingSchedule,
+          nominal_demand_seconds,
+        };
+      }
+    } catch (e) {
+      console.error("Failed to fetch nominal demand", e);
+    }
   }
 
   private _zonesLabel(zones: string | string[]) {
