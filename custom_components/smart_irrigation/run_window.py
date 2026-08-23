@@ -590,8 +590,20 @@ def nominal_zone_duration(zone: dict, metric: bool) -> float:
     the maximum-duration cap are identical to what a real run applies, not a
     second guess at them. Unlike a real duration this never reads the zone's
     live ``bucket``: the threshold is configuration, so the answer does not
-    move when the bucket does. Mirrors ``duration_from_deficit``'s own
-    ``deficit >= 0`` guard for a non-negative (never-gating) threshold.
+    move when the bucket does.
+
+    **A threshold of exactly 0 answers 0, and that is a floor rather than a
+    reading.** The gate is ``bucket < threshold`` (``irrigation.py``), so 0 is
+    not "never-gating" — it is the MOST eager setting there is, triggering on
+    any deficit at all. What it has no answer for is *how much*: this
+    projection's premise is that the threshold names the depletion a zone is
+    allowed to bank, and at 0 nothing is banked, so there is no
+    configuration-derived run length to report. Such a zone is watered for
+    whatever accumulated between two calc cycles, which is live state by
+    construction. 0 is the honest answer to "what does configuration alone
+    reserve", but a caller drawing it must not read it as "this zone waters
+    for no time".
+    siehe test_nominal_demand_projection.py::test_a_zero_threshold_prices_at_zero
     """
     threshold = zone.get(const.ZONE_BUCKET_THRESHOLD) or 0
     return float(zone_run_duration(zone, threshold, metric))
@@ -607,6 +619,24 @@ def zone_eligible_for_demand(zone: dict) -> bool:
     into :func:`nominal_demand_seconds` so the live plan and the nominal
     projection apply literally the same test instead of two hand-written
     copies of it.
+
+    **KNOWN GAP — dropping members here is right for the ZONE track and wrong
+    for the published total.** ``skip_conditions.get_total_irrigation_duration``
+    does not stop where this does: it adds a whole ``dist_track``, one
+    ``distributor_cycle_estimate`` per in-scope distributor, and answers
+    ``max(zone_track, dist_track)``. :func:`nominal_demand_seconds` has no such
+    term, so a schedule whose zones are ALL distributor members publishes a
+    nominal reservation of 0 while really reserving a full sweep.
+
+    Not closed here because it is a design decision, not an oversight.
+    ``distributor_cycle_estimate`` prices the sweep from each member's live
+    ``ZONE_DURATION`` and from the distributor's live ``current_outlet`` —
+    both live state, which is precisely what this projection exists to be
+    independent of. A nominal sweep therefore has to decide what to assume in
+    place of each: that every enabled member waters (rather than every due
+    one), and some fixed ring position. That belongs with the caller that
+    finally draws the number.
+    siehe test_nominal_demand_projection.py::test_members_are_excluded_and_no_distributor_term_is_added
     """
     return (
         zone.get(const.ZONE_DISTRIBUTOR_ID) is None

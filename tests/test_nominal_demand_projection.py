@@ -122,6 +122,53 @@ class TestTheProjection:
         assert metric == 600.0
         assert imperial == pytest.approx(374.0, abs=0.5)
 
+    async def test_a_zero_threshold_prices_at_zero(self):
+        """Review follow-up. Pinned because the number is surprising and the
+        reason is not in it.
+
+        A threshold of 0 is the MOST eager setting there is — the gate is
+        ``bucket < threshold``, so any deficit at all triggers the zone — yet
+        it contributes nothing to what the schedule is said to reserve. That is
+        the honest answer to "what does configuration alone reserve" (at 0 no
+        depletion is banked, so no run length follows from configuration), but
+        it is a floor, not a measurement, and a dial drawing it must not read
+        it as "this zone waters for no time". Asserted next to a normal zone so
+        the zero is visibly the threshold's doing and not a broken fixture.
+        """
+        assert (
+            await _coord([_zone(1, threshold=0.0)]).async_nominal_demand_seconds("all")
+            == 0.0
+        )
+        assert (
+            await _coord([_zone(1, threshold=-10.0)]).async_nominal_demand_seconds(
+                "all"
+            )
+            == 600.0
+        )
+
+    async def test_members_are_excluded_and_no_distributor_term_is_added(self):
+        """Review follow-up: the known gap, pinned so it cannot be inherited
+        silently by the PR that draws this number.
+
+        ``skip_conditions.get_total_irrigation_duration`` answers
+        ``max(zone_track, dist_track)`` and prices one whole
+        ``distributor_cycle_estimate`` per in-scope distributor. This
+        projection has no such term, so a schedule targeting ONLY distributor
+        members publishes 0 while really reserving a full sweep. Closing it is
+        a design decision (that estimate reads live ``ZONE_DURATION`` and
+        ``current_outlet``, the very things this projection is independent of),
+        so this test records the behaviour rather than blessing it.
+        """
+        members_only = [
+            _zone(1, **{const.ZONE_DISTRIBUTOR_ID: "d1"}),
+            _zone(2, **{const.ZONE_DISTRIBUTOR_ID: "d1"}),
+        ]
+        assert await _coord(members_only).async_nominal_demand_seconds("all") == 0.0
+        # A direct zone alongside them is priced, and priced ALONE — the
+        # members add nothing, not even a sweep the run really performs.
+        mixed = members_only + [_zone(3)]
+        assert await _coord(mixed).async_nominal_demand_seconds("all") == 600.0
+
 
 class TestTheRegisteredCommand:
     """The schema, read off the registry the panel's calls are dispatched by."""
