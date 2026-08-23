@@ -659,6 +659,7 @@
       },
       "summary": {
         "invalid": "Für diesen Zeitplan ist weder Start noch Ende festgelegt, er läuft also nie.",
+        "no_days": "Dieser Zeitplan läuft wöchentlich, aber es sind keine Tage ausgewählt, er läuft also nie.",
         "recurrence_daily": "Läuft täglich",
         "recurrence_weekly": "Läuft wöchentlich an {days}",
         "recurrence_monthly": "Läuft monatlich am Tag {day}",

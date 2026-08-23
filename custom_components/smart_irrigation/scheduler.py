@@ -524,7 +524,14 @@ class RecurringScheduleManager:
             ]
             return any(day_map.get(d) == dt_local.weekday() for d in days)
         if recurrence == const.SCHEDULE_RECURRENCE_MONTHLY:
-            return dt_local.day == schedule.get(const.SCHEDULE_CONF_DAY_OF_MONTH, 1)
+            # `or default` (not the get-default) so a persisted None can't make
+            # this comparison unsatisfiable. A stored null — which is what the
+            # panel sent for years when the day-of-month field was cleared,
+            # because JSON.stringify writes NaN as null — never equals any day,
+            # so _next_governing_time exhausted all 367 candidates and the
+            # schedule silently never armed.
+            # siehe test_schedule_numeric_nulls.py
+            return dt_local.day == (schedule.get(const.SCHEDULE_CONF_DAY_OF_MONTH) or 1)
         return False
 
     async def _next_governing_time(
@@ -627,8 +634,11 @@ class RecurringScheduleManager:
             }
 
             if recurrence == const.SCHEDULE_RECURRENCE_INTERVAL:
-                entry["interval_hours"] = schedule.get(
-                    const.SCHEDULE_CONF_INTERVAL_HOURS, 24
+                # Same `or default` reason as the two read sites below: this
+                # one is only reported to the panel, but reporting a null as
+                # the interval renders as an empty "every  h".
+                entry["interval_hours"] = (
+                    schedule.get(const.SCHEDULE_CONF_INTERVAL_HOURS) or 24
                 )
                 target = self._next_interval_target(schedule, dt_util.utcnow())
                 if target is not None:
@@ -927,7 +937,24 @@ class RecurringScheduleManager:
             )
             return async_track_point_in_utc_time(self.hass, interval_callback, target)
 
-        interval_hours = schedule.get(const.SCHEDULE_CONF_INTERVAL_HOURS, 24)
+        # `or default` (not the get-default) so a persisted None can't raise.
+        # This is the free-running branch; the anchored one above already
+        # guards None inside _next_interval_target, and guarding only one of
+        # the two is what made a stored null reach timedelta() at all. A null
+        # here raised TypeError out of _setup_schedule_trackers, which is
+        # awaited unguarded by async_setup_entry — so ONE malformed schedule
+        # took down the whole integration at startup, and every schedule
+        # ordered behind it lost its tracker too. Tolerated rather than
+        # rejected at save time, because a store already carrying the null
+        # cannot be repaired through a panel that will not load.
+        # siehe test_schedule_numeric_nulls.py
+        interval_hours = schedule.get(const.SCHEDULE_CONF_INTERVAL_HOURS) or 24
+        try:
+            interval_hours = int(interval_hours)
+        except (TypeError, ValueError):
+            interval_hours = 24
+        if interval_hours <= 0:
+            interval_hours = 24
         interval_delta = datetime.timedelta(hours=interval_hours)
 
         return async_track_time_interval(

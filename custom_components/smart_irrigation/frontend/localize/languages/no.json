@@ -659,6 +659,7 @@
       },
       "summary": {
         "invalid": "Denne tidsplanen har verken start eller slutt angitt, så den kjører aldri.",
+        "no_days": "Denne tidsplanen er ukentlig, men ingen dager er valgt, så den kjører aldri.",
         "recurrence_daily": "Kjører daglig",
         "recurrence_weekly": "Kjører ukentlig på {days}",
         "recurrence_monthly": "Kjører månedlig på dag {day}",

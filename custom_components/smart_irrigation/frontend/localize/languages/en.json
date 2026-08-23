@@ -243,6 +243,7 @@
       },
       "summary": {
         "invalid": "This schedule has no start or finish set, so it never runs.",
+        "no_days": "This schedule runs weekly but has no days selected, so it never runs.",
         "recurrence_daily": "Runs daily",
         "recurrence_weekly": "Runs weekly on {days}",
         "recurrence_monthly": "Runs monthly on day {day}",

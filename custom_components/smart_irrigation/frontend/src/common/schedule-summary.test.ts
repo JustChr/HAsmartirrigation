@@ -47,12 +47,19 @@ describe("summarizeSchedule: recurrence", () => {
     expect(text).toContain("Runs weekly on Mon, Wed");
   });
 
-  it("weekly with no days selected still renders without throwing", () => {
-    const { text } = summarizeSchedule(
+  it("weekly with no days selected is an error, not a sentence with a hole", () => {
+    // This test used to assert the opposite - that the sentence still read
+    // "Runs weekly on" with nothing after it - on the grounds that it
+    // rendered without throwing. Not throwing was the wrong bar: a weekly
+    // schedule with no day ticked matches no calendar day backend-side, so
+    // it saved, listed, showed as enabled and never fired. The full case is
+    // in "summarizeSchedule: weekly with no days" below.
+    const { text, isError } = summarizeSchedule(
       base({ recurrence: "weekly", days_of_week: [] }),
       lang,
     );
-    expect(text).toContain("Runs weekly on");
+    expect(isError).toBe(true);
+    expect(text).not.toContain("Runs weekly on");
   });
 
   it("monthly names the day of month, defaulting to 1", () => {
@@ -251,5 +258,54 @@ describe("summarizeSchedule: never references live state", () => {
     const schedule = base();
     expect(Object.keys(schedule)).not.toContain("bucket");
     expect(Object.keys(schedule)).not.toContain("duration");
+  });
+});
+
+describe("summarizeSchedule: weekly with no days", () => {
+  /**
+   * `_recurrence_day_matches` answers `any([])` for a weekly schedule with
+   * no weekday ticked - false for every one of the 367 candidates
+   * `_next_governing_time` tries - so the schedule saved, listed, showed as
+   * enabled, and never fired. Nothing said so: the sentence just read
+   * "Runs weekly on , watering all zones...", with an empty day list where
+   * the days belong.
+   *
+   * It is also the state a schedule is in the moment its recurrence is
+   * switched to weekly, since nothing populates days_of_week - so it is the
+   * default path, not an edge case.
+   */
+  it("is reported as an error rather than as a sentence with a hole in it", () => {
+    const s = summarizeSchedule(
+      base({ recurrence: "weekly", days_of_week: [] }),
+      lang,
+    );
+    expect(s.isError).toBe(true);
+    expect(s.text).toContain("never runs");
+    // The specific bug: the old sentence named the recurrence and then
+    // trailed off where the days should have been.
+    expect(s.text).not.toContain("Runs weekly on ,");
+  });
+
+  it("treats an absent days_of_week the same as an empty one", () => {
+    // What switching the recurrence to weekly actually produces.
+    const s = summarizeSchedule(base({ recurrence: "weekly" }), lang);
+    expect(s.isError).toBe(true);
+  });
+
+  it("says nothing about days once one is ticked", () => {
+    const s = summarizeSchedule(
+      base({ recurrence: "weekly", days_of_week: ["monday"] }),
+      lang,
+    );
+    expect(s.isError).toBe(false);
+    expect(s.text).toContain("Mon");
+  });
+
+  it("does not fire for the other recurrences, which all have a default", () => {
+    // daily needs no day; monthly defaults to the 1st backend-side; interval
+    // has no calendar day at all. Only weekly can be unsatisfiable this way.
+    for (const recurrence of ["daily", "monthly", "interval"]) {
+      expect(summarizeSchedule(base({ recurrence }), lang).isError).toBe(false);
+    }
   });
 });

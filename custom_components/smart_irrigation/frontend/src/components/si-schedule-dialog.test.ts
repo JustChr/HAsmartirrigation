@@ -406,3 +406,165 @@ describe("si-schedule-dialog: Start/Finish rows", () => {
     expect((el as any)._canSave()).toBe(true);
   });
 });
+
+/**
+ * Regression cover for the recurrence-specific fields, which had none.
+ *
+ * Clearing a `<input type="number">` yields "", and `parseInt("")` is NaN.
+ * NaN survives into the schedule object, and `JSON.stringify` writes it to
+ * the wire as `null` — which the backend stored, because a schedule has no
+ * voluptuous schema and `_validate_schedule_data` returns early for an
+ * interval recurrence without ever looking at `interval_hours`.
+ *
+ * The consequences were not symmetric. A null `day_of_month` matched no
+ * calendar day, so the schedule silently stopped arming. A null
+ * `interval_hours` reached `datetime.timedelta(hours=None)` inside
+ * `_setup_schedule_trackers`, which `async_setup_entry` awaits unguarded —
+ * so it stopped the whole integration loading and took every other
+ * schedule's tracker with it. See tests/test_schedule_numeric_nulls.py for
+ * the backend half; these keep the NaN from being emitted in the first
+ * place.
+ */
+describe("si-schedule-dialog: numeric recurrence fields never emit NaN", () => {
+  /** Fire every handler with `value`, returning the patches that came back. */
+  function patchesFor(el: any, emitted: any[], value: string) {
+    const { handlers } = flatten(el.render());
+    const patches: any[] = [];
+    for (const h of handlers) {
+      emitted.length = 0;
+      try {
+        h({ target: { value } });
+      } catch {
+        continue;
+      }
+      for (const e of emitted) {
+        if (e.type === "schedule-changed") patches.push(e.detail.value);
+      }
+    }
+    return patches;
+  }
+
+  it("emits nothing for day_of_month when the field is cleared", () => {
+    const { el, emitted } = makeDialog({
+      schedule: { ...emptySchedule(), recurrence: "monthly", day_of_month: 14 },
+    });
+    for (const p of patchesFor(el, emitted, "")) {
+      expect(Number.isNaN(p.day_of_month)).toBe(false);
+    }
+  });
+
+  it("emits nothing for interval_hours when the field is cleared", () => {
+    const { el, emitted } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        recurrence: "interval",
+        interval_hours: 6,
+      },
+    });
+    for (const p of patchesFor(el, emitted, "")) {
+      expect(Number.isNaN(p.interval_hours)).toBe(false);
+    }
+  });
+
+  it("survives the parent's write-back, so a save is never a null", () => {
+    // The property that actually matters end to end, and the reason this is
+    // asserted through a write-back rather than off `el.schedule` directly:
+    // the dialog never mutates its own property. view-schedules.ts's
+    // `_onScheduleChanged` stores each emitted patch back onto it, and it is
+    // THAT object `_save` hands to the websocket. Without the write-back the
+    // assertion holds whether or not NaN was emitted, and proves nothing.
+    const { el, emitted } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        recurrence: "interval",
+        interval_hours: 6,
+      },
+    });
+    const { handlers } = flatten(el.render());
+    for (const h of handlers) {
+      emitted.length = 0;
+      try {
+        h({ target: { value: "" } });
+      } catch {
+        continue;
+      }
+      for (const e of emitted) {
+        // Exactly what the parent does with the event.
+        if (e.type === "schedule-changed") el.schedule = e.detail.value;
+      }
+    }
+    const wire = JSON.parse(JSON.stringify(el.schedule));
+    expect(wire.interval_hours).toBe(6);
+  });
+
+  it("still emits a real edit", () => {
+    // The guard must reject NaN without swallowing ordinary typing.
+    const { el, emitted } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        recurrence: "interval",
+        interval_hours: 6,
+      },
+    });
+    const patches = patchesFor(el, emitted, "12");
+    expect(patches.some((p) => p.interval_hours === 12)).toBe(true);
+  });
+
+  it("still emits a real day-of-month edit", () => {
+    const { el, emitted } = makeDialog({
+      schedule: { ...emptySchedule(), recurrence: "monthly", day_of_month: 14 },
+    });
+    const patches = patchesFor(el, emitted, "3");
+    expect(patches.some((p) => p.day_of_month === 3)).toBe(true);
+  });
+});
+
+describe("si-schedule-dialog: Save is blocked on a schedule that can never fire", () => {
+  it("blocks Save on a weekly schedule with no weekday ticked", () => {
+    // The state a schedule is in the moment its recurrence is switched to
+    // weekly, since nothing populates days_of_week. Backend-side this
+    // matches no calendar day, so the schedule saved and never fired.
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), recurrence: "weekly" },
+    });
+    expect((el as any)._canSave()).toBe(false);
+  });
+
+  it("blocks Save when the weekday list is explicitly emptied", () => {
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), recurrence: "weekly", days_of_week: [] },
+    });
+    expect((el as any)._canSave()).toBe(false);
+  });
+
+  it("allows Save once a weekday is ticked", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        recurrence: "weekly",
+        days_of_week: ["tuesday"],
+      },
+    });
+    expect((el as any)._canSave()).toBe(true);
+  });
+
+  it("shows the reason in the summary rather than only greying the button", () => {
+    // A disabled Save with no explanation is its own trap.
+    const { el } = makeDialog({
+      schedule: { ...emptySchedule(), recurrence: "weekly" },
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("never runs");
+  });
+
+  it("still allows Save for the other recurrences with no day set", () => {
+    // Only weekly is unsatisfiable this way; blocking the others would stop
+    // ordinary schedules saving.
+    for (const recurrence of ["daily", "monthly", "interval"]) {
+      const { el } = makeDialog({
+        schedule: { ...emptySchedule(), recurrence },
+      });
+      expect((el as any)._canSave()).toBe(true);
+    }
+  });
+});

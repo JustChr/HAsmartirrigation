@@ -659,6 +659,7 @@
       },
       "summary": {
         "invalid": "Dit schema heeft geen start of einde ingesteld, dus het draait nooit.",
+        "no_days": "Dit schema is wekelijks maar heeft geen dagen geselecteerd, dus het draait nooit.",
         "recurrence_daily": "Draait dagelijks",
         "recurrence_weekly": "Draait wekelijks op {days}",
         "recurrence_monthly": "Draait maandelijks op dag {day}",

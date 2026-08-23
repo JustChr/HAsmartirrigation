@@ -51,10 +51,36 @@ export interface ScheduleSummary {
  * that changed because tonight's forecast changed would be describing
  * something the user never configured.
  */
+/**
+ * A weekly schedule with no weekday ticked. Checked before anything else
+ * because it is unsatisfiable no matter how good the rest of the schedule
+ * is: `_recurrence_day_matches` answers `any([])` — false for every one of
+ * the 367 candidates `_next_governing_time` tries — so the schedule is
+ * accepted, listed, shown as enabled, and never fires.
+ *
+ * This is the state a schedule is in the moment its recurrence is switched
+ * to weekly, since nothing populates `days_of_week`, so it is the default
+ * path rather than an edge case. Absent and empty are the same condition
+ * and are treated as one.
+ */
+export function weeklyWithNoDays(s: SummarySchedule): boolean {
+  return (
+    s.recurrence === SCHEDULE_RECURRENCE_WEEKLY &&
+    (s.days_of_week || []).length === 0
+  );
+}
+
 export function summarizeSchedule(
   s: SummarySchedule,
   language: string,
 ): ScheduleSummary {
+  if (weeklyWithNoDays(s)) {
+    return {
+      text: localize("panels.schedules.summary.no_days", language),
+      isError: true,
+    };
+  }
+
   const zones = zonesText(s.zones, language);
   const recurrence = recurrenceText(s, language);
 

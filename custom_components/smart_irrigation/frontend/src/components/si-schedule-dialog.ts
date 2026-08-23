@@ -28,7 +28,10 @@ import {
   BoundMode,
   Anchor,
 } from "../common/schedule-rows";
-import { summarizeSchedule } from "../common/schedule-summary";
+import {
+  summarizeSchedule,
+  weeklyWithNoDays,
+} from "../common/schedule-summary";
 
 const DAYS = [
   "monday",
@@ -273,10 +276,16 @@ export class SiScheduleDialog extends LitElement {
               min="1"
               max="31"
               .value="${String(s.day_of_month || 1)}"
-              @input=${(e: Event) =>
-                this._emitChanged({
-                  day_of_month: parseInt((e.target as HTMLInputElement).value),
-                })}
+              @input=${(e: Event) => {
+                // Never emit NaN. Clearing a number input gives "", and
+                // parseInt("") is NaN, which JSON.stringify writes as null
+                // on the way to the backend — where a null day-of-month
+                // matches no calendar day and the schedule silently stops
+                // arming. The row steppers below already guard this; these
+                // two recurrence fields were the ones that did not.
+                const v = parseInt((e.target as HTMLInputElement).value);
+                if (!isNaN(v)) this._emitChanged({ day_of_month: v });
+              }}
             />
           </div>
         `;
@@ -293,12 +302,15 @@ export class SiScheduleDialog extends LitElement {
               type="number"
               min="1"
               .value="${String(s.interval_hours || 24)}"
-              @input=${(e: Event) =>
-                this._emitChanged({
-                  interval_hours: parseInt(
-                    (e.target as HTMLInputElement).value,
-                  ),
-                })}
+              @input=${(e: Event) => {
+                // Never emit NaN — see the day-of-month field above. A null
+                // interval reaching the backend was the worse of the two: it
+                // raised out of the tracker setup that async_setup_entry
+                // awaits, so one cleared field stopped the whole integration
+                // loading.
+                const v = parseInt((e.target as HTMLInputElement).value);
+                if (!isNaN(v)) this._emitChanged({ interval_hours: v });
+              }}
             />
             <span class="suffix"
               >${localize("panels.schedules.hours", lang)}</span
@@ -513,10 +525,19 @@ export class SiScheduleDialog extends LitElement {
     `;
   }
 
-  /** Blocks Save when the window describes no time at all — both Start and
-   * Finish unbounded. Interval has no window, so it is exempt. */
+  /** Blocks Save on a schedule that can never fire.
+   *
+   * Two ways to describe no time at all, and both are unsatisfiable however
+   * good the rest of the schedule is:
+   *   - neither Start nor Finish bounded (interval is exempt — it has no
+   *     window);
+   *   - weekly with no weekday ticked, which is the state a schedule is in
+   *     the moment its recurrence is switched to weekly. Not exempt for
+   *     interval, because interval never reaches the weekly branch anyway.
+   */
   private _canSave(): boolean {
     const s = this.schedule;
+    if (weeklyWithNoDays(s)) return false;
     if (s.recurrence === SCHEDULE_RECURRENCE_INTERVAL) return true;
     return describeWindow(scheduleToRows(s)).valid;
   }

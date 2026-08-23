@@ -659,6 +659,7 @@
       },
       "summary": {
         "invalid": "Este programa no tiene inicio ni fin establecidos, por lo que nunca se ejecuta.",
+        "no_days": "Este programa es semanal pero no tiene días seleccionados, por lo que nunca se ejecuta.",
         "recurrence_daily": "Se ejecuta a diario",
         "recurrence_weekly": "Se ejecuta semanalmente los {days}",
         "recurrence_monthly": "Se ejecuta mensualmente el día {day}",

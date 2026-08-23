@@ -659,6 +659,7 @@
       },
       "summary": {
         "invalid": "Cette planification n'a ni début ni fin définis, elle ne s'exécute donc jamais.",
+        "no_days": "Cette planification est hebdomadaire mais aucun jour n'est sélectionné, elle ne s'exécute donc jamais.",
         "recurrence_daily": "S'exécute quotidiennement",
         "recurrence_weekly": "S'exécute chaque semaine le {days}",
         "recurrence_monthly": "S'exécute chaque mois le jour {day}",
