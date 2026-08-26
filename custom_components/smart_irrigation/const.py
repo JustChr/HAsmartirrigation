@@ -719,6 +719,9 @@ ATTR_DISTRIBUTOR_ID = "distributor_id"
 ATTR_OUTLET = "outlet"
 # Run-log detail marker for a run a user stopped early.
 RUN_DETAIL_STOPPED = "stopped"
+# A run cut short because it reached its schedule's finish target. The water it
+# did deliver is credited; the residual carries to the next run.
+RUN_DETAIL_DEADLINE = "deadline"
 # run_zone / set_rain_delay call params
 ATTR_DURATION_MINUTES = "duration"  # whole minutes for a custom manual run
 ATTR_RAIN_DELAY_UNTIL = "until"  # ISO datetime to hold until

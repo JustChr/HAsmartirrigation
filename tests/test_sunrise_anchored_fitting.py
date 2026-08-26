@@ -827,7 +827,9 @@ class TestTheSelectionReachesTheRunner:
         await mgr._perform_scheduled_irrigation(
             "all", "overnight", order=[2, 1], pre_committed=True
         )
-        coord._irrigate_linked_entities.assert_awaited_once_with("all", order=[2, 1])
+        coord._irrigate_linked_entities.assert_awaited_once_with(
+            "all", order=[2, 1], deadline=None
+        )
         # Already committed at the decision point; committing again here would
         # re-book the same window every time anything touched the config.
         coord.async_commit_pre_run_calculation.assert_not_awaited()
