@@ -73,7 +73,7 @@ def zone_run_duration(zone, deficit, metric, *, capped=True):
     The single place a zone dict is unpacked into the duration math. Two
     callers: the runner's sizing in ``irrigation._duration_for_deficit``,
     which asks for both forms so it can tell that the cap bit, and the
-    wall-clock model's nominal pricing in ``run_window.nominal_zone_seconds``.
+    wall-clock model's nominal pricing in ``run_window.nominal_zone_duration``.
     ``capped=False`` ignores ``maximum_duration``, for callers measuring how
     much the cap cut.
     """

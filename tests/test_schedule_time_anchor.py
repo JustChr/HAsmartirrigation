@@ -476,6 +476,74 @@ class TestFinishTrackerAdvance:
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-10 18:00:00")
+    async def test_an_edit_that_moves_nothing_keeps_the_fired_occurrence(
+        self, coordinator, monkeypatch
+    ):
+        """The other half of the rule above. Forgetting the occurrence on EVERY
+        edit re-runs the night: once a run has fired, (target - duration) is in
+        the past by construction, so a re-arm with no memo resolves the
+        occurrence it just watered and catches up two seconds later. Renaming a
+        schedule while its own run is in flight was enough."""
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=7200)
+
+        # Finish 30 min out with a 2h duration, so the ideal start is already
+        # past — exactly the state a schedule is in mid-run.
+        finish = dt_util.now() + datetime.timedelta(minutes=30)
+        sched = self._finish_sched()
+        sched[const.SCHEDULE_CONF_FINISH_TIME] = (
+            f"{finish.hour:02d}:{finish.minute:02d}"
+        )
+        sid = sched[const.SCHEDULE_CONF_ID]
+        mgr._schedules = [sched]
+
+        captured: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+        monkeypatch.setattr(mgr, "_remove_schedule_tracker", AsyncMock())
+        monkeypatch.setattr(mgr, "_save_schedules", AsyncMock())
+
+        # The run fires (catch-up branch) and records its occurrence.
+        await mgr._setup_finish_tracker(sched, fitted=False)
+        assert captured[-1] == dt_util.utcnow() + datetime.timedelta(seconds=2)
+        target = await mgr._next_governing_time(sched, const.SCHEDULE_ANCHOR_FINISH)
+        mgr._finish_last_target[sid] = target.isoformat()
+
+        # A rename moves no bound, so the occurrence must survive it and the
+        # schedule must arm for tomorrow rather than water twice tonight.
+        await mgr.async_update_schedule(sid, {const.SCHEDULE_CONF_NAME: "renamed"})
+        assert mgr._finish_last_target.get(sid) == target.isoformat()
+        assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
+
+    @pytest.mark.asyncio
+    async def test_an_edit_that_restates_the_same_bound_keeps_it_too(
+        self, coordinator, monkeypatch
+    ):
+        """A panel that saves the whole schedule on every edit sends the bound
+        fields back unchanged. Testing for the KEY rather than a changed value
+        would drop the memo on all of them and put the rule back where it was."""
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        sched = self._finish_sched()
+        sid = sched[const.SCHEDULE_CONF_ID]
+        mgr._schedules = [sched]
+        mgr._finish_last_target[sid] = "2026-06-10T06:00:00+00:00"
+        monkeypatch.setattr(mgr, "_remove_schedule_tracker", AsyncMock())
+        monkeypatch.setattr(mgr, "_setup_schedule_tracker", AsyncMock())
+        monkeypatch.setattr(mgr, "_save_schedules", AsyncMock())
+
+        await mgr.async_update_schedule(
+            sid, {**sched, const.SCHEDULE_CONF_NAME: "renamed"}
+        )
+
+        assert mgr._finish_last_target.get(sid) == "2026-06-10T06:00:00+00:00"
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
     async def test_rearm_advances_when_the_bound_will_not_resolve_twice_alike(
         self, coordinator, monkeypatch
     ):

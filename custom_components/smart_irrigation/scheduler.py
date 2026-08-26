@@ -53,6 +53,20 @@ _BOUND_FIELDS = {
 # quite the same instant twice. See _advance_past_fired_occurrence.
 SAME_OCCURRENCE = datetime.timedelta(hours=1)
 
+# The fields an edit can touch that move the instant a schedule resolves to.
+# Everything else about a schedule — its name, its zones, its date range,
+# whether it is enabled — leaves the occurrence exactly where it was. See
+# async_update_schedule for why the difference decides a whole run.
+_OCCURRENCE_FIELDS = frozenset(
+    field for fields in _BOUND_FIELDS.values() for field in fields
+) | {
+    const.SCHEDULE_CONF_ANCHOR,
+    const.SCHEDULE_CONF_RECURRENCE,
+    const.SCHEDULE_CONF_DAYS_OF_WEEK,
+    const.SCHEDULE_CONF_DAY_OF_MONTH,
+    const.SCHEDULE_CONF_INTERVAL_HOURS,
+}
+
 
 class RecurringScheduleManager:
     """Manages recurring schedules for Smart Irrigation."""
@@ -262,14 +276,27 @@ class RecurringScheduleManager:
         # Remove old tracker
         await self._remove_schedule_tracker(schedule_id)
 
-        # Forget which occurrence was last fired. The memo exists so that a
-        # re-arm triggered by the schedule's own fire callback does not run the
-        # same occurrence twice, and it matches by proximity — but an edit is
-        # not a re-arm. Editing a schedule that has already run today to a time
-        # within that proximity would otherwise look like the occurrence just
-        # fired and skip a whole day: set 21:15, let it run, move it to 21:18,
-        # and the next run is tomorrow.
-        self._finish_last_target.pop(schedule_id, None)
+        # Forget which occurrence was last fired, but ONLY when the edit moves
+        # the occurrence. The memo exists so that a re-arm triggered by the
+        # schedule's own fire callback does not run the same occurrence twice,
+        # and it matches by proximity — so an edit that moves the bound a few
+        # minutes would otherwise look like the occurrence just fired and skip a
+        # whole day: set 21:15, let it run, move it to 21:18, and the next run
+        # is tomorrow.
+        #
+        # Dropping it on EVERY edit costs the other half of the same run. Once a
+        # run has fired, ``target − duration`` is in the past by construction,
+        # so a re-arm with no memo resolves the occurrence it just watered and
+        # takes the "start already passed, run as soon as possible" branch two
+        # seconds later. Renaming a schedule, or toggling it, while its own run
+        # is in flight is enough — no bound has to move at all. So the memo
+        # survives an edit that cannot have moved the occurrence.
+        if any(
+            field in schedule_data
+            and schedule_data[field] != self._schedules[schedule_index].get(field)
+            for field in _OCCURRENCE_FIELDS
+        ):
+            self._finish_last_target.pop(schedule_id, None)
 
         # Update schedule. Mutated in place rather than replaced by ``merged``:
         # identical content either way, but nothing else has to be checked for
