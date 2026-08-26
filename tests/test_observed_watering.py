@@ -134,6 +134,9 @@ def _credit_coord(zone):
     coord.store.get_zone = Mock(return_value=zone)
     coord._record_run = AsyncMock()
     coord.async_write_watered_bucket = AsyncMock()
+    coord._flow_calibration_check = (
+        AsyncMock()
+    )  # isolate credit tests from the advisory
     coord.hass.config = SimpleNamespace(units=ow.METRIC_SYSTEM)  # metric: no conv
     return coord
 
@@ -320,14 +323,56 @@ async def test_flow_zone_dry_valve_credits_zero():
     assert coord._record_run.call_args.kwargs["volume_l"] == pytest.approx(0.0)
 
 
-async def test_flow_zone_measured_capped_at_time_ceiling():
+async def test_flow_zone_credits_measured_above_nameplate_in_full():
+    # #102: a pump-fed zone's real flow commonly exceeds the nameplate throughput
+    # (throughput is the guess the flow sensor exists to correct). The measured
+    # volume must be credited AS-IS, NOT clipped at throughput x time.
+    coord = _credit_coord(_flow_credit_zone())  # throughput 3.1 L/min
+    # 10-min external run, sensor measured 50 L (real ~5 L/min > nameplate 3.1)
+    await coord._credit_observed_watering(2, 600, measured_l=50.0, sensor_present=True)
+    assert coord._record_run.call_args.kwargs["volume_l"] == pytest.approx(50.0)
+
+
+async def test_measured_run_records_raw_open_seconds_not_capped():
+    # #102 nit: on the measured branch the volume is measured, so capping the
+    # recorded seconds is meaningless and makes the seconds/litres pair irreconcilable
+    # — stamp the raw open duration. (Time-based branches keep the cap; see the
+    # non-flow test above.)
     coord = _credit_coord(_flow_credit_zone())
-    # sensor stuck at a huge constant reading -> measured absurdly high
+    await coord._credit_observed_watering(2, 21304, measured_l=8.0, sensor_present=True)
+    assert coord._record_run.call_args.kwargs["actual_s"] == 21304
+    assert coord._record_run.call_args.kwargs["volume_l"] == pytest.approx(8.0)
+
+
+async def test_real_measured_run_feeds_calibration_advisory():
+    # Divergence visibility without clipping (#102): a real measured run feeds the
+    # shared flow-calibration advisory with (zone, measured_l, RAW seconds) so the
+    # observed rate is true.
+    coord = _credit_coord(_flow_credit_zone())
+    await coord._credit_observed_watering(2, 600, measured_l=50.0, sensor_present=True)
+    coord._flow_calibration_check.assert_awaited_once()
+    args = coord._flow_calibration_check.call_args.args
+    assert args[1] == pytest.approx(50.0)
+    assert args[2] == 600
+
+
+async def test_phantom_open_does_not_feed_calibration_advisory():
+    # THE TRAP (upstream review of #102): measured_l == 0.0 is legitimate here
+    # (phantom-open), unlike self-closing which resolves 0 to None. Feeding a
+    # 0 L/min sample would poison the advisory into recommending ~0 throughput after
+    # a few stuck-open runs. Gate the feed on measured_l > 0.
+    coord = _credit_coord(_flow_credit_zone())
+    await coord._credit_observed_watering(2, 21304, measured_l=0.0, sensor_present=True)
+    coord._flow_calibration_check.assert_not_awaited()
+
+
+async def test_dead_sensor_does_not_feed_calibration_advisory():
+    coord = _credit_coord(_flow_credit_zone())
+    coord._observed_flag_dead_sensor = Mock()
     await coord._credit_observed_watering(
-        2, 600, measured_l=99999.0, sensor_present=True
+        2, 21304, measured_l=None, sensor_present=True
     )
-    ceiling_l = 3.1 * (600 / 60.0)  # capped_s == 600 (< max), ceiling = tput × capped_s
-    assert coord._record_run.call_args.kwargs["volume_l"] == pytest.approx(ceiling_l)
+    coord._flow_calibration_check.assert_not_awaited()
 
 
 async def test_flow_zone_dead_sensor_uses_capped_time_and_flags():

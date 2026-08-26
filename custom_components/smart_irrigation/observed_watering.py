@@ -339,13 +339,14 @@ class ObservedWateringMixin:
 
         Needs a size and a throughput. On a flow-sensor zone the applied depth
         comes from the MEASURED volume (``measured_l``, from the open/close flow
-        sampler; ``sensor_present`` says the zone has a sensor); otherwise, and
-        when the sensor gave no reading, it is estimated from run time × configured
-        throughput. Either way the counted seconds are capped at the zone's
-        maximum_duration + margin (:meth:`_observed_capped_seconds`) so a valve
-        stuck reporting ``open`` cannot book unbounded water, and the measured
-        volume is itself capped at that time ceiling. The credited depth is the
-        actual applied depth (litres / m²), NOT divided by the zone multiplier:
+        sampler; ``sensor_present`` says the zone has a sensor), credited AS-IS —
+        the sensor is the authority, matching self-closing, the distributor and
+        SI's own metered runner (#102). Otherwise, and when the sensor gave no
+        reading, the volume is estimated from run time × configured throughput and
+        THOSE counted seconds are capped at the zone's maximum_duration + margin
+        (:meth:`_observed_capped_seconds`) so a valve stuck reporting ``open``
+        cannot book unbounded water. The credited depth is the actual applied depth
+        (litres / m²), NOT divided by the zone multiplier:
         external water genuinely raised soil moisture by that depth, unlike an SI
         timed run whose duration is inflated by the multiplier. The bucket can rise
         into surplus (capped at maximum_bucket) — unlike an SI run, external
@@ -383,22 +384,27 @@ class ObservedWateringMixin:
         time_volume_l = tput_lpm * (capped_s / 60.0)
 
         # Route the credit:
-        #  * flow sensor + a reading  -> the MEASURED volume, floored at 0 and capped
-        #    at the time ceiling. measured may be 0.0 (a valve that reported open but
-        #    delivered nothing — the phantom-open incident) -> credit ZERO. The floor
-        #    stops a net-negative rate reading (backflow/sign glitch) DRAINING the
-        #    bucket; the ceiling stops a sensor stuck at a constant nonzero reading
-        #    booking more than a nameplate run for the same (capped) window.
+        #  * flow sensor + a reading  -> the MEASURED volume, floored at 0 and credited
+        #    AS-IS. No nameplate ceiling: throughput is the guess the flow sensor exists
+        #    to correct, and on a pump-fed zone it is the least reliable number in the
+        #    zone, so clipping the measurement at it under-credits every real run (#102,
+        #    agreed upstream). measured 0.0 is the phantom-open case -> credit ZERO; the
+        #    floor stops a net-negative rate reading (backflow glitch) draining the
+        #    bucket. Record the RAW open seconds — the volume is measured, so capping the
+        #    seconds would only make the seconds/litres pair irreconcilable.
         #  * flow sensor + NO usable measurement -> dead sensor, or a reset counter we
         #    could not measure; fall back to the capped time estimate and surface it.
         #  * no flow sensor           -> the capped time estimate.
         if sensor_present and measured_l is not None:
-            volume_l = min(max(0.0, float(measured_l)), time_volume_l)
+            volume_l = max(0.0, float(measured_l))
+            record_s = round(seconds)
         elif sensor_present and measured_l is None:
             volume_l = time_volume_l
+            record_s = round(capped_s)
             self._observed_flag_dead_sensor(zone_id, zone.get(const.ZONE_FLOW_SENSOR))
         else:
             volume_l = time_volume_l
+            record_s = round(capped_s)
         applied_mm = volume_l / size_m2  # litres / m² == mm
         applied_native = (
             applied_mm
@@ -420,7 +426,7 @@ class ObservedWateringMixin:
             zone_id,
             result=const.RUN_RESULT_OBSERVED,
             volume_l=volume_l,
-            actual_s=round(capped_s),
+            actual_s=record_s,
             trigger=const.RUN_TRIGGER_OBSERVED,
             add_to_total=True,
         )
@@ -449,3 +455,13 @@ class ObservedWateringMixin:
             old_bucket,
             new_bucket,
         )
+        # Divergence visibility without clipping (#102): feed a REAL measured run into
+        # the shared flow-calibration advisory (the helper self-closing and the
+        # distributor use), with the RAW seconds so the observed rate is true. A
+        # throughput set far from the sensor's truth then surfaces as the existing
+        # advisory instead of being silently clipped. Gate on measured_l > 0: a
+        # phantom-open credits a legitimate 0.0 here (unlike self-closing, which
+        # resolves 0 to None), and a 0 L/min sample would poison the advisory into
+        # recommending ~0 throughput after a few stuck-open runs.
+        if sensor_present and measured_l is not None and float(measured_l) > 0:
+            await self._flow_calibration_check(zone, float(measured_l), seconds)
