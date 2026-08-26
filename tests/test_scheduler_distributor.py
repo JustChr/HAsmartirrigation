@@ -49,7 +49,7 @@ async def test_scheduled_irrigate_dispatches_distributors_even_when_no_normal_zo
     await sched._perform_scheduled_irrigation("all", "test")
     coord._dispatch_distributor_cycles.assert_awaited_once_with("all")
     # ordering: dispatch runs after linked-entities
-    coord._irrigate_linked_entities.assert_awaited_once_with("all")
+    coord._irrigate_linked_entities.assert_awaited_once_with("all", order=None)
 
 
 async def test_weather_skip_blocks_distributor_dispatch():

@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+import math
 import uuid
 from typing import Any
 
@@ -19,13 +20,14 @@ from homeassistant.helpers.event import (
     async_track_time_change,
     async_track_time_interval,
 )
-from homeassistant.helpers.sun import get_astral_event_next
+from homeassistant.helpers.sun import get_astral_event_date, get_astral_event_next
 
 from . import const
 from .helpers import (
     find_next_solar_azimuth_time,
     normalize_azimuth_angle,
 )
+from .run_window import ZoneRun, bound_wall_clock, concurrent_wall_clock, select
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +45,13 @@ _BOUND_FIELDS = {
         const.SCHEDULE_CONF_FINISH_AZIMUTH,
     ),
 }
+
+# Two resolved targets closer together than this are the same occurrence, not
+# two of them. Every recurrence a bound can carry — daily, weekly, monthly —
+# puts real occurrences at least a day apart, so the margin is enormous; it
+# exists only to be wider than the drift of a bound that does not resolve to
+# quite the same instant twice. See _advance_past_fired_occurrence.
+SAME_OCCURRENCE = datetime.timedelta(hours=1)
 
 
 class RecurringScheduleManager:
@@ -71,6 +80,12 @@ class RecurringScheduleManager:
         # stays the authority while the manager lives; the stored copy only has
         # to be right by the time a NEW manager reads it.
         self._finish_last_target: dict[str, str] = {}
+        # Per schedule and per kind of announcement, the last thing written to
+        # the log above DEBUG. Every config write re-arms the schedule, and past
+        # the decision point that re-runs the whole selection — so an
+        # unconditional INFO per arm reads as the schedule arming over and over
+        # while only one dispatch ever fires. See _decision_is_new.
+        self._decision_logged: dict[tuple[str, str], tuple] = {}
 
     async def async_load_schedules(self) -> None:
         """Load recurring schedules from configuration."""
@@ -120,6 +135,11 @@ class RecurringScheduleManager:
         # same occurrence twice. Clearing it here would also let a persistence
         # task created just before teardown write an empty map back to the
         # store, which is precisely the state the fix exists to avoid.
+        #
+        # The decision log IS per-manager: it only suppresses repeated log lines
+        # within one manager's life, so a fresh one starting from empty costs a
+        # single duplicate line rather than a duplicate run.
+        self._decision_logged.clear()
 
     @callback
     def _on_config_updated(self, *_args) -> None:
@@ -176,7 +196,8 @@ class RecurringScheduleManager:
         """Recompute and re-arm start times for finish-governed schedules.
 
         A schedule's fire time depends on the estimated duration exactly when
-        its Finish bound is the governing end; a Start bound fires at a fixed
+        its Finish bound is the governing end (single-stage finish-only, or
+        two-stage pinned to Finish) — the Start-pinned case fires at a fixed
         instant regardless of duration, so it does not need re-arming here.
         """
         for schedule in self._schedules:
@@ -187,7 +208,8 @@ class RecurringScheduleManager:
                 == const.SCHEDULE_RECURRENCE_INTERVAL
             ):
                 continue
-            if self._governing_end(schedule) != const.SCHEDULE_ANCHOR_FINISH:
+            governing, _paired = self._bounded_ends(schedule)
+            if governing != const.SCHEDULE_ANCHOR_FINISH:
                 continue
             await self._reregister_tracker(schedule)
 
@@ -239,6 +261,15 @@ class RecurringScheduleManager:
 
         # Remove old tracker
         await self._remove_schedule_tracker(schedule_id)
+
+        # Forget which occurrence was last fired. The memo exists so that a
+        # re-arm triggered by the schedule's own fire callback does not run the
+        # same occurrence twice, and it matches by proximity — but an edit is
+        # not a re-arm. Editing a schedule that has already run today to a time
+        # within that proximity would otherwise look like the occurrence just
+        # fired and skip a whole day: set 21:15, let it run, move it to 21:18,
+        # and the next run is tomorrow.
+        self._finish_last_target.pop(schedule_id, None)
 
         # Update schedule. Mutated in place rather than replaced by ``merged``:
         # identical content either way, but nothing else has to be checked for
@@ -307,12 +338,19 @@ class RecurringScheduleManager:
         """Set up a tracker for a single schedule.
 
         A run's window is two independently bounded ends, Start and Finish.
-        Interval recurrence has neither — it free-runs on its own clock.
-        Otherwise the governing end is whichever is bounded:
+        Interval recurrence has neither — it free-runs on
+        its own clock. Otherwise:
 
-          - Start → fire there directly, unbounded on the other side.
-          - Finish → fire at (target − estimated duration), so the run
-            ends at the bound.
+          - only one end bounded → that end IS the schedule's anchor; fires
+            there directly (single-stage), unbounded on the other side.
+          - Finish is that single bound, action is "irrigate" → the classic
+            finish-anchored run: fires at (target − estimated duration).
+          - both ends bounded, action is "irrigate" → a two-stage arm, pinned
+            to whichever end `anchor` names.
+
+        Only an irrigate action's fire time depends on estimated duration or
+        truncation; calculate/update schedules always fire at the governing
+        end's raw resolved instant, matching every recurrence/mode.
         """
         if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
             return
@@ -325,7 +363,7 @@ class RecurringScheduleManager:
             self._schedule_trackers[schedule_id] = tracker
             return
 
-        governing = self._governing_end(schedule)
+        governing, paired = self._bounded_ends(schedule)
         if governing is None:
             _LOGGER.warning(
                 "Schedule '%s': neither Start nor Finish is bounded; not armed",
@@ -333,8 +371,10 @@ class RecurringScheduleManager:
             )
             return
 
-        if governing == const.SCHEDULE_ANCHOR_FINISH:
-            tracker = await self._setup_finish_tracker(schedule)
+        if paired is not None:
+            tracker = await self._setup_bounded_tracker(schedule, governing)
+        elif governing == const.SCHEDULE_ANCHOR_FINISH:
+            tracker = await self._setup_finish_tracker(schedule, fitted=False)
         else:
             tracker = await self._setup_governing_tracker(schedule, governing)
 
@@ -343,13 +383,14 @@ class RecurringScheduleManager:
     # --- window bounds: which end(s), and resolving one -----------------------
 
     @staticmethod
-    def _governing_end(schedule: dict[str, Any]) -> str | None:
-        """Which end of the window the run is pinned to, or None if neither.
+    def _bounded_ends(schedule: dict[str, Any]) -> tuple[str | None, str | None]:
+        """(governing_end, paired_end) — which end(s) of the window are bounded.
 
-        With one end bounded, that end IS the governing one and ``anchor`` is
-        irrelevant. With both bounded, ``anchor`` names it. ``None`` means
-        neither is bounded — invalid, rejected at save time by
-        ``_validate_schedule_data``.
+        With both ends bounded, ``anchor`` names the governing one (the run is
+        pinned to it) and the other is the paired bound. With only one end
+        bounded, that end IS the governing one and ``anchor`` is irrelevant.
+        ``(None, None)`` means neither is bounded — invalid, rejected at save
+        time by ``_validate_schedule_data``.
         """
         start_mode = schedule.get(
             const.SCHEDULE_CONF_START_MODE, const.SCHEDULE_DEFAULT_BOUND_MODE
@@ -364,20 +405,27 @@ class RecurringScheduleManager:
             anchor = schedule.get(const.SCHEDULE_CONF_ANCHOR)
             if anchor not in const.SCHEDULE_ANCHORS:
                 anchor = const.SCHEDULE_DEFAULT_ANCHOR
-            return anchor
+            paired = (
+                const.SCHEDULE_ANCHOR_START
+                if anchor == const.SCHEDULE_ANCHOR_FINISH
+                else const.SCHEDULE_ANCHOR_FINISH
+            )
+            return anchor, paired
         if finish_bounded:
-            return const.SCHEDULE_ANCHOR_FINISH
+            return const.SCHEDULE_ANCHOR_FINISH, None
         if start_bounded:
-            return const.SCHEDULE_ANCHOR_START
-        return None
+            return const.SCHEDULE_ANCHOR_START, None
+        return None, None
 
-    async def _resolve_bound(self, schedule: dict[str, Any], end: str, reference_utc):
+    async def _resolve_bound(
+        self, schedule: dict[str, Any], end: str, reference_utc, *, direction: str
+    ):
         """Resolve one end ('start' or 'finish') of a schedule's window.
 
         Thin adapter from a schedule's mode/time/offset/azimuth fields onto
-        the shared ``_resolve_event_instant`` seam, so a Start bound and a
-        Finish bound in the same mode resolve through identical math rather
-        than the two drifting apart.
+        the shared ``_resolve_event_instant`` seam — the same one the run's
+        target and its floor both went through before the reshape, now
+        serving either end symmetrically.
         """
         mode_key, time_key, offset_key, azimuth_key = _BOUND_FIELDS[end]
         mode = schedule.get(mode_key, const.SCHEDULE_DEFAULT_BOUND_MODE)
@@ -406,34 +454,94 @@ class RecurringScheduleManager:
         return await self._resolve_event_instant(
             kind,
             reference_utc,
+            direction=direction,
             hour=hour,
             minute=minute,
             angle=angle,
             offset=offset,
         )
 
+    async def _paired_bound_time(
+        self, schedule: dict[str, Any], paired_end: str, governing_instant
+    ):
+        """Resolve the non-governing end relative to the governing instant.
+
+        A Start paired bound resolves BACKWARD from the governing Finish (the
+        latest occurrence at or before it — the overnight wrap that keeps a
+        22:00 floor on the previous evening against a 06:00 target); a Finish
+        paired bound resolves FORWARD from the governing Start. No day-of-week
+        filtering here: day-matching gates which occurrence of the *governing*
+        end this window belongs to, and the paired bound is part of that same
+        window, not a separate occurrence.
+        """
+        if governing_instant is None:
+            return None
+        direction = (
+            "backward" if paired_end == const.SCHEDULE_ANCHOR_START else "forward"
+        )
+        resolved = await self._resolve_bound(
+            schedule, paired_end, governing_instant, direction=direction
+        )
+        if resolved is None:
+            return None
+        # A degenerate pairing — the floor at/after the finish it should
+        # precede, or the ceiling at/before the start it should follow —
+        # leaves no real window. Honour the governing bound and log it,
+        # rather than silently running with an inverted window.
+        inverted = (
+            resolved >= governing_instant
+            if paired_end == const.SCHEDULE_ANCHOR_START
+            else resolved <= governing_instant
+        )
+        if inverted:
+            # Once per distinct pairing. Every config and zone write re-arms
+            # every schedule, so an unconditional warning here reported one
+            # misconfigured schedule eight times per save.
+            new = self._decision_is_new(
+                schedule[const.SCHEDULE_CONF_ID],
+                "inverted-" + paired_end,
+                (resolved.isoformat(), governing_instant.isoformat()),
+            )
+            log = _LOGGER.warning if new else _LOGGER.debug
+            log(
+                "Schedule '%s': resolved %s bound %s does not precede/follow "
+                "its governing bound %s as required; ignoring it",
+                schedule.get(const.SCHEDULE_CONF_NAME),
+                paired_end,
+                resolved,
+                governing_instant,
+            )
+            return None
+        return resolved
+
     async def _resolve_event_instant(
         self,
         kind: str,
         reference_utc,
         *,
+        direction: str,
         hour: int | None = None,
         minute: int | None = None,
         angle: float | None = None,
         offset: datetime.timedelta = datetime.timedelta(0),
     ):
-        """Resolve the next occurrence of a schedule's time source after
-        ``reference_utc`` — the shared seam every bound resolves through.
+        """Resolve one occurrence of a schedule's time source relative to
+        ``reference_utc`` — the shared seam every Start/Finish bound resolves
+        through, in either direction.
 
         ``kind`` is one of "clock" (needs ``hour``/``minute``), "sunrise",
         "sunset", or "solar_azimuth" (needs ``angle``). ``offset`` shifts the
-        resolved instant before it is compared against ``reference_utc``, so a
-        negative offset that lands on or before the reference retries with the
-        following occurrence rather than returning a moment already past.
+        resolved instant before it is compared against ``reference_utc`` — for
+        "forward" that means retrying until the shifted instant is strictly
+        after the reference (guards a negative offset landing on/before it);
+        for "backward" it means walking further back until the shifted instant
+        is at or before the reference. Same per-kind math either way, just
+        walked in opposite directions.
 
         Returns None when the occurrence cannot be resolved — a polar sunset/
-        sunrise, a malformed clock spec, or an azimuth the sun never reaches —
-        rather than raising, matching every caller's "no bound" contract.
+        sunrise, a malformed clock spec, an azimuth the sun never reaches, or a
+        backward walk that exhausts its lookback window — rather than raising,
+        matching every caller's "no bound" contract.
         """
         if kind == "clock":
             if hour is None or minute is None:
@@ -442,25 +550,46 @@ class RecurringScheduleManager:
             candidate = local_ref.replace(
                 hour=hour, minute=minute, second=0, microsecond=0
             )
-            if candidate <= local_ref:
-                candidate += datetime.timedelta(days=1)
+            if direction == "forward":
+                if candidate <= local_ref:
+                    candidate += datetime.timedelta(days=1)
+            else:
+                # The latest occurrence at or before the reference, so an
+                # overnight floor (22:00) resolved against a 06:00 target lands
+                # on the PREVIOUS evening rather than jumping forward a day.
+                if candidate > local_ref:
+                    candidate -= datetime.timedelta(days=1)
             return dt_util.as_utc(candidate)
 
         if kind in ("sunrise", "sunset"):
-            ev = get_astral_event_next(self.hass, kind, reference_utc)
-            candidate = ev + offset
-            # A NEGATIVE offset shifts the target before its sun event, so it
-            # can land on/before the reference while the raw event is still in
-            # the future. Advance to the following event until the shifted
-            # candidate is strictly after the reference. Bounded so a
-            # pathological offset can't spin. See
-            # test_schedule_time_anchor::TestFinishTrackerAdvance.
-            guard = 0
-            while candidate <= reference_utc and guard < 8:
-                ev = get_astral_event_next(self.hass, kind, ev)
+            if direction == "forward":
+                ev = get_astral_event_next(self.hass, kind, reference_utc)
                 candidate = ev + offset
-                guard += 1
-            return candidate
+                # A NEGATIVE offset shifts the target before its sun event, so
+                # it can land on/before the reference while the raw event is
+                # still in the future. Advance to the following event until the
+                # shifted candidate is strictly after the reference. Bounded so
+                # a pathological offset can't spin. See
+                # test_schedule_time_anchor::TestFinishTrackerAdvance.
+                guard = 0
+                while candidate <= reference_utc and guard < 8:
+                    ev = get_astral_event_next(self.hass, kind, ev)
+                    candidate = ev + offset
+                    guard += 1
+                return candidate
+            # Backward: walk back across days looking for an occurrence whose
+            # offset-adjusted instant lands at or before the reference.
+            local_date = dt_util.as_local(reference_utc).date()
+            for back in (0, 1):
+                event = get_astral_event_date(
+                    self.hass, kind, local_date - datetime.timedelta(days=back)
+                )
+                if event is None:
+                    continue
+                candidate = dt_util.as_utc(event) + offset
+                if candidate <= reference_utc:
+                    return candidate
+            return None
 
         if kind == "solar_azimuth":
             if angle is None:
@@ -469,31 +598,61 @@ class RecurringScheduleManager:
             lat = ha_cfg.get(CONF_LATITUDE, 45.0)
             lon = ha_cfg.get(CONF_LONGITUDE, 0.0)
             norm_angle = normalize_azimuth_angle(angle)
-            # UTC, aware, end to end. calculate_solar_azimuth documents (and
-            # reads) UTC and takes a naive value AS UTC, so handing it naive
-            # local time put the zone offset on top of the sign error the
-            # helper itself had — see issue #81. dt_util.as_utc on an
-            # already-UTC value is a no-op, so the offset arithmetic around
-            # each crossing is unchanged.
-            ref = reference_utc
-            # Same negative-offset advance as sunrise/sunset above: step past
-            # the found occurrence until the offset-shifted candidate is
-            # strictly after the reference, so the finish tracker doesn't
-            # busy-loop.
-            guard = 0
-            while True:
-                next_time = find_next_solar_azimuth_time(lat, lon, norm_angle, ref)
-                if next_time is None:
-                    return None
-                candidate = dt_util.as_utc(next_time) + offset
-                if candidate > reference_utc or guard >= 8:
-                    return candidate
-                # find_next_solar_azimuth_time samples in 15-min steps, so a
-                # tiny step re-detects the SAME crossing. Step past a full
-                # search interval so the next search lands on the following
-                # crossing.
-                ref = next_time + datetime.timedelta(minutes=16)
-                guard += 1
+            # UTC, aware, end to end, in BOTH directions. calculate_solar_azimuth
+            # documents (and reads) UTC and takes a naive value AS UTC, so
+            # handing it naive local time put the zone offset on top of the sign
+            # error the helper itself had — see issue #81. dt_util.as_utc on an
+            # already-UTC value is a no-op, so the offset arithmetic around each
+            # crossing is unchanged.
+            if direction == "forward":
+                ref = reference_utc
+                # Same negative-offset advance as sunrise/sunset above: step
+                # past the found occurrence until the offset-shifted candidate
+                # is strictly after the reference, so the finish tracker
+                # doesn't busy-loop.
+                guard = 0
+                while True:
+                    next_time = find_next_solar_azimuth_time(lat, lon, norm_angle, ref)
+                    if next_time is None:
+                        return None
+                    candidate = dt_util.as_utc(next_time) + offset
+                    if candidate > reference_utc or guard >= 8:
+                        return candidate
+                    # find_next_solar_azimuth_time samples in 15-min steps, so a
+                    # tiny step re-detects the SAME crossing. Step past a full
+                    # search interval so the next search lands on the following
+                    # crossing.
+                    ref = next_time + datetime.timedelta(minutes=16)
+                    guard += 1
+            # Backward: scan each local day, most recent first, from midnight,
+            # keeping the latest crossing whose offset-adjusted instant is
+            # still at or before the reference — mirrors the sunset walk.
+            local_ref = dt_util.as_local(reference_utc)
+            for back in (0, 1):
+                day_start_local = local_ref.replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                ) - datetime.timedelta(days=back)
+                # The DAY is local; the instants scanned across it are UTC, per
+                # the frame note on the forward branch.
+                scan_from = dt_util.as_utc(day_start_local)
+                day = day_start_local.date()
+                found = None
+                guard = 0
+                while guard < 96:
+                    crossing = find_next_solar_azimuth_time(
+                        lat, lon, norm_angle, scan_from
+                    )
+                    if crossing is None or dt_util.as_local(crossing).date() != day:
+                        break
+                    candidate = dt_util.as_utc(crossing) + offset
+                    if candidate > reference_utc:
+                        break
+                    found = candidate
+                    scan_from = crossing + datetime.timedelta(minutes=16)
+                    guard += 1
+                if found is not None:
+                    return found
+            return None
 
         return None
 
@@ -553,7 +712,9 @@ class RecurringScheduleManager:
         now_utc = reference_utc or dt_util.utcnow()
         candidate_ref = now_utc
         for _ in range(367):
-            candidate = await self._resolve_bound(schedule, end, candidate_ref)
+            candidate = await self._resolve_bound(
+                schedule, end, candidate_ref, direction="forward"
+            )
             if candidate is None:
                 return None
             if self._recurrence_day_matches(schedule, dt_util.as_local(candidate)):
@@ -565,6 +726,39 @@ class RecurringScheduleManager:
         """Estimated wall-clock run length (seconds) for the schedule's zones."""
         zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
         return await self.coordinator.get_total_irrigation_duration(zones)
+
+    async def _duration_bound(self, schedule: dict[str, Any]) -> float:
+        """Longest wall clock the schedule's zones could occupy, in seconds.
+
+        Priced from each zone's configured ``maximum_duration``, so it is a
+        function of configuration alone. That is the whole point: it gives
+        ``target − bound`` a fixed point to arm on days ahead, before any
+        deficit is known, when the paired Start bound can't supply one.
+
+        Returns ``math.inf`` when any targeted zone carries no ``maximum_duration``.
+        Nothing caps a timed zone in the runner, and nothing caps the deficit
+        that sizes it either — ``maximum_bucket`` clamps the bucket's surplus
+        side, not its deficit side — so such a zone has no configuration-derived
+        run length and the schedule has no fixed point at all. Callers must test
+        for that rather than subtract it; see :meth:`_setup_fitted_tracker`.
+        """
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+        # ignore_demand, unconditionally: the bound has to cover every zone this
+        # schedule could water by the time the decision point arrives, not the
+        # ones that happen to be due while it is being armed. Pricing only the
+        # currently-due zones would move the decision point every time a zone
+        # crossed its threshold — the exact demand-dependence the bound exists
+        # to remove.
+        plan = await self.coordinator.async_plan_zone_runs(
+            zones, runnable_only=True, ignore_demand=True
+        )
+        sequencing, slot, absorption = self.coordinator.sequencing_timing()
+        return bound_wall_clock(
+            plan,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorption,
+        )
 
     def _next_interval_target(self, schedule: dict[str, Any], reference_utc):
         """Next UTC fire time for an interval schedule anchored to ``start_time``.
@@ -631,6 +825,13 @@ class RecurringScheduleManager:
                 "next_run_utc": None,
                 "target_utc": None,
                 "duration_seconds": 0,
+                # Whether the start above is a projection rather than an armed
+                # moment. A two-stage schedule does not know its real start
+                # until its decision point, so before then this number moves as
+                # deficits grow through the day — which reads as a defect unless
+                # the UI can say it is an estimate.
+                "estimated": False,
+                "start_bound_utc": None,
             }
 
             if recurrence == const.SCHEDULE_RECURRENCE_INTERVAL:
@@ -647,7 +848,7 @@ class RecurringScheduleManager:
                 runs.append(entry)
                 continue
 
-            governing = self._governing_end(schedule)
+            governing, paired = self._bounded_ends(schedule)
             if governing is None:
                 continue
             entry["anchor"] = governing
@@ -661,6 +862,37 @@ class RecurringScheduleManager:
                 duration = await self._estimate_duration(schedule)
                 entry["duration_seconds"] = int(duration)
                 next_run = target - datetime.timedelta(seconds=duration)
+                if paired is not None:
+                    floor = await self._paired_bound_time(
+                        schedule, const.SCHEDULE_ANCHOR_START, target
+                    )
+                    decision_point = None
+                    if floor is not None:
+                        entry["start_bound_utc"] = floor.isoformat()
+                        next_run = max(next_run, floor)
+                        decision_point = floor
+                    else:
+                        bound = await self._duration_bound(schedule)
+                        if math.isfinite(bound):
+                            decision_point = target - datetime.timedelta(seconds=bound)
+                    # True only until the decision point: the number above is
+                    # the CURRENT demand projected forward, and demand grows all
+                    # day, so it drifts through the evening. Past the decision
+                    # point the start is armed and no longer moves. Without
+                    # marking the difference the drift reads as a defect. An
+                    # infinite bound has no decision point at all — the schedule
+                    # falls back to the single-stage arm, whose start is re-read
+                    # on every re-arm — so it stays an estimate throughout.
+                    entry["estimated"] = (
+                        decision_point is None or dt_util.utcnow() < decision_point
+                    )
+            elif governing == const.SCHEDULE_ANCHOR_START and paired is not None:
+                finish = await self._paired_bound_time(
+                    schedule, const.SCHEDULE_ANCHOR_FINISH, target
+                )
+                if finish is not None:
+                    entry["start_bound_utc"] = target.isoformat()
+                    entry["target_utc"] = finish.isoformat()
 
             entry["next_run_utc"] = next_run.isoformat()
             if entry["target_utc"] is None:
@@ -789,30 +1021,61 @@ class RecurringScheduleManager:
         past, and takes the "run ASAP" branch again. Left alone that fires
         every two seconds for the whole window.
 
+        The occurrence is matched by PROXIMITY, not by equality of the instant.
+        An equality test holds only while a bound resolves to the same instant
+        every time it is asked, and a solar azimuth near the wrap does not: it
+        answers a couple of seconds later on each call, so every re-arm looked
+        like a brand-new occurrence and the guard never engaged. Observed on a
+        bearing the sun never reaches, at 14 dispatches in 90 seconds.
+
         Returns None when the schedule cannot be advanced off the occurrence it
         just ran, which leaves it unarmed until the next config write or
-        restart — better than arming it on a target it has already watered.
+        restart. That is the right outcome for a bound this unstable: the
+        alternative is arming it on a target it has already watered.
         """
         sid = schedule[const.SCHEDULE_CONF_ID]
-        if self._finish_last_target.get(sid) != target.isoformat():
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        fired_iso = self._finish_last_target.get(sid)
+        if not fired_iso:
+            return target
+        try:
+            fired = datetime.datetime.fromisoformat(fired_iso)
+        except ValueError:
+            return target
+        if abs(target - fired) >= SAME_OCCURRENCE:
             return target
 
         nxt = await self._next_governing_time(schedule, end, reference_utc=target)
         if nxt is None:
             _LOGGER.warning(
                 "Schedule '%s': could not resolve its %s bound after %s",
-                schedule.get(const.SCHEDULE_CONF_NAME),
+                name,
                 end,
                 target,
+            )
+            return None
+        if nxt - fired < SAME_OCCURRENCE:
+            _LOGGER.warning(
+                "Schedule '%s': its %s bound will not advance past the "
+                "occurrence just run (%s then %s); leaving it unarmed until "
+                "the next configuration change or restart",
+                name,
+                end,
+                fired,
+                nxt,
             )
             return None
         return nxt
 
     # --- finish-governed: fires at (target − duration) -----------------------
 
-    async def _setup_finish_tracker(self, schedule: dict[str, Any]) -> Any:
-        """One-shot tracker that fires at (target − duration) so the run ends at
-        the configured Finish bound. Re-arms itself for the next occurrence."""
+    async def _setup_finish_tracker(
+        self, schedule: dict[str, Any], *, fitted: bool
+    ) -> Any:
+        """Resolve the Finish bound, advance past an already-fired occurrence,
+        then either arm the classic single-stage finish tracker or delegate to
+        the two-stage arm — the resolution and advance logic is shared by
+        both, since only one is ever wanted for a given schedule."""
         name = schedule.get(const.SCHEDULE_CONF_NAME)
         target = await self._next_governing_time(schedule, const.SCHEDULE_ANCHOR_FINISH)
         if target is None:
@@ -827,6 +1090,20 @@ class RecurringScheduleManager:
         if target is None:
             return None
 
+        if fitted:
+            return await self._setup_fitted_tracker(schedule, target)
+
+        return await self._arm_finish_estimate(schedule, target)
+
+    async def _arm_finish_estimate(self, schedule: dict[str, Any], target) -> Any:
+        """Arm the classic single-stage finish tracker at (target − estimate).
+
+        Split out of :meth:`_setup_finish_tracker` so the two-stage arm can fall
+        back to it: a schedule whose duration bound is infinite has no fixed
+        point to decide at, and the estimate re-read on every re-arm is the best
+        remaining answer.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
         duration = await self._estimate_duration(schedule)
         fire_time = target - datetime.timedelta(seconds=duration)
         now_utc = dt_util.utcnow()
@@ -889,6 +1166,423 @@ class RecurringScheduleManager:
         await self.coordinator.store.async_update_config(
             {const.CONF_FIRED_OCCURRENCES: markers}
         )
+
+    # --- both ends bounded: two-stage arm, pinned to either end --------------
+
+    async def _setup_bounded_tracker(
+        self, schedule: dict[str, Any], governing: str
+    ) -> Any:
+        """Both Start and Finish are bounded; dispatch on which one the run is
+        pinned to."""
+        if governing == const.SCHEDULE_ANCHOR_FINISH:
+            return await self._setup_finish_tracker(schedule, fitted=True)
+        return await self._setup_start_pinned_tracker(schedule)
+
+    async def _setup_start_pinned_tracker(self, schedule: dict[str, Any]) -> Any:
+        """Both ends bounded, pinned to Start: fire exactly at the resolved
+        Start instant — a fixed, non-duration-dependent moment, so unlike the
+        Finish-pinned arm there is no decision point to wait for. The resolved
+        Finish is the window the selection is fitted to. Ranking/fitting happens
+        at fire time (:meth:`_decide_and_run_start_pinned`) rather than ahead of
+        it, because there is nothing duration-dependent to wait for here in the
+        first place.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        target = await self._next_governing_time(schedule, const.SCHEDULE_ANCHOR_START)
+        if target is None:
+            _LOGGER.warning("Schedule '%s': could not resolve its Start bound", name)
+            return None
+
+        target = await self._advance_past_fired_occurrence(
+            schedule, const.SCHEDULE_ANCHOR_START, target
+        )
+        if target is None:
+            return None
+
+        finish = await self._paired_bound_time(
+            schedule, const.SCHEDULE_ANCHOR_FINISH, target
+        )
+
+        _LOGGER.info(
+            "Registered schedule '%s' (start, finish %s) at %s", name, finish, target
+        )
+
+        def run_callback(now, s=schedule, fired=target, d=finish):
+            self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
+            # Ranking/fitting needs to await the plan, but a native HA time
+            # tracker calls back synchronously — same thread-safe hop the
+            # resolved one-shot and finish trackers use to reach async code
+            # from here.
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task,
+                self._decide_and_run_start_pinned(s, now, fired, d),
+            )
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task,
+                self._persist_fired_occurrences(dict(self._finish_last_target)),
+            )
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task, self._reregister_tracker(s)
+            )
+
+        return self._store_tracker(
+            sid, async_track_point_in_utc_time(self.hass, run_callback, target)
+        )
+
+    def _select_and_log_dropped(
+        self,
+        schedule: dict[str, Any],
+        label: str,
+        plan: list[ZoneRun],
+        *,
+        window_seconds: float,
+        occurrence: datetime.datetime,
+        window_end: datetime.datetime,
+    ) -> tuple[list[ZoneRun], bool, str, float, float]:
+        """Rank+fit ``plan`` to ``window_seconds``, logging dropped zones once
+        per decision.
+
+        Shared by the Finish-pinned decision point (:meth:`_decide_and_arm`)
+        and the Start-pinned fire-time decision
+        (:meth:`_decide_and_run_start_pinned`) — both need the identical
+        select() call and the same :meth:`_decision_is_new`-guarded
+        dropped-zone bookkeeping, just keyed on a different notion of "this
+        decision" (the Finish target vs. the fixed Start occurrence) and
+        phrased with a different subject (``label``: "Finish schedule" vs.
+        "Schedule"). Returns ``(selection, is_new, sequencing, slot,
+        absorption)`` since both callers also need the timing tuple —
+        ``_decide_and_arm`` to price the demand, and ``is_new`` for its own
+        trailing summary log.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        sequencing, slot, absorption = self.coordinator.sequencing_timing()
+        selection = select(
+            plan,
+            window_seconds=window_seconds,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorption,
+        )
+
+        dropped = {p.zone_id for p in plan} - {p.zone_id for p in selection}
+        # One announcement per decision. A re-arm that reaches the same zones
+        # repeats itself at DEBUG instead, so the strings stay greppable
+        # without the log implying an arm/run that did not happen.
+        new = self._decision_is_new(
+            sid,
+            "selection",
+            (
+                occurrence.isoformat(),
+                tuple(p.zone_id for p in selection),
+                tuple(sorted(dropped)),
+            ),
+        )
+        if dropped:
+            log = _LOGGER.warning if new else _LOGGER.debug
+            log(
+                "%s '%s': zones %s are due but do not fit the window before "
+                "%s; they carry their deficit and lead the next run",
+                label,
+                name,
+                sorted(dropped),
+                window_end,
+            )
+        return selection, new, sequencing, slot, absorption
+
+    async def _decide_and_run_start_pinned(
+        self, schedule: dict[str, Any], now, target, finish
+    ) -> None:
+        """Both ends bounded, pinned to Start: rank, fit, and dispatch.
+
+        The Start bound already fixed the fire time (see
+        ``_setup_start_pinned_tracker``), so there is no separate decision
+        point to read the demand ahead of the run — this runs the same
+        rank/select sequence :meth:`_decide_and_arm` applies at ITS decision
+        point, but at the moment the schedule actually fires. ``finish`` is
+        the paired Finish bound, which is the window the selection is fitted to;
+        when it could not be resolved (a degenerate pairing — see
+        ``_paired_bound_time``) there is no window to fit against, so whatever is
+        due runs unfitted, matching a single open end.
+        """
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+
+        await self.coordinator.async_commit_pre_run_calculation(zones)
+
+        plan = await self.coordinator.async_plan_zone_runs(zones, runnable_only=True)
+        plan = [p for p in plan if p.duration > 0]
+
+        order = None
+        if plan and finish is not None:
+            window = max(0.0, (finish - now).total_seconds())
+            selection, _new, _seq, _slot, _absorption = self._select_and_log_dropped(
+                schedule,
+                "Schedule",
+                plan,
+                window_seconds=window,
+                occurrence=target,
+                window_end=finish,
+            )
+            order = [p.zone_id for p in selection]
+
+        self._execute_schedule(schedule, now, order=order, pre_committed=True)
+
+    async def _setup_fitted_tracker(self, schedule: dict[str, Any], target) -> Any:
+        """Arm a schedule pinned to Finish with a bounded Start.
+
+        Two stages, because the start time depends on a demand that is not
+        known until close to the run. The single-stage tracker reads the
+        estimate when it arms — on load, after each fire, and on every config
+        change — which is typically hours before the run, and deficits grow
+        all day after that. On seven zones at this scale that is around three
+        hours of under-estimate: the run starts three hours late and overruns
+        its finish.
+
+        So the first stage arms on a moment that does NOT depend on the
+        duration, and the second stage arms the real start once the demand has
+        been read there:
+
+            decision point = the paired Start bound
+
+        Both ends being bounded is exactly the condition for reaching this
+        method at all, so the decision point is always the resolved Start —
+        the latest duration-independent moment — which is why a DAYTIME finish
+        (syringing, seed and sod establishment, drip zones, frost protection)
+        should bound its Start too: without one the decision would have no
+        fixed point to arm on ahead of the run.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        floor = await self._paired_bound_time(
+            schedule, const.SCHEDULE_ANCHOR_START, target
+        )
+        now_utc = dt_util.utcnow()
+
+        if floor is not None:
+            decision_point = floor
+        else:
+            bound = await self._duration_bound(schedule)
+            if not math.isfinite(bound):
+                # No paired Start bound resolved, and at least one targeted zone
+                # has no configured ceiling, so ``target − bound`` names no
+                # instant. Fall back to the single-stage arm: its estimate is
+                # re-read on every re-arm, which is weaker than a decision point
+                # but is an answer, where substituting a stand-in number for the
+                # infinity would be a confident wrong one.
+                _LOGGER.warning(
+                    "Finish schedule '%s': no start bound resolved and at least "
+                    "one zone has no maximum duration, so there is no fixed "
+                    "point to decide at; arming on the running estimate instead",
+                    name,
+                )
+                return await self._arm_finish_estimate(schedule, target)
+            decision_point = target - datetime.timedelta(seconds=bound)
+
+        if decision_point > now_utc:
+
+            def decide_callback(now, s=schedule, t=target, f=floor):
+                self.hass.loop.call_soon_threadsafe(
+                    self.hass.async_create_task,
+                    self._decide_and_arm(s, t, f, commit=True),
+                )
+
+            # Once per decision point. Setup fans _config_updated out across
+            # every schedule several times over, so an unconditional INFO here
+            # announced one armed schedule fifteen times before it had done
+            # anything at all.
+            log = (
+                _LOGGER.info
+                if self._decision_is_new(
+                    schedule[const.SCHEDULE_CONF_ID],
+                    "decision-point",
+                    (target.isoformat(), decision_point.isoformat()),
+                )
+                else _LOGGER.debug
+            )
+            log(
+                "Finish schedule '%s': target %s, deciding at %s (%s)",
+                name,
+                target,
+                decision_point,
+                "start bound" if floor is not None else "target - bound",
+            )
+            return async_track_point_in_utc_time(
+                self.hass, decide_callback, decision_point
+            )
+
+        # Already past the decision point — a restart inside the window, or a
+        # config change after the decision was made. Re-derive from the live
+        # deficits and arm immediately, WITHOUT a second commit: the ledger for
+        # this run was already committed at the decision point, and committing
+        # again here would re-book the same window every time anything touches
+        # the config.
+        return await self._decide_and_arm(schedule, target, floor, commit=False)
+
+    def _decision_is_new(self, sid: str, kind: str, decision: tuple) -> bool:
+        """Whether this arm decided something the log has not already said.
+
+        The decision is the occurrence plus the zones: a start time that moved a
+        few seconds because the re-arm happened a few seconds later is the same
+        decision, and re-announcing it is what made a single armed run look like
+        dozens. A zone appearing or being dropped is a real change and is
+        announced. Records the decision as a side effect, so callers ask once.
+
+        ``kind`` separates the announcements a schedule can make, because a
+        re-arm makes more than one of them and a single slot per schedule would
+        have each evict the other and both go on repeating.
+        """
+        key = (sid, kind)
+        if self._decision_logged.get(key) == decision:
+            return False
+        self._decision_logged[key] = decision
+        return True
+
+    async def _decide_and_arm(
+        self, schedule: dict[str, Any], target, floor, *, commit: bool
+    ) -> Any:
+        """Read the demand, pick the zones, and arm the run's real start.
+
+        Only reached when both ends are bounded (see ``_setup_bounded_tracker``),
+        so the run is always fitted here — ranked by depletion and truncated to
+        the window, and the runner waters that selection in that order.
+        """
+        name = schedule.get(const.SCHEDULE_CONF_NAME)
+        sid = schedule[const.SCHEDULE_CONF_ID]
+        zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+
+        if commit:
+            await self.coordinator.async_commit_pre_run_calculation(zones)
+
+        plan = await self.coordinator.async_plan_zone_runs(zones, runnable_only=True)
+        plan = [p for p in plan if p.duration > 0]
+        if not plan:
+            log = (
+                _LOGGER.info
+                if self._decision_is_new(sid, "selection", (target.isoformat(), None))
+                else _LOGGER.debug
+            )
+            log(
+                "Finish schedule '%s': no zone is due at the decision point; "
+                "the %s occurrence runs unfitted",
+                name,
+                target,
+            )
+            return self._arm_pass_through(schedule, target)
+
+        now_utc = dt_util.utcnow()
+        start_floor = max(now_utc, floor) if floor is not None else now_utc
+
+        window = (target - start_floor).total_seconds()
+        selection, new, sequencing, slot, absorption = self._select_and_log_dropped(
+            schedule,
+            "Finish schedule",
+            plan,
+            window_seconds=window,
+            occurrence=target,
+            window_end=target,
+        )
+
+        # Per dispatch track, longest track wins — the same reduction the
+        # estimate and the dial report, so the run this arms on is the run the
+        # schedule was drawn as. Summing the tracks instead would start it
+        # early; taking the longest of chained stations would start it late,
+        # and that direction finishes the irrigation past its anchor.
+        demand = concurrent_wall_clock(
+            selection,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorption,
+        )
+        # When everything fits, the slack sits BEFORE the start, which is where
+        # it belongs; the run still ends on the target. Only when the demand
+        # outruns the window is the start pinned to the floor and both ends of
+        # the window fixed.
+        fire_time = max(start_floor, target - datetime.timedelta(seconds=demand))
+        if fire_time <= now_utc:
+            fire_time = now_utc + datetime.timedelta(seconds=2)
+
+        log = _LOGGER.info if new else _LOGGER.debug
+        log(
+            "Finish schedule '%s': target %s, %s zone(s) %s, demand %ss → start %s",
+            name,
+            target,
+            len(selection),
+            [p.zone_id for p in selection],
+            round(demand),
+            fire_time,
+        )
+
+        order = [p.zone_id for p in selection]
+
+        def run_callback(now, s=schedule, fired=target, o=order):
+            # Recording the fired occurrence here rather than at the decision
+            # point is what lets a config change inside the window re-derive the
+            # start instead of skipping the night: until the run actually fires,
+            # a re-arm still resolves to THIS occurrence.
+            self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
+            self._execute_schedule(s, now, order=o, pre_committed=True)
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task,
+                self._persist_fired_occurrences(dict(self._finish_last_target)),
+            )
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task, self._reregister_tracker(s)
+            )
+
+        return self._store_tracker(
+            sid, async_track_point_in_utc_time(self.hass, run_callback, fire_time)
+        )
+
+    def _arm_pass_through(self, schedule: dict[str, Any], target) -> Any:
+        """Arm the schedule's own action at ``target``, unfitted, and re-arm.
+
+        A night the selection has nothing to say about still has to leave a live
+        tracker behind. Simply returning None would arm nothing at all, and since
+        a finish schedule only re-arms from its own fire callback, the schedule
+        would go dormant until the next restart or config write.
+
+        It also has to still run. An empty plan is not the same claim as "there
+        is no water to deliver": ``async_plan_zone_runs`` excludes distributor
+        members by construction, because a member waters through its
+        distributor's shared inlet rather than through its own valve. A schedule
+        whose targets are all members therefore plans nothing while still having
+        a cycle to run, and ``_execute_schedule`` is that cycle's sole automatic
+        driver. Every gate that decides whether anything actually happens - the
+        skip conditions, the rain delay, per-member demand - lives inside it, so
+        firing the action here costs a no-op pass on a genuinely empty night and
+        keeps a members-only schedule watering exactly as it does with neither
+        new control set. Nothing was fitted, so no order.
+        """
+        sid = schedule[const.SCHEDULE_CONF_ID]
+
+        def lapse_callback(now, s=schedule, fired=target):
+            self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
+            self._execute_schedule(s, now, order=None, pre_committed=True)
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task,
+                self._persist_fired_occurrences(dict(self._finish_last_target)),
+            )
+            self.hass.loop.call_soon_threadsafe(
+                self.hass.async_create_task, self._reregister_tracker(s)
+            )
+
+        return self._store_tracker(
+            sid, async_track_point_in_utc_time(self.hass, lapse_callback, target)
+        )
+
+    def _store_tracker(self, schedule_id: str, tracker):
+        """Register a tracker armed outside ``_setup_schedule_tracker``.
+
+        The two-stage arm creates its second-stage tracker from a decision-point
+        callback, so nothing further up is going to store the handle — and an
+        unstored handle can never be cancelled by ``async_unload``, which is how
+        a reload ends up with N surviving listeners all firing the same run.
+        """
+        old = self._schedule_trackers.get(schedule_id)
+        if old and old is not tracker:
+            old()
+        self._schedule_trackers[schedule_id] = tracker
+        return tracker
 
     async def _reregister_tracker(self, schedule: dict[str, Any]) -> None:
         """Cancel and rebuild a schedule's tracker (used by self-rescheduling
@@ -971,9 +1665,19 @@ class RecurringScheduleManager:
 
     @callback
     def _execute_schedule(
-        self, schedule: dict[str, Any], now: datetime.datetime
+        self,
+        schedule: dict[str, Any],
+        now: datetime.datetime,
+        *,
+        order=None,
+        pre_committed=False,
     ) -> None:
-        """Execute a scheduled action."""
+        """Execute a scheduled action.
+
+        ``order`` is set only by a bounded run: the zone ids chosen at the
+        decision point, in priority order. ``pre_committed`` says a two-stage
+        schedule already committed its pre-run calculation there.
+        """
         # Check date range if specified
         start_date = schedule.get(const.SCHEDULE_CONF_START_DATE)
         end_date = schedule.get(const.SCHEDULE_CONF_END_DATE)
@@ -1028,11 +1732,21 @@ class RecurringScheduleManager:
 
         self.hass.loop.call_soon_threadsafe(
             self.hass.async_create_task,
-            self._perform_scheduled_irrigation(zones, schedule_name),
+            self._perform_scheduled_irrigation(
+                zones,
+                schedule_name,
+                order=order,
+                pre_committed=pre_committed,
+            ),
         )
 
     async def _perform_scheduled_irrigation(
-        self, zones: str | list[str], schedule_name: str
+        self,
+        zones: str | list[str],
+        schedule_name: str,
+        *,
+        order=None,
+        pre_committed=False,
     ) -> None:
         """Irrigate the schedule's zones.
 
@@ -1040,10 +1754,13 @@ class RecurringScheduleManager:
         consumer below already accepts it.
         """
         try:
-            # "Before each irrigation run" means when the run is PLANNED,
-            # which is here: immediately before dispatch, so the deficit
-            # driving the run is minutes old rather than hours.
-            await self.coordinator.async_commit_pre_run_calculation(zones)
+            # "Before each irrigation run" means when the run is PLANNED, which is
+            # two different moments internally: a two-stage schedule commits at its
+            # decision point, so the selection and the start time are both computed
+            # on the fresh ledger; everything else commits here, immediately before
+            # dispatch.
+            if not pre_committed:
+                await self.coordinator.async_commit_pre_run_calculation(zones)
             # Check skip conditions (same as trigger-based irrigation)
             if await self.coordinator._check_skip_conditions():
                 _LOGGER.info(
@@ -1073,7 +1790,9 @@ class RecurringScheduleManager:
             )
             # Directly control linked entities (restricted to the schedule's
             # target zones), then reset counter
-            watered = await self.coordinator._irrigate_linked_entities(zones)
+            watered = await self.coordinator._irrigate_linked_entities(
+                zones, order=order
+            )
             # Plan G: also run distributor cycles for due member zones. Members
             # are excluded from _irrigate_linked_entities (irrigation.py:462), so
             # this is their sole automatic driver, and it runs even when no
@@ -1086,10 +1805,25 @@ class RecurringScheduleManager:
             # unconditionally, fooling the days_between_irrigation guard into
             # skipping the next due run. Only reset when water was actually
             # delivered.
+            #
+            # This resets the GLOBAL counter only. Per-zone counters are reset as
+            # each zone's water is credited, because a fitted run waters a prefix
+            # of the priority order and this call happens at dispatch, long before
+            # a sequential or rotating run has finished — so it cannot know which
+            # zones were reached.
             if watered or watered_members:
                 await self.coordinator._reset_days_since_irrigation()
 
-            _LOGGER.info("Successfully irrigated schedule zones: %s", zones)
+            # ``zones`` is what the schedule TARGETS. A fitted run waters the
+            # selection, which is a subset in a chosen sequence, so report that
+            # whenever there is one or the line claims water the run never
+            # delivered. `is None`, not truthiness: a selection that came back
+            # empty watered nothing, and reporting the whole target list there
+            # is the same false claim in its worst form.
+            _LOGGER.info(
+                "Successfully irrigated schedule zones: %s",
+                zones if order is None else order,
+            )
 
         except Exception as e:
             _LOGGER.error("Error irrigating schedule zones %s: %s", zones, e)

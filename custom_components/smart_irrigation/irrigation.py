@@ -716,11 +716,16 @@ class IrrigationRunnerMixin:
     # (scheduler.py) awaits this directly; routing it through async_add_job would
     # have had HA call it and drop the coroutine on the floor, silently skipping
     # every irrigation.
-    async def _irrigate_linked_entities(self, zone_ids=None) -> bool:
+    async def _irrigate_linked_entities(self, zone_ids=None, *, order=None) -> bool:
         """Directly control linked valve/switch entities for zones needing irrigation.
 
         ``zone_ids`` optionally restricts to a schedule's target zones (an
         iterable of ids, or None/"all" for every eligible zone).
+
+        ``order`` is a fitted run's priority order: an explicit list of zone ids
+        that both restricts the run to those zones and waters them in that
+        sequence. Without it the run keeps store order and every due zone, which
+        is the unfitted behaviour.
 
         Returns ``True`` iff at least one real run was dispatched (self-closing
         service and/or the sequencing task), ``False`` on every no-water path
@@ -731,6 +736,17 @@ class IrrigationRunnerMixin:
         zones = await self.store.async_get_zones()
         want_all = zone_ids is None or zone_ids == "all"
         target = None if want_all else {int(z) for z in zone_ids}
+        if order is not None:
+            # A fitted run has already decided both the membership and the
+            # sequence, so it supersedes the schedule's zone target rather than
+            # intersecting with it — the selection was computed from that same
+            # target to begin with.
+            rank_of = {int(zid): i for i, zid in enumerate(order)}
+            target = set(rank_of)
+            zones = sorted(
+                (z for z in zones if int(z.get(const.ZONE_ID)) in rank_of),
+                key=lambda z: rank_of[int(z.get(const.ZONE_ID))],
+            )
 
         # Live-estimate watering (experimental): when on, the per-zone trigger is
         # the intra-day live deficit (decided in _apply_live_durations), so the

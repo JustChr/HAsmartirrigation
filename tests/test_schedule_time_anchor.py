@@ -2,6 +2,7 @@
 duration + bucket reset introduced for the irrigation-timer work."""
 
 import datetime
+import logging
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -9,9 +10,14 @@ from freezegun import freeze_time
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation import scheduler as scheduler_module
+from custom_components.smart_irrigation.run_window import ZoneRun
 from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
 
 UTC = datetime.timezone.utc
+
+
+def _run(zone_id, duration, ratio=2.0):
+    return ZoneRun(zone_id=zone_id, duration=duration, depletion_ratio=ratio)
 
 
 WEEKDAYS = [
@@ -35,51 +41,47 @@ def _sched(**kw):
     return base
 
 
-class TestGoverningEnd:
-    """`_governing_end` resolves which end of the window the run is pinned
-    to, and which one wins when both are bounded."""
+class TestBoundedEnds:
+    """`_bounded_ends` resolves which end(s) of the window are bounded, and
+    which one governs when both are."""
 
     def test_only_finish_bounded_is_governing(self):
-        assert (
-            RecurringScheduleManager._governing_end(
-                _sched(finish_mode=const.SCHEDULE_BOUND_MODE_TIME, finish_time="06:00")
-            )
-            == const.SCHEDULE_ANCHOR_FINISH
+        governing, paired = RecurringScheduleManager._bounded_ends(
+            _sched(finish_mode=const.SCHEDULE_BOUND_MODE_TIME, finish_time="06:00")
         )
+        assert governing == const.SCHEDULE_ANCHOR_FINISH
+        assert paired is None
 
     def test_only_start_bounded_is_governing(self):
-        assert (
-            RecurringScheduleManager._governing_end(
-                _sched(start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="06:00")
-            )
-            == const.SCHEDULE_ANCHOR_START
+        governing, paired = RecurringScheduleManager._bounded_ends(
+            _sched(start_mode=const.SCHEDULE_BOUND_MODE_TIME, start_time="06:00")
         )
+        assert governing == const.SCHEDULE_ANCHOR_START
+        assert paired is None
 
     def test_both_bounded_explicit_anchor_wins(self):
-        assert (
-            RecurringScheduleManager._governing_end(
-                _sched(
-                    start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
-                    finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
-                    anchor=const.SCHEDULE_ANCHOR_START,
-                )
+        governing, paired = RecurringScheduleManager._bounded_ends(
+            _sched(
+                start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
+                finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
+                anchor=const.SCHEDULE_ANCHOR_START,
             )
-            == const.SCHEDULE_ANCHOR_START
         )
+        assert governing == const.SCHEDULE_ANCHOR_START
+        assert paired == const.SCHEDULE_ANCHOR_FINISH
 
     def test_both_bounded_default_anchor_is_finish(self):
-        assert (
-            RecurringScheduleManager._governing_end(
-                _sched(
-                    start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
-                    finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
-                )
+        governing, paired = RecurringScheduleManager._bounded_ends(
+            _sched(
+                start_mode=const.SCHEDULE_BOUND_MODE_SUNSET,
+                finish_mode=const.SCHEDULE_BOUND_MODE_SUNRISE,
             )
-            == const.SCHEDULE_ANCHOR_FINISH
         )
+        assert governing == const.SCHEDULE_ANCHOR_FINISH
+        assert paired == const.SCHEDULE_ANCHOR_START
 
-    def test_neither_bounded_returns_none(self):
-        assert RecurringScheduleManager._governing_end(_sched()) is None
+    def test_neither_bounded_returns_none_none(self):
+        assert RecurringScheduleManager._bounded_ends(_sched()) == (None, None)
 
 
 class TestRecurrenceDayMatches:
@@ -406,14 +408,14 @@ class TestFinishTrackerAdvance:
         assert target2 - target1 == datetime.timedelta(days=1)
 
         mgr._finish_last_target[sid] = target1.isoformat()
-        await mgr._setup_finish_tracker(sched)
+        await mgr._setup_finish_tracker(sched, fitted=False)
         assert captured[-1] == target2 - datetime.timedelta(seconds=7200)
         assert captured[-1] > dt_util.utcnow()  # future, not a busy-loop catch-up
 
         # Re-arming again at the same instant stays stable on that next
         # occurrence — it does not fall back into the now+2s catch-up loop (the
         # bug re-fired every ~2s here).
-        await mgr._setup_finish_tracker(sched)
+        await mgr._setup_finish_tracker(sched, fitted=False)
         assert captured[-1] == target2 - datetime.timedelta(seconds=7200)
 
     @pytest.mark.asyncio
@@ -441,15 +443,87 @@ class TestFinishTrackerAdvance:
         )
 
         # Missed start → catch up ASAP (now + 2s), not skipped.
-        await mgr._setup_finish_tracker(sched)
+        await mgr._setup_finish_tracker(sched, fitted=False)
         assert captured[-1] == dt_util.utcnow() + datetime.timedelta(seconds=2)
 
         # After the catch-up fires, the re-arm advances to the next occurrence
         # instead of scheduling another ASAP catch-up (the busy loop).
         target = await mgr._next_governing_time(sched, const.SCHEDULE_ANCHOR_FINISH)
         mgr._finish_last_target[sid] = target.isoformat()
-        await mgr._setup_finish_tracker(sched)
+        await mgr._setup_finish_tracker(sched, fitted=False)
         assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
+
+    @pytest.mark.asyncio
+    async def test_editing_a_schedule_forgets_the_fired_occurrence(
+        self, coordinator, monkeypatch
+    ):
+        """Editing is not re-arming. The proximity match that stops a fire
+        callback re-running its own occurrence would otherwise swallow an edit
+        made within the tolerance: run at 21:15, move it to 21:18, and the next
+        run is tomorrow."""
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        sched = self._finish_sched()
+        sid = sched[const.SCHEDULE_CONF_ID]
+        mgr._schedules = [sched]
+        mgr._finish_last_target[sid] = "2026-06-10T06:00:00+00:00"
+        monkeypatch.setattr(mgr, "_remove_schedule_tracker", AsyncMock())
+        monkeypatch.setattr(mgr, "_setup_schedule_tracker", AsyncMock())
+        monkeypatch.setattr(mgr, "_save_schedules", AsyncMock())
+
+        await mgr.async_update_schedule(sid, {**sched, "finish_time": "06:03"})
+
+        assert sid not in mgr._finish_last_target
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-10 18:00:00")
+    async def test_rearm_advances_when_the_bound_will_not_resolve_twice_alike(
+        self, coordinator, monkeypatch
+    ):
+        """Regression (live 2026-08-09): the guard matched the fired occurrence
+        by equality of the instant, so a bound that resolves a couple of
+        seconds later every time it is asked never looked like the same
+        occurrence twice. A solar azimuth near the wrap does exactly that, and
+        the "run ASAP" branch then fired 14 times in 90 seconds."""
+        import homeassistant.util.dt as dt_util
+
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=7200)
+        sched = self._finish_sched()
+        sid = sched[const.SCHEDULE_CONF_ID]
+
+        # A target 30 minutes out, drifting 2 seconds further away on every
+        # call, so the ideal start is always in the past and every resolution
+        # is a "new" instant.
+        base = dt_util.utcnow() + datetime.timedelta(minutes=30)
+        drift = {"n": 0}
+
+        async def _drifting(_schedule, _end, reference_utc=None):
+            drift["n"] += 1
+            return base + datetime.timedelta(seconds=2 * drift["n"])
+
+        monkeypatch.setattr(mgr, "_next_governing_time", _drifting)
+
+        captured: list = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+
+        # First arm: the start is in the past, so catching up ASAP is right.
+        await mgr._setup_finish_tracker(sched, fitted=False)
+        assert captured[-1] == dt_util.utcnow() + datetime.timedelta(seconds=2)
+        fired = drift["n"]
+
+        # Having fired, a re-arm must NOT catch up again. The bound cannot
+        # advance off this occurrence, so the schedule is left unarmed rather
+        # than watering the same target over and over.
+        mgr._finish_last_target[sid] = (
+            base + datetime.timedelta(seconds=2 * fired)
+        ).isoformat()
+        armed = len(captured)
+        assert await mgr._setup_finish_tracker(sched, fitted=False) is None
+        assert len(captured) == armed
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-10 18:00:00")
@@ -496,7 +570,7 @@ class TestFinishTrackerAdvance:
             lambda hass, cb, when: captured.append(when) or Mock(),
         )
         mgr._finish_last_target[sched[const.SCHEDULE_CONF_ID]] = target1.isoformat()
-        await mgr._setup_finish_tracker(sched)
+        await mgr._setup_finish_tracker(sched, fitted=False)
         assert captured[-1] > dt_util.utcnow() + datetime.timedelta(hours=1)
 
 
@@ -648,6 +722,266 @@ class TestSolarScheduleMatrix:
         captured["cb"]()
         assert len(executed) == 1
         assert executed[0][0] is sched
+
+
+class TestStartPinnedBothBounded:
+    """Both ends bounded, anchor=start: a genuinely new combination no v13
+    shape could ever express (only a Finish anchor could be fitted before the
+    reshape), reached when the dialog's own anchor selector picks Start
+    with both a Start and a Finish bound configured. Fires exactly at the
+    Start bound (no decision-point wait, unlike the Finish-pinned arm) and
+    passes the resolved Finish through as a hard deadline."""
+
+    @staticmethod
+    def _both_bounded_sched(**kw):
+        base = _sched(
+            recurrence=const.SCHEDULE_RECURRENCE_DAILY,
+            start_mode=const.SCHEDULE_BOUND_MODE_TIME,
+            start_time="22:00",
+            finish_mode=const.SCHEDULE_BOUND_MODE_TIME,
+            finish_time="06:00",
+            anchor=const.SCHEDULE_ANCHOR_START,
+            action="irrigate",
+            zones="all",
+        )
+        base.update(kw)
+        return base
+
+    def test_bounded_ends_reports_start_governing_finish_paired(self):
+        governing, paired = RecurringScheduleManager._bounded_ends(
+            self._both_bounded_sched()
+        )
+        assert governing == const.SCHEDULE_ANCHOR_START
+        assert paired == const.SCHEDULE_ANCHOR_FINISH
+
+    @pytest.mark.asyncio
+    async def test_setup_schedule_tracker_dispatches_to_start_pinned(
+        self, coordinator, monkeypatch
+    ):
+        """End to end through the real dispatch, not just the bounded-ends
+        helper: a both-bounded, anchor=start schedule must NOT go through the
+        Finish two-stage arm (_setup_fitted_tracker/_decide_and_arm)."""
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        sched = self._both_bounded_sched()
+
+        point_calls = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: point_calls.append(when) or Mock(),
+        )
+        fitted_called = []
+        monkeypatch.setattr(
+            mgr,
+            "_setup_fitted_tracker",
+            lambda *a, **kw: fitted_called.append(True),
+        )
+
+        await mgr._setup_schedule_tracker(sched)
+
+        assert not fitted_called
+        assert len(point_calls) == 1
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_fires_at_the_start_bound_not_target_minus_duration(
+        self, coordinator, monkeypatch
+    ):
+        """Unlike the Finish-pinned arm, there is no decision point to wait
+        for: the Start bound is a fixed, non-duration-dependent instant, so
+        the tracker arms directly at it."""
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        mgr.coordinator.get_total_irrigation_duration = AsyncMock(return_value=7200)
+        sched = self._both_bounded_sched()
+
+        captured = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+
+        await mgr._setup_start_pinned_tracker(sched)
+
+        expected_start = await mgr._next_governing_time(
+            self._both_bounded_sched(), const.SCHEDULE_ANCHOR_START
+        )
+        assert captured == [expected_start]
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_callback_schedules_the_fitted_decision(self, monkeypatch):
+        """The callback itself stays synchronous (a native HA time tracker
+        calls it directly), so ranking/fitting cannot run inline any more —
+        it hands off to _decide_and_run_start_pinned through the same
+        call_soon_threadsafe/async_create_task hop every other resolver-driven
+        one-shot in this module uses to reach async code from a sync callback.
+
+        Built on a bare-Mock manager rather than the real `coordinator`
+        fixture: TIME-mode bound resolution needs no real hass, and a bare
+        Mock lets call_soon_threadsafe itself be mocked safely to inspect the
+        hand-off without touching the real event loop's own cross-thread
+        signaling (see the now-removed sibling test this replaces, which hit
+        exactly that stall).
+        """
+        mgr = RecurringScheduleManager(Mock(), Mock())
+        sched = self._both_bounded_sched()
+
+        captured = {}
+
+        def fake_track(hass, cb, when):
+            captured["cb"] = cb
+            captured["when"] = when
+            return Mock()
+
+        monkeypatch.setattr(
+            scheduler_module, "async_track_point_in_utc_time", fake_track
+        )
+        mgr.hass.loop.call_soon_threadsafe = Mock()
+        mgr._decide_and_run_start_pinned = Mock()
+
+        await mgr._setup_start_pinned_tracker(sched)
+        captured["cb"](captured["when"])
+
+        scheduled = mgr.hass.loop.call_soon_threadsafe.call_args_list
+        assert scheduled[0].args[0] is mgr.hass.async_create_task
+        mgr._decide_and_run_start_pinned.assert_called_once()
+        s, now, target, deadline = mgr._decide_and_run_start_pinned.call_args.args
+        assert s is sched
+        assert now == captured["when"]
+        assert target == captured["when"]
+        # The deadline is the resolved Finish bound (06:00 local), strictly
+        # after the Start bound (22:00 local the previous evening).
+        assert deadline is not None
+        assert deadline > captured["when"]
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_rearm_advances_past_an_already_fired_occurrence(
+        self, coordinator, monkeypatch
+    ):
+        mgr = RecurringScheduleManager(coordinator.hass, coordinator)
+        sched = self._both_bounded_sched()
+        sid = sched[const.SCHEDULE_CONF_ID]
+
+        captured = []
+        monkeypatch.setattr(
+            scheduler_module,
+            "async_track_point_in_utc_time",
+            lambda hass, cb, when: captured.append(when) or Mock(),
+        )
+
+        target1 = await mgr._next_governing_time(sched, const.SCHEDULE_ANCHOR_START)
+        mgr._finish_last_target[sid] = target1.isoformat()
+
+        await mgr._setup_start_pinned_tracker(sched)
+
+        assert captured[-1] > target1
+        assert captured[-1] - target1 == datetime.timedelta(days=1)
+
+
+def _decide_manager(plan, sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL):
+    mgr = RecurringScheduleManager(Mock(), Mock())
+    mgr.coordinator.async_plan_zone_runs = AsyncMock(return_value=list(plan))
+    mgr.coordinator.sequencing_timing = Mock(return_value=(sequencing, 300.0, 0.0))
+    mgr.coordinator.async_commit_pre_run_calculation = AsyncMock()
+    mgr._execute_schedule = Mock()
+    return mgr
+
+
+class TestDecideAndRunStartPinned:
+    """Both ends bounded, pinned to Start: fitting runs at fire time instead
+    of at a separate decision point (there is nothing duration-dependent to
+    wait for — the Start bound is already fixed), but is otherwise the same
+    rank/select/log-dropped-once sequence _decide_and_arm applies for a
+    floating start pinned to Finish."""
+
+    @pytest.mark.asyncio
+    async def test_orders_by_depletion_and_defers_what_does_not_fit(self):
+        # 4 h window, 6 h of demand across three zones: the driest two fit,
+        # the least-depleted is dropped and carries its deficit forward.
+        mgr = _decide_manager(
+            [
+                _run(0, 7200, ratio=1.1),
+                _run(1, 7200, ratio=1.5),
+                _run(2, 7200, ratio=3.0),
+            ]
+        )
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        finish = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, finish
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] == [2, 1]
+        assert kwargs["pre_committed"] is True
+        mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_the_driest_zone_still_runs_even_when_it_alone_overruns(self):
+        # A single zone whose full duration exceeds the entire window is still
+        # selected rather than excluded outright, which would starve it
+        # forever: the window decides how much of it is delivered, not
+        # whether it is reached at all.
+        mgr = _decide_manager([_run(0, 18000, ratio=3.0)])
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        finish = datetime.datetime(2026, 6, 21, 4, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, finish
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] == [0]
+
+    @pytest.mark.asyncio
+    async def test_an_unresolved_finish_runs_every_due_zone_unfitted(self):
+        # The paired Finish bound failed to resolve (a degenerate pairing) —
+        # there is no window to fit against, so nothing is dropped and
+        # store/plan order stands, matching a single open end.
+        mgr = _decide_manager([_run(0, 600, ratio=1.5), _run(1, 600, ratio=2.0)])
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, None
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] is None
+        assert kwargs["pre_committed"] is True
+
+    @pytest.mark.asyncio
+    async def test_no_due_zone_still_dispatches_pre_committed(self):
+        mgr = _decide_manager([])
+        target = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        finish = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+
+        await mgr._decide_and_run_start_pinned(
+            _sched(action="irrigate", zones="all"), target, target, finish
+        )
+
+        kwargs = mgr._execute_schedule.call_args.kwargs
+        assert kwargs["order"] is None
+        assert kwargs["pre_committed"] is True
+
+    @pytest.mark.asyncio
+    async def test_a_dropped_zone_is_announced_once_per_decision(self, caplog):
+        # A re-arm that decides the same thing (e.g. the tracker firing again
+        # after a fast re-register) is not a second decision — mirrors
+        # TestArmLogsOncePerDecision for the Finish-pinned arm.
+        mgr = _decide_manager([_run(0, 7200, ratio=3.0), _run(1, 3600, ratio=1.1)])
+        target = datetime.datetime(2026, 6, 21, 0, 0, tzinfo=UTC)
+        finish = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
+        caplog.set_level(logging.DEBUG)
+
+        sched = _sched(action="irrigate", zones="all")
+        await mgr._decide_and_run_start_pinned(sched, target, target, finish)
+        await mgr._decide_and_run_start_pinned(sched, target, target, finish)
+
+        dropped = [r for r in caplog.records if "do not fit" in r.message]
+        assert [r.levelno for r in dropped] == [logging.WARNING, logging.DEBUG]
 
 
 class TestIntervalStartTime:
