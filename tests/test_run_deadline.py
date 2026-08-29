@@ -391,3 +391,96 @@ class TestRotatingDeadline:
         assert (
             coord._record_run.await_args.kwargs["result"] == const.RUN_RESULT_COMPLETED
         )
+
+
+class TestDeadlineCutIsRecorded:
+    """A zone the deadline shortens has to reach the run log saying so.
+
+    Sequential and parallel do not record their own runs — they truncate the
+    zone in place and let ``_run_valve_metered`` log it — so the fact that the
+    deadline is why has to travel with the zone. The record itself is pinned in
+    test_metered_run.
+    """
+
+    async def test_sequential_marks_the_cut_zone(self):
+        coord = _coord()
+        coord.async_master_release = AsyncMock()
+        coord._run_trigger = Mock(return_value="schedule")
+        calls = []
+        coord._run_valve_metered = AsyncMock(
+            side_effect=lambda z, e, **kw: calls.append(
+                (z[const.ZONE_ID], kw.get("deadline_cut_from"))
+            )
+        )
+        deadline = dt_util.utcnow() + datetime.timedelta(seconds=400)
+        await coord._irrigate_zones_sequential(
+            [_zone(0, 600), _zone(1, 120)], deadline=deadline
+        )
+        # Zone 0 is cut and reports the 600 s it was planned for; zone 1 fits in
+        # what zone 0 left and is not marked.
+        assert calls == [(0, 600.0), (1, None)]
+
+    async def test_sequential_does_not_mark_a_flow_zone(self):
+        """A flow zone delivers to a measured volume and takes its safety
+        timeout from maximum_duration, so cutting ZONE_DURATION does not
+        shorten its run — logging it as deadline-cut would be a lie."""
+        coord = _coord()
+        coord.async_master_release = AsyncMock()
+        coord._run_trigger = Mock(return_value="schedule")
+        calls = []
+        coord._run_valve_metered = AsyncMock(
+            side_effect=lambda z, e, **kw: calls.append(kw.get("deadline_cut_from"))
+        )
+        deadline = dt_util.utcnow() + datetime.timedelta(seconds=400)
+        await coord._irrigate_zones_sequential(
+            [_zone(0, 600, **{const.ZONE_FLOW_SENSOR: "sensor.flow"})],
+            deadline=deadline,
+        )
+        assert calls == [None]
+
+    async def test_parallel_marks_the_cut_zone(self):
+        coord = _coord()
+        coord.async_master_acquire = AsyncMock()
+        coord._run_trigger = Mock(return_value="schedule")
+        calls = []
+        coord.hass.async_create_task = Mock()
+        coord._run_valve_metered = Mock(
+            side_effect=lambda z, e, **kw: calls.append(
+                (z[const.ZONE_ID], kw.get("deadline_cut_from"))
+            )
+        )
+        deadline = dt_util.utcnow() + datetime.timedelta(seconds=400)
+        await coord._irrigate_zones_parallel(
+            [_zone(0, 600), _zone(1, 120)], deadline=deadline
+        )
+        assert calls == [(0, 600.0), (1, None)]
+
+    async def test_no_deadline_marks_nothing(self):
+        coord = _coord()
+        coord.async_master_release = AsyncMock()
+        coord._run_trigger = Mock(return_value="schedule")
+        calls = []
+        coord._run_valve_metered = AsyncMock(
+            side_effect=lambda z, e, **kw: calls.append(kw.get("deadline_cut_from"))
+        )
+        await coord._irrigate_zones_sequential([_zone(0, 600)])
+        assert calls == [None]
+
+
+class TestResizeUsesTheThrottledRefresh:
+    """The re-price runs once per zone per chain, and once per zone per lap in a
+    rotation plus again after every absorption pause. The bare refresh
+    recomputes every zone and dispatches _estimates_updated on each of those."""
+
+    async def test_the_refresh_is_throttled_and_the_estimates_are_read_after(self):
+        coord = _coord(config=Mock(live_estimate_enabled=True))
+        coord.store.zones[0] = _zone(0, 600)
+        coord.async_refresh_zone_estimates = AsyncMock()
+        coord.async_refresh_zone_estimates_throttled = AsyncMock()
+        coord.async_get_cached_zone_estimates = AsyncMock(return_value={})
+        coord._zone_run_decision = Mock(return_value=None)
+        coord._unregister_active_run = Mock()
+        await coord._resize_queued_zone(_zone(0, 600), True)
+        coord.async_refresh_zone_estimates_throttled.assert_awaited_once()
+        coord.async_get_cached_zone_estimates.assert_awaited_once()
+        coord.async_refresh_zone_estimates.assert_not_awaited()

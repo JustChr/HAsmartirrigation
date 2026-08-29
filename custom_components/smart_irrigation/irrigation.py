@@ -1252,6 +1252,7 @@ class IrrigationRunnerMixin:
         real_flow: bool,
         trigger: str = "schedule",
         master_token=None,
+        deadline_cut_from: float | None = None,
     ) -> None:
         """Open a zone's valve and account for the water continuously until done.
 
@@ -1267,6 +1268,13 @@ class IrrigationRunnerMixin:
         ``ZONE_DURATION``. The final bucket is identical to the old end-of-run
         behaviour because the duration always delivers at least the deficit, so
         crediting the delivered depth clamps at the same target ``ceiling``.
+
+        ``deadline_cut_from`` is the duration the zone was planned for when its
+        caller shortened it to fit the run deadline. Without it the dispatch
+        paths that truncate a zone in place — sequential and parallel — record
+        an ordinary completed run of exactly the length they cut it to, and the
+        run log says nothing about why the zone got less water than it needed.
+        The rotation records its own partial, so it does not pass this.
         """
         zone_id = zone[const.ZONE_ID]
         domain = entity_id.split(".")[0]
@@ -1457,12 +1465,16 @@ class IrrigationRunnerMixin:
                 zone_id,
                 result=(
                     const.RUN_RESULT_PARTIAL
-                    if (stopped or timed_out)
+                    if (stopped or timed_out or deadline_cut_from)
                     else const.RUN_RESULT_COMPLETED
                 ),
                 volume_l=delivered,
                 add_to_total=False,  # already streamed in via _commit_run_progress
-                planned_s=None if real_flow else max_seconds,
+                # The cut zone reports the length it was PLANNED for, not the
+                # length it was cut to, so planned-against-actual reads as the
+                # shortfall it is instead of as a run that got everything it
+                # asked for.
+                planned_s=(None if real_flow else (deadline_cut_from or max_seconds)),
                 actual_s=elapsed,
                 detail=(
                     const.RUN_DETAIL_STOPPED
@@ -1470,7 +1482,11 @@ class IrrigationRunnerMixin:
                     else (
                         "safety_timeout"
                         if timed_out
-                        else zone.get(const.ZONE_EXPLANATION)
+                        else (
+                            const.RUN_DETAIL_DEADLINE
+                            if deadline_cut_from
+                            else zone.get(const.ZONE_EXPLANATION)
+                        )
                     )
                 ),
                 trigger=trigger,
@@ -2920,6 +2936,9 @@ class IrrigationRunnerMixin:
                 zone = await self._resize_queued_zone(queued, metric)
                 if zone is None:
                     continue
+                entity_id = zone[const.ZONE_LINKED_ENTITY]
+                real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
+                cut_from = None
                 if deadline is not None:
                     remaining = (deadline - dt_util.utcnow()).total_seconds()
                     if remaining <= 0:
@@ -2940,9 +2959,13 @@ class IrrigationRunnerMixin:
                             round(remaining),
                             deadline,
                         )
+                        # A flow zone delivers to a measured volume and reads
+                        # its safety timeout from maximum_duration, so cutting
+                        # ZONE_DURATION does not shorten its run and must not be
+                        # logged as though it had.
+                        if not real_flow:
+                            cut_from = float(zone.get(const.ZONE_DURATION) or 0)
                         zone = {**zone, const.ZONE_DURATION: remaining}
-                entity_id = zone[const.ZONE_LINKED_ENTITY]
-                real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
                 _LOGGER.info(
                     "Sequential irrigation: zone %s (%s)",
                     zone[const.ZONE_ID],
@@ -2953,6 +2976,7 @@ class IrrigationRunnerMixin:
                     entity_id,
                     real_flow=real_flow,
                     trigger=self._run_trigger(zone[const.ZONE_ID]),
+                    deadline_cut_from=cut_from,
                 )
                 _LOGGER.info("Sequential irrigation: finished %s", entity_id)
         finally:
@@ -2991,7 +3015,14 @@ class IrrigationRunnerMixin:
         planned = zone.get(const.ZONE_DURATION) or 0
         try:
             fresh = self.store.get_zone(zid)
-            estimates = await self.async_refresh_zone_estimates()
+            # Throttled, not the bare refresh: this runs once per zone in a
+            # chain and once per zone per lap in a rotation, plus again after
+            # every absorption pause, and each bare call recomputes every zone
+            # and fires _estimates_updated. Not the plain cache either — the
+            # whole point is to see rain that fell since dispatch, which a cache
+            # with no floor on its age cannot show.
+            await self.async_refresh_zone_estimates_throttled()
+            estimates = await self.async_get_cached_zone_estimates()
         except Exception as e:  # noqa: BLE001 — never abort a run over a re-price
             _LOGGER.debug("Zone %s: could not re-price before its turn: %s", zid, e)
             return zone
@@ -3047,6 +3078,9 @@ class IrrigationRunnerMixin:
                 )
                 return
         for zone in zones:
+            entity_id = zone[const.ZONE_LINKED_ENTITY]
+            real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
+            cut_from = None
             if remaining is not None and (zone.get(const.ZONE_DURATION) or 0) > (
                 remaining
             ):
@@ -3058,9 +3092,11 @@ class IrrigationRunnerMixin:
                     round(remaining),
                     deadline,
                 )
+                # See _irrigate_zones_sequential: a flow zone's run is not
+                # actually shortened by cutting ZONE_DURATION.
+                if not real_flow:
+                    cut_from = float(zone.get(const.ZONE_DURATION) or 0)
                 zone = {**zone, const.ZONE_DURATION: remaining}
-            entity_id = zone[const.ZONE_LINKED_ENTITY]
-            real_flow = bool(zone.get(const.ZONE_FLOW_SENSOR))
             _LOGGER.info(
                 "Parallel irrigation: zone %s (%s)",
                 zone[const.ZONE_ID],
@@ -3077,6 +3113,7 @@ class IrrigationRunnerMixin:
                     real_flow=real_flow,
                     trigger=self._run_trigger(zone[const.ZONE_ID]),
                     master_token=token,
+                    deadline_cut_from=cut_from,
                 )
             )
 
