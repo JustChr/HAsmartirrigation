@@ -20,7 +20,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .batch import is_batch_zone
-from .duration_math import zone_run_duration
+from .duration_math import calibrated_flow_seconds, zone_run_duration
 from .flow_metering import (
     FlowMeter,
     flow_is_totalizer,
@@ -1291,7 +1291,9 @@ class IrrigationRunnerMixin:
                 live.discard(int(zone_id))
             ceiling = self._zone_target_bucket(zone)
             target_volume = self._metered_target_volume(zone, ceiling)
-            max_seconds = float(zone.get(const.ZONE_MAXIMUM_DURATION) or 14400)
+            max_seconds = float(
+                zone.get(const.ZONE_MAXIMUM_DURATION) or const.FLOW_SAFETY_TIMEOUT
+            )
             rate_lpm = 0.0
             _LOGGER.info(
                 "Metered (flow) irrigation: zone %s target %.1f L (sensor: %s)",
@@ -1752,7 +1754,10 @@ class IrrigationRunnerMixin:
             return timed_remaining.get(zid, 0) <= 0
 
         def _flow_done(zid):
-            safety = flow_by_id[zid].get(const.ZONE_MAXIMUM_DURATION) or 14400
+            safety = (
+                flow_by_id[zid].get(const.ZONE_MAXIMUM_DURATION)
+                or const.FLOW_SAFETY_TIMEOUT
+            )
             return (
                 flow_delivered[zid] >= flow_target[zid] or flow_elapsed[zid] >= safety
             )
@@ -1868,7 +1873,8 @@ class IrrigationRunnerMixin:
                         flow_delivered[zid] = max(flow_delivered[zid], flow_target[zid])
                         flow_elapsed[zid] = max(
                             flow_elapsed[zid],
-                            flow_by_id[zid].get(const.ZONE_MAXIMUM_DURATION) or 14400,
+                            flow_by_id[zid].get(const.ZONE_MAXIMUM_DURATION)
+                            or const.FLOW_SAFETY_TIMEOUT,
                         )
                     else:
                         timed_remaining[zid] = 0
@@ -1919,7 +1925,9 @@ class IrrigationRunnerMixin:
                 if is_flow:
                     z = flow_by_id[zid]
                     entity_id = z[const.ZONE_LINKED_ENTITY]
-                    safety = z.get(const.ZONE_MAXIMUM_DURATION) or 14400
+                    safety = (
+                        z.get(const.ZONE_MAXIMUM_DURATION) or const.FLOW_SAFETY_TIMEOUT
+                    )
                     slot = min(max_slot, safety - flow_elapsed[zid])
                     if window is not None:
                         slot = min(slot, window)
@@ -2426,21 +2434,52 @@ class IrrigationRunnerMixin:
                 # that is satisfied now can be due. Duration 0 keeps it out of
                 # any wall-clock sum that uses the live durations.
                 decision = None
+            duration = decision.duration if decision else 0.0
+            if duration > 0 and zone.get(const.ZONE_FLOW_SENSOR):
+                # The decision priced this zone's volume at its CONFIGURED
+                # throughput, the way a timed zone is priced. Its own runs have
+                # measured what the plumbing actually delivers.
+                duration = calibrated_flow_seconds(zone, duration, metric)
             planned.append(
                 ZoneRun(
                     zone_id=int(zone.get(const.ZONE_ID)),
-                    duration=decision.duration if decision else 0.0,
+                    duration=duration,
                     depletion_ratio=decision.ratio if decision else 0.0,
                     last_irrigation=zone.get(const.ZONE_LAST_IRRIGATION),
                     maximum_duration=zone.get(const.ZONE_MAXIMUM_DURATION),
                     track=track_for_zone(zone),
                     lead_time=zone.get(const.ZONE_LEAD_TIME) or 0.0,
                     flow=bool(zone.get(const.ZONE_FLOW_SENSOR)),
+                    confirm_seconds=self._zone_confirm_seconds(zone),
                     station=station_facts(self.hass, zone),
                 )
             )
         self._log_station_grouping(planned)
         return planned
+
+    def _zone_confirm_seconds(self, zone: dict) -> float:
+        """Seconds this zone's dispatch may spend confirming its valve opened.
+
+        Paid before any water flows and modelled nowhere:
+        ``_run_valve_metered`` sets ``elapsed = 0`` only once
+        ``_confirm_valve_running`` has returned, so on a chain the whole poll
+        lands between one zone's water and the next. Reported at the poll's
+        ceiling because the only caller is an arm reserving room for it -- a
+        valve that reports back promptly simply leaves the run finishing early.
+
+        Zero for the dispatches that never poll: a station, where the controller
+        owns the open and a queued station is not running at +30s anyway, and a
+        self-closing valve with no confirm entity, which is credited
+        optimistically.
+        """
+        if self._sc_is_self_closing(zone):
+            confirm = zone.get(const.ZONE_CONFIRM_ENTITY)
+            if not confirm or is_opensprinkler_zone(zone):
+                return 0.0
+            return float(const.VALVE_CONFIRM_TIMEOUT)
+        if is_opensprinkler_zone(zone) or not zone.get(const.ZONE_LINKED_ENTITY):
+            return 0.0
+        return float(const.VALVE_CONFIRM_TIMEOUT)
 
     def _log_station_grouping(self, planned: list) -> None:
         """Say, once, whether the controller's grouping priced the station track.

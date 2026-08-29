@@ -61,13 +61,14 @@ def _manager(plan=(), sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL):
     return mgr
 
 
-def _run(zone_id, duration, ratio=2.0, maximum=None, track=TRACK_CLASSIC):
+def _run(zone_id, duration, ratio=2.0, maximum=None, track=TRACK_CLASSIC, confirm=0.0):
     return ZoneRun(
         zone_id=zone_id,
         duration=duration,
         depletion_ratio=ratio,
         maximum_duration=maximum,
         track=track,
+        confirm_seconds=confirm,
     )
 
 
@@ -376,6 +377,41 @@ class TestDecideAndArm:
         mgr = _manager(
             plan=[_run(0, 3600), _run(1, 1800, track=TRACK_SELF_CLOSING)],
         )
+        target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        with patch(
+            "custom_components.smart_irrigation.scheduler."
+            "async_track_point_in_utc_time"
+        ) as track:
+            await mgr._decide_and_arm(_schedule(), target, None, commit=True)
+        assert track.call_args[0][2] == datetime.datetime(2026, 6, 21, 5, 0, tzinfo=UTC)
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_the_start_reserves_the_valve_confirm_the_demand_omits(self):
+        """The demand prices water; the chain also polls each valve for its
+        on-state before that zone's water starts. Armed at target - demand the
+        run has no room for those polls at all, and since the finish reaches
+        the runner as a hard deadline they come out of the tail."""
+        mgr = _manager(plan=[_run(0, 1800, confirm=30), _run(1, 1800, confirm=30)])
+        target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
+        with patch(
+            "custom_components.smart_irrigation.scheduler."
+            "async_track_point_in_utc_time"
+        ) as track:
+            await mgr._decide_and_arm(_schedule(), target, None, commit=True)
+        # 3600 s of water plus a 30 s poll per zone: the start moves back by the
+        # 60 s the run really spends on them, and the finish still holds.
+        assert track.call_args[0][2] == datetime.datetime(
+            2026, 6, 21, 4, 59, tzinfo=UTC
+        )
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
+    async def test_a_dispatch_that_never_polls_reserves_nothing_extra(self):
+        """A station is opened by the controller and a self-closing valve with
+        no confirm entity is credited optimistically. Neither polls, so neither
+        moves the start."""
+        mgr = _manager(plan=[_run(0, 1800), _run(1, 1800)])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
             "custom_components.smart_irrigation.scheduler."

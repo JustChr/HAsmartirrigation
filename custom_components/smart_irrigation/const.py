@@ -503,6 +503,12 @@ VALVE_CONFIRM_POLL = 1
 # Re-send the open command once, this many seconds into the confirm window, to
 # recover a command silently dropped by a sleepy valve.
 VALVE_CONFIRM_RETRY_AT = 15
+# How long a flow zone with no maximum_duration is allowed to run before its
+# safety timeout closes it. A flow run is volume-targeted, so unlike a timed run
+# nothing else bounds it. Named rather than repeated inline because the pricing
+# in duration_math has to clamp to the same ceiling the run stops at, and two
+# copies of a number are two numbers.
+FLOW_SAFETY_TIMEOUT = 14400
 # Fault reason codes (also i18n keys under panels.zones.fault.*).
 FAULT_VALVE_NO_RESPONSE = "valve_no_response"
 FAULT_FLOW_NEVER_STARTED = "flow_never_started"

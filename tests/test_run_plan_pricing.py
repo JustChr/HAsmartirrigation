@@ -92,6 +92,45 @@ class TestThePlanCarriesWhatTheBoundNeeds:
         (plan,) = await coord.async_plan_zone_runs()
         assert plan.flow is True
 
+    async def test_a_classic_zone_carries_its_confirm_cost(self, monkeypatch):
+        coord = _coord(monkeypatch, [_zone(**{const.ZONE_LINKED_ENTITY: "switch.z"})])
+        (plan,) = await coord.async_plan_zone_runs()
+        assert plan.confirm_seconds == const.VALVE_CONFIRM_TIMEOUT
+
+    async def test_a_flow_zone_is_priced_at_the_rate_its_runs_measured(
+        self, monkeypatch
+    ):
+        """Nothing in the planner knows a zone is flow-metered, so its duration
+        is derived from the CONFIGURED throughput while the run delivers at the
+        rate the plumbing has. A zone plumbed at half its setting overruns that
+        estimate on every single run."""
+        coord = _coord(
+            monkeypatch,
+            [
+                _zone(
+                    **{
+                        const.ZONE_FLOW_SENSOR: "sensor.flow",
+                        const.ZONE_LEAD_TIME: 0,
+                        const.ZONE_MAXIMUM_DURATION: 0,
+                        const.ZONE_THROUGHPUT: 10.0,
+                        const.ZONE_FLOW_CAL_SAMPLES: [5.0, 5.0, 5.0],
+                    }
+                )
+            ],
+        )
+        (plan,) = await coord.async_plan_zone_runs()
+        assert plan.duration == 1200  # the stored 600 s at half the rate
+
+    async def test_a_timed_zone_is_never_re_priced(self, monkeypatch):
+        """It delivers to a duration, so the configured throughput is not an
+        assumption about it -- it is the thing the run obeys."""
+        coord = _coord(
+            monkeypatch,
+            [_zone(**{const.ZONE_FLOW_CAL_SAMPLES: [5.0, 5.0, 5.0]})],
+        )
+        (plan,) = await coord.async_plan_zone_runs()
+        assert plan.duration == 600
+
 
 class TestDurationForDeficitGoesThroughTheSharedHelper:
     """``zone_run_duration`` exists to be the one place a zone dict is unpacked

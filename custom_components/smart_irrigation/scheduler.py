@@ -1522,22 +1522,41 @@ class RecurringScheduleManager:
             max_slot_seconds=slot,
             min_absorption_seconds=absorption,
         )
+        # What the arm has to RESERVE is not what the run costs. The demand
+        # above prices water and nothing else, but the chain also pays a
+        # valve-confirm poll per zone before each zone's water starts, and the
+        # finish reaches the runner as a hard deadline: armed at target - demand
+        # exactly, a run that the selection said fits has no room at all for
+        # that poll, and the deadline cuts its tail on the nights it was
+        # supposed to fit. Reserving the poll's ceiling costs a run that
+        # finishes early where valves report back promptly, which is the
+        # cheaper of the two errors by a wide margin. Selection and the dial
+        # keep pricing the water alone, so nothing here changes which zones run.
+        reserve = concurrent_wall_clock(
+            selection,
+            sequencing=sequencing,
+            max_slot_seconds=slot,
+            min_absorption_seconds=absorption,
+            include_confirm=True,
+        )
         # When everything fits, the slack sits BEFORE the start, which is where
         # it belongs; the run still ends on the target. Only when the demand
         # outruns the window is the start pinned to the floor and both ends of
         # the window fixed.
-        fire_time = max(start_floor, target - datetime.timedelta(seconds=demand))
+        fire_time = max(start_floor, target - datetime.timedelta(seconds=reserve))
         if fire_time <= now_utc:
             fire_time = now_utc + datetime.timedelta(seconds=2)
 
         log = _LOGGER.info if new else _LOGGER.debug
         log(
-            "Finish schedule '%s': target %s, %s zone(s) %s, demand %ss → start %s",
+            "Finish schedule '%s': target %s, %s zone(s) %s, demand %ss "
+            "(reserving %ss) → start %s",
             name,
             target,
             len(selection),
             [p.zone_id for p in selection],
             round(demand),
+            round(reserve),
             fire_time,
         )
 

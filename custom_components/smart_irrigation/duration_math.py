@@ -86,3 +86,56 @@ def zone_run_duration(zone, deficit, metric, *, capped=True):
         zone.get(const.ZONE_LEAD_TIME),
         metric,
     )
+
+
+def calibrated_flow_seconds(zone, planned_seconds, metric):
+    """``planned_seconds`` for a flow zone, re-priced at the rate it measured.
+
+    Nothing in the planner knows a zone is flow-metered: a flow zone's duration
+    is derived from its CONFIGURED throughput exactly as a timed zone's is, and
+    is really ``target_volume / configured_rate``. The run then ignores that
+    number entirely and delivers to the measured volume, so the two agree only
+    where the configured throughput matches the plumbing. Where it does not,
+    the error is systematic and one-directional per zone -- a zone plumbed
+    slower than its setting overruns its estimate on every single run.
+
+    ``_flow_calibration_check`` already measures the true rate, banking the
+    observed litres-per-minute of each metered run in
+    ``flow_calibration_samples`` in order to advise on the setting. Once there
+    are enough samples to advise on, there are enough to price with, so the
+    watering part of the estimate is scaled by
+    ``configured_rate / observed_rate``. Nothing is invented: an install whose
+    setting is right measures the same rate back and the estimate does not move.
+
+    Only the watering scales. ``lead_time`` is a fixed cost of opening the zone
+    and does not stretch with the flow. The result is clamped to the ceiling the
+    run itself stops at (``maximum_duration``, or ``FLOW_SAFETY_TIMEOUT`` when
+    unset), so a mis-scaled sensor cannot price a zone past the point its own
+    safety timeout would close it.
+
+    ``planned_seconds`` is returned unchanged for a zone with too few samples to
+    advise on, or with either rate unreadable -- the configured throughput is
+    the only answer available there.
+    """
+    planned = float(planned_seconds or 0.0)
+    if planned <= 0:
+        return planned
+    samples = [s for s in (zone.get(const.ZONE_FLOW_CAL_SAMPLES) or []) if s]
+    if len(samples) < const.FLOW_CAL_MIN_SAMPLES:
+        return planned
+    observed_lpm = sum(float(s) for s in samples) / len(samples)
+    configured = float(zone.get(const.ZONE_THROUGHPUT) or 0.0)
+    if not metric:
+        # The samples are litres per minute whatever the install's units --
+        # _flow_calibration_check divides measured litres by minutes. The
+        # configured throughput is in the DISPLAY unit, so on an imperial
+        # install the two are gal/min against L/min and the ratio would be out
+        # by 3.785 in the direction that under-reserves.
+        configured = configured * const.GALLON_TO_LITER_FACTOR
+    if configured <= 0 or observed_lpm <= 0:
+        return planned
+    lead = float(zone.get(const.ZONE_LEAD_TIME) or 0.0)
+    watering = max(0.0, planned - lead)
+    corrected = lead + watering * (configured / observed_lpm)
+    ceiling = float(zone.get(const.ZONE_MAXIMUM_DURATION) or const.FLOW_SAFETY_TIMEOUT)
+    return min(corrected, ceiling)
