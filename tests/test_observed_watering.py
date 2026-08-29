@@ -366,6 +366,67 @@ async def test_phantom_open_does_not_feed_calibration_advisory():
     coord._flow_calibration_check.assert_not_awaited()
 
 
+async def test_short_external_open_does_not_feed_advisory():
+    # #111 follow-up. The advisory samples an observed RATE (litres / minutes), so a
+    # short open divides a coarsely-quantised volume by a tiny number. A 6 s open on a
+    # 1 L/pulse meter registers one pulse -> 10 L/min against a CORRECT 3.1 L/min
+    # nameplate (+223%). Three of those fire a notification recommending a throughput
+    # that was never wrong. Unlike self-closing (planned_s) and the distributor (which
+    # excludes duration_override), this path samples whatever the user's hand did, so
+    # it needs its own representative-run gate.
+    coord = _credit_coord(_flow_credit_zone())
+    await coord._credit_observed_watering(2, 6.0, measured_l=1.0, sensor_present=True)
+    coord._flow_calibration_check.assert_not_awaited()
+    # the WATER is still credited — the gate is about sampling, not about crediting
+    assert coord._record_run.call_args.kwargs["volume_l"] == pytest.approx(1.0)
+
+
+async def test_run_at_the_length_floor_still_feeds_the_advisory():
+    # The other direction of the same gate: a run exactly at the floor is
+    # representative and must still be sampled, or the mirror test above would pass
+    # against a feed that had simply been deleted.
+    coord = _credit_coord(_flow_credit_zone())
+    seconds = float(const.OBSERVED_FLOW_CAL_MIN_SECONDS)
+    await coord._credit_observed_watering(
+        2, seconds, measured_l=25.0, sensor_present=True
+    )
+    coord._flow_calibration_check.assert_awaited_once()
+    args = coord._flow_calibration_check.call_args.args
+    assert args[1] == pytest.approx(25.0)
+    assert args[2] == seconds
+
+
+async def test_measured_branch_does_not_warn_about_a_substituted_ceiling(caplog):
+    # #111 follow-up. _observed_capped_seconds warns that a run "was credited as only
+    # N s" when it substitutes the default ceiling. On the measured branch neither the
+    # volume nor the recorded seconds are capped any more, so that warning would
+    # describe a capping that did not happen.
+    zone = {**_flow_credit_zone(), const.ZONE_MAXIMUM_DURATION: 0}  # no usable ceiling
+    coord = _credit_coord(zone)
+    with caplog.at_level(logging.WARNING):
+        await coord._credit_observed_watering(
+            2, 21304, measured_l=140.0, sensor_present=True
+        )
+    kwargs = coord._record_run.call_args.kwargs
+    assert kwargs["volume_l"] == pytest.approx(140.0)  # uncapped
+    assert kwargs["actual_s"] == 21304  # raw seconds
+    assert not [r for r in caplog.records if "credited as only" in r.message]
+
+
+async def test_time_based_branch_still_warns_about_a_substituted_ceiling(caplog):
+    # ...and the warning is still emitted where it IS true: a non-flow zone's credit
+    # really is bounded by the substituted ceiling.
+    zone = {
+        **_flow_credit_zone(),
+        const.ZONE_MAXIMUM_DURATION: 0,
+        const.ZONE_FLOW_SENSOR: None,
+    }
+    coord = _credit_coord(zone)
+    with caplog.at_level(logging.WARNING):
+        await coord._credit_observed_watering(2, 21304)
+    assert [r for r in caplog.records if "credited as only" in r.message]
+
+
 async def test_dead_sensor_does_not_feed_calibration_advisory():
     coord = _credit_coord(_flow_credit_zone())
     coord._observed_flag_dead_sensor = Mock()

@@ -772,9 +772,25 @@ ZONE_OBSERVED_ENTITY = "observed_entity"
 # An observed (external) run can credit no more water than SI itself would ever
 # run this valve for: cap its counted seconds at the zone's maximum_duration plus
 # a small margin so a legitimate external run finishing just past the cap is not
-# clipped. Guards non-flow zones (no sensor to contradict a stuck-open valve) and
-# is the sanity ceiling on measured flow too. See ObservedWateringMixin.
+# clipped. Guards non-flow zones (no sensor to contradict a stuck-open valve).
+# NOT a ceiling on measured flow: since #102/#111 a flow sensor's reading is the
+# authority and is credited as-is. See ObservedWateringMixin.
 OBSERVED_CAP_MARGIN_SECONDS = 30
+# Shortest external run that may feed the flow-calibration advisory (#111 follow-up).
+# The advisory samples an observed RATE (litres / minutes), so a short run divides a
+# coarsely-quantised volume by a very small number. Residential meters commonly pulse
+# at 1 L: a 6 s open on a 3.1 L/min zone registers either 0 L (already gated out by
+# `measured_l > 0`) or one 1 L pulse, reading as 10 L/min — a +223% deviation on a
+# CORRECTLY configured zone. Three of those fill FLOW_CAL_MIN_SAMPLES, fire a
+# persistent notification recommending a throughput that was never wrong, AND evict
+# the healthy samples that real runs contributed to the 5-deep window.
+# Sized so one pulse of quantisation stays inside FLOW_CAL_DEVIATION: at 3.1 L/min a
+# 1 L error is 15% of the reading only once the run exceeds ~130 s, so 300 s leaves
+# room for a slower zone. Erring strict is deliberate — a missed sample only makes the
+# advisory less eager, while a false one tells the user to break a working setting.
+# Unlike self-closing and the distributor, which sample SI's OWN planned runs, the
+# observed path sees any external valve open, including a few seconds of hand-testing.
+OBSERVED_FLOW_CAL_MIN_SECONDS = 300
 # Per-member flow-calibration advisory (distributor can't-stop members only). A
 # member whose valve can't early-stop runs a fixed window; if the configured
 # throughput is wrong it silently over/under-waters. We keep a rolling list of

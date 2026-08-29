@@ -283,7 +283,9 @@ class ObservedWateringMixin:
             sensor,
         )
 
-    def _observed_capped_seconds(self, zone: dict, seconds: float) -> float:
+    def _observed_capped_seconds(
+        self, zone: dict, seconds: float, *, warn: bool = True
+    ) -> float:
         """Bound external-run seconds at maximum_duration + margin.
 
         An external open can be as long as a stuck-open valve is willing to
@@ -308,13 +310,20 @@ class ObservedWateringMixin:
         free: warn whenever the substituted ceiling actually binds, so it is
         visible rather than silent. Reachable only by hand-editing the store or
         by calling the websocket API directly — the panel's field is `min="0"`.
+
+        ``warn=False`` for a caller whose credit this cap does not reach — the
+        measured branch since #111, which credits the sensor's volume as-is and
+        records the raw seconds. The warning claims the run "was credited as
+        only N s", so emitting it there would report a capping that did not
+        happen. The value is still returned: the time-based estimate is computed
+        on every path, it is simply not the one that gets used.
         """
         max_dur = zone.get(const.ZONE_MAXIMUM_DURATION)
         substituted = not max_dur or max_dur < 0
         if substituted:
             max_dur = const.CONF_DEFAULT_MAXIMUM_DURATION
         capped = min(float(seconds), float(max_dur) + const.OBSERVED_CAP_MARGIN_SECONDS)
-        if substituted and capped < float(seconds):
+        if warn and substituted and capped < float(seconds):
             _LOGGER.warning(
                 "Observed watering: zone %s has no usable maximum_duration (%s), "
                 "so its external run of %.0f s was credited as only %.0f s using "
@@ -379,8 +388,16 @@ class ObservedWateringMixin:
 
         # Cap the counted seconds: an external run credits no more than SI itself
         # would run this valve (see OBSERVED_CAP_MARGIN_SECONDS). Bounds the
-        # time-based volume AND is the sanity ceiling on measured flow.
-        capped_s = self._observed_capped_seconds(zone, seconds)
+        # time-based volume only — since #111 the measured branch credits the
+        # sensor's reading as-is and records the RAW seconds, so nothing about
+        # this cap reaches it. `warn` follows that: the substituted-ceiling
+        # warning says the run "was credited as only N s", which is a true
+        # statement on the two time-based branches and a false one on the
+        # measured branch, where neither the volume nor the seconds were capped.
+        measured_branch = sensor_present and measured_l is not None
+        capped_s = self._observed_capped_seconds(
+            zone, seconds, warn=not measured_branch
+        )
         time_volume_l = tput_lpm * (capped_s / 60.0)
 
         # Route the credit:
@@ -395,7 +412,7 @@ class ObservedWateringMixin:
         #  * flow sensor + NO usable measurement -> dead sensor, or a reset counter we
         #    could not measure; fall back to the capped time estimate and surface it.
         #  * no flow sensor           -> the capped time estimate.
-        if sensor_present and measured_l is not None:
+        if measured_branch:
             volume_l = max(0.0, float(measured_l))
             record_s = round(seconds)
         elif sensor_present and measured_l is None:
@@ -421,7 +438,12 @@ class ObservedWateringMixin:
         # Persistent, visible record of the external run (survives later bucket
         # changes, unlike the bucket credit). add_to_total credits the estimated
         # litres into the zone's usage total. Placed before the bucket update so
-        # the bucket write stays the method's final async_update_zone call.
+        # the credit is the last thing written here that TOUCHES THE BUCKET. It
+        # is no longer the method's final async_update_zone outright: since #111
+        # the flow-calibration advisory trails it with a store write of its own.
+        # That is safe because async_update_zone evolves the LIVE zone with the
+        # keys it is handed, and the advisory only ever writes its own two
+        # (samples + advised), so it cannot carry a stale bucket back over this.
         await self._record_run(
             zone_id,
             result=const.RUN_RESULT_OBSERVED,
@@ -459,9 +481,24 @@ class ObservedWateringMixin:
         # the shared flow-calibration advisory (the helper self-closing and the
         # distributor use), with the RAW seconds so the observed rate is true. A
         # throughput set far from the sensor's truth then surfaces as the existing
-        # advisory instead of being silently clipped. Gate on measured_l > 0: a
-        # phantom-open credits a legitimate 0.0 here (unlike self-closing, which
-        # resolves 0 to None), and a 0 L/min sample would poison the advisory into
-        # recommending ~0 throughput after a few stuck-open runs.
-        if sensor_present and measured_l is not None and float(measured_l) > 0:
+        # advisory instead of being silently clipped.
+        #
+        # TWO gates, because this path samples runs nobody planned. Its siblings feed
+        # the advisory from SI's OWN runs — self-closing passes `planned_s`, and the
+        # distributor excludes a manual `duration_override` — so both only ever sample
+        # a representative run. An external open is whatever the user's hand did.
+        #  * measured_l > 0: a phantom-open credits a legitimate 0.0 here (unlike
+        #    self-closing, which resolves 0 to None), and a 0 L/min sample would drive
+        #    the advisory to recommend ~0 throughput after a few stuck-open runs.
+        #  * seconds >= OBSERVED_FLOW_CAL_MIN_SECONDS: below that the observed RATE is
+        #    dominated by the meter's pulse resolution rather than by the zone's real
+        #    flow — a few seconds of hand-testing on a 1 L/pulse meter reads as a wild
+        #    over-rate and both fires a false advisory and evicts the good samples.
+        #    See the constant for the arithmetic.
+        # siehe test_observed_watering.py::test_short_external_open_does_not_feed_advisory
+        if (
+            measured_branch
+            and float(measured_l) > 0
+            and seconds >= const.OBSERVED_FLOW_CAL_MIN_SECONDS
+        ):
             await self._flow_calibration_check(zone, float(measured_l), seconds)
