@@ -42,6 +42,7 @@ from .run_window import (
     ZoneRun,
     nominal_demand_seconds,
     track_for_zone,
+    zone_confirm_seconds,
     zone_eligible_for_demand,
 )
 
@@ -2450,36 +2451,12 @@ class IrrigationRunnerMixin:
                     track=track_for_zone(zone),
                     lead_time=zone.get(const.ZONE_LEAD_TIME) or 0.0,
                     flow=bool(zone.get(const.ZONE_FLOW_SENSOR)),
-                    confirm_seconds=self._zone_confirm_seconds(zone),
+                    confirm_seconds=zone_confirm_seconds(zone),
                     station=station_facts(self.hass, zone),
                 )
             )
         self._log_station_grouping(planned)
         return planned
-
-    def _zone_confirm_seconds(self, zone: dict) -> float:
-        """Seconds this zone's dispatch may spend confirming its valve opened.
-
-        Paid before any water flows and modelled nowhere:
-        ``_run_valve_metered`` sets ``elapsed = 0`` only once
-        ``_confirm_valve_running`` has returned, so on a chain the whole poll
-        lands between one zone's water and the next. Reported at the poll's
-        ceiling because the only caller is an arm reserving room for it -- a
-        valve that reports back promptly simply leaves the run finishing early.
-
-        Zero for the dispatches that never poll: a station, where the controller
-        owns the open and a queued station is not running at +30s anyway, and a
-        self-closing valve with no confirm entity, which is credited
-        optimistically.
-        """
-        if self._sc_is_self_closing(zone):
-            confirm = zone.get(const.ZONE_CONFIRM_ENTITY)
-            if not confirm or is_opensprinkler_zone(zone):
-                return 0.0
-            return float(const.VALVE_CONFIRM_TIMEOUT)
-        if is_opensprinkler_zone(zone) or not zone.get(const.ZONE_LINKED_ENTITY):
-            return 0.0
-        return float(const.VALVE_CONFIRM_TIMEOUT)
 
     def _log_station_grouping(self, planned: list) -> None:
         """Say, once, whether the controller's grouping priced the station track.

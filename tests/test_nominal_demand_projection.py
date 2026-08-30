@@ -65,34 +65,54 @@ def _coord(zones, *, sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL, metric=Tr
 
 
 class TestTheProjection:
-    """The coordinator method, driven for real rather than stubbed."""
+    """The coordinator method, driven for real rather than stubbed.
+
+    Every zone below is classic with a linked entity, so each one the run
+    opens also charges a ``VALVE_CONFIRM_TIMEOUT`` poll. That is written into
+    each expected value rather than folded into the fixture, because the dial
+    reserving what the run really occupies is the point: a window drawn
+    without it is not the window the run gets.
+    """
 
     async def test_sums_the_selection_under_sequential(self):
         coord = _coord([_zone(1), _zone(2)])
-        assert await coord.async_nominal_demand_seconds("all") == 1200.0
+        assert await coord.async_nominal_demand_seconds("all") == (
+            1200.0 + 2 * const.VALVE_CONFIRM_TIMEOUT
+        )
 
     async def test_a_zone_selection_restricts_the_total(self):
         coord = _coord([_zone(1), _zone(2)])
-        assert await coord.async_nominal_demand_seconds(["1"]) == 600.0
+        assert await coord.async_nominal_demand_seconds(["1"]) == (
+            600.0 + const.VALVE_CONFIRM_TIMEOUT
+        )
 
     async def test_none_is_read_as_every_zone(self):
         """The schedule dicts store no ``zones`` key at all when they mean all
         of them, so None has to reach the same answer "all" does."""
         coord = _coord([_zone(1), _zone(2)])
-        assert await coord.async_nominal_demand_seconds(None) == 1200.0
+        assert await coord.async_nominal_demand_seconds(None) == (
+            1200.0 + 2 * const.VALVE_CONFIRM_TIMEOUT
+        )
 
     async def test_the_sequencing_setting_reaches_the_reduction(self):
         zones = [_zone(1), _zone(2)]
         parallel = _coord(zones, sequencing=const.CONF_ZONE_SEQUENCING_PARALLEL)
-        assert await parallel.async_nominal_demand_seconds("all") == 600.0
+        # Parallel opens every zone at once, so the polls overlap into one.
+        assert await parallel.async_nominal_demand_seconds("all") == (
+            600.0 + const.VALVE_CONFIRM_TIMEOUT
+        )
 
     async def test_a_disabled_zone_costs_the_schedule_nothing(self):
         zones = [_zone(1), _zone(2, **{const.ZONE_STATE: const.ZONE_STATE_DISABLED})]
-        assert await _coord(zones).async_nominal_demand_seconds("all") == 600.0
+        assert await _coord(zones).async_nominal_demand_seconds("all") == (
+            600.0 + const.VALVE_CONFIRM_TIMEOUT
+        )
 
     async def test_the_zones_maximum_duration_caps_its_share(self):
         coord = _coord([_zone(1, **{const.ZONE_MAXIMUM_DURATION: 120})])
-        assert await coord.async_nominal_demand_seconds("all") == 120.0
+        assert await coord.async_nominal_demand_seconds("all") == (
+            120.0 + const.VALVE_CONFIRM_TIMEOUT
+        )
 
     async def test_it_does_not_move_when_a_bucket_moves(self):
         """The property that separates this from demand. A schedule is a
@@ -119,8 +139,8 @@ class TestTheProjection:
         imperial = await _coord([_zone(1)], metric=False).async_nominal_demand_seconds(
             "all"
         )
-        assert metric == 600.0
-        assert imperial == pytest.approx(374.0, abs=0.5)
+        assert metric == 600.0 + const.VALVE_CONFIRM_TIMEOUT
+        assert imperial == pytest.approx(374.0 + const.VALVE_CONFIRM_TIMEOUT, abs=0.5)
 
     async def test_a_zero_threshold_prices_at_zero(self):
         """Review follow-up. Pinned because the number is surprising and the
@@ -143,7 +163,7 @@ class TestTheProjection:
             await _coord([_zone(1, threshold=-10.0)]).async_nominal_demand_seconds(
                 "all"
             )
-            == 600.0
+            == 600.0 + const.VALVE_CONFIRM_TIMEOUT
         )
 
     async def test_members_are_excluded_and_no_distributor_term_is_added(self):
@@ -167,7 +187,9 @@ class TestTheProjection:
         # A direct zone alongside them is priced, and priced ALONE — the
         # members add nothing, not even a sweep the run really performs.
         mixed = members_only + [_zone(3)]
-        assert await _coord(mixed).async_nominal_demand_seconds("all") == 600.0
+        assert await _coord(mixed).async_nominal_demand_seconds("all") == (
+            600.0 + const.VALVE_CONFIRM_TIMEOUT
+        )
 
 
 class TestTheRegisteredCommand:
