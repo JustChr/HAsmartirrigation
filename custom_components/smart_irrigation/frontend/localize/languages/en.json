@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation: check flow rate",
-    "message_over": "Zone '{zone}' is consistently over-watering: the measured flow is ~{percent}% above the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",
-    "message_under": "Zone '{zone}' is consistently under-watering: the measured flow is ~{percent}% below the configured rate over {runs} runs. Its valve can't stop early, so consider setting the throughput to about {rate} {unit} (currently {current}).",
+    "message_over": "Zone '{zone}' is consistently over-watering: the measured flow is ~{percent}% above the configured rate over {runs} runs. Consider setting the throughput to about {rate} {unit} (currently {current}).",
+    "message_under": "Zone '{zone}' is consistently under-watering: the measured flow is ~{percent}% below the configured rate over {runs} runs. Consider setting the throughput to about {rate} {unit} (currently {current}).",
     "open_settings": "Open zone settings"
   },
   "common": {

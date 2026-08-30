@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation: skontrolujte prietok",
-    "message_over": "Zóna '{zone}' trvalo zavlažuje priveľa: nameraný prietok je ~{percent}% nad nastavenou hodnotou počas {runs} cyklov. Jej ventil sa nedokáže zastaviť skôr — nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
-    "message_under": "Zóna '{zone}' trvalo zavlažuje primálo: nameraný prietok je ~{percent}% pod nastavenou hodnotou počas {runs} cyklov. Jej ventil sa nedokáže zastaviť skôr — nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
+    "message_over": "Zóna '{zone}' trvalo zavlažuje priveľa: nameraný prietok je ~{percent}% nad nastavenou hodnotou počas {runs} cyklov. Nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
+    "message_under": "Zóna '{zone}' trvalo zavlažuje primálo: nameraný prietok je ~{percent}% pod nastavenou hodnotou počas {runs} cyklov. Nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
     "open_settings": "Otvoriť nastavenia zóny"
   },
   "common": {

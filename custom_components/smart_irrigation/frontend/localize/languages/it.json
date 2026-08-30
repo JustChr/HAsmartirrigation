@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation: controlla la portata",
-    "message_over": "La zona '{zone}' irriga costantemente troppo: la portata misurata è ~{percent}% sopra il valore configurato su {runs} cicli. La sua valvola non può fermarsi prima — imposta la portata a circa {rate} {unit} (attualmente {current}).",
-    "message_under": "La zona '{zone}' irriga costantemente troppo poco: la portata misurata è ~{percent}% sotto il valore configurato su {runs} cicli. La sua valvola non può fermarsi prima — imposta la portata a circa {rate} {unit} (attualmente {current}).",
+    "message_over": "La zona '{zone}' irriga costantemente troppo: la portata misurata è ~{percent}% sopra il valore configurato su {runs} cicli. Imposta la portata a circa {rate} {unit} (attualmente {current}).",
+    "message_under": "La zona '{zone}' irriga costantemente troppo poco: la portata misurata è ~{percent}% sotto il valore configurato su {runs} cicli. Imposta la portata a circa {rate} {unit} (attualmente {current}).",
     "open_settings": "Apri le impostazioni della zona"
   },
   "common": {

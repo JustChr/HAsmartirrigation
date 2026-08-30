@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation: comprueba el caudal",
-    "message_over": "La zona '{zone}' riega sistemáticamente en exceso: el caudal medido está ~{percent}% por encima del valor configurado durante {runs} ciclos. Su válvula no puede detenerse antes — ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
-    "message_under": "La zona '{zone}' riega sistemáticamente por defecto: el caudal medido está ~{percent}% por debajo del valor configurado durante {runs} ciclos. Su válvula no puede detenerse antes — ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
+    "message_over": "La zona '{zone}' riega sistemáticamente en exceso: el caudal medido está ~{percent}% por encima del valor configurado durante {runs} ciclos. Ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
+    "message_under": "La zona '{zone}' riega sistemáticamente por defecto: el caudal medido está ~{percent}% por debajo del valor configurado durante {runs} ciclos. Ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
     "open_settings": "Abrir la configuración de la zona"
   },
   "common": {

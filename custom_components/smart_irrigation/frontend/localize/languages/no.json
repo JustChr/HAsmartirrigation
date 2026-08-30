@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation: sjekk gjennomstrømningen",
-    "message_over": "Sonen '{zone}' vanner konsekvent for mye: den målte gjennomstrømningen er ~{percent}% over den konfigurerte raten over {runs} kjøringer. Ventilen kan ikke stoppe tidligere — sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
-    "message_under": "Sonen '{zone}' vanner konsekvent for lite: den målte gjennomstrømningen er ~{percent}% under den konfigurerte raten over {runs} kjøringer. Ventilen kan ikke stoppe tidligere — sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
+    "message_over": "Sonen '{zone}' vanner konsekvent for mye: den målte gjennomstrømningen er ~{percent}% over den konfigurerte raten over {runs} kjøringer. Sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
+    "message_under": "Sonen '{zone}' vanner konsekvent for lite: den målte gjennomstrømningen er ~{percent}% under den konfigurerte raten over {runs} kjøringer. Sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
     "open_settings": "Åpne soneinnstillinger"
   },
   "common": {
