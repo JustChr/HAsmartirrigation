@@ -248,10 +248,13 @@ class BatchMixin:
         volume_l = self._timed_volume_l(zone, seconds)
         depth = self._credited_depth_native(zone, volume_l)
         pre_bucket = float(zone.get(const.ZONE_BUCKET) or 0)
-        ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
-        new_bucket = pre_bucket + depth
-        if ceiling and new_bucket > ceiling:
-            new_bucket = float(ceiling)
+        # Clamp at the RUN's ceiling, not at maximum_bucket: a timed duration is
+        # lead_time + water_time but the credit prices the whole open window, so
+        # every timed run over-credits by the lead time's flow and relies on the
+        # target to absorb it — exactly as _run_valve_metered does. maximum_bucket
+        # is the live-estimate surplus allowance, which _run_ceiling still returns
+        # for a live-estimate run. See tests/test_credit_ceiling.py (issue #88).
+        new_bucket = min(self._run_ceiling(zone), pre_bucket + depth)
         await self.async_write_watered_bucket(zone_id, new_bucket)
 
         await self._sc_add_run(

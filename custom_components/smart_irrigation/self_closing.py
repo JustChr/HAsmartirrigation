@@ -438,14 +438,13 @@ class SelfClosingMixin:
             # Optimistic bucket credit (the valve owns the close -> assume completion).
             volume_l = self._timed_volume_l(zone, planned_seconds)
             depth = self._credited_depth_native(zone, volume_l)
-            ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
             # Stash the pre-run bucket so the finish can reconcile the measured credit
             # ABSOLUTELY from B0 (this optimistic credit may clamp at the ceiling; a
             # delta correction at finish would then over-/under-shoot). See _sc_finish_run.
             pre_bucket = float(zone.get(const.ZONE_BUCKET) or 0)
-            new_bucket = pre_bucket + depth
-            if ceiling and new_bucket > ceiling:
-                new_bucket = float(ceiling)
+            # Clamp at the RUN's ceiling, not at maximum_bucket — see the same fix
+            # in batch._batch_record_run and tests/test_credit_ceiling.py (issue #88).
+            new_bucket = min(self._run_ceiling(zone), pre_bucket + depth)
             await self.async_write_watered_bucket(zone_id, new_bucket)
             # NB: water_used_total is NOT counted here — it is recorded once at the
             # run's actual end (_sc_finish_run / async_stop_self_closing) for the

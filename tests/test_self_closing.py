@@ -843,6 +843,11 @@ async def test_self_closing_measured_bucket_reconciles_from_pre_bucket(monkeypat
 
     c = _coord()
     c._timed_volume_l = Mock(return_value=30.0)  # time-based open credit -> depth 30
+    # A credit that lands ABOVE the run target only happens on a live-estimate
+    # run, whose intra-day deficit can exceed the stored daily bucket — that is
+    # the one case _run_ceiling allows a surplus (up to maximum_bucket) for. An
+    # ordinary run clamps at the target; see tests/test_credit_ceiling.py.
+    c._live_run_zones = {2}
     c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)  # identity
 
     zone = _zone(
@@ -922,6 +927,11 @@ async def test_self_closing_early_stop_bucket_reconciles_from_pre_bucket(monkeyp
 
     c = _coord()
     c._timed_volume_l = Mock(return_value=30.0)  # open credit depth 30 (identity depth)
+    # A credit that lands ABOVE the run target only happens on a live-estimate
+    # run, whose intra-day deficit can exceed the stored daily bucket — that is
+    # the one case _run_ceiling allows a surplus (up to maximum_bucket) for. An
+    # ordinary run clamps at the target; see tests/test_credit_ceiling.py.
+    c._live_run_zones = {2}
     c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)
 
     zone = _zone(
@@ -983,6 +993,11 @@ async def test_self_closing_early_stop_credits_measured_over_timed(monkeypatch):
 
     c = _coord()
     c._timed_volume_l = Mock(return_value=30.0)  # open credit depth 30 (identity depth)
+    # A credit that lands ABOVE the run target only happens on a live-estimate
+    # run, whose intra-day deficit can exceed the stored daily bucket — that is
+    # the one case _run_ceiling allows a surplus (up to maximum_bucket) for. An
+    # ordinary run clamps at the target; see tests/test_credit_ceiling.py.
+    c._live_run_zones = {2}
     c._credited_depth_native = Mock(side_effect=lambda z, litres: litres)
 
     zone = _zone(
