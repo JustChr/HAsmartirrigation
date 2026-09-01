@@ -17,9 +17,13 @@ These tests drive the real ``_setup_schedule_tracker`` rather than stubbing it,
 so the "unarmable" cases are ones a stored schedule can actually reach.
 """
 
+import datetime
+import threading
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
 from custom_components.smart_irrigation import scheduler as scheduler_module
@@ -213,3 +217,72 @@ class TestTheTrackerKeptIsTheOneTheManagerArmed:
         assert handles == [armed], "the rebuild must not have armed anything"
         assert manager._schedule_trackers["s1"] is armed
         assert not armed.cancelled
+
+
+class TestTheKeptTrackerStillFires:
+    """Every other test here reads the tracker slot, which is the same dict the
+    implementation writes. This one asks Home Assistant instead: it arms a real
+    ``async_track_time_change``, puts an unarmable re-arm through it, advances
+    the clock to the schedule's own time, and asserts the schedule executes. A
+    fix that kept a handle Home Assistant had already forgotten would fail here
+    and pass everywhere else.
+
+    Two things make this awkward to write, and both are properties of the
+    scheduler rather than of the test:
+
+    ``_setup_governing_tracker`` tracks a plain lambda, so Home Assistant types
+    the job ``HassJobType.Executor`` and runs the action in a worker thread.
+    ``async_block_till_done`` does not join that thread -- the assertion runs
+    first and the list is still empty -- which is why the action signals a
+    ``threading.Event`` and the test waits on it. Anything else asserting that a
+    schedule fired needs the same wait.
+
+    The time-change listener re-checks the clock when it runs and reschedules if
+    the instant has not arrived, so ``async_fire_time_changed`` alone does
+    nothing: the frozen clock has to be moved to the target as well.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_schedule_survives_an_unarmable_rearm_and_still_executes(
+        self, hass, freezer
+    ):
+        start = datetime.datetime(2026, 9, 1, 12, 0, tzinfo=datetime.timezone.utc)
+        freezer.move_to(start)
+
+        coordinator = create_autospec(SmartIrrigationCoordinator, instance=True)
+        manager = RecurringScheduleManager(hass, coordinator)
+        manager._persist_fired_occurrences = AsyncMock()
+
+        target = start + datetime.timedelta(minutes=2)
+        local = dt_util.as_local(target)
+        schedule = _daily(
+            **{const.SCHEDULE_CONF_START_TIME: f"{local.hour:02d}:{local.minute:02d}"}
+        )
+
+        fired = []
+        executed = threading.Event()
+
+        def _record(s, now, **kw):
+            fired.append(now)
+            executed.set()
+
+        manager._execute_schedule = _record
+
+        await manager._setup_schedule_tracker(schedule)
+        assert manager._schedule_trackers["s1"] is not None
+
+        # The stored bound stops resolving, and a self-reschedule runs. This is
+        # the call that used to disarm the schedule for good.
+        schedule[const.SCHEDULE_CONF_START_TIME] = "not a time"
+        await manager._reregister_tracker(schedule)
+
+        due = target + datetime.timedelta(seconds=1)
+        freezer.move_to(due)
+        async_fire_time_changed(hass, due)
+        await hass.async_block_till_done()
+        assert await hass.async_add_executor_job(
+            executed.wait, 5
+        ), "the schedule did not execute at its own time after the re-arm"
+        assert len(fired) == 1
+
+        await manager.async_unload()
