@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 from . import const
 from .batch import is_batch_zone
-from .duration_math import zone_run_duration
+from .duration_math import calibrated_flow_seconds, zone_run_duration
 from .opensprinkler import is_opensprinkler_zone
 from .self_closing import is_self_closing_zone
 
@@ -71,9 +71,10 @@ _TRACK_SEQUENCING = {
 }
 
 # A zone with no ``maximum_duration`` has NO configuration-derived ceiling, and
-# there is no constant that can stand in for one. Every `or 14400` in
-# irrigation.py is a flow-zone safety timeout, so nothing caps a timed zone's
-# length; and the deficit that sizes it is not capped either, because
+# there is no constant that can stand in for one. ``FLOW_SAFETY_TIMEOUT`` is a
+# flow-zone safety timeout wherever irrigation.py falls back to it, so nothing
+# caps a timed zone's length; and the deficit that sizes it is not capped
+# either, because
 # ``maximum_bucket`` clamps the bucket's SURPLUS side only (``calculation.py``:
 # `if bucket_plus_delta_capped > maximum_bucket`) and nothing clamps the
 # deficit side. A number here would be a policy cap wearing a bound's name,
@@ -161,6 +162,13 @@ class ZoneRun:
     ``flow`` marks a zone that delivers to a measured volume. It changes no
     arithmetic here, only the order: ``_run_rotation`` serves flow zones after
     the timed ones whatever order the plan arrives in.
+
+    ``confirm_seconds`` is wall clock this zone's dispatch may spend confirming
+    the valve reported on, before any water flows. It is part of what the zone
+    occupies, so every reduction charges it: selection, the dial and the arm
+    have to agree, or fitting a zone the arm cannot make room for simply moves
+    the overrun somewhere the deadline still cuts it. See
+    :func:`zone_confirm_seconds` for which dispatches pay it.
     ``station`` carries the controller's own answer for a station-track zone —
     see :class:`StationFacts`. Absent means unread, which prices the track the
     way it was priced before any of it could be read.
@@ -175,6 +183,7 @@ class ZoneRun:
     lead_time: float = 0.0
     ceiling: float | None = None
     flow: bool = False
+    confirm_seconds: float = 0.0
     station: StationFacts | None = None
 
 
@@ -192,6 +201,34 @@ def track_for_zone(zone: dict) -> str:
     if is_self_closing_zone(zone):
         return TRACK_SELF_CLOSING
     return TRACK_CLASSIC
+
+
+def zone_confirm_seconds(zone: dict) -> float:
+    """Seconds ``zone``'s dispatch may spend confirming its valve opened.
+
+    Paid before any water flows and carried by no duration:
+    ``irrigation._run_valve_metered`` sets ``elapsed = 0`` only once
+    ``_confirm_valve_running`` has returned, so on a chain the whole poll lands
+    between one zone's water and the next. Reported at the poll's ceiling,
+    which is what a window has to survive; a valve that reports back promptly
+    leaves the run finishing early, which is the harmless direction.
+
+    Zero for the dispatches that never poll. A station is opened by the
+    controller, and one sitting in its queue is not running at +30s anyway, so
+    the runner deliberately does not poll it. A self-closing valve with no
+    confirm entity is credited optimistically, because the service that drives
+    it is momentary and polling it would report off for the whole window.
+    """
+    track = track_for_zone(zone)
+    if track in (TRACK_STATION, TRACK_BATCH):
+        return 0.0
+    if track == TRACK_SELF_CLOSING:
+        if not zone.get(const.ZONE_CONFIRM_ENTITY):
+            return 0.0
+        return float(const.VALVE_CONFIRM_TIMEOUT)
+    if not zone.get(const.ZONE_LINKED_ENTITY):
+        return 0.0
+    return float(const.VALVE_CONFIRM_TIMEOUT)
 
 
 def _epoch(moment: datetime.datetime | str | None) -> float:
@@ -259,6 +296,10 @@ def simulate_wall_clock(
     ``durations`` overrides each zone's watering budget by id (used by
     :func:`bound_wall_clock` to price the configured maximums instead of the
     live durations); by default each zone's own ``duration`` is used.
+
+    Each run's ``confirm_seconds`` is charged on top of its water. Under
+    rotating that is per SLOT rather than per zone, because every return to a
+    zone re-opens its valve and polls again.
     """
     # Flow zones last, whatever order the caller passed. ``_run_rotation``
     # builds its ring from ``timed_zones + flow_zones``, so a flow zone is
@@ -269,14 +310,18 @@ def simulate_wall_clock(
     # Positional, not keyed by zone_id: two runs sharing an id used to collapse
     # into one and the clock came out short, which is the unsafe direction.
     budgets = [_budget(r, durations) for r in ordered]
-    work = [b for b in budgets if b > 0]
+    confirms = [float(r.confirm_seconds or 0.0) for r in ordered]
+    # Paired, so a zone carrying no water charges no confirm either: it is never
+    # opened, so nothing polls it.
+    priced = [(b, c) for b, c in zip(budgets, confirms, strict=True) if b > 0]
+    work = [b for b, _ in priced]
     if not work:
         return 0.0
 
     if sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL:
-        return max(work)
+        return max(b + c for b, c in priced)
     if sequencing != const.CONF_ZONE_SEQUENCING_ROTATING:
-        return sum(work)
+        return sum(b + c for b, c in priced)
 
     # Rotating: replay irrigation._run_rotation's loop. A zone that is finished
     # is skipped BEFORE its absorption wait is considered, exactly as there, so
@@ -294,7 +339,8 @@ def simulate_wall_clock(
 
     slot_cap = max(MIN_SLOT_SECONDS, float(max_slot_seconds or 0.0))
     absorption = max(0.0, float(min_absorption_seconds or 0.0))
-    remaining = [b for b in budgets if b > 0]
+    remaining = [b for b, _ in priced]
+    slot_confirms = [c for _, c in priced]
     last_finish: dict[int, float] = {}
     clock = 0.0
 
@@ -307,7 +353,7 @@ def simulate_wall_clock(
                 if wait > 0:
                     clock += wait
             slot = min(remaining[i], slot_cap)
-            clock += slot
+            clock += slot + slot_confirms[i]
             remaining[i] -= slot
             last_finish[i] = clock
     return clock
@@ -388,6 +434,9 @@ def concurrent_wall_clock(
     whose zones are all classic — the default, and everything predating the
     self-closing modes — has one track and collapses to the plain simulation, so
     its anchor times do not move.
+
+    The station track needs no confirm branch below: a station's
+    ``confirm_seconds`` is zero, because the controller owns that dispatch.
     """
     tracks: dict[str, list[ZoneRun]] = {}
     for run in runs:
@@ -606,7 +655,15 @@ def nominal_zone_duration(zone: dict, metric: bool) -> float:
     siehe test_nominal_demand_projection.py::test_a_zero_threshold_prices_at_zero
     """
     threshold = zone.get(const.ZONE_BUCKET_THRESHOLD) or 0
-    return float(zone_run_duration(zone, threshold, metric))
+    priced = float(zone_run_duration(zone, threshold, metric))
+    if zone.get(const.ZONE_FLOW_SENSOR):
+        # The math above prices this zone's volume at its CONFIGURED
+        # throughput, exactly as a timed zone is priced, while the run delivers
+        # to the measured volume at whatever rate the plumbing has. The dial
+        # has to draw the same wall clock the arm reserves, or the window a
+        # user designs against is not the window their run gets.
+        priced = calibrated_flow_seconds(zone, priced, metric)
+    return priced
 
 
 def zone_eligible_for_demand(zone: dict) -> bool:
@@ -689,6 +746,7 @@ def nominal_demand_seconds(
             last_irrigation=None,
             maximum_duration=z.get(const.ZONE_MAXIMUM_DURATION),
             track=track_for_zone(z),
+            confirm_seconds=zone_confirm_seconds(z),
             station=(station_facts or {}).get(int(z.get(const.ZONE_ID))),
         )
         for z in eligible

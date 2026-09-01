@@ -503,6 +503,12 @@ VALVE_CONFIRM_POLL = 1
 # Re-send the open command once, this many seconds into the confirm window, to
 # recover a command silently dropped by a sleepy valve.
 VALVE_CONFIRM_RETRY_AT = 15
+# How long a flow zone with no maximum_duration is allowed to run before its
+# safety timeout closes it. A flow run is volume-targeted, so unlike a timed run
+# nothing else bounds it. Named rather than repeated inline because the pricing
+# in duration_math has to clamp to the same ceiling the run stops at, and two
+# copies of a number are two numbers.
+FLOW_SAFETY_TIMEOUT = 14400
 # Fault reason codes (also i18n keys under panels.zones.fault.*).
 FAULT_VALVE_NO_RESPONSE = "valve_no_response"
 FAULT_FLOW_NEVER_STARTED = "flow_never_started"
@@ -719,6 +725,9 @@ ATTR_DISTRIBUTOR_ID = "distributor_id"
 ATTR_OUTLET = "outlet"
 # Run-log detail marker for a run a user stopped early.
 RUN_DETAIL_STOPPED = "stopped"
+# A run cut short because it reached its schedule's finish target. The water it
+# did deliver is credited; the residual carries to the next run.
+RUN_DETAIL_DEADLINE = "deadline"
 # run_zone / set_rain_delay call params
 ATTR_DURATION_MINUTES = "duration"  # whole minutes for a custom manual run
 ATTR_RAIN_DELAY_UNTIL = "until"  # ISO datetime to hold until

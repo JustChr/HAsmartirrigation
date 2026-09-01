@@ -1353,7 +1353,9 @@ class RecurringScheduleManager:
             )
             order = [p.zone_id for p in selection]
 
-        self._execute_schedule(schedule, now, order=order, pre_committed=True)
+        self._execute_schedule(
+            schedule, now, order=order, deadline=finish, pre_committed=True
+        )
 
     async def _setup_fitted_tracker(self, schedule: dict[str, Any], target) -> Any:
         """Arm a schedule pinned to Finish with a bounded Start.
@@ -1541,13 +1543,13 @@ class RecurringScheduleManager:
 
         order = [p.zone_id for p in selection]
 
-        def run_callback(now, s=schedule, fired=target, o=order):
+        def run_callback(now, s=schedule, fired=target, o=order, d=target):
             # Recording the fired occurrence here rather than at the decision
             # point is what lets a config change inside the window re-derive the
             # start instead of skipping the night: until the run actually fires,
             # a re-arm still resolves to THIS occurrence.
             self._finish_last_target[s[const.SCHEDULE_CONF_ID]] = fired.isoformat()
-            self._execute_schedule(s, now, order=o, pre_committed=True)
+            self._execute_schedule(s, now, order=o, deadline=d, pre_committed=True)
             self.hass.loop.call_soon_threadsafe(
                 self.hass.async_create_task,
                 self._persist_fired_occurrences(dict(self._finish_last_target)),
@@ -1697,13 +1699,16 @@ class RecurringScheduleManager:
         now: datetime.datetime,
         *,
         order=None,
+        deadline=None,
         pre_committed=False,
     ) -> None:
         """Execute a scheduled action.
 
-        ``order`` is set only by a bounded run: the zone ids chosen at the
-        decision point, in priority order. ``pre_committed`` says a two-stage
-        schedule already committed its pre-run calculation there.
+        ``order`` and ``deadline`` are set only by a bounded run: the zone ids
+        chosen at the decision point, in priority order (when a selection ran),
+        and the finish target the runner must not water past. ``pre_committed``
+        says a two-stage schedule already committed its pre-run calculation
+        there.
         """
         # Check date range if specified
         start_date = schedule.get(const.SCHEDULE_CONF_START_DATE)
@@ -1763,6 +1768,7 @@ class RecurringScheduleManager:
                 zones,
                 schedule_name,
                 order=order,
+                deadline=deadline,
                 pre_committed=pre_committed,
             ),
         )
@@ -1773,6 +1779,7 @@ class RecurringScheduleManager:
         schedule_name: str,
         *,
         order=None,
+        deadline=None,
         pre_committed=False,
     ) -> None:
         """Irrigate the schedule's zones.
@@ -1818,7 +1825,7 @@ class RecurringScheduleManager:
             # Directly control linked entities (restricted to the schedule's
             # target zones), then reset counter
             watered = await self.coordinator._irrigate_linked_entities(
-                zones, order=order
+                zones, order=order, deadline=deadline
             )
             # Plan G: also run distributor cycles for due member zones. Members
             # are excluded from _irrigate_linked_entities (irrigation.py:462), so

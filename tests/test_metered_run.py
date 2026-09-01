@@ -634,3 +634,39 @@ async def test_rotating_totalizer_measures_slot_delta(monkeypatch):
     assert _used(coord) == pytest.approx(50.0)
     assert _bucket(coord) == pytest.approx(0.0)
     assert _log(coord)[0]["result"] == const.RUN_RESULT_COMPLETED
+
+
+# --------------------------------------------------------------------------- #
+# A run the deadline cut short
+# --------------------------------------------------------------------------- #
+async def test_a_deadline_cut_run_is_logged_as_one(monkeypatch):
+    """Sequential and parallel truncate a zone in place, so the run itself is
+    what has to say it was cut: without the marker it lands in the history as an
+    ordinary completed run of exactly the length it was shortened to, and
+    nothing tells the user why that zone got less water than it needed."""
+    coord = _coord(monkeypatch, [_zone(**{const.ZONE_BUCKET: -5.0})])
+    coord._live_run_zones = set()
+    # Planned 300 s, cut to 60 s by the deadline.
+    await coord._run_valve_metered(
+        _zone(**{const.ZONE_BUCKET: -5.0, const.ZONE_DURATION: 60}),
+        "switch.v",
+        real_flow=False,
+        deadline_cut_from=300.0,
+    )
+    entry = _log(coord)[0]
+    assert entry["result"] == const.RUN_RESULT_PARTIAL
+    assert entry["detail"] == const.RUN_DETAIL_DEADLINE
+    # Planned against actual reads as the shortfall, not as a run that got
+    # everything it asked for.
+    assert entry["planned_s"] == 300
+    assert entry["actual_s"] == 60
+
+
+async def test_an_uncut_run_carries_no_deadline_marker(monkeypatch):
+    coord = _coord(monkeypatch, [_zone()])
+    coord._live_run_zones = set()
+    await coord._run_valve_metered(_zone(), "switch.v", real_flow=False)
+    entry = _log(coord)[0]
+    assert entry["result"] == const.RUN_RESULT_COMPLETED
+    assert entry["detail"] != const.RUN_DETAIL_DEADLINE
+    assert entry["planned_s"] == 300
