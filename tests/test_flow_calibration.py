@@ -160,6 +160,32 @@ async def test_flow_calibration_advisory_is_localized_and_links_zone():
     assert "throughput" in msg2
     assert f"/smart_irrigation/setup/zones/zone/{z2[const.ZONE_ID]}" in msg2
     assert "{" not in msg2 and "}" not in msg2
+    # The advisory is shared with the OBSERVED path, which watches a valve
+    # Smart Irrigation does not drive and cannot make any claim about (#111
+    # follow-up). It used to open with "Its valve can't stop early, so ",
+    # written for the self-closing / distributor callers and simply untrue for
+    # an external run. Pinned here because the suite was green both before and
+    # after the clause was removed -- nothing asserted on it, so nothing would
+    # have noticed it coming back.
+    assert "can't stop early" not in msg2
+
+
+async def test_advisory_claims_nothing_about_the_valve_when_under_watering():
+    """The under-watering variant carried the same clause and needs the same
+    pin: `message_over` and `message_under` are separate strings in all eight
+    language files, so asserting on one says nothing about the other."""
+    c = _host()
+    c.hass.config.language = "en"
+    z = _zone()
+    # ~30% UNDER the configured 10 L/min, mirroring _drive_over_threshold.
+    for _ in range(const.FLOW_CAL_MIN_SAMPLES):
+        await c._dist_flow_calibration_check(z, measured_l=7.0, seconds=60.0)
+        changes = c.store.async_update_zone.await_args.args[1]
+        z[const.ZONE_FLOW_CAL_SAMPLES] = changes[const.ZONE_FLOW_CAL_SAMPLES]
+    msg = _create_call(c)["message"]
+    assert "under-watering" in msg
+    assert "can't stop early" not in msg
+    assert "{" not in msg and "}" not in msg
 
 
 async def test_readvises_while_out_of_band_after_dismiss():
