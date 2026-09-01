@@ -701,6 +701,20 @@
         "demand_capped_deferred": "Nach Bedarf festgelegt, aber nicht nach diesem Zeitpunkt. Zonen, die nicht hineinpassen, werden verschoben.",
         "unreachable_no_run": "Die Sonne erreicht diesen Azimut hier nie, daher wird dieser Zeitplan nicht ausgeführt.",
         "unreachable_ignored": "Die Sonne erreicht diesen Azimut hier nie, daher wird diese Grenze ignoriert."
+      },
+      "dial": {
+        "aria_label": "Laufzeitfenster auf einer 24-Stunden-Uhr",
+        "sunrise": "Sonnenaufgang {time}",
+        "sunset": "Sonnenuntergang {time}",
+        "run": "Lauf {from} bis {to}",
+        "collision": "Kollidiert mit dem vorherigen Lauf, {from} bis {to}: Zonen, die noch bewässern, werden übersprungen",
+        "collision_note": "Zonen, die noch bewässern, werden übersprungen",
+        "runs_of": "{count} Läufe à {duration}",
+        "shortfall": "{duration} passen nicht",
+        "window_label": "Zeitfenster",
+        "run_label": "Lauf",
+        "per_day": "{count}x pro Tag",
+        "every_hours": "alle {hours}h"
       }
     },
     "info": {

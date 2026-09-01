@@ -125,3 +125,77 @@ describe("view-schedules dialog host", () => {
     expect(el._editingSchedule).toBe(patched);
   });
 });
+
+/** A view wired only to a websocket stub - the nominal-demand preview never
+ * renders, so the DOM shim above is all it needs. */
+function makeDemandView(callWS: (msg: any) => Promise<any>) {
+  const el: any = new View();
+  el.hass = { language: "en", callWS };
+  return el;
+}
+
+describe("view-schedules nominal demand preview", () => {
+  it("fetches a preview for the default all-zones selection when Add is opened", async () => {
+    const calls: any[] = [];
+    const el = makeDemandView(async (msg: any) => {
+      calls.push(msg);
+      return { nominal_demand_seconds: 4200 };
+    });
+
+    el._openAdd();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(calls).toEqual([
+      { type: "smart_irrigation/schedule_nominal_demand", zones: "all" },
+    ]);
+    expect(el._editingSchedule.nominal_demand_seconds).toBe(4200);
+  });
+
+  it("refetches when the zone selection changes", async () => {
+    const calls: any[] = [];
+    const el = makeDemandView(async (msg: any) => {
+      calls.push(msg);
+      return { nominal_demand_seconds: msg.zones === "all" ? 100 : 200 };
+    });
+
+    el._openAdd();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    el._onScheduleChanged({
+      detail: { value: { ...el._editingSchedule, zones: ["1", "2"] } },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toEqual({
+      type: "smart_irrigation/schedule_nominal_demand",
+      zones: ["1", "2"],
+    });
+    expect(el._editingSchedule.nominal_demand_seconds).toBe(200);
+  });
+
+  it("does not refetch when an unrelated field (e.g. name) changes", async () => {
+    const calls: any[] = [];
+    const el = makeDemandView(async (msg: any) => {
+      calls.push(msg);
+      return { nominal_demand_seconds: 4200 };
+    });
+
+    el._openAdd();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls).toHaveLength(1);
+
+    el._onScheduleChanged({
+      detail: { value: { ...el._editingSchedule, name: "Front lawn" } },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(calls).toHaveLength(1);
+    expect(el._editingSchedule.name).toBe("Front lawn");
+  });
+});

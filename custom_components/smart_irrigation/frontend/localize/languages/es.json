@@ -701,6 +701,20 @@
         "demand_capped_deferred": "Establecido según demanda, pero nunca después de esto. Las zonas que no caben se posponen.",
         "unreachable_no_run": "El sol nunca alcanza este azimut aquí, por lo que este programa no se ejecutará.",
         "unreachable_ignored": "El sol nunca alcanza este azimut aquí, por lo que este límite se ignora."
+      },
+      "dial": {
+        "aria_label": "Ventana de riego en un reloj de 24 horas",
+        "sunrise": "Amanecer {time}",
+        "sunset": "Atardecer {time}",
+        "run": "Riego de {from} a {to}",
+        "collision": "Coincide con el riego anterior, de {from} a {to}: las zonas que aún están regando se omiten",
+        "collision_note": "Se omiten las zonas que siguen regando",
+        "runs_of": "{count} riegos de {duration}",
+        "shortfall": "{duration} no caben",
+        "window_label": "ventana",
+        "run_label": "riego",
+        "per_day": "{count}x al día",
+        "every_hours": "cada {hours}h"
       }
     },
     "info": {

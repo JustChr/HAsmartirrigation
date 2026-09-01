@@ -23,12 +23,15 @@ import {
   describeWindow,
   isWarningHelp,
   HelpKey,
+  UnresolvableEnds,
   defaultRowForMode,
   DEFAULT_AZIMUTH,
   BoundMode,
   Anchor,
 } from "../common/schedule-rows";
 import { summarizeSchedule, scheduleProblem } from "../common/schedule-summary";
+import { azimuthResolverFromLocation } from "../common/solar-azimuth";
+import "./si-run-window-dial";
 
 const DAYS = [
   "monday",
@@ -65,6 +68,14 @@ export interface Schedule {
   zones: string | string[];
   start_date?: string;
   end_date?: string;
+  // Total seconds the schedule's zones nominally demand under normal
+  // sequencing, independent of any zone's live bucket. For a saved schedule
+  // this arrives with the schedules websocket response; for one still being
+  // drafted, view-schedules.ts fetches it directly (schedule_nominal_demand)
+  // whenever the zone selection changes, so the dial has a real preview
+  // before the first save. Absent only until that first fetch resolves - the
+  // dial then simply has nothing to draw a run bar from yet.
+  nominal_demand_seconds?: number;
 }
 
 export function emptySchedule(): Schedule {
@@ -124,7 +135,8 @@ type BoundEnd = "start" | "finish";
  * in ../common/schedule-rows.ts, which is also where the rows<->fields round
  * trip is tested. Fields are grouped into WHEN/ZONES/SEASON cards with a
  * read-only summary sentence at the top (../common/schedule-summary.ts — the
- * same sentence heads each card in view-schedules.ts's list).
+ * same sentence heads each card in view-schedules.ts's list), and the WHEN
+ * card carries the 24-hour run-window dial.
  */
 @customElement("si-schedule-dialog")
 export class SiScheduleDialog extends LitElement {
@@ -419,9 +431,9 @@ export class SiScheduleDialog extends LitElement {
   ) {
     const lang = this.hass.language;
     // Label ABOVE the controls, not beside them. Inline, the label plus the
-    // mode select plus "offset by [n] minutes" is wider than the dialog's
-    // content column, so the stepper wrapped onto its own line and the row
-    // stopped reading as one control.
+    // mode select plus "offset by [n] minutes" is wider than the column left
+    // beside the run-window dial, so the stepper wrapped onto its own line
+    // and the row stopped reading as one control.
     return html`
       <div class="field">
         <label>${localize(`panels.schedules.fields.${end}_mode`, lang)}</label>
@@ -497,6 +509,27 @@ export class SiScheduleDialog extends LitElement {
     `;
   }
 
+  /**
+   * Which bounded ends name a bearing the sun never reaches at this location.
+   * Resolved through the same module the dial draws with, so the faded end and
+   * the amber help text can never disagree about it.
+   *
+   * Only solar_azimuth ends can be unresolvable; every other mode always has
+   * a time. An unknown location yields no resolver, and an unknown answer is
+   * not a warning, so nothing is flagged in that case.
+   */
+  private _unresolvableEnds(rows: ScheduleRows): UnresolvableEnds {
+    const resolve = azimuthResolverFromLocation(this.hass?.config, new Date());
+    if (!resolve) return {};
+    const unreachable = (row: EndRow) =>
+      row.mode === SCHEDULE_BOUND_MODE_SOLAR_AZIMUTH &&
+      resolve(row.azimuth ?? DEFAULT_AZIMUTH) === null;
+    return {
+      start: unreachable(rows.start),
+      finish: unreachable(rows.finish),
+    };
+  }
+
   /** Start row, Finish row, and (only when both are bounded) the pinned-end
    * row — all three sourced from the one pure rows<->fields mapping
    * (../common/schedule-rows.ts). Interval has no time of day and
@@ -505,7 +538,7 @@ export class SiScheduleDialog extends LitElement {
     const s = this.schedule;
     if (s.recurrence === SCHEDULE_RECURRENCE_INTERVAL) return html``;
     const rows = scheduleToRows(s);
-    const help = describeWindow(rows);
+    const help = describeWindow(rows, this._unresolvableEnds(rows));
     const patch = (next: ScheduleRows) =>
       this._emitChanged(rowsToSchedule(next));
     const bothBounded =
@@ -664,7 +697,27 @@ export class SiScheduleDialog extends LitElement {
                   )}
                 </select>
               </div>
-              ${this._renderRecurrenceFields()} ${this._renderWindowRows()}
+              ${s.recurrence === SCHEDULE_RECURRENCE_INTERVAL
+                ? html``
+                : this._renderRecurrenceFields()}
+              <div class="when-row">
+                <div class="when-rows-col">
+                  ${s.recurrence === SCHEDULE_RECURRENCE_INTERVAL
+                    ? this._renderRecurrenceFields()
+                    : html``}
+                  ${this._renderWindowRows()}
+                </div>
+                <div class="dial-col">
+                  <si-run-window-dial
+                    .hass="${this.hass}"
+                    .rows="${scheduleToRows(s)}"
+                    .recurrence="${s.recurrence}"
+                    .intervalHours="${s.interval_hours}"
+                    .intervalStartTime="${s.start_time}"
+                    .nominalDemandSeconds="${s.nominal_demand_seconds ?? 0}"
+                  ></si-run-window-dial>
+                </div>
+              </div>
             `,
           )}
           ${this._renderSection("zones", this._renderZonePicker())}
@@ -947,6 +1000,45 @@ export class SiScheduleDialog extends LitElement {
         .row-inline {
           color: var(--primary-text-color);
           font-size: 0.8125rem;
+        }
+        /* Two-column layout inside the WHEN card: the
+           Start/Finish/pinned-end rows on the left, the run-window dial in
+           a fixed-width right column, collapsing to one column on narrow
+           dialogs. */
+        .when-row {
+          display: grid;
+          grid-template-columns: 1fr 168px;
+          gap: 16px;
+          align-items: start;
+        }
+        @media (max-width: 640px) {
+          .when-row {
+            grid-template-columns: 1fr;
+          }
+        }
+        .when-rows-col {
+          min-width: 0;
+        }
+        /* Wider than its 168px track on purpose: the dial is round, so the
+           overhang lands in the empty corners of its own bounding box, not
+           on the disc itself. Bleeds into the column gap and the section
+           card's own right padding, never into the text column's width, so
+           it cannot cause the Start/Finish row text to wrap. */
+        .dial-col {
+          width: 190px;
+          justify-self: center;
+        }
+        /* Caption under the dial: how many runs an interval schedule makes,
+           or what a short window will not fit. */
+        .dial-note {
+          font-size: 0.78125rem;
+          line-height: 1.35;
+          color: var(--secondary-text-color);
+          text-align: center;
+          margin-top: 4px;
+        }
+        .dial-note.warn {
+          color: var(--warning-color, #ffa600);
         }
         .summary {
           margin-bottom: 18px;

@@ -216,6 +216,16 @@ export const deleteSchedule = (
 ): Promise<any> =>
   hass.callWS({ type: DOMAIN + "/schedule_delete", schedule_id });
 
+// Dial preview for a schedule that has no id yet: the same nominal-demand
+// computation websocket_get_schedules attaches to each saved schedule,
+// exposed standalone so the Add Schedule dialog can show a real run length
+// before the first save.
+export const fetchNominalDemandSeconds = (
+  hass: HomeAssistant,
+  zones: "all" | string[],
+): Promise<{ nominal_demand_seconds: number }> =>
+  hass.callWS({ type: DOMAIN + "/schedule_nominal_demand", zones });
+
 // Dashboard outlook: next scheduled runs + live skip-condition preview
 export const fetchIrrigationOutlook = (
   hass: HomeAssistant,

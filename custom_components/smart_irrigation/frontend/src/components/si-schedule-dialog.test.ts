@@ -652,3 +652,92 @@ describe("si-schedule-dialog: form controls bind properties, not attributes", ()
     expect(text).toContain(".selected=");
   });
 });
+
+describe("si-schedule-dialog: unreachable solar-azimuth bearings", () => {
+  /** On the equator the backend's azimuth curve never crosses due east, so
+   * 90 degrees is unresolvable there - the same case the dial draws open. */
+  const atEquator = (schedule: Record<string, any>) => {
+    const { el } = makeDialog({ schedule });
+    el.hass = {
+      language: "en",
+      config: { latitude: 0, longitude: 0, time_zone: "UTC" },
+    };
+    return el;
+  };
+
+  it("warns that the schedule will not run when the governing end is unreachable", () => {
+    const el = atEquator({
+      ...emptySchedule(),
+      name: "Named",
+      start_mode: "solar_azimuth",
+      start_azimuth: 90,
+      finish_mode: "none",
+    });
+    const { text, values } = flatten(el.render());
+    expect(text).toContain("so this schedule will not run");
+    expect(values).toContain("warn");
+  });
+
+  it("warns that the limit is ignored when the paired end is unreachable", () => {
+    const el = atEquator({
+      ...emptySchedule(),
+      name: "Named",
+      start_mode: "solar_azimuth",
+      start_azimuth: 90,
+      finish_mode: "time",
+      finish_time: "20:00",
+      anchor: "finish",
+    });
+    const { text } = flatten(el.render());
+    expect(text).toContain("so this limit is ignored");
+  });
+
+  it("still allows Save - an unreachable bearing is a warning, not an error", () => {
+    const el = atEquator({
+      ...emptySchedule(),
+      name: "Named",
+      start_mode: "solar_azimuth",
+      start_azimuth: 90,
+      finish_mode: "none",
+    });
+    expect((el as any)._canSave()).toBe(true);
+  });
+
+  it("says nothing for a bearing that does resolve", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        name: "Named",
+        start_mode: "solar_azimuth",
+        start_azimuth: 270,
+        finish_mode: "none",
+      },
+    });
+    el.hass = {
+      language: "en",
+      config: {
+        latitude: 33.45,
+        longitude: -112.07,
+        time_zone: "America/Phoenix",
+      },
+    };
+    const { text, values } = flatten(el.render());
+    expect(text).not.toContain("The sun never reaches");
+    expect(values).not.toContain("warn");
+  });
+
+  it("says nothing when the location is unknown, rather than guessing", () => {
+    const { el } = makeDialog({
+      schedule: {
+        ...emptySchedule(),
+        name: "Named",
+        start_mode: "solar_azimuth",
+        start_azimuth: 90,
+        finish_mode: "none",
+      },
+    });
+    el.hass = { language: "en" }; // mid-startup: no config yet
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("The sun never reaches");
+  });
+});

@@ -1053,6 +1053,13 @@ def calculate_solar_azimuth(
 ) -> float:
     """Calculate solar azimuth angle for a given location and time.
 
+    ⚠️ Ported to TypeScript, verbatim, as ``solarAzimuthDegrees`` in
+    ``frontend/src/common/solar-azimuth.ts`` so the run-window dial draws the
+    bound this resolver will actually fire on. A change here that is not made
+    there leaves the dial quietly disagreeing with the scheduler; the port's
+    golden values are generated from this function, so regenerate them
+    (``frontend/src/common/solar-azimuth.test.ts`` documents how).
+
     Args:
         latitude: Latitude in degrees
         longitude: Longitude in degrees
@@ -1184,6 +1191,14 @@ def find_next_solar_azimuth_time(
 ) -> datetime | None:
     """Find the next time when the sun will be at a specific azimuth angle.
 
+    ⚠️ Ported to TypeScript as ``findNextSolarAzimuthWallClock`` in
+    ``frontend/src/common/solar-azimuth.ts`` (together with the two helpers
+    below). Keep the two in step — see ``calculate_solar_azimuth``.
+
+    Callers pass a NAIVE local datetime (see ``scheduler._resolve_event_instant``),
+    so the returned crossing is a wall-clock time in Home Assistant's own
+    zone, not an aware instant.
+
     Args:
         latitude: Latitude in degrees
         longitude: Longitude in degrees
@@ -1232,7 +1247,10 @@ def find_next_solar_azimuth_time(
 def _azimuth_crossed_target(
     prev_azimuth: float, current_azimuth: float, target: float
 ) -> bool:
-    """Check if azimuth crossed the target between two measurements."""
+    """Check if azimuth crossed the target between two measurements.
+
+    Ported as ``azimuthCrossedTarget`` in frontend/src/common/solar-azimuth.ts.
+    """
     # Handle wraparound case (359° -> 1°)
     if abs(prev_azimuth - current_azimuth) > 180:
         if prev_azimuth > current_azimuth:
@@ -1257,7 +1275,10 @@ def _refine_azimuth_time(
     *,
     azimuth_fn=None,
 ) -> datetime:
-    """Refine azimuth time to minute precision using binary search."""
+    """Refine azimuth time to minute precision using binary search.
+
+    Ported as ``refineAzimuthTime`` in frontend/src/common/solar-azimuth.ts.
+    """
     azimuth_fn = azimuth_fn or calculate_solar_azimuth
     while (end_time - start_time).total_seconds() > 60:
         mid_time = start_time + (end_time - start_time) / 2
