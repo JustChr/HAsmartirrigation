@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation: controleer de doorstroomsnelheid",
-    "message_over": "Zone '{zone}' geeft structureel te veel water: de gemeten doorstroming ligt ~{percent}% boven het ingestelde debiet over {runs} beurten. De klep kan niet eerder stoppen — stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
-    "message_under": "Zone '{zone}' geeft structureel te weinig water: de gemeten doorstroming ligt ~{percent}% onder het ingestelde debiet over {runs} beurten. De klep kan niet eerder stoppen — stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
+    "message_over": "Zone '{zone}' geeft structureel te veel water: de gemeten doorstroming ligt ~{percent}% boven het ingestelde debiet over {runs} beurten. Stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
+    "message_under": "Zone '{zone}' geeft structureel te weinig water: de gemeten doorstroming ligt ~{percent}% onder het ingestelde debiet over {runs} beurten. Stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
     "open_settings": "Zone-instellingen openen"
   },
   "common": {

@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation : vérifier le débit",
-    "message_over": "La zone '{zone}' arrose systématiquement trop : le débit mesuré est ~{percent}% au-dessus du débit configuré sur {runs} cycles. Sa vanne ne peut pas s'arrêter plus tôt — réglez le débit sur environ {rate} {unit} (actuellement {current}).",
-    "message_under": "La zone '{zone}' arrose systématiquement trop peu : le débit mesuré est ~{percent}% en dessous du débit configuré sur {runs} cycles. Sa vanne ne peut pas s'arrêter plus tôt — réglez le débit sur environ {rate} {unit} (actuellement {current}).",
+    "message_over": "La zone '{zone}' arrose systématiquement trop : le débit mesuré est ~{percent}% au-dessus du débit configuré sur {runs} cycles. Réglez le débit sur environ {rate} {unit} (actuellement {current}).",
+    "message_under": "La zone '{zone}' arrose systématiquement trop peu : le débit mesuré est ~{percent}% en dessous du débit configuré sur {runs} cycles. Réglez le débit sur environ {rate} {unit} (actuellement {current}).",
     "open_settings": "Ouvrir les paramètres de la zone"
   },
   "common": {

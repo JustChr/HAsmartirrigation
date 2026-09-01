@@ -1,8 +1,8 @@
 {
   "flow_calibration": {
     "title": "Smart Irrigation: Durchflussrate prüfen",
-    "message_over": "Zone '{zone}' bewässert dauerhaft zu viel: der gemessene Durchfluss liegt ~{percent}% über der konfigurierten Rate über {runs} Läufe. Das Ventil kann nicht früher stoppen — stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
-    "message_under": "Zone '{zone}' bewässert dauerhaft zu wenig: der gemessene Durchfluss liegt ~{percent}% unter der konfigurierten Rate über {runs} Läufe. Das Ventil kann nicht früher stoppen — stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
+    "message_over": "Zone '{zone}' bewässert dauerhaft zu viel: der gemessene Durchfluss liegt ~{percent}% über der konfigurierten Rate über {runs} Läufe. Stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
+    "message_under": "Zone '{zone}' bewässert dauerhaft zu wenig: der gemessene Durchfluss liegt ~{percent}% unter der konfigurierten Rate über {runs} Läufe. Stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
     "open_settings": "Zonen-Einstellungen öffnen"
   },
   "common": {
