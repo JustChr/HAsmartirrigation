@@ -52,16 +52,28 @@ function clampMinutes(m: number): number {
   return ((m % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
 }
 
+/**
+ * Round BEFORE wrapping, not after: `clampMinutes` first would leave 1439.7
+ * alone and the rounding would then carry it to 1440, which splits as 24:00.
+ */
 export function fmtClock(mins: number): string {
-  const m = Math.round(clampMinutes(mins));
+  const m = clampMinutes(Math.round(mins));
   const h = Math.floor(m / 60);
   const mm = m % 60;
   return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
+/**
+ * Round BEFORE splitting into hours and minutes. Rounding the remainder
+ * afterwards lets it reach 60 and print it: 119.7 as "1h 60m", 59.7 as "60m"
+ * (the hour never appears, because `Math.floor` ran on the unrounded value).
+ * The inputs here are minutes derived from `nominal_demand_seconds / 60`, so
+ * a fractional value is the normal case rather than an edge one.
+ */
 export function fmtDuration(mins: number): string {
-  const h = Math.floor(mins / 60);
-  const m = Math.round(mins % 60);
+  const total = Math.round(mins);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return h ? `${h}h ${m}m` : `${m}m`;
 }
 

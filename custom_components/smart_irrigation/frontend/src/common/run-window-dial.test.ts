@@ -67,6 +67,23 @@ describe("fmtClock / fmtDuration", () => {
     expect(fmtDuration(90)).toBe("1h 30m");
     expect(fmtDuration(120)).toBe("2h 0m");
   });
+
+  // Every case above is a whole number, and both formatters are fed
+  // fractional minutes in practice: the centre readout is
+  // `nominalDemandSeconds / 60`, and the span tooltips inherit it through
+  // `needMinutes`. Rounding after the split let the minute part reach 60.
+  it("carries a rounded-up minute into the hour rather than printing 60", () => {
+    expect(fmtDuration(119.7)).toBe("2h 0m");
+    expect(fmtDuration(59.7)).toBe("1h 0m");
+    expect(fmtDuration(59.4)).toBe("59m");
+    expect(fmtDuration(0.4)).toBe("0m");
+  });
+
+  it("wraps a minute-of-day that rounds up onto midnight", () => {
+    expect(fmtClock(1439.7)).toBe("00:00");
+    expect(fmtClock(1439.4)).toBe("23:59");
+    expect(fmtClock(-0.3)).toBe("00:00");
+  });
 });
 
 describe("resolveAbsMinutes", () => {
