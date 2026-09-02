@@ -5512,7 +5512,7 @@ function me(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
         margin-bottom: 4px;
         border-bottom: 1px solid var(--divider-color);
       }
-    `}disconnectedCallback(){super.disconnectedCallback(),this.debounceTimers.forEach(e=>{clearTimeout(e)}),this.debounceTimers.clear(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this.mappingCache.clear()}};t([pe()],kn.prototype,"config",void 0),t([pe({type:Array})],kn.prototype,"zones",void 0),t([pe({type:Array})],kn.prototype,"mappings",void 0),t([pe({type:Boolean})],kn.prototype,"isLoading",void 0),t([pe({type:Boolean})],kn.prototype,"isSaving",void 0),t([me("#mappingNameInput")],kn.prototype,"mappingNameInput",void 0),kn=t([ce("smart-irrigation-view-mappings")],kn);const zn="06:00";function Sn(e){switch(e){case ls:return{mode:e,time:zn};case ds:case cs:return{mode:e,offset:0};case hs:return{mode:e,azimuth:90};default:return{mode:rs}}}function An(e,t,s,i){const a=function(e){return e===rs||e===ls||e===ds||e===cs||e===hs}(e)?e:rs,n=Sn(a);return a===ls&&void 0!==t&&(n.time=t),a!==ds&&a!==cs||void 0===s||(n.offset=s),a===hs&&void 0!==i&&(n.azimuth=i),n}function Cn(e){var t,s,i;return{mode:e.mode,time:e.mode===ls?null!==(t=e.time)&&void 0!==t?t:zn:void 0,offset:e.mode===ds||e.mode===cs?null!==(s=e.offset)&&void 0!==s?s:0:void 0,azimuth:e.mode===hs?null!==(i=e.azimuth)&&void 0!==i?i:90:void 0}}function En(e){return{start:An(e.start_mode,e.start_time,e.start_offset,e.start_azimuth),finish:An(e.finish_mode,e.finish_time,e.finish_offset,e.finish_azimuth),anchor:e.anchor===ps?ps:gs}}function Tn(e){if(e.recurrence===is&&0===(e.days_of_week||[]).length)return"no_days";if(e.recurrence!==ns){const t=En(e);if(t.start.mode===rs&&t.finish.mode===rs)return"no_window"}return Array.isArray(e.zones)&&0===e.zones.length?"no_zones":null}function On(e,t){const s=Tn(e);if(s)return{text:Pa(`panels.schedules.summary.${"no_window"===s?"invalid":s}`,t),isError:!0};const i=function(e,t){if("all"===e||!Array.isArray(e))return Pa("panels.schedules.summary.zones_all",t);return Pa("panels.schedules.summary.zones_some",t,"count",e.length)}(e.zones,t),a=function(e,t){switch(e.recurrence){case is:{const s=(e.days_of_week||[]).map(e=>Pa(`panels.schedules.days.${e}`,t)).join(", ");return Pa("panels.schedules.summary.recurrence_weekly",t,"days",s)}case as:return Pa("panels.schedules.summary.recurrence_monthly",t,"day",e.day_of_month||1);case ns:{const s=e.interval_hours||24;return e.start_time?Pa("panels.schedules.summary.recurrence_interval_at",t,"hours",s,"time",e.start_time):Pa("panels.schedules.summary.recurrence_interval",t,"hours",s)}default:return Pa("panels.schedules.summary.recurrence_daily",t)}}(e,t);if(e.recurrence===ns){return{text:`${a}, ${Pa("panels.schedules.summary.watering",t,"zones",i)}.`,isError:!1}}const n=En(e),o=n.start.mode!==rs,r=n.finish.mode!==rs,l=Pa("panels.schedules.summary.watering",t,"zones",i);let d;return d=o?r?n.anchor===gs?Pa("panels.schedules.summary.anchor_finish",t,"finish",Dn(n.finish,t),"start",Dn(n.start,t)):Pa("panels.schedules.summary.anchor_start",t,"start",Dn(n.start,t),"finish",Dn(n.finish,t)):Pa("panels.schedules.summary.start_only",t,"when",Dn(n.start,t)):Pa("panels.schedules.summary.finish_only",t,"when",Dn(n.finish,t)),{text:`${a}, ${l}, ${d}.`,isError:!1}}function Dn(e,t){var s,i,a;switch(e.mode){case ls:return null!==(s=e.time)&&void 0!==s?s:"";case ds:case cs:{const s=Pa(`panels.schedules.summary.${e.mode}`,t),a=null!==(i=e.offset)&&void 0!==i?i:0;if(0===a)return s;return Pa(a<0?"panels.schedules.summary.offset_before":"panels.schedules.summary.offset_after",t,"minutes",Math.abs(a),"event",s)}case hs:return Pa("panels.schedules.summary.at_azimuth",t,"degrees",null!==(a=e.azimuth)&&void 0!==a?a:90);default:return""}}const Hn=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];function Mn(){return{name:"",recurrence:"daily",enabled:!0,start_mode:ls,start_time:"06:00",finish_mode:rs,action:"irrigate",zones:"all"}}function In(e,t){return Pa(`panels.schedules.types.${e}`,t)||e}let Nn=class extends le{constructor(){super(...arguments),this.zones=[],this.heading="",this._save=()=>{this.dispatchEvent(new CustomEvent("save",{detail:{value:this.schedule},bubbles:!0,composed:!0}))},this._cancel=()=>{this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}}_emitChanged(e){this.dispatchEvent(new CustomEvent("schedule-changed",{detail:{value:Object.assign(Object.assign({},this.schedule),e)},bubbles:!0,composed:!0}))}_renderZonePicker(){const e="all"===this.schedule.zones||!Array.isArray(this.schedule.zones),t=e?[]:this.schedule.zones.map(String);return W`
+    `}disconnectedCallback(){super.disconnectedCallback(),this.debounceTimers.forEach(e=>{clearTimeout(e)}),this.debounceTimers.clear(),this.globalDebounceTimer&&(clearTimeout(this.globalDebounceTimer),this.globalDebounceTimer=null),this.mappingCache.clear()}};t([pe()],kn.prototype,"config",void 0),t([pe({type:Array})],kn.prototype,"zones",void 0),t([pe({type:Array})],kn.prototype,"mappings",void 0),t([pe({type:Boolean})],kn.prototype,"isLoading",void 0),t([pe({type:Boolean})],kn.prototype,"isSaving",void 0),t([me("#mappingNameInput")],kn.prototype,"mappingNameInput",void 0),kn=t([ce("smart-irrigation-view-mappings")],kn);const zn="06:00";function Sn(e){switch(e){case ls:return{mode:e,time:zn};case ds:case cs:return{mode:e,offset:0};case hs:return{mode:e,azimuth:90};default:return{mode:rs}}}function An(e,t,s,i){const a=function(e){return e===rs||e===ls||e===ds||e===cs||e===hs}(e)?e:rs,n=Sn(a);return a===ls&&void 0!==t&&(n.time=t),a!==ds&&a!==cs||void 0===s||(n.offset=s),a===hs&&void 0!==i&&(n.azimuth=i),n}function Cn(e){var t,s,i;return{mode:e.mode,time:e.mode===ls?null!==(t=e.time)&&void 0!==t?t:zn:void 0,offset:e.mode===ds||e.mode===cs?null!==(s=e.offset)&&void 0!==s?s:0:void 0,azimuth:e.mode===hs?null!==(i=e.azimuth)&&void 0!==i?i:90:void 0}}function En(e){return{start:An(e.start_mode,e.start_time,e.start_offset,e.start_azimuth),finish:An(e.finish_mode,e.finish_time,e.finish_offset,e.finish_azimuth),anchor:e.anchor===ps?ps:gs}}function Tn(e){if(e.recurrence===is&&0===(e.days_of_week||[]).length)return"no_days";if(e.recurrence!==ns){const t=En(e);if(t.start.mode===rs&&t.finish.mode===rs)return"no_window"}return Array.isArray(e.zones)&&0===e.zones.length?"no_zones":null}function On(e,t){const s=Tn(e);if(s)return{text:Pa(`panels.schedules.summary.${"no_window"===s?"invalid":s}`,t),isError:!0};const i=function(e,t){if("all"===e||!Array.isArray(e))return Pa("panels.schedules.summary.zones_all",t);return Pa("panels.schedules.summary.zones_some",t,"count",e.length)}(e.zones,t),a=function(e,t){switch(e.recurrence){case is:{const s=(e.days_of_week||[]).map(e=>Pa(`panels.schedules.days.${e}`,t)).join(", ");return Pa("panels.schedules.summary.recurrence_weekly",t,"days",s)}case as:return Pa("panels.schedules.summary.recurrence_monthly",t,"day",e.day_of_month||1);case ns:{const s=e.interval_hours||24;return e.start_time?Pa("panels.schedules.summary.recurrence_interval_at",t,"hours",s,"time",e.start_time):Pa("panels.schedules.summary.recurrence_interval",t,"hours",s)}default:return Pa("panels.schedules.summary.recurrence_daily",t)}}(e,t);if(e.recurrence===ns){return{text:`${a}, ${Pa("panels.schedules.summary.watering",t,"zones",i)}.`,isError:!1}}const n=En(e),o=n.start.mode!==rs,r=n.finish.mode!==rs,l=Pa("panels.schedules.summary.watering",t,"zones",i);let d;return d=o?r?n.anchor===gs?Pa("panels.schedules.summary.anchor_finish",t,"finish",Dn(n.finish,t),"start",Dn(n.start,t)):Pa("panels.schedules.summary.anchor_start",t,"start",Dn(n.start,t),"finish",Dn(n.finish,t)):Pa("panels.schedules.summary.start_only",t,"when",Dn(n.start,t)):Pa("panels.schedules.summary.finish_only",t,"when",Dn(n.finish,t)),{text:`${a}, ${l}, ${d}.`,isError:!1}}function Dn(e,t){var s,i,a;switch(e.mode){case ls:return null!==(s=e.time)&&void 0!==s?s:"";case ds:case cs:{const s=Pa(`panels.schedules.summary.${e.mode}`,t),a=null!==(i=e.offset)&&void 0!==i?i:0;if(0===a)return s;return Pa(a<0?"panels.schedules.summary.offset_before":"panels.schedules.summary.offset_after",t,"minutes",Math.abs(a),"event",s)}case hs:return Pa("panels.schedules.summary.at_azimuth",t,"degrees",null!==(a=e.azimuth)&&void 0!==a?a:90);default:return""}}const Hn=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];function Mn(){return{name:"",recurrence:"daily",enabled:!0,start_mode:ls,start_time:"06:00",finish_mode:rs,action:"irrigate",zones:"all"}}function In(e,t){return Pa(`panels.schedules.types.${e}`,t)||e}let Nn=class extends le{constructor(){super(...arguments),this.zones=[],this.heading="",this._hasFooterSlot=!1,this._save=()=>{this.dispatchEvent(new CustomEvent("save",{detail:{value:this.schedule},bubbles:!0,composed:!0}))},this._cancel=()=>{this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}}firstUpdated(){var e;const t=null===(e=this.renderRoot.querySelector("ha-dialog"))||void 0===e?void 0:e.shadowRoot;this._hasFooterSlot=!!(null==t?void 0:t.querySelector('slot[name="footer"]'))}_emitChanged(e){this.dispatchEvent(new CustomEvent("schedule-changed",{detail:{value:Object.assign(Object.assign({},this.schedule),e)},bubbles:!0,composed:!0}))}_renderZonePicker(){const e="all"===this.schedule.zones||!Array.isArray(this.schedule.zones),t=e?[]:this.schedule.zones.map(String);return W`
       <div class="field">
         <div class="switch-container">
           <input
@@ -5752,26 +5752,36 @@ function me(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
           ${this._renderSection("season",this._renderSeasonSection())}
         </div>
 
-        <label slot="secondaryAction" class="enabled-toggle">
-          <ha-switch
-            .checked="${e.enabled}"
-            @change=${e=>this._emitChanged({enabled:e.target.checked})}
-          ></ha-switch>
-          <span>${Pa("panels.schedules.fields.enabled",t)}</span>
-        </label>
-        <div slot="primaryAction" class="dialog-buttons">
-          <button class="dialog-btn" @click=${this._cancel}>
-            ${Pa("common.actions.cancel",this.hass.language)}
-          </button>
-          <button
-            class="dialog-btn dialog-btn-primary"
-            ?disabled="${!this._canSave()}"
-            @click=${this._save}
-          >
-            ${Pa("common.actions.save",this.hass.language)}
-          </button>
-        </div>
+        ${this._renderActions(t)}
       </ha-dialog>
+    `}_renderEnabledToggle(e){return W`
+      <label class="enabled-toggle">
+        <ha-switch
+          .checked="${this.schedule.enabled}"
+          @change=${e=>this._emitChanged({enabled:e.target.checked})}
+        ></ha-switch>
+        <span>${Pa("panels.schedules.fields.enabled",e)}</span>
+      </label>
+    `}_renderButtons(e){return W`
+      <div class="dialog-buttons">
+        <button class="dialog-btn" @click=${this._cancel}>
+          ${Pa("common.actions.cancel",e)}
+        </button>
+        <button
+          class="dialog-btn dialog-btn-primary"
+          ?disabled="${!this._canSave()}"
+          @click=${this._save}
+        >
+          ${Pa("common.actions.save",e)}
+        </button>
+      </div>
+    `}_renderActions(e){return this._hasFooterSlot?W`
+        <div slot="footer" class="dialog-footer">
+          ${this._renderEnabledToggle(e)} ${this._renderButtons(e)}
+        </div>
+      `:W`
+      <span slot="secondaryAction">${this._renderEnabledToggle(e)}</span>
+      <span slot="primaryAction">${this._renderButtons(e)}</span>
     `}static get styles(){return[sn,r`
         /* The buttons sit in ha-dialog's own action slots rather than in a
            footer inside the content, so the actions bar it always renders is
@@ -5880,6 +5890,17 @@ function me(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
            wrapper. */
         ha-dialog {
           --justify-action-buttons: space-between;
+        }
+        /* The Web Awesome dialog (HA 2026.8+) has ONE footer slot instead of
+           the two Material action slots, so --justify-action-buttons has
+           nothing to split there. The row does its own splitting instead. */
+        .dialog-footer {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          width: 100%;
         }
         .dialog-buttons {
           display: flex;
@@ -6023,7 +6044,7 @@ function me(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
         .summary {
           margin-bottom: 18px;
         }
-      `]}};t([pe({attribute:!1})],Nn.prototype,"hass",void 0),t([pe({attribute:!1})],Nn.prototype,"schedule",void 0),t([pe({attribute:!1})],Nn.prototype,"zones",void 0),t([pe({attribute:!1})],Nn.prototype,"heading",void 0),Nn=t([ce("si-schedule-dialog")],Nn);let Ln=class extends(Xa(le)){constructor(){super(...arguments),this._schedules=[],this._zones=[],this._isLoading=!0,this._showDialog=!1,this._editingSchedule=Mn(),this._editingId=null}hassSubscribe(){return this._load(),[this.hass.connection.subscribeMessage(()=>this._load(),{type:fe+"_config_updated"})]}async _load(){var e;if(this.hass)try{const[t,s]=await Promise.all([(e=this.hass,e.callWS({type:fe+"/schedules"})),Ns(this.hass)]);this._schedules=t||[],this._zones=s||[]}catch(e){console.error("Failed to load schedules",e),Ka(this,this.hass,"common.errors.load_failed",e)}finally{this._isLoading=!1}}_openAdd(){this._editingSchedule=Mn(),this._editingId=null,this._showDialog=!0}_openEdit(e){var t;this._editingSchedule=Object.assign({},e),this._editingId=null!==(t=e.id)&&void 0!==t?t:null,this._showDialog=!0}_closeDialog(){this._showDialog=!1}async _save(){const e=Object.assign({},this._editingSchedule);this._editingId&&(e.id=this._editingId);try{const t=await Ws(this.hass,e);if(t&&!1===t.success)throw new Error(t.error||"");this._closeDialog(),await this._load()}catch(e){console.error("Failed to save schedule",e),Ka(this,this.hass,"common.errors.save_failed",e)}}async _delete(e){try{await(t=this.hass,s=e,t.callWS({type:fe+"/schedule_delete",schedule_id:s})),await this._load()}catch(e){console.error("Failed to delete schedule",e),Ka(this,this.hass,"common.errors.delete_failed",e)}var t,s}_onScheduleChanged(e){this._editingSchedule=e.detail.value}_zonesLabel(e){if("all"===e)return Pa("panels.schedules.zones_all",this.hass.language);if(Array.isArray(e)){const t=e.map(e=>{const t=this._zones.find(t=>String(t.id)===String(e));return t?t.name:e}).join(", ");return t||e.join(", ")}return String(e)}_dialogTitle(){return this._editingId?Pa("panels.schedules.dialog.edit_title",this.hass.language):Pa("panels.schedules.dialog.add_title",this.hass.language)}render(){return this.hass?this._isLoading?W`
+      `]}};t([pe({attribute:!1})],Nn.prototype,"hass",void 0),t([pe({attribute:!1})],Nn.prototype,"schedule",void 0),t([pe({attribute:!1})],Nn.prototype,"zones",void 0),t([pe({attribute:!1})],Nn.prototype,"heading",void 0),t([ge()],Nn.prototype,"_hasFooterSlot",void 0),Nn=t([ce("si-schedule-dialog")],Nn);let Ln=class extends(Xa(le)){constructor(){super(...arguments),this._schedules=[],this._zones=[],this._isLoading=!0,this._showDialog=!1,this._editingSchedule=Mn(),this._editingId=null}hassSubscribe(){return this._load(),[this.hass.connection.subscribeMessage(()=>this._load(),{type:fe+"_config_updated"})]}async _load(){var e;if(this.hass)try{const[t,s]=await Promise.all([(e=this.hass,e.callWS({type:fe+"/schedules"})),Ns(this.hass)]);this._schedules=t||[],this._zones=s||[]}catch(e){console.error("Failed to load schedules",e),Ka(this,this.hass,"common.errors.load_failed",e)}finally{this._isLoading=!1}}_openAdd(){this._editingSchedule=Mn(),this._editingId=null,this._showDialog=!0}_openEdit(e){var t;this._editingSchedule=Object.assign({},e),this._editingId=null!==(t=e.id)&&void 0!==t?t:null,this._showDialog=!0}_closeDialog(){this._showDialog=!1}async _save(){const e=Object.assign({},this._editingSchedule);this._editingId&&(e.id=this._editingId);try{const t=await Ws(this.hass,e);if(t&&!1===t.success)throw new Error(t.error||"");this._closeDialog(),await this._load()}catch(e){console.error("Failed to save schedule",e),Ka(this,this.hass,"common.errors.save_failed",e)}}async _delete(e){try{await(t=this.hass,s=e,t.callWS({type:fe+"/schedule_delete",schedule_id:s})),await this._load()}catch(e){console.error("Failed to delete schedule",e),Ka(this,this.hass,"common.errors.delete_failed",e)}var t,s}_onScheduleChanged(e){this._editingSchedule=e.detail.value}_zonesLabel(e){if("all"===e)return Pa("panels.schedules.zones_all",this.hass.language);if(Array.isArray(e)){const t=e.map(e=>{const t=this._zones.find(t=>String(t.id)===String(e));return t?t.name:e}).join(", ");return t||e.join(", ")}return String(e)}_dialogTitle(){return this._editingId?Pa("panels.schedules.dialog.edit_title",this.hass.language):Pa("panels.schedules.dialog.add_title",this.hass.language)}render(){return this.hass?this._isLoading?W`
         <ha-card
           header="${Pa("panels.schedules.title",this.hass.language)}"
         >

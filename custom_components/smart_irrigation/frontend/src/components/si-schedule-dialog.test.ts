@@ -96,10 +96,50 @@ describe("si-schedule-dialog", () => {
       schedule: { ...emptySchedule(), enabled: true },
     });
     const { text } = flatten(el.render());
-    expect(text).toContain(
-      '<label slot="secondaryAction" class="enabled-toggle"',
-    );
+    expect(text).toContain('class="enabled-toggle"');
     expect(text).toContain("<ha-switch");
+    // Not in the heading slot -- see the sibling test above for why.
+    expect(text).not.toContain('slot="heading"');
+  });
+
+  // #117: HA 2026.8 swapped ha-dialog's Material internals for a Web Awesome
+  // wa-dialog and dropped the primaryAction/secondaryAction slots for a single
+  // `footer`. Content in a slot that does not exist is not rendered at all --
+  // no error, no fallback -- so Cancel, Save and the Enabled toggle silently
+  // vanished and no schedule could be saved. hacs.json still declares a floor
+  // of HA 2025.5.0, so BOTH shapes have to work and the slot is detected.
+  describe("the actions row targets the slot the running dialog actually has", () => {
+    const actionsOf = (hasFooter: boolean) => {
+      const { el } = makeDialog({ schedule: emptySchedule() });
+      (el as any)._hasFooterSlot = hasFooter;
+      return flatten(el.render()).text;
+    };
+
+    it("uses the footer slot on a Web Awesome ha-dialog", () => {
+      const text = actionsOf(true);
+      expect(text).toContain('slot="footer"');
+      expect(text).not.toContain('slot="primaryAction"');
+      expect(text).not.toContain('slot="secondaryAction"');
+    });
+
+    it("uses the Material action slots when there is no footer slot", () => {
+      const text = actionsOf(false);
+      expect(text).toContain('slot="primaryAction"');
+      expect(text).toContain('slot="secondaryAction"');
+      expect(text).not.toContain('slot="footer"');
+    });
+
+    it("renders exactly one Save and one Cancel either way", () => {
+      for (const hasFooter of [true, false]) {
+        const text = actionsOf(hasFooter);
+        const saves = text.match(/dialog-btn-primary/g) || [];
+        const rows = text.match(/class="dialog-buttons"/g) || [];
+        const toggles = text.match(/class="enabled-toggle"/g) || [];
+        expect(saves.length, `footer=${hasFooter}`).toBe(1);
+        expect(rows.length, `footer=${hasFooter}`).toBe(1);
+        expect(toggles.length, `footer=${hasFooter}`).toBe(1);
+      }
+    });
   });
 
   it("emits schedule-changed with the patched schedule when the name field changes", () => {
