@@ -12,6 +12,11 @@ ledger:
 * a **Hargreaves-seeded proxy** distributed over the elapsed hours, for
   providers with neither.
 
+Those three choose the EVAPOTRANSPIRATION only. Precipitation comes from the
+reading buffer on every one of them, because that is the only source the daily
+calculation ever books rain from: a total taken from anywhere else is a total
+the ledger will never record.
+
 Does NOT touch the stored bucket, the daily calculation, or irrigation — with
 one exception the user opts into: with ``live_estimate_enabled`` on, the deficit
 computed here both triggers and sizes runs (see ``irrigation.py``), which is why
@@ -37,7 +42,7 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .calcmodules.pyeto import SOLRAD_behavior
-from .calculation import pending_bucket_events
+from .calculation import pending_bucket_events, replayed_balance_applies
 from .et_estimate import (
     SiteGeometry,
     estimate_daily_et0_hargreaves,
@@ -235,33 +240,26 @@ class LiveEstimateMixin:
         module re-scans the calc-module directory, which is far too heavy for a
         path that runs every minute per zone.
 
-        The opt-in read here is ``hourlycalculation`` — the switch the daily
-        form itself reads, via ``_hourly_calculation_enabled`` — and NOT
-        ``continuousupdates``. The two are independent axes, so reading the
-        ingestion flag broke the mirror in both directions: dense ingestion
-        alone put an hourly live curve against a ledger still running the daily
-        equation, which is the 12% gap this gate exists to prevent, while a
-        poll-only install that had turned the hourly form on was refused the
-        buffer source the daily calculation was already using. Note this gates
-        only the BUFFER source — a weather-service install keeps the client and
-        proxy estimates it already had, which is why the check is here rather
-        than in ``_intraday_for_zone``.
+        Strictly narrower than the balance form's condition, and structurally so:
+        it starts from that same predicate and adds the two configurations a
+        buffer-summed ETo cannot reproduce. A zone refused here still has its
+        window replayed — the sources are one axis and the balance form is
+        another.
 
-        Strict identity check, matching ``_hourly_calculation_enabled``, so a
-        test double or an absent attribute reads as off.
+        The opt-in read is ``hourlycalculation`` — the switch the commit itself
+        reads — and NOT ``continuousupdates``. The two are independent axes, so
+        reading the ingestion flag broke the mirror in both directions: dense
+        ingestion alone put an hourly live curve against a ledger still running
+        the daily equation, which is the 12% gap this gate exists to prevent,
+        while a poll-only install that had turned the hourly form on was refused
+        the buffer source the commit was already using. Note this gates only the
+        BUFFER source — a weather-service install keeps the client and proxy
+        estimates it already had, which is why the check is here rather than in
+        ``_intraday_for_zone``.
         """
-        if (
-            getattr(
-                getattr(self.store, "config", None),
-                const.CONF_HOURLY_CALCULATION,
-                False,
-            )
-            is not True
-        ):
+        if not replayed_balance_applies(self.store, zone):
             return False
         module = self.store.get_module(zone.get(const.ZONE_MODULE))
-        if not module or module.get(const.MODULE_NAME) != "PyETO":
-            return False
         config = module.get(const.MODULE_CONFIG) or {}
         # Stored either as the enum or as its bare value, depending on whether
         # the config went through the voluptuous schema on the way in.
@@ -362,12 +360,17 @@ class LiveEstimateMixin:
         healthy install, which is what makes the replayed curve land on the
         bucket the next calculation commits.
 
-        No gate of its own. The caller reaches this only on the buffer path,
-        which ``_hourly_form_applies`` has already restricted to PyETO zones on
-        an install with ``hourlycalculation`` on — exactly the pair of conditions
-        (``module_uses_precipitation`` and ``_hourly_calculation_enabled``) the
-        daily side replays under. Adding a second, separately-worded gate here is
-        how the two would drift.
+        No gate of its own: the caller has already asked
+        ``replayed_balance_applies``, which is the commit's own predicate. Adding
+        a second, separately-worded gate here is how the two would drift.
+
+        The rows are the buffer's on every path, including the two whose
+        evapotranspiration came from a weather client instead. That is not a
+        coupling of two sources: the buffer is the only place the commit ever
+        books rain from, so it is the only place a replay can honestly take rain
+        TIMING from either. ``hourly_et`` is None on those paths, which spreads
+        their window total across the steps by measured radiation — exactly what
+        the commit does with its own daily total.
 
         Reconciled against the same precipitation total the estimate publishes as
         its own trace, for the reason the daily side reconciles against ZONE_DELTA:
@@ -471,6 +474,12 @@ class LiveEstimateMixin:
             "drainage_since": None,
             "live_deficit": None,
             "as_of": None,
+            # Which form of the balance produced the number above. Published
+            # because nothing else makes the difference visible from outside the
+            # process: a replayed estimate and a lumped one that happens to land
+            # close are the same reading, and the gap between them is exactly
+            # what an operator would be diagnosing.
+            "balance_form": None,
         }
         try:
             client = inputs["client"]
@@ -564,7 +573,16 @@ class LiveEstimateMixin:
                 tz = inputs["tz"] or 0.0
                 window = self._rows_since(rows, anchor)
                 et_mm = rigorous_et_since(window, lat, lon, tz, elevation)
-                precip_mm = sum(r.get("precipitation", 0.0) for r in window)
+                # Rain from the BUFFER, not from the provider's own hourly
+                # series, even though the ET on this path comes from that
+                # series. The buffer is the only place the daily calculation
+                # ever books rain from, so summing the provider's series
+                # published a total the ledger will never record: a different
+                # set of observations for the same site, plain-summed rather
+                # than aggregated per source, and cut at whole-hour row
+                # boundaries instead of at the anchor. Same anchor as the ET, so
+                # the balance is still the difference of one window.
+                precip_mm = self._observed_precip_since_mm(zone, anchor)
                 method = "hourly"
                 as_of = window[-1]["time"] if window else None
             else:
@@ -631,12 +649,16 @@ class LiveEstimateMixin:
             # the direction that reads the zone drier than it is, and with
             # live_estimate_enabled on it both triggers and sizes real runs.
             #
-            # Only the buffer path can be replayed: it is the only one with the
-            # rows the sub-steps are cut from. The client and proxy paths keep
-            # the lumped form, which is also what the daily side does when it
-            # cannot sub-step.
+            # Replayed wherever the zone's OWN commit replays, asked through the
+            # commit's own predicate. That is a wider set than the zones offered
+            # the buffer-summed ET: a zone that estimates solar radiation, or
+            # folds forecast days into its ET, is refused that source and still
+            # has its window replayed when it commits. Those zones were the ones
+            # being read through the lumped form against a replayed ledger. The
+            # buffer path is included by the same condition rather than by a
+            # source check — ``_hourly_form_applies`` is strictly narrower.
             steps = None
-            if hourly_et is not None:
+            if replayed_balance_applies(self.store, zone):
                 steps = self._buffer_water_steps(
                     zone,
                     anchor,
@@ -698,6 +720,7 @@ class LiveEstimateMixin:
                 # precision so the entity does not show five decimals.
                 live_deficit=round(from_mm(live_mm), ndigits),
                 as_of=as_of,
+                balance_form="replayed" if steps is not None else "lumped",
             )
         except Exception as e:  # noqa: BLE001 — estimate must never raise
             _LOGGER.debug("intraday estimate failed for a zone: %s", e)
