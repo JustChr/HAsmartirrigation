@@ -1614,14 +1614,50 @@ class RecurringScheduleManager:
         return tracker
 
     async def _reregister_tracker(self, schedule: dict[str, Any]) -> None:
-        """Cancel and rebuild a schedule's tracker (used by self-rescheduling
-        finish/azimuth trackers and by the duration-change re-arm)."""
+        """Rebuild a schedule's tracker (used by self-rescheduling finish/azimuth
+        trackers and by the duration-change re-arm).
+
+        The old handle is kept until a replacement exists. Cancelling first left
+        the slot empty whenever the rebuild declined to arm - an end that stops
+        resolving as the season moves, an unrecognised recurrence, an exception
+        out of a sub-builder - and a schedule that had been firing simply
+        stopped, until the next config write rebuilt every tracker or the
+        integration reloaded. The only trace was a warning. This path runs
+        repeatedly during normal operation on the schedules with the most moving
+        parts, so the window is not a startup-only one.
+        """
         schedule_id = schedule[const.SCHEDULE_CONF_ID]
         old = self._schedule_trackers.get(schedule_id)
-        if old:
+
+        # Hide the old handle from the rebuild rather than cancelling it, so
+        # _store_tracker cannot cancel it on our behalf and this stays the only
+        # place that decides whether it survives.
+        self._schedule_trackers[schedule_id] = None
+        try:
+            await self._setup_schedule_tracker(schedule)
+        except Exception:
+            self._schedule_trackers[schedule_id] = old
+            raise
+
+        replacement = self._schedule_trackers.get(schedule_id)
+        if replacement is None:
+            if old is None:
+                return
+            if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
+                # Disabled on purpose: no tracker is the intended outcome, and
+                # must not be read as a failed rebuild.
+                old()
+                return
+            _LOGGER.warning(
+                "Schedule '%s': could not rebuild its tracker; keeping the "
+                "existing one rather than leaving it unarmed",
+                schedule.get(const.SCHEDULE_CONF_NAME),
+            )
+            self._schedule_trackers[schedule_id] = old
+            return
+
+        if old is not None and old is not replacement:
             old()
-            self._schedule_trackers[schedule_id] = None
-        await self._setup_schedule_tracker(schedule)
 
     async def _setup_interval_tracker(self, schedule: dict[str, Any]) -> Any:
         """Set up an interval-based schedule tracker.
