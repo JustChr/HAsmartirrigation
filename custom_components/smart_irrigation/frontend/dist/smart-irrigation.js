@@ -5718,7 +5718,7 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
         color: var(--secondary-text-color);
         margin-top: 1px;
       }
-    `}};t([me({attribute:!1})],uo.prototype,"hass",void 0),t([me({attribute:!1})],uo.prototype,"rows",void 0),t([me({attribute:!1})],uo.prototype,"recurrence",void 0),t([me({attribute:!1})],uo.prototype,"intervalHours",void 0),t([me({attribute:!1})],uo.prototype,"intervalStartTime",void 0),t([me({attribute:!1})],uo.prototype,"nominalDemandSeconds",void 0),uo=t([ue("si-run-window-dial")],uo);const po=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];function go(){return{name:"",recurrence:"daily",enabled:!0,start_mode:cs,start_time:"06:00",finish_mode:ds,action:"irrigate",zones:"all"}}function mo(e,t){return Ua(`panels.schedules.types.${e}`,t)||e}let vo=class extends ce{constructor(){super(...arguments),this.zones=[],this.heading="",this._hasFooterSlot=!1,this._save=()=>{this.dispatchEvent(new CustomEvent("save",{detail:{value:this.schedule},bubbles:!0,composed:!0}))},this._cancel=()=>{this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}}firstUpdated(){var e;const t=null===(e=this.renderRoot.querySelector("ha-dialog"))||void 0===e?void 0:e.shadowRoot;this._hasFooterSlot=!!(null==t?void 0:t.querySelector('slot[name="footer"]'))}_emitChanged(e){this.dispatchEvent(new CustomEvent("schedule-changed",{detail:{value:Object.assign(Object.assign({},this.schedule),e)},bubbles:!0,composed:!0}))}_renderZonePicker(){const e="all"===this.schedule.zones||!Array.isArray(this.schedule.zones),t=e?[]:this.schedule.zones.map(String);return Z`
+    `}};t([me({attribute:!1})],uo.prototype,"hass",void 0),t([me({attribute:!1})],uo.prototype,"rows",void 0),t([me({attribute:!1})],uo.prototype,"recurrence",void 0),t([me({attribute:!1})],uo.prototype,"intervalHours",void 0),t([me({attribute:!1})],uo.prototype,"intervalStartTime",void 0),t([me({attribute:!1})],uo.prototype,"nominalDemandSeconds",void 0),uo=t([ue("si-run-window-dial")],uo);const po=["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];function go(){return{name:"",recurrence:"daily",enabled:!0,start_mode:cs,start_time:"06:00",finish_mode:ds,action:"irrigate",zones:"all"}}function mo(e,t){return Ua(`panels.schedules.types.${e}`,t)||e}let vo=class extends ce{constructor(){super(...arguments),this.zones=[],this.heading="",this._save=()=>{this.dispatchEvent(new CustomEvent("save",{detail:{value:this.schedule},bubbles:!0,composed:!0}))},this._cancel=()=>{this.dispatchEvent(new CustomEvent("cancel",{bubbles:!0,composed:!0}))}}_emitChanged(e){this.dispatchEvent(new CustomEvent("schedule-changed",{detail:{value:Object.assign(Object.assign({},this.schedule),e)},bubbles:!0,composed:!0}))}_renderZonePicker(){const e="all"===this.schedule.zones||!Array.isArray(this.schedule.zones),t=e?[]:this.schedule.zones.map(String);return Z`
       <div class="field">
         <div class="switch-container">
           <input
@@ -5997,17 +5997,19 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
           ${Ua("common.actions.save",e)}
         </button>
       </div>
-    `}_renderActions(e){return this._hasFooterSlot?Z`
-        <div slot="footer" class="dialog-footer">
-          ${this._renderEnabledToggle(e)} ${this._renderButtons(e)}
-        </div>
-      `:Z`
-      <span slot="secondaryAction">${this._renderEnabledToggle(e)}</span>
-      <span slot="primaryAction">${this._renderButtons(e)}</span>
+    `}_renderActions(e){return Z`
+      <div class="dialog-footer">
+        ${this._renderEnabledToggle(e)} ${this._renderButtons(e)}
+      </div>
     `}static get styles(){return[nn,r`
-        /* The buttons sit in ha-dialog's own action slots rather than in a
-           footer inside the content, so the actions bar it always renders is
-           the one holding them instead of an empty 52px strip below them. */
+        /* The actions row is a footer in the default content slot (see
+           _renderActions / .dialog-footer), NOT ha-dialog's named action
+           slots: those slot names are version-specific and vanished under HA
+           2026.8's Web Awesome dialog, taking Save/Cancel with them (#117). The
+           cost is that the old Material dialog still renders its own (now empty)
+           native action bar below our footer; that cosmetic strip on the
+           2025.5 floor is the deliberate trade for the row rendering at all on
+           current HA. */
         /* Spacing is carried by each block's own margin rather than by a
            flex gap on the container: a gap applies uniformly, and the
            prototype's rhythm is not uniform (18px under the summary, 14px
@@ -6101,28 +6103,32 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
           top: -1px;
           opacity: 0.45;
         }
-        /* The Enabled toggle shares the actions row with Cancel/Save, pinned
-           left while the buttons stay right.
-           ha-dialog justifies that row with the --justify-action-buttons
-           variable (defaulting to flex-end) and lets it wrap, so the supported
-           way to split it is that variable plus exactly TWO flex children. An
-           auto margin on a third child does not survive the wrap: the toggle,
-           Cancel and Save were three items in a wrapping right-aligned row,
-           and the toggle landed on top of Cancel. Hence the buttons share one
-           wrapper. */
-        ha-dialog {
-          --justify-action-buttons: space-between;
-        }
-        /* The Web Awesome dialog (HA 2026.8+) has ONE footer slot instead of
-           the two Material action slots, so --justify-action-buttons has
-           nothing to split there. The row does its own splitting instead. */
+        /* The actions row lives in the dialog's default content slot (see
+           _renderActions), pinned to the bottom with position: sticky so it
+           stays reachable while the fields above scroll. The Enabled toggle
+           sits left and Cancel/Save right; the buttons share one wrapper so the
+           row is exactly two flex children that space-between splits cleanly
+           (a third child does not survive the wrap). */
         .dialog-footer {
+          position: sticky;
+          bottom: 0;
           display: flex;
           flex-wrap: wrap;
           align-items: center;
           justify-content: space-between;
           gap: 8px;
           width: 100%;
+          /* Sit on the dialog's own surface so scrolled fields do not show
+             through, with a divider from the content above. The top spacing is
+             padding, not margin: the opaque background only paints the
+             padding/border box, so a margin gap would let a scrolled field peek
+             through above the divider while the bar is pinned. */
+          background: var(
+            --card-background-color,
+            var(--primary-background-color, #fff)
+          );
+          border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+          padding: 16px 0 8px;
         }
         .dialog-buttons {
           display: flex;
@@ -6305,7 +6311,7 @@ function fe(e,t){return(t,s,i)=>((e,t,s)=>(s.configurable=!0,s.enumerable=!0,Ref
         .summary {
           margin-bottom: 18px;
         }
-      `]}};t([me({attribute:!1})],vo.prototype,"hass",void 0),t([me({attribute:!1})],vo.prototype,"schedule",void 0),t([me({attribute:!1})],vo.prototype,"zones",void 0),t([me({attribute:!1})],vo.prototype,"heading",void 0),t([ve()],vo.prototype,"_hasFooterSlot",void 0),vo=t([ue("si-schedule-dialog")],vo);let fo=class extends(Qa(ce)){constructor(){super(...arguments),this._schedules=[],this._zones=[],this._isLoading=!0,this._showDialog=!1,this._editingSchedule=go(),this._editingId=null}hassSubscribe(){return this._load(),[this.hass.connection.subscribeMessage(()=>this._load(),{type:be+"_config_updated"})]}async _load(){var e;if(this.hass)try{const[t,s]=await Promise.all([(e=this.hass,e.callWS({type:be+"/schedules"})),Rs(this.hass)]);this._schedules=t||[],this._zones=s||[]}catch(e){console.error("Failed to load schedules",e),Ya(this,this.hass,"common.errors.load_failed",e)}finally{this._isLoading=!1}}_openAdd(){this._editingSchedule=go(),this._editingId=null,this._showDialog=!0,this._refreshNominalDemand()}_openEdit(e){var t;this._editingSchedule=Object.assign({},e),this._editingId=null!==(t=e.id)&&void 0!==t?t:null,this._showDialog=!0}_closeDialog(){this._showDialog=!1}async _save(){const e=Object.assign({},this._editingSchedule);this._editingId&&(e.id=this._editingId);try{const t=await qs(this.hass,e);if(t&&!1===t.success)throw new Error(t.error||"");this._closeDialog(),await this._load()}catch(e){console.error("Failed to save schedule",e),Ya(this,this.hass,"common.errors.save_failed",e)}}async _delete(e){try{await(t=this.hass,s=e,t.callWS({type:be+"/schedule_delete",schedule_id:s})),await this._load()}catch(e){console.error("Failed to delete schedule",e),Ya(this,this.hass,"common.errors.delete_failed",e)}var t,s}_onScheduleChanged(e){const t=this._editingSchedule.zones;this._editingSchedule=e.detail.value,JSON.stringify(t)!==JSON.stringify(this._editingSchedule.zones)&&this._refreshNominalDemand()}async _refreshNominalDemand(){const e=this._editingSchedule.zones;try{const{nominal_demand_seconds:t}=await((e,t)=>e.callWS({type:be+"/schedule_nominal_demand",zones:t}))(this.hass,"all"===e?"all":e);this._showDialog&&JSON.stringify(this._editingSchedule.zones)===JSON.stringify(e)&&(this._editingSchedule=Object.assign(Object.assign({},this._editingSchedule),{nominal_demand_seconds:t}))}catch(e){console.error("Failed to fetch nominal demand",e)}}_zonesLabel(e){if("all"===e)return Ua("panels.schedules.zones_all",this.hass.language);if(Array.isArray(e)){const t=e.map(e=>{const t=this._zones.find(t=>String(t.id)===String(e));return t?t.name:e}).join(", ");return t||e.join(", ")}return String(e)}_dialogTitle(){return this._editingId?Ua("panels.schedules.dialog.edit_title",this.hass.language):Ua("panels.schedules.dialog.add_title",this.hass.language)}render(){return this.hass?this._isLoading?Z`
+      `]}};t([me({attribute:!1})],vo.prototype,"hass",void 0),t([me({attribute:!1})],vo.prototype,"schedule",void 0),t([me({attribute:!1})],vo.prototype,"zones",void 0),t([me({attribute:!1})],vo.prototype,"heading",void 0),vo=t([ue("si-schedule-dialog")],vo);let fo=class extends(Qa(ce)){constructor(){super(...arguments),this._schedules=[],this._zones=[],this._isLoading=!0,this._showDialog=!1,this._editingSchedule=go(),this._editingId=null}hassSubscribe(){return this._load(),[this.hass.connection.subscribeMessage(()=>this._load(),{type:be+"_config_updated"})]}async _load(){var e;if(this.hass)try{const[t,s]=await Promise.all([(e=this.hass,e.callWS({type:be+"/schedules"})),Rs(this.hass)]);this._schedules=t||[],this._zones=s||[]}catch(e){console.error("Failed to load schedules",e),Ya(this,this.hass,"common.errors.load_failed",e)}finally{this._isLoading=!1}}_openAdd(){this._editingSchedule=go(),this._editingId=null,this._showDialog=!0,this._refreshNominalDemand()}_openEdit(e){var t;this._editingSchedule=Object.assign({},e),this._editingId=null!==(t=e.id)&&void 0!==t?t:null,this._showDialog=!0}_closeDialog(){this._showDialog=!1}async _save(){const e=Object.assign({},this._editingSchedule);this._editingId&&(e.id=this._editingId);try{const t=await qs(this.hass,e);if(t&&!1===t.success)throw new Error(t.error||"");this._closeDialog(),await this._load()}catch(e){console.error("Failed to save schedule",e),Ya(this,this.hass,"common.errors.save_failed",e)}}async _delete(e){try{await(t=this.hass,s=e,t.callWS({type:be+"/schedule_delete",schedule_id:s})),await this._load()}catch(e){console.error("Failed to delete schedule",e),Ya(this,this.hass,"common.errors.delete_failed",e)}var t,s}_onScheduleChanged(e){const t=this._editingSchedule.zones;this._editingSchedule=e.detail.value,JSON.stringify(t)!==JSON.stringify(this._editingSchedule.zones)&&this._refreshNominalDemand()}async _refreshNominalDemand(){const e=this._editingSchedule.zones;try{const{nominal_demand_seconds:t}=await((e,t)=>e.callWS({type:be+"/schedule_nominal_demand",zones:t}))(this.hass,"all"===e?"all":e);this._showDialog&&JSON.stringify(this._editingSchedule.zones)===JSON.stringify(e)&&(this._editingSchedule=Object.assign(Object.assign({},this._editingSchedule),{nominal_demand_seconds:t}))}catch(e){console.error("Failed to fetch nominal demand",e)}}_zonesLabel(e){if("all"===e)return Ua("panels.schedules.zones_all",this.hass.language);if(Array.isArray(e)){const t=e.map(e=>{const t=this._zones.find(t=>String(t.id)===String(e));return t?t.name:e}).join(", ");return t||e.join(", ")}return String(e)}_dialogTitle(){return this._editingId?Ua("panels.schedules.dialog.edit_title",this.hass.language):Ua("panels.schedules.dialog.add_title",this.hass.language)}render(){return this.hass?this._isLoading?Z`
         <ha-card
           header="${Ua("panels.schedules.title",this.hass.language)}"
         >

@@ -104,41 +104,34 @@ describe("si-schedule-dialog", () => {
 
   // #117: HA 2026.8 swapped ha-dialog's Material internals for a Web Awesome
   // wa-dialog and dropped the primaryAction/secondaryAction slots for a single
-  // `footer`. Content in a slot that does not exist is not rendered at all --
-  // no error, no fallback -- so Cancel, Save and the Enabled toggle silently
-  // vanished and no schedule could be saved. hacs.json still declares a floor
-  // of HA 2025.5.0, so BOTH shapes have to work and the slot is detected.
-  describe("the actions row targets the slot the running dialog actually has", () => {
-    const actionsOf = (hasFooter: boolean) => {
+  // `footer`. The swap lands mid-render, so a one-shot runtime probe for which
+  // slot exists races the dialog's own first render and loses -- the footer
+  // slot is not in ha-dialog's shadow root yet when firstUpdated() looks, so
+  // the actions fell back to the removed Material slots and, being addressed to
+  // slots that no longer exist, were not rendered at all: Cancel, Save and the
+  // Enabled toggle silently vanished and no schedule could be saved. The one
+  // slot present on EVERY ha-dialog generation is the default content slot, so
+  // the actions row renders there unconditionally -- no detection, nothing to
+  // race, working on the Material and Web Awesome dialogs alike.
+  describe("the actions row never targets a version-specific dialog slot", () => {
+    it("renders Save, Cancel and the toggle in the default slot, not an action slot", () => {
       const { el } = makeDialog({ schedule: emptySchedule() });
-      (el as any)._hasFooterSlot = hasFooter;
-      return flatten(el.render()).text;
-    };
-
-    it("uses the footer slot on a Web Awesome ha-dialog", () => {
-      const text = actionsOf(true);
-      expect(text).toContain('slot="footer"');
+      const { text } = flatten(el.render());
+      expect(text).toContain('class="dialog-footer"');
       expect(text).not.toContain('slot="primaryAction"');
       expect(text).not.toContain('slot="secondaryAction"');
-    });
-
-    it("uses the Material action slots when there is no footer slot", () => {
-      const text = actionsOf(false);
-      expect(text).toContain('slot="primaryAction"');
-      expect(text).toContain('slot="secondaryAction"');
       expect(text).not.toContain('slot="footer"');
     });
 
-    it("renders exactly one Save and one Cancel either way", () => {
-      for (const hasFooter of [true, false]) {
-        const text = actionsOf(hasFooter);
-        const saves = text.match(/dialog-btn-primary/g) || [];
-        const rows = text.match(/class="dialog-buttons"/g) || [];
-        const toggles = text.match(/class="enabled-toggle"/g) || [];
-        expect(saves.length, `footer=${hasFooter}`).toBe(1);
-        expect(rows.length, `footer=${hasFooter}`).toBe(1);
-        expect(toggles.length, `footer=${hasFooter}`).toBe(1);
-      }
+    it("renders exactly one Save, one button row and one toggle", () => {
+      const { el } = makeDialog({ schedule: emptySchedule() });
+      const text = flatten(el.render()).text;
+      const saves = text.match(/dialog-btn-primary/g) || [];
+      const rows = text.match(/class="dialog-buttons"/g) || [];
+      const toggles = text.match(/class="enabled-toggle"/g) || [];
+      expect(saves.length).toBe(1);
+      expect(rows.length).toBe(1);
+      expect(toggles.length).toBe(1);
     });
   });
 

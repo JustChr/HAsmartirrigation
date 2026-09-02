@@ -1,5 +1,5 @@
 import { LitElement, html, css, CSSResultGroup, TemplateResult } from "lit";
-import { property, state, customElement } from "lit/decorators.js";
+import { property, customElement } from "lit/decorators.js";
 import { HomeAssistant, SmartIrrigationZone } from "../types";
 import { localize } from "../../localize/localize";
 import { globalStyle } from "../styles/global-style";
@@ -144,21 +144,6 @@ export class SiScheduleDialog extends LitElement {
   @property({ attribute: false }) schedule!: Schedule;
   @property({ attribute: false }) zones: SmartIrrigationZone[] = [];
   @property({ attribute: false }) heading = "";
-
-  /** Whether the running ha-dialog exposes a `footer` slot (HA 2026.8+'s
-   * Web Awesome dialog) rather than Material's primaryAction/secondaryAction.
-   * See `_renderActions` for why this is detected rather than assumed. */
-  @state() private _hasFooterSlot = false;
-
-  protected firstUpdated(): void {
-    // Queried on ha-dialog's own shadow root: the forwarding <slot> elements
-    // sit in there as light-DOM children of the inner wa-dialog, so a plain
-    // descendant query reaches them without crossing a second boundary.
-    const root = (
-      this.renderRoot.querySelector("ha-dialog") as HTMLElement | null
-    )?.shadowRoot;
-    this._hasFooterSlot = !!root?.querySelector('slot[name="footer"]');
-  }
 
   private _emitChanged(patch: Partial<Schedule>) {
     this.dispatchEvent(
@@ -779,31 +764,30 @@ export class SiScheduleDialog extends LitElement {
   }
 
   /**
-   * The actions row, into whichever slot the running `ha-dialog` actually has.
+   * The actions row (Enabled toggle, Cancel, Save), rendered into `ha-dialog`'s
+   * DEFAULT content slot rather than a named action slot.
    *
    * HA 2026.8 swapped `ha-dialog`'s Material internals for a Web Awesome
-   * `wa-dialog`, and with them the slot names: `primaryAction` and
+   * `wa-dialog`, and with them the action slot names: `primaryAction` and
    * `secondaryAction` no longer exist, replaced by a single `footer`. Slotted
    * content matching no slot is not rendered AT ALL — it stays in the DOM at
-   * zero size with no error anywhere — so the Enabled toggle, Cancel and Save
-   * silently vanished and a schedule could not be saved or edited (#117).
+   * zero size with no error anywhere — so addressing the wrong action slot made
+   * the Enabled toggle, Cancel and Save silently vanish (#117). Detecting the
+   * slot at runtime does not save it either: the dialog swaps its shadow DOM
+   * mid-render, so a one-shot probe races that first render and reads the old
+   * shape.
    *
-   * hacs.json still declares a floor of HA 2025.5.0, so both shapes have to
-   * work. The slot is detected rather than assumed (see `firstUpdated`),
-   * because rendering into both would show two action rows on any build that
-   * happened to carry both slots.
+   * The default content slot is the ONE slot every `ha-dialog` generation
+   * exposes, so the row lives there unconditionally — no detection, nothing to
+   * race — and is pinned to the bottom by `position: sticky` in `dialog-footer`.
+   * hacs.json's HA 2025.5.0 floor (Material dialog) is covered by the same
+   * path, its default slot being the content area just the same.
    */
   private _renderActions(lang: string): TemplateResult {
-    if (this._hasFooterSlot) {
-      return html`
-        <div slot="footer" class="dialog-footer">
-          ${this._renderEnabledToggle(lang)} ${this._renderButtons(lang)}
-        </div>
-      `;
-    }
     return html`
-      <span slot="secondaryAction">${this._renderEnabledToggle(lang)}</span>
-      <span slot="primaryAction">${this._renderButtons(lang)}</span>
+      <div class="dialog-footer">
+        ${this._renderEnabledToggle(lang)} ${this._renderButtons(lang)}
+      </div>
     `;
   }
 
@@ -811,9 +795,14 @@ export class SiScheduleDialog extends LitElement {
     return [
       globalStyle,
       css`
-        /* The buttons sit in ha-dialog's own action slots rather than in a
-           footer inside the content, so the actions bar it always renders is
-           the one holding them instead of an empty 52px strip below them. */
+        /* The actions row is a footer in the default content slot (see
+           _renderActions / .dialog-footer), NOT ha-dialog's named action
+           slots: those slot names are version-specific and vanished under HA
+           2026.8's Web Awesome dialog, taking Save/Cancel with them (#117). The
+           cost is that the old Material dialog still renders its own (now empty)
+           native action bar below our footer; that cosmetic strip on the
+           2025.5 floor is the deliberate trade for the row rendering at all on
+           current HA. */
         /* Spacing is carried by each block's own margin rather than by a
            flex gap on the container: a gap applies uniformly, and the
            prototype's rhythm is not uniform (18px under the summary, 14px
@@ -907,28 +896,32 @@ export class SiScheduleDialog extends LitElement {
           top: -1px;
           opacity: 0.45;
         }
-        /* The Enabled toggle shares the actions row with Cancel/Save, pinned
-           left while the buttons stay right.
-           ha-dialog justifies that row with the --justify-action-buttons
-           variable (defaulting to flex-end) and lets it wrap, so the supported
-           way to split it is that variable plus exactly TWO flex children. An
-           auto margin on a third child does not survive the wrap: the toggle,
-           Cancel and Save were three items in a wrapping right-aligned row,
-           and the toggle landed on top of Cancel. Hence the buttons share one
-           wrapper. */
-        ha-dialog {
-          --justify-action-buttons: space-between;
-        }
-        /* The Web Awesome dialog (HA 2026.8+) has ONE footer slot instead of
-           the two Material action slots, so --justify-action-buttons has
-           nothing to split there. The row does its own splitting instead. */
+        /* The actions row lives in the dialog's default content slot (see
+           _renderActions), pinned to the bottom with position: sticky so it
+           stays reachable while the fields above scroll. The Enabled toggle
+           sits left and Cancel/Save right; the buttons share one wrapper so the
+           row is exactly two flex children that space-between splits cleanly
+           (a third child does not survive the wrap). */
         .dialog-footer {
+          position: sticky;
+          bottom: 0;
           display: flex;
           flex-wrap: wrap;
           align-items: center;
           justify-content: space-between;
           gap: 8px;
           width: 100%;
+          /* Sit on the dialog's own surface so scrolled fields do not show
+             through, with a divider from the content above. The top spacing is
+             padding, not margin: the opaque background only paints the
+             padding/border box, so a margin gap would let a scrolled field peek
+             through above the divider while the bar is pinned. */
+          background: var(
+            --card-background-color,
+            var(--primary-background-color, #fff)
+          );
+          border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+          padding: 16px 0 8px;
         }
         .dialog-buttons {
           display: flex;
