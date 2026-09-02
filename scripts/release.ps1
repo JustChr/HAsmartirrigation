@@ -7,14 +7,14 @@
   One command for the whole release so the steps can't drift (manual releases
   previously bumped versions in v2026.06.06-.08 but never tagged/published them).
 
-  It will, on a clean and up-to-date master:
+  It will, on a clean and up-to-date master (or another branch via -Ref):
     1. bump the version in const.py, manifest.json and frontend/package.json
        (mirrors the Makefile `bump` target),
     2. rebuild the frontend bundle (the version is embedded from package.json,
        so dist MUST be rebuilt and committed — HACS installs the source tree at
        the tag, there is no zip_release),
     3. commit "build: release <version>", create the tag,
-    4. push master + tag,
+    4. push the branch + tag,
     5. create the GitHub release.
 
   Version scheme: vYYYY.MM.NN  (NN = sequence within the calendar month).
@@ -25,6 +25,21 @@
 
 .PARAMETER Notes
   Release notes body. If omitted, GitHub auto-generates notes from merged PRs.
+
+.PARAMETER Ref
+  Branch to release from. Defaults to master. Use it for a hotfix that must NOT
+  carry what has since landed on master: branch from the last release tag,
+  cherry-pick the fix, and release from there.
+
+      git checkout -b hotfix/2026.09.01 v2026.08.18
+      git cherry-pick <fix>            # rebuild dist if it conflicts
+      pwsh scripts/release.ps1 -Ref hotfix/2026.09.01
+
+  The tag does not have to be on master, and the auto-computed version reads
+  const.py ON THAT BRANCH -- so a hotfix off v2026.08.18 in September computes
+  v2026.09.01, not master's next number. A branch with no upstream yet is
+  pushed with -u; one that has an upstream must be in sync with it, exactly as
+  master must be.
 
 .PARAMETER DryRun
   Print the plan and stop before changing anything.
@@ -45,10 +60,12 @@
   pwsh scripts/release.ps1 -Version v2026.07.01
   pwsh scripts/release.ps1 -Prerelease
   pwsh scripts/release.ps1 -DryRun
+  pwsh scripts/release.ps1 -Ref hotfix/2026.09.01
 #>
 param(
   [string]$Version,
   [string]$Notes,
+  [string]$Ref = "master",
   [switch]$DryRun,
   [switch]$Prerelease
 )
@@ -119,12 +136,19 @@ $ImplPath     = "$FrontendDir/$ImplRel"
 
 # --- preflight ------------------------------------------------------------
 $branch = (git rev-parse --abbrev-ref HEAD).Trim()
-if ($branch -ne "master") { throw "Must be on master (currently '$branch')." }
+if ($branch -ne $Ref) { throw "Must be on '$Ref' (currently '$branch'). Pass -Ref to release from another branch." }
 if (git status --porcelain) { throw "Working tree not clean - commit or stash first." }
 
 Invoke-Checked { git fetch origin --tags --quiet }
-if ((git rev-parse HEAD).Trim() -ne (git rev-parse origin/master).Trim()) {
-  throw "Local master is not in sync with origin/master - pull/push first."
+# A hotfix branch usually has no upstream yet; it is pushed with -u below.
+# One that DOES have an upstream must be in sync with it, exactly as master is.
+git rev-parse --verify --quiet "origin/$Ref" > $null 2>&1
+$hasUpstream = $LASTEXITCODE -eq 0
+if ($hasUpstream -and (git rev-parse HEAD).Trim() -ne (git rev-parse "origin/$Ref").Trim()) {
+  throw "Local $Ref is not in sync with origin/$Ref - pull/push first."
+}
+if (-not $hasUpstream) {
+  Write-Host "Branch '$Ref' has no upstream yet - it will be pushed with -u." -ForegroundColor Yellow
 }
 
 # --- current + next version ----------------------------------------------
@@ -180,7 +204,8 @@ Invoke-Checked { git add $ConstPath $ManifestPath $PkgPath }
 Invoke-Checked { git add -f $DistPath $CardPath $ImplPath }   # dist is gitignored but tracked
 Invoke-Checked { git commit -m "build: release $Version" }
 Invoke-Checked { git tag $Version }
-Invoke-Checked { git push origin master }
+if ($hasUpstream) { Invoke-Checked { git push origin $Ref } }
+else { Invoke-Checked { git push -u origin $Ref } }
 Invoke-Checked { git push origin $Version }
 
 # --- build the HACS install zip and attach it AT release creation ---------
