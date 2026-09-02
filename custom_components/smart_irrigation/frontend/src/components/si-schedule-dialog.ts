@@ -1,5 +1,5 @@
 import { LitElement, html, css, CSSResultGroup, TemplateResult } from "lit";
-import { property, customElement } from "lit/decorators.js";
+import { property, state, customElement } from "lit/decorators.js";
 import { HomeAssistant, SmartIrrigationZone } from "../types";
 import { localize } from "../../localize/localize";
 import { globalStyle } from "../styles/global-style";
@@ -144,6 +144,21 @@ export class SiScheduleDialog extends LitElement {
   @property({ attribute: false }) schedule!: Schedule;
   @property({ attribute: false }) zones: SmartIrrigationZone[] = [];
   @property({ attribute: false }) heading = "";
+
+  /** Whether the running ha-dialog exposes a `footer` slot (HA 2026.8+'s
+   * Web Awesome dialog) rather than Material's primaryAction/secondaryAction.
+   * See `_renderActions` for why this is detected rather than assumed. */
+  @state() private _hasFooterSlot = false;
+
+  protected firstUpdated(): void {
+    // Queried on ha-dialog's own shadow root: the forwarding <slot> elements
+    // sit in there as light-DOM children of the inner wa-dialog, so a plain
+    // descendant query reaches them without crossing a second boundary.
+    const root = (
+      this.renderRoot.querySelector("ha-dialog") as HTMLElement | null
+    )?.shadowRoot;
+    this._hasFooterSlot = !!root?.querySelector('slot[name="footer"]');
+  }
 
   private _emitChanged(patch: Partial<Schedule>) {
     this.dispatchEvent(
@@ -724,29 +739,71 @@ export class SiScheduleDialog extends LitElement {
           ${this._renderSection("season", this._renderSeasonSection())}
         </div>
 
-        <label slot="secondaryAction" class="enabled-toggle">
-          <ha-switch
-            .checked="${s.enabled}"
-            @change=${(e: Event) =>
-              this._emitChanged({
-                enabled: (e.target as HTMLInputElement).checked,
-              })}
-          ></ha-switch>
-          <span>${localize("panels.schedules.fields.enabled", lang)}</span>
-        </label>
-        <div slot="primaryAction" class="dialog-buttons">
-          <button class="dialog-btn" @click=${this._cancel}>
-            ${localize("common.actions.cancel", this.hass.language)}
-          </button>
-          <button
-            class="dialog-btn dialog-btn-primary"
-            ?disabled="${!this._canSave()}"
-            @click=${this._save}
-          >
-            ${localize("common.actions.save", this.hass.language)}
-          </button>
-        </div>
+        ${this._renderActions(lang)}
       </ha-dialog>
+    `;
+  }
+
+  /** The Enabled toggle. */
+  private _renderEnabledToggle(lang: string): TemplateResult {
+    return html`
+      <label class="enabled-toggle">
+        <ha-switch
+          .checked="${this.schedule.enabled}"
+          @change=${(e: Event) =>
+            this._emitChanged({
+              enabled: (e.target as HTMLInputElement).checked,
+            })}
+        ></ha-switch>
+        <span>${localize("panels.schedules.fields.enabled", lang)}</span>
+      </label>
+    `;
+  }
+
+  /** Cancel and Save. */
+  private _renderButtons(lang: string): TemplateResult {
+    return html`
+      <div class="dialog-buttons">
+        <button class="dialog-btn" @click=${this._cancel}>
+          ${localize("common.actions.cancel", lang)}
+        </button>
+        <button
+          class="dialog-btn dialog-btn-primary"
+          ?disabled="${!this._canSave()}"
+          @click=${this._save}
+        >
+          ${localize("common.actions.save", lang)}
+        </button>
+      </div>
+    `;
+  }
+
+  /**
+   * The actions row, into whichever slot the running `ha-dialog` actually has.
+   *
+   * HA 2026.8 swapped `ha-dialog`'s Material internals for a Web Awesome
+   * `wa-dialog`, and with them the slot names: `primaryAction` and
+   * `secondaryAction` no longer exist, replaced by a single `footer`. Slotted
+   * content matching no slot is not rendered AT ALL — it stays in the DOM at
+   * zero size with no error anywhere — so the Enabled toggle, Cancel and Save
+   * silently vanished and a schedule could not be saved or edited (#117).
+   *
+   * hacs.json still declares a floor of HA 2025.5.0, so both shapes have to
+   * work. The slot is detected rather than assumed (see `firstUpdated`),
+   * because rendering into both would show two action rows on any build that
+   * happened to carry both slots.
+   */
+  private _renderActions(lang: string): TemplateResult {
+    if (this._hasFooterSlot) {
+      return html`
+        <div slot="footer" class="dialog-footer">
+          ${this._renderEnabledToggle(lang)} ${this._renderButtons(lang)}
+        </div>
+      `;
+    }
+    return html`
+      <span slot="secondaryAction">${this._renderEnabledToggle(lang)}</span>
+      <span slot="primaryAction">${this._renderButtons(lang)}</span>
     `;
   }
 
@@ -861,6 +918,17 @@ export class SiScheduleDialog extends LitElement {
            wrapper. */
         ha-dialog {
           --justify-action-buttons: space-between;
+        }
+        /* The Web Awesome dialog (HA 2026.8+) has ONE footer slot instead of
+           the two Material action slots, so --justify-action-buttons has
+           nothing to split there. The row does its own splitting instead. */
+        .dialog-footer {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          width: 100%;
         }
         .dialog-buttons {
           display: flex;
