@@ -6,6 +6,7 @@ import { loadHaForm } from "./load-ha-elements";
 import { navigate } from "./helpers";
 
 import "./views/zones/view-zones";
+import "./views/history/view-history";
 import "./views/setup/view-setup";
 import "./views/wizard/si-setup-wizard";
 
@@ -21,6 +22,7 @@ import { exportPath, getPath, Path } from "./common/navigation";
 
 enum EMenuItems {
   Zones = "zones",
+  History = "history",
   Setup = "setup",
 }
 
@@ -199,6 +201,14 @@ export class SmartIrrigationPanel extends LitElement {
               this._wizardOpen = true;
             }}"
           ></smart-irrigation-view-zones>
+        `;
+      case "history":
+        return html`
+          <smart-irrigation-view-history
+            .hass=${this.hass}
+            .narrow=${this.narrow}
+            .path=${path}
+          ></smart-irrigation-view-history>
         `;
       case "setup":
         return html`

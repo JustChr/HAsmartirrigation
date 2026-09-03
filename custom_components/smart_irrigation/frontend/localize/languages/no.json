@@ -597,6 +597,11 @@
         "toast_stopped": "Kjøring stoppet"
       }
     },
+    "history": {
+      "title": "Historikk",
+      "select_zone": "Velg sone",
+      "no_zones": "Ingen soner konfigurert ennå."
+    },
     "schedules": {
       "title": "Tidsplaner",
       "description": "Opprett gjentakende tidsplaner for automatisk beregning, oppdatering eller vanning — uten automatiseringer.",

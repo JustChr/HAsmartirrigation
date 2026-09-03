@@ -597,6 +597,11 @@
         "toast_stopped": "Lauf gestoppt"
       }
     },
+    "history": {
+      "title": "Verlauf",
+      "select_zone": "Zone auswählen",
+      "no_zones": "Noch keine Zonen konfiguriert."
+    },
     "schedules": {
       "title": "Zeitpläne",
       "description": "Erstellen Sie wiederkehrende Zeitpläne für automatische Berechnung, Aktualisierung oder Bewässerung – ohne Automationen.",

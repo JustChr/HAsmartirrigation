@@ -597,6 +597,11 @@
         "toast_stopped": "Arrosage arrêté"
       }
     },
+    "history": {
+      "title": "Historique",
+      "select_zone": "Sélectionner une zone",
+      "no_zones": "Aucune zone configurée pour le moment."
+    },
     "schedules": {
       "title": "Planifications",
       "description": "Créez des planifications récurrentes pour calculer, mettre à jour ou irriguer automatiquement — sans automatisations.",

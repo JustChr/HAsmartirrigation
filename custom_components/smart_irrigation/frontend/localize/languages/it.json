@@ -637,6 +637,11 @@
         "toast_stopped": "Irrigazione fermata"
       }
     },
+    "history": {
+      "title": "Cronologia",
+      "select_zone": "Seleziona zona",
+      "no_zones": "Nessuna zona configurata."
+    },
     "schedules": {
       "title": "Pianificazioni",
       "description": "Crea pianificazioni ricorrenti per calcolare, aggiornare o irrigare automaticamente — senza automazioni.",

@@ -597,6 +597,11 @@
         "toast_stopped": "Beh zastavený"
       }
     },
+    "history": {
+      "title": "História",
+      "select_zone": "Vybrať zónu",
+      "no_zones": "Zatiaľ nie sú nakonfigurované žiadne zóny."
+    },
     "schedules": {
       "title": "Plány",
       "description": "Vytvorte opakujúce sa plány pre automatický výpočet, aktualizáciu alebo závlahu — bez automatizácií.",

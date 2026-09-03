@@ -597,6 +597,11 @@
         "toast_stopped": "Run gestopt"
       }
     },
+    "history": {
+      "title": "Geschiedenis",
+      "select_zone": "Zone selecteren",
+      "no_zones": "Nog geen zones geconfigureerd."
+    },
     "schedules": {
       "title": "Schema's",
       "description": "Maak terugkerende schema's voor automatisch berekenen, bijwerken of bewateren — zonder automatiseringen.",

@@ -597,6 +597,11 @@
         "toast_stopped": "Riego detenido"
       }
     },
+    "history": {
+      "title": "Historial",
+      "select_zone": "Seleccionar zona",
+      "no_zones": "Aún no hay zonas configuradas."
+    },
     "schedules": {
       "title": "Programas",
       "description": "Cree programas recurrentes para calcular, actualizar o regar automáticamente — sin automatizaciones.",

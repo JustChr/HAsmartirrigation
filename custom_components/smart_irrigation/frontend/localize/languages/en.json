@@ -818,6 +818,11 @@
         "toast_stopped": "Stopped run"
       }
     },
+    "history": {
+      "title": "History",
+      "select_zone": "Select zone",
+      "no_zones": "No zones configured yet."
+    },
     "distributors": {
       "title": "Distributors",
       "description": "Mechanical water distributors split one supply into several outlets, advanced by pulsing the water on and off.",
