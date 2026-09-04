@@ -215,3 +215,64 @@ class TestWeatherKeyGuard:
     def test_open_meteo_needs_no_key(self):
         coord, hass = self._coord(const.CONF_WEATHER_SERVICE_OPENMETEO, {})
         assert coord._weather_service_key_available(hass) is True
+
+
+class TestLegacyOwnership:
+    """Only migrate an install that is actually ours.
+
+    Upstream ships the same domain and installs into the same directory, so the
+    surviving smart_irrigation install may be theirs. Copying its storage and
+    renaming its history would break an integration that is still running.
+    """
+
+    def _write_manifest(self, tmp_path, payload):
+        d = tmp_path / "custom_components" / const.LEGACY_DOMAIN
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_our_own_previous_release_is_recognised(self, tmp_path):
+        from custom_components.irrigation_plus.migrate_domain import (
+            legacy_install_is_ours,
+        )
+
+        self._write_manifest(
+            tmp_path,
+            {"documentation": "https://github.com/JustChr/HAsmartirrigation"},
+        )
+        assert legacy_install_is_ours(_hass(tmp_path)) is True
+
+    def test_upstreams_install_is_refused(self, tmp_path):
+        from custom_components.irrigation_plus.migrate_domain import (
+            legacy_install_is_ours,
+            legacy_install_present,
+        )
+
+        self._write_manifest(
+            tmp_path,
+            {
+                "documentation": "https://github.com/altmenorg/HAsmartirrigation",
+                "codeowners": ["@altmenorg"],
+            },
+        )
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text("{}", encoding="utf-8")
+        assert legacy_install_is_ours(hass) is False
+        # ...and the migration is therefore never offered.
+        assert legacy_install_present(hass) is False
+
+    def test_an_absent_manifest_is_assumed_to_be_ours(self, tmp_path):
+        # We cannot tell, and the overwhelmingly likely reason a legacy install
+        # exists at all is that it is the one being replaced.
+        from custom_components.irrigation_plus.migrate_domain import (
+            legacy_install_is_ours,
+        )
+
+        assert legacy_install_is_ours(_hass(tmp_path)) is True
+
+    def test_codeowners_alone_is_enough(self, tmp_path):
+        from custom_components.irrigation_plus.migrate_domain import (
+            legacy_install_is_ours,
+        )
+
+        self._write_manifest(tmp_path, {"codeowners": ["@JustChr"]})
+        assert legacy_install_is_ours(_hass(tmp_path)) is True

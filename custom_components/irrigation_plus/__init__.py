@@ -68,7 +68,11 @@ from .helpers import (
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin
-from .migrate_domain import async_import_legacy_store
+from .migrate_domain import (
+    async_import_legacy_store,
+    async_migrate_device_areas,
+    async_migrate_history,
+)
 from .observed_watering import ObservedWateringMixin
 from .opensprinkler import OpenSprinklerMixin
 from .panel import async_register_panel, async_remove_card_resource, remove_panel
@@ -269,6 +273,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # every other entity; existing entity_ids + history carry over. Idempotent.
     await _migrate_duration_unique_ids(hass, entry, store)
 
+    # BEFORE any entity is added: move recorded history and long-term
+    # statistics onto the new entity ids (#120). Ordering is load-bearing — if
+    # one of our entities records a state first there are two states_meta rows
+    # for the same entity_id and the rename hits a unique constraint.
+    if entry.data.get(const.CONF_MIGRATED_FROM_LEGACY):
+        await async_migrate_history(
+            hass, {str(zid): store.get_zone(zid) for zid in store.zones}
+        )
+
     _LOGGER.info("Calling async_forward_entry_setups")
     await hass.config_entries.async_forward_entry_setups(
         entry, [PLATFORM, "number", "binary_sensor", "button", "datetime"]
@@ -281,6 +294,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # concurrent setup, so only sensors got per-zone entities — buttons, numbers
     # and per-zone binary_sensors were silently missing. One fire here reaches all.
     async_dispatcher_send(hass, const.DOMAIN + "_platform_loaded")
+
+    # AFTER the platforms: the replacement zone devices only exist now. Copies
+    # each old zone device's area onto its replacement, since device
+    # identifiers are domain-scoped and the rename orphans the originals.
+    if entry.data.get(const.CONF_MIGRATED_FROM_LEGACY):
+        await async_migrate_device_areas(hass)
     # update listener for options flow
     entry.async_on_unload(entry.add_update_listener(options_update_listener))
 
