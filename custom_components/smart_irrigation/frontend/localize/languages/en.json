@@ -780,7 +780,6 @@
         "toast_failed": "Irrigation failed"
       },
       "history": {
-        "title": "Run history",
         "total_used": "Total water used",
         "empty": "No runs recorded yet.",
         "when": "When",

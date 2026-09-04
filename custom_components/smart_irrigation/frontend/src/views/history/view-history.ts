@@ -11,6 +11,7 @@ import { fetchConfig, fetchZones } from "../../data/websockets";
 import { Path } from "../../common/navigation";
 import { DOMAIN } from "../../const";
 import { globalStyle } from "../../styles/global-style";
+import { showErrorToast } from "../../helpers";
 import { localize } from "../../../localize/localize";
 import "../../components/si-zone-history";
 
@@ -23,14 +24,23 @@ export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
   @state() private _zones: SmartIrrigationZone[] = [];
   @state() private _config?: SmartIrrigationConfig;
   @state() private _selectedZoneId?: number;
+  @state() private _isLoading = true;
+  private _initialLoadDone = false;
 
-  // Same self-fetch pattern as view-zone-settings.ts (hassSubscribe ~line 252):
-  // fetch on connect and re-fetch on the domain's config-updated message.
+  // Same self-fetch pattern as view-zone-settings.ts (hassSubscribe ~line 249):
+  // fetch on connect, re-fetch on the domain's config-updated message, and
+  // surface a failure rather than swallowing it.
   public hassSubscribe(): Promise<UnsubscribeFunc>[] {
-    this._fetchData().catch(() => {});
+    this._fetchData().catch((error) => {
+      console.error("Failed to fetch initial data:", error);
+    });
     return [
       this.hass!.connection.subscribeMessage(
-        () => this._fetchData().catch(() => {}),
+        () => {
+          this._fetchData().catch((error) => {
+            console.error("Failed to fetch data on config update:", error);
+          });
+        },
         { type: DOMAIN + "_config_updated" },
       ),
     ];
@@ -38,12 +48,24 @@ export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
 
   private async _fetchData(): Promise<void> {
     if (!this.hass) return;
-    const [config, zones] = await Promise.all([
-      fetchConfig(this.hass),
-      fetchZones(this.hass),
-    ]);
-    this._config = config;
-    this._zones = zones;
+    const isInitial = !this._initialLoadDone;
+    try {
+      const [config, zones] = await Promise.all([
+        fetchConfig(this.hass),
+        fetchZones(this.hass),
+      ]);
+      this._config = config;
+      this._zones = zones;
+      this._initialLoadDone = true;
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      showErrorToast(this, this.hass, "common.errors.load_failed", error);
+    } finally {
+      // Only the FIRST load gates the view: a later refresh that fails must
+      // not blank a history the user is reading, and must not turn into the
+      // empty-state claim below either - the zones already fetched stay.
+      if (isInitial) this._isLoading = false;
+    }
   }
 
   /** Zone id named by a deep link (`.../history/zone/<id>`), the same param
@@ -69,6 +91,21 @@ export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
   render(): TemplateResult {
     if (!this.hass) return html``;
     const lang = this.hass.language;
+
+    // Before the first fetch returns, nothing is known - saying "no zones"
+    // here would be a claim, not a state. Same gate as every other
+    // self-fetching view in the panel.
+    if (this._isLoading) {
+      return html`
+        <ha-card header="${localize("panels.history.title", lang)}">
+          <div class="card-content">
+            <div class="loading-indicator">
+              ${localize("common.loading-messages.general", lang)}
+            </div>
+          </div>
+        </ha-card>
+      `;
+    }
 
     if (!this._zones.length) {
       return html`

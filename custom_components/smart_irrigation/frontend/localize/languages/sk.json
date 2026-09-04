@@ -559,7 +559,6 @@
         "clear_weather_body": "Týmto sa odstránia všetky zhromaždené meteorologické a senzorové záznamy pre všetky zóny. Zóny budú pred ďalším výpočtom potrebovať nové údaje."
       },
       "history": {
-        "title": "História zavlažovania",
         "total_used": "Celková spotreba vody",
         "empty": "Zatiaľ nie sú zaznamenané žiadne behy.",
         "when": "Kedy",

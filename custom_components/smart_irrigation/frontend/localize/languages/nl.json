@@ -559,7 +559,6 @@
         "clear_weather_body": "Dit verwijdert alle verzamelde weer- en sensorgegevens van alle zones. De zones hebben nieuwe gegevens nodig voordat ze opnieuw kunnen berekenen."
       },
       "history": {
-        "title": "Bewateringsgeschiedenis",
         "total_used": "Totaal waterverbruik",
         "empty": "Nog geen beurten geregistreerd.",
         "when": "Wanneer",

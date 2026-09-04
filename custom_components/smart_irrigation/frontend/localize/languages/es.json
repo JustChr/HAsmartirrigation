@@ -559,7 +559,6 @@
         "clear_weather_body": "Esto elimina todos los registros meteorológicos y de sensores de todas las zonas. Las zonas necesitarán datos nuevos antes de poder calcular de nuevo."
       },
       "history": {
-        "title": "Historial de riego",
         "total_used": "Agua total utilizada",
         "empty": "Aún no hay riegos registrados.",
         "when": "Cuándo",

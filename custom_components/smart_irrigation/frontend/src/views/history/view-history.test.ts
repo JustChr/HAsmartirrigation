@@ -40,6 +40,7 @@ function makeView(zones: any[]) {
   el.hass = { language: "en" };
   el._config = { units: "metric" };
   el._zones = zones;
+  el._isLoading = false; // the loaded state; the loading gate has its own test
   return el;
 }
 
@@ -82,6 +83,19 @@ describe("view-history", () => {
     expect(el._effectiveZone().id).toBe(2);
   });
 
+  it("honours a deep link to zone 0", () => {
+    // Zone ids start at 0 in this integration, so the id must be tested for
+    // null-ness, not for truthiness.
+    const el = makeView([
+      { id: 0, name: "Front", run_log: [], water_used_total: 0 },
+      { id: 1, name: "Back", run_log: [], water_used_total: 0 },
+    ]);
+    el._selectedZoneId = 1;
+    expect(el._effectiveZone().id).toBe(1);
+    el._selectedZoneId = 0;
+    expect(el._effectiveZone().id).toBe(0);
+  });
+
   it("ignores a deep link to a zone that does not exist", () => {
     const el = makeView([
       { id: 1, name: "Front", run_log: [], water_used_total: 0 },
@@ -114,6 +128,18 @@ describe("view-history", () => {
     const { text } = flatten(el.render());
     expect(text).not.toContain("?selected=");
     expect(text).toContain(".selected=");
+  });
+
+  it("waits for the first fetch before claiming there are no zones", () => {
+    // _zones starts empty, so without a loading gate the very first paint
+    // asserts "No zones configured yet." at a moment when nothing is known —
+    // and a failed fetch would leave that claim standing. Every other
+    // self-fetching view in the panel gates its empty state the same way.
+    const el: any = new SmartIrrigationViewHistory();
+    el.hass = { language: "en" };
+    const { text } = flatten(el.render());
+    expect(text).toContain("Loading...");
+    expect(text).not.toContain("No zones configured yet.");
   });
 
   it("shows the no-zones note when there are no zones", () => {
