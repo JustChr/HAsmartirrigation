@@ -46,12 +46,23 @@ export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
     this._zones = zones;
   }
 
-  /** The zone whose history is shown: the explicit selection if it still
-   * exists, otherwise the first zone. */
+  /** Zone id named by a deep link (`.../history/zone/<id>`), the same param
+   * shape view-zone-settings reads for the dashboard's gear icon. */
+  private get _linkedZoneId(): number | null {
+    const z = this.path?.params?.zone;
+    return z != null && z !== "" ? Number(z) : null;
+  }
+
+  /** The zone whose history is shown: the explicit selection first, so the
+   * picker cannot snap back to the linked zone on the next render; then the
+   * deep link's zone; otherwise the first zone. An id that no longer exists
+   * falls through to the next candidate. */
   private _effectiveZone(): SmartIrrigationZone | undefined {
     if (!this._zones.length) return undefined;
+    const byId = (id: number | null | undefined) =>
+      id == null ? undefined : this._zones.find((z) => z.id === id);
     return (
-      this._zones.find((z) => z.id === this._selectedZoneId) ?? this._zones[0]
+      byId(this._selectedZoneId) ?? byId(this._linkedZoneId) ?? this._zones[0]
     );
   }
 
@@ -88,11 +99,15 @@ export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
               }}
             >
               ${this._zones.map(
-                (z) => html`
-                  <option value="${z.id}" ?selected=${z.id === zone.id}>
+                // `.selected` (the property), not `?selected` (the attribute):
+                // the attribute is defaultSelected and stops tracking once the
+                // control is dirty, so a selection set in code — a deep link
+                // into a zone's history — would not move the picker. Same
+                // hardening, and same reason, as si-schedule-dialog (f446bd62).
+                (z) =>
+                  html`<option value="${z.id}" .selected=${z.id === zone.id}>
                     ${z.name}
-                  </option>
-                `,
+                  </option>`,
               )}
             </select>
           </div>

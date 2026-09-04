@@ -73,6 +73,49 @@ describe("view-history", () => {
     expect(el._effectiveZone().id).toBe(1);
   });
 
+  it("opens the zone a deep link names", () => {
+    const el = makeView([
+      { id: 1, name: "Front", run_log: [], water_used_total: 0 },
+      { id: 2, name: "Back", run_log: [], water_used_total: 0 },
+    ]);
+    el.path = { page: "history", params: { zone: "2" } };
+    expect(el._effectiveZone().id).toBe(2);
+  });
+
+  it("ignores a deep link to a zone that does not exist", () => {
+    const el = makeView([
+      { id: 1, name: "Front", run_log: [], water_used_total: 0 },
+    ]);
+    el.path = { page: "history", params: { zone: "999" } };
+    expect(el._effectiveZone().id).toBe(1);
+  });
+
+  it("lets an explicit selection win over the deep link", () => {
+    // Otherwise the picker would snap back to the linked zone on every render.
+    const el = makeView([
+      { id: 1, name: "Front", run_log: [], water_used_total: 0 },
+      { id: 2, name: "Back", run_log: [], water_used_total: 0 },
+    ]);
+    el.path = { page: "history", params: { zone: "2" } };
+    el._selectedZoneId = 1;
+    expect(el._effectiveZone().id).toBe(1);
+  });
+
+  it("binds the option's selected PROPERTY, not the attribute", () => {
+    // `?selected` sets defaultSelected, which stops tracking once the control
+    // is dirty — so a selection made in code (the deep link above) would not
+    // move the picker. Pinned here for the same reason si-schedule-dialog pins
+    // it (f446bd62), because the attribute form is still the convention in
+    // most of this panel and gets copied back in.
+    const el = makeView([
+      { id: 1, name: "Front", run_log: [], water_used_total: 0 },
+      { id: 2, name: "Back", run_log: [], water_used_total: 0 },
+    ]);
+    const { text } = flatten(el.render());
+    expect(text).not.toContain("?selected=");
+    expect(text).toContain(".selected=");
+  });
+
   it("shows the no-zones note when there are no zones", () => {
     const el = makeView([]);
     const { text } = flatten(el.render());

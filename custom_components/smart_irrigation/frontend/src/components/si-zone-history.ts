@@ -67,6 +67,9 @@ export class SiZoneHistory extends LitElement {
       `panels.zones.history.results.${entry.result}`,
       lang,
     );
+    // The detail field carries a skip-reason code, a fault code, or the
+    // calculation explanation (HTML). Reason/fault codes get a friendly
+    // localized label; the explanation is rendered as-is.
     let detail = "";
     if (entry.detail) {
       if (entry.result === "skipped") {
@@ -75,9 +78,19 @@ export class SiZoneHistory extends LitElement {
           .map((r) => localize(`panels.zones.outlook.checks.${r}`, lang) || r)
           .join(", ");
       } else if (/^[A-Za-z0-9_-]+$/.test(entry.detail)) {
+        // A bare CODE. Not only for a failed run: a station run the controller
+        // dropped is recorded as partial (it was stopped, not refused) while its
+        // detail is still a fault reason, and would otherwise read as a raw code
+        // here. A code with no copy of its own falls back to itself.
+        //
+        // The shape test is what keeps this off the other thing `detail` can
+        // hold — the calculation explanation, which is prose (and HTML) full of
+        // full stops. Interpolated into a key, those became extra path segments
+        // and localize walked off the end of the catalogue; see issue #87.
         detail =
           localize(`panels.zones.fault.${entry.detail}`, lang) || entry.detail;
       } else {
+        // The calculation explanation: rendered as authored.
         detail = entry.detail;
       }
     }
