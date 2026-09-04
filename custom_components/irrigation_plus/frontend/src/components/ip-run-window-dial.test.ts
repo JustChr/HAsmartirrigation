@@ -8,7 +8,7 @@ import {
   vi,
 } from "vitest";
 
-// Same DOM-free shim as si-schedule-dialog.test.ts / si-distributor-form.test.ts:
+// Same DOM-free shim as ip-schedule-dialog.test.ts / ip-distributor-form.test.ts:
 // enough for the LitElement subclass to be defined and instantiated without a
 // real custom-element registry or shadow DOM. render() is called directly and
 // the returned lit TemplateResult tree is introspected.
@@ -24,15 +24,15 @@ beforeAll(() => {
   (globalThis as any).window = globalThis;
 });
 
-type DialModule = typeof import("./si-run-window-dial");
+type DialModule = typeof import("./ip-run-window-dial");
 let SiRunWindowDial: DialModule["SiRunWindowDial"];
 
 beforeAll(async () => {
-  ({ SiRunWindowDial } = await import("./si-run-window-dial"));
+  ({ SiRunWindowDial } = await import("./ip-run-window-dial"));
 });
 
 /** Flattens a lit TemplateResult (svg or html) tree into concatenated static
- * markup plus dynamic values, mirroring si-schedule-dialog.test.ts's helper —
+ * markup plus dynamic values, mirroring ip-schedule-dialog.test.ts's helper —
  * the dial nests `svg` templates inside an `html` template the same way.
  * NOTE: statics and values are concatenated in two separate passes (all of a
  * template's static strings, then all of its values), not interleaved at
@@ -95,7 +95,7 @@ function makeDial(overrides: Partial<Record<string, any>> = {}) {
   return el;
 }
 
-describe("si-run-window-dial", () => {
+describe("ip-run-window-dial", () => {
   it("renders an SVG carrying its documented aria-label", () => {
     const el = makeDial();
     const { text } = flatten(el.render());
@@ -206,7 +206,7 @@ describe("si-run-window-dial", () => {
   });
 });
 
-describe("si-run-window-dial: run bar is fed from nominal demand, not a live plan", () => {
+describe("ip-run-window-dial: run bar is fed from nominal demand, not a live plan", () => {
   it("changing nominalDemandSeconds alone changes the run/centre — there is no bucket-derived input at all", () => {
     const short = makeDial({
       rows: {
@@ -236,7 +236,7 @@ describe("si-run-window-dial: run bar is fed from nominal demand, not a live pla
   });
 });
 
-describe("si-run-window-dial: solar-azimuth bounds", () => {
+describe("ip-run-window-dial: solar-azimuth bounds", () => {
   const azimuthRows = (azimuth: number) => ({
     start: { mode: "solar_azimuth", azimuth },
     finish: { mode: "time", time: "20:00" },

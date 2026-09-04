@@ -3,7 +3,7 @@ import { property, customElement, state } from "lit/decorators.js";
 import { HomeAssistant } from "../types";
 import { mdiClose } from "@mdi/js";
 
-@customElement("error-dialog")
+@customElement("ip-error-dialog")
 export class ErrorDialog extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
 

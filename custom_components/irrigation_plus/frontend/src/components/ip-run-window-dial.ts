@@ -41,7 +41,7 @@ const DROP_PATH = svg`<path d="M12,2.6C12,2.6 18.6,9.4 18.6,13.7A6.6,6.6 0 0,1 5
 /**
  * The WHEN section's 24-hour dial: a 156px SVG showing the window a user is
  * designing and whether the schedule's nominal demand fits inside it.
- * Self-contained and narrow-input on purpose — si-schedule-dialog.ts's markup
+ * Self-contained and narrow-input on purpose — ip-schedule-dialog.ts's markup
  * is grouped into WHEN/ZONES/SEASON cards, so this element is written to be
  * dropped into whichever container it lands in with a single import + tag,
  * rather than
@@ -54,7 +54,7 @@ const DROP_PATH = svg`<path d="M12,2.6C12,2.6 18.6,9.4 18.6,13.7A6.6,6.6 0 0,1 5
  * centre label and wrapping the returned path data in svg/html templates.
  * Both conversions into that frame live here so they cannot drift apart.
  */
-@customElement("si-run-window-dial")
+@customElement("ip-run-window-dial")
 export class SiRunWindowDial extends LitElement {
   @property({ attribute: false }) hass!: HomeAssistant;
   @property({ attribute: false }) rows!: ScheduleRows;

@@ -4,14 +4,15 @@ import { HomeAssistant, SmartIrrigationConfig } from "./types";
 import { fetchConfig } from "./data/websockets";
 import { loadHaForm } from "./load-ha-elements";
 import { navigate } from "./helpers";
+import { isOwnPath } from "./common/navigation";
 
 import "./views/zones/view-zones";
 import "./views/history/view-history";
 import "./views/setup/view-setup";
-import "./views/wizard/si-setup-wizard";
+import "./views/wizard/ip-setup-wizard";
 
 import { commonStyle } from "./styles";
-import { VERSION, PLATFORM, ISSUES_URL } from "./const";
+import { VERSION, ISSUES_URL } from "./const";
 const DOCS_URL = "https://justchr.github.io/HAsmartirrigation/";
 import {
   ensureTranslations,
@@ -26,7 +27,7 @@ enum EMenuItems {
   Setup = "setup",
 }
 
-@customElement("smart-irrigation")
+@customElement("irrigation-plus")
 export class SmartIrrigationPanel extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property({ type: Boolean, reflect: true }) public narrow!: boolean;
@@ -64,7 +65,7 @@ export class SmartIrrigationPanel extends LitElement {
     }
 
     window.addEventListener("location-changed", () => {
-      if (!window.location.pathname.includes(PLATFORM)) return;
+      if (!isOwnPath()) return;
 
       // Throttle navigation updates to prevent browser throttling
       const now = performance.now();
@@ -172,7 +173,7 @@ export class SmartIrrigationPanel extends LitElement {
       <div class="view">${this.getView(path)}</div>
       ${this._wizardOpen
         ? html`
-            <si-setup-wizard
+            <ip-setup-wizard
               .hass="${this.hass}"
               @wizard-close="${() => {
                 this._wizardOpen = false;
@@ -182,7 +183,7 @@ export class SmartIrrigationPanel extends LitElement {
                 this._wizardOpen = false;
                 this.navigateToPage(page);
               }}"
-            ></si-setup-wizard>
+            ></ip-setup-wizard>
           `
         : ""}
     `;
@@ -193,44 +194,44 @@ export class SmartIrrigationPanel extends LitElement {
     switch (page) {
       case "zones":
         return html`
-          <smart-irrigation-view-zones
+          <irrigation-plus-view-zones
             .hass=${this.hass}
             .narrow=${this.narrow}
             .path=${path}
             @open-wizard="${() => {
               this._wizardOpen = true;
             }}"
-          ></smart-irrigation-view-zones>
+          ></irrigation-plus-view-zones>
         `;
       case "history":
         return html`
-          <smart-irrigation-view-history
+          <irrigation-plus-view-history
             .hass=${this.hass}
             .narrow=${this.narrow}
             .path=${path}
-          ></smart-irrigation-view-history>
+          ></irrigation-plus-view-history>
         `;
       case "setup":
         return html`
-          <smart-irrigation-view-setup
+          <irrigation-plus-view-setup
             .hass=${this.hass}
             .narrow=${this.narrow}
             .path=${path}
             @open-wizard="${() => {
               this._wizardOpen = true;
             }}"
-          ></smart-irrigation-view-setup>
+          ></irrigation-plus-view-setup>
         `;
       default:
         return html`
-          <smart-irrigation-view-zones
+          <irrigation-plus-view-zones
             .hass=${this.hass}
             .narrow=${this.narrow}
             .path=${path}
             @open-wizard="${() => {
               this._wizardOpen = true;
             }}"
-          ></smart-irrigation-view-zones>
+          ></irrigation-plus-view-zones>
         `;
     }
   }

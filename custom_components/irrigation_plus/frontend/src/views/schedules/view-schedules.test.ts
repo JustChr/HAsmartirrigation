@@ -18,12 +18,12 @@ beforeAll(() => {
 
 type ViewModule = typeof import("./view-schedules");
 let View: ViewModule["SmartIrrigationViewSchedules"];
-type DialogModule = typeof import("../../components/si-schedule-dialog");
+type DialogModule = typeof import("../../components/ip-schedule-dialog");
 let emptySchedule: DialogModule["emptySchedule"];
 
 beforeAll(async () => {
   ({ SmartIrrigationViewSchedules: View } = await import("./view-schedules"));
-  ({ emptySchedule } = await import("../../components/si-schedule-dialog"));
+  ({ emptySchedule } = await import("../../components/ip-schedule-dialog"));
 });
 
 /**
@@ -66,18 +66,18 @@ function makeView(open: boolean) {
 }
 
 describe("view-schedules dialog host", () => {
-  // The dialog markup lives in si-schedule-dialog now, so nothing in this
+  // The dialog markup lives in ip-schedule-dialog now, so nothing in this
   // view's own output would change if it stopped rendering the element at
   // all. These assertions are what keeps the extracted component reachable
   // from the panel rather than only from its own unit test.
-  it("renders si-schedule-dialog while the dialog is open", () => {
+  it("renders ip-schedule-dialog while the dialog is open", () => {
     const { text } = flatten(makeView(true).render());
-    expect(text).toContain("<si-schedule-dialog");
+    expect(text).toContain("<ip-schedule-dialog");
   });
 
   it("renders no dialog element while the dialog is closed", () => {
     const { text } = flatten(makeView(false).render());
-    expect(text).not.toContain("<si-schedule-dialog");
+    expect(text).not.toContain("<ip-schedule-dialog");
   });
 
   it("passes the schedule under edit, the zones and hass to the dialog", () => {
@@ -107,7 +107,7 @@ describe("view-schedules dialog host", () => {
     const el = makeView(true);
     const { values } = flatten(el.render());
     // Identity, not shape: a handler that merely looks similar would let the
-    // wiring rot silently. These are the three events si-schedule-dialog
+    // wiring rot silently. These are the three events ip-schedule-dialog
     // emits, and each has to land on the method that already implemented it
     // before the extraction.
     for (const method of ["_save", "_closeDialog", "_onScheduleChanged"]) {
@@ -147,7 +147,7 @@ describe("view-schedules nominal demand preview", () => {
     await Promise.resolve();
 
     expect(calls).toEqual([
-      { type: "smart_irrigation/schedule_nominal_demand", zones: "all" },
+      { type: "irrigation_plus/schedule_nominal_demand", zones: "all" },
     ]);
     expect(el._editingSchedule.nominal_demand_seconds).toBe(4200);
   });
@@ -171,7 +171,7 @@ describe("view-schedules nominal demand preview", () => {
 
     expect(calls).toHaveLength(2);
     expect(calls[1]).toEqual({
-      type: "smart_irrigation/schedule_nominal_demand",
+      type: "irrigation_plus/schedule_nominal_demand",
       zones: ["1", "2"],
     });
     expect(el._editingSchedule.nominal_demand_seconds).toBe(200);

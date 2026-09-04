@@ -2134,11 +2134,8 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
 // Guarded define: both the admin panel bundle and the Lovelace card bundle
 // register this element, and both can be loaded in the same document (panel +
 // dashboard). Skip the second define instead of throwing.
-if (!customElements.get("smart-irrigation-view-zones")) {
-  customElements.define(
-    "smart-irrigation-view-zones",
-    SmartIrrigationViewZones,
-  );
+if (!customElements.get("irrigation-plus-view-zones")) {
+  customElements.define("irrigation-plus-view-zones", SmartIrrigationViewZones);
 }
 
 export { SmartIrrigationViewZones };

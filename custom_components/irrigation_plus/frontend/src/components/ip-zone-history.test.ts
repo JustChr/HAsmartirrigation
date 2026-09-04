@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { localize } from "../../localize/localize";
 
-// DOM-free shim, same as si-schedule-dialog.test.ts: define + instantiate the
+// DOM-free shim, same as ip-schedule-dialog.test.ts: define + instantiate the
 // LitElement subclass without a real registry, call render() and introspect
 // the returned template tree.
 beforeAll(() => {
@@ -16,11 +16,11 @@ beforeAll(() => {
   (globalThis as any).window = globalThis;
 });
 
-type Mod = typeof import("./si-zone-history");
+type Mod = typeof import("./ip-zone-history");
 let SiZoneHistory: Mod["SiZoneHistory"];
 
 beforeAll(async () => {
-  ({ SiZoneHistory } = await import("./si-zone-history"));
+  ({ SiZoneHistory } = await import("./ip-zone-history"));
 });
 
 function flatten(node: any): { text: string; values: any[] } {
@@ -47,7 +47,7 @@ function makeEl(zone: any, config: any = { units: "metric" }) {
   return el;
 }
 
-describe("si-zone-history", () => {
+describe("ip-zone-history", () => {
   it("renders the cumulative usage and a runs table for a zone with runs", () => {
     const el = makeEl({
       id: 1,
@@ -59,7 +59,7 @@ describe("si-zone-history", () => {
     expect(text).toContain('class="history-usage"');
     expect(text).toContain('class="history-table"');
     // The result token is interpolated, so flatten() appends it to `values`
-    // rather than inline in `text` (same convention as si-schedule-dialog.test.ts).
+    // rather than inline in `text` (same convention as ip-schedule-dialog.test.ts).
     expect(text).toContain('class="history-chip history-');
     expect(values).toContain("completed");
     expect(text).not.toContain('class="weather-note"');

@@ -13,10 +13,10 @@ import { VERSION, FULL_CARD_URL } from "./const";
  * This file is auto-loaded into the HA app shell on EVERY page (via
  * add_extra_js_url), so it is deliberately tiny: it registers the element and
  * advertises the card in the picker, but defers the heavy view bundle
- * (`smart-irrigation-card-impl.js`) until a card is actually rendered.
+ * (`irrigation-plus-card-impl.js`) until a card is actually rendered.
  *
  * Config:
- *   type: custom:smart-irrigation-zones-card
+ *   type: custom:irrigation-plus-zones-card
  *   actions: irrigate | none | full   # optional, default "irrigate"
  */
 interface ZonesCardConfig {
@@ -102,7 +102,7 @@ class SmartIrrigationZonesCardStub extends HTMLElement {
       await loadImpl();
       if (!this._inner) {
         this._inner = document.createElement(
-          "smart-irrigation-zones-card-impl",
+          "irrigation-plus-zones-card-impl",
         ) as HTMLElement & {
           hass?: unknown;
           setConfig?: (c: ZonesCardConfig) => void;
@@ -115,7 +115,7 @@ class SmartIrrigationZonesCardStub extends HTMLElement {
       // Leave _inner unset so the next hass update (HA pushes them often)
       // retries — never get stuck on a transient load failure.
       console.error(
-        "smart-irrigation-zones-card: failed to load card implementation, will retry",
+        "irrigation-plus-zones-card: failed to load card implementation, will retry",
         e,
       );
     } finally {
@@ -126,9 +126,9 @@ class SmartIrrigationZonesCardStub extends HTMLElement {
 
 // Guarded define so a duplicate load (e.g. add_extra_js_url + a manual resource)
 // does not throw.
-if (!customElements.get("smart-irrigation-zones-card")) {
+if (!customElements.get("irrigation-plus-zones-card")) {
   customElements.define(
-    "smart-irrigation-zones-card",
+    "irrigation-plus-zones-card",
     SmartIrrigationZonesCardStub,
   );
 }
@@ -142,9 +142,9 @@ interface CustomCardEntry {
 }
 const w = window as unknown as { customCards?: CustomCardEntry[] };
 w.customCards = w.customCards || [];
-if (!w.customCards.some((c) => c.type === "smart-irrigation-zones-card")) {
+if (!w.customCards.some((c) => c.type === "irrigation-plus-zones-card")) {
   w.customCards.push({
-    type: "smart-irrigation-zones-card",
+    type: "irrigation-plus-zones-card",
     name: "Smart Irrigation Zones",
     description:
       "Everyday zone status and manual irrigation, usable by non-admin users.",
@@ -153,7 +153,7 @@ if (!w.customCards.some((c) => c.type === "smart-irrigation-zones-card")) {
   // Conventional card banner; also pins the build version into this bundle so
   // the release verification (panel + card stub must embed the version) holds.
   console.info(
-    `%c smart-irrigation-zones-card %c ${VERSION} `,
+    `%c irrigation-plus-zones-card %c ${VERSION} `,
     "color: white; background: #3949ab; font-weight: 700;",
     "color: #3949ab; background: white; font-weight: 700;",
   );

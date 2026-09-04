@@ -13,9 +13,9 @@ import { DOMAIN } from "../../const";
 import { globalStyle } from "../../styles/global-style";
 import { showErrorToast } from "../../helpers";
 import { localize } from "../../../localize/localize";
-import "../../components/si-zone-history";
+import "../../components/ip-zone-history";
 
-@customElement("smart-irrigation-view-history")
+@customElement("irrigation-plus-view-history")
 export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property({ type: Boolean }) public narrow!: boolean;
@@ -140,7 +140,7 @@ export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
                 // the attribute is defaultSelected and stops tracking once the
                 // control is dirty, so a selection set in code — a deep link
                 // into a zone's history — would not move the picker. Same
-                // hardening, and same reason, as si-schedule-dialog (f446bd62).
+                // hardening, and same reason, as ip-schedule-dialog (f446bd62).
                 (z) =>
                   html`<option value="${z.id}" .selected=${z.id === zone.id}>
                     ${z.name}
@@ -148,11 +148,11 @@ export class SmartIrrigationViewHistory extends SubscribeMixin(LitElement) {
               )}
             </select>
           </div>
-          <si-zone-history
+          <ip-zone-history
             .hass=${this.hass}
             .zone=${zone}
             .config=${this._config}
-          ></si-zone-history>
+          ></ip-zone-history>
         </div>
       </ha-card>
     `;

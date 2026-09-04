@@ -132,11 +132,9 @@ class TestSmartIrrigationPanel:
             by_url = {c.url_path: c for c in call_args}
             assert set(by_url) == {PANEL_URL, CARD_URL, FULL_CARD_URL, LANG_URL}
             assert by_url[PANEL_URL].cache_headers is False
-            assert "frontend/dist/smart-irrigation.js" in str(by_url[PANEL_URL].path)
-            assert "frontend/dist/smart-irrigation-card.js" in str(
-                by_url[CARD_URL].path
-            )
-            assert "frontend/dist/smart-irrigation-card-impl.js" in str(
+            assert "frontend/dist/irrigation-plus.js" in str(by_url[PANEL_URL].path)
+            assert "frontend/dist/irrigation-plus-card.js" in str(by_url[CARD_URL].path)
+            assert "frontend/dist/irrigation-plus-card-impl.js" in str(
                 by_url[FULL_CARD_URL].path
             )
             assert "frontend/localize/languages" in str(by_url[LANG_URL].path)

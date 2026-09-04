@@ -213,8 +213,8 @@ export function showErrorDialog(
     : ((ev as Event).target as HTMLElement);*/
   const elem = ev as HTMLElement;
   fireEvent(elem, "show-dialog", {
-    dialogTag: "error-dialog",
-    dialogImport: () => import("./dialogs/error-dialog"),
+    dialogTag: "ip-error-dialog",
+    dialogImport: () => import("./dialogs/ip-error-dialog"),
     dialogParams: { error: error },
   });
 }

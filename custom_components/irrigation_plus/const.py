@@ -350,30 +350,43 @@ CONF_PYETO_FORECAST_DAYS = "forecast_days"
 
 INTEGRATION_FOLDER = DOMAIN
 PANEL_FOLDER = "frontend"
-PANEL_FILENAME = "dist/smart-irrigation.js"
 
-PANEL_URL = "/api/panel_custom/smart-irrigation"
+# The panel's custom-element name and every served path are DERIVED from DOMAIN,
+# never written out. Both projects shipped a hardcoded
+# "/api/panel_custom/smart-irrigation", so the renamed integration went on
+# serving the ORIGINAL project's bundle at a path it did not own (altmenorg hit
+# exactly this, #120). Deriving makes that class of collision impossible.
+PANEL_SLUG = DOMAIN.replace("_", "-")  # "irrigation-plus"
+PANEL_NAME = PANEL_SLUG
+PANEL_FILENAME = f"dist/{PANEL_SLUG}.js"
+PANEL_URL = f"/api/panel_custom/{PANEL_SLUG}"
 PANEL_TITLE = NAME
 PANEL_ICON = "mdi:sprinkler"
-PANEL_NAME = "smart-irrigation"
 
 # Lovelace custom card: a second bundle served to all users (not just admins)
 # and auto-loaded via add_extra_js_url, so non-admins can add the zones card to
 # their own dashboards.
-CARD_FILENAME = "dist/smart-irrigation-card.js"
-CARD_URL = "/smart_irrigation_card/smart-irrigation-card.js"
+CARD_STATIC_ROOT = f"/{DOMAIN}_card"
+CARD_FILENAME = f"dist/{PANEL_SLUG}-card.js"
+CARD_URL = f"{CARD_STATIC_ROOT}/{PANEL_SLUG}-card.js"
 
 # The card file above is a tiny stub auto-loaded on every page; it lazy-imports
 # this heavy implementation bundle only when a card actually renders (keep
 # FULL_CARD_URL in sync with const.ts).
-FULL_CARD_FILENAME = "dist/smart-irrigation-card-impl.js"
-FULL_CARD_URL = "/smart_irrigation_card/smart-irrigation-card-impl.js"
+FULL_CARD_FILENAME = f"dist/{PANEL_SLUG}-card-impl.js"
+FULL_CARD_URL = f"{CARD_STATIC_ROOT}/{PANEL_SLUG}-card-impl.js"
 
 # Localization static files: only en.json is bundled into the frontend
 # bundles; the other languages are served from here and fetched on demand by
 # the frontend (keep LANG_URL in sync with LANG_BASE_URL in frontend const.ts).
 LANG_FOLDER = "localize/languages"
-LANG_URL = "/smart_irrigation_static/languages"
+LANG_URL = f"/{DOMAIN}_static/languages"
+
+# The paths the pre-#120 releases served. The stale-resource cleanup and the
+# legacy card alias need these; they are historical facts, not aliases.
+LEGACY_PANEL_SLUG = LEGACY_DOMAIN.replace("_", "-")  # "smart-irrigation"
+LEGACY_CARD_STATIC_ROOT = f"/{LEGACY_DOMAIN}_card"
+LEGACY_CARD_URL = f"{LEGACY_CARD_STATIC_ROOT}/{LEGACY_PANEL_SLUG}-card.js"
 
 ATTR_REMOVE = "remove"
 ATTR_CALCULATE = "calculate"

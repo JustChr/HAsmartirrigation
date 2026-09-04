@@ -21,11 +21,11 @@ beforeAll(() => {
 
 // Imported for its side effect (defines the element) + the class export. Must
 // come after the shim above, hence a dynamic import in the test body below.
-type FormModule = typeof import("./si-distributor-form");
+type FormModule = typeof import("./ip-distributor-form");
 let SiDistributorForm: FormModule["SiDistributorForm"];
 
 beforeAll(async () => {
-  ({ SiDistributorForm } = await import("./si-distributor-form"));
+  ({ SiDistributorForm } = await import("./ip-distributor-form"));
 });
 
 /**
@@ -78,7 +78,7 @@ function makeForm(distributor: any) {
   return { el, emitted };
 }
 
-describe("si-distributor-form inlet-watch section", () => {
+describe("ip-distributor-form inlet-watch section", () => {
   it("renders inlet_entity + watch_mode select in SERVICE mode (previously absent)", () => {
     const { el } = makeForm({
       name: "d",

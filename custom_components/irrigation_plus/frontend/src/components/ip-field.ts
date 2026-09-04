@@ -6,11 +6,11 @@ import { property, state, customElement } from "lit/decorators.js";
  * and a collapsible help text to any input element placed in its slot.
  *
  * Usage:
- *   <si-field label="Size" unit="m²" help="The irrigated area..." required>
+ *   <ip-field label="Size" unit="m²" help="The irrigated area..." required>
  *     <input type="number" ... />
- *   </si-field>
+ *   </ip-field>
  */
-@customElement("si-field")
+@customElement("ip-field")
 export class SiField extends LitElement {
   @property() label = "";
   @property() unit = "";
@@ -25,23 +25,23 @@ export class SiField extends LitElement {
 
   render() {
     return html`
-      <div class="si-field">
-        <div class="si-field-header">
-          <span class="si-field-label">
+      <div class="ip-field">
+        <div class="ip-field-header">
+          <span class="ip-field-label">
             ${this.label}${this.required
-              ? html`<span class="si-field-required" aria-label="required">
+              ? html`<span class="ip-field-required" aria-label="required">
                   *</span
                 >`
               : ""}
           </span>
-          <span class="si-field-meta">
+          <span class="ip-field-meta">
             ${this.unit
-              ? html`<span class="si-field-unit">${this.unit}</span>`
+              ? html`<span class="ip-field-unit">${this.unit}</span>`
               : ""}
             ${this.help
               ? html`
                   <button
-                    class="si-field-help-btn ${this._helpOpen ? "open" : ""}"
+                    class="ip-field-help-btn ${this._helpOpen ? "open" : ""}"
                     type="button"
                     aria-label="Toggle help"
                     @click="${this._toggleHelp}"
@@ -54,7 +54,7 @@ export class SiField extends LitElement {
         </div>
         <slot></slot>
         ${this._helpOpen && this.help
-          ? html`<div class="si-field-help-text">${this.help}</div>`
+          ? html`<div class="ip-field-help-text">${this.help}</div>`
           : ""}
       </div>
     `;
@@ -66,39 +66,39 @@ export class SiField extends LitElement {
         display: block;
       }
 
-      .si-field {
+      .ip-field {
         display: flex;
         flex-direction: column;
         gap: 4px;
         margin: 6px 0;
       }
 
-      .si-field-header {
+      .ip-field-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
       }
 
-      .si-field-label {
+      .ip-field-label {
         font-size: 0.875rem;
         font-weight: 500;
         color: var(--primary-text-color);
       }
 
-      .si-field-required {
+      .ip-field-required {
         color: var(--error-color, #b00020);
         font-weight: 700;
       }
 
-      .si-field-meta {
+      .ip-field-meta {
         display: flex;
         align-items: center;
         gap: 6px;
         flex-shrink: 0;
       }
 
-      .si-field-unit {
+      .ip-field-unit {
         font-size: 0.78rem;
         font-weight: 500;
         color: var(--secondary-text-color);
@@ -109,7 +109,7 @@ export class SiField extends LitElement {
         white-space: nowrap;
       }
 
-      .si-field-help-btn {
+      .ip-field-help-btn {
         background: none;
         border: none;
         cursor: pointer;
@@ -121,12 +121,12 @@ export class SiField extends LitElement {
         user-select: none;
       }
 
-      .si-field-help-btn:hover,
-      .si-field-help-btn.open {
+      .ip-field-help-btn:hover,
+      .ip-field-help-btn.open {
         color: var(--primary-color);
       }
 
-      .si-field-help-text {
+      .ip-field-help-text {
         font-size: 0.82rem;
         color: var(--secondary-text-color);
         background: var(--secondary-background-color);

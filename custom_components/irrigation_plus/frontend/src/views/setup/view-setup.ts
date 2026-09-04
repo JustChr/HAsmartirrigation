@@ -46,7 +46,7 @@ const SETUP_TAB_LABELS: Record<ESetupTab, string> = {
   [ESetupTab.Help]: "panels.help.title",
 };
 
-@customElement("smart-irrigation-view-setup")
+@customElement("irrigation-plus-view-setup")
 export class SmartIrrigationViewSetup extends SubscribeMixin(LitElement) {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property({ type: Boolean }) public narrow!: boolean;
@@ -141,56 +141,56 @@ export class SmartIrrigationViewSetup extends SubscribeMixin(LitElement) {
     switch (activeTab) {
       case ESetupTab.WeatherLocation:
         return html`
-          <smart-irrigation-view-general
+          <irrigation-plus-view-general
             .hass="${this.hass}"
             .narrow="${this.narrow}"
             section="weather-location"
-          ></smart-irrigation-view-general>
-          <smart-irrigation-view-weather-data
+          ></irrigation-plus-view-general>
+          <irrigation-plus-view-weather-data
             .hass="${this.hass}"
             .narrow="${this.narrow}"
-          ></smart-irrigation-view-weather-data>
+          ></irrigation-plus-view-weather-data>
         `;
       case ESetupTab.Zones:
-        return html`<smart-irrigation-view-zone-settings
+        return html`<irrigation-plus-view-zone-settings
           .hass="${this.hass}"
           .narrow="${this.narrow}"
           .path="${this.path}"
-        ></smart-irrigation-view-zone-settings>`;
+        ></irrigation-plus-view-zone-settings>`;
       case ESetupTab.Distributors:
-        return html`<smart-irrigation-view-distributor-settings
+        return html`<irrigation-plus-view-distributor-settings
           .hass="${this.hass}"
           .narrow="${this.narrow}"
           .path="${this.path}"
-        ></smart-irrigation-view-distributor-settings>`;
+        ></irrigation-plus-view-distributor-settings>`;
       case ESetupTab.WhenToWater:
         return html`
-          <smart-irrigation-view-general
+          <irrigation-plus-view-general
             .hass="${this.hass}"
             .narrow="${this.narrow}"
             section="when-to-water"
-          ></smart-irrigation-view-general>
-          <smart-irrigation-view-schedules
+          ></irrigation-plus-view-general>
+          <irrigation-plus-view-schedules
             .hass="${this.hass}"
             .narrow="${this.narrow}"
-          ></smart-irrigation-view-schedules>
+          ></irrigation-plus-view-schedules>
         `;
       case ESetupTab.Advanced:
         return html`
-          <smart-irrigation-view-modules
+          <irrigation-plus-view-modules
             .hass="${this.hass}"
             .narrow="${this.narrow}"
-          ></smart-irrigation-view-modules>
-          <smart-irrigation-view-mappings
+          ></irrigation-plus-view-modules>
+          <irrigation-plus-view-mappings
             .hass="${this.hass}"
             .narrow="${this.narrow}"
-          ></smart-irrigation-view-mappings>
+          ></irrigation-plus-view-mappings>
         `;
       case ESetupTab.Experimental:
-        return html`<smart-irrigation-view-experimental
+        return html`<irrigation-plus-view-experimental
           .hass="${this.hass}"
           .narrow="${this.narrow}"
-        ></smart-irrigation-view-experimental>`;
+        ></irrigation-plus-view-experimental>`;
       case ESetupTab.Help:
         return this._renderHelp();
     }
@@ -221,7 +221,7 @@ export class SmartIrrigationViewSetup extends SubscribeMixin(LitElement) {
             this.hass.language,
           )}
           <a
-            href="https://community.home-assistant.io/t/smart-irrigation-save-water-by-precisely-watering-your-lawn-garden"
+            href="https://community.home-assistant.io/t/irrigation-plus-save-water-by-precisely-watering-your-lawn-garden"
             target="_blank"
             rel="noopener noreferrer"
             >${localize(

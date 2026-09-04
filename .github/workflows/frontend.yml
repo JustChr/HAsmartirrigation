@@ -2,7 +2,7 @@ name: Build Frontend
 
 # Build-checks the custom panel frontend so TypeScript / lint / bundling
 # regressions are caught on PRs. The build had no CI coverage before. This does
-# NOT publish the bundle; dist/smart-irrigation.js is still committed (HACS
+# NOT publish the bundle; dist/irrigation-plus.js is still committed (HACS
 # installs the repo source tree at the release tag, so it must be present there).
 
 on:
@@ -45,7 +45,7 @@ jobs:
         # match the current source. Fail if a rebuild changes it (i.e. someone
         # edited .ts or bumped the version without rebuilding dist).
         run: |
-          BUNDLES="dist/smart-irrigation.js dist/smart-irrigation-card.js dist/smart-irrigation-card-impl.js"
+          BUNDLES="dist/irrigation-plus.js dist/irrigation-plus-card.js dist/irrigation-plus-card-impl.js"
           if ! git diff --quiet -- $BUNDLES; then
             echo "::error::A committed dist bundle is out of date - rebuild the frontend and commit the result."
             git --no-pager diff --stat -- $BUNDLES

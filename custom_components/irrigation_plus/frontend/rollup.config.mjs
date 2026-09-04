@@ -19,7 +19,7 @@ const plugins = [
 
 export default [
   {
-    input: 'src/smart-irrigation.ts',
+    input: 'src/irrigation-plus.ts',
     output: {
       dir: 'dist',
       format: 'iife',
@@ -33,7 +33,7 @@ export default [
     // Tiny Lovelace card stub (auto-registered via add_extra_js_url) so it
     // loads on every page cheaply; it lazy-imports the impl bundle below only
     // when a card actually renders.
-    input: 'src/smart-irrigation-card.ts',
+    input: 'src/irrigation-plus-card.ts',
     output: {
       dir: 'dist',
       format: 'iife',
@@ -46,7 +46,7 @@ export default [
   {
     // Heavy card implementation, lazy-loaded by the stub. Served as a separate
     // static file so non-card pages never download it.
-    input: 'src/smart-irrigation-card-impl.ts',
+    input: 'src/irrigation-plus-card-impl.ts',
     output: {
       dir: 'dist',
       format: 'iife',

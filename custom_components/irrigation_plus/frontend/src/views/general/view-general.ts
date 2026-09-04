@@ -14,8 +14,8 @@ import {
   saveCoordinates,
   CoordinatesConfig,
 } from "../../data/websockets";
-import "../../components/si-field";
-import "../../components/si-weather-source-config";
+import "../../components/ip-field";
+import "../../components/ip-weather-source-config";
 import { SubscribeMixin } from "../../subscribe-mixin";
 import { localize } from "../../../localize/localize";
 import { output_unit, pick, showErrorToast } from "../../helpers";
@@ -58,7 +58,7 @@ import {
   DOMAIN,
 } from "../../const";
 
-@customElement("smart-irrigation-view-general")
+@customElement("irrigation-plus-view-general")
 export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
   hass?: HomeAssistant;
   @property() narrow!: boolean;
@@ -296,7 +296,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
           ${localize("weather_service_config.description", this.hass.language)}
         </div>
         <div class="card-content">
-          <si-weather-source-config
+          <ip-weather-source-config
             .hass="${this.hass}"
             .useWeather="${this._useWeatherService}"
             .service="${this._weatherService ?? CONF_WEATHER_SERVICE_OPENMETEO}"
@@ -311,7 +311,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
             @apikey-changed="${(e: CustomEvent) => {
               this._newApiKey = e.detail.value;
             }}"
-          ></si-weather-source-config>
+          ></ip-weather-source-config>
           <div style="margin-top: 12px;">
             <button
               class="action-btn"

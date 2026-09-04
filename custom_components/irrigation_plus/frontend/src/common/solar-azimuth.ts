@@ -4,7 +4,7 @@
  * ⚠️ This is a deliberate line-by-line port of the backend's
  * `calculate_solar_azimuth` / `find_next_solar_azimuth_time` /
  * `_azimuth_crossed_target` / `_refine_azimuth_time` in
- * `custom_components/smart_irrigation/helpers.py`. A change to either side
+ * `custom_components/irrigation_plus/helpers.py`. A change to either side
  * must be made to both, or the dial silently draws a bound at a different
  * time than the scheduler fires on. The Python definitions carry a matching
  * cross-reference comment. `solar-azimuth.test.ts` pins this port against

@@ -39,8 +39,8 @@ import {
   CONF_ZONE_SEQUENCING_SEQUENTIAL,
   CONF_ZONE_SEQUENCING_ROTATING,
 } from "../../const";
-import "../../components/si-field";
-import "../../components/si-distributor-form";
+import "../../components/ip-field";
+import "../../components/ip-distributor-form";
 
 /**
  * Setup → Distributors: configure Gardena-style water distributors and walk the
@@ -55,7 +55,7 @@ import "../../components/si-distributor-form";
  * position update. The backend update is an attr.evolve merge, so a partial
  * POST is safe.
  */
-@customElement("smart-irrigation-view-distributor-settings")
+@customElement("irrigation-plus-view-distributor-settings")
 class SmartIrrigationViewDistributorSettings extends SubscribeMixin(
   LitElement,
 ) {
@@ -905,12 +905,12 @@ class SmartIrrigationViewDistributorSettings extends SubscribeMixin(
         ${expanded
           ? html`
               <div class="card-content">
-                <si-distributor-form
+                <ip-distributor-form
                   .hass="${this.hass}"
                   .distributor="${d}"
                   @distributor-changed="${(e: CustomEvent) =>
                     this.handleEditDistributor(index, e.detail.value)}"
-                ></si-distributor-form>
+                ></ip-distributor-form>
 
                 ${this._renderOutletConfig(d)} ${this._renderCommissioning(d)}
 
@@ -1008,7 +1008,7 @@ class SmartIrrigationViewDistributorSettings extends SubscribeMixin(
         heading="${localize("panels.distributors.add.header", lang)}"
       >
         <div class="add-form">
-          <si-field
+          <ip-field
             label="${localize("panels.distributors.labels.name", lang)}"
             required
           >
@@ -1024,7 +1024,7 @@ class SmartIrrigationViewDistributorSettings extends SubscribeMixin(
                 this._newName = (e.target as HTMLInputElement).value;
               }}"
             />
-          </si-field>
+          </ip-field>
         </div>
         <div class="dialog-footer">
           <button

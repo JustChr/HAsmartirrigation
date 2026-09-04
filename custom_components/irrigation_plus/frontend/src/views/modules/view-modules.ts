@@ -25,7 +25,7 @@ import { localize } from "../../../localize/localize";
 import { DOMAIN } from "../../const";
 import { prettyPrint, getPart, showErrorToast } from "../../helpers";
 
-@customElement("smart-irrigation-view-modules")
+@customElement("irrigation-plus-view-modules")
 class SmartIrrigationViewModules extends SubscribeMixin(LitElement) {
   hass?: HomeAssistant;
   @property() config?: SmartIrrigationConfig;

@@ -423,8 +423,8 @@ export class SmartIrrigationMapping {
  * A Gardena-style mechanical water distributor: one inlet valve feeding 2..6
  * outlets that are advanced by pulsing the water on/off. The backend
  * (`DistributorEntry`, store.py) owns the state machine; the panel reads this
- * shape back from the `smart_irrigation/distributors` WS command and POSTs a
- * partial back to `/api/smart_irrigation/distributors` to persist edits.
+ * shape back from the `irrigation_plus/distributors` WS command and POSTs a
+ * partial back to `/api/irrigation_plus/distributors` to persist edits.
  *
  * `position_state`, `current_outlet`, `commissioning_confirmed` and
  * `active_cycle` are backend-driven runtime state the panel only reflects (the

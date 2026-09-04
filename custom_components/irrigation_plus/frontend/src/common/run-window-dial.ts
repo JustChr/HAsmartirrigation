@@ -15,7 +15,7 @@ import { DEFAULT_AZIMUTH, EndRow, ScheduleRows } from "./schedule-rows";
  * strings or descriptor objects, so the exact numeric/geometric acceptance
  * criteria (15-degree minimum arc, butt-cap fades, wrap fade, centre value
  * per state) are checkable in schedule-rows.test.ts style tests rather than
- * by eyeballing rendered SVG. The Lit component (si-run-window-dial.ts) only
+ * by eyeballing rendered SVG. The Lit component (ip-run-window-dial.ts) only
  * wraps this module's output in svg/html templates and localizes copy.
  *
  * Ported from a throwaway prototype that settled every visual constant
@@ -186,7 +186,7 @@ function parseHM(hm: string): number {
 
 /** Resolves a solar-azimuth bearing to a clock-minute. Supplied by the
  * caller rather than imported here so this module stays free of Date and
- * timezone handling: si-run-window-dial.ts owns every conversion between a
+ * timezone handling: ip-run-window-dial.ts owns every conversion between a
  * real instant and the minute-of-day this module draws in, for the sun glyph
  * and an azimuth bound alike. `null` for a bearing the sun never reaches. */
 export type AzimuthResolver = (azimuth: number) => number | null;

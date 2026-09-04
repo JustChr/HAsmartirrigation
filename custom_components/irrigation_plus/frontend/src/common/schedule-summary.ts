@@ -20,7 +20,7 @@ import {
 /**
  * The subset of a schedule this module reads to build the read-only summary
  * sentence. Declared locally rather than imported from
- * si-schedule-dialog.ts, matching schedule-rows.ts's own zero-dependency-on-
+ * ip-schedule-dialog.ts, matching schedule-rows.ts's own zero-dependency-on-
  * the-rendering-layer convention.
  */
 export interface SummarySchedule extends ScheduleWindowFields {

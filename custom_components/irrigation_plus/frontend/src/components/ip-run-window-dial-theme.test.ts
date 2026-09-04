@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 
-// Same DOM-free shim used by si-run-window-dial.test.ts.
+// Same DOM-free shim used by ip-run-window-dial.test.ts.
 beforeAll(() => {
   (globalThis as any).HTMLElement = class {};
   (globalThis as any).customElements = {
@@ -13,12 +13,12 @@ beforeAll(() => {
   (globalThis as any).window = globalThis;
 });
 
-type DialModule = typeof import("./si-run-window-dial");
+type DialModule = typeof import("./ip-run-window-dial");
 let SiRunWindowDial: DialModule["SiRunWindowDial"];
 let cssText: string;
 
 beforeAll(async () => {
-  ({ SiRunWindowDial } = await import("./si-run-window-dial"));
+  ({ SiRunWindowDial } = await import("./ip-run-window-dial"));
   cssText = (SiRunWindowDial.styles as any).cssText as string;
 });
 
@@ -29,7 +29,7 @@ beforeAll(async () => {
  * — there is no `getComputedStyle` that can actually resolve `color-mix()`
  * against a `--card-background-color` custom property the way a browser
  * would, so a literal "render once per theme, read the resolved pixel"
- * check isn't available in this repo's test setup (see si-schedule-dialog's
+ * check isn't available in this repo's test setup (see ip-schedule-dialog's
  * own tests, which take the same DOM-free approach for the same reason).
  *
  * What IS mechanically checkable, and what actually caused the real bug the
@@ -45,7 +45,7 @@ beforeAll(async () => {
  * them is a hex-with-alpha or rgba/hsla value — which is the property that
  * would silently break across themes.
  */
-describe("si-run-window-dial: ring colors resolve per-theme, not via a fixed alpha", () => {
+describe("ip-run-window-dial: ring colors resolve per-theme, not via a fixed alpha", () => {
   it("mixes every themed ring/track/tick color against var(--card-background-color) or var(--...) directly", () => {
     // The three colors that vary with the card background:
     // the window band, the idle track, and the hour ticks. Each must be

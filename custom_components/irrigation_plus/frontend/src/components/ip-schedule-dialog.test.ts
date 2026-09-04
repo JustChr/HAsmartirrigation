@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 
-// Same DOM-free shim as si-distributor-form.test.ts: just enough for the
+// Same DOM-free shim as ip-distributor-form.test.ts: just enough for the
 // LitElement subclass to be defined and instantiated without a real
 // customElement registry or shadow DOM. We call render() directly and
 // introspect the returned lit TemplateResult tree.
@@ -16,19 +16,19 @@ beforeAll(() => {
   (globalThis as any).window = globalThis;
 });
 
-type DialogModule = typeof import("./si-schedule-dialog");
+type DialogModule = typeof import("./ip-schedule-dialog");
 let SiScheduleDialog: DialogModule["SiScheduleDialog"];
 let emptySchedule: DialogModule["emptySchedule"];
 
 beforeAll(async () => {
-  ({ SiScheduleDialog, emptySchedule } = await import("./si-schedule-dialog"));
+  ({ SiScheduleDialog, emptySchedule } = await import("./ip-schedule-dialog"));
 });
 
 type Handler = (e: any) => unknown;
 
 /**
  * Flatten a lit TemplateResult tree into concatenated static HTML plus the
- * list of dynamic values/handlers, mirroring si-distributor-form.test.ts's
+ * list of dynamic values/handlers, mirroring ip-distributor-form.test.ts's
  * helper — the dialog markup nests templates the same way.
  */
 function flatten(node: any): {
@@ -74,7 +74,7 @@ function makeDialog(overrides: Partial<Record<string, any>> = {}) {
   return { el, emitted };
 }
 
-describe("si-schedule-dialog", () => {
+describe("ip-schedule-dialog", () => {
   it("renders the ha-dialog with the given heading and the schedule's name", () => {
     const { el } = makeDialog({
       schedule: { ...emptySchedule(), name: "Front lawn" },
@@ -292,7 +292,7 @@ describe("si-schedule-dialog", () => {
   });
 });
 
-describe("si-schedule-dialog: Start/Finish rows", () => {
+describe("ip-schedule-dialog: Start/Finish rows", () => {
   it("offers all five modes on both the Start and Finish rows", () => {
     const { el } = makeDialog({
       schedule: { ...emptySchedule(), start_mode: "none", finish_mode: "none" },
@@ -552,7 +552,7 @@ describe("si-schedule-dialog: Start/Finish rows", () => {
  * the backend half; these keep the NaN from being emitted in the first
  * place.
  */
-describe("si-schedule-dialog: numeric recurrence fields never emit NaN", () => {
+describe("ip-schedule-dialog: numeric recurrence fields never emit NaN", () => {
   /** Fire every handler with `value`, returning the patches that came back. */
   function patchesFor(el: any, emitted: any[], value: string) {
     const { handlers } = flatten(el.render());
@@ -646,7 +646,7 @@ describe("si-schedule-dialog: numeric recurrence fields never emit NaN", () => {
   });
 });
 
-describe("si-schedule-dialog: Save is blocked on a schedule that can never fire", () => {
+describe("ip-schedule-dialog: Save is blocked on a schedule that can never fire", () => {
   it("blocks Save on a weekly schedule with no weekday ticked", () => {
     // The state a schedule is in the moment its recurrence is switched to
     // weekly, since nothing populates days_of_week. Backend-side this
@@ -697,7 +697,7 @@ describe("si-schedule-dialog: Save is blocked on a schedule that can never fire"
   });
 });
 
-describe("si-schedule-dialog: Save is blocked on an empty name or zone list", () => {
+describe("ip-schedule-dialog: Save is blocked on an empty name or zone list", () => {
   const named = (extra: Record<string, unknown> = {}) => ({
     ...emptySchedule(),
     name: "Named",
@@ -758,7 +758,7 @@ describe("si-schedule-dialog: Save is blocked on an empty name or zone list", ()
   });
 });
 
-describe("si-schedule-dialog: form controls bind properties, not attributes", () => {
+describe("ip-schedule-dialog: form controls bind properties, not attributes", () => {
   it("uses .checked / .selected rather than ?checked / ?selected", () => {
     // `?checked` sets the ATTRIBUTE, which maps to defaultChecked and stops
     // tracking once the control is dirty, so a programmatic state change
@@ -779,7 +779,7 @@ describe("si-schedule-dialog: form controls bind properties, not attributes", ()
   });
 });
 
-describe("si-schedule-dialog: unreachable solar-azimuth bearings", () => {
+describe("ip-schedule-dialog: unreachable solar-azimuth bearings", () => {
   /** On the equator the backend's azimuth curve never crosses due east, so
    * 90 degrees is unresolvable there - the same case the dial draws open. */
   const atEquator = (schedule: Record<string, any>) => {

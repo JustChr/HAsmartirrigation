@@ -36,9 +36,9 @@ import {
   SCHEDULE_BOUND_MODE_TIME,
   SCHEDULE_BOUND_MODE_NONE,
 } from "../../const";
-import "../../components/si-field";
-import "../../components/si-weather-source-config";
-import "../../components/si-zone-form";
+import "../../components/ip-field";
+import "../../components/ip-weather-source-config";
+import "../../components/ip-zone-form";
 
 enum WizardStep {
   Welcome = 0,
@@ -56,7 +56,7 @@ const TOTAL_STEPS = 5; // steps 1..5, step 0 is welcome (not counted)
  * Emits "wizard-close" custom event when the user finishes or closes.
  * Emits "wizard-navigate" with { page: "zones"|"setup" } on done.
  */
-@customElement("si-setup-wizard")
+@customElement("ip-setup-wizard")
 export class SiSetupWizard extends LitElement {
   @property({ attribute: false }) hass!: HomeAssistant;
 
@@ -543,7 +543,7 @@ export class SiSetupWizard extends LitElement {
         ${localize("wizard.steps.weather.description", lang)}
       </p>
 
-      <si-weather-source-config
+      <ip-weather-source-config
         .hass="${this.hass}"
         .useWeather="${this._useWeather}"
         .service="${this._weatherService}"
@@ -558,7 +558,7 @@ export class SiSetupWizard extends LitElement {
         @apikey-changed="${(e: CustomEvent) => {
           this._apiKey = e.detail.value;
         }}"
-      ></si-weather-source-config>
+      ></ip-weather-source-config>
     `;
   }
 
@@ -580,7 +580,7 @@ export class SiSetupWizard extends LitElement {
         ${localize("wizard.steps.module.description", lang)}
       </p>
 
-      <si-field
+      <ip-field
         label="${localize("wizard.steps.module.pick_label", lang)}"
         required
       >
@@ -604,7 +604,7 @@ export class SiSetupWizard extends LitElement {
             `,
           )}
         </select>
-      </si-field>
+      </ip-field>
 
       ${selected?.description
         ? html`<p class="module-desc">${selected.description}</p>`
@@ -633,7 +633,7 @@ export class SiSetupWizard extends LitElement {
 
     if (def.type === "boolean") {
       return html`
-        <si-field label="${label}" help="${help ?? ""}">
+        <ip-field label="${label}" help="${help ?? ""}">
           <ha-switch
             .checked="${Boolean(value)}"
             @change="${(e: Event) => {
@@ -643,13 +643,13 @@ export class SiSetupWizard extends LitElement {
               };
             }}"
           ></ha-switch>
-        </si-field>
+        </ip-field>
       `;
     }
     if (def.type === "select" && def.options) {
       // options come as [[value, label], ...] tuples from voluptuous_serialize
       return html`
-        <si-field label="${label}" help="${help ?? ""}">
+        <ip-field label="${label}" help="${help ?? ""}">
           <select
             class="wizard-input"
             @change="${(e: Event) => {
@@ -669,11 +669,11 @@ export class SiSetupWizard extends LitElement {
                 </option>`,
             )}
           </select>
-        </si-field>
+        </ip-field>
       `;
     }
     return html`
-      <si-field label="${label}" help="${help ?? ""}">
+      <ip-field label="${label}" help="${help ?? ""}">
         <input
           type="${def.type === "float" || def.type === "integer"
             ? "number"
@@ -692,7 +692,7 @@ export class SiSetupWizard extends LitElement {
             this._moduleConfig = { ...this._moduleConfig, [key]: parsed };
           }}"
         />
-      </si-field>
+      </ip-field>
     `;
   }
 
@@ -721,7 +721,7 @@ export class SiSetupWizard extends LitElement {
       value: string,
       onChange: (v: string) => void,
     ) => html`
-      <si-field
+      <ip-field
         label="${localize(
           "wizard.steps.mapping.source_label",
           lang,
@@ -739,7 +739,7 @@ export class SiSetupWizard extends LitElement {
               </option>`,
           )}
         </select>
-      </si-field>
+      </ip-field>
     `;
 
     return html`
@@ -750,7 +750,7 @@ export class SiSetupWizard extends LitElement {
         ${localize("wizard.steps.mapping.description", lang)}
       </p>
 
-      <si-field
+      <ip-field
         label="${localize("wizard.steps.mapping.name_label", lang)}"
         required
       >
@@ -762,7 +762,7 @@ export class SiSetupWizard extends LitElement {
             this._mappingName = (e.target as HTMLInputElement).value;
           }}"
         />
-      </si-field>
+      </ip-field>
 
       ${renderSourceSelect(
         localize("panels.mappings.cards.mapping.items.temperature", lang) ||
@@ -806,7 +806,7 @@ export class SiSetupWizard extends LitElement {
         ${localize("wizard.steps.zone.description", lang)}
       </p>
 
-      <si-zone-form
+      <ip-zone-form
         .hass="${this.hass}"
         .metric="${isMetric}"
         .name="${this._zoneName}"
@@ -826,7 +826,7 @@ export class SiSetupWizard extends LitElement {
         @entity-changed="${(e: CustomEvent) => {
           this._zoneEntity = e.detail.value;
         }}"
-      ></si-zone-form>
+      ></ip-zone-form>
     `;
   }
 

@@ -25,7 +25,7 @@ import {
   DISTRIBUTOR_MIN_SKIP_PULSE_SECONDS,
 } from "../const";
 import { globalStyle } from "../styles/global-style";
-import "./si-field";
+import "./ip-field";
 
 /**
  * Controlled configuration form for one Gardena water distributor. Mirrors the
@@ -40,7 +40,7 @@ import "./si-field";
  * `pause_seconds` / `skip_pulse_seconds` show a live below-floor warning; the
  * backend re-floors to 10 s regardless, this just tells the user why.
  */
-@customElement("si-distributor-form")
+@customElement("ip-distributor-form")
 export class SiDistributorForm extends LitElement {
   @property({ attribute: false }) hass!: HomeAssistant;
   @property({ attribute: false }) distributor!: SmartIrrigationDistributor;

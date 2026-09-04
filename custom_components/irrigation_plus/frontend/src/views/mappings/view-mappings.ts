@@ -60,7 +60,7 @@ import {
   showErrorToast,
 } from "../../helpers";
 
-@customElement("smart-irrigation-view-mappings")
+@customElement("irrigation-plus-view-mappings")
 class SmartIrrigationViewMappings extends SubscribeMixin(LitElement) {
   hass?: HomeAssistant;
   @property() config?: SmartIrrigationConfig;

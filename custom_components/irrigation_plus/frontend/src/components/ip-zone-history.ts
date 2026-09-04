@@ -16,7 +16,7 @@ import { CONF_METRIC } from "../const";
 /** Cumulative water usage + a bounded "Recent runs" list for ONE zone.
  * Pure presentation: extracted from view-zone-settings so it can live on the
  * History tab. Reuses the existing panels.zones.history.* strings. */
-@customElement("si-zone-history")
+@customElement("ip-zone-history")
 export class SiZoneHistory extends LitElement {
   @property({ attribute: false }) hass!: HomeAssistant;
   @property({ attribute: false }) zone!: SmartIrrigationZone;

@@ -74,8 +74,8 @@ import {
   ZONE_OUTLET_NUMBER,
   DISTRIBUTOR_MAX_OUTLETS,
 } from "../../const";
-import "../../components/si-field";
-import "../../components/si-zone-form";
+import "../../components/ip-field";
+import "../../components/ip-zone-form";
 
 /**
  * Setup → Zones: full zone configuration, reporting (weather / calendar) and
@@ -83,7 +83,7 @@ import "../../components/si-zone-form";
  * top-level Zones tab; its gear icon deep-links here with a `zone` URL param
  * that auto-expands and scrolls to the matching zone. (UX restructure N2/N3.)
  */
-@customElement("smart-irrigation-view-zone-settings")
+@customElement("irrigation-plus-view-zone-settings")
 class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
   hass?: HomeAssistant;
   @property() config?: SmartIrrigationConfig;
@@ -1876,7 +1876,7 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
         )}"
       >
         <div class="add-zone-form">
-          <si-zone-form
+          <ip-zone-form
             .hass="${this.hass}"
             .metric="${this.config?.units === CONF_METRIC}"
             .name="${this._newZoneName}"
@@ -1896,7 +1896,7 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
             @entity-changed="${(e: CustomEvent) => {
               this._newZoneEntity = e.detail.value;
             }}"
-          ></si-zone-form>
+          ></ip-zone-form>
         </div>
         <div class="dialog-footer">
           <button

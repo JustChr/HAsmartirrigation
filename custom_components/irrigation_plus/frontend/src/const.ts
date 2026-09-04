@@ -3,20 +3,24 @@ export const VERSION = `v${pkg.version}`;
 export const REPO = "https://github.com/JustChr/HAsmartirrigation";
 export const ISSUES_URL = REPO + "/issues";
 
-export const PLATFORM = "smart-irrigation";
-export const DOMAIN = "smart_irrigation";
+export const DOMAIN = "irrigation_plus";
+// PLATFORM is the element/slug spelling of DOMAIN. Derived, never written out:
+// the pre-#120 code hardcoded both spellings independently, which is how the
+// panel's location guard below ended up comparing a URL path against an
+// element name and silently never matching. Keep in sync with PANEL_SLUG in
+// const.py.
+export const PLATFORM = DOMAIN.replace(/_/g, "-");
 
 // Localization: only en.json is bundled (built-in fallback); the other
 // languages are served as static JSON and fetched on demand. Keep
 // AVAILABLE_LANGUAGES in sync with localize/languages/*.json and LANG_BASE_URL
 // in sync with LANG_URL in const.py.
-export const LANG_BASE_URL = "/smart_irrigation_static/languages";
+export const LANG_BASE_URL = `/${DOMAIN}_static/languages`;
 
 // The zones card is served as a tiny stub (auto-loaded on every page) that
 // lazy-imports this heavy implementation bundle only when a card renders.
 // Keep in sync with FULL_CARD_URL in const.py.
-export const FULL_CARD_URL =
-  "/smart_irrigation_card/smart-irrigation-card-impl.js";
+export const FULL_CARD_URL = `/${DOMAIN}_card/${PLATFORM}-card-impl.js`;
 export const AVAILABLE_LANGUAGES = [
   "de",
   "en",

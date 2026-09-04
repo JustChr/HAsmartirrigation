@@ -6,7 +6,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 // just enough for the class to be defined and instantiated. We never mount it —
 // we call its render methods and introspect the returned lit TemplateResult
 // tree (no custom-element registry, no shadow DOM needed). Mirrors the harness
-// in si-distributor-form.test.ts.
+// in ip-distributor-form.test.ts.
 beforeAll(() => {
   (globalThis as any).HTMLElement = class {};
   (globalThis as any).customElements = {
@@ -37,7 +37,7 @@ beforeAll(async () => {
  * (b) the list of dynamic values (nested templates recursed; event handlers and
  * other functions collected separately). Lit's `.map(...)` yields an array of
  * TemplateResults in `.values`, so we recurse arrays and template objects.
- * Copied from si-distributor-form.test.ts.
+ * Copied from ip-distributor-form.test.ts.
  */
 type Handler = (e: any) => unknown;
 

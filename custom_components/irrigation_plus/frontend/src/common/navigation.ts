@@ -1,5 +1,21 @@
 import { DOMAIN } from "../const";
 
+/**
+ * True when the browser is currently on THIS integration's panel.
+ *
+ * Compares the first path segment against DOMAIN exactly. It used to be
+ * `pathname.includes(PLATFORM)`, which compared a URL path ("/irrigation_plus/…")
+ * against the ELEMENT name ("irrigation-plus") — underscore vs hyphen, so it never
+ * matched and the caller's `location-changed` handler always returned early:
+ * browser back/forward silently did not refresh the panel. A substring test is
+ * also the wrong shape here, because once two irrigation integrations are
+ * installed side by side one project's slug can appear inside the other's path.
+ */
+export const isOwnPath = (pathname?: string) => {
+  const path = pathname ?? window.location.pathname;
+  return path.split("/")[1] === DOMAIN;
+};
+
 export interface Path {
   page: string;
   subpage?: string;

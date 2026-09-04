@@ -62,7 +62,7 @@ export interface ScheduleRows {
 }
 
 /**
- * The subset of the dialog's Schedule interface (si-schedule-dialog.ts)
+ * The subset of the dialog's Schedule interface (ip-schedule-dialog.ts)
  * this module reads and writes. Declared locally, rather than imported,
  * so this module has zero dependency on the rendering layer.
  */

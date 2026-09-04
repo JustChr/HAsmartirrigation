@@ -31,7 +31,7 @@ import {
 } from "../common/schedule-rows";
 import { summarizeSchedule, scheduleProblem } from "../common/schedule-summary";
 import { azimuthResolverFromLocation } from "../common/solar-azimuth";
-import "./si-run-window-dial";
+import "./ip-run-window-dial";
 
 const DAYS = [
   "monday",
@@ -115,8 +115,8 @@ type BoundEnd = "start" | "finish";
  *
  * Events (bubble + composed):
  *   - "schedule-changed"  detail: { value: Schedule } — fired on every field
- *     edit, mirroring the *-changed convention used by si-distributor-form /
- *     si-zone-form. The parent is expected to store the patched value back
+ *     edit, mirroring the *-changed convention used by ip-distributor-form /
+ *     ip-zone-form. The parent is expected to store the patched value back
  *     onto the `schedule` property.
  *   - "save"    detail: { value: Schedule } — Save button clicked.
  *   - "cancel"  — Cancel button clicked, or the host ha-dialog's own "closed"
@@ -138,7 +138,7 @@ type BoundEnd = "start" | "finish";
  * same sentence heads each card in view-schedules.ts's list), and the WHEN
  * card carries the 24-hour run-window dial.
  */
-@customElement("si-schedule-dialog")
+@customElement("ip-schedule-dialog")
 export class SiScheduleDialog extends LitElement {
   @property({ attribute: false }) hass!: HomeAssistant;
   @property({ attribute: false }) schedule!: Schedule;
@@ -754,14 +754,14 @@ export class SiScheduleDialog extends LitElement {
                   ${this._renderWindowRows()}
                 </div>
                 <div class="dial-col">
-                  <si-run-window-dial
+                  <ip-run-window-dial
                     .hass="${this.hass}"
                     .rows="${scheduleToRows(s)}"
                     .recurrence="${s.recurrence}"
                     .intervalHours="${s.interval_hours}"
                     .intervalStartTime="${s.start_time}"
                     .nominalDemandSeconds="${s.nominal_demand_seconds ?? 0}"
-                  ></si-run-window-dial>
+                  ></ip-run-window-dial>
                 </div>
               </div>
             `,

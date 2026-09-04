@@ -52,7 +52,7 @@ describe("view-history", () => {
     ]);
     expect(el._effectiveZone().id).toBe(1);
     const { text } = flatten(el.render());
-    expect(text).toContain("<si-zone-history");
+    expect(text).toContain("<ip-zone-history");
     expect(text).toContain("<select");
   });
 
@@ -118,7 +118,7 @@ describe("view-history", () => {
   it("binds the option's selected PROPERTY, not the attribute", () => {
     // `?selected` sets defaultSelected, which stops tracking once the control
     // is dirty — so a selection made in code (the deep link above) would not
-    // move the picker. Pinned here for the same reason si-schedule-dialog pins
+    // move the picker. Pinned here for the same reason ip-schedule-dialog pins
     // it (f446bd62), because the attribute form is still the convention in
     // most of this panel and gets copied back in.
     const el = makeView([
@@ -146,6 +146,6 @@ describe("view-history", () => {
     const el = makeView([]);
     const { text } = flatten(el.render());
     expect(text).toContain("No zones configured yet.");
-    expect(text).not.toContain("<si-zone-history");
+    expect(text).not.toContain("<ip-zone-history");
   });
 });

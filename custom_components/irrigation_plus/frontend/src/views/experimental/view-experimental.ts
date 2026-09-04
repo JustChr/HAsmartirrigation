@@ -36,7 +36,7 @@ type ExperimentalFlag =
  * backend merges these partial config saves, so toggling one never clobbers the
  * other settings.
  */
-@customElement("smart-irrigation-view-experimental")
+@customElement("irrigation-plus-view-experimental")
 export class SmartIrrigationViewExperimental extends SubscribeMixin(
   LitElement,
 ) {

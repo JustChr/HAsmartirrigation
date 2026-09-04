@@ -24,7 +24,7 @@ import { convertWeather, formatWeather } from "../../common/units";
  * sensor group (mapping) — that's their real key — instead of repeated under
  * every zone. For the common single-source setup that's one table.
  */
-@customElement("smart-irrigation-view-weather-data")
+@customElement("irrigation-plus-view-weather-data")
 export class SmartIrrigationViewWeatherData extends SubscribeMixin(LitElement) {
   hass?: HomeAssistant;
   @property() narrow!: boolean;

@@ -3,7 +3,7 @@ import { property, customElement } from "lit/decorators.js";
 import { HomeAssistant } from "../types";
 import { localize } from "../../localize/localize";
 import { UNIT_SQ_FT, UNIT_LPM, UNIT_GPM } from "../const";
-import "./si-field";
+import "./ip-field";
 
 /**
  * Shared "basic zone" form fields: name, size, throughput and (optionally) the
@@ -20,7 +20,7 @@ import "./si-field";
  *   - "throughput-changed" value: string
  *   - "entity-changed"     value: string  (only when showEntity)
  */
-@customElement("si-zone-form")
+@customElement("ip-zone-form")
 export class SiZoneForm extends LitElement {
   @property({ attribute: false }) hass!: HomeAssistant;
 
@@ -51,7 +51,7 @@ export class SiZoneForm extends LitElement {
     const throughputUnit = this.metric ? UNIT_LPM : UNIT_GPM;
 
     return html`
-      <si-field label="${localize("panels.zones.labels.name", lang)}" required>
+      <ip-field label="${localize("panels.zones.labels.name", lang)}" required>
         <input
           type="text"
           class="si-input"
@@ -59,9 +59,9 @@ export class SiZoneForm extends LitElement {
           @input="${(e: Event) =>
             this._emit("name-changed", (e.target as HTMLInputElement).value)}"
         />
-      </si-field>
+      </ip-field>
 
-      <si-field
+      <ip-field
         label="${localize("panels.zones.labels.size", lang)}"
         unit="${sizeUnit}"
         help="${localize("field_help.zone_size", lang)}"
@@ -76,9 +76,9 @@ export class SiZoneForm extends LitElement {
           @input="${(e: Event) =>
             this._emit("size-changed", (e.target as HTMLInputElement).value)}"
         />
-      </si-field>
+      </ip-field>
 
-      <si-field
+      <ip-field
         label="${localize("panels.zones.labels.throughput", lang)}"
         unit="${throughputUnit}"
         help="${localize("field_help.zone_throughput", lang)}"
@@ -96,11 +96,11 @@ export class SiZoneForm extends LitElement {
               (e.target as HTMLInputElement).value,
             )}"
         />
-      </si-field>
+      </ip-field>
 
       ${this.showEntity
         ? html`
-            <si-field
+            <ip-field
               label="${localize("panels.zones.labels.linked_entity", lang)}"
               help="${localize("field_help.zone_linked_entity", lang)}"
             >
@@ -112,7 +112,7 @@ export class SiZoneForm extends LitElement {
                 @value-changed="${(e: CustomEvent) =>
                   this._emit("entity-changed", e.detail.value || "")}"
               ></ha-entity-picker>
-            </si-field>
+            </ip-field>
           `
         : ""}
     `;

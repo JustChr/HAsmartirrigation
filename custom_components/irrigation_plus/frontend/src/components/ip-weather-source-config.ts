@@ -10,7 +10,7 @@ import {
   CONF_WEATHER_SERVICE_PW,
   CONF_WEATHER_SERVICE_MET,
 } from "../const";
-import "./si-field";
+import "./ip-field";
 
 /**
  * Shared weather-source configuration block: the "use weather service" toggle,
@@ -27,7 +27,7 @@ import "./si-field";
  *   - "service-changed"    detail:{ value: string }
  *   - "apikey-changed"     detail:{ value: string }
  */
-@customElement("si-weather-source-config")
+@customElement("ip-weather-source-config")
 export class SiWeatherSourceConfig extends LitElement {
   @property({ attribute: false }) hass!: HomeAssistant;
 
@@ -118,7 +118,7 @@ export class SiWeatherSourceConfig extends LitElement {
   render(): TemplateResult {
     const lang = this.hass?.language ?? "en";
     return html`
-      <si-field
+      <ip-field
         label="${localize("weather_service_config.enabled_label", lang)}"
       >
         <ha-switch
@@ -129,7 +129,7 @@ export class SiWeatherSourceConfig extends LitElement {
               (e.target as HTMLInputElement).checked,
             )}"
         ></ha-switch>
-      </si-field>
+      </ip-field>
 
       ${this.useWeather ? this._renderServiceAndKey(lang) : ""}
     `;
@@ -137,7 +137,7 @@ export class SiWeatherSourceConfig extends LitElement {
 
   private _renderServiceAndKey(lang: string): TemplateResult {
     return html`
-      <si-field
+      <ip-field
         label="${localize("weather_service_config.service_label", lang)}"
       >
         <select
@@ -177,7 +177,7 @@ export class SiWeatherSourceConfig extends LitElement {
             ${localize("weather_service_config.met", lang)}
           </option>
         </select>
-      </si-field>
+      </ip-field>
 
       ${this._needsKey
         ? this._renderKeyField(lang)
@@ -190,7 +190,7 @@ export class SiWeatherSourceConfig extends LitElement {
   private _renderKeyField(lang: string): TemplateResult {
     const hasStored = this._hasStoredKey;
     return html`
-      <si-field
+      <ip-field
         label="${localize("weather_service_config.api_key_label", lang)}"
         help="${localize("weather_service_config.api_key_help", lang)}"
       >
@@ -245,7 +245,7 @@ export class SiWeatherSourceConfig extends LitElement {
                   )}
             </div>`
           : ""}
-      </si-field>
+      </ip-field>
     `;
   }
 

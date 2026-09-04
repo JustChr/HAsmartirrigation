@@ -168,7 +168,7 @@ cd custom_components/irrigation_plus/frontend
 npm run build
 ```
 
-The compiled `dist/smart-irrigation.js` is committed to the repo (gitignored but tracked) so users don't need Node.js to run the integration.
+The compiled `dist/irrigation-plus.js` is committed to the repo (gitignored but tracked) so users don't need Node.js to run the integration.
 
 ### Tests
 

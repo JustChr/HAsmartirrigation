@@ -21,7 +21,7 @@ import {
   Schedule,
   emptySchedule,
   recurrenceLabel,
-} from "../../components/si-schedule-dialog";
+} from "../../components/ip-schedule-dialog";
 import { summarizeSchedule } from "../../common/schedule-summary";
 
 const MONTHS = [
@@ -39,7 +39,7 @@ const MONTHS = [
   "Dec",
 ];
 
-@customElement("smart-irrigation-view-schedules")
+@customElement("irrigation-plus-view-schedules")
 export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
   @property({ attribute: false }) public hass!: HomeAssistant;
 
@@ -206,7 +206,7 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return html`
       ${this._showDialog
         ? html`
-            <si-schedule-dialog
+            <ip-schedule-dialog
               .hass=${this.hass}
               .schedule=${this._editingSchedule}
               .zones=${this._zones}
@@ -214,7 +214,7 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
               @schedule-changed=${this._onScheduleChanged}
               @save=${this._save}
               @cancel=${this._closeDialog}
-            ></si-schedule-dialog>
+            ></ip-schedule-dialog>
           `
         : ""}
 
@@ -395,7 +395,7 @@ export class SmartIrrigationViewSchedules extends SubscribeMixin(LitElement) {
     return [
       globalStyle,
       css`
-        /* Same read-only summary sentence as si-schedule-dialog.ts's own
+        /* Same read-only summary sentence as ip-schedule-dialog.ts's own
            ".summary" — a schedule can be read without opening
            it. Kept as a second copy of the CSS rather than a shared style
            module because these two components don't otherwise share

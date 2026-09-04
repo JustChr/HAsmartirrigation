@@ -19,7 +19,7 @@ import {
  *
  * To regenerate after a backend change, from a Python environment with the
  * integration importable:
- *   from custom_components.smart_irrigation.helpers import (
+ *   from custom_components.irrigation_plus.helpers import (
  *       calculate_solar_azimuth, find_next_solar_azimuth_time)
  * called at the inputs below. Those are UTC instants: the resolver reads UTC
  * and takes a naive datetime AS UTC, so the two sides agree on the frame

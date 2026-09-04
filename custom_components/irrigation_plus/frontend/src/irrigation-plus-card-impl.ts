@@ -6,12 +6,12 @@ import { ensureTranslations, isTranslationLoaded } from "../localize/localize";
 
 /**
  * Heavy implementation of the Smart Irrigation zones card. This bundle is
- * lazy-loaded by the tiny `smart-irrigation-card.ts` stub the first time a card
+ * lazy-loaded by the tiny `irrigation-plus-card.ts` stub the first time a card
  * actually renders, so the ~180 KB of view code is NOT loaded into the HA app
  * shell on every page (only the stub is, via add_extra_js_url).
  *
- * It registers `<smart-irrigation-zones-card-impl>`; the public card type
- * (`smart-irrigation-zones-card`) is owned by the stub, which instantiates this
+ * It registers `<irrigation-plus-zones-card-impl>`; the public card type
+ * (`irrigation-plus-zones-card`) is owned by the stub, which instantiates this
  * element and forwards hass/config to it. See the stub for the user-facing
  * config contract.
  */
@@ -46,18 +46,18 @@ export class SmartIrrigationZonesCardImpl extends LitElement {
     }
     const mode = this._config.actions ?? "irrigate";
     return html`
-      <smart-irrigation-view-zones
+      <irrigation-plus-view-zones
         .hass=${this.hass}
         .hideSettingsLinks=${true}
         .actionsMode=${mode}
-      ></smart-irrigation-view-zones>
+      ></irrigation-plus-view-zones>
     `;
   }
 }
 
-if (!customElements.get("smart-irrigation-zones-card-impl")) {
+if (!customElements.get("irrigation-plus-zones-card-impl")) {
   customElements.define(
-    "smart-irrigation-zones-card-impl",
+    "irrigation-plus-zones-card-impl",
     SmartIrrigationZonesCardImpl,
   );
 }
