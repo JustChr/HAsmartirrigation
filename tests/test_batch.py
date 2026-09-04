@@ -328,6 +328,94 @@ class TestDispatch:
         assert c.async_master_acquire.await_count == 2
 
 
+class TestSequencingIsNotSilentlyDropped:
+    """`rotating` does not reach batch zones, and the log has to say so (#98).
+
+    The queue runs each zone's full duration in one go, so the cap/soak/
+    interleave a user chose `rotating` FOR never happens. Before this, nothing
+    anywhere said that: the setting sat in the panel looking applied.
+    """
+
+    def _seq(self, c, value):
+        """Give the coordinator a real string sequencing value.
+
+        `_coord` leaves `store` a bare Mock, so `store.config.zone_sequencing`
+        answers with another Mock — the case the last test here pins.
+        """
+        c.store.config = Mock()
+        c.store.config.zone_sequencing = value
+
+    async def test_rotating_is_reported_with_the_zone_count(self, hass, caplog):
+        c = _coord(hass)
+        self._seq(c, const.CONF_ZONE_SEQUENCING_ROTATING)
+        zones = _register(c, _zone(1, VALVE_A, 600), _zone(2, VALVE_B, 900))
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warnings) == 1
+        msg = warnings[0].getMessage()
+        assert "rotating" in msg
+        assert "2 batch zone(s)" in msg
+        assert "#98" in msg
+
+    async def test_it_is_said_once_not_every_irrigation(self, hass, caplog):
+        """This runs from the daily scheduled dispatch; a per-dispatch warning
+        would repeat for as long as the setting stands."""
+        c = _coord(hass)
+        self._seq(c, const.CONF_ZONE_SEQUENCING_ROTATING)
+        zones = _register(c, _zone(1, VALVE_A, 600))
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 1
+
+    async def test_the_dispatch_itself_is_unchanged(self, hass):
+        """A warning, not a refusal: the plan still goes out exactly as before."""
+        c = _coord(hass)
+        self._seq(c, const.CONF_ZONE_SEQUENCING_ROTATING)
+        zones = _register(c, _zone(1, VALVE_A, 600), _zone(2, VALVE_B, 900))
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        assert len(c._calls["run"]) == 1
+        plan = c._calls["run"][0].data[const.BATCH_FIELD_ZONES]
+        assert [p["zone_id"] for p in plan] == [1, 2]
+        assert [p["duration"] for p in plan] == [600, 900]
+
+    async def test_the_default_parallel_says_nothing(self, hass, caplog):
+        """`parallel` is CONF_DEFAULT_ZONE_SEQUENCING. Warning on it would fire
+        on every batch install that never touched the setting — noise, not
+        information, and the reason this guard is not `!= sequential`."""
+        assert const.CONF_DEFAULT_ZONE_SEQUENCING == const.CONF_ZONE_SEQUENCING_PARALLEL
+        c = _coord(hass)
+        self._seq(c, const.CONF_ZONE_SEQUENCING_PARALLEL)
+        zones = _register(c, _zone(1, VALVE_A, 600))
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        assert [r for r in caplog.records if r.levelname == "WARNING"] == []
+
+    async def test_sequential_says_nothing_because_a_queue_already_is(
+        self, hass, caplog
+    ):
+        c = _coord(hass)
+        self._seq(c, const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
+        zones = _register(c, _zone(1, VALVE_A, 600))
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        assert [r for r in caplog.records if r.levelname == "WARNING"] == []
+
+    async def test_a_config_with_no_real_value_says_nothing(self, hass, caplog):
+        """The bare-Mock config every other test in this file runs with, and the
+        reason the check is a positive match on `rotating` rather than
+        `!= sequential`: a Mock (and a missing attribute, which reads None) is
+        not equal to `rotating`, so both stay quiet without a type guard."""
+        c = _coord(hass)
+        zones = _register(c, _zone(1, VALVE_A, 600))
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        assert [r for r in caplog.records if r.levelname == "WARNING"] == []
+
+
 class TestObservationDrivesTheRun:
     async def _dispatch(self, hass, **config):
         c = _coord(hass, **config)

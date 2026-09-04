@@ -124,16 +124,58 @@ class BatchMixin:
 
     # --- dispatch -----------------------------------------------------------
 
+    def _warn_sequencing_ignored(self, zones: list) -> None:
+        """Say, once, that ``rotating`` does not reach batch zones.
+
+        ``rotating`` is the only sequencing mode whose loss is worth a line in
+        the log. ``sequential`` is what a queue already does, and ``parallel``
+        is the DEFAULT (``CONF_DEFAULT_ZONE_SEQUENCING``) — warning about it
+        would fire on every batch install that never touched the setting, which
+        is noise, not information. ``rotating`` is different: it is chosen
+        deliberately, for runoff on a slope or a slow-draining soil, and it
+        carries real behaviour (cap each pass, soak, interleave) that the queue
+        drops entirely. A user who set it is watching for split passes that will
+        never come, and today nothing anywhere says so — see issue #98.
+
+        Once per sequencing value, not once per dispatch: this fires from the
+        scheduled irrigation, so a per-dispatch warning would repeat every day
+        for as long as the setting stands.
+        """
+        # Positive match rather than `!= sequential`, which also covers the two
+        # ways this can be read without a real value: a config that has no
+        # sequencing attribute answers None, and a test double's bare Mock
+        # answers another Mock. Neither equals `rotating`, so neither warns, and
+        # no isinstance guard is needed to keep them quiet.
+        sequencing = getattr(
+            getattr(self.store, "config", None), const.CONF_ZONE_SEQUENCING, None
+        )
+        if sequencing != const.CONF_ZONE_SEQUENCING_ROTATING:
+            return
+        if getattr(self, "_batch_sequencing_warned", None) == sequencing:
+            return
+        self._batch_sequencing_warned = sequencing
+        _LOGGER.warning(
+            "Zone sequencing is set to '%s', which does not apply to the %s "
+            "batch zone(s) in this irrigation: the controller runs its own "
+            "queue, so their passes are not capped, interleaved or given "
+            "absorption time. They are dispatched as one ordered plan and each "
+            "zone waters its full duration in one go. See issue #98",
+            sequencing,
+            len(zones),
+        )
+
     async def async_dispatch_batch_zones(self, zones: list, *, trigger: str) -> None:
         """Hand the whole plan to the controller in one call.
 
         Order is the order of ``zones``: a queue runs one valve at a time, so
         this mode is inherently sequential and expresses ordering through the
         list rather than through ``zone_sequencing`` (whose ``parallel`` setting
-        simply cannot be represented in a queue).
+        simply cannot be represented in a queue, and whose ``rotating`` setting
+        is dropped — said out loud in ``_warn_sequencing_ignored``).
         """
         if not zones:
             return
+        self._warn_sequencing_ignored(zones)
         config = await self._batch_config()
         run_service = config.get(const.CONF_BATCH_RUN_SERVICE)
         if not run_service:
