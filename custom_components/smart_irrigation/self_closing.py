@@ -18,6 +18,7 @@ from homeassistant.util import dt as dt_util
 from . import const
 from .batch import is_batch_zone
 from .opensprinkler import is_opensprinkler_zone
+from .run_chain import ChainPolicy, register_chain_policy
 from .run_watch import (
     WatchPolicy,
     register_watch_policy,
@@ -61,6 +62,20 @@ SERVICE_WATCH_POLICY = WatchPolicy(
     finish_settle_seconds=const.SERVICE_WATCH_SETTLE_SECONDS,
 )
 register_watch_policy(SERVICE_WATCH_POLICY)
+
+# And its dispatch chain. Service zones used to be fired in a single loop by
+# _dispatch_by_mode, so `zone_sequencing` never reached them: `sequential` and
+# `rotating` were both dropped and the valves opened together whatever the
+# setting said, while the setting's own help text promised the opposite without
+# qualification. That is worse than the batch case, where `sequential` is at
+# least what a queue does anyway — a user who chose `sequential` because their
+# pump can only feed one zone was getting all of them at once. Issue #98.
+CHAIN_POLICY = ChainPolicy(
+    mode=const.WATERING_MODE_SERVICE,
+    label="Service",
+    token_prefix="service-chain:",
+)
+register_chain_policy(CHAIN_POLICY)
 
 
 def is_self_closing_zone(zone: dict) -> bool:
@@ -341,8 +356,10 @@ class SelfClosingMixin:
         # in flight. No-op unless this run displaced one.
         await self.async_run_deferred_calculation(zone_id)
         # Likewise ordered after the removal: the chain only starts the next
-        # station once nothing is in flight. No-op unless one is pending.
-        await self._os_chain_advance(zone_id)
+        # zone once nothing of its mode is in flight. Keyed on the RUN's mode, so
+        # a station run advances the station chain and a service run the service
+        # one. No-op unless a chain of that mode is pending.
+        await self._chain_advance_for_run(zone_id, run)
 
     def _sc_schedule_cleanup(self, zone_id, delay_seconds: float) -> None:
         """Schedule the cosmetic finish after the run's planned duration."""
@@ -755,8 +772,8 @@ class SelfClosingMixin:
         # in flight. No-op unless this run displaced one.
         await self.async_run_deferred_calculation(zone_id)
         # A stopped, dropped or short run ends the chain's turn exactly as a
-        # completed one does, so the next station must start from here too.
-        await self._os_chain_advance(zone_id)
+        # completed one does, so the next zone must start from here too.
+        await self._chain_advance_for_run(zone_id, run)
         return True
 
     async def async_resume_self_closing_runs(self) -> None:

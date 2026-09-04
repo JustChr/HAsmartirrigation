@@ -495,7 +495,7 @@ class IrrigationRunnerMixin:
         zid = int(zone_id)
         # Before the run in flight is finalised, or the finalisation advances the
         # cycle straight back onto this zone.
-        self._os_drop_from_cycle(zid)
+        self._chain_drop_zone(zid)
         if await self._sc_maybe_stop(zid):
             return
         reg = getattr(self, "_active_runs", None) or {}
@@ -970,10 +970,21 @@ class IrrigationRunnerMixin:
         await self.async_master_acquire(cycle_token)
         try:
             self_closing = [z for z in zones if self._sc_is_self_closing(z)]
-            for z in self_closing:
-                if is_opensprinkler_zone(z) or is_batch_zone(z):
-                    continue
-                await self.async_run_self_closing(z, trigger=trigger)
+            # Service zones go through the shared chain (run_chain.py) rather than
+            # a loop, so `zone_sequencing` reaches them: under `sequential` one is
+            # dispatched and the rest held until it finalises, under `rotating`
+            # each re-enters in slots. They were fired in a loop here, which is
+            # `parallel` whatever the setting said — the row issue #98 is about.
+            # Guarded on the set being non-empty like the branches below it.
+            service = [
+                z
+                for z in self_closing
+                if not is_opensprinkler_zone(z) and not is_batch_zone(z)
+            ]
+            if service:
+                await self.async_dispatch_chained_zones(
+                    service, mode=const.WATERING_MODE_SERVICE, trigger=trigger
+                )
             await self.async_dispatch_opensprinkler_zones(
                 [z for z in self_closing if is_opensprinkler_zone(z)],
                 trigger=trigger,

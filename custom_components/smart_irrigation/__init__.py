@@ -71,6 +71,7 @@ from .master import MasterMixin
 from .observed_watering import ObservedWateringMixin
 from .opensprinkler import OpenSprinklerMixin
 from .panel import async_register_panel, async_remove_card_resource, remove_panel
+from .run_chain import RunChainMixin
 from .run_state import RunStateMixin
 from .run_watch import RunWatchMixin
 from .scheduler import RecurringScheduleManager
@@ -471,6 +472,9 @@ class SmartIrrigationCoordinator(
     # batch refines the pause hooks, and each must be reached before the engine's
     # own default.
     RunWatchMixin,
+    # Likewise after them: OpenSprinkler keeps its _os_* chain spellings as
+    # delegates onto this engine, so its methods must be reached first.
+    RunChainMixin,
     MasterMixin,
     DistributorMixin,
     RunStateMixin,

@@ -180,12 +180,37 @@ class TestConcurrentWallClock:
         runs = [_run(0, 300, track=TRACK_STATION), _run(1, 600, track=TRACK_STATION)]
         assert self._conc(runs, PARALLEL) == 900
 
-    def test_service_zones_open_together_even_under_sequential(self):
+    def test_service_zones_chain_under_sequential(self):
+        """They used to open together whatever the setting said (issue #98).
+
+        The dispatch fired them in one loop, so the track was priced as parallel
+        — the longest zone, not all of them. It now goes through the shared
+        chain, and pricing it as parallel would anchor a finish-governed run 300 s
+        early.
+        """
         runs = [
             _run(0, 300, track=TRACK_SELF_CLOSING),
             _run(1, 600, track=TRACK_SELF_CLOSING),
         ]
-        assert self._conc(runs, SEQUENTIAL) == 600
+        assert self._conc(runs, SEQUENTIAL) == 900
+
+    def test_service_zones_still_open_together_under_parallel(self):
+        """The default is unchanged: nothing chains, and the longest one wins."""
+        runs = [
+            _run(0, 300, track=TRACK_SELF_CLOSING),
+            _run(1, 600, track=TRACK_SELF_CLOSING),
+        ]
+        assert self._conc(runs, PARALLEL) == 600
+
+    def test_service_zones_price_their_rotation(self):
+        """And rotating reaches them too, absorption pauses included.
+
+        600 s in 300 s slots with a 600 s pause is not 600 s of night: the slot
+        model has to be applied to this track exactly as it is to the classic
+        one, or a rotation is sized by its watering time and cut off mid-cycle.
+        """
+        runs = [_run(0, 600, track=TRACK_SELF_CLOSING)]
+        assert self._conc(runs, ROTATING, slot=300, absorb=600) == 1200
 
     def test_no_runs_is_zero(self):
         assert self._conc([], SEQUENTIAL) == 0.0
@@ -687,14 +712,25 @@ class TestSelectAcrossTracks:
         ]
         assert [r.zone_id for r in self._select(runs, 1000, PARALLEL)] == [0]
 
-    def test_service_zones_are_not_under_admitted_under_sequential(self):
-        # The wasteful direction: the hardware closes each valve itself, so
-        # these open together and 900 s covers both.
+    def test_service_zones_are_not_over_admitted_under_sequential(self):
+        # The dangerous direction, and the one this track changed sides on
+        # (issue #98). They used to open together, so 1000 s admitted both; they
+        # now chain, so admitting both would run 1700 s past a 1000 s anchor.
         runs = [
             _run(0, 900, ratio=3.0, track=TRACK_SELF_CLOSING),
             _run(1, 800, ratio=2.0, track=TRACK_SELF_CLOSING),
         ]
-        assert [r.zone_id for r in self._select(runs, 1000)] == [0, 1]
+        assert [r.zone_id for r in self._select(runs, 1000)] == [0]
+
+    def test_service_zones_are_not_under_admitted_under_parallel(self):
+        # The wasteful direction, which survives where the setting still says
+        # they open together: the hardware closes each valve itself and 900 s
+        # covers both.
+        runs = [
+            _run(0, 900, ratio=3.0, track=TRACK_SELF_CLOSING),
+            _run(1, 800, ratio=2.0, track=TRACK_SELF_CLOSING),
+        ]
+        assert [r.zone_id for r in self._select(runs, 1000, PARALLEL)] == [0, 1]
 
     def test_a_free_zone_never_displaces_a_drier_one(self):
         # Zone 0 is the strict leader and does not fit; the always-include-the

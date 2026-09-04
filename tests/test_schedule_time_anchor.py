@@ -247,31 +247,45 @@ class TestTheEstimateFollowsHowEachModeIsActuallyDispatched:
     """
 
     @pytest.mark.asyncio
-    async def test_self_closing_zones_are_concurrent_under_sequential(
+    async def test_self_closing_zones_chain_under_sequential(
         self, coordinator, mock_store
     ):
-        """The defect: service zones were SUMMED under sequential.
+        """The DISPATCH changed, so the estimate follows it — as this class says.
 
-        `_dispatch_by_mode` fires every service zone in one loop and the
-        hardware owns each close, so nothing serialises them — they open
-        together and the cycle is the longest of them, not their total. The
-        over-estimate started a finish-anchored schedule 300 s too early here.
+        Service zones used to be fired in one loop with the hardware owning each
+        close, so nothing serialised them: they opened together and summing them
+        started a finish-anchored schedule 300 s too early (`4d369eb`). They now
+        go through the shared dispatch chain, so they really are serialised and
+        the sum is what the cycle costs. This is not that fix being undone; it is
+        the same rule — price a track the way it is actually dispatched — applied
+        to a track that is now dispatched differently. Issue #98.
         """
         mock_store.config = Mock(zone_sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
         mock_store.async_get_zones = AsyncMock(
             return_value=_mode_zones(const.WATERING_MODE_SERVICE)
         )
-        assert await coordinator.get_total_irrigation_duration() == 600
+        assert await coordinator.get_total_irrigation_duration() == 900
 
     @pytest.mark.asyncio
-    async def test_self_closing_zones_are_concurrent_under_rotating(
+    async def test_self_closing_zones_count_their_absorption_pauses(
         self, coordinator, mock_store
     ):
-        mock_store.config = Mock(zone_sequencing=const.CONF_ZONE_SEQUENCING_ROTATING)
+        """Rotating reaches service zones now, so its pauses are night too.
+
+        The same 1500 s the classic track is priced at above: 900 s of watering
+        in 5-minute slots with a 10-minute absorption pause. Pricing the sum
+        would start the run ten minutes late and the deadline would then cut the
+        pump mid-rotation.
+        """
+        mock_store.config = Mock(
+            zone_sequencing=const.CONF_ZONE_SEQUENCING_ROTATING,
+            zone_sequencing_max_consecutive_duration=5,
+            zone_sequencing_min_absorption_time=10,
+        )
         mock_store.async_get_zones = AsyncMock(
             return_value=_mode_zones(const.WATERING_MODE_SERVICE)
         )
-        assert await coordinator.get_total_irrigation_duration() == 600
+        assert await coordinator.get_total_irrigation_duration() == 1500
 
     @pytest.mark.asyncio
     async def test_self_closing_zones_are_concurrent_under_parallel(

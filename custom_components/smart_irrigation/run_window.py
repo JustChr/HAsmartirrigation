@@ -35,12 +35,18 @@ TRACK_SELF_CLOSING = "service"
 TRACK_STATION = "station"
 TRACK_BATCH = "batch"
 
-# The sequencing each non-classic track behaves as, whatever zone_sequencing
-# says. Expressed as a sequencing rather than as max()/sum() so all four tracks
-# price through the one simulate_wall_clock, including its rotating model.
+# The sequencing a track behaves as, where that is NOT what zone_sequencing says.
+# Expressed as a sequencing rather than as max()/sum() so all four tracks price
+# through the one simulate_wall_clock, including its rotating model.
 #
-#   service  — parallel. _dispatch_by_mode fires every service-mode zone in a
-#     single loop and the hardware owns each close, so they open together.
+#   service  — absent, so it follows zone_sequencing like the classic track does.
+#     It used to be pinned to parallel, because _dispatch_by_mode fired every
+#     service-mode zone in a single loop and the hardware owned each close, so
+#     they opened together whatever the setting said. They now go through the
+#     shared dispatch chain (run_chain.py) like stations do, so the setting
+#     governs them and the pricing has to follow it — a track priced as parallel
+#     while it runs sequentially is the longest zone instead of all of them, and
+#     anchors a finish-governed run hours early. Issue #98.
 #   station  — sequential. Under sequential/rotating Smart Irrigation chains the
 #     stations itself; under parallel it hands the controller everything at once
 #     and the controller's own grouping decides. Where that grouping can be read
@@ -61,11 +67,10 @@ TRACK_BATCH = "batch"
 #
 #     A batch zone is also self-closing by ``is_self_closing_zone``, so this
 #     track only takes effect because :func:`track_for_zone` tests it first —
-#     falling through to ``service`` would price a queue as PARALLEL, i.e. the
-#     longest zone rather than all of them, and anchor a finish-governed run
-#     hours late.
+#     falling through to ``service`` would price a queue under whatever
+#     zone_sequencing says, and under the default (parallel) that is the longest
+#     zone rather than all of them, anchoring a finish-governed run hours late.
 _TRACK_SEQUENCING = {
-    TRACK_SELF_CLOSING: const.CONF_ZONE_SEQUENCING_PARALLEL,
     TRACK_STATION: const.CONF_ZONE_SEQUENCING_SEQUENTIAL,
     TRACK_BATCH: const.CONF_ZONE_SEQUENCING_SEQUENTIAL,
 }

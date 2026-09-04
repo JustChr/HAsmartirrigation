@@ -13,6 +13,7 @@ from custom_components.smart_irrigation.flow_metering import (
 from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
 from custom_components.smart_irrigation.master import MasterMixin
 from custom_components.smart_irrigation.opensprinkler import OpenSprinklerMixin
+from custom_components.smart_irrigation.run_chain import RunChainMixin
 from custom_components.smart_irrigation.run_state import RunStateMixin
 from custom_components.smart_irrigation.self_closing import SelfClosingMixin
 from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
@@ -26,6 +27,9 @@ class _DistHost(
     OpenSprinklerMixin,
     RunStateMixin,
     SelfClosingMixin,
+    # _dispatch_by_mode now routes service zones through the shared chain, and
+    # OpenSprinklerMixin's _os_* chain methods are delegates onto it (issue #98).
+    RunChainMixin,
 ):
     """Minimal host to unit-test the distributor mixin in isolation."""
 
