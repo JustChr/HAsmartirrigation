@@ -503,6 +503,12 @@ VALVE_CONFIRM_POLL = 1
 # Re-send the open command once, this many seconds into the confirm window, to
 # recover a command silently dropped by a sleepy valve.
 VALVE_CONFIRM_RETRY_AT = 15
+# How long a flow zone with no maximum_duration is allowed to run before its
+# safety timeout closes it. A flow run is volume-targeted, so unlike a timed run
+# nothing else bounds it. Named rather than repeated inline because the pricing
+# in duration_math has to clamp to the same ceiling the run stops at, and two
+# copies of a number are two numbers.
+FLOW_SAFETY_TIMEOUT = 14400
 # Fault reason codes (also i18n keys under panels.zones.fault.*).
 FAULT_VALVE_NO_RESPONSE = "valve_no_response"
 FAULT_FLOW_NEVER_STARTED = "flow_never_started"
@@ -719,6 +725,9 @@ ATTR_DISTRIBUTOR_ID = "distributor_id"
 ATTR_OUTLET = "outlet"
 # Run-log detail marker for a run a user stopped early.
 RUN_DETAIL_STOPPED = "stopped"
+# A run cut short because it reached its schedule's finish target. The water it
+# did deliver is credited; the residual carries to the next run.
+RUN_DETAIL_DEADLINE = "deadline"
 # run_zone / set_rain_delay call params
 ATTR_DURATION_MINUTES = "duration"  # whole minutes for a custom manual run
 ATTR_RAIN_DELAY_UNTIL = "until"  # ISO datetime to hold until
@@ -772,9 +781,25 @@ ZONE_OBSERVED_ENTITY = "observed_entity"
 # An observed (external) run can credit no more water than SI itself would ever
 # run this valve for: cap its counted seconds at the zone's maximum_duration plus
 # a small margin so a legitimate external run finishing just past the cap is not
-# clipped. Guards non-flow zones (no sensor to contradict a stuck-open valve) and
-# is the sanity ceiling on measured flow too. See ObservedWateringMixin.
+# clipped. Guards non-flow zones (no sensor to contradict a stuck-open valve).
+# NOT a ceiling on measured flow: since #102/#111 a flow sensor's reading is the
+# authority and is credited as-is. See ObservedWateringMixin.
 OBSERVED_CAP_MARGIN_SECONDS = 30
+# Shortest external run that may feed the flow-calibration advisory (#111 follow-up).
+# The advisory samples an observed RATE (litres / minutes), so a short run divides a
+# coarsely-quantised volume by a very small number. Residential meters commonly pulse
+# at 1 L: a 6 s open on a 3.1 L/min zone registers either 0 L (already gated out by
+# `measured_l > 0`) or one 1 L pulse, reading as 10 L/min — a +223% deviation on a
+# CORRECTLY configured zone. Three of those fill FLOW_CAL_MIN_SAMPLES, fire a
+# persistent notification recommending a throughput that was never wrong, AND evict
+# the healthy samples that real runs contributed to the 5-deep window.
+# Sized so one pulse of quantisation stays inside FLOW_CAL_DEVIATION: at 3.1 L/min a
+# 1 L error is 15% of the reading only once the run exceeds ~130 s, so 300 s leaves
+# room for a slower zone. Erring strict is deliberate — a missed sample only makes the
+# advisory less eager, while a false one tells the user to break a working setting.
+# Unlike self-closing and the distributor, which sample SI's OWN planned runs, the
+# observed path sees any external valve open, including a few seconds of hand-testing.
+OBSERVED_FLOW_CAL_MIN_SECONDS = 300
 # Per-member flow-calibration advisory (distributor can't-stop members only). A
 # member whose valve can't early-stop runs a fixed window; if the configured
 # throughput is wrong it silently over/under-waters. We keep a rolling list of
