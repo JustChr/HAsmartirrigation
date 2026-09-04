@@ -347,12 +347,16 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} tarjeta(s) del panel siguen usando el nombre antiguo",
-      "description": "{count} tarjeta(s) siguen apuntando a `custom:smart-irrigation-zones-card`. De momento funcionan, pero dejarán de hacerlo si algún día instalas la otra integración `smart_irrigation` junto a esta.\n\nEsta reparación las cambia a `custom:irrigation-plus-zones-card`. Los paneles definidos en YAML no pueden modificarse automáticamente y se listarán en el registro para que los edites.",
+      "description": "{count} tarjeta(s) siguen apuntando a `custom:smart-irrigation-zones-card`. De momento funcionan, pero dejarán de hacerlo si algún día instalas la otra integración `smart_irrigation` junto a esta.\n\nEsta reparación las cambia a `custom:irrigation-plus-zones-card`. Los paneles definidos en YAML no pueden modificarse automáticamente; se te indicarán por su nombre al final para que los edites tú.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Actualizar las tarjetas del panel",
             "description": "¿Actualizar {count} tarjeta(s) al nuevo tipo? Tus paneles se guardan como versiones nuevas, así que puedes deshacerlo desde el historial del panel."
+          },
+          "manual": {
+            "title": "Algunos paneles hay que editarlos a mano",
+            "description": "Se han actualizado {changed} panel(es). Estos no, porque están definidos en YAML y Home Assistant no permite escribirlos:\n\n{dashboards}\n\nAbre cada uno y sustituye `{old_type}` por `{new_type}`.\n\nHasta que lo hagas, esta reparación volverá a aparecer tras cada reinicio: el tipo de tarjeta antiguo sigue en esos paneles."
           }
         }
       }

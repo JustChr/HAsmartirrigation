@@ -22,15 +22,21 @@ from custom_components.irrigation_plus.legacy_services import (
 )
 from custom_components.irrigation_plus.migrate_domain import (
     RENAME_REPORT_FILENAME,
+    apply_recorder_renames,
+    async_acknowledge_rename_report,
     async_capture_rename_report,
     async_import_legacy_store,
+    async_rename_report_acknowledged,
     async_verify_import,
     legacy_backup_path,
     legacy_storage_path,
     render_rename_report,
     storage_path,
 )
-from custom_components.irrigation_plus.repairs import _render_examples
+from custom_components.irrigation_plus.repairs import (
+    _render_examples,
+    should_raise_rename_issue,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -447,3 +453,129 @@ class TestMigrationGuideUrl:
         assert const.LEGACY_NAME in text
         assert const.NAME in text
         assert const.DOMAIN in text
+
+
+class TestApplyRecorderRenames:
+    """The loop used to be one try/except around the whole thing.
+
+    One bad row then cost every entity AFTER it its history -- silently, and in
+    registry order, so which zones lost their graphs depended on nothing the
+    user could see.
+    """
+
+    def _ok(self):
+        seen = []
+        return seen, lambda old, new: seen.append((old, new))
+
+    def test_renames_every_id(self):
+        states, rename_states = self._ok()
+        stats, rename_stats = self._ok()
+
+        renamed, failed = apply_recorder_renames(
+            {"sensor.a": "sensor.x", "sensor.b": "sensor.y"},
+            rename_states,
+            rename_stats,
+        )
+
+        assert (renamed, failed) == (2, [])
+        assert states == [("sensor.a", "sensor.x"), ("sensor.b", "sensor.y")]
+        assert stats == states
+
+    def test_one_bad_id_does_not_cost_the_others_their_history(self):
+        stats, rename_stats = self._ok()
+        done = []
+
+        def rename_states(old, new):
+            if old == "sensor.bad":
+                raise RuntimeError("UNIQUE constraint failed: states_meta.entity_id")
+            done.append(old)
+
+        renamed, failed = apply_recorder_renames(
+            {
+                "sensor.bad": "sensor.bad_new",
+                "sensor.good": "sensor.good_new",
+                "sensor.also_good": "sensor.also_good_new",
+            },
+            rename_states,
+            rename_stats,
+        )
+
+        assert renamed == 2
+        assert failed == ["sensor.bad"]
+        # The entities AFTER the failure are the ones the old code lost.
+        assert done == ["sensor.good", "sensor.also_good"]
+
+    def test_a_statistics_failure_is_caught_too(self):
+        # Statistics and states are separate calls; either can raise on its own.
+        _, rename_states = self._ok()
+
+        def rename_stats(old, new):
+            raise RuntimeError("no such statistic")
+
+        renamed, failed = apply_recorder_renames(
+            {"sensor.a": "sensor.x"}, rename_states, rename_stats
+        )
+        assert (renamed, failed) == (0, ["sensor.a"])
+
+    def test_the_failure_is_named_so_the_user_can_see_which(self, caplog):
+        def rename_states(old, new):
+            raise RuntimeError("boom")
+
+        apply_recorder_renames(
+            {"sensor.lawn_bucket": "sensor.new"}, rename_states, lambda o, n: None
+        )
+        assert "sensor.lawn_bucket" in caplog.text
+
+    def test_an_unexpected_exception_type_is_still_contained(self):
+        # What the recorder raises here is not a documented set. Narrowing the
+        # catch to a known list is the mutation that must not survive.
+        def rename_states(old, new):
+            if old == "sensor.bad":
+                raise ZeroDivisionError("something nobody predicted")
+
+        renamed, failed = apply_recorder_renames(
+            {"sensor.bad": "a", "sensor.good": "b"}, rename_states, lambda o, n: None
+        )
+        assert renamed == 1
+        assert failed == ["sensor.bad"]
+
+    def test_nothing_to_rename_is_not_a_failure(self):
+        assert apply_recorder_renames({}, None, None) == (0, [])
+
+
+class TestShouldRaiseRenameIssue:
+    def test_raised_when_there_is_a_report_and_it_is_unacknowledged(self):
+        assert should_raise_rename_issue({"a": "b"}, False) is True
+
+    def test_stays_dismissed_once_acknowledged(self):
+        # Repairs are re-raised on every setup. Without this the notice comes
+        # back after each restart, which is worse than never showing it.
+        assert should_raise_rename_issue({"a": "b"}, True) is False
+
+    def test_never_raised_on_an_install_that_was_not_migrated(self):
+        assert should_raise_rename_issue({}, False) is False
+
+
+class TestAcknowledgementPersistence:
+    @pytest.mark.asyncio
+    async def test_the_acknowledgement_survives_and_keeps_the_mapping(
+        self, tmp_path, monkeypatch
+    ):
+        # The mapping must NOT be discarded when the notice is dismissed: a user
+        # part-way through repointing their automations still needs the table.
+        hass = _hass(tmp_path)
+        data = {"entity_id_map": {"sensor.old": "sensor.new"}}
+
+        store = SimpleNamespace(
+            async_load=AsyncMock(side_effect=lambda: dict(data)),
+            async_save=AsyncMock(side_effect=lambda d: data.update(d)),
+        )
+        monkeypatch.setattr(
+            "custom_components.irrigation_plus.migrate_domain._migration_store",
+            lambda h: store,
+        )
+
+        assert await async_rename_report_acknowledged(hass) is False
+        await async_acknowledge_rename_report(hass)
+        assert await async_rename_report_acknowledged(hass) is True
+        assert data["entity_id_map"] == {"sensor.old": "sensor.new"}

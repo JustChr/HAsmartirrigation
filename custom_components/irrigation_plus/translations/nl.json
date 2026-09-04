@@ -347,12 +347,16 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} dashboardkaart(en) gebruiken nog de oude naam",
-      "description": "{count} kaart(en) verwijzen nog naar `custom:smart-irrigation-zones-card`. Ze werken voorlopig, maar breken zodra je de andere `smart_irrigation`-integratie hiernaast installeert.\n\nDeze reparatie zet ze om naar `custom:irrigation-plus-zones-card`. Dashboards in YAML kunnen niet automatisch worden aangepast en worden in het logboek vermeld.",
+      "description": "{count} kaart(en) verwijzen nog naar `custom:smart-irrigation-zones-card`. Ze werken voorlopig, maar breken zodra je de andere `smart_irrigation`-integratie hiernaast installeert.\n\nDeze reparatie zet ze om naar `custom:irrigation-plus-zones-card`. Dashboards in YAML kunnen niet automatisch worden aangepast; die worden aan het eind bij naam genoemd zodat je ze zelf kunt bewerken.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Dashboardkaarten omzetten",
             "description": "{count} kaart(en) omzetten naar het nieuwe type? Je dashboards worden als nieuwe versies opgeslagen, dus je kunt dit via de dashboardgeschiedenis ongedaan maken."
+          },
+          "manual": {
+            "title": "Sommige dashboards moet je met de hand aanpassen",
+            "description": "{changed} dashboard(s) zijn bijgewerkt. Deze niet, omdat ze in YAML zijn gedefinieerd en Home Assistant ze niet laat schrijven:\n\n{dashboards}\n\nOpen ze stuk voor stuk en vervang `{old_type}` door `{new_type}`.\n\nTot die tijd komt deze reparatie na elke herstart terug — het oude kaarttype staat nog in die dashboards."
           }
         }
       }

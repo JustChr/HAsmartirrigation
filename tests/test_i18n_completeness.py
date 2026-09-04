@@ -29,6 +29,7 @@ from pathlib import Path
 import pytest
 
 _PLACEHOLDER = re.compile(r"\{[^}]*\}")
+_NAMED_PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 _ROOT = Path(__file__).resolve().parents[1] / "custom_components" / "irrigation_plus"
 _CATALOGUES = {
     "backend": _ROOT / "translations",
@@ -168,4 +169,43 @@ def test_no_value_is_left_as_the_english_string(catalogue, path):
     assert not copies, (
         f"{path.name} has {len(copies)} value(s) identical to the English "
         f"text: {copies[:10]}"
+    )
+
+
+def _placeholders(data, prefix=""):
+    """``{leaf path: set of named placeholders}`` for every string in a file."""
+    found = {}
+    if isinstance(data, dict):
+        for key, value in data.items():
+            found.update(_placeholders(value, f"{prefix}.{key}" if prefix else key))
+    elif isinstance(data, str):
+        found[prefix] = set(_NAMED_PLACEHOLDER.findall(data))
+    return found
+
+
+@pytest.mark.parametrize(("catalogue", "path"), list(_cases()))
+def test_placeholders_match_the_english_string(catalogue, path):
+    """A translation must carry the same named placeholders as its English text.
+
+    Key parity (above) does not catch this: the key is present, the string looks
+    fine, and the value the integration passes in simply never appears. A
+    dropped `{path}` leaves a repair telling the user to open nothing; a typo
+    like `{dashbords}` renders literally. Neither raises, and neither shows up
+    in a diff review of a language nobody on the project reads.
+
+    Only the English side is required to appear. A translation is free to use a
+    placeholder more than once or reorder them, but not to invent or lose one.
+    """
+    english = _placeholders(_load(_CATALOGUES[catalogue] / "en.json"))
+    translated = _placeholders(_load(path))
+
+    mismatches = {
+        key: (sorted(expected), sorted(translated[key]))
+        for key, expected in english.items()
+        if key in translated and translated[key] != expected
+    }
+    assert not mismatches, (
+        f"{path.name} has {len(mismatches)} string(s) whose placeholders differ "
+        f"from en.json, so a value the integration supplies will not be "
+        f"substituted: {dict(list(mismatches.items())[:5])}"
     )

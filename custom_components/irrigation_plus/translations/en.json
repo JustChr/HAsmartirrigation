@@ -347,12 +347,16 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} dashboard card(s) still use the old name",
-      "description": "{count} card(s) still refer to `custom:smart-irrigation-zones-card`. They keep working for now, but they will break if you ever install the other `smart_irrigation` integration alongside this one.\n\nThis repair repoints them at `custom:irrigation-plus-zones-card`. Dashboards defined in YAML cannot be changed automatically and will be listed in the log for you to edit.",
+      "description": "{count} card(s) still refer to `custom:smart-irrigation-zones-card`. They keep working for now, but they will break if you ever install the other `smart_irrigation` integration alongside this one.\n\nThis repair repoints them at `custom:irrigation-plus-zones-card`. Dashboards defined in YAML cannot be changed automatically; those are named for you at the end so you can edit them yourself.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Repoint dashboard cards",
             "description": "Update {count} card(s) to the new card type? Your dashboards are saved as new versions, so you can undo this from the dashboard history."
+          },
+          "manual": {
+            "title": "Some dashboards must be edited by hand",
+            "description": "{changed} dashboard(s) were updated. These could not be, because they are defined in YAML and Home Assistant does not allow them to be written:\n\n{dashboards}\n\nOpen each one and replace `{old_type}` with `{new_type}`.\n\nUntil you do, this repair will reappear after every restart — the old card type is still in those dashboards."
           }
         }
       }

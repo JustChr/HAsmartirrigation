@@ -347,12 +347,16 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} kariet nástenky stále používa starý názov",
-      "description": "{count} kariet stále odkazuje na `custom:smart-irrigation-zones-card`. Zatiaľ fungujú, ale prestanú, ak niekedy nainštaluješ druhú integráciu `smart_irrigation` vedľa tejto.\n\nTáto oprava ich prepne na `custom:irrigation-plus-zones-card`. Nástenky definované v YAML nemožno zmeniť automaticky a budú vypísané v logu.",
+      "description": "{count} kariet stále odkazuje na `custom:smart-irrigation-zones-card`. Zatiaľ fungujú, ale prestanú, ak niekedy nainštaluješ druhú integráciu `smart_irrigation` vedľa tejto.\n\nTáto oprava ich prepne na `custom:irrigation-plus-zones-card`. Nástenky definované v YAML nemožno zmeniť automaticky; na konci ti ich vypíšeme po mene, aby si ich upravil sám.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Prepnúť karty nástenky",
             "description": "Aktualizovať {count} kariet na nový typ? Nástenky sa uložia ako nové verzie, takže zmenu môžeš vrátiť cez históriu nástenky."
+          },
+          "manual": {
+            "title": "Niektoré nástenky treba upraviť ručne",
+            "description": "Aktualizovalo sa {changed} násteniek. Tieto nie, pretože sú definované v YAML a Home Assistant ich nedovolí zapisovať:\n\n{dashboards}\n\nOtvor každú z nich a nahraď `{old_type}` za `{new_type}`.\n\nKým to neurobíš, táto oprava sa objaví po každom reštarte — starý typ karty je v tých nástenkách stále."
           }
         }
       }

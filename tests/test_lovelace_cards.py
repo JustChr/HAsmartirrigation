@@ -10,6 +10,10 @@ from custom_components.irrigation_plus.lovelace_cards import (
     count_legacy_cards,
     rewrite_legacy_cards,
 )
+from custom_components.irrigation_plus.repairs import (
+    LegacyCardsRepairFlow,
+    _render_dashboards,
+)
 
 
 def _view(*cards):
@@ -135,3 +139,71 @@ class TestAcrossDashboards:
         hass = SimpleNamespace(data={})
         assert await async_count_legacy_cards(hass) == 0
         assert await async_rewrite_legacy_cards(hass) == (0, [])
+
+
+class TestTheRepairFlowReportsWhatItCouldNotDo:
+    """The flow used to close on `async_create_entry` whatever happened.
+
+    A YAML-mode dashboard cannot be written, so a run can succeed for some
+    dashboards and not others -- and the user was shown a plain success, with
+    the names only in the log. Then the issue came back on the next restart
+    looking like the repair had simply not worked.
+    """
+
+    def _flow(self, hass):
+        flow = LegacyCardsRepairFlow()
+        flow.hass = hass
+        return flow
+
+    async def test_a_clean_sweep_finishes_without_a_second_step(self):
+        storage = _Dashboard(_view({"type": LEGACY_CARD_TYPE}))
+        flow = self._flow(_hass({None: storage}))
+
+        result = await flow.async_step_confirm(user_input={})
+
+        assert result["type"] == "create_entry"
+
+    async def test_a_partial_sweep_stops_to_name_the_dashboards(self):
+        yaml_mode = _Dashboard(_view({"type": LEGACY_CARD_TYPE}), writable=False)
+        storage = _Dashboard(_view({"type": LEGACY_CARD_TYPE}))
+        flow = self._flow(_hass({"my-yaml-dash": yaml_mode, None: storage}))
+
+        result = await flow.async_step_confirm(user_input={})
+
+        assert result["type"] == "form"
+        assert result["step_id"] == "manual"
+        placeholders = result["description_placeholders"]
+        assert "my-yaml-dash" in placeholders["dashboards"]
+        assert placeholders["changed"] == "1"
+        # The instruction has to be actionable on its own: the user is about to
+        # go and hand-edit YAML, away from this dialog.
+        assert placeholders["old_type"] == LEGACY_CARD_TYPE
+        assert placeholders["new_type"] == CARD_TYPE
+
+    async def test_acknowledging_the_manual_step_closes_the_flow(self):
+        flow = self._flow(_hass({}))
+        result = await flow.async_step_manual(user_input={})
+        assert result["type"] == "create_entry"
+
+    async def test_the_default_dashboard_is_named_something_a_user_recognises(self):
+        # The default dashboard's key is None. "None" in a dialog is not a name.
+        yaml_default = _Dashboard(_view({"type": LEGACY_CARD_TYPE}), writable=False)
+        flow = self._flow(_hass({None: yaml_default}))
+
+        result = await flow.async_step_confirm(user_input={})
+
+        assert "None" not in result["description_placeholders"]["dashboards"]
+        assert "lovelace" in result["description_placeholders"]["dashboards"]
+
+
+class TestRenderDashboards:
+    def test_lists_every_dashboard(self):
+        assert _render_dashboards(["a", "b"]) == "- a\n- b"
+
+    def test_caps_the_list_so_the_dialog_stays_readable(self):
+        rendered = _render_dashboards([f"d{i}" for i in range(14)], limit=3)
+        assert rendered.count("\n") == 3
+        assert "and 11 more" in rendered
+
+    def test_nothing_skipped_renders_nothing(self):
+        assert _render_dashboards([]) == ""

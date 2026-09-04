@@ -347,12 +347,16 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} dashbordkort bruker fortsatt det gamle navnet",
-      "description": "{count} kort viser fortsatt til `custom:smart-irrigation-zones-card`. De virker inntil videre, men slutter å virke hvis du en gang installerer den andre `smart_irrigation`-integrasjonen ved siden av denne.\n\nDenne reparasjonen bytter dem til `custom:irrigation-plus-zones-card`. Dashbord definert i YAML kan ikke endres automatisk og listes i loggen.",
+      "description": "{count} kort viser fortsatt til `custom:smart-irrigation-zones-card`. De virker inntil videre, men slutter å virke hvis du en gang installerer den andre `smart_irrigation`-integrasjonen ved siden av denne.\n\nDenne reparasjonen bytter dem til `custom:irrigation-plus-zones-card`. Dashbord definert i YAML kan ikke endres automatisk; de navngis til slutt så du kan redigere dem selv.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Bytt dashbordkort",
             "description": "Oppdatere {count} kort til den nye korttypen? Dashbordene lagres som nye versjoner, så du kan angre fra dashbordhistorikken."
+          },
+          "manual": {
+            "title": "Noen dashbord må redigeres for hånd",
+            "description": "{changed} dashbord ble oppdatert. Disse kunne ikke det, fordi de er definert i YAML og Home Assistant ikke tillater at de skrives:\n\n{dashboards}\n\nÅpne hvert av dem og bytt `{old_type}` med `{new_type}`.\n\nInntil du gjør det, dukker denne reparasjonen opp igjen etter hver omstart — den gamle korttypen står fortsatt i de dashbordene."
           }
         }
       }

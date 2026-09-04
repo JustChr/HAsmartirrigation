@@ -459,6 +459,43 @@ def plan_entity_id_map(entries, zones: dict | None, slugify) -> dict:
     return mapping
 
 
+def apply_recorder_renames(mapping, rename_states, rename_statistics):
+    """Rename each id in turn. Returns ``(renamed count, failed ids)``.
+
+    Per entity, not per batch. One bad row -- a states_meta collision on an id
+    something has already recorded, a statistic that no longer exists -- used to
+    abort the whole loop, so a single unlucky sensor cost every entity AFTER it
+    its history, silently and in registry order.
+
+    Split out and given the two rename calls as arguments so the failure path is
+    testable without a recorder. ``conftest`` swaps whole Home Assistant modules
+    for mocks depending on import order, so reaching in to make one call raise is
+    exactly the kind of patching that passes alone and fails in the suite --
+    the same reason ``plan_entity_id_map`` exists.
+
+    Catches ``Exception`` deliberately: what the recorder raises here is not a
+    documented set, and the entire point is that an unexpected one costs a
+    single id rather than all of them.
+    """
+    renamed = 0
+    failed: list[str] = []
+    for old_id, new_id in mapping.items():
+        try:
+            rename_states(old_id, new_id)
+            rename_statistics(old_id, new_id)
+        except Exception as err:  # noqa: BLE001 - one id must not sink the rest
+            failed.append(old_id)
+            _LOGGER.warning(
+                "Could not move the recorded history of %s onto %s: %s",
+                old_id,
+                new_id,
+                err,
+            )
+            continue
+        renamed += 1
+    return renamed, failed
+
+
 async def async_migrate_history(hass: HomeAssistant, zones: dict | None = None) -> dict:
     """Move recorded history and long-term statistics onto the new entity ids.
 
@@ -504,26 +541,14 @@ async def async_migrate_history(hass: HomeAssistant, zones: dict | None = None) 
         )
         return summary
 
-    # Per entity, not per batch. One bad row -- a states_meta collision on an id
-    # something already recorded, a statistic that no longer exists -- used to
-    # abort the whole loop, so a single unlucky sensor cost every zone after it
-    # its history, silently and in registry order. Each id now stands or falls
-    # on its own and the failures are named.
-    failed: list[str] = []
-    for old_id, new_id in mapping.items():
-        try:
-            instance.async_update_states_metadata(old_id, new_id)
-            async_update_statistics_metadata(hass, old_id, new_statistic_id=new_id)
-        except Exception as err:  # noqa: BLE001 - one id must not sink the rest
-            failed.append(old_id)
-            _LOGGER.warning(
-                "Could not move the recorded history of %s onto %s: %s",
-                old_id,
-                new_id,
-                err,
-            )
-            continue
-        summary["renamed"] += 1
+    renamed, failed = apply_recorder_renames(
+        mapping,
+        lambda old_id, new_id: instance.async_update_states_metadata(old_id, new_id),
+        lambda old_id, new_id: async_update_statistics_metadata(
+            hass, old_id, new_statistic_id=new_id
+        ),
+    )
+    summary["renamed"] = renamed
 
     if failed:
         summary["failed"] = failed

@@ -347,12 +347,16 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} scheda/e della dashboard usano ancora il vecchio nome",
-      "description": "{count} scheda/e fanno ancora riferimento a `custom:smart-irrigation-zones-card`. Per ora funzionano, ma smetteranno di farlo se un giorno installerai l’altra integrazione `smart_irrigation` accanto a questa.\n\nQuesta riparazione le riporta su `custom:irrigation-plus-zones-card`. Le dashboard definite in YAML non possono essere modificate automaticamente e verranno elencate nel log per la modifica manuale.",
+      "description": "{count} scheda/e fanno ancora riferimento a `custom:smart-irrigation-zones-card`. Per ora funzionano, ma smetteranno di farlo se un giorno installerai l’altra integrazione `smart_irrigation` accanto a questa.\n\nQuesta riparazione le riporta su `custom:irrigation-plus-zones-card`. Le dashboard definite in YAML non possono essere modificate automaticamente; ti vengono elencate per nome alla fine, così puoi modificarle tu.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Aggiorna le schede della dashboard",
             "description": "Aggiornare {count} scheda/e al nuovo tipo? Le dashboard vengono salvate come nuove versioni, quindi puoi annullare dalla cronologia."
+          },
+          "manual": {
+            "title": "Alcune dashboard vanno modificate a mano",
+            "description": "{changed} dashboard sono state aggiornate. Queste no, perché sono definite in YAML e Home Assistant non consente di scriverle:\n\n{dashboards}\n\nApri ciascuna e sostituisci `{old_type}` con `{new_type}`.\n\nFinché non lo fai, questa riparazione ricomparirà dopo ogni riavvio: il vecchio tipo di scheda è ancora in quelle dashboard."
           }
         }
       }

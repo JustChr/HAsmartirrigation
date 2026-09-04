@@ -25,7 +25,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
 from . import const
-from .lovelace_cards import async_count_legacy_cards, async_rewrite_legacy_cards
+from .lovelace_cards import (
+    CARD_TYPE,
+    LEGACY_CARD_TYPE,
+    async_count_legacy_cards,
+    async_rewrite_legacy_cards,
+)
 from .migrate_domain import (
     RENAME_REPORT_FILENAME,
     async_acknowledge_rename_report,
@@ -41,6 +46,22 @@ ISSUE_LEFTOVER_DIRECTORY = "leftover_legacy_directory"
 ISSUE_FOREIGN_INSTALL = "foreign_legacy_install"
 ISSUE_LEGACY_CARDS = "legacy_dashboard_cards"
 ISSUE_RENAMED_ENTITY_IDS = "renamed_entity_ids"
+
+
+def should_raise_rename_issue(renamed, acknowledged) -> bool:
+    """Whether the renamed-entity-ids repair belongs on screen.
+
+    Pure, for the reason ``plan_entity_id_map`` and ``plan_service_aliases`` are:
+    ``async_check_issues`` reaches into the issue registry through the
+    ``homeassistant.helpers`` package that ``conftest`` may have replaced with a
+    mock, so the decision cannot be asserted where it is used.
+
+    The acknowledgement half is the half that matters. Repairs are re-raised on
+    every setup, so without it a user who has worked through their entity ids
+    gets the same notice back after each restart, and a repair that will not
+    stay dismissed is worse than no repair at all.
+    """
+    return bool(renamed) and not acknowledged
 
 
 async def async_check_issues(hass: HomeAssistant) -> None:
@@ -89,7 +110,7 @@ async def async_check_issues(hass: HomeAssistant) -> None:
     # them -- a template pointing at a dead id renders `unknown` for ever. The
     # exact mapping is knowable only here, so hand it over.
     renamed = await async_rename_report(hass)
-    if renamed and not await async_rename_report_acknowledged(hass):
+    if should_raise_rename_issue(renamed, await async_rename_report_acknowledged(hass)):
         ir.async_create_issue(
             hass,
             const.DOMAIN,
@@ -128,20 +149,33 @@ class LegacyCardsRepairFlow(RepairsFlow):
     Deliberately a confirmation rather than something the integration does on
     its own: these are the user's dashboards, and rewriting them is a change to
     another integration's stored configuration.
+
+    A YAML-mode dashboard cannot be written at all -- ``async_save`` raises for
+    those -- so a run can succeed for some dashboards and not others. The flow
+    therefore has a second step: when anything was skipped it NAMES the
+    dashboards and shows the exact replacement, instead of closing as though it
+    had swept the lot. Telling the user to go and read the log is not reporting.
     """
+
+    def __init__(self) -> None:
+        self._skipped: list[str] = []
+        self._changed = 0
 
     async def async_step_init(self, user_input=None) -> FlowResult:
         return await self.async_step_confirm()
 
     async def async_step_confirm(self, user_input=None) -> FlowResult:
         if user_input is not None:
-            changed, skipped = await async_rewrite_legacy_cards(self.hass)
+            self._changed, self._skipped = await async_rewrite_legacy_cards(self.hass)
             _LOGGER.info(
                 "Repointed the zones card in %s dashboard(s); %s could not be "
-                "written",
-                changed,
-                len(skipped),
+                "written: %s",
+                self._changed,
+                len(self._skipped),
+                ", ".join(self._skipped) or "none",
             )
+            if self._skipped:
+                return await self.async_step_manual()
             return self.async_create_entry(title="", data={})
 
         count = await async_count_legacy_cards(self.hass)
@@ -150,6 +184,40 @@ class LegacyCardsRepairFlow(RepairsFlow):
             data_schema=vol.Schema({}),
             description_placeholders={"count": str(count)},
         )
+
+    async def async_step_manual(self, user_input=None) -> FlowResult:
+        """Name the dashboards that have to be edited by hand.
+
+        This issue is re-raised on the next setup for as long as those cards
+        exist, which is correct but would otherwise look like the repair simply
+        did not work. Saying so here is what makes that recurrence legible.
+        """
+        if user_input is not None:
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="manual",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "changed": str(self._changed),
+                "dashboards": _render_dashboards(self._skipped),
+                "old_type": LEGACY_CARD_TYPE,
+                "new_type": CARD_TYPE,
+            },
+        )
+
+
+def _render_dashboards(skipped, limit: int = 10) -> str:
+    """The skipped dashboard list for the dialog. Pure, so it is testable.
+
+    Capped for the same reason the entity examples are: a dialog is not a place
+    for an unbounded list, and the log already holds every one of them.
+    """
+    names = list(skipped)
+    lines = [f"- {name}" for name in names[:limit]]
+    if len(names) > limit:
+        lines.append(f"- ... and {len(names) - limit} more (see the log)")
+    return "\n".join(lines)
 
 
 class RenamedEntityIdsRepairFlow(RepairsFlow):

@@ -347,12 +347,16 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} carte(s) de tableau de bord utilisent encore l’ancien nom",
-      "description": "{count} carte(s) référencent encore `custom:smart-irrigation-zones-card`. Elles fonctionnent pour l’instant, mais cesseront de fonctionner si vous installez un jour l’autre intégration `smart_irrigation` à côté de celle-ci.\n\nCette réparation les bascule vers `custom:irrigation-plus-zones-card`. Les tableaux de bord définis en YAML ne peuvent pas être modifiés automatiquement et seront listés dans le journal pour édition manuelle.",
+      "description": "{count} carte(s) référencent encore `custom:smart-irrigation-zones-card`. Elles fonctionnent pour l’instant, mais cesseront de fonctionner si vous installez un jour l’autre intégration `smart_irrigation` à côté de celle-ci.\n\nCette réparation les bascule vers `custom:irrigation-plus-zones-card`. Les tableaux de bord définis en YAML ne peuvent pas être modifiés automatiquement ; ils vous sont nommés à la fin pour que vous puissiez les éditer.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Mettre à jour les cartes",
             "description": "Mettre à jour {count} carte(s) vers le nouveau type ? Vos tableaux de bord sont enregistrés comme de nouvelles versions : vous pouvez annuler depuis leur historique."
+          },
+          "manual": {
+            "title": "Certains tableaux de bord doivent être modifiés à la main",
+            "description": "{changed} tableau(x) de bord ont été mis à jour. Pas ceux-ci, car ils sont définis en YAML et Home Assistant refuse de les écrire :\n\n{dashboards}\n\nOuvrez chacun d’eux et remplacez `{old_type}` par `{new_type}`.\n\nEn attendant, cette réparation réapparaîtra après chaque redémarrage — l’ancien type de carte est toujours dans ces tableaux de bord."
           }
         }
       }
