@@ -267,7 +267,41 @@ class BatchMixin:
             raise
 
         for zone, watch_entity, seconds in prepared:
-            await self._batch_record_run(zone, watch_entity, seconds)
+            zone_id = zone.get(const.ZONE_ID)
+            try:
+                await self._batch_record_run(zone, watch_entity, seconds)
+            except Exception:  # noqa: BLE001 — one zone must not sink the rest
+                # A batch zone's master hold has exactly one release: its run
+                # finalising. A zone whose record never landed has no run, so
+                # nothing will ever take its hold down and the pump stays on for
+                # good. _batch_record_run awaits three store writes, and a failure
+                # part-way can still leave a persisted run behind — so ask whether
+                # this zone actually has one rather than assuming from the raise,
+                # or a zone that WILL finalise gets its hold dropped twice.
+                #
+                # The plan already reached the controller, so this zone is very
+                # likely watering with nothing tracking it. Dropping the hold can
+                # cut the pump under it, which is the lesser of the two: an
+                # untracked run is bounded by the controller's own timer, a stuck
+                # pump by nothing at all.
+                if await self._sc_find_run(zone_id) is None:
+                    await self.async_master_release(self._sc_master_token(zone_id))
+                    self._set_zone_fault(zone_id, const.PROBLEM_BATCH_RUN_NOT_RECORDED)
+                    self._fire_zone_problem(
+                        zone_id,
+                        zone,
+                        watch_entity,
+                        const.PROBLEM_BATCH_RUN_NOT_RECORDED,
+                    )
+                _LOGGER.exception(
+                    "Batch irrigation: zone %s was handed to the controller but "
+                    "its run could not be recorded; it is watering untracked",
+                    zone_id,
+                )
+                # And on to the next zone: the rest of the plan is watering too,
+                # and abandoning them here would leak exactly the holds this
+                # branch exists to prevent.
+                continue
 
         await self._batch_subscribe_paused()
         _LOGGER.info(
@@ -296,7 +330,11 @@ class BatchMixin:
         # target to absorb it — exactly as _run_valve_metered does. maximum_bucket
         # is the live-estimate surplus allowance, which _run_ceiling still returns
         # for a live-estimate run. See tests/test_credit_ceiling.py (issue #88).
-        new_bucket = min(self._run_ceiling(zone), pre_bucket + depth)
+        # Captured, not just applied: _run_ceiling consumes the live-estimate
+        # marker, so the finish paths read it back off the run record instead of
+        # re-deriving one (run_credit_ceiling).
+        ceiling = self._run_ceiling(zone)
+        new_bucket = min(ceiling, pre_bucket + depth)
         await self.async_write_watered_bucket(zone_id, new_bucket)
 
         await self._sc_add_run(
@@ -307,6 +345,7 @@ class BatchMixin:
                 const.RUN_PLANNED_SECONDS: seconds,
                 const.RUN_PLANNED_MM: depth,
                 const.RUN_PRE_BUCKET: pre_bucket,
+                const.RUN_CEILING: ceiling,
                 const.RUN_MODE: const.WATERING_MODE_BATCH,
                 const.RUN_CREDITED: True,
                 const.RUN_WATCH_ENTITY: watch_entity,

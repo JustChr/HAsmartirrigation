@@ -1158,3 +1158,87 @@ class TestAPauseStopsTheWholeQueue:
             "a zone the controller never reaches must still be written off; "
             "suspending the clock must not become never ending"
         )
+
+
+class TestAHoldIsNeverStrandedOnAZoneWithNoRun:
+    """A batch zone's master hold has exactly ONE release: its run finalising.
+
+    So a zone that ends up with a hold and no run record keeps the pump on for
+    good — there is nothing left in the system that would ever take it down. The
+    dispatch takes a hold per prepared zone before the service call, and the
+    recording loop that gives each of them a run sat OUTSIDE the try that drops
+    them again. _batch_record_run awaits three store operations; one raising
+    stranded the hold of every zone the loop had not reached. Same shape as the
+    distributor-sweep leak in #70. Reported on issue #88.
+    """
+
+    async def test_a_failed_record_drops_only_its_own_hold(self, hass):
+        c = _coord(hass)
+        zones = _register(c, _zone(1, VALVE_A), _zone(2, VALVE_B))
+        real = c._batch_record_run
+
+        async def _fail_on_zone_1(zone, watch_entity, seconds):
+            if zone[const.ZONE_ID] == 1:
+                raise RuntimeError("store write failed")
+            await real(zone, watch_entity, seconds)
+
+        c._batch_record_run = AsyncMock(side_effect=_fail_on_zone_1)
+
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        released = [ck.args[0] for ck in c.async_master_release.await_args_list]
+        assert released == [c._sc_master_token(1)]
+
+    async def test_the_zones_behind_it_are_still_recorded(self, hass):
+        """The rest of the plan is watering; abandoning them leaks their holds."""
+        c = _coord(hass)
+        zones = _register(c, _zone(1, VALVE_A), _zone(2, VALVE_B))
+        real = c._batch_record_run
+
+        async def _fail_on_zone_1(zone, watch_entity, seconds):
+            if zone[const.ZONE_ID] == 1:
+                raise RuntimeError("store write failed")
+            await real(zone, watch_entity, seconds)
+
+        c._batch_record_run = AsyncMock(side_effect=_fail_on_zone_1)
+
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        assert [r[const.RUN_ZONE_ID] for r in c._runs] == [2]
+
+    async def test_a_partly_written_record_keeps_its_hold(self, hass):
+        """The run exists, so it WILL finalise — and finalisation releases.
+
+        Releasing here as well would take the hold down twice for one zone.
+        _batch_record_run persists the run before it arms the watcher, so a
+        failure in between leaves a real run behind a raised exception.
+        """
+        c = _coord(hass)
+        zones = _register(c, _zone(1, VALVE_A))
+        real = c._batch_record_run
+
+        async def _fail_after_persisting(zone, watch_entity, seconds):
+            await real(zone, watch_entity, seconds)
+            raise RuntimeError("failed after the run was persisted")
+
+        c._batch_record_run = AsyncMock(side_effect=_fail_after_persisting)
+
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        assert [r[const.RUN_ZONE_ID] for r in c._runs] == [1]
+        c.async_master_release.assert_not_awaited()
+
+    async def test_the_zone_is_reported_as_watering_untracked(self, hass):
+        c = _coord(hass)
+        zones = _register(c, _zone(1, VALVE_A))
+        c._batch_record_run = AsyncMock(side_effect=RuntimeError("store write failed"))
+
+        await c.async_dispatch_batch_zones(zones, trigger="schedule")
+
+        c._set_zone_fault.assert_called_once_with(
+            1, const.PROBLEM_BATCH_RUN_NOT_RECORDED
+        )
+        assert (
+            c._fire_zone_problem.call_args.args[3]
+            == const.PROBLEM_BATCH_RUN_NOT_RECORDED
+        )

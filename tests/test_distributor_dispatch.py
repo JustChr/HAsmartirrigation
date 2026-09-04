@@ -1257,7 +1257,7 @@ async def test_manual_run_waters_non_due_member():
     c.store.async_get_zones = AsyncMock(return_value=members)
     credited = []
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, w, measured_l=None, planned_seconds=None, result=None: credited.append(
+        side_effect=lambda z, w, measured_l=None, planned_seconds=None, result=None, ceiling=None: credited.append(
             z["id"]
         )
     )
@@ -1324,7 +1324,7 @@ async def test_sweep_credits_measured_flow_volume():
     c._dist_measure_window = AsyncMock(return_value=(9.0, 60, False))
     credited = {}
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None, ceiling=None: credited.update(
             v=measured_l
         )
     )
@@ -1368,7 +1368,7 @@ async def test_sweep_classic_passes_target_and_extend_cap():
     c._dist_measure_window = _fake_measure
     credited = {}
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None, ceiling=None: credited.update(
             seconds=s, measured=measured_l, planned=planned_seconds
         )
     )
@@ -1504,7 +1504,7 @@ async def test_sweep_logs_partial_when_cap_hit_without_target():
     c._dist_measure_window = AsyncMock(return_value=(5.0, 900, False))
     credited = {}
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None, ceiling=None: credited.update(
             result=result
         )
     )
@@ -1548,7 +1548,7 @@ async def test_sweep_logs_completed_when_target_reached_at_cap():
     c._dist_measure_window = AsyncMock(return_value=(12.0, 900, False))
     credited = {}
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None, ceiling=None: credited.update(
             result=result
         )
     )
@@ -1590,7 +1590,7 @@ async def test_sweep_logs_completed_when_target_reached():
     c._dist_measure_window = AsyncMock(return_value=(12.0, 120, True))
     credited = {}
     c._dist_credit_zone = AsyncMock(
-        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None: credited.update(
+        side_effect=lambda z, s, measured_l=None, planned_seconds=None, result=None, ceiling=None: credited.update(
             result=result
         )
     )
@@ -1702,3 +1702,55 @@ async def test_the_hold_intersects_with_the_schedules_target():
     await c._dispatch_distributor_cycles([1, 2])
     c.async_run_distributor_cycle.assert_awaited_once()
     assert c.async_run_distributor_cycle.await_args.kwargs["only_zone_ids"] == [2]
+
+
+async def _sweep_ceiling(*, duration_override, target=None):
+    """The ``ceiling`` a sweep hands its member's credit. See issue #88."""
+    c = _host()
+    c._dist_uses_master = Mock(return_value=False)
+    for m in (
+        "_dist_persist_cycle",
+        "_dist_open_inlet",
+        "_dist_close_inlet",
+        "_dist_clear_cycle",
+    ):
+        setattr(c, m, AsyncMock())
+    c._dist_advance = AsyncMock(side_effect=lambda did, cur, n: (cur % n) + 1)
+    c._dist_sleep = AsyncMock()
+    c._dist_needs_water = Mock(return_value=True)
+    c._apply_soil_moisture_veto = AsyncMock(side_effect=lambda z: z)
+    member = {
+        "id": 7,
+        "distributor_id": 0,
+        "outlet_number": 1,
+        "duration": 60,
+        "bucket": -5,
+        "bucket_threshold": 0,
+        "state": "automatic",
+    }
+    if target is not None:
+        member[const.ZONE_IRRIGATION_TARGET_BUCKET] = target
+    c.store.async_get_zones = AsyncMock(return_value=[member])
+    c._dist_credit_zone = AsyncMock()
+    await c.async_run_distributor_cycle(
+        _dist(id=0, current_outlet=1),
+        only_zone_ids=[7],
+        duration_override=duration_override,
+        force_water=duration_override is not None,
+    )
+    c._dist_credit_zone.assert_awaited_once()
+    return c._dist_credit_zone.await_args.kwargs["ceiling"]
+
+
+async def test_a_scheduled_sweep_credits_only_up_to_the_run_target():
+    """Its window was priced from the member's own deficit, lead time included."""
+    assert await _sweep_ceiling(duration_override=None) == 0.0
+
+
+async def test_a_scheduled_sweep_honours_a_forecast_weighted_target():
+    assert await _sweep_ceiling(duration_override=None, target=-2.0) == -2.0
+
+
+async def test_a_custom_duration_sweep_lets_the_member_keep_its_water():
+    """``None`` means maximum_bucket: a user-set window is not a priced one."""
+    assert await _sweep_ceiling(duration_override=60.0) is None

@@ -920,6 +920,7 @@ class DistributorMixin:
         *,
         result: str = const.RUN_RESULT_COMPLETED,
         trigger: str = const.RUN_TRIGGER_DISTRIBUTOR,
+        ceiling: float | None = None,
     ) -> None:
         """Credit a watered member zone's bucket and log the run.
 
@@ -944,8 +945,20 @@ class DistributorMixin:
             planned = planned_seconds if planned_seconds is not None else seconds
             volume_l = self._timed_volume_l(zone, planned)
             depth = self._credited_depth_native(zone, volume_l)
+        # Clamp at the RUN's ceiling. A member zone's timed duration is
+        # lead_time + water_time like every other mode's, and the time-based
+        # fallback above prices the WHOLE window as delivered water — so this
+        # credit over-delivers by the lead time's flow and relies on the target to
+        # absorb it. maximum_bucket is the surplus allowance, not the run target;
+        # clamping there left the lead time's water on the zone, which is the
+        # fourth mode of issue #88. See tests/test_credit_ceiling.py.
+        #
+        # ``ceiling`` is None for the callers whose water is NOT priced from this
+        # zone's daily bucket — an observed external run through the ring, and a
+        # manual run with its own duration — and they keep the surplus allowance.
+        if ceiling is None:
+            ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
         new_bucket = float(zone.get(const.ZONE_BUCKET) or 0) + depth
-        ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
         if ceiling is not None and new_bucket > float(ceiling):
             new_bucket = float(ceiling)
         await self.async_write_watered_bucket(zone_id, new_bucket)
@@ -1411,6 +1424,17 @@ class DistributorMixin:
                     measured_l=measured,
                     planned_seconds=window,
                     result=run_result,
+                    # A scheduled sweep's window was priced from this zone's daily
+                    # deficit, so its credit replenishes to the run target and no
+                    # further. A custom-duration run (duration_override) was not: it
+                    # is an explicit instruction whose water the zone may keep, up to
+                    # maximum_bucket — the same distinction _run_ceiling draws for
+                    # every other mode. Issue #88.
+                    ceiling=(
+                        None
+                        if duration_override is not None
+                        else self._zone_target_bucket(zone)
+                    ),
                 )
                 # Calibration advisory: only a can't-stop member with a reliable measured
                 # volume can drift silently (a can-stop member early-stops at target; a

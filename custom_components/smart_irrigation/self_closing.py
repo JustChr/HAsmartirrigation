@@ -18,7 +18,11 @@ from homeassistant.util import dt as dt_util
 from . import const
 from .batch import is_batch_zone
 from .opensprinkler import is_opensprinkler_zone
-from .run_watch import run_is_queue_bound, run_is_segmented
+from .run_watch import (
+    run_credit_ceiling,
+    run_is_queue_bound,
+    run_is_segmented,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -261,9 +265,11 @@ class SelfClosingMixin:
             # clamp once — correct in every quadrant. See test_self_closing.
             pre_bucket = float(run.get(const.RUN_PRE_BUCKET) or 0)
             nb = pre_bucket + self._credited_depth_native(zone, measured)
-            ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
-            if ceiling is not None and nb > float(ceiling):
-                nb = float(ceiling)
+            # Against the ceiling the DISPATCH decided, not a fresh maximum_bucket:
+            # clamping this reconcile at maximum_bucket undid the dispatch clamp
+            # and settled a completed run at the surplus again — the flow-sensor
+            # half of issue #88, which the no-sensor path never showed.
+            nb = min(nb, run_credit_ceiling(run, zone))
             await self.async_write_watered_bucket(zone_id, nb)
             zone = self.store.get_zone(zone_id) or zone
             volume_l = measured
@@ -430,6 +436,9 @@ class SelfClosingMixin:
                 # needs the pump, and a leaked hold would keep it on forever.
                 self._sc_finish_flow(zone_id)
                 await self.async_master_release(self._sc_master_token(zone_id))
+                # Nor the live-run marker: this run credited nothing, so the
+                # ceiling it was granted must not be inherited by the next one.
+                self._drop_live_run_marker(zone_id)
                 self._fire_zone_problem(
                     zone_id, zone, confirm_target, const.PROBLEM_VALVE_DID_NOT_OPEN
                 )
@@ -444,7 +453,12 @@ class SelfClosingMixin:
             pre_bucket = float(zone.get(const.ZONE_BUCKET) or 0)
             # Clamp at the RUN's ceiling, not at maximum_bucket — see the same fix
             # in batch._batch_record_run and tests/test_credit_ceiling.py (issue #88).
-            new_bucket = min(self._run_ceiling(zone), pre_bucket + depth)
+            # Captured into the run record below: _run_ceiling consumes the
+            # live-estimate marker, so this is the one moment it can be asked, and
+            # the finish paths have to clamp against this same number or they put
+            # the surplus back (run_credit_ceiling).
+            ceiling = self._run_ceiling(zone)
+            new_bucket = min(ceiling, pre_bucket + depth)
             await self.async_write_watered_bucket(zone_id, new_bucket)
             # NB: water_used_total is NOT counted here — it is recorded once at the
             # run's actual end (_sc_finish_run / async_stop_self_closing) for the
@@ -467,6 +481,7 @@ class SelfClosingMixin:
                 const.RUN_PLANNED_SECONDS: planned_seconds,
                 const.RUN_PLANNED_MM: depth,
                 const.RUN_PRE_BUCKET: pre_bucket,
+                const.RUN_CEILING: ceiling,
                 const.RUN_MODE: zone.get(const.ZONE_WATERING_MODE),
                 const.RUN_CREDITED: True,
             }
@@ -501,6 +516,8 @@ class SelfClosingMixin:
             self._sc_finish_flow(zone_id)  # don't leak the interval on a setup failure
             # Nor the master hold — otherwise the pump stays on with no run behind it.
             await self.async_master_release(self._sc_master_token(zone_id))
+            # Nor the live-run marker, if the failure landed before it was consumed.
+            self._drop_live_run_marker(zone_id)
             raise
 
     def _sc_elapsed(self, started_iso: str | None) -> float:
@@ -635,7 +652,9 @@ class SelfClosingMixin:
         # delta fallback for a run persisted before RUN_PRE_BUCKET existed (upgrade mid-run).
         pre_bucket = run.get(const.RUN_PRE_BUCKET)
         if pre_bucket is not None:
-            ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
+            # The dispatch's ceiling, not a fresh maximum_bucket — same reason as
+            # the completion twin above (issue #88).
+            ceiling = run_credit_ceiling(run, zone)
             if measured is not None:
                 # review finding F: match the completion twin's measured reconcile — when a
                 # flow sensor produced a valid measurement, credit the bucket from the
@@ -647,8 +666,7 @@ class SelfClosingMixin:
                 nb = float(pre_bucket) + self._credited_depth_native(zone, measured)
             else:
                 nb = float(pre_bucket) + planned_mm * delivered_frac
-            if ceiling is not None and nb > float(ceiling):
-                nb = float(ceiling)
+            nb = min(nb, ceiling)
             await self.async_write_watered_bucket(zone_id, nb)
         else:
             # No pre-run anchor -> no absolute measured reconcile is possible; keep the

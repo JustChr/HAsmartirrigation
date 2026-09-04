@@ -170,6 +170,44 @@ class IrrigationRunnerMixin:
         until = dt_util.now() + timedelta(hours=hours)
         await self.async_set_rain_delay(until.isoformat())
 
+    def _mark_manual_run(self, zone_id) -> None:
+        """Mark a zone's imminent run as manual: a custom duration, credited whole.
+
+        Two markers, set together because a manual run is both things at once.
+        ``_manual_run_zones`` is what logs the run as manual; ``_live_run_zones``
+        is what lets it keep its water. A manual duration is an explicit
+        instruction, not a price read off the daily bucket, so clamping its credit
+        at the daily target is wrong in both directions: from a bucket already at
+        target it credits nothing, and from a bucket ABOVE target it pulls the
+        zone back down — a run that removes credit (issue #88).
+
+        Set immediately before a dispatch that consumes it, never once for all the
+        branches: ``_run_ceiling`` consumes the live marker as it credits, and a
+        marker set for a branch that does not credit would be inherited by that
+        zone's NEXT run instead. The distributor branch carries the same meaning
+        as ``duration_override`` and needs neither.
+        """
+        zid = int(zone_id)
+        live = getattr(self, "_live_run_zones", None)
+        if live is None:
+            live = self._live_run_zones = set()
+        live.add(zid)
+        manual = getattr(self, "_manual_run_zones", None)
+        if manual is None:
+            manual = self._manual_run_zones = set()
+        manual.add(zid)
+
+    def _drop_live_run_marker(self, zone_id) -> None:
+        """Hand back the live marker for a run that is not going to happen.
+
+        A live marker left behind is not inert: the next run of that zone consumes
+        it and is handed a ceiling meant for a run that never watered — the same
+        leak ``_reprice_before_turn`` guards against on the rotation path.
+        """
+        live = getattr(self, "_live_run_zones", None)
+        if live:
+            live.discard(int(zone_id))
+
     def _run_trigger(self, zone_id) -> str:
         """Run-log trigger for a zone: ``manual`` for a custom run, else schedule.
 
@@ -3203,6 +3241,10 @@ class IrrigationRunnerMixin:
         if self._sc_is_self_closing(zone):
             run_zone = dict(zone)
             run_zone[const.ZONE_DURATION] = seconds
+            # Marked here too, not only on the classic path below. Without it this
+            # branch credited a manual run against the daily TARGET; see
+            # _mark_manual_run (issue #88).
+            self._mark_manual_run(zone_id)
             await self.async_run_self_closing(run_zone, trigger="manual")
             return
         if zone.get(const.ZONE_DISTRIBUTOR_ID) is not None:
@@ -3239,14 +3281,7 @@ class IrrigationRunnerMixin:
         # Override the duration on a copy and credit the bucket by what we deliver.
         run_zone = dict(zone)
         run_zone[const.ZONE_DURATION] = seconds
-        live = getattr(self, "_live_run_zones", None)
-        if live is None:
-            live = self._live_run_zones = set()
-        live.add(int(zone_id))
-        manual = getattr(self, "_manual_run_zones", None)
-        if manual is None:
-            manual = self._manual_run_zones = set()
-        manual.add(int(zone_id))
+        self._mark_manual_run(zone_id)
         _LOGGER.info(
             "run_zone: watering zone %s for %s seconds (manual)", zone_id, seconds
         )

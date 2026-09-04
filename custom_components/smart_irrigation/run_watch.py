@@ -199,6 +199,33 @@ def planned_seconds(run: dict) -> float:
         return 0.0
 
 
+def run_credit_ceiling(run: dict, zone: dict) -> float:
+    """The bucket level this run's credit may reach, read off its own record.
+
+    A run's ceiling is decided once, at dispatch, by ``_run_ceiling`` — which
+    CONSUMES the live-estimate marker and so can only answer correctly that one
+    time. Every later write for the same run reads it back from here: the
+    measured reconcile when the run completes, and the correction an early stop
+    applies. Re-deriving it instead is what let the dispatch clamp be undone —
+    the finish paths clamped at ``maximum_bucket`` and put the lead time's
+    surplus straight back on a zone the dispatch had just landed on its target
+    (issue #88).
+
+    ``None`` for a run persisted before the field existed (an upgrade mid-run)
+    falls back to the zone's ``maximum_bucket``, which is exactly the clamp those
+    runs were dispatched under, and to no clamp at all when that is unset.
+    """
+    recorded = run.get(const.RUN_CEILING) if isinstance(run, dict) else None
+    if recorded is None:
+        recorded = (zone or {}).get(const.ZONE_MAXIMUM_BUCKET)
+    if recorded is None:
+        return float("inf")
+    try:
+        return float(recorded)
+    except (TypeError, ValueError):
+        return float("inf")
+
+
 def queue_deadline_seconds(runs: list, run: dict, *, mode: str | None = None) -> float:
     """Seconds after dispatch at which a run that never watered is written off.
 

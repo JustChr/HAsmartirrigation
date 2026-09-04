@@ -832,6 +832,15 @@ RUN_PLANNED_MM = "planned_mm"
 RUN_MODE = "mode"
 RUN_CREDITED = "credited"
 RUN_PRE_BUCKET = "pre_bucket"  # zone bucket BEFORE the optimistic self-closing credit
+# The bucket level this run's credit may reach, decided ONCE at dispatch.
+# _run_ceiling consumes the live-estimate marker, so it answers correctly exactly
+# once; every later write for the same run (the measured reconcile at finish, an
+# early stop's correction) has to clamp against this recorded number instead of
+# re-deriving one, or it undoes the dispatch clamp and settles the run at
+# maximum_bucket again -- the surplus issue #88 reports. Absent on a run
+# persisted before this field existed (upgrade mid-run), which falls back to the
+# old maximum_bucket clamp.
+RUN_CEILING = "ceiling"
 # ISO-8601 UTC instant the hardware was OBSERVED to start watering, absent until
 # it does. RUN_STARTED is the DISPATCH time, which for a queued OpenSprinkler run
 # can precede the water by hours; timing anything from it would finalise a zone
@@ -1012,6 +1021,10 @@ PROBLEM_ZONE_NEVER_RAN = "zone_never_ran"
 PROBLEM_BATCH_NO_WATCH_ENTITY = "batch_no_watch_entity"
 # No batch run service is configured, so there is nothing to hand the plan to.
 PROBLEM_BATCH_NOT_CONFIGURED = "batch_not_configured"
+# The controller took the plan but this zone's run record could not be written, so
+# the zone is watering with nothing tracking it: no credit, no finish, and no
+# release for the master hold taken at dispatch.
+PROBLEM_BATCH_RUN_NOT_RECORDED = "batch_run_not_recorded"
 # Run-log details. Separate names from the problem codes above for the same
 # reason RUN_DETAIL_STATION_NEVER_RAN is: different panel lookups read them.
 RUN_DETAIL_ZONE_NEVER_RAN = "zone_never_ran"
