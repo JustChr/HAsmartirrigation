@@ -19,6 +19,7 @@ Once installed, a **Irrigation Plus** entry appears in **Settings → Devices & 
 
 Also in this section:
 
+- [**Moving from Smart Irrigation to Irrigation Plus**](installation-rename.md) — if you used this integration before the rename, read this first.
 - [Changing weather service settings after setup](installation-options.md)
 - [Updating to a new version](installation-updating.md)
 - [Migrating from V1 (v0.0.X) to V2 (202X.X.X)](installation-migration.md)

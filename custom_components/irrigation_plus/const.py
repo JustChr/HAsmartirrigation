@@ -399,9 +399,9 @@ LEGACY_CARD_URL = f"{LEGACY_CARD_STATIC_ROOT}/{LEGACY_PANEL_SLUG}-card.js"
 LEGACY_ALIAS_FILENAME = f"dist/{PANEL_SLUG}-card-legacy.js"
 LEGACY_ALIAS_URL = f"{CARD_STATIC_ROOT}/{PANEL_SLUG}-card-legacy.js"
 
-MIGRATION_GUIDE_URL = (
-    "https://justchr.github.io/HAsmartirrigation/installation-migration"
-)
+# The #120 rename guide. NOT installation-migration, which is the unrelated
+# V1 (0.0.x) -> V2 page and would send every rename repair to the wrong place.
+MIGRATION_GUIDE_URL = "https://justchr.github.io/HAsmartirrigation/installation-rename"
 
 ATTR_REMOVE = "remove"
 ATTR_CALCULATE = "calculate"

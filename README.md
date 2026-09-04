@@ -127,6 +127,13 @@ This integration is not in the default HACS store. Install it as a **custom repo
 4. Restart Home Assistant
 5. Go to **Settings → Devices & Services → Add Integration**, search for "Irrigation Plus" and follow the wizard
 
+> **Already running this integration as "Smart Irrigation"?** It was renamed to
+> **Irrigation Plus** (`irrigation_plus`) so it stops colliding with the upstream
+> project that still uses the `smart_irrigation` domain. Your configuration,
+> history, statistics and API key are carried across — but **add the new
+> integration before removing the old one**, and read
+> [the migration guide](https://JustChr.github.io/HAsmartirrigation/installation-rename.html) first.
+
 ### Manual installation
 
 Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a zip, extract the `custom_components/irrigation_plus` folder into your Home Assistant `custom_components` directory, then restart.

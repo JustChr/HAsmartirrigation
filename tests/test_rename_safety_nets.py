@@ -423,3 +423,27 @@ class TestVerifyImport:
         # crying about it would alarm every new user.
         hass = _hass(tmp_path)
         assert await async_verify_import(hass, SimpleNamespace(zones={})) is True
+
+
+class TestMigrationGuideUrl:
+    """Every rename repair carries MIGRATION_GUIDE_URL as its learn-more link.
+
+    It pointed at `installation-migration` -- which exists, and is the unrelated
+    V1 (0.0.x) -> V2 page from 2022. A wrong-but-live URL is the worst kind:
+    nothing 404s, so nothing complains, and the user reading a repair about the
+    domain rename lands on advice for a different upgrade entirely.
+    """
+
+    def test_the_url_resolves_to_a_docs_page_that_exists(self):
+        slug = const.MIGRATION_GUIDE_URL.rstrip("/").rsplit("/", 1)[-1]
+        page = Path(__file__).resolve().parents[1] / "docs" / f"{slug}.md"
+        assert page.is_file(), f"{const.MIGRATION_GUIDE_URL} has no page at {page}"
+
+    def test_the_page_is_about_this_rename(self):
+        # Existing is not enough -- the previous target existed too.
+        slug = const.MIGRATION_GUIDE_URL.rstrip("/").rsplit("/", 1)[-1]
+        page = Path(__file__).resolve().parents[1] / "docs" / f"{slug}.md"
+        text = page.read_text(encoding="utf-8")
+        assert const.LEGACY_NAME in text
+        assert const.NAME in text
+        assert const.DOMAIN in text

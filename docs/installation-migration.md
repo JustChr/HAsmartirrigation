@@ -8,6 +8,12 @@ title: Installation: Migration
 > Previous: [Updating the integration](installation-updating.md)<br/>
 > Next: [Uninstalling the integration](installation-uninstalling.md)
 
+> **Looking for the Smart Irrigation → Irrigation Plus rename?** That is a
+> different move, and it is documented at
+> [Moving from Smart Irrigation to Irrigation Plus](installation-rename.md).
+> This page is the much older V1 (0.0.X) → V2 (202X.X.X) upgrade, kept for
+> anyone still running a 2022-era install.
+
 Version 2 (202X.X.X) presents a complete rewrite of the integration compared to V1 (0.0.X). Everything was done from scratch. Many bugs present in V1 are fixed in V2. On top of that V2 provides multi zone support and overall better performance, more accurate results and more flexibility to configure the system to your needs.
 Also, in version 2 only one instance of Smart Irrigation is allowed. In V1, if you wanted multiple zones you needed to install multiple instances of Smart Irrigation.
 
