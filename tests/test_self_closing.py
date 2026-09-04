@@ -13,10 +13,24 @@ def _coord():
     c.hass = Mock()
     c.hass.services.async_call = AsyncMock()
     c.hass.bus.async_fire = Mock()
+    # A CONFIRMED service run now subscribes to its confirm_entity for the rest of
+    # the run (issue #88), and HA's state tracker indexes into hass.data — which a
+    # bare Mock is not. Same reason the distributor host gives it a real dict.
+    c.hass.data = {}
+    # No state machine in this host. `None` is the one answer the watcher reads as
+    # "no information" and leaves the run alone; a bare Mock state is neither on
+    # nor off, and would settle every confirmed run the instant it was armed.
+    # Tests that need a real state (the flow sampler's) override this.
+    c.hass.states.get = Mock(return_value=None)
     c.store = Mock()
-    c.store.async_get_config = AsyncMock(return_value={})
+    # The config STUB round-trips, so _sc_add_run -> _sc_find_run actually works.
+    # A run that cannot be read back is not a smaller double, it is a different
+    # program: _watch_policy resolves a run's mode from its record, so a record
+    # that vanishes resolves to the fallback policy instead of the mode's own.
+    c._cfg = {}
+    c.store.async_get_config = AsyncMock(side_effect=lambda: dict(c._cfg))
     c.store.async_update_zone = AsyncMock()
-    c.store.async_update_config = AsyncMock()
+    c.store.async_update_config = AsyncMock(side_effect=c._cfg.update)
     # isolate the run-log helper (its own behaviour is tested elsewhere)
     c._record_run = AsyncMock()
     # isolate the cleanup timer (thin wrapper around HA async_call_later)

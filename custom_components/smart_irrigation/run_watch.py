@@ -179,6 +179,30 @@ class WatchPolicy:
     # pre-extraction code, and is being fixed separately rather than smuggled in
     # here). A mode written after the extraction should set this False.
     arm_give_up_after_start: bool = True
+    # Whether this mode's valve is already open by the time its watcher is armed.
+    #
+    # The engine was written for controllers that QUEUE a run: nothing about such
+    # a run exists until the watch entity says it does, so observing the start is
+    # what sets the meter going, takes the observed-watering suppression window
+    # and arms the finish backstop. A mode that opens its own valve as it
+    # dispatches has already done all three, for the window that actually
+    # started — and doing them again a moment later would re-seed the flow meter
+    # (discarding what it has sampled), and push the backstop out past the
+    # hardware's own close.
+    #
+    # Such a mode watches for one thing only: the valve going off BEFORE its
+    # planned end, which the engine reads as the end of the run. Its observed
+    # start is therefore the dispatch instant, not the instant the observation
+    # arrived — a valve seen a poll late did not water a poll less.
+    opens_at_dispatch: bool = False
+    # Seconds a valve-off is held open before it is read as the end of the run.
+    #
+    # Zero for a controller whose reports are trustworthy: the run finishes on the
+    # transition and nobody waits for a stop they can see. A mode watching a valve
+    # that reports its own state unreliably needs the opposite default — one late
+    # or spurious `off` would otherwise settle a run as a partial and reverse the
+    # credit for water that never stopped flowing.
+    finish_settle_seconds: float = 0.0
 
 
 def is_acknowledged(state) -> bool:
@@ -450,8 +474,16 @@ class RunWatchMixin:
         """When watering began, ISO-8601 UTC, for RUN_OBSERVED_START.
 
         The default is the moment the observation arrived. OpenSprinkler
-        overrides this to prefer the controller's own reported start.
+        overrides this to prefer the controller's own reported start, and a mode
+        whose valve opens at dispatch keeps the dispatch instant: the observation
+        confirms a run that was already watering, so anchoring the run to when
+        the confirmation landed would shorten every run by the confirm poll and
+        settle a full one as a partial.
         """
+        if self._watch_policy(zone_id, run).opens_at_dispatch:
+            started = (run or {}).get(const.RUN_STARTED)
+            if started:
+                return started
         return dt_util.utcnow().isoformat()
 
     # --- lifecycle ----------------------------------------------------------
@@ -475,11 +507,39 @@ class RunWatchMixin:
         )
         run = await self._sc_find_run(zid)
         policy = self._watch_policy(zid, run)
+        if (
+            policy.opens_at_dispatch
+            and run is not None
+            and not run.get(const.RUN_OBSERVED_START)
+        ):
+            # This mode's valve was open — and confirmed open — before the watcher
+            # existed, so the run has already started watering and nothing here is
+            # waiting to find that out. Recording it now rather than on the next
+            # observation is what makes the two branches below fall out correctly:
+            # there is no give-up clock to arm (a run that HAS watered has nothing
+            # to give up on), and a valve that goes off from here reads as the end
+            # of the run rather than as one that never started. Without it a
+            # confirmed valve dropping to `unavailable` a moment later would be
+            # written off and its credit reversed while it was still watering,
+            # which is the very defect ``arm_give_up_after_start`` documents.
+            await self._watch_observed_start(zid, run)
+            run = await self._sc_find_run(zid)
         # Deliberately keyed on the POLICY, not on ``accepted``. An acknowledging
         # mode arms the short grace here in both cases, including the resume path
         # — preserving the behaviour this engine was extracted from; see the
         # note on ``queue_deadline_at_start``.
-        already_watering = (run or {}).get(const.RUN_OBSERVED_START) is not None
+        # A mode that opens at dispatch is watering BY DEFINITION at this point —
+        # its valve was open, and confirmed open, before the watcher existed. The
+        # record above says the same thing, and normally says it first; the policy
+        # is named here as well so the answer does not depend on the record being
+        # readable. Getting it wrong is not cosmetic: a give-up clock armed here
+        # could only ever fire against a run that IS watering (an entity dropping
+        # to `unavailable` for a minute is enough), reversing its credit and
+        # raising a fault while the water was still flowing.
+        already_watering = (
+            policy.opens_at_dispatch
+            or (run or {}).get(const.RUN_OBSERVED_START) is not None
+        )
         if already_watering and not policy.arm_give_up_after_start:
             # Nothing to give up on — this run has watered. It is bounded by the
             # cosmetic-finish backstop (and, while paused, by the pause bound).
@@ -613,15 +673,16 @@ class RunWatchMixin:
             changes[const.RUN_SEGMENT_STARTED] = started
         await self._watch_update_run(zid, changes)
 
-        # The suppression window taken at dispatch is measured from dispatch, so
-        # for a queued run it has already expired — and observed watching is now
-        # pointed at this very entity. Re-take it for the real run window so the
-        # zone's own run is not also credited as external.
-        self._note_si_valve(zid, planned)
-        # Flow sampling deliberately starts HERE, not at dispatch: a meter seeded
-        # while the zone was still queued would sample a window that mostly
-        # precedes the water.
-        await self._sc_start_flow_sampling(zone)
+        if not self._watch_policy(zid, run).opens_at_dispatch:
+            # The suppression window taken at dispatch is measured from dispatch,
+            # so for a queued run it has already expired — and observed watching
+            # is now pointed at this very entity. Re-take it for the real run
+            # window so the zone's own run is not also credited as external.
+            self._note_si_valve(zid, planned)
+            # Flow sampling deliberately starts HERE, not at dispatch: a meter
+            # seeded while the zone was still queued would sample a window that
+            # mostly precedes the water.
+            await self._sc_start_flow_sampling(zone)
         if watcher is not None:
             cancel = watcher.cancel
             if cancel is not None:
@@ -635,8 +696,11 @@ class RunWatchMixin:
             watcher.deadline_left = None
             watcher.deadline_reason = None
         # Backstop only. The entity going off is the primary finish signal; this
-        # covers a missed transition.
-        self._sc_schedule_cleanup(zid, planned)
+        # covers a missed transition. A mode that opens at dispatch armed it there,
+        # for the window that actually started; re-arming from here would push it
+        # out past the hardware's own close.
+        if not self._watch_policy(zid, run).opens_at_dispatch:
+            self._sc_schedule_cleanup(zid, planned)
         _LOGGER.info(
             "Zone %s: %s run started watering (planned %.0fs)",
             zid,
@@ -649,14 +713,15 @@ class RunWatchMixin:
     async def _watch_finish_delay(self, zone_id, run: dict) -> float:
         """Seconds to wait before reading a valve-off as the end of the run.
 
-        Zero for every mode that cannot pause, so their runs finish on the
-        transition exactly as before. A mode that CAN pause has a race to settle:
-        a pause turns the valve off and raises the paused indicator, and nothing
-        orders those two updates. Waiting a moment lets the indicator catch up,
-        which is the difference between resuming a run and having settled it as a
-        partial with its credit already reversed.
+        Zero unless the mode asks for otherwise, so a run finishes on the
+        transition exactly as before. Two different modes ask, for two different
+        reasons: one that CAN pause has a race to settle (a pause turns the valve
+        off and raises the paused indicator, and nothing orders those two
+        updates), and one watching a valve that reports its own state unreliably
+        needs a single spurious `off` not to end the run. Both come out the same
+        way — wait a moment, then look again.
         """
-        return 0.0
+        return self._watch_policy(zone_id, run).finish_settle_seconds
 
     async def _watch_pause(self, zone_id, run: dict) -> None:
         """The controller paused: bank the segment, keep everything else."""
@@ -734,6 +799,17 @@ class RunWatchMixin:
             if fresh.get(const.RUN_SEGMENT_STARTED):
                 # It started watering again without ever reporting a pause, so
                 # the stop was a blip rather than the end of the run.
+                return
+            entity = (w.entity if w is not None else None) or fresh.get(
+                const.RUN_WATCH_ENTITY
+            )
+            state = self.hass.states.get(entity) if entity else None
+            if state is not None and state.state in RUNNING_STATES:
+                # The valve is simply on again. A segmented mode says so through
+                # its open segment above; a mode that records no segments has
+                # nowhere to say it, so the entity itself is asked — without this
+                # the wait would expire and finish the run no matter what the
+                # valve did during it, which is a delay rather than a debounce.
                 return
             await self._watch_finish(zid, fresh)
 

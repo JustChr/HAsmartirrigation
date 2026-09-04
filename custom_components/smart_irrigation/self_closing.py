@@ -19,12 +19,48 @@ from . import const
 from .batch import is_batch_zone
 from .opensprinkler import is_opensprinkler_zone
 from .run_watch import (
+    WatchPolicy,
+    register_watch_policy,
     run_credit_ceiling,
     run_is_queue_bound,
     run_is_segmented,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# What SERVICE mode contributes to the shared observation lifecycle.
+#
+# Unlike the queue modes this engine was written for, a service valve opens as it
+# is dispatched: there is no queue, and by the time a watcher is armed the confirm
+# poll has already seen the valve on. So the watcher exists for one question only
+# — did the valve go off BEFORE the run's planned end? It used to have no way to
+# ask. ``confirm_entity`` was read exactly once, at open, and nothing subscribed
+# to it afterwards, so a valve that shut mid-run (a Zigbee dropout, a hardware
+# fault, someone closing it by hand) left the wall clock running and the run was
+# recorded as ``actual_s == planned_s``, completed, with the full optimistic
+# credit standing. Reported on issue #88 by Eifel-Joe, who runs three such zones.
+#
+# ``acknowledges=False``: nothing queues the run, so there is no acknowledgement
+# to wait for and none that can be withdrawn.
+# ``segmented=False``: a self-closing valve cannot be paused and resumed; off is
+# the end of the run.
+# ``arm_give_up_after_start=False``: written after the engine was extracted, so it
+# does not inherit the OpenSprinkler mode's preserved defect.
+SERVICE_WATCH_POLICY = WatchPolicy(
+    mode=const.WATERING_MODE_SERVICE,
+    acknowledges=False,
+    give_up_problem=const.PROBLEM_VALVE_DID_NOT_OPEN,
+    accept_seconds=const.SERVICE_WATCH_GIVE_UP_SECONDS,
+    queue_deadline_at_start=False,
+    segmented=False,
+    arm_give_up_after_start=False,
+    opens_at_dispatch=True,
+    # A service valve reports its own state, and these are exactly the valves
+    # _confirm_valve_running is written around. One off sample is not evidence
+    # the water stopped, so look again before settling the run.
+    finish_settle_seconds=const.SERVICE_WATCH_SETTLE_SECONDS,
+)
+register_watch_policy(SERVICE_WATCH_POLICY)
 
 
 def is_self_closing_zone(zone: dict) -> bool:
@@ -487,6 +523,13 @@ class SelfClosingMixin:
             }
             if is_opensprinkler:
                 record[const.RUN_WATCH_ENTITY] = watch_entity
+            elif confirmed:
+                # A service valve confirmed open is observable for the rest of its
+                # run: persisted so a restart can re-adopt the subscription rather
+                # than fall back to the clock. Only when it was actually confirmed
+                # — a write-only run (no confirm_entity) has nothing to watch, and
+                # the hardware still owns its close.
+                record[const.RUN_WATCH_ENTITY] = confirm_target
             await self._sc_add_run(record)
 
             self._sc_fire(
@@ -509,7 +552,19 @@ class SelfClosingMixin:
                     zone_id, watch_entity, planned_seconds, accepted=False
                 )
             else:
+                # The backstop is armed FIRST and stays the mode's own: the valve
+                # is already open and its window already running, so the watcher
+                # below must not re-arm it (WatchPolicy.opens_at_dispatch).
                 self._sc_schedule_cleanup(zone_id, planned_seconds)
+                if confirmed:
+                    # And now watch the valve for the rest of the run. Only a
+                    # CONFIRMED run: without a confirm_entity there is nothing to
+                    # subscribe to, and the run stays write-only exactly as before.
+                    # accepted=True — nothing acknowledges a service run, and the
+                    # confirm poll has already seen this valve on.
+                    await self._watch_start(
+                        zone_id, confirm_target, planned_seconds, accepted=True
+                    )
             return True
         except Exception:
             self._os_cancel_watch(zone_id)  # nor the station subscription
@@ -739,6 +794,14 @@ class SelfClosingMixin:
                 # Re-take it so the pump keeps running for the remainder.
                 await self.async_master_acquire(self._sc_master_token(zone_id))
                 self._sc_schedule_cleanup(zone_id, planned - elapsed)
+                # The valve subscription did not survive either, and without it
+                # the rest of this run is back to being timed blind. Re-adopt it
+                # for the runs that recorded one (a confirmed service run).
+                watch_entity = run.get(const.RUN_WATCH_ENTITY)
+                if watch_entity:
+                    await self._watch_start(
+                        zone_id, watch_entity, planned, accepted=True
+                    )
 
     @staticmethod
     def _sc_is_self_closing(zone: dict) -> bool:

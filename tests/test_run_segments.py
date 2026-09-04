@@ -149,9 +149,29 @@ class TestTheEngineOnlySegmentsModesThatCanPause:
         the instant the transition was seen."""
         assert watch_policy_for(const.WATERING_MODE_OPENSPRINKLER).segmented is False
 
-    async def test_a_mode_that_cannot_pause_never_defers_a_finish(self):
+    async def test_a_mode_with_nothing_to_settle_never_defers_a_finish(self):
+        """Zero is the engine's default, and OpenSprinkler keeps it.
+
+        Deferring is not a property of "cannot pause" any more: service mode
+        cannot pause either and still defers, because the thing it is waiting on
+        is a valve that reports its own state unreliably rather than a pause
+        indicator arriving late. Both are asked through the same policy field.
+        """
         host = _Host()
-        assert await host._watch_finish_delay(1, {}) == 0.0
+        delay = await host._watch_finish_delay(
+            1, {const.RUN_MODE: const.WATERING_MODE_OPENSPRINKLER}
+        )
+        assert delay == 0.0
+        assert (
+            watch_policy_for(const.WATERING_MODE_OPENSPRINKLER).finish_settle_seconds
+            == 0.0
+        )
+
+    async def test_service_defers_a_finish_without_being_segmented(self):
+        """It waits on its valve, not on a pause — so it defers but never segments."""
+        policy = watch_policy_for(const.WATERING_MODE_SERVICE)
+        assert policy.segmented is False
+        assert policy.finish_settle_seconds == const.SERVICE_WATCH_SETTLE_SECONDS
 
     async def test_a_mode_that_cannot_pause_is_never_paused(self):
         host = _Host()

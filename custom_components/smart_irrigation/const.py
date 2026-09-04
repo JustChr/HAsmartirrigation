@@ -499,6 +499,20 @@ ZONE_IRRIGATION_TARGET_BUCKET = "irrigation_target_bucket"
 # unconfirmed, and how often to re-check within that window. Sleepy Zigbee/Tuya
 # valves can take >10s to report their new state, so the window is generous.
 VALVE_CONFIRM_TIMEOUT = 30
+# How long a confirmed-open service valve may read "off" before its run is written
+# off. The confirm poll above has already seen the valve on, so this covers only
+# the gap between that and the subscription landing; anything longer than a poll
+# or two means the valve shut immediately and the run delivered nothing. Far
+# shorter than OPENSPRINKLER_ACCEPT_SECONDS, which waits on a controller's queue —
+# a service zone has no queue to wait behind.
+SERVICE_WATCH_GIVE_UP_SECONDS = 60
+# How long a confirmed service valve must stay off before that is read as the end
+# of its run. These are the valves _confirm_valve_running is written around --
+# sleepy Zigbee/Tuya timers that "actuate but report their new state back slowly,
+# or silently drop the first command" -- so a single off sample is not evidence
+# the water stopped. Without this debounce one late or spurious report settles a
+# run as a partial and reverses the credit for water that never stopped flowing.
+SERVICE_WATCH_SETTLE_SECONDS = 5
 VALVE_CONFIRM_POLL = 1
 # Re-send the open command once, this many seconds into the confirm window, to
 # recover a command silently dropped by a sleepy valve.
