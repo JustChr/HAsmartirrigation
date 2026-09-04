@@ -12,11 +12,11 @@ from unittest.mock import AsyncMock, Mock
 
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.distributor import DistributorMixin
-from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
-from custom_components.smart_irrigation.master import MasterMixin
-from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.distributor import DistributorMixin
+from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
+from custom_components.irrigation_plus.master import MasterMixin
+from custom_components.irrigation_plus.skip_conditions import SkipConditionsMixin
 
 
 class _Host(DistributorMixin, MasterMixin, SkipConditionsMixin, IrrigationRunnerMixin):
@@ -143,7 +143,7 @@ async def test_flow_calibration_advisory_is_localized_and_links_zone():
     await _drive_over_threshold(c, z)
     msg = _create_call(c)["message"]
     # Deep-link to the zone's settings (path segments, not a ?query).
-    assert f"/smart_irrigation/setup/zones/zone/{z[const.ZONE_ID]}" in msg
+    assert f"/{const.DOMAIN}/setup/zones/zone/{z[const.ZONE_ID]}" in msg
     # German, not the old hardcoded English.
     assert "Durchsatz" in msg
     assert "Zone" in msg
@@ -158,7 +158,7 @@ async def test_flow_calibration_advisory_is_localized_and_links_zone():
     await _drive_over_threshold(c2, z2)
     msg2 = _create_call(c2)["message"]
     assert "throughput" in msg2
-    assert f"/smart_irrigation/setup/zones/zone/{z2[const.ZONE_ID]}" in msg2
+    assert f"/{const.DOMAIN}/setup/zones/zone/{z2[const.ZONE_ID]}" in msg2
     assert "{" not in msg2 and "}" not in msg2
     # The advisory is shared with the OBSERVED path, which watches a valve
     # Smart Irrigation does not drive and cannot make any claim about (#111

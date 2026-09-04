@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from custom_components.smart_irrigation.performance import (
+from custom_components.irrigation_plus.performance import (
     _log_duration,
     async_timer,
     performance_timer,
@@ -38,7 +38,7 @@ class TestPerformanceTimer:
             return "result"
 
         with patch(
-            "custom_components.smart_irrigation.performance.time.perf_counter",
+            "custom_components.irrigation_plus.performance.time.perf_counter",
             side_effect=[0, 0.15],
         ):
             result = slow_function()
@@ -68,7 +68,7 @@ class TestPerformanceTimer:
             return "async_result"
 
         with patch(
-            "custom_components.smart_irrigation.performance.time.perf_counter",
+            "custom_components.irrigation_plus.performance.time.perf_counter",
             side_effect=[0, 0.15],
         ):
             result = await slow_async_function()
@@ -84,7 +84,7 @@ class TestPerformanceTimer:
             return "result"
 
         with patch(
-            "custom_components.smart_irrigation.performance.time.perf_counter",
+            "custom_components.irrigation_plus.performance.time.perf_counter",
             side_effect=[0, 0.15],
         ):
             result = function_with_custom_name()
@@ -101,7 +101,7 @@ class TestPerformanceTimer:
 
         with (
             patch(
-                "custom_components.smart_irrigation.performance.time.perf_counter",
+                "custom_components.irrigation_plus.performance.time.perf_counter",
                 side_effect=[0, 0.15],
             ),
             pytest.raises(ValueError, match="Test error"),
@@ -120,7 +120,7 @@ class TestPerformanceTimer:
 
         with (
             patch(
-                "custom_components.smart_irrigation.performance.time.perf_counter",
+                "custom_components.irrigation_plus.performance.time.perf_counter",
                 side_effect=[0, 0.15],
             ),
             pytest.raises(ValueError, match="Async test error"),

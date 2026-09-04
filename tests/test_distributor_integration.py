@@ -3,8 +3,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.distributor import DistributorMixin
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.distributor import DistributorMixin
 
 
 def test_coordinator_inherits_distributor_mixin():
@@ -129,7 +129,7 @@ async def test_handle_unknown_distributor_raises():
 
 
 def test_distributor_services_are_registered():
-    from custom_components.smart_irrigation.services import async_register_services
+    from custom_components.irrigation_plus.services import async_register_services
 
     coordinator = MagicMock(spec=SmartIrrigationCoordinator)
     hass = MagicMock()
@@ -193,7 +193,7 @@ async def test_upsert_deletes_when_remove_flag(monkeypatch):
     fake_registry = Mock()
     fake_registry.async_get_device = Mock(return_value=None)
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.dr.async_get",
+        "custom_components.irrigation_plus.distributor.dr.async_get",
         lambda hass: fake_registry,
     )
     await c.async_upsert_distributor({"id": 3, const.ATTR_REMOVE: True})
@@ -240,7 +240,7 @@ async def test_upsert_remove_without_id_raises_clean_error():
 
 
 def test_distributor_view_url():
-    from custom_components.smart_irrigation.websockets import (
+    from custom_components.irrigation_plus.websockets import (
         SmartIrrigationDistributorView,
     )
 
@@ -252,7 +252,7 @@ def test_distributor_view_url():
 async def test_distributor_view_post_upserts_and_dispatches():
     from unittest.mock import patch
 
-    from custom_components.smart_irrigation.websockets import (
+    from custom_components.irrigation_plus.websockets import (
         SmartIrrigationDistributorView,
     )
 
@@ -269,7 +269,7 @@ async def test_distributor_view_post_upserts_and_dispatches():
     view.json = MagicMock(return_value="OK")
 
     with patch(
-        "custom_components.smart_irrigation.websockets.async_dispatcher_send"
+        "custom_components.irrigation_plus.websockets.async_dispatcher_send"
     ) as disp:
         result = await view.post(request)  # decorated: exercises the real validator
 
@@ -285,7 +285,7 @@ async def test_distributor_view_post_upserts_and_dispatches():
 async def test_zone_view_accepts_membership_fields():
     from unittest.mock import patch
 
-    from custom_components.smart_irrigation.websockets import SmartIrrigationZoneView
+    from custom_components.irrigation_plus.websockets import SmartIrrigationZoneView
 
     coordinator = AsyncMock()
     hass = SimpleNamespace(data={const.DOMAIN: {"coordinator": coordinator}})
@@ -298,7 +298,7 @@ async def test_zone_view_accepts_membership_fields():
     view = SmartIrrigationZoneView()
     view.json = MagicMock(return_value="OK")
 
-    with patch("custom_components.smart_irrigation.websockets.async_dispatcher_send"):
+    with patch("custom_components.irrigation_plus.websockets.async_dispatcher_send"):
         # decorated: the schema must ACCEPT the membership fields, else the
         # validator short-circuits and the inner handler never runs.
         await view.post(request)
@@ -325,7 +325,7 @@ async def test_zone_view_ignores_server_owned_fields():
     """
     from unittest.mock import patch
 
-    from custom_components.smart_irrigation.websockets import SmartIrrigationZoneView
+    from custom_components.irrigation_plus.websockets import SmartIrrigationZoneView
 
     coordinator = AsyncMock()
     hass = SimpleNamespace(data={const.DOMAIN: {"coordinator": coordinator}})
@@ -354,7 +354,7 @@ async def test_zone_view_ignores_server_owned_fields():
     view = SmartIrrigationZoneView()
     view.json = MagicMock(return_value="OK")
 
-    with patch("custom_components.smart_irrigation.websockets.async_dispatcher_send"):
+    with patch("custom_components.irrigation_plus.websockets.async_dispatcher_send"):
         await view.post(request)
 
     coordinator.async_update_zone_config.assert_awaited_once()

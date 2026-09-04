@@ -9,10 +9,10 @@ import voluptuous as vol
 from homeassistant.const import CONF_ELEVATION, CONF_LATITUDE
 from homeassistant.core import HomeAssistant
 
-from custom_components.smart_irrigation.calcmodules.calcmodule import (
+from custom_components.irrigation_plus.calcmodules.calcmodule import (
     SmartIrrigationCalculationModule,
 )
-from custom_components.smart_irrigation.const import (
+from custom_components.irrigation_plus.const import (
     CONF_PYETO_COASTAL,
     CONF_PYETO_FORECAST_DAYS,
     CONF_PYETO_SOLRAD_BEHAVIOR,

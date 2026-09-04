@@ -18,13 +18,13 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.run_window import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.run_window import (
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,
     ZoneRun,
 )
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
 
 UTC = datetime.timezone.utc
 
@@ -178,7 +178,7 @@ class TestPairedBoundTime:
             ),
         }
         with patch(
-            "custom_components.smart_irrigation.scheduler.get_astral_event_date",
+            "custom_components.irrigation_plus.scheduler.get_astral_event_date",
             side_effect=lambda hass, event, date: sunsets.get(date),
         ):
             floor = await mgr._paired_bound_time(
@@ -257,7 +257,7 @@ class TestResolveEventInstant:
             ),
         }
         with patch(
-            "custom_components.smart_irrigation.scheduler.get_astral_event_date",
+            "custom_components.irrigation_plus.scheduler.get_astral_event_date",
             side_effect=lambda hass, event, date: sunsets.get(date),
         ):
             resolved = await mgr._resolve_event_instant(
@@ -274,7 +274,7 @@ class TestResolveEventInstant:
         mgr = _manager()
         reference = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler.get_astral_event_date",
+            "custom_components.irrigation_plus.scheduler.get_astral_event_date",
             return_value=None,
         ):
             assert (
@@ -359,7 +359,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[_run(0, 1800), _run(1, 1800)])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -379,7 +379,7 @@ class TestDecideAndArm:
         )
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -395,7 +395,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[_run(0, 1800, confirm=30), _run(1, 1800, confirm=30)])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -414,7 +414,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[_run(0, 1800), _run(1, 1800)])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -430,7 +430,7 @@ class TestDecideAndArm:
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         floor = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, floor, commit=True)
@@ -442,7 +442,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[_run(0, 600)])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ):
             await mgr._decide_and_arm(_schedule(), target, None, commit=False)
@@ -451,7 +451,7 @@ class TestDecideAndArm:
         mgr.coordinator.async_commit_pre_run_calculation.assert_not_awaited()
 
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ):
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -472,7 +472,7 @@ class TestDecideAndArm:
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         floor = datetime.datetime(2026, 6, 21, 2, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, floor, commit=True)
@@ -491,7 +491,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             tracker = await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -516,7 +516,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -535,7 +535,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[_run(0, 18000)])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, None, commit=False)
@@ -550,7 +550,7 @@ class TestDecideAndArm:
         mgr = _manager(plan=[_run(0, 600)])
         target = datetime.datetime(2026, 6, 21, 6, 0, tzinfo=UTC)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             await mgr._decide_and_arm(_schedule(), target, None, commit=True)
@@ -707,7 +707,7 @@ class TestAnInvertedPairingIsAnnouncedOncePerPairing:
         caplog.set_level(logging.DEBUG)
 
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ):
             for _ in range(3):
@@ -750,7 +750,7 @@ class TestAnUnboundedZoneHasNoDecisionPoint:
         mgr._paired_bound_time = AsyncMock(return_value=None)
         target = _local(2026, 6, 21, 6, 0)
         with patch(
-            "custom_components.smart_irrigation.scheduler."
+            "custom_components.irrigation_plus.scheduler."
             "async_track_point_in_utc_time"
         ) as track:
             tracker = await mgr._setup_fitted_tracker(_schedule(), target)

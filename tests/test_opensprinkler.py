@@ -20,19 +20,19 @@ from pytest_homeassistant_custom_component.common import (
     async_mock_service,
 )
 
-from custom_components.smart_irrigation import (
+from custom_components.irrigation_plus import (
     SmartIrrigationCoordinator,
     const,
     opensprinkler,
 )
-from custom_components.smart_irrigation.opensprinkler import (
+from custom_components.irrigation_plus.opensprinkler import (
     observed_start_iso,
     queue_deadline_seconds,
     resolve_running_sensor,
     station_facts,
     zone_watch_entity,
 )
-from custom_components.smart_irrigation.run_window import concurrent_wall_clock
+from custom_components.irrigation_plus.run_window import concurrent_wall_clock
 
 STATION = "switch.front_south_station_enabled"
 RUNNING = "binary_sensor.front_south_station_running"

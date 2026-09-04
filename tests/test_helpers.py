@@ -5,11 +5,11 @@ from datetime import datetime
 
 import pytest
 
-from custom_components.smart_irrigation.const import (
+from custom_components.irrigation_plus.const import (
     CONF_WEATHER_SERVICE_OWM,
     CONF_WEATHER_SERVICE_PW,
 )
-from custom_components.smart_irrigation.helpers import (
+from custom_components.irrigation_plus.helpers import (
     CannotConnect,
     InvalidAuth,
     altitudeToPressure,
@@ -21,7 +21,7 @@ from custom_components.smart_irrigation.helpers import (
     parse_datetime,
     validate_api_key,
 )
-from custom_components.smart_irrigation.pressure import (
+from custom_components.irrigation_plus.pressure import (
     relative_to_absolute_pressure,
 )
 
@@ -136,7 +136,7 @@ class TestHelperFunctions:
 
     def test_convert_between_pressure_units(self) -> None:
         """Test pressure unit conversions."""
-        from custom_components.smart_irrigation.const import (
+        from custom_components.irrigation_plus.const import (
             MBAR_TO_INHG_FACTOR,  # hPa = mbar
             MBAR_TO_PSI_FACTOR,  # hPa = mbar
             UNIT_HPA,
@@ -157,7 +157,7 @@ class TestHelperFunctions:
 
     def test_convert_between_length_units(self) -> None:
         """Test length unit conversions."""
-        from custom_components.smart_irrigation.const import (
+        from custom_components.irrigation_plus.const import (
             INCH_TO_MM_FACTOR,
             MM_TO_INCH_FACTOR,
             UNIT_INCH,
@@ -178,7 +178,7 @@ class TestHelperFunctions:
 
     def test_convert_between_speed_units(self) -> None:
         """Test speed unit conversions."""
-        from custom_components.smart_irrigation.const import (
+        from custom_components.irrigation_plus.const import (
             MS_TO_KMH_FACTOR,
             MS_TO_MILESH_FACTOR,  # This exists in const.py
             UNIT_KMH,

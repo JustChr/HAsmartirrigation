@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
-from custom_components.smart_irrigation.weather_aggregate import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
+from custom_components.irrigation_plus.weather_aggregate import (
     aggregate_window,
     build_substeps,
 )
@@ -122,7 +122,10 @@ def test_delta_baseline_survives_a_later_row_of_another_field():
     buf = [
         {const.RETRIEVED_AT: T0, const.MAPPING_PRECIPITATION: 25.0},
         {const.RETRIEVED_AT: T0 + timedelta(hours=1), const.MAPPING_TEMPERATURE: 20.0},
-        {const.RETRIEVED_AT: T0 + timedelta(hours=3), const.MAPPING_PRECIPITATION: 30.0},
+        {
+            const.RETRIEVED_AT: T0 + timedelta(hours=3),
+            const.MAPPING_PRECIPITATION: 30.0,
+        },
     ]
     agg = aggregate_window(
         buf, watermark, PRECIP_DELTA_CONFIG, now=T0 + timedelta(hours=4)
@@ -138,7 +141,10 @@ def test_substeps_agree_with_the_aggregate_across_the_baseline():
     buf = [
         {const.RETRIEVED_AT: T0, const.MAPPING_PRECIPITATION: 25.0},
         {const.RETRIEVED_AT: T0 + timedelta(hours=1), const.MAPPING_TEMPERATURE: 20.0},
-        {const.RETRIEVED_AT: T0 + timedelta(hours=3), const.MAPPING_PRECIPITATION: 30.0},
+        {
+            const.RETRIEVED_AT: T0 + timedelta(hours=3),
+            const.MAPPING_PRECIPITATION: 30.0,
+        },
     ]
     steps = build_substeps(
         buf, watermark, PRECIP_DELTA_CONFIG, now=T0 + timedelta(hours=4)

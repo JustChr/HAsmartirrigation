@@ -1,6 +1,6 @@
 import json
 
-LANG_DIR = "custom_components/smart_irrigation/frontend/localize/languages"
+LANG_DIR = "custom_components/irrigation_plus/frontend/localize/languages"
 
 T = {
     "common.loading": {

@@ -19,7 +19,7 @@ This integration is not in the default HACS catalogue. You need to add it as a c
 ## Manual installation
 
 1. Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a `.zip` file
-2. Extract the `custom_components/smart_irrigation` folder from the archive
+2. Extract the `custom_components/irrigation_plus` folder from the archive
 3. Copy it into the `custom_components` folder of your Home Assistant configuration directory
 
 ## After installing

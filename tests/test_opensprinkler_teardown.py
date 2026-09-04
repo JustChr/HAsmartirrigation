@@ -16,7 +16,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigEntryDisabler
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, RESTART_EXIT_CODE
 from homeassistant.core import HomeAssistant
 
-from custom_components.smart_irrigation import (
+from custom_components.irrigation_plus import (
     async_remove_entry,
     async_setup_entry,
     async_unload_entry,
@@ -36,10 +36,10 @@ async def _setup(hass, entry):
     """Run the real setup so the shutdown hook is armed as it is in production."""
     entry.add_to_hass(hass)
     with (
-        patch("custom_components.smart_irrigation.async_get_registry") as mock_registry,
-        patch("custom_components.smart_irrigation.async_register_panel"),
-        patch("custom_components.smart_irrigation.async_register_websockets"),
-        patch("custom_components.smart_irrigation.async_register_services"),
+        patch("custom_components.irrigation_plus.async_get_registry") as mock_registry,
+        patch("custom_components.irrigation_plus.async_register_panel"),
+        patch("custom_components.irrigation_plus.async_register_websockets"),
+        patch("custom_components.irrigation_plus.async_register_services"),
         patch.object(
             hass.config_entries, "async_forward_entry_setups", new=AsyncMock()
         ),
@@ -120,7 +120,7 @@ class TestUnloadAndRemove:
     @staticmethod
     def _unload_patches(hass):
         return (
-            patch("custom_components.smart_irrigation.remove_panel"),
+            patch("custom_components.irrigation_plus.remove_panel"),
             patch.object(
                 hass.config_entries,
                 "async_forward_entry_unload",
@@ -162,9 +162,9 @@ class TestUnloadAndRemove:
         """
         coordinator = self._coordinator(hass)
         with (
-            patch("custom_components.smart_irrigation.remove_panel"),
+            patch("custom_components.irrigation_plus.remove_panel"),
             patch(
-                "custom_components.smart_irrigation.async_remove_card_resource",
+                "custom_components.irrigation_plus.async_remove_card_resource",
                 new=AsyncMock(),
             ),
         ):

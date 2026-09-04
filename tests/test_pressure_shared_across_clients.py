@@ -11,11 +11,11 @@ These tests fail if any client grows its own copy again.
 
 import pytest
 
-from custom_components.smart_irrigation.pressure import relative_to_absolute_pressure
-from custom_components.smart_irrigation.weathermodules.MetOfficeClient import (
+from custom_components.irrigation_plus.pressure import relative_to_absolute_pressure
+from custom_components.irrigation_plus.weathermodules.MetOfficeClient import (
     MetOfficeClient,
 )
-from custom_components.smart_irrigation.weathermodules.OpenMeteoClient import (
+from custom_components.irrigation_plus.weathermodules.OpenMeteoClient import (
     OpenMeteoClient,
 )
 

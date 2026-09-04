@@ -12,7 +12,7 @@ import datetime
 import homeassistant.util.dt as dt_util
 from freezegun import freeze_time
 
-from custom_components.smart_irrigation.skip_conditions import (
+from custom_components.irrigation_plus.skip_conditions import (
     SKIP_DAYS_BETWEEN,
     SkipConditionsMixin,
 )

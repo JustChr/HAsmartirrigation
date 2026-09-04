@@ -9,8 +9,8 @@ its paused indicator silently, and the mode would fall back to "not configured".
 
 import pytest
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.store import MigratableStore
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.store import MigratableStore
 
 
 def _v13_doc():

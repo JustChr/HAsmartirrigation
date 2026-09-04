@@ -18,7 +18,7 @@ import homeassistant.util.dt as dt_util
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 # --------------------------------------------------------------------------- #
@@ -146,7 +146,7 @@ def _runner_coordinator(monkeypatch):
     coord.store = Mock()
     coord.store.async_update_zone = AsyncMock()
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send",
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send",
         Mock(),
     )
     return coord
@@ -219,13 +219,13 @@ def _observer_coordinator(monkeypatch, *, loop_time=1000.0):
     coord._observed_on_since = {}
     coord._observed_zone_by_entity = {"switch.valve": 1}
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.observed_watering.async_dispatcher_send",
+        "custom_components.irrigation_plus.observed_watering.async_dispatcher_send",
         Mock(),
     )
     # _credit_observed_watering now also calls _record_run (irrigation.py), which
     # dispatches from that module — stub it too so the Mock hass isn't iterated.
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send",
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send",
         Mock(),
     )
     return coord

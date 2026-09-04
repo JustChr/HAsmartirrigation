@@ -20,7 +20,7 @@ real config, not by asserting the store write.
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 def _coordinator(mappings, zones):
@@ -50,7 +50,7 @@ class TestClearAllWeatherData:
         )
 
         with patch(
-            "custom_components.smart_irrigation.calculation.async_dispatcher_send"
+            "custom_components.irrigation_plus.calculation.async_dispatcher_send"
         ):
             await coordinator._async_clear_all_weatherdata()
 
@@ -83,7 +83,7 @@ class TestClearAllWeatherData:
         )
 
         with patch(
-            "custom_components.smart_irrigation.calculation.async_dispatcher_send"
+            "custom_components.irrigation_plus.calculation.async_dispatcher_send"
         ) as dispatch:
             await coordinator._async_clear_all_weatherdata()
 
@@ -103,7 +103,7 @@ class TestClearAllWeatherData:
         coordinator, store = _coordinator(mappings=[{const.MAPPING_ID: 0}], zones=[])
 
         with patch(
-            "custom_components.smart_irrigation.calculation.async_dispatcher_send"
+            "custom_components.irrigation_plus.calculation.async_dispatcher_send"
         ):
             await coordinator._async_clear_all_weatherdata()
 

@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, Mock
 
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 class _FakeStore:
@@ -69,7 +69,7 @@ def _zone(zone_id):
 def _coord(monkeypatch, zones, sequencing):
     for module in ("irrigation", "calculation"):
         monkeypatch.setattr(
-            f"custom_components.smart_irrigation.{module}.async_dispatcher_send", Mock()
+            f"custom_components.irrigation_plus.{module}.async_dispatcher_send", Mock()
         )
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()
@@ -139,7 +139,7 @@ async def _start_chain(monkeypatch, sequencing):
 
     coord._sleep_or_stopped = _tick
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
 
     assert await coord._irrigate_linked_entities() is True

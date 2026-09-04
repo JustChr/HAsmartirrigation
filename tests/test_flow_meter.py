@@ -1,6 +1,6 @@
 """Unit tests for the pure FlowMeter engine + learning functions (no Home Assistant)."""
 
-from custom_components.smart_irrigation.flow_metering import (
+from custom_components.irrigation_plus.flow_metering import (
     FlowMeter,
     flow_is_totalizer,
     flow_learn_next_streak,

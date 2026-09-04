@@ -4,19 +4,19 @@ import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.distributor import DistributorMixin
-from custom_components.smart_irrigation.flow_metering import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.distributor import DistributorMixin
+from custom_components.irrigation_plus.flow_metering import (
     flow_is_totalizer,
     flow_litres_from_total,
 )
-from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
-from custom_components.smart_irrigation.master import MasterMixin
-from custom_components.smart_irrigation.opensprinkler import OpenSprinklerMixin
-from custom_components.smart_irrigation.run_chain import RunChainMixin
-from custom_components.smart_irrigation.run_state import RunStateMixin
-from custom_components.smart_irrigation.self_closing import SelfClosingMixin
-from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
+from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
+from custom_components.irrigation_plus.master import MasterMixin
+from custom_components.irrigation_plus.opensprinkler import OpenSprinklerMixin
+from custom_components.irrigation_plus.run_chain import RunChainMixin
+from custom_components.irrigation_plus.run_state import RunStateMixin
+from custom_components.irrigation_plus.self_closing import SelfClosingMixin
+from custom_components.irrigation_plus.skip_conditions import SkipConditionsMixin
 
 
 class _DistHost(
@@ -195,7 +195,7 @@ async def test_mark_uncertain_de_arms_persists_fires_and_notifies(monkeypatch):
         return key
 
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.localize", _fake_localize
+        "custom_components.irrigation_plus.distributor.localize", _fake_localize
     )
     d = _dist(notify_target="notify.mobile")
     await c._dist_mark_uncertain(d, reason="no_flow")
@@ -416,7 +416,7 @@ async def test_mark_uncertain_localizes_notification(monkeypatch):
         return key
 
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.localize", _fake_localize
+        "custom_components.irrigation_plus.distributor.localize", _fake_localize
     )
     captured = {}
     c._dist_notify = AsyncMock(side_effect=lambda d, m: captured.update(msg=m))

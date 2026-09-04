@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from freezegun import freeze_time
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation import scheduler as scheduler_module
-from custom_components.smart_irrigation.run_window import ZoneRun
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import scheduler as scheduler_module
+from custom_components.irrigation_plus.run_window import ZoneRun
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
 
 UTC = datetime.timezone.utc
 

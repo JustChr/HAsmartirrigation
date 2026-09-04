@@ -10,8 +10,8 @@ schedule the run as a background task and return immediately.
 import asyncio
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.button import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.button import (
     SmartIrrigationIrrigateAllButton,
     SmartIrrigationZoneIrrigateNowButton,
 )

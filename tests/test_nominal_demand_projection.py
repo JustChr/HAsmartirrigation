@@ -21,8 +21,8 @@ import pytest
 import voluptuous as vol
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation import websockets as si_websockets
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import websockets as si_websockets
 
 COMMAND = const.DOMAIN + "/schedule_nominal_demand"
 

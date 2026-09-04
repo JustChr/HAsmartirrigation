@@ -18,9 +18,9 @@ from unittest.mock import AsyncMock, Mock
 import attr
 import pytest
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
-from custom_components.smart_irrigation.store import Config
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.store import Config
 
 
 def _sched(sid="s1", name="probe", action="irrigate"):
@@ -268,7 +268,7 @@ class TestTheStoreNoLongerFilters:
     async def test_load_keeps_what_is_stored(self, hass):
         """The filter has to go, or the repair can never see the rows it is
         meant to report: they would be gone before it looked."""
-        from custom_components.smart_irrigation.store import async_get_registry
+        from custom_components.irrigation_plus.store import async_get_registry
 
         reg = await async_get_registry(hass)
         # Straight to the store, the way the repair reads it back.
@@ -294,7 +294,7 @@ class TestTheStoreNoLongerFilters:
         """Not the mock: the migration filters ``data["config"]`` against
         ``attr.fields_dict(Config)``, so a key hydrated without an attribute is
         silently dropped on load."""
-        from custom_components.smart_irrigation.store import async_get_registry
+        from custom_components.irrigation_plus.store import async_get_registry
 
         reg = await async_get_registry(hass)
         await reg.async_update_config(

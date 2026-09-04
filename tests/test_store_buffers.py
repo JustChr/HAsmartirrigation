@@ -28,8 +28,8 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.store import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.store import (
     BUFFER_FLUSH_INTERVAL,
     STORAGE_KEY,
     STORAGE_VERSION,
@@ -394,7 +394,7 @@ async def test_re_adding_the_integration_re_arms_the_shutdown_flush(hass) -> Non
     the session: a clean restart would then lose up to BUFFER_FLUSH_INTERVAL of
     readings instead of nothing, with no error to show for it.
     """
-    from custom_components.smart_irrigation.store import (
+    from custom_components.irrigation_plus.store import (
         DATA_REGISTRY,
         async_get_registry,
     )
@@ -445,7 +445,7 @@ async def test_panel_weather_records_still_see_the_buffer(hass) -> None:
     accessor now. Worth asserting: the handler catches every exception and
     returns [], so a broken read would show up as an empty table, not an error.
     """
-    from custom_components.smart_irrigation.websockets import (
+    from custom_components.irrigation_plus.websockets import (
         websocket_get_weather_records,
     )
 

@@ -12,8 +12,8 @@ anchored hours late, with nothing raising an error.
 
 import pytest
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.run_window import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.run_window import (
     TRACK_BATCH,
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,

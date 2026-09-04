@@ -9,8 +9,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.sensor import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.sensor import (
     SmartIrrigationZoneBucketEntity,
     SmartIrrigationZoneEntity,
     _to_aware_datetime,
@@ -37,7 +37,7 @@ class TestSensorPlatform:
         }
 
         with patch(
-            "custom_components.smart_irrigation.sensor.async_dispatcher_connect"
+            "custom_components.irrigation_plus.sensor.async_dispatcher_connect"
         ) as mock_connect:
             await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
@@ -120,11 +120,11 @@ class TestSmartIrrigationZoneEntity:
     def test_device_info(self, hass: HomeAssistant) -> None:
         """device_info is a per-zone device hanging off the hub via via_device."""
         info = self._make_entity(hass).device_info
-        assert info["identifiers"] == {(const.DOMAIN, "smart_irrigation_zone_1")}
+        assert info["identifiers"] == {(const.DOMAIN, f"{const.DOMAIN}_zone_1")}
         assert info["name"] == "Test Zone"
         assert info["model"] == "Irrigation zone"
         assert info["manufacturer"] == const.MANUFACTURER
-        assert info["via_device"] == (const.DOMAIN, "smart_irrigation")
+        assert info["via_device"] == (const.DOMAIN, const.DOMAIN)
 
     def test_to_aware_datetime(self) -> None:
         """Naive stored timestamps become local-aware; garbage becomes None."""

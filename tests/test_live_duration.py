@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.calculation import duration_from_deficit
-from custom_components.smart_irrigation.helpers import convert_between
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.calculation import duration_from_deficit
+from custom_components.irrigation_plus.helpers import convert_between
 
 
 # --------------------------------------------------------------------------- #
@@ -257,7 +257,7 @@ def _reset_coordinator(monkeypatch, *, metric=True):
     coord.store = Mock()
     coord.store.async_update_zone = AsyncMock()
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send",
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send",
         Mock(),
     )
     return coord
@@ -275,7 +275,7 @@ def _last_bucket(coord):
 async def _drive_timed(coord, zone, monkeypatch):
     """Run a synthetic (throughput) metered run to completion, fast."""
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord.hass.services = Mock()
     coord.hass.services.async_call = AsyncMock()

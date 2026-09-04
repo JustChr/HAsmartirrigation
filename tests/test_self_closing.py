@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, Mock
 
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.irrigation import SI_VALVE_SUPPRESS_MARGIN
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.irrigation import SI_VALVE_SUPPRESS_MARGIN
 
 
 def _coord():
@@ -557,7 +557,7 @@ async def test_self_closing_credits_measured_flow(monkeypatch):
     """A self-closing zone with a flow_sensor records the MEASURED volume from the
     non-blocking sampler at finish — not the time-based estimate — and persists the
     totalizer end (flow_last_end) for cross-run learning."""
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     # Isolate the interval timer: the test drives sampling via the _sc_sample_flow seam.
     monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
@@ -625,7 +625,7 @@ async def test_self_closing_credits_measured_flow(monkeypatch):
 async def test_self_closing_without_flow_sensor_uses_timed_volume(monkeypatch):
     """Regression guard: a self-closing zone with NO flow_sensor never registers
     interval sampling and records the time-based volume unchanged (the None path)."""
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     track = Mock(return_value=Mock())
     monkeypatch.setattr(scmod, "async_track_time_interval", track)
@@ -674,7 +674,7 @@ async def test_self_closing_without_flow_sensor_uses_timed_volume(monkeypatch):
 async def test_self_closing_sampling_interval_cancelled_on_finish(monkeypatch):
     """M-2: the 15 s interval sampler is cancelled exactly once at finish and its
     meter entry is popped from _sc_meters() — no timer leaks past the run."""
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     cancel = Mock()
     monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=cancel))
@@ -728,7 +728,7 @@ async def test_self_closing_overlap_cancels_prior_interval(monkeypatch):
     """I-1 regression: a second sampler for the same zone (e.g. a manual run fired
     during a scheduled one) cancels-and-pops the first interval — the prior 15 s timer
     is never orphaned, and exactly one meter entry remains."""
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     cancel1, cancel2 = Mock(), Mock()
     monkeypatch.setattr(
@@ -758,7 +758,7 @@ async def test_self_closing_overlap_cancels_prior_cleanup_timer(monkeypatch):
     first run's cleanup timer — the prior cosmetic-finish timer is never orphaned, so it
     can't fire _sc_finish_run against the NEW run and finalize it early (false COMPLETED,
     actual_s=planned_s, dropped flow tail). Mirrors the interval-overlap guard above."""
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     cancel1, cancel2 = Mock(), Mock()
     monkeypatch.setattr(scmod, "async_call_later", Mock(side_effect=[cancel1, cancel2]))
@@ -781,7 +781,7 @@ async def test_self_closing_overlap_cancels_prior_cleanup_timer(monkeypatch):
 async def test_self_closing_cleanup_timer_popped_on_finish(monkeypatch):
     """review finding D: a run's cleanup timer is popped from _sc_cleanup_timers() when
     the run finalizes (_sc_finish_run), so a stale handle can't linger past the run."""
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     cancel = Mock()
     monkeypatch.setattr(scmod, "async_call_later", Mock(return_value=cancel))
@@ -809,7 +809,7 @@ async def test_self_closing_cleanup_timer_popped_on_finish(monkeypatch):
 async def test_self_closing_cleanup_timer_cancelled_on_stop(monkeypatch):
     """review finding D: an early stop cancels-and-pops the run's pending cleanup timer,
     so the original run's timer can't fire _sc_finish_run after the stop removed it."""
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     cancel = Mock()
     monkeypatch.setattr(scmod, "async_call_later", Mock(return_value=cancel))
@@ -851,7 +851,7 @@ async def test_self_closing_measured_bucket_reconciles_from_pre_bucket(monkeypat
     measured = 10 L -> bucket must land at min(20, 0 + 10) = 10, NOT the delta result
     20 + (10 - 30) = 0.
     """
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
 
@@ -935,7 +935,7 @@ async def test_self_closing_early_stop_bucket_reconciles_from_pre_bucket(monkeyp
     pre_bucket 0, maximum_bucket 20, open credit depth 30 -> clamps to 20. Stop at 50%:
     absolute = min(20, 0 + 30*0.5) = 15, NOT the delta result 20 - (30*0.5) = 5.
     """
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
 
@@ -1001,7 +1001,7 @@ async def test_self_closing_early_stop_credits_measured_over_timed(monkeypatch):
     pre_bucket 0, open credit depth 30 (time-based); stop at 50% -> the time-based partial
     would be 30*0.5 = 15. Measured = 10 L -> bucket must land at 0 + 10 = 10, NOT 15.
     """
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
 
@@ -1072,7 +1072,7 @@ async def test_self_closing_final_read_captures_last_climb(monkeypatch):
     """FM #3 regression: _sc_finish_flow takes ONE final reading at close, so a totalizer's
     last (up to a poll interval) of climb after the last periodic sample is not dropped.
     """
-    import custom_components.smart_irrigation.self_closing as scmod
+    import custom_components.irrigation_plus.self_closing as scmod
 
     monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
 

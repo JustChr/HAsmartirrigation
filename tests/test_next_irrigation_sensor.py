@@ -16,9 +16,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from custom_components.smart_irrigation import async_setup_entry, const
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
-from custom_components.smart_irrigation.sensor import (
+from custom_components.irrigation_plus import async_setup_entry, const
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.sensor import (
     SmartIrrigationZoneNextIrrigationSensor,
 )
 
@@ -76,11 +76,11 @@ class TestSetupAnnouncesSchedules:
 
         with (
             patch(
-                "custom_components.smart_irrigation.async_get_registry"
+                "custom_components.irrigation_plus.async_get_registry"
             ) as mock_registry,
-            patch("custom_components.smart_irrigation.async_register_panel"),
-            patch("custom_components.smart_irrigation.async_register_websockets"),
-            patch("custom_components.smart_irrigation.async_register_services"),
+            patch("custom_components.irrigation_plus.async_register_panel"),
+            patch("custom_components.irrigation_plus.async_register_websockets"),
+            patch("custom_components.irrigation_plus.async_register_services"),
             patch.object(
                 hass.config_entries, "async_forward_entry_setups", new=AsyncMock()
             ),

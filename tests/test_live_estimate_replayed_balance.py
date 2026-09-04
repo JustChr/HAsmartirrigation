@@ -48,12 +48,12 @@ import homeassistant.util.dt as dt_util
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.et_estimate import live_balance
-from custom_components.smart_irrigation.sensor import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.et_estimate import live_balance
+from custom_components.irrigation_plus.sensor import (
     SmartIrrigationZoneLiveDeficitSensor,
 )
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
 
 T0 = datetime.datetime(2026, 5, 22, 0, 0, 0)
 NOW = T0 + timedelta(hours=24)
@@ -455,7 +455,7 @@ class TestFallingBackToTheLumpedForm:
     async def test_a_window_that_cannot_be_sub_stepped_still_produces_an_estimate(
         self, coordinator, monkeypatch
     ):
-        import custom_components.smart_irrigation.live_estimate as le
+        import custom_components.irrigation_plus.live_estimate as le
 
         c, store = coordinator
         zone = await _zone(c, store, 2.0, rain_at={20: 14.0})
@@ -482,7 +482,7 @@ class TestFallingBackToTheLumpedForm:
         """The rain in the balance and the rain published beside it are the same
         water. A disagreement means an assumption broke, and lumping is the
         self-consistent answer."""
-        import custom_components.smart_irrigation.live_estimate as le
+        import custom_components.irrigation_plus.live_estimate as le
 
         c, store = coordinator
         zone = await _zone(c, store, 2.0, rain_at={20: 14.0})
@@ -981,7 +981,7 @@ class TestZonesWhoseCommitLumps:
     ):
         """Never absent, never a fabricated curve: a window that will not reduce
         falls back to the form that preceded this."""
-        import custom_components.smart_irrigation.live_estimate as le
+        import custom_components.irrigation_plus.live_estimate as le
 
         c, store = coordinator
         zone = await _zone(c, store, 2.0, rain_at={20: 14.0}, solrad="1")

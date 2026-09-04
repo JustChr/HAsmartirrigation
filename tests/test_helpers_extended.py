@@ -4,14 +4,14 @@ import contextlib
 
 import pytest
 
-from custom_components.smart_irrigation.const import (
+from custom_components.irrigation_plus.const import (
     UNIT_INCH,
     UNIT_KMH,
     UNIT_MH,
     UNIT_MM,
     UNIT_MS,
 )
-from custom_components.smart_irrigation.helpers import (
+from custom_components.irrigation_plus.helpers import (
     CannotConnect,
     InvalidAuth,
     altitudeToPressure,
@@ -21,7 +21,7 @@ from custom_components.smart_irrigation.helpers import (
     convert_temperatures,
     validate_api_key,
 )
-from custom_components.smart_irrigation.pressure import (
+from custom_components.irrigation_plus.pressure import (
     relative_to_absolute_pressure,
 )
 

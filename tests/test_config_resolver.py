@@ -7,8 +7,8 @@ async_setup_entry. Now it is a pure function, so these tests pin its behavior
 
 from types import SimpleNamespace
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.config_resolver import resolve_weather_config
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.config_resolver import resolve_weather_config
 
 
 def _entry(data=None, options=None):

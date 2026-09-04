@@ -12,10 +12,10 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from homeassistant.exceptions import Unauthorized
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.helpers import normalize_zone_selection
-from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
-from custom_components.smart_irrigation.panel import async_remove_card_resource
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.helpers import normalize_zone_selection
+from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
+from custom_components.irrigation_plus.panel import async_remove_card_resource
 
 
 class TestNormalizeZoneSelection:
@@ -122,7 +122,7 @@ class TestWebsocketAdminGating:
 
     @staticmethod
     def _call(name, *, is_admin):
-        from custom_components.smart_irrigation import websockets
+        from custom_components.irrigation_plus import websockets
 
         handler = getattr(websockets, name)
         connection = Mock(user=Mock(is_admin=is_admin))
@@ -135,7 +135,7 @@ class TestWebsocketAdminGating:
 
     @pytest.mark.parametrize("name", GATED)
     def test_an_anonymous_connection_is_refused(self, name):
-        from custom_components.smart_irrigation import websockets
+        from custom_components.irrigation_plus import websockets
 
         handler = getattr(websockets, name)
         with pytest.raises(Unauthorized):
@@ -164,19 +164,19 @@ class TestWebsocketAdminGating:
         behavioural version of the ungated test swallowed the AttributeError
         and went green.
         """
-        from custom_components.smart_irrigation import websockets
+        from custom_components.irrigation_plus import websockets
 
         assert callable(getattr(websockets, name, None)), name
 
     def test_the_marker_actually_detects_gating(self):
         """Proves the check above bites, so the UNGATED test is not vacuous."""
-        from custom_components.smart_irrigation import websockets
+        from custom_components.irrigation_plus import websockets
 
         assert self._is_admin_gated(websockets.websocket_get_coordinates)
 
     @pytest.mark.parametrize("name", UNGATED)
     def test_the_card_surface_is_not_gated(self, name):
-        from custom_components.smart_irrigation import websockets
+        from custom_components.irrigation_plus import websockets
 
         assert not self._is_admin_gated(getattr(websockets, name)), (
             f"{name} is admin-gated, which silently breaks the Lovelace card "
@@ -198,7 +198,7 @@ class TestFinishTargetMemoryIsPruned:
 
     @staticmethod
     def _manager(schedules):
-        from custom_components.smart_irrigation.scheduler import (
+        from custom_components.irrigation_plus.scheduler import (
             RecurringScheduleManager,
         )
 
@@ -262,14 +262,14 @@ class TestStaticPathsRegisterOnce:
         return hass
 
     async def _register(self, hass):
-        from custom_components.smart_irrigation.panel import async_register_panel
+        from custom_components.irrigation_plus.panel import async_register_panel
 
         with (
             patch(
-                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel",
+                "custom_components.irrigation_plus.panel.panel_custom.async_register_panel",
                 new=AsyncMock(),
             ),
-            patch("custom_components.smart_irrigation.panel.frontend.add_extra_js_url"),
+            patch("custom_components.irrigation_plus.panel.frontend.add_extra_js_url"),
         ):
             await async_register_panel(hass)
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-import custom_components.smart_irrigation as si
+import custom_components.irrigation_plus as si
 
 BP_DIR = Path(si.__file__).parent / "blueprints" / "script"
 NAMES = ("tuya_z2m_valve.yaml", "sonoff_z2m_valve.yaml", "entity_valve.yaml")

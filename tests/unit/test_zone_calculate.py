@@ -5,7 +5,7 @@ message patterns and the calculate-branch decision logic that caused silent
 failures in production (buttons appeared to do nothing).
 
 CI tests that import the full coordinator (requires pytest-homeassistant-
-custom-component) live in custom_components/smart_irrigation/tests/.
+custom-component) live in custom_components/irrigation_plus/tests/.
 """
 
 from unittest.mock import MagicMock

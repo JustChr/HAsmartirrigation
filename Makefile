@@ -51,7 +51,7 @@ format: install-dev
 
 # Linting (matches CI requirements)
 lint: install-dev
-	./.venv/bin/ruff check custom_components/smart_irrigation/
+	./.venv/bin/ruff check custom_components/irrigation_plus/
 	@echo "✅ Linting complete"
 
 # Clean up
@@ -68,14 +68,14 @@ bump:
 	@[ -n "$(VERSION)" ] || (echo "Usage: make bump VERSION=vYYYY.MM.NN" && exit 1)
 	@VER="$(VERSION)"; VER_NOPREFIX="$${VER#v}"; \
 	echo "Bumping to $$VER ..."; \
-	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$$VER_NOPREFIX\"/" custom_components/smart_irrigation/frontend/package.json; \
-	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$$VER\"/" custom_components/smart_irrigation/manifest.json; \
-	sed -i "s/^VERSION = \"[^\"]*\"/VERSION = \"$$VER\"/" custom_components/smart_irrigation/const.py; \
+	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$$VER_NOPREFIX\"/" custom_components/irrigation_plus/frontend/package.json; \
+	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$$VER\"/" custom_components/irrigation_plus/manifest.json; \
+	sed -i "s/^VERSION = \"[^\"]*\"/VERSION = \"$$VER\"/" custom_components/irrigation_plus/const.py; \
 	echo "✅ Version bumped to $$VER in package.json, manifest.json, const.py"
 	@echo "   Frontend version is derived from package.json at build time — rebuild to apply."
 
 # Run all CI quality checks
 check: install-dev
-	./.venv/bin/ruff check custom_components/smart_irrigation/
+	./.venv/bin/ruff check custom_components/irrigation_plus/
 	./.venv/bin/black --check .
 	@echo "✅ All CI checks passed"

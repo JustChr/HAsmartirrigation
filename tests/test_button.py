@@ -11,8 +11,8 @@ from unittest.mock import Mock
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.button import async_setup_entry
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.button import async_setup_entry
 
 
 async def test_register_entity_adds_both_per_zone_buttons(hass: HomeAssistant) -> None:

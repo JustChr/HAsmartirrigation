@@ -9,8 +9,8 @@ without mutating the recurring-schedule manager's own stored dicts.
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.websockets import websocket_get_schedules
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.websockets import websocket_get_schedules
 
 
 def _ws_env(coordinator):

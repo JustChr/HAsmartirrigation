@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import attr
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.store import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.store import (
     STORAGE_VERSION,
     DistributorEntry,
     MigratableStore,

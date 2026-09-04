@@ -2,14 +2,14 @@
 
 import pytest
 
-from custom_components.smart_irrigation.et_estimate import (
+from custom_components.irrigation_plus.et_estimate import (
     drained_over_window,
     estimate_daily_et0_hargreaves,
     live_deficit,
     proxy_et_since,
     rigorous_et_since,
 )
-from custom_components.smart_irrigation.et_hourly import eto_hourly
+from custom_components.irrigation_plus.et_hourly import eto_hourly
 
 LAT = 48.39
 LON = 16.23

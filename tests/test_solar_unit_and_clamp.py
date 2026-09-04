@@ -14,9 +14,9 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.calcmodules.pyeto import PyETO, SOLRAD_behavior
-from custom_components.smart_irrigation.helpers import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.calcmodules.pyeto import PyETO, SOLRAD_behavior
+from custom_components.irrigation_plus.helpers import (
     convert_mapping_to_metric,
     ha_unit_to_internal_unit,
 )

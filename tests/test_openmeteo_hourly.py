@@ -5,7 +5,7 @@ import math
 
 from freezegun import freeze_time
 
-from custom_components.smart_irrigation.weathermodules.OpenMeteoClient import (
+from custom_components.irrigation_plus.weathermodules.OpenMeteoClient import (
     OpenMeteoClient,
 )
 

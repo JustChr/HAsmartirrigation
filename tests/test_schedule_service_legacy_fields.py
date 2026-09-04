@@ -19,9 +19,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from freezegun import freeze_time
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
-from custom_components.smart_irrigation.services import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.services import (
     _translate_legacy_schedule_fields,
 )
 
@@ -129,7 +129,7 @@ def test_the_three_write_paths_agree_on_the_default():
     same value for an omitted time. Two of them already did; this is the one
     that did not, so pin them together rather than in isolation.
     """
-    from custom_components.smart_irrigation.store import _migrate_schedule_to_v14
+    from custom_components.irrigation_plus.store import _migrate_schedule_to_v14
 
     from_service = _translate_legacy_schedule_fields(_documented_call())
     from_migration = _migrate_schedule_to_v14(

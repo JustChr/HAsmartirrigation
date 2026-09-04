@@ -4,8 +4,8 @@ import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation.master import MasterMixin
-from custom_components.smart_irrigation.store import (
+from custom_components.irrigation_plus.master import MasterMixin
+from custom_components.irrigation_plus.store import (
     STORAGE_VERSION,
     Config,
     async_get_registry,
@@ -121,7 +121,7 @@ async def test_master_off_disabled_arms_and_resets_without_turn_off(monkeypatch)
     c = _mcoord(master_off_after=False)
     captured = {}
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.master.async_call_later",
+        "custom_components.irrigation_plus.master.async_call_later",
         lambda hass, delay, cb: captured.update(cb=cb) or Mock(),
     )
     t0 = datetime.datetime(2026, 7, 1, 8, 0, 0, tzinfo=datetime.timezone.utc)
@@ -153,7 +153,7 @@ async def test_master_off_enabled_arms_and_fires(monkeypatch):
         return Mock()
 
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.master.async_call_later", fake_later
+        "custom_components.irrigation_plus.master.async_call_later", fake_later
     )
     t0 = datetime.datetime(2026, 7, 1, 8, 0, 0, tzinfo=datetime.timezone.utc)
     c._master_now = Mock(return_value=t0)
@@ -178,7 +178,7 @@ async def test_run_zone_self_closing_delegates_master_to_the_run():
     finalises. run_zone predicting the duration up front was the old model; the
     hardware, not run_zone, decides when a self-closing valve actually shuts.
     """
-    from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+    from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
     c = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     assert isinstance(c, MasterMixin)  # mixin is wired into the coordinator
@@ -211,7 +211,7 @@ async def test_self_closing_run_holds_the_master_across_its_window():
     still held after dispatch returns, because the HARDWARE owns the close."""
     import types
 
-    from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+    from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
     c = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     c.hass = Mock()
@@ -259,7 +259,7 @@ async def test_self_closing_release_on_confirm_failure_does_not_strand_the_pump(
     the master on forever, which is the one failure refcounting could introduce."""
     import types
 
-    from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+    from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
     c = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     c.hass = Mock()

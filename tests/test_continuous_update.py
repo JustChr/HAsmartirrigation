@@ -15,14 +15,14 @@ from freezegun import freeze_time
 from homeassistant.const import CONF_ELEVATION, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.const import UNIT_INHG
-from custom_components.smart_irrigation.continuous_update import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.const import UNIT_INHG
+from custom_components.irrigation_plus.continuous_update import (
     CONTINUOUS_COALESCE_WINDOW,
     CONTINUOUS_PRUNE_EVERY,
     SENSOR_DEADBAND,
 )
-from custom_components.smart_irrigation.helpers import (
+from custom_components.irrigation_plus.helpers import (
     convert_mapping_to_metric,
     relative_to_absolute_pressure,
 )
@@ -34,12 +34,12 @@ def _stub_hass_helpers(monkeypatch):
     # need a live hass.data + event loop; stub both to no-ops returning Mock
     # unsubs so these unit tests exercise only the code under test.
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.continuous_update."
+        "custom_components.irrigation_plus.continuous_update."
         "async_track_state_change_event",
         Mock(return_value=Mock()),
     )
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.continuous_update.async_call_later",
+        "custom_components.irrigation_plus.continuous_update.async_call_later",
         Mock(side_effect=lambda *_args, **_kw: Mock()),
     )
     # The real dispatcher walks hass.data; these tests use a Mock hass. Every
@@ -47,9 +47,9 @@ def _stub_hass_helpers(monkeypatch):
     # test: _async_clear_all_weatherdata lives in calculation and notifies the
     # frontend, so leaving that one real fails on a Mock hass.data.
     for module in (
-        "custom_components.smart_irrigation.continuous_update",
-        "custom_components.smart_irrigation",
-        "custom_components.smart_irrigation.calculation",
+        "custom_components.irrigation_plus.continuous_update",
+        "custom_components.irrigation_plus",
+        "custom_components.irrigation_plus.calculation",
     ):
         monkeypatch.setattr(f"{module}.async_dispatcher_send", Mock())
 
@@ -875,7 +875,7 @@ class TestDebounce:
             return unsub
 
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.continuous_update.async_call_later",
+            "custom_components.irrigation_plus.continuous_update.async_call_later",
             _fake_call_later,
         )
         store = _FakeStore([_mapping()])
@@ -896,7 +896,7 @@ class TestDebounce:
     async def test_zero_debounce_flushes_immediately(self, monkeypatch):
         called = Mock()
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.continuous_update.async_call_later",
+            "custom_components.irrigation_plus.continuous_update.async_call_later",
             called,
         )
         store = _FakeStore([_mapping()], debounce=0)
@@ -953,7 +953,7 @@ class TestFlush:
         # prune; the oldest surviving row must stay as the DELTA/RIEMANNSUM
         # baseline select_window expects.
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.continuous_update."
+            "custom_components.irrigation_plus.continuous_update."
             "CONTINUOUS_MAX_BUFFER_ROWS",
             5,
         )

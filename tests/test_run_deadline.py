@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, Mock
 import homeassistant.util.dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 class _FakeStore:
@@ -224,7 +224,7 @@ class TestPerZoneDaysSince:
         # so a dispatch-time reset would clear the counter for zones a deadline
         # never reaches — the starvation the per-zone counter exists to stop.
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.irrigation.async_dispatcher_send",
             Mock(),
         )
         coord = _coord(
@@ -243,7 +243,7 @@ class TestPerZoneDaysSince:
         # A failed / never-started run still commits an unchanged bucket. It has
         # not watered, so it must not restart the wait.
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.irrigation.async_dispatcher_send",
             Mock(),
         )
         coord = _coord([_zone(0, bucket=-5.0, days_since_irrigation=4)])
@@ -298,7 +298,7 @@ class TestRotatingDeadline:
 
     async def _rotating_coord(self, monkeypatch, clock):
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.irrigation.async_dispatcher_send",
             Mock(),
         )
 
@@ -314,7 +314,7 @@ class TestRotatingDeadline:
                 return clock["t"]
 
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.irrigation.dt_util", _Clock
+            "custom_components.irrigation_plus.irrigation.dt_util", _Clock
         )
 
         coord = _coord([_zone(0, 600, bucket=-5.0, bucket_threshold=-1.0)])

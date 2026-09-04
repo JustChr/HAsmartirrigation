@@ -8,8 +8,8 @@ registration raise AttributeError if a handler went missing in the move.
 
 from unittest.mock import MagicMock
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.services import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.services import (
     ServiceHandlersMixin,
     async_register_services,
 )

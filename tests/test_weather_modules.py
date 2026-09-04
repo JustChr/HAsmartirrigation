@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from freezegun import freeze_time
 
-from custom_components.smart_irrigation.const import (
+from custom_components.irrigation_plus.const import (
     MAPPING_CURRENT_PRECIPITATION,
     MAPPING_DEWPOINT,
     MAPPING_HUMIDITY,
@@ -19,23 +19,23 @@ from custom_components.smart_irrigation.const import (
     MAPPING_WINDSPEED,
     OBSERVATION_TIME,
 )
-from custom_components.smart_irrigation.weathermodules.MetOfficeClient import (
+from custom_components.irrigation_plus.weathermodules.MetOfficeClient import (
     MetOfficeClient,
 )
-from custom_components.smart_irrigation.weathermodules.OpenMeteoClient import (
+from custom_components.irrigation_plus.weathermodules.OpenMeteoClient import (
     OpenMeteoClient,
 )
-from custom_components.smart_irrigation.weathermodules.OWMClient import (
+from custom_components.irrigation_plus.weathermodules.OWMClient import (
     OWMClient,
     _compute_dew_point,
 )
 
-_OWM_PATCH = "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get"
+_OWM_PATCH = "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get"
 _OPENMETEO_PATCH = (
-    "custom_components.smart_irrigation.weathermodules.OpenMeteoClient._SESSION.get"
+    "custom_components.irrigation_plus.weathermodules.OpenMeteoClient._SESSION.get"
 )
 _MET_PATCH = (
-    "custom_components.smart_irrigation.weathermodules.MetOfficeClient._SESSION.get"
+    "custom_components.irrigation_plus.weathermodules.MetOfficeClient._SESSION.get"
 )
 
 
@@ -88,7 +88,7 @@ class TestOWMClientGetData:
     def test_success(self):
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
+            "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, self._CURRENT_BODY),
         ):
             data = client.get_data()
@@ -103,7 +103,7 @@ class TestOWMClientGetData:
     def test_dew_point_computed(self):
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
+            "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, self._CURRENT_BODY),
         ):
             data = client.get_data()
@@ -116,7 +116,7 @@ class TestOWMClientGetData:
         body["rain"] = {}
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
+            "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, body),
         ):
             data = client.get_data()
@@ -128,7 +128,7 @@ class TestOWMClientGetData:
         client = OWMClient(api_key="bad", latitude=52.0, longitude=5.0, elevation=0)
         with (
             patch(
-                "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
+                "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get",
                 return_value=_make_response(200, body),
             ),
             pytest.raises(OSError),
@@ -178,7 +178,7 @@ class TestOWMClientGetForecastData:
         # utcfromtimestamp() working on the real slot timestamps.
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
+            "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, self._forecast_body()),
         ):
             data = client.get_forecast_data()
@@ -226,7 +226,7 @@ class TestOWMClientGetForecastData:
         }
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
+            "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, body),
         ):
             data = client.get_forecast_data()
@@ -240,7 +240,7 @@ class TestOWMClientGetForecastData:
         body = {"cod": "200", "list": []}
         client = OWMClient(api_key="k", latitude=52.0, longitude=5.0, elevation=0)
         with patch(
-            "custom_components.smart_irrigation.weathermodules.OWMClient._SESSION.get",
+            "custom_components.irrigation_plus.weathermodules.OWMClient._SESSION.get",
             return_value=_make_response(200, body),
         ):
             assert client.get_forecast_data() is None

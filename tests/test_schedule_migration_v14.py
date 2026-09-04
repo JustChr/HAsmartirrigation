@@ -12,8 +12,8 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
-from custom_components.smart_irrigation.store import (
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.store import (
     STORAGE_VERSION,
     MigratableStore,
     _migrate_schedule_to_v14,

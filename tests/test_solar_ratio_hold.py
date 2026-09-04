@@ -27,17 +27,17 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.et_estimate import eto_hourly_series
-from custom_components.smart_irrigation.et_hourly import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.et_estimate import eto_hourly_series
+from custom_components.irrigation_plus.et_hourly import (
     atm_pressure,
     clear_sky_radiation_hourly_eq36,
     extraterrestrial_radiation_hourly,
     solar_elevation_sin,
     svp_from_t,
 )
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
-from custom_components.smart_irrigation.weather_aggregate import build_hourly_rows
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
+from custom_components.irrigation_plus.weather_aggregate import build_hourly_rows
 
 T0 = datetime.datetime(2026, 5, 22, 0, 0, 0)
 LAT, LON, ELEV = 39.68987, -84.07865, 311.0

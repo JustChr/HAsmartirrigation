@@ -15,7 +15,7 @@ from unittest.mock import Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 def _make_coordinator(module_record):
@@ -187,7 +187,7 @@ def test_invalidation_is_wired_to_config_updated():
     """
     import inspect
 
-    from custom_components.smart_irrigation import CalculationMixin
+    from custom_components.irrigation_plus import CalculationMixin
 
     source = inspect.getsource(SmartIrrigationCoordinator.__init__)
     assert "invalidate_module_instances" in source

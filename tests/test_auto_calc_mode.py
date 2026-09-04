@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import homeassistant.util.dt as dt_util
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.auto_calc import AutoCalcMixin
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.auto_calc import AutoCalcMixin
 
 
 class _Host(AutoCalcMixin):
@@ -72,7 +72,7 @@ class TestFixedTimeReArm:
     @staticmethod
     async def _run(host, data):
         with patch(
-            "custom_components.smart_irrigation.async_track_time_change"
+            "custom_components.irrigation_plus.async_track_time_change"
         ) as track:
             await SmartIrrigationCoordinator.set_up_auto_calc_time(host, data)
         return track
@@ -163,7 +163,7 @@ class TestReArmGating:
     @classmethod
     async def _save(cls, data):
         host = cls._host()
-        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+        with patch("custom_components.irrigation_plus.async_dispatcher_send"):
             await SmartIrrigationCoordinator.async_update_config(host, data)
         return host
 
@@ -321,7 +321,7 @@ class TestTheScheduleActuallyCommitsBeforeItRuns:
 
     @staticmethod
     def _manager(hass, skip=False):
-        from custom_components.smart_irrigation.scheduler import (
+        from custom_components.irrigation_plus.scheduler import (
             RecurringScheduleManager,
         )
 

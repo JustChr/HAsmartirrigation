@@ -13,8 +13,8 @@ import attr
 import homeassistant.util.dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.store import Config
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.store import Config
 
 
 def test_config_defaults_log_no_demand_off():
@@ -55,7 +55,7 @@ def _cfg(**over):
 
 def _coord(monkeypatch, zones=None, config=None, units=METRIC_SYSTEM):
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send", Mock()
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send", Mock()
     )
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()

@@ -129,7 +129,7 @@ This integration is not in the default HACS store. Install it as a **custom repo
 
 ### Manual installation
 
-Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a zip, extract the `custom_components/smart_irrigation` folder into your Home Assistant `custom_components` directory, then restart.
+Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a zip, extract the `custom_components/irrigation_plus` folder into your Home Assistant `custom_components` directory, then restart.
 
 ## Documentation
 
@@ -161,10 +161,10 @@ make format         # auto-format Python and TypeScript
 
 ### Frontend
 
-The frontend is a TypeScript / Lit bundle. After editing files in `custom_components/smart_irrigation/frontend/src/`:
+The frontend is a TypeScript / Lit bundle. After editing files in `custom_components/irrigation_plus/frontend/src/`:
 
 ```bash
-cd custom_components/smart_irrigation/frontend
+cd custom_components/irrigation_plus/frontend
 npm run build
 ```
 

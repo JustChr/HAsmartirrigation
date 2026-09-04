@@ -19,13 +19,13 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import (
+from custom_components.irrigation_plus import (
     SmartIrrigationCoordinator,
     const,
     opensprinkler,
 )
-from custom_components.smart_irrigation.run_window import ZoneRun
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.run_window import ZoneRun
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
 
 UTC = datetime.timezone.utc
 
@@ -228,7 +228,7 @@ def _run(zone_id, duration, ratio=2.0):
 
 async def _arm(mgr, target, floor=None):
     with patch(
-        "custom_components.smart_irrigation.scheduler.async_track_point_in_utc_time"
+        "custom_components.irrigation_plus.scheduler.async_track_point_in_utc_time"
     ):
         await mgr._decide_and_arm(_schedule(), target, floor, commit=False)
 

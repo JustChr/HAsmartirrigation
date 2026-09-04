@@ -125,7 +125,9 @@ async def _migrate_duration_unique_ids(hass: HomeAssistant, entry, store) -> Non
     """
     from homeassistant.util import slugify
 
-    legacy_prefix = f"{PLATFORM}.{const.DOMAIN}_"  # "sensor.smart_irrigation_"
+    # LEGACY_DOMAIN, not DOMAIN: this prefix describes ids written by old
+    # installs and does not move with the #120 rename.
+    legacy_prefix = f"{PLATFORM}.{const.LEGACY_DOMAIN}_"  # "sensor.smart_irrigation_"
     try:
         zone_ids = list(getattr(store, "zones", None) or [])
     except TypeError:  # store not fully initialized (e.g. mocked) — nothing to migrate

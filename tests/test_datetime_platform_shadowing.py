@@ -1,13 +1,13 @@
 """Regression: the ``datetime`` platform submodule must not shadow the stdlib.
 
-The integration ships ``custom_components/smart_irrigation/datetime.py`` (the
+The integration ships ``custom_components/irrigation_plus/datetime.py`` (the
 rain-delay ``DateTimeEntity`` platform). A package submodule named ``datetime``
 is bound as the ``datetime`` attribute of the *parent package* when imported —
 and the parent package's attribute namespace IS ``__init__.py``'s globals. So a
 global in ``__init__.py`` literally named ``datetime`` got clobbered by the
 submodule the moment Home Assistant set up the ``datetime`` platform, turning
 every ``datetime.now()`` in ``_async_update_all`` into
-``AttributeError: module '...smart_irrigation.datetime' has no attribute 'now'``
+``AttributeError: module '...irrigation_plus.datetime' has no attribute 'now'``
 — a hard 500 on every weather update (and silent failure of the auto-update
 timer). Fixed by importing the stdlib class under the alias ``dt_datetime``.
 
@@ -24,7 +24,7 @@ from pathlib import Path
 INIT = (
     Path(__file__).resolve().parent.parent
     / "custom_components"
-    / "smart_irrigation"
+    / "irrigation_plus"
     / "__init__.py"
 )
 

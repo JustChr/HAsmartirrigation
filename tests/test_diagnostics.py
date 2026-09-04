@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from custom_components.smart_irrigation.const import (
+from custom_components.irrigation_plus.const import (
     CONF_WEATHER_SERVICE_API_KEY,
     DOMAIN,
 )
-from custom_components.smart_irrigation.diagnostics import (
+from custom_components.irrigation_plus.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 

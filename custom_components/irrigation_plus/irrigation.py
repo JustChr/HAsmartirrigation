@@ -1213,7 +1213,7 @@ class IrrigationRunnerMixin:
         samples = samples[-const.FLOW_CAL_MAX_SAMPLES :]
         advised = bool(zone.get(const.ZONE_FLOW_CAL_ADVISED))
         changes = {const.ZONE_FLOW_CAL_SAMPLES: samples}
-        notif_id = f"smart_irrigation_flow_cal_{zone_id}"
+        notif_id = f"{const.DOMAIN}_flow_cal_{zone_id}"
         try:
             if len(samples) >= const.FLOW_CAL_MIN_SAMPLES:
                 mean_obs = sum(samples) / len(samples)
@@ -1269,7 +1269,7 @@ class IrrigationRunnerMixin:
                     link_label = await localize("flow_calibration.open_settings", lang)
                     message = (
                         f"{body}\n\n[{link_label}]"
-                        f"(/smart_irrigation/setup/zones/zone/{zone_id})"
+                        f"(/{const.DOMAIN}/setup/zones/zone/{zone_id})"
                     )
                     await self.hass.services.async_call(
                         "persistent_notification",

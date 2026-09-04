@@ -10,9 +10,9 @@ tail of a run the planner said would fit.
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.duration_math import calibrated_flow_seconds
-from custom_components.smart_irrigation.run_window import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.duration_math import calibrated_flow_seconds
+from custom_components.irrigation_plus.run_window import (
     TRACK_BATCH,
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,

@@ -123,10 +123,10 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   throw "node not found on PATH and no nvm install located - install Node (v22) or run 'nvm use 22' first."
 }
 
-$ConstPath    = "custom_components/smart_irrigation/const.py"
-$ManifestPath = "custom_components/smart_irrigation/manifest.json"
-$PkgPath      = "custom_components/smart_irrigation/frontend/package.json"
-$FrontendDir  = "custom_components/smart_irrigation/frontend"
+$ConstPath    = "custom_components/irrigation_plus/const.py"
+$ManifestPath = "custom_components/irrigation_plus/manifest.json"
+$PkgPath      = "custom_components/irrigation_plus/frontend/package.json"
+$FrontendDir  = "custom_components/irrigation_plus/frontend"
 $DistRel      = "dist/smart-irrigation.js"
 $DistPath     = "$FrontendDir/$DistRel"
 $CardRel      = "dist/smart-irrigation-card.js"
@@ -209,15 +209,15 @@ else { Invoke-Checked { git push -u origin $Ref } }
 Invoke-Checked { git push origin $Version }
 
 # --- build the HACS install zip and attach it AT release creation ---------
-# Deterministic + atomic: the smart_irrigation.zip asset exists the moment the
+# Deterministic + atomic: the irrigation_plus.zip asset exists the moment the
 # release is published, instead of relying on the post-publish release-zip
 # workflow (which fails when no hosted runner is free). `git archive` of the tag
 # is exactly the tracked integration tree HACS would otherwise fetch as source
 # (no __pycache__/.pyc/node_modules), with the integration files at the zip root.
-$ZipPath = Join-Path ([System.IO.Path]::GetTempPath()) "smart_irrigation.zip"
-Invoke-Checked { git archive --format=zip -o $ZipPath "${Version}:custom_components/smart_irrigation" }
-if ((Get-Item $ZipPath).Length -lt 1024) { throw "Built smart_irrigation.zip looks too small - aborting before release." }
-Write-Host "Built smart_irrigation.zip from the $Version tree ($([int]((Get-Item $ZipPath).Length/1024)) KB)"
+$ZipPath = Join-Path ([System.IO.Path]::GetTempPath()) "irrigation_plus.zip"
+Invoke-Checked { git archive --format=zip -o $ZipPath "${Version}:custom_components/irrigation_plus" }
+if ((Get-Item $ZipPath).Length -lt 1024) { throw "Built irrigation_plus.zip looks too small - aborting before release." }
+Write-Host "Built irrigation_plus.zip from the $Version tree ($([int]((Get-Item $ZipPath).Length/1024)) KB)"
 
 $ghArgs = @($Version, $ZipPath, "--title", $Version)
 if ($Notes) { $ghArgs += @("--notes", $Notes) } else { $ghArgs += "--generate-notes" }

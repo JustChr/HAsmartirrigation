@@ -8,7 +8,7 @@ ETo for N'Diaye (16°13'N, 16°15'W, GMT) on 1 October:
 
 import math
 
-from custom_components.smart_irrigation.et_hourly import (
+from custom_components.irrigation_plus.et_hourly import (
     eto_hourly,
     extraterrestrial_radiation_hourly,
     net_radiation_hourly,

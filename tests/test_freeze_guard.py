@@ -7,8 +7,8 @@ with ``__new__`` so only the attributes ``_eval_freeze`` touches are wired up.
 
 from unittest.mock import Mock
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.skip_conditions import SKIP_FREEZE
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.skip_conditions import SKIP_FREEZE
 
 
 def _make_coordinator(current=None, forecast_min=None, has_client=True):

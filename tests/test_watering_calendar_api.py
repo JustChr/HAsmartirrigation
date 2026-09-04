@@ -15,8 +15,8 @@ not unit-testable here (the HTTP view covers the equivalent logic).
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from custom_components.smart_irrigation.const import DOMAIN
-from custom_components.smart_irrigation.websockets import (
+from custom_components.irrigation_plus.const import DOMAIN
+from custom_components.irrigation_plus.websockets import (
     SmartIrrigationWateringCalendarView,
 )
 

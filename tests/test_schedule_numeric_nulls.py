@@ -24,8 +24,8 @@ from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
 
 
 def _manager():
@@ -90,7 +90,7 @@ class TestANullIntervalStillArms:
             seen["interval"] = interval
             return lambda: None
 
-        import custom_components.smart_irrigation.scheduler as scheduler_module
+        import custom_components.irrigation_plus.scheduler as scheduler_module
 
         original = scheduler_module.async_track_time_interval
         scheduler_module.async_track_time_interval = _capture
@@ -114,7 +114,7 @@ class TestANullIntervalStillArms:
             seen["interval"] = interval
             return lambda: None
 
-        import custom_components.smart_irrigation.scheduler as scheduler_module
+        import custom_components.irrigation_plus.scheduler as scheduler_module
 
         original = scheduler_module.async_track_time_interval
         scheduler_module.async_track_time_interval = _capture
@@ -137,7 +137,7 @@ class TestANullIntervalStillArms:
             seen["interval"] = interval
             return lambda: None
 
-        import custom_components.smart_irrigation.scheduler as scheduler_module
+        import custom_components.irrigation_plus.scheduler as scheduler_module
 
         original = scheduler_module.async_track_time_interval
         scheduler_module.async_track_time_interval = _capture

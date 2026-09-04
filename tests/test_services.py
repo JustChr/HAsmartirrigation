@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.smart_irrigation import async_register_services, const
+from custom_components.irrigation_plus import async_register_services, const
 
 
 class TestSmartIrrigationServices:

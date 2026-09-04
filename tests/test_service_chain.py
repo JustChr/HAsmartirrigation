@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, Mock
 
 from pytest_homeassistant_custom_component.common import async_mock_service
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 PARALLEL = const.CONF_ZONE_SEQUENCING_PARALLEL
 SEQUENTIAL = const.CONF_ZONE_SEQUENCING_SEQUENTIAL

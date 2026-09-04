@@ -1,7 +1,7 @@
 # Testing requirements for Smart Irrigation project
 
 # Core component requirements
--r custom_components/smart_irrigation/requirements.txt
+-r custom_components/irrigation_plus/requirements.txt
 
 # Component-specific dependency
 aiofiles

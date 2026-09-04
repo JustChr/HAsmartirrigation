@@ -24,9 +24,9 @@ import attr
 import pytest
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
-from custom_components.smart_irrigation.store import Config
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.store import Config
 
 
 def _sched(sid="s1", name="cfg probe", time="22:00"):

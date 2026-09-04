@@ -378,7 +378,7 @@ class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
         """Return a unique ID to use for this entity.
 
         Migrated from the legacy entity-id-based id to the per-zone scheme
-        ``smart_irrigation_<zone_id>_duration`` (matches every other entity).
+        ``irrigation_plus_<zone_id>_duration`` (matches every other entity).
         The one-time registry migration in ``__init__`` rewrites existing
         installs so the entity_id and history carry over.
         """

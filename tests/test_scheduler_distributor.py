@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
 
 
 def _sched():

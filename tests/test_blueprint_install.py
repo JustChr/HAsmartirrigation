@@ -1,6 +1,6 @@
 """Bundled valve blueprints are copied into the config blueprint folder."""
 
-from custom_components.smart_irrigation.blueprint_install import (
+from custom_components.irrigation_plus.blueprint_install import (
     install_bundled_blueprints,
 )
 

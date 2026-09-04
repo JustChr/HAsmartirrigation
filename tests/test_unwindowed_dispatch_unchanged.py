@@ -18,8 +18,8 @@ from unittest.mock import Mock
 
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.run_window import rank, select
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.run_window import rank, select
 
 
 class _FakeStore:
@@ -81,7 +81,7 @@ def _zones():
 
 def _coord(monkeypatch, zones, config=None):
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send", Mock()
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send", Mock()
     )
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()

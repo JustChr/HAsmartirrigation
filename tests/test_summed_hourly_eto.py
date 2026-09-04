@@ -27,11 +27,11 @@ import homeassistant.util.dt as dt_util
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.et_estimate import eto_hourly_series
-from custom_components.smart_irrigation.et_hourly import eto_hourly
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
-from custom_components.smart_irrigation.weather_aggregate import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.et_estimate import eto_hourly_series
+from custom_components.irrigation_plus.et_hourly import eto_hourly
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
+from custom_components.irrigation_plus.weather_aggregate import (
     build_hourly_rows,
     build_substeps,
 )

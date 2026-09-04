@@ -1,6 +1,6 @@
 """Shared flow-sensor unit classification (rate vs totalizer) + total→litres."""
 
-from custom_components.smart_irrigation.flow_metering import (
+from custom_components.irrigation_plus.flow_metering import (
     flow_is_totalizer,
     flow_litres_from_total,
 )

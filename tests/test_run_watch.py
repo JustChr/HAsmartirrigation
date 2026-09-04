@@ -10,9 +10,9 @@ policy switches that keep OpenSprinkler on its original timings.
 
 from unittest.mock import Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.opensprinkler import OpenSprinklerMixin
-from custom_components.smart_irrigation.run_watch import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.opensprinkler import OpenSprinklerMixin
+from custom_components.irrigation_plus.run_watch import (
     RunWatchMixin,
     WatchPolicy,
     queue_deadline_seconds,
@@ -142,12 +142,12 @@ class TestTheResumePathDoesNotWriteOffAStationThatIsWatering:
 
     async def _arm(self, monkeypatch, run):
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.run_watch."
+            "custom_components.irrigation_plus.run_watch."
             "async_track_state_change_event",
             Mock(return_value=Mock()),
         )
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.run_watch.async_dispatcher_send", Mock()
+            "custom_components.irrigation_plus.run_watch.async_dispatcher_send", Mock()
         )
         host = self._host(run)
         # _watchers is stubbed, so the trailing evaluation finds no watcher and

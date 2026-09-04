@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, Mock
 
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 UTC = datetime.timezone.utc
 
@@ -91,7 +91,7 @@ def _rig(
 ):
     """Build a rotating coordinator over one timed zone under the live gate."""
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send", Mock()
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send", Mock()
     )
     zone = zone if zone is not None else _zone()
     clock = {"t": datetime.datetime(2026, 8, 7, 4, 0, tzinfo=UTC)}
@@ -107,7 +107,7 @@ def _rig(
         def now():
             return clock["t"]
 
-    monkeypatch.setattr("custom_components.smart_irrigation.irrigation.dt_util", _Clock)
+    monkeypatch.setattr("custom_components.irrigation_plus.irrigation.dt_util", _Clock)
 
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()
@@ -149,7 +149,7 @@ def _rig(
             state["rain_mm"] += rain_during_wait
 
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", _sleep
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", _sleep
     )
 
     coord.async_refresh_zone_estimates = _estimates

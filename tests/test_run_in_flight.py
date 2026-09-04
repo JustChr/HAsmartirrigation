@@ -21,7 +21,7 @@ import pytest
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 class _FakeStore:
@@ -79,7 +79,7 @@ def _zone(**over):
 def _coord(monkeypatch, zones=None, distributors=None, **config):
     for module in ("irrigation", "calculation"):
         monkeypatch.setattr(
-            f"custom_components.smart_irrigation.{module}.async_dispatcher_send",
+            f"custom_components.irrigation_plus.{module}.async_dispatcher_send",
             Mock(),
         )
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
@@ -140,7 +140,9 @@ def test_self_closing_record_past_its_window_does_not_count(monkeypatch):
     not run yet — not an open valve. Counting it would let one record that
     outlived its finaliser block the zone's runs forever."""
     coord = _coord(monkeypatch)
-    stale = _sc_run(planned=60, started=dt_util.utcnow() - dt_util.dt.timedelta(hours=2))
+    stale = _sc_run(
+        planned=60, started=dt_util.utcnow() - dt_util.dt.timedelta(hours=2)
+    )
     coord.store.config.active_valve_runs = [stale]
     assert coord.zone_run_in_flight(1) is False
 
@@ -236,7 +238,7 @@ async def test_classic_run_defers_the_calculation_and_runs_it_at_the_end(monkeyp
     """End to end on the path that reproduced the erasure: a calculation fired
     mid-run leaves the bucket alone, and lands after the run's final commit."""
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord = _coord(monkeypatch)
     coord._live_run_zones = set()

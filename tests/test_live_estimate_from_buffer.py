@@ -27,12 +27,12 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-import custom_components.smart_irrigation.et_estimate as ete
-import custom_components.smart_irrigation.live_estimate as le
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.et_estimate import eto_hourly_series
-from custom_components.smart_irrigation.live_estimate import LiveEstimateMixin
-from custom_components.smart_irrigation.weather_aggregate import (
+import custom_components.irrigation_plus.et_estimate as ete
+import custom_components.irrigation_plus.live_estimate as le
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.et_estimate import eto_hourly_series
+from custom_components.irrigation_plus.live_estimate import LiveEstimateMixin
+from custom_components.irrigation_plus.weather_aggregate import (
     aggregate_window,
     build_hourly_rows,
 )

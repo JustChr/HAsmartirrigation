@@ -6,10 +6,18 @@ class SmartIrrigationError(Exception):
 
 
 VERSION = "v2026.09.05"
-NAME = "Smart Irrigation"
+NAME = "Irrigation Plus"
 MANUFACTURER = "@JustChr"
 
-DOMAIN = "smart_irrigation"
+DOMAIN = "irrigation_plus"
+
+# The identity this integration shipped under until the #120 rename. These are
+# HISTORICAL FACTS about existing installs, not aliases of DOMAIN/NAME — they
+# must never be derived from them. Used by the storage-key migration, the
+# leftover-directory Repair, the legacy Lovelace card alias, and the legacy
+# duration unique_id migration below.
+LEGACY_DOMAIN = "smart_irrigation"
+LEGACY_NAME = "Smart Irrigation"
 CUSTOM_COMPONENTS = "custom_components"
 
 LANGUAGE_FILES_DIR = "frontend/localize/languages"

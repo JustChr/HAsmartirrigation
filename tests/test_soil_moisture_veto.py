@@ -4,15 +4,15 @@ from unittest.mock import AsyncMock, Mock
 
 import attr
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.store import (
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.store import (
     SmartIrrigationStorage,
     ZoneEntry,
     async_get_registry,
 )
 
-
 # --- Task 1: storage -------------------------------------------------------
+
 
 def test_zone_entry_has_soil_moisture_fields():
     z = ZoneEntry()
@@ -58,6 +58,7 @@ async def test_soil_moisture_fields_survive_reload(hass):
 
 
 # --- Task 2: veto evaluation ----------------------------------------------
+
 
 def _coord():
     c = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
@@ -256,6 +257,7 @@ async def test_previously_recorded_skip_cleared_on_dry_run():
 
 
 # --- Task 3: outlook exposure ---------------------------------------------
+
 
 async def test_outlook_includes_zone_skips():
     c = _coord()

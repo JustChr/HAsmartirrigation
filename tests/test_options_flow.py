@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.smart_irrigation.options_flow import (
+from custom_components.irrigation_plus.options_flow import (
     SmartIrrigationOptionsFlowHandler,
 )
 from tests.common import MockConfigEntry

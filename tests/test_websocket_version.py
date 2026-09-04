@@ -10,8 +10,8 @@ never drifts from the built frontend bundle. This exercises
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.websockets import websocket_get_config
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.websockets import websocket_get_config
 
 
 async def test_get_config_payload_includes_version():

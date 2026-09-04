@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.continuous_update import SENSOR_DEADBAND
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.continuous_update import SENSOR_DEADBAND
 
 from .test_continuous_update import _coord, _drain, _event, _FakeStore, _mapping
 
@@ -25,18 +25,18 @@ _TEMP_DEADBAND = SENSOR_DEADBAND[const.MAPPING_TEMPERATURE]
 def _stub_hass_helpers(monkeypatch):
     """Same stubs test_continuous_update uses; autouse fixtures are per-module."""
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.continuous_update."
+        "custom_components.irrigation_plus.continuous_update."
         "async_track_state_change_event",
         Mock(return_value=Mock()),
     )
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.continuous_update.async_call_later",
+        "custom_components.irrigation_plus.continuous_update.async_call_later",
         Mock(side_effect=lambda *_args, **_kw: Mock()),
     )
     for module in (
-        "custom_components.smart_irrigation.continuous_update",
-        "custom_components.smart_irrigation",
-        "custom_components.smart_irrigation.calculation",
+        "custom_components.irrigation_plus.continuous_update",
+        "custom_components.irrigation_plus",
+        "custom_components.irrigation_plus.calculation",
     ):
         monkeypatch.setattr(f"{module}.async_dispatcher_send", Mock())
 

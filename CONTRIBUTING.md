@@ -26,14 +26,14 @@
 
 ```bash
 pytest tests/ -v
-pytest custom_components/smart_irrigation/tests/ -v
+pytest custom_components/irrigation_plus/tests/ -v
 ```
 
 ### Code Quality
 
 ```bash
-black custom_components/smart_irrigation/          # Format
-ruff check custom_components/smart_irrigation/     # Lint
+black custom_components/irrigation_plus/          # Format
+ruff check custom_components/irrigation_plus/     # Lint
 ```
 
 ### Bumping the Version
@@ -48,7 +48,7 @@ Rebuild the frontend afterwards to apply.
 ## Project Structure
 
 ```
-custom_components/smart_irrigation/   Main component code
+custom_components/irrigation_plus/   Main component code
 tests/                                Unit tests (run with coverage in CI)
 custom_components/.../tests/          Integration tests (run in CI)
 automations/                          Example HA automation YAML files

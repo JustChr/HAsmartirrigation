@@ -55,7 +55,7 @@ _LOGGER = logging.getLogger(__name__)
 #   weather_records, weather_forecast, watering_calendar, schedules,
 #   schedule_nominal_demand (reads)
 #
-# NB the HTTP views below (POST /api/smart_irrigation/...) are a separate
+# NB the HTTP views below (POST /api/irrigation_plus/...) are a separate
 # surface and are NOT covered by this; they still only require authentication.
 
 

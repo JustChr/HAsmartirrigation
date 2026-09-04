@@ -1,6 +1,6 @@
 """Test Smart Irrigation helper functions to improve coverage."""
 
-from custom_components.smart_irrigation.helpers import (
+from custom_components.irrigation_plus.helpers import (
     CannotConnect,
     InvalidAuth,
     check_time,

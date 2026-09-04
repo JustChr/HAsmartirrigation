@@ -8,8 +8,8 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.config_flow import CannotConnect, InvalidAuth
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.config_flow import CannotConnect, InvalidAuth
 from tests.common import MockConfigEntry
 
 # Quarantined during the test-tree consolidation (refactor plan A6). These tests
@@ -117,7 +117,7 @@ class TestSmartIrrigationConfigFlow:
         assert result2["type"] is FlowResultType.FORM
         assert result2["step_id"] == "step1"
 
-    @patch("custom_components.smart_irrigation.helpers.validate_api_key")
+    @patch("custom_components.irrigation_plus.helpers.validate_api_key")
     async def test_weather_service_step_owm(
         self, mock_test_api: AsyncMock, hass: HomeAssistant
     ) -> None:
@@ -152,7 +152,7 @@ class TestSmartIrrigationConfigFlow:
         assert result3["data"] == expected_data
         mock_test_api.assert_called_once()
 
-    @patch("custom_components.smart_irrigation.helpers.validate_api_key")
+    @patch("custom_components.irrigation_plus.helpers.validate_api_key")
     async def test_weather_service_invalid_api_key(
         self, mock_test_api: AsyncMock, hass: HomeAssistant
     ) -> None:
@@ -184,7 +184,7 @@ class TestSmartIrrigationConfigFlow:
         assert result3["type"] is FlowResultType.FORM
         assert result3["errors"]["base"] == "auth"
 
-    @patch("custom_components.smart_irrigation.helpers.validate_api_key")
+    @patch("custom_components.irrigation_plus.helpers.validate_api_key")
     async def test_weather_service_connection_error(
         self, mock_test_api: AsyncMock, hass: HomeAssistant
     ) -> None:
@@ -216,7 +216,7 @@ class TestSmartIrrigationConfigFlow:
         assert result3["type"] is FlowResultType.FORM
         assert result3["errors"]["base"] == "auth"
 
-    @patch("custom_components.smart_irrigation.async_setup_entry", return_value=True)
+    @patch("custom_components.irrigation_plus.async_setup_entry", return_value=True)
     async def test_options_flow(
         self, mock_setup_entry: AsyncMock, hass: HomeAssistant
     ) -> None:

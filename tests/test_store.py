@@ -7,8 +7,8 @@ go through async_schedule_save(). The old tests patched the wrong class and used
 async_add_/async_remove_ with string ids.
 """
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.store import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.store import (
     SmartIrrigationStorage,
     async_get_registry,
 )
@@ -67,7 +67,7 @@ class TestSmartIrrigationStore:
 
     async def test_migration_keeps_continuous_update_keys(self, hass) -> None:
         """An altmenorg-era stored value survives the config allowlist strip."""
-        from custom_components.smart_irrigation.store import MigratableStore
+        from custom_components.irrigation_plus.store import MigratableStore
 
         store = MigratableStore(hass, 11, "test.storage")
         migrated = await store._async_migrate_func(
@@ -99,7 +99,7 @@ class TestSmartIrrigationStore:
 
     async def test_migration_defaults_hourly_calculation_off(self, hass) -> None:
         """A stored config predating the key gains it rather than losing it."""
-        from custom_components.smart_irrigation.store import MigratableStore
+        from custom_components.irrigation_plus.store import MigratableStore
 
         store = MigratableStore(hass, 11, "test.storage")
         migrated = await store._async_migrate_func(
@@ -109,7 +109,7 @@ class TestSmartIrrigationStore:
 
     async def test_migration_keeps_a_stored_hourly_calculation(self, hass) -> None:
         """And an install that turned it on keeps it across the allowlist strip."""
-        from custom_components.smart_irrigation.store import MigratableStore
+        from custom_components.irrigation_plus.store import MigratableStore
 
         store = MigratableStore(hass, 11, "test.storage")
         migrated = await store._async_migrate_func(

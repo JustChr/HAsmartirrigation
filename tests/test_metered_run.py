@@ -19,8 +19,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.irrigation import SI_VALVE_SUPPRESS_MARGIN
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.irrigation import SI_VALVE_SUPPRESS_MARGIN
 
 
 class _FakeStore:
@@ -47,10 +47,10 @@ class _FakeStore:
 
 def _coord(monkeypatch, zones, *, units=METRIC_SYSTEM, flow_rate=None, confirm=True):
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send", Mock()
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send", Mock()
     )
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()

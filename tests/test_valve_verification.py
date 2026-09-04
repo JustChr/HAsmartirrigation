@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 def _runner(monkeypatch, states, *, confirm_timeout=0):
@@ -28,7 +28,7 @@ def _runner(monkeypatch, states, *, confirm_timeout=0):
     """
     monkeypatch.setattr(const, "VALVE_CONFIRM_TIMEOUT", confirm_timeout)
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send", Mock()
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send", Mock()
     )
 
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
@@ -94,7 +94,7 @@ async def test_confirm_retries_open_then_confirms(monkeypatch):
     """A valve still off at the retry mark gets the open re-sent once; if it then
     reports on it is confirmed True."""
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     monkeypatch.setattr(const, "VALVE_CONFIRM_RETRY_AT", 2)
     state = _st("off")
@@ -147,7 +147,7 @@ async def test_sequential_unconfirmed_valve_still_waters(monkeypatch):
     """Valve never reports on -> the run is NOT aborted: it proceeds, credits the
     bucket and raises no fault (the valve may be open but slow to report)."""
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord = _runner(monkeypatch, {"switch.v": _st("off")})
 
@@ -171,7 +171,7 @@ async def test_sequential_unconfirmed_valve_still_waters(monkeypatch):
 async def test_sequential_success_resets_bucket_and_clears_fault(monkeypatch):
     """Valve confirms on -> bucket replenished, fault cleared."""
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord = _runner(monkeypatch, {"switch.v": _st("on")})
     coord._set_zone_fault(1, const.FAULT_VALVE_NO_RESPONSE)  # pre-existing fault
@@ -228,7 +228,7 @@ async def test_flow_never_started_faults_and_skips_credit(monkeypatch):
     # per-step increment seam is retired); a rate sensor stuck at 0 L/min delivers nothing.
     coord = _runner(monkeypatch, {"sensor.flow": _st("0")})
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord._live_run_zones = set()
 
@@ -245,7 +245,7 @@ async def test_flow_delivered_credits_bucket_and_clears_fault(monkeypatch):
     # at 12 L/min over the 150 s safety window integrates to 30 L (a partial run).
     coord = _runner(monkeypatch, {"sensor.flow": _st("12")})
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord._set_zone_fault(2, const.FAULT_FLOW_NEVER_STARTED)
     coord._live_run_zones = set()

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.smart_irrigation.const import (
+from custom_components.irrigation_plus.const import (
     CARD_URL,
     DOMAIN,
     FULL_CARD_URL,
@@ -15,7 +15,7 @@ from custom_components.smart_irrigation.const import (
     PANEL_TITLE,
     PANEL_URL,
 )
-from custom_components.smart_irrigation.panel import async_register_panel, remove_panel
+from custom_components.irrigation_plus.panel import async_register_panel, remove_panel
 
 
 class TestSmartIrrigationPanel:
@@ -37,10 +37,10 @@ class TestSmartIrrigationPanel:
         """Test panel registration."""
         with (
             patch(
-                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+                "custom_components.irrigation_plus.panel.panel_custom.async_register_panel"
             ) as mock_register,
             patch(
-                "custom_components.smart_irrigation.panel.frontend.add_extra_js_url"
+                "custom_components.irrigation_plus.panel.frontend.add_extra_js_url"
             ) as mock_extra_js,
         ):
             await async_register_panel(mock_hass)
@@ -98,10 +98,10 @@ class TestSmartIrrigationPanel:
 
         with (
             patch(
-                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+                "custom_components.irrigation_plus.panel.panel_custom.async_register_panel"
             ),
             patch(
-                "custom_components.smart_irrigation.panel.frontend.add_extra_js_url"
+                "custom_components.irrigation_plus.panel.frontend.add_extra_js_url"
             ) as mock_extra_js,
         ):
             await async_register_panel(mock_hass)
@@ -118,9 +118,9 @@ class TestSmartIrrigationPanel:
         """Test panel static paths: panel bundle, card stub, card impl, langs."""
         with (
             patch(
-                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+                "custom_components.irrigation_plus.panel.panel_custom.async_register_panel"
             ),
-            patch("custom_components.smart_irrigation.panel.frontend.add_extra_js_url"),
+            patch("custom_components.irrigation_plus.panel.frontend.add_extra_js_url"),
         ):
             await async_register_panel(mock_hass)
 
@@ -144,7 +144,7 @@ class TestSmartIrrigationPanel:
     def test_remove_panel(self, mock_hass):
         """Test panel removal."""
         with patch(
-            "custom_components.smart_irrigation.panel.frontend.async_remove_panel"
+            "custom_components.irrigation_plus.panel.frontend.async_remove_panel"
         ) as mock_remove:
             remove_panel(mock_hass)
 
@@ -156,9 +156,9 @@ class TestSmartIrrigationPanel:
 
         with (
             patch(
-                "custom_components.smart_irrigation.panel.panel_custom.async_register_panel"
+                "custom_components.irrigation_plus.panel.panel_custom.async_register_panel"
             ),
-            patch("custom_components.smart_irrigation.panel.frontend.add_extra_js_url"),
+            patch("custom_components.irrigation_plus.panel.frontend.add_extra_js_url"),
         ):
             await async_register_panel(mock_hass)
 

@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.services import ServiceHandlersMixin
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.services import ServiceHandlersMixin
 
 
 def _make_coordinator():
@@ -126,7 +126,7 @@ async def test_handle_run_zone_resolves_zone_id_attribute():
 
 async def test_handle_run_zone_non_zone_entity_raises():
     """An entity with neither id nor zone_id is rejected, not silently run."""
-    from custom_components.smart_irrigation.services import SmartIrrigationError
+    from custom_components.irrigation_plus.services import SmartIrrigationError
 
     coord = _make_coordinator()
     coord.async_run_zone = AsyncMock()
@@ -179,7 +179,7 @@ async def test_handle_stop_zone_resolves_zone_id_attribute():
 
 async def test_handle_stop_zone_non_zone_entity_raises():
     """An entity with neither id nor zone_id is rejected, not silently stopped."""
-    from custom_components.smart_irrigation.services import SmartIrrigationError
+    from custom_components.irrigation_plus.services import SmartIrrigationError
 
     coord = _make_coordinator()
     coord.async_stop_zone = AsyncMock()
@@ -241,7 +241,7 @@ async def test_handle_set_zone_accepts_valid_state(monkeypatch):
     """A valid zone state (automatic) is persisted, not rejected (review finding I)."""
     coord = _make_set_zone_coordinator()
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.services.async_dispatcher_send",
+        "custom_components.irrigation_plus.services.async_dispatcher_send",
         MagicMock(),
     )
 
@@ -266,7 +266,7 @@ async def test_handle_set_zone_rejects_invalid_state():
     persisted (``"foobar" in "state"`` is False, so no raise). The fix tests
     membership against the ``const.ZONE_STATES`` list instead.
     """
-    from custom_components.smart_irrigation.services import SmartIrrigationError
+    from custom_components.irrigation_plus.services import SmartIrrigationError
 
     coord = _make_set_zone_coordinator()
 

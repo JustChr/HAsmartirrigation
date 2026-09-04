@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, Mock
 import attr
 import pytest
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.store import ZoneEntry
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.store import ZoneEntry
 
 
 def test_zone_observed_entity_defaults_none():
@@ -24,7 +24,7 @@ def _stub_state_tracker(monkeypatch):
     # hass, so stub the tracker to a no-op returning a Mock unsub — this exercises
     # the entity_map build (the code under test) without standing up HA core.
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.observed_watering."
+        "custom_components.irrigation_plus.observed_watering."
         "async_track_state_change_event",
         Mock(return_value=Mock()),
     )
@@ -37,7 +37,7 @@ def _stub_track_time_interval(monkeypatch):
     # sampling deterministically through the _observed_sample_flow seam instead of
     # the timer. A test that needs to inspect the cancel handles overrides this.
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.observed_watering."
+        "custom_components.irrigation_plus.observed_watering."
         "async_track_time_interval",
         Mock(return_value=Mock()),
         raising=False,
@@ -51,7 +51,7 @@ def _stub_dispatcher(monkeypatch):
     # crediting tests can run against the Mock coordinator (mirrors the
     # test_experimental_features observer setup).
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.observed_watering.async_dispatcher_send",
+        "custom_components.irrigation_plus.observed_watering.async_dispatcher_send",
         Mock(),
     )
 
@@ -128,7 +128,7 @@ def test_capped_seconds_falls_back_when_no_maximum_duration():
 
 def _credit_coord(zone):
     """Coordinator stub able to run _credit_observed_watering end to end."""
-    import custom_components.smart_irrigation.observed_watering as ow
+    import custom_components.irrigation_plus.observed_watering as ow
 
     coord = _obs_coord([])
     coord.store.get_zone = Mock(return_value=zone)
@@ -483,7 +483,7 @@ async def test_reopen_cancels_prior_sampler(monkeypatch):
     coord = _sampler_coord(zone)
     cancels = []
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.observed_watering.async_track_time_interval",
+        "custom_components.irrigation_plus.observed_watering.async_track_time_interval",
         lambda *a, **k: (cancels.append(Mock()) or cancels[-1]),
     )
     coord._observed_start_flow_sampling(zone)

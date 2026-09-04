@@ -23,12 +23,12 @@ from unittest.mock import Mock
 import pytest
 from homeassistant.util import dt as dt_util
 
-from custom_components.smart_irrigation import (
+from custom_components.irrigation_plus import (
     SmartIrrigationCoordinator,
     async_setup_entry,
     const,
 )
-from custom_components.smart_irrigation.helpers import (
+from custom_components.irrigation_plus.helpers import (
     calculate_solar_azimuth,
     corrected_azimuth_bearing,
     find_next_solar_azimuth_time,

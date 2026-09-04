@@ -21,9 +21,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.calculation import pending_bucket_events
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.calculation import pending_bucket_events
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
 
 T0 = datetime.datetime(2026, 5, 22, 0, 0, 0)
 MAXIMUM_BUCKET = 25.4

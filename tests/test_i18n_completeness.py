@@ -29,7 +29,7 @@ from pathlib import Path
 import pytest
 
 _PLACEHOLDER = re.compile(r"\{[^}]*\}")
-_ROOT = Path(__file__).resolve().parents[1] / "custom_components" / "smart_irrigation"
+_ROOT = Path(__file__).resolve().parents[1] / "custom_components" / "irrigation_plus"
 _CATALOGUES = {
     "backend": _ROOT / "translations",
     "panel": _ROOT / "frontend" / "localize" / "languages",
@@ -95,7 +95,7 @@ class TestTheCopyHeuristicIsCalibrated:
         assert _prose_words("notify.mobile_app_phone") == []
 
     def test_an_entity_id_is_not_prose(self):
-        assert _prose_words("sensor.smart_irrigation_front_lawn") == []
+        assert _prose_words("sensor.irrigation_plus_front_lawn") == []
 
     def test_a_real_untranslated_sentence_is_caught(self):
         text = (

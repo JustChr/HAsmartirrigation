@@ -77,7 +77,7 @@ def mock_entry():
     """Return a mock config entry."""
     from homeassistant.const import CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE
 
-    from custom_components.smart_irrigation import const
+    from custom_components.irrigation_plus import const
     from tests.common import MockConfigEntry
 
     return MockConfigEntry(
@@ -98,7 +98,7 @@ def mock_entry():
 @pytest.fixture
 def mock_store():
     """Return a mock store."""
-    from custom_components.smart_irrigation import const
+    from custom_components.irrigation_plus import const
 
     store = Mock()
     store.async_get_config = AsyncMock(return_value={})
@@ -161,7 +161,7 @@ def mock_coordinator(mock_store):
 
 
 # ---------------------------------------------------------------------------
-# Fixtures merged from the former custom_components/smart_irrigation/tests
+# Fixtures merged from the former custom_components/irrigation_plus/tests
 # conftest during the test-tree consolidation. Imports are kept lazy (inside
 # the fixtures) so that importing this conftest never requires the
 # pytest-homeassistant-custom-component plugin at collection time — that keeps
@@ -183,7 +183,7 @@ def snapshot(snapshot):
 def mock_setup_entry():
     """Override async_setup_entry."""
     with patch(
-        "custom_components.smart_irrigation.async_setup_entry", return_value=True
+        "custom_components.irrigation_plus.async_setup_entry", return_value=True
     ) as mock_setup_entry:
         yield mock_setup_entry
 
@@ -193,7 +193,7 @@ def mock_config_entry():
     """Return a mock config entry."""
     from homeassistant.const import CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE
 
-    from custom_components.smart_irrigation import const
+    from custom_components.irrigation_plus import const
     from tests.common import MockConfigEntry
 
     return MockConfigEntry(
@@ -216,7 +216,7 @@ def mock_config_entry_with_weather():
     """Return a mock config entry with weather service enabled."""
     from homeassistant.const import CONF_ELEVATION, CONF_LATITUDE, CONF_LONGITUDE
 
-    from custom_components.smart_irrigation import const
+    from custom_components.irrigation_plus import const
     from tests.common import MockConfigEntry
 
     return MockConfigEntry(

@@ -14,8 +14,8 @@ from unittest.mock import Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
 
 
 class _FakeStore:
@@ -40,7 +40,7 @@ class _FakeStore:
 
 def _coord(monkeypatch, zones=None, units=METRIC_SYSTEM):
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send", Mock()
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send", Mock()
     )
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()
@@ -159,7 +159,7 @@ async def test_sequential_completed_run_records_history(monkeypatch):
 
     monkeypatch.setattr(const, "VALVE_CONFIRM_TIMEOUT", 0)
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
     coord = _coord(monkeypatch)
     coord.hass.services.async_call = AsyncMock()
@@ -290,7 +290,7 @@ def _async_returning(value):
 # --------------------------------------------------------------------------- #
 def _last_water_sensor(entry):
     """Build the sensor without running __init__ and set its cached entry."""
-    from custom_components.smart_irrigation.sensor import (
+    from custom_components.irrigation_plus.sensor import (
         SmartIrrigationZoneLastWaterUsageSensor,
     )
 
@@ -305,7 +305,7 @@ def _last_water_sensor(entry):
 
 def test_last_water_picks_newest_delivering_entry():
     """The newest run-log entry with volume > 0 wins (log is newest-first)."""
-    from custom_components.smart_irrigation.sensor import (
+    from custom_components.irrigation_plus.sensor import (
         SmartIrrigationZoneLastWaterUsageSensor as S,
     )
 
@@ -323,7 +323,7 @@ def test_last_water_picks_newest_delivering_entry():
 
 def test_last_water_none_when_no_delivery():
     """Empty log or only zero-volume rows yield None (never watered)."""
-    from custom_components.smart_irrigation.sensor import (
+    from custom_components.irrigation_plus.sensor import (
         SmartIrrigationZoneLastWaterUsageSensor as S,
     )
 

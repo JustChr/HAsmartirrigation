@@ -2,8 +2,8 @@
 
 import datetime
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.weather_aggregate import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.weather_aggregate import (
     aggregate_window,
     select_window,
 )

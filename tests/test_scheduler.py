@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock, MagicMock, create_autospec
 import homeassistant.util.dt as dt_util
 import pytest
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
 
 # Reuse the __new__-built coordinator fixture from the rain-delay suite to
 # exercise the real _irrigate_linked_entities bool contract without re-wiring a

@@ -6,12 +6,12 @@ method accidentally dropped during a relocation is caught — important for the
 irrigation runner (C2), which has no behavioral coverage yet.
 """
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator
-from custom_components.smart_irrigation.calculation import CalculationMixin
-from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
-from custom_components.smart_irrigation.services import ServiceHandlersMixin
-from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
-from custom_components.smart_irrigation.watering_calendar import WateringCalendarMixin
+from custom_components.irrigation_plus import SmartIrrigationCoordinator
+from custom_components.irrigation_plus.calculation import CalculationMixin
+from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
+from custom_components.irrigation_plus.services import ServiceHandlersMixin
+from custom_components.irrigation_plus.skip_conditions import SkipConditionsMixin
+from custom_components.irrigation_plus.watering_calendar import WateringCalendarMixin
 
 
 def test_coordinator_is_plain_not_dataupdatecoordinator():

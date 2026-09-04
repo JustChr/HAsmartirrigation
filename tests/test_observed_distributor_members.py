@@ -5,11 +5,11 @@ tests (mixin composite + Mock hass/store)."""
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.distributor import DistributorMixin
-from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
-from custom_components.smart_irrigation.master import MasterMixin
-from custom_components.smart_irrigation.skip_conditions import SkipConditionsMixin
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.distributor import DistributorMixin
+from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
+from custom_components.irrigation_plus.master import MasterMixin
+from custom_components.irrigation_plus.skip_conditions import SkipConditionsMixin
 
 
 class _Host(DistributorMixin, MasterMixin, SkipConditionsMixin, IrrigationRunnerMixin):

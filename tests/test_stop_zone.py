@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, Mock
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 class _FakeStore:
@@ -42,7 +42,7 @@ class _FakeStore:
 
 def _coord(monkeypatch, zones=None, units=METRIC_SYSTEM):
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.async_dispatcher_send", Mock()
+        "custom_components.irrigation_plus.irrigation.async_dispatcher_send", Mock()
     )
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
     hass = Mock()
@@ -253,7 +253,7 @@ async def test_metered_run_stops_early_records_partial(monkeypatch):
     coord = _coord(monkeypatch, zones=[zone])
     coord._confirm_valve_running = AsyncMock(return_value=True)
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.irrigation.asyncio.sleep", AsyncMock()
+        "custom_components.irrigation_plus.irrigation.asyncio.sleep", AsyncMock()
     )
 
     # Stop as soon as the run registers its marker: the first poll then reports

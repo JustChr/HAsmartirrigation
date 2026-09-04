@@ -1,7 +1,7 @@
 """Tests for the Smart Irrigation binary sensor platform."""
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.binary_sensor import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.binary_sensor import (
     SmartIrrigationZoneWateringNowSensor,
     _zone_needs_irrigation,
 )

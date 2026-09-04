@@ -1,7 +1,7 @@
 {
-    "name": "Smart Irrigation",
-    "render_readme": true,
-    "homeassistant": "2025.5.0",
-    "zip_release": true,
-    "filename": "smart_irrigation.zip"
-  }
+  "name": "Irrigation Plus",
+  "render_readme": true,
+  "homeassistant": "2025.5.0",
+  "zip_release": true,
+  "filename": "irrigation_plus.zip"
+}

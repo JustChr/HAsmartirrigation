@@ -165,7 +165,7 @@ class RecurringScheduleManager:
 
         ``self._schedules`` is in-memory state that only ``async_load_schedules``
         assigns from the store, and everything reads through it — including
-        ``get_schedules()``, which backs the ``smart_irrigation/schedules``
+        ``get_schedules()``, which backs the ``irrigation_plus/schedules``
         websocket command. A writer that puts ``recurring_schedules`` straight
         into the config document therefore left the store and the running
         manager disagreeing: the schedule was persisted and correct on disk, but

@@ -17,9 +17,9 @@ from unittest.mock import MagicMock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.helpers import zone_depth_default
-from custom_components.smart_irrigation.store import MigratableStore
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.helpers import zone_depth_default
+from custom_components.irrigation_plus.store import MigratableStore
 
 MM_PER_INCH = 25.4
 
@@ -48,9 +48,9 @@ class TestZoneDepthDefault:
 
     def test_metric_threshold_keeps_its_10mm_gate(self):
         # The fix must not quietly disable the gate for metric users.
-        assert -15.0 < zone_depth_default(const.CONF_DEFAULT_BUCKET_THRESHOLD, True)
+        assert zone_depth_default(const.CONF_DEFAULT_BUCKET_THRESHOLD, True) > -15.0
         assert not (
-            -5.0 < zone_depth_default(const.CONF_DEFAULT_BUCKET_THRESHOLD, True)
+            zone_depth_default(const.CONF_DEFAULT_BUCKET_THRESHOLD, True) > -5.0
         )
 
 

@@ -10,7 +10,7 @@ title: Installation: Updating
 ## Update to the latest version
 
 - **Via HACS**: HACS notifies you when a new version is available. Click the notification and follow the prompts. You can also trigger a check manually via **HACS → Integrations → Smart Irrigation → ⋮ → Redownload**.
-- **Manually**: Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a zip, extract `custom_components/smart_irrigation`, and overwrite the existing folder.
+- **Manually**: Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a zip, extract `custom_components/irrigation_plus`, and overwrite the existing folder.
 
 After updating, restart Home Assistant.
 

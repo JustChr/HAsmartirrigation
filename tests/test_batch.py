@@ -21,9 +21,9 @@ from pytest_homeassistant_custom_component.common import (
     async_mock_service,
 )
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.batch import batch_watch_entity, is_batch_zone
-from custom_components.smart_irrigation.self_closing import is_self_closing_zone
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.batch import batch_watch_entity, is_batch_zone
+from custom_components.irrigation_plus.self_closing import is_self_closing_zone
 
 VALVE_A = "switch.valve_front"
 VALVE_B = "switch.valve_back"
@@ -791,7 +791,7 @@ class TestRestart:
         observed-start path cancels it — which a resume skips. Batch mode opts out
         of that rather than inheriting the defect it causes.
         """
-        from custom_components.smart_irrigation.run_watch import watch_policy_for
+        from custom_components.irrigation_plus.run_watch import watch_policy_for
 
         policy = watch_policy_for(const.WATERING_MODE_BATCH)
         assert policy.arm_give_up_after_start is False

@@ -24,9 +24,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.duration_math import zone_run_duration
-from custom_components.smart_irrigation.run_watch import run_credit_ceiling
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.duration_math import zone_run_duration
+from custom_components.irrigation_plus.run_watch import run_credit_ceiling
 
 
 def _coord(metric=True):

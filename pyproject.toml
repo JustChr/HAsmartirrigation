@@ -24,7 +24,7 @@ lint.dummy-variable-rgx = "^_+$"
 
 [tool.pytest.ini_options]
 # Single consolidated test tree (was split across tests/, tests/unit/ and
-# custom_components/smart_irrigation/tests/ before the consolidation).
+# custom_components/irrigation_plus/tests/ before the consolidation).
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

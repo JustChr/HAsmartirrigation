@@ -13,9 +13,9 @@ import random
 
 import pytest
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.duration_math import duration_from_deficit
-from custom_components.smart_irrigation.run_window import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.duration_math import duration_from_deficit
+from custom_components.irrigation_plus.run_window import (
     PARALLEL_STATION_GROUP,
     TRACK_CLASSIC,
     TRACK_SELF_CLOSING,

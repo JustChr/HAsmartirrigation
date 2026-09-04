@@ -3,7 +3,7 @@
 import datetime
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation import const
+from custom_components.irrigation_plus import const
 from tests.test_distributor import _dist, _host
 
 
@@ -1124,7 +1124,7 @@ async def test_inlet_watch_registers_listener_unless_ignore(monkeypatch):
     c = _host()
     calls = []
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.async_track_state_change_event",
+        "custom_components.irrigation_plus.distributor.async_track_state_change_event",
         lambda hass, entities, handler: calls.append(entities) or (lambda: None),
     )
     c._dist_refresh_inlet_watch(

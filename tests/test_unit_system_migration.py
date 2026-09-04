@@ -14,13 +14,13 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import (
+from custom_components.irrigation_plus import (
     SmartIrrigationCoordinator,
     async_handle_core_config_change,
     const,
 )
-from custom_components.smart_irrigation.store import STORAGE_VERSION, MigratableStore
-from custom_components.smart_irrigation.unit_system import (
+from custom_components.irrigation_plus.store import STORAGE_VERSION, MigratableStore
+from custom_components.irrigation_plus.unit_system import (
     convert_zone_values,
     unit_system_name,
 )
@@ -130,7 +130,7 @@ class TestReconciliation:
     def _silence_dispatch(self, monkeypatch):
         """These assert on the STORE; the per-zone refresh has its own class."""
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.async_dispatcher_send",
             lambda *a, **kw: None,
         )
 
@@ -216,7 +216,7 @@ class TestTheUiPath:
         """Order matters: refreshing first would publish the old digits."""
         sent = []
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.async_dispatcher_send",
             lambda _hass, signal, *a: sent.append((signal, dict(store.zone()))),
         )
         store = _FakeStore([_zone()], const.UNIT_SYSTEM_METRIC)
@@ -250,7 +250,7 @@ class TestTheConvertedValuesReachTheEntities:
     def _capture(monkeypatch):
         sent = []
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.async_dispatcher_send",
             lambda _hass, signal, *args: sent.append((signal, args)),
         )
         return sent
@@ -271,7 +271,7 @@ class TestTheConvertedValuesReachTheEntities:
         seen = []
         store = _FakeStore([_zone()], const.UNIT_SYSTEM_METRIC)
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.async_dispatcher_send",
             lambda _hass, signal, *args: seen.append(
                 (signal, store.zone()[const.ZONE_BUCKET_THRESHOLD])
             ),
@@ -342,7 +342,7 @@ class TestTheCoreConfigEventPath:
     @pytest.fixture(autouse=True)
     def _silence_dispatch(self, monkeypatch):
         monkeypatch.setattr(
-            "custom_components.smart_irrigation.async_dispatcher_send",
+            "custom_components.irrigation_plus.async_dispatcher_send",
             lambda *a, **kw: None,
         )
 

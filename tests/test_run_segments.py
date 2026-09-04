@@ -11,9 +11,9 @@ import datetime
 
 from homeassistant.util import dt as dt_util
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.run_watch import RunWatchMixin, watch_policy_for
-from custom_components.smart_irrigation.self_closing import SelfClosingMixin
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.run_watch import RunWatchMixin, watch_policy_for
+from custom_components.irrigation_plus.self_closing import SelfClosingMixin
 
 
 class _Host(SelfClosingMixin, RunWatchMixin):

@@ -9,8 +9,8 @@ whatever zone selection the dialog currently holds.
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.websockets import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.websockets import (
     websocket_get_nominal_demand,
 )
 

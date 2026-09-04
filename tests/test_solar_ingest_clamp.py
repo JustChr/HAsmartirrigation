@@ -24,13 +24,13 @@ import pytest
 from freezegun import freeze_time
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import (
+from custom_components.irrigation_plus import (
     SOLAR_CLAMP_WARN_INTERVAL,
     SmartIrrigationCoordinator,
     const,
 )
-from custom_components.smart_irrigation.helpers import clamp_solar_to_clear_sky
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
+from custom_components.irrigation_plus.helpers import clamp_solar_to_clear_sky
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
 
 LAT, LON, ELEV, TZ = 39.68987, -84.07865, 311.0, -4.0
 # The buffer stores MJ/day/m2; readings are quoted in W/m2 throughout.

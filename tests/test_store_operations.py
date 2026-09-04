@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
 
 
 @pytest.mark.asyncio

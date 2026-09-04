@@ -12,7 +12,7 @@ clear the buffer and re-anchor the consuming zones' watermarks to now.
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 
 
 def _make_coordinator(store):
@@ -64,7 +64,7 @@ class TestMappingSourceChangeInvalidatesBuffer:
         }
 
         with patch(
-            "custom_components.smart_irrigation.async_dispatcher_send"
+            "custom_components.irrigation_plus.async_dispatcher_send"
         ) as dispatch:
             await coordinator.async_update_mapping_config(0, new_data)
 
@@ -111,7 +111,7 @@ class TestMappingSourceChangeInvalidatesBuffer:
             },
         }
 
-        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+        with patch("custom_components.irrigation_plus.async_dispatcher_send"):
             await coordinator.async_update_mapping_config(0, new_data)
 
         args, _ = store.async_update_mapping.call_args
@@ -126,7 +126,7 @@ class TestMappingSourceChangeInvalidatesBuffer:
         # Only the name changes — the buffer must be left intact.
         new_data = {const.MAPPING_NAME: "Renamed mapping"}
 
-        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+        with patch("custom_components.irrigation_plus.async_dispatcher_send"):
             await coordinator.async_update_mapping_config(0, new_data)
 
         args, _ = store.async_update_mapping.call_args
@@ -164,7 +164,7 @@ class TestMappingSourceChangeInvalidatesBuffer:
             },
         }
 
-        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+        with patch("custom_components.irrigation_plus.async_dispatcher_send"):
             await coordinator.async_update_mapping_config(0, new_data)
 
         # Defining a real source for the legacy quantity invalidates the buffer.
@@ -197,7 +197,7 @@ class TestMappingSourceChangeInvalidatesBuffer:
             },
         }
 
-        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+        with patch("custom_components.irrigation_plus.async_dispatcher_send"):
             await coordinator.async_update_mapping_config(0, new_data)
 
         args, _ = store.async_update_mapping.call_args
@@ -221,7 +221,7 @@ class TestMappingSourceChangeInvalidatesBuffer:
             },
         }
 
-        with patch("custom_components.smart_irrigation.async_dispatcher_send"):
+        with patch("custom_components.irrigation_plus.async_dispatcher_send"):
             await coordinator.async_update_mapping_config(0, new_data)
 
         args, _ = store.async_update_mapping.call_args

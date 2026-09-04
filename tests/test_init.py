@@ -6,7 +6,7 @@ import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from custom_components.smart_irrigation import (
+from custom_components.irrigation_plus import (
     SmartIrrigationCoordinator,
     SmartIrrigationError,
     async_remove_entry,
@@ -53,16 +53,16 @@ class TestSmartIrrigationIntegration:
         mock_config_entry.add_to_hass(hass)
         with (
             patch(
-                "custom_components.smart_irrigation.async_get_registry"
+                "custom_components.irrigation_plus.async_get_registry"
             ) as mock_registry,
             patch(
-                "custom_components.smart_irrigation.async_register_panel"
+                "custom_components.irrigation_plus.async_register_panel"
             ) as mock_panel,
             patch(
-                "custom_components.smart_irrigation.async_register_websockets"
+                "custom_components.irrigation_plus.async_register_websockets"
             ) as mock_ws,
             patch(
-                "custom_components.smart_irrigation.async_register_services"
+                "custom_components.irrigation_plus.async_register_services"
             ) as mock_services,
             patch.object(
                 hass.config_entries, "async_forward_entry_setups", new=AsyncMock()
@@ -96,11 +96,11 @@ class TestSmartIrrigationIntegration:
         mock_weather_config_entry.add_to_hass(hass)
         with (
             patch(
-                "custom_components.smart_irrigation.async_get_registry"
+                "custom_components.irrigation_plus.async_get_registry"
             ) as mock_registry,
-            patch("custom_components.smart_irrigation.async_register_panel"),
-            patch("custom_components.smart_irrigation.async_register_websockets"),
-            patch("custom_components.smart_irrigation.async_register_services"),
+            patch("custom_components.irrigation_plus.async_register_panel"),
+            patch("custom_components.irrigation_plus.async_register_websockets"),
+            patch("custom_components.irrigation_plus.async_register_services"),
             patch.object(
                 hass.config_entries, "async_forward_entry_setups", new=AsyncMock()
             ),
@@ -143,7 +143,7 @@ class TestSmartIrrigationIntegration:
         }
 
         with patch(
-            "custom_components.smart_irrigation.remove_panel"
+            "custom_components.irrigation_plus.remove_panel"
         ) as mock_remove_panel:
             result = await async_unload_entry(hass, mock_config_entry)
 
@@ -167,7 +167,7 @@ class TestSmartIrrigationIntegration:
         hass.data[const.DOMAIN] = {"zones": {}}
 
         with patch(
-            "custom_components.smart_irrigation.remove_panel"
+            "custom_components.irrigation_plus.remove_panel"
         ) as mock_remove_panel:
             result = await async_unload_entry(hass, mock_config_entry)
 
@@ -187,7 +187,7 @@ class TestSmartIrrigationIntegration:
         }
 
         with patch(
-            "custom_components.smart_irrigation.remove_panel"
+            "custom_components.irrigation_plus.remove_panel"
         ) as mock_remove_panel:
             await async_remove_entry(hass, mock_config_entry)
 
@@ -286,7 +286,7 @@ class TestSmartIrrigationCoordinator:
         # Mock dispatchers and methods
         with (
             patch(
-                "custom_components.smart_irrigation.async_dispatcher_send"
+                "custom_components.irrigation_plus.async_dispatcher_send"
             ) as mock_dispatch,
             patch.object(
                 coordinator, "_convert_precipitation_threshold", new_callable=AsyncMock

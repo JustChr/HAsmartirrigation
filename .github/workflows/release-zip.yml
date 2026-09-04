@@ -1,6 +1,6 @@
 name: Attach release zip
 
-# Builds custom_components/smart_irrigation into a single smart_irrigation.zip and
+# Builds custom_components/irrigation_plus into a single irrigation_plus.zip and
 # attaches it to a GitHub release. Combined with "zip_release"/"filename" in
 # hacs.json, this lets HACS download one zip instead of fetching every file, which
 # is faster, more reliable (fewer GitHub API calls), and surfaces a download count.
@@ -31,14 +31,14 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name || inputs.tag }}
 
-      - name: Build smart_irrigation.zip
+      - name: Build irrigation_plus.zip
         run: |
-          cd custom_components/smart_irrigation
-          zip -r smart_irrigation.zip . \
+          cd custom_components/irrigation_plus
+          zip -r irrigation_plus.zip . \
             -x "tests/*" "*/__pycache__/*" "*.pyc" "frontend/node_modules/*"
 
       - name: Attach the zip to the release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name || inputs.tag }}
-          files: custom_components/smart_irrigation/smart_irrigation.zip
+          files: custom_components/irrigation_plus/irrigation_plus.zip

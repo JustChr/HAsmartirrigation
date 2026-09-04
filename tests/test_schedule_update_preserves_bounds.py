@@ -17,9 +17,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
-from custom_components.smart_irrigation.services import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.services import (
     _translate_legacy_schedule_fields,
 )
 

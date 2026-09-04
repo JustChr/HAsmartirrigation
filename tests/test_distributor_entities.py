@@ -1,13 +1,24 @@
 import asyncio
 from unittest.mock import AsyncMock, Mock
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.entity import distributor_device_info
-from custom_components.smart_irrigation.distributor_entity import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.binary_sensor import (
+    SmartIrrigationDistributorCommissionedSensor,
+    SmartIrrigationDistributorWateringNowSensor,
+)
+from custom_components.irrigation_plus.button import (
+    SmartIrrigationDistributorTestRunButton,
+)
+from custom_components.irrigation_plus.distributor_entity import (
     outlet_reconcile_diff,
     used_outlets,
 )
-from tests.test_distributor import _dist, _host
+from custom_components.irrigation_plus.entity import distributor_device_info
+from custom_components.irrigation_plus.sensor import (
+    SmartIrrigationDistributorCurrentOutletSensor,
+    SmartIrrigationDistributorOutletZoneSensor,
+)
+from tests.test_distributor import _host
 
 
 def _hass_with_zones(zones):
@@ -54,7 +65,7 @@ async def test_persist_cycle_fires_distributor_updated(monkeypatch):
     c = _host()
     sent = []
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.async_dispatcher_send",
+        "custom_components.irrigation_plus.distributor.async_dispatcher_send",
         lambda hass, signal, *a: sent.append((signal, a)),
     )
     c.store.async_update_distributor = AsyncMock()
@@ -69,7 +80,7 @@ async def test_dist_store_update_pings_frontend(monkeypatch):
     c = _host()
     sent = []
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.async_dispatcher_send",
+        "custom_components.irrigation_plus.distributor.async_dispatcher_send",
         lambda hass, signal, *a: sent.append(signal),
     )
     c.store.async_update_distributor = AsyncMock()
@@ -82,7 +93,7 @@ async def test_upsert_create_fires_register(monkeypatch):
     c = _host()
     sent = []
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.async_dispatcher_send",
+        "custom_components.irrigation_plus.distributor.async_dispatcher_send",
         lambda hass, signal, *a: sent.append((signal, a)),
     )
     c.store.get_distributor = Mock(return_value=None)
@@ -96,7 +107,7 @@ async def test_upsert_delete_fires_removed(monkeypatch):
     c.id = "cid"
     sent = []
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.async_dispatcher_send",
+        "custom_components.irrigation_plus.distributor.async_dispatcher_send",
         lambda hass, signal, *a: sent.append((signal, a)),
     )
     c.store.get_distributor = Mock(return_value={"id": 3})
@@ -108,17 +119,11 @@ async def test_upsert_delete_fires_removed(monkeypatch):
     fake_registry = Mock()
     fake_registry.async_get_device = Mock(return_value=None)
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.dr.async_get",
+        "custom_components.irrigation_plus.distributor.dr.async_get",
         lambda hass: fake_registry,
     )
     await c.async_upsert_distributor({"id": 3, "remove": True})
     assert (const.DOMAIN + "_distributor_removed", (3,)) in sent
-
-
-from custom_components.smart_irrigation.sensor import (
-    SmartIrrigationDistributorCurrentOutletSensor,
-    SmartIrrigationDistributorOutletZoneSensor,
-)
 
 
 def _hass_full(zones, distributor):
@@ -163,12 +168,6 @@ def test_outlet_zone_sensor_resolves_zone_name():
     assert s._attr_translation_placeholders == {"outlet": "2"}
 
 
-from custom_components.smart_irrigation.binary_sensor import (
-    SmartIrrigationDistributorCommissionedSensor,
-    SmartIrrigationDistributorWateringNowSensor,
-)
-
-
 def test_commissioned_binary_sensor():
     dist = {"id": 0, "name": "G1", "commissioning_confirmed": True, "active_cycle": {}}
     hass = _hass_full([], dist)
@@ -202,11 +201,6 @@ def test_watering_now_binary_sensor():
         hass, "binary_sensor.g1_watering_now", idle
     )
     assert s_idle.is_on is False
-
-
-from custom_components.smart_irrigation.button import (
-    SmartIrrigationDistributorTestRunButton,
-)
 
 
 def _scheduling_hass(zones, dist):
@@ -264,7 +258,7 @@ async def test_test_run_button_runs_when_not_commissioned():
 
 
 def test_zone_on_outlet_coerces_str_outlet_number():
-    from custom_components.smart_irrigation.distributor_entity import zone_on_outlet
+    from custom_components.irrigation_plus.distributor_entity import zone_on_outlet
 
     zones = [{"id": 7, "distributor_id": 0, "outlet_number": "2", "name": "Beet"}]
     hass = Mock()
@@ -279,7 +273,7 @@ async def test_upsert_delete_removes_device(monkeypatch):
     c = _host()
     c.id = "cid"
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.async_dispatcher_send",
+        "custom_components.irrigation_plus.distributor.async_dispatcher_send",
         lambda *a, **k: None,
     )
     c.store.get_distributor = Mock(return_value={"id": 3})
@@ -293,7 +287,7 @@ async def test_upsert_delete_removes_device(monkeypatch):
         side_effect=lambda did: removed.setdefault("id", did)
     )
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.distributor.dr.async_get",
+        "custom_components.irrigation_plus.distributor.dr.async_get",
         lambda hass: fake_registry,
     )
     await c.async_upsert_distributor({"id": 3, "remove": True})

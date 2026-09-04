@@ -25,9 +25,9 @@ import pytest
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation import scheduler as scheduler_module
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import scheduler as scheduler_module
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
 
 
 def _manager():

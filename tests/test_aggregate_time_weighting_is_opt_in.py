@@ -14,8 +14,8 @@ continuous updates existed.
 import datetime
 import statistics
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.weather_aggregate import aggregate_window
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.weather_aggregate import aggregate_window
 
 T0 = datetime.datetime(2026, 6, 8, 6, 0, 0)
 

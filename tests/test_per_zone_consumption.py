@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation.store import SmartIrrigationStorage
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus.store import SmartIrrigationStorage
 
 T0 = datetime.datetime(2026, 6, 8, 6, 0, 0)
 

@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.distributor import DistributorMixin
-from custom_components.smart_irrigation.irrigation import IrrigationRunnerMixin
-from custom_components.smart_irrigation.master import MasterMixin
-from custom_components.smart_irrigation.run_state import RunStateMixin
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.distributor import DistributorMixin
+from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
+from custom_components.irrigation_plus.master import MasterMixin
+from custom_components.irrigation_plus.run_state import RunStateMixin
 from tests.test_distributor import _dist, _host
 
 

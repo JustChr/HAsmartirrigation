@@ -18,10 +18,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from freezegun import freeze_time
 
-from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
-from custom_components.smart_irrigation import scheduler as scheduler_module
-from custom_components.smart_irrigation.scheduler import RecurringScheduleManager
-from custom_components.smart_irrigation.store import Config
+from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import scheduler as scheduler_module
+from custom_components.irrigation_plus.scheduler import RecurringScheduleManager
+from custom_components.irrigation_plus.store import Config
 
 
 def _finish_sched(sid="s1", time="06:00"):
@@ -220,7 +220,7 @@ class TestStoreSchema:
         """Not the mock: the migration filters ``data["config"]`` against
         ``attr.fields_dict(Config)``, so a key hydrated without an attribute is
         silently dropped on load."""
-        from custom_components.smart_irrigation.store import async_get_registry
+        from custom_components.irrigation_plus.store import async_get_registry
 
         reg = await async_get_registry(hass)
         await reg.async_update_config(

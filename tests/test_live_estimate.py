@@ -9,13 +9,13 @@ from types import SimpleNamespace
 
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 
-from custom_components.smart_irrigation import const
-from custom_components.smart_irrigation.et_estimate import (
+from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus.et_estimate import (
     estimate_daily_et0_hargreaves,
     proxy_et_since,
     rigorous_et_since,
 )
-from custom_components.smart_irrigation.live_estimate import (
+from custom_components.irrigation_plus.live_estimate import (
     LiveEstimateMixin,
     _parse_local_naive,
 )
@@ -135,7 +135,7 @@ def test_intraday_proxy_no_spurious_et_right_after_calc(monkeypatch):
     yellow "live" line dropping ~a day's ET below the bucket. Immediately after a
     calc the window is ~0, so live_deficit must ~= bucket regardless of offset.
     """
-    import custom_components.smart_irrigation.live_estimate as le
+    import custom_components.irrigation_plus.live_estimate as le
 
     # "now" == the calc instant; local tz +2 (the offset that exposed the bug).
     tz = datetime.timezone(datetime.timedelta(hours=2))
@@ -172,7 +172,7 @@ def test_intraday_proxy_window_spans_midnight(monkeypatch):
     remaining hours of the calc day (18..23) plus today's elapsed (00..06), not
     just today since midnight.
     """
-    import custom_components.smart_irrigation.live_estimate as le
+    import custom_components.irrigation_plus.live_estimate as le
 
     tz = datetime.timezone(datetime.timedelta(hours=2))
     now_local = datetime.datetime(2026, 6, 12, 6, 30, tzinfo=tz)
@@ -210,7 +210,7 @@ def test_observed_precip_is_time_weighted_not_plain_sum():
     (Riemann), not plain-summed. The helper delegates to the same
     aggregate_window the daily calc uses.
     """
-    from custom_components.smart_irrigation.weather_aggregate import (
+    from custom_components.irrigation_plus.weather_aggregate import (
         _parse,
         aggregate_window,
     )
@@ -273,7 +273,7 @@ async def test_estimate_cache_lazy_compute_and_refresh(monkeypatch):
     coord = _Coord(METRIC_SYSTEM)
     dispatched = []
     monkeypatch.setattr(
-        "custom_components.smart_irrigation.live_estimate.async_dispatcher_send",
+        "custom_components.irrigation_plus.live_estimate.async_dispatcher_send",
         lambda *args: dispatched.append(args),
     )
     computed = {"count": 0}

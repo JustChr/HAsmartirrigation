@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.smart_irrigation.localize import get_string_from_data, localize
+from custom_components.irrigation_plus.localize import get_string_from_data, localize
 
 
 @contextmanager
