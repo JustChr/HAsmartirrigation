@@ -559,7 +559,6 @@
         "clear_weather_body": "Dies löscht alle gesammelten Wetter- und Sensordaten aller Zonen. Die Zonen benötigen neue Daten, bevor sie wieder berechnen können."
       },
       "history": {
-        "title": "Bewässerungsverlauf",
         "total_used": "Wasserverbrauch gesamt",
         "empty": "Noch keine Läufe aufgezeichnet.",
         "when": "Wann",
@@ -596,6 +595,11 @@
         "paused": "Pausiert…",
         "toast_stopped": "Lauf gestoppt"
       }
+    },
+    "history": {
+      "title": "Verlauf",
+      "select_zone": "Zone auswählen",
+      "no_zones": "Noch keine Zonen konfiguriert."
     },
     "schedules": {
       "title": "Zeitpläne",

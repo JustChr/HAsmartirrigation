@@ -559,7 +559,6 @@
         "clear_weather_body": "Cela supprime tous les relevés météo et capteurs de toutes les zones. Les zones auront besoin de nouvelles données avant de pouvoir recalculer."
       },
       "history": {
-        "title": "Historique d'arrosage",
         "total_used": "Eau totale utilisée",
         "empty": "Aucun arrosage enregistré pour l'instant.",
         "when": "Quand",
@@ -596,6 +595,11 @@
         "paused": "En pause…",
         "toast_stopped": "Arrosage arrêté"
       }
+    },
+    "history": {
+      "title": "Historique",
+      "select_zone": "Sélectionner une zone",
+      "no_zones": "Aucune zone configurée pour le moment."
     },
     "schedules": {
       "title": "Planifications",

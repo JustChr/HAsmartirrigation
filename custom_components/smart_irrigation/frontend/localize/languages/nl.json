@@ -559,7 +559,6 @@
         "clear_weather_body": "Dit verwijdert alle verzamelde weer- en sensorgegevens van alle zones. De zones hebben nieuwe gegevens nodig voordat ze opnieuw kunnen berekenen."
       },
       "history": {
-        "title": "Bewateringsgeschiedenis",
         "total_used": "Totaal waterverbruik",
         "empty": "Nog geen beurten geregistreerd.",
         "when": "Wanneer",
@@ -596,6 +595,11 @@
         "paused": "Gepauzeerd…",
         "toast_stopped": "Run gestopt"
       }
+    },
+    "history": {
+      "title": "Geschiedenis",
+      "select_zone": "Zone selecteren",
+      "no_zones": "Nog geen zones geconfigureerd."
     },
     "schedules": {
       "title": "Schema's",

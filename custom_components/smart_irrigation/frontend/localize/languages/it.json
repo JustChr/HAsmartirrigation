@@ -599,7 +599,6 @@
         "clear_weather_body": "Questo elimina tutti i record meteo e dei sensori di tutte le zone. Le zone avranno bisogno di nuovi dati prima di poter ricalcolare."
       },
       "history": {
-        "title": "Cronologia irrigazioni",
         "total_used": "Acqua totale utilizzata",
         "empty": "Nessuna irrigazione registrata.",
         "when": "Quando",
@@ -636,6 +635,11 @@
         "paused": "In pausa…",
         "toast_stopped": "Irrigazione fermata"
       }
+    },
+    "history": {
+      "title": "Cronologia",
+      "select_zone": "Seleziona zona",
+      "no_zones": "Nessuna zona configurata."
     },
     "schedules": {
       "title": "Pianificazioni",

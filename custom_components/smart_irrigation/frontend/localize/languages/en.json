@@ -780,7 +780,6 @@
         "toast_failed": "Irrigation failed"
       },
       "history": {
-        "title": "Run history",
         "total_used": "Total water used",
         "empty": "No runs recorded yet.",
         "when": "When",
@@ -817,6 +816,11 @@
         "paused": "Paused…",
         "toast_stopped": "Stopped run"
       }
+    },
+    "history": {
+      "title": "History",
+      "select_zone": "Select zone",
+      "no_zones": "No zones configured yet."
     },
     "distributors": {
       "title": "Distributors",

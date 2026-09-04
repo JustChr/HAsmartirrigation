@@ -559,7 +559,6 @@
         "clear_weather_body": "Dette sletter alle innsamlede vær- og sensordata for alle soner. Sonene trenger nye data før de kan beregne igjen."
       },
       "history": {
-        "title": "Vanningshistorikk",
         "total_used": "Totalt vannforbruk",
         "empty": "Ingen kjøringer registrert ennå.",
         "when": "Når",
@@ -596,6 +595,11 @@
         "paused": "Pauset…",
         "toast_stopped": "Kjøring stoppet"
       }
+    },
+    "history": {
+      "title": "Historikk",
+      "select_zone": "Velg sone",
+      "no_zones": "Ingen soner konfigurert ennå."
     },
     "schedules": {
       "title": "Tidsplaner",
