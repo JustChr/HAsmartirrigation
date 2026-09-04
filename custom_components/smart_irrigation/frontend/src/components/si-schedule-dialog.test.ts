@@ -109,36 +109,122 @@ describe("si-schedule-dialog", () => {
   // vanished and no schedule could be saved. hacs.json still declares a floor
   // of HA 2025.5.0, so BOTH shapes have to work and the slot is detected.
   describe("the actions row targets the slot the running dialog actually has", () => {
-    const actionsOf = (hasFooter: boolean) => {
+    const actionsOf = (slot: "footer" | "material" | "content") => {
       const { el } = makeDialog({ schedule: emptySchedule() });
-      (el as any)._hasFooterSlot = hasFooter;
+      (el as any)._actionSlot = slot;
       return flatten(el.render()).text;
     };
 
     it("uses the footer slot on a Web Awesome ha-dialog", () => {
-      const text = actionsOf(true);
+      const text = actionsOf("footer");
       expect(text).toContain('slot="footer"');
       expect(text).not.toContain('slot="primaryAction"');
       expect(text).not.toContain('slot="secondaryAction"');
     });
 
     it("uses the Material action slots when there is no footer slot", () => {
-      const text = actionsOf(false);
+      const text = actionsOf("material");
       expect(text).toContain('slot="primaryAction"');
       expect(text).toContain('slot="secondaryAction"');
       expect(text).not.toContain('slot="footer"');
     });
 
-    it("renders exactly one Save and one Cancel either way", () => {
-      for (const hasFooter of [true, false]) {
-        const text = actionsOf(hasFooter);
+    // The fallback, and the reason it exists: a dialog we cannot classify must
+    // still be saveable. The default slot is projected by every generation, so
+    // the row names no slot at all rather than one that may not be there.
+    it("falls back to the default slot when neither shape is detected", () => {
+      const text = actionsOf("content");
+      expect(text).not.toContain('slot="footer"');
+      expect(text).not.toContain('slot="primaryAction"');
+      expect(text).not.toContain('slot="secondaryAction"');
+      expect(text).toContain("dialog-footer-inline");
+    });
+
+    it("is what the component starts on, so the buttons are never missing", () => {
+      const { el } = makeDialog({ schedule: emptySchedule() });
+      expect((el as any)._actionSlot).toBe("content");
+    });
+
+    it("renders exactly one Save and one Cancel in every shape", () => {
+      for (const slot of ["footer", "material", "content"] as const) {
+        const text = actionsOf(slot);
         const saves = text.match(/dialog-btn-primary/g) || [];
         const rows = text.match(/class="dialog-buttons"/g) || [];
         const toggles = text.match(/class="enabled-toggle"/g) || [];
-        expect(saves.length, `footer=${hasFooter}`).toBe(1);
-        expect(rows.length, `footer=${hasFooter}`).toBe(1);
-        expect(toggles.length, `footer=${hasFooter}`).toBe(1);
+        expect(saves.length, slot).toBe(1);
+        expect(rows.length, slot).toBe(1);
+        expect(toggles.length, slot).toBe(1);
       }
+    });
+  });
+
+  // The detection itself, which the first #117 fix shipped with NO test at all
+  // -- the tests above set the flag by hand, so they passed while the thing
+  // that sets it never worked. `ha-dialog` attaches its shadow root
+  // synchronously on connect and renders into it a microtask later, so a
+  // detection that reads it during firstUpdated sees an EMPTY root and
+  // concludes "no footer slot". These fakes reproduce that ordering.
+  describe("detecting the slot", () => {
+    /** A stand-in ha-dialog whose shadow root fills in only after its own
+     * first render resolves -- the real HA 2026.8 ordering, measured. */
+    const fakeDialog = (slotNames: string[], opts: { lit?: boolean } = {}) => {
+      const nodes: { name: string }[] = [];
+      const shadowRoot = {
+        querySelector: (sel: string) => {
+          if (sel === "slot") return nodes[0] ?? null;
+          const m = /^slot\[name="(.+)"\]$/.exec(sel);
+          return nodes.find((n) => m && n.name === m[1]) ?? null;
+        },
+      };
+      const fill = () => slotNames.forEach((name) => nodes.push({ name }));
+      const dialog: any = { shadowRoot };
+      if (opts.lit !== false) {
+        dialog.updateComplete = Promise.resolve().then(fill);
+      } else {
+        // Not a Lit element: nothing to await, the slots simply turn up on a
+        // later task and only the poll can catch them.
+        setTimeout(fill, 0);
+      }
+      return dialog;
+    };
+
+    const detect = async (dialog: any) => {
+      const { el } = makeDialog({ schedule: emptySchedule() });
+      (el as any).renderRoot = { querySelector: () => dialog };
+      await (el as any)._detectActionSlot();
+      return (el as any)._actionSlot;
+    };
+
+    it("finds the footer slot even though the shadow root is empty at first", async () => {
+      expect(
+        await detect(
+          fakeDialog(["header", "headerTitle", "(default)", "footer"]),
+        ),
+      ).toBe("footer");
+    });
+
+    it("finds the Material slots on an older ha-dialog", async () => {
+      expect(
+        await detect(fakeDialog(["primaryAction", "secondaryAction"])),
+      ).toBe("material");
+    });
+
+    it("polls on past a dialog that is not a Lit element", async () => {
+      expect(await detect(fakeDialog(["footer"], { lit: false }))).toBe(
+        "footer",
+      );
+    });
+
+    it("stays on the always-projected default slot when nothing is found", async () => {
+      const dialog = { shadowRoot: { querySelector: () => null } };
+      expect(await detect(dialog)).toBe("content");
+    });
+
+    it("stays on the default slot when there is no dialog to inspect", async () => {
+      const { el } = makeDialog({ schedule: emptySchedule() });
+      (el as any).renderRoot = { querySelector: () => null };
+      await (el as any)._detectActionSlot();
+      expect((el as any)._actionSlot).toBe("content");
     });
   });
 

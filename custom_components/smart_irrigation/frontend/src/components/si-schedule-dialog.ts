@@ -133,19 +133,50 @@ export class SiScheduleDialog extends LitElement {
   @property({ attribute: false }) zones: SmartIrrigationZone[] = [];
   @property({ attribute: false }) heading = "";
 
-  /** Whether the running ha-dialog exposes a `footer` slot (HA 2026.8+'s
-   * Web Awesome dialog) rather than Material's primaryAction/secondaryAction.
-   * See `_renderActions` for why this is detected rather than assumed. */
-  @state() private _hasFooterSlot = false;
+  /** Which shape of action row the running `ha-dialog` can actually show.
+   *
+   * `footer` is HA 2026.8+'s Web Awesome dialog, `material` is the older
+   * primaryAction/secondaryAction pair. The default is `content` — the
+   * dialog's default slot, which exists in EVERY generation — so that an
+   * inconclusive or not-yet-finished detection costs a slightly plainer
+   * footer rather than no buttons at all. See `_renderActions`. */
+  @state() private _actionSlot: "footer" | "material" | "content" = "content";
 
   protected firstUpdated(): void {
-    // Queried on ha-dialog's own shadow root: the forwarding <slot> elements
-    // sit in there as light-DOM children of the inner wa-dialog, so a plain
-    // descendant query reaches them without crossing a second boundary.
-    const root = (
-      this.renderRoot.querySelector("ha-dialog") as HTMLElement | null
-    )?.shadowRoot;
-    this._hasFooterSlot = !!root?.querySelector('slot[name="footer"]');
+    void this._detectActionSlot();
+  }
+
+  /**
+   * Decide which slot to render the actions into, AFTER `ha-dialog` has
+   * rendered its own shadow DOM.
+   *
+   * The timing is the trap. `ha-dialog` attaches its shadow root
+   * synchronously when it connects but renders into it a microtask later, so
+   * at `firstUpdated` the root is already there and still EMPTY — measured on
+   * HA 2026.8.2, `shadowRoot.querySelectorAll("slot")` is `[]` synchronously
+   * and all seven slots one microtask on. A single null-safe read here is
+   * therefore not "no footer slot", it is "too early to tell", and latching
+   * that answer put the buttons straight back into a slot that does not exist
+   * (#117, the second time). Wait for the dialog's own first render instead.
+   */
+  private async _detectActionSlot(): Promise<void> {
+    const dialog = this.renderRoot.querySelector("ha-dialog") as
+      | (HTMLElement & { updateComplete?: Promise<unknown> })
+      | null;
+    if (!dialog) return;
+    // Lit's own "I have rendered" signal when ha-dialog is a Lit element; a
+    // harmless no-op await if some build is not, which the poll then covers.
+    await dialog.updateComplete;
+    for (let i = 0; i < 10 && !dialog.shadowRoot?.querySelector("slot"); i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    const root = dialog.shadowRoot;
+    if (root?.querySelector('slot[name="footer"]')) {
+      this._actionSlot = "footer";
+    } else if (root?.querySelector('slot[name="primaryAction"]')) {
+      this._actionSlot = "material";
+    }
+    // Neither: leave the `content` default, which is always projected.
   }
 
   private _emitChanged(patch: Partial<Schedule>) {
@@ -736,22 +767,30 @@ export class SiScheduleDialog extends LitElement {
    * silently vanished and a schedule could not be saved or edited (#117).
    *
    * hacs.json still declares a floor of HA 2025.5.0, so both shapes have to
-   * work. The slot is detected rather than assumed (see `firstUpdated`),
+   * work. The slot is detected rather than assumed (see `_detectActionSlot`),
    * because rendering into both would show two action rows on any build that
-   * happened to carry both slots.
+   * happened to carry both slots. The `content` case is the fallback: the
+   * default slot is projected by every generation, so the failure mode of a
+   * detection that cannot decide is a plainer footer, never an unsaveable
+   * dialog.
    */
   private _renderActions(lang: string): TemplateResult {
-    if (this._hasFooterSlot) {
+    if (this._actionSlot === "material") {
       return html`
-        <div slot="footer" class="dialog-footer">
-          ${this._renderEnabledToggle(lang)} ${this._renderButtons(lang)}
-        </div>
+        <span slot="secondaryAction">${this._renderEnabledToggle(lang)}</span>
+        <span slot="primaryAction">${this._renderButtons(lang)}</span>
       `;
     }
-    return html`
-      <span slot="secondaryAction">${this._renderEnabledToggle(lang)}</span>
-      <span slot="primaryAction">${this._renderButtons(lang)}</span>
-    `;
+    const row = html`${this._renderEnabledToggle(lang)}
+    ${this._renderButtons(lang)}`;
+    if (this._actionSlot === "content") {
+      // No slot attribute at all: the dialog's default slot, which every
+      // generation projects.
+      return html`
+        <div class="dialog-footer dialog-footer-inline">${row}</div>
+      `;
+    }
+    return html` <div slot="footer" class="dialog-footer">${row}</div> `;
   }
 
   static get styles(): CSSResultGroup {
@@ -876,6 +915,13 @@ export class SiScheduleDialog extends LitElement {
           justify-content: space-between;
           gap: 8px;
           width: 100%;
+        }
+        /* The fallback shape: no footer bar of the dialog's own to sit in, so
+           the row rules and spaces itself off the content above it. */
+        .dialog-footer-inline {
+          margin-top: 16px;
+          padding-top: 12px;
+          border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
         }
         .dialog-buttons {
           display: flex;
