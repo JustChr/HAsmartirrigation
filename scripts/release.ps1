@@ -131,8 +131,6 @@ $DistRel      = "dist/irrigation-plus.js"
 $DistPath     = "$FrontendDir/$DistRel"
 $CardRel      = "dist/irrigation-plus-card.js"
 $CardPath     = "$FrontendDir/$CardRel"
-$ImplRel      = "dist/irrigation-plus-card-impl.js"
-$ImplPath     = "$FrontendDir/$ImplRel"
 
 # --- preflight ------------------------------------------------------------
 $branch = (git rev-parse --abbrev-ref HEAD).Trim()
@@ -201,7 +199,15 @@ Write-Host "Frontend rebuilt and verified to embed $Version (panel + card)"
 
 # --- commit, tag, push, release ------------------------------------------
 Invoke-Checked { git add $ConstPath $ManifestPath $PkgPath }
-Invoke-Checked { git add -f $DistPath $CardPath $ImplPath }   # dist is gitignored but tracked
+# Every built bundle, enumerated from disk rather than listed here. dist/ is
+# gitignored-but-tracked, so a bundle left out of this line is never committed
+# and the tag ships whatever was there before - or nothing at all. #120 added a
+# fourth bundle (the legacy card shim, which panel.py serves) and a hardcoded
+# three-file list would have shipped a 404. rollup is the source of truth for
+# what exists; this just commits all of it.
+$BuiltBundles = @(Get-ChildItem -Path (Join-Path $FrontendDir "dist") -Filter "*.js" | ForEach-Object { $_.FullName })
+if ($BuiltBundles.Count -lt 4) { throw "Only $($BuiltBundles.Count) dist bundle(s) found - the frontend build did not produce what this release expects." }
+Invoke-Checked { git add -f $BuiltBundles }   # dist is gitignored but tracked
 Invoke-Checked { git commit -m "build: release $Version" }
 Invoke-Checked { git tag $Version }
 if ($hasUpstream) { Invoke-Checked { git push origin $Ref } }
