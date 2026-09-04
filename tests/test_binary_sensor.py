@@ -1,4 +1,4 @@
-"""Tests for the Smart Irrigation binary sensor platform."""
+"""Tests for the Irrigation Plus binary sensor platform."""
 
 from custom_components.irrigation_plus import const
 from custom_components.irrigation_plus.binary_sensor import (

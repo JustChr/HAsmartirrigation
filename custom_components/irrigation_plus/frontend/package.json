@@ -1,7 +1,7 @@
 {
   "name": "irrigation-plus",
   "version": "2026.09.05",
-  "description": "Smart Irrigation frontend",
+  "description": "Irrigation Plus frontend",
   "main": "dist/irrigation-plus.js",
   "scripts": {
     "build": "npm run lint && npm run rollup",

@@ -1,4 +1,4 @@
-"""Tests for the Smart Irrigation 12-month watering calendar feature."""
+"""Tests for the Irrigation Plus 12-month watering calendar feature."""
 
 from unittest.mock import AsyncMock, Mock, patch
 

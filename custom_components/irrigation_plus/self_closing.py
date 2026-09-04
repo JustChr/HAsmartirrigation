@@ -471,7 +471,7 @@ class SelfClosingMixin:
             # VALVE_CONFIRM_TIMEOUT seconds and self-closing mode treats False as
             # fatal, but a queued station is not running at +30s — so every zone
             # behind the first would abort here, after the controller had already
-            # accepted its run: Smart Irrigation would believe it watered nothing
+            # accepted its run: Irrigation Plus would believe it watered nothing
             # while the controller watered everything. The station subscription
             # replaces both the poll and its abort branch.
             confirm_target = (

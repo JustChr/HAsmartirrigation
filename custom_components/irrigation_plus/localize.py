@@ -1,4 +1,4 @@
-"""Localization utilities for Smart Irrigation integration."""
+"""Localization utilities for Irrigation Plus integration."""
 
 import json
 import logging

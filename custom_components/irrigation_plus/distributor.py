@@ -123,7 +123,7 @@ class DistributorMixin:
             "persistent_notification",
             "create",
             {
-                "title": "Smart Irrigation",
+                "title": "Irrigation Plus",
                 "message": message,
                 "notification_id": (
                     f"{const.DOMAIN}_distributor_{distributor.get('id')}"

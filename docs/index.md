@@ -2,11 +2,11 @@
 layout: default
 title: Introduction
 ---
-# Smart Irrigation
+# Irrigation Plus
 
 Ever wondered if you're watering your lawn, garden, greenhouse, or crops too much or too little? Tired of guesswork and fixed timers? If you have an irrigation system you can switch on and off through Home Assistant, this integration is for you.
 
-Smart Irrigation calculates the exact number of seconds to run your irrigation system to compensate for moisture lost through [evapotranspiration](https://en.wikipedia.org/wiki/Evapotranspiration). It takes into account precipitation (rain, snow) and adjusts accordingly — if it has rained enough, no irrigation is needed; if not, it tells you exactly how long to irrigate.
+Irrigation Plus calculates the exact number of seconds to run your irrigation system to compensate for moisture lost through [evapotranspiration](https://en.wikipedia.org/wiki/Evapotranspiration). It takes into account precipitation (rain, snow) and adjusts accordingly — if it has rained enough, no irrigation is needed; if not, it tells you exactly how long to irrigate.
 
 Key capabilities:
 

@@ -23,7 +23,7 @@ def coordinator_id(hass: HomeAssistant) -> str:
 
 
 def hub_device_info(hass: HomeAssistant) -> dict:
-    """The top-level Smart Irrigation device (hosts global entities)."""
+    """The top-level Irrigation Plus device (hosts global entities)."""
     return {
         "identifiers": {(const.DOMAIN, coordinator_id(hass))},
         "name": const.NAME,
@@ -38,7 +38,7 @@ def zone_device_info(hass: HomeAssistant, zone_id, zone_name: str) -> dict:
 
     The device is named after the zone alone (e.g. "Front lawn"); with
     ``has_entity_name`` the entities compose as "<zone> <descriptor>". The hub
-    device ("Smart Irrigation") supplies the integration-level grouping.
+    device ("Irrigation Plus") supplies the integration-level grouping.
     """
     cid = coordinator_id(hass)
     return {

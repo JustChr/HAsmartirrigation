@@ -9,7 +9,7 @@ title: Installation: Updating
 
 ## Update to the latest version
 
-- **Via HACS**: HACS notifies you when a new version is available. Click the notification and follow the prompts. You can also trigger a check manually via **HACS → Integrations → Smart Irrigation → ⋮ → Redownload**.
+- **Via HACS**: HACS notifies you when a new version is available. Click the notification and follow the prompts. You can also trigger a check manually via **HACS → Integrations → Irrigation Plus → ⋮ → Redownload**.
 - **Manually**: Download the [latest release](https://github.com/JustChr/HAsmartirrigation/releases/latest) as a zip, extract `custom_components/irrigation_plus`, and overwrite the existing folder.
 
 After updating, restart Home Assistant.
@@ -20,7 +20,7 @@ After updating, restart Home Assistant.
   ```yaml
   service: update.install
   target:
-    entity_id: update.smart_irrigation_update
+    entity_id: update.irrigation_plus_update
   data:
     version: v2026.05.00
   ```
@@ -30,8 +30,8 @@ After updating, restart Home Assistant.
 
 ## Verify the installed version
 
-- **Backend version**: Settings → Devices & Services → Smart Irrigation → click the device → *Firmware version*
-- **Frontend version**: visible in the top-right corner of the Smart Irrigation panel. If it doesn't match the backend, do a [hard refresh](https://refreshyourcache.com/en/cache/) in your browser to clear the cached bundle.
+- **Backend version**: Settings → Devices & Services → Irrigation Plus → click the device → *Firmware version*
+- **Frontend version**: visible in the top-right corner of the Irrigation Plus panel. If it doesn't match the backend, do a [hard refresh](https://refreshyourcache.com/en/cache/) in your browser to clear the cached bundle.
 
 ## Version scheme
 

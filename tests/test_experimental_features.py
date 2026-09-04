@@ -5,7 +5,7 @@ Covers the two opt-in features wired to the Experimental tab:
     rain is forecast, leaving the leftover deficit in ``irrigation_target_bucket``.
   * The runner crediting a completed run to that per-zone target instead of 0.
   * Observed-watering bucket crediting (ObservedWateringMixin) — credit external
-    valve runs, suppress Smart Irrigation's own runs.
+    valve runs, suppress Irrigation Plus's own runs.
 
 Like test_calculate_module, coordinators are built with ``__new__`` so only the
 attributes each method actually touches are wired up.

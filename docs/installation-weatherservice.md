@@ -8,7 +8,7 @@ title: Installation: Configuring weather service
 > Previous: [Downloading the integration](installation-download.md)<br/>
 > Next: [Configuration](configuration.md) or [Changing your settings for weather service](installation-options.md)
 
-When you add the integration (**Settings → Devices & Services → Add Integration → Smart Irrigation**), a short two-step setup asks how you want to get weather data. You can change any of this later from the panel under **Setup → Weather & Location**.
+When you add the integration (**Settings → Devices & Services → Add Integration → Irrigation Plus**), a short two-step setup asks how you want to get weather data. You can change any of this later from the panel under **Setup → Weather & Location**.
 
 ## Step 1 — Do you want to use a weather service?
 
@@ -31,7 +31,7 @@ Three services are supported:
 
 Select a service and, for Open Weather Map or Pirate Weather, paste its API key (leave the key blank for Open-Meteo). If the key is valid you'll see a success message; if not, double-check it — newly created keys can take a while to activate.
 
-After setup finishes, a **Smart Irrigation** panel appears in your sidebar. [Use it to configure your zones, sensor groups and modules](configuration.md).
+After setup finishes, a **Irrigation Plus** panel appears in your sidebar. [Use it to configure your zones, sensor groups and modules](configuration.md).
 
 ## Getting an Open Weather Map API key
 

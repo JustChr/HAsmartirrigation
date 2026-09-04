@@ -1,7 +1,7 @@
 """Serialise a set of self-closing runs: one at a time, optionally in slots.
 
 ``zone_sequencing`` promises that zones either run together, or one after
-another, or take turns. For a zone whose valve Smart Irrigation holds open
+another, or take turns. For a zone whose valve Irrigation Plus holds open
 itself that promise is kept by ``irrigation._run_rotation``, which simply sleeps
 between opens. For a zone whose valve is owned by hardware there is nothing to
 sleep on: the run is dispatched and returns immediately, and the only signal
@@ -9,7 +9,7 @@ that it is over is its own finalisation. So the sequencing has to be rebuilt as
 a chain — dispatch one, wait to be told it finished, dispatch the next.
 
 That chain was written for OpenSprinkler stations (v2026.07.x) and is almost
-entirely generic: what it actually needs from a mode is that Smart Irrigation
+entirely generic: what it actually needs from a mode is that Irrigation Plus
 decides when each run starts and is told when it ends, which is true of every
 self-closing mode whose queue SI owns. This module is the generic part; a mode
 supplies the little that differs as a :class:`ChainPolicy`.

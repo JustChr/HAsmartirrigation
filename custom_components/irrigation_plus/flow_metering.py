@@ -1,4 +1,4 @@
-"""Unified flow-measurement engine + cross-run learning for Smart Irrigation.
+"""Unified flow-measurement engine + cross-run learning for Irrigation Plus.
 
 A ``FlowMeter`` measures delivered litres for one run of one flow sensor:
 

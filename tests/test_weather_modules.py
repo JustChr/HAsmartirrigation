@@ -1,4 +1,4 @@
-"""Test Smart Irrigation weather modules."""
+"""Test Irrigation Plus weather modules."""
 
 import datetime
 import json

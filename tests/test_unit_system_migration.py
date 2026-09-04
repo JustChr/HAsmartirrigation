@@ -415,7 +415,7 @@ class TestV13Migration:
     """The bump only starts the bookkeeping — it must convert nothing."""
 
     def _store(self, hass):
-        return MigratableStore(hass, STORAGE_VERSION, "smart_irrigation.storage")
+        return MigratableStore(hass, STORAGE_VERSION, "irrigation_plus.storage")
 
     def _v12_data(self):
         return {

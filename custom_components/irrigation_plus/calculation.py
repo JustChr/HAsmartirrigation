@@ -1,4 +1,4 @@
-"""Weather-data aggregation and ET/bucket calculation for Smart Irrigation.
+"""Weather-data aggregation and ET/bucket calculation for Irrigation Plus.
 
 Extracted from __init__.py (Phase C4). Methods live on a mixin the coordinator
 inherits; bodies unchanged (still use ``self``). Covers the weather->calculation

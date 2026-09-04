@@ -1,9 +1,9 @@
 import { VERSION, FULL_CARD_URL } from "./const";
 
 /**
- * Tiny registration stub for the Smart Irrigation zones card.
+ * Tiny registration stub for the Irrigation Plus zones card.
  *
- * The full Smart Irrigation panel is admin-only (panel_custom require_admin),
+ * The full Irrigation Plus panel is admin-only (panel_custom require_admin),
  * but the underlying websocket/HTTP endpoints are available to any
  * authenticated user. This card reuses the panel's zone view with the
  * admin-only deep links hidden and, by default, only the manual "Irrigate"
@@ -145,7 +145,7 @@ w.customCards = w.customCards || [];
 if (!w.customCards.some((c) => c.type === "irrigation-plus-zones-card")) {
   w.customCards.push({
     type: "irrigation-plus-zones-card",
-    name: "Smart Irrigation Zones",
+    name: "Irrigation Plus Zones",
     description:
       "Everyday zone status and manual irrigation, usable by non-admin users.",
     preview: false,

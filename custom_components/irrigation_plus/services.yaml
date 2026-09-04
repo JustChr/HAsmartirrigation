@@ -139,7 +139,7 @@ run_zone:
   description: Water a specific zone for a custom duration (minutes), bypassing the calculation and any active rain delay.
   target:
     entity:
-      integration: smart_irrigation
+      integration: irrigation_plus
       domain:
         - sensor
         - binary_sensor
@@ -160,7 +160,7 @@ stop_zone:
   description: Stop an in-progress run for a specific zone and turn its valve off.
   target:
     entity:
-      integration: smart_irrigation
+      integration: irrigation_plus
       domain:
         - sensor
         - binary_sensor

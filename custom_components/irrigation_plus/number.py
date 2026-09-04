@@ -1,4 +1,4 @@
-"""Number platform for Smart Irrigation integration — exposes per-zone multiplier."""
+"""Number platform for Irrigation Plus integration — exposes per-zone multiplier."""
 
 import contextlib
 import logging
@@ -26,7 +26,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_devices: AddEntitiesCallback,
 ) -> None:
-    """Set up Smart Irrigation number entities (multiplier per zone)."""
+    """Set up Irrigation Plus number entities (multiplier per zone)."""
 
     @callback
     def async_add_number_entity(config: dict) -> None:

@@ -1,4 +1,4 @@
-"""Common test utilities for Smart Irrigation tests."""
+"""Common test utilities for Irrigation Plus tests."""
 
 from homeassistant.data_entry_flow import FlowResultType
 

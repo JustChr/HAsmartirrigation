@@ -1,4 +1,4 @@
-"""Test the Smart Irrigation panel registration."""
+"""Test the Irrigation Plus panel registration."""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -52,7 +52,7 @@ class _FakeResources:
 
 
 class TestSmartIrrigationPanel:
-    """Test Smart Irrigation panel registration."""
+    """Test Irrigation Plus panel registration."""
 
     @pytest.fixture
     def mock_hass(self):

@@ -182,7 +182,7 @@ async def test_a_classic_zone_linked_to_a_station_still_watches_the_sensor(hass)
     Its run is refused, but pointing the zone's watering-now sensor at the
     enabled switch would leave it on for ever, and observed watering would read
     that as a valve nobody ever closes and credit against it. Live, the sensor
-    sat on for a zone Smart Irrigation had just refused to run.
+    sat on for a zone Irrigation Plus had just refused to run.
     """
     _publish(hass)
     mislinked = _zone(
@@ -556,7 +556,7 @@ async def test_an_implausible_reported_start_falls_back_to_the_observation(hass)
 
 
 # --------------------------------------------------------------------------- #
-# Zone sequencing, which Smart Irrigation has to apply itself
+# Zone sequencing, which Irrigation Plus has to apply itself
 # --------------------------------------------------------------------------- #
 STATION_B = "switch.front_north_station_enabled"
 RUNNING_B = "binary_sensor.front_north_station_running"
@@ -601,7 +601,7 @@ async def test_parallel_hands_the_controller_every_station_at_once(hass):
 
 async def test_sequential_holds_the_second_station_until_the_first_finishes(hass):
     """A controller may run stations concurrently, so 'sequential' only means
-    anything if Smart Irrigation withholds the next dispatch itself."""
+    anything if Irrigation Plus withholds the next dispatch itself."""
     c = _coord(hass)
     zones = _two_zones(hass, c, const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
     await c.async_dispatch_opensprinkler_zones(zones, trigger="schedule")

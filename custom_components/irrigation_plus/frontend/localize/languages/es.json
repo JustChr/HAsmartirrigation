@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation: comprueba el caudal",
+    "title": "Irrigation Plus: comprueba el caudal",
     "message_over": "La zona '{zone}' riega sistemáticamente en exceso: el caudal medido está ~{percent}% por encima del valor configurado durante {runs} ciclos. Ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
     "message_under": "La zona '{zone}' riega sistemáticamente por defecto: el caudal medido está ~{percent}% por debajo del valor configurado durante {runs} ciclos. Ajusta el rendimiento a unos {rate} {unit} (actualmente {current}).",
     "open_settings": "Abrir la configuración de la zona"
@@ -792,7 +792,7 @@
       },
       "observed_watering": {
         "title": "Acreditar el balance por riego observado",
-        "description": "Cuando la válvula vinculada de una zona funciona fuera de Smart Irrigation —un grifo manual, una automatización, tu propio horario— se acredita en su balance el agua aplicada, estimada a partir del tiempo de funcionamiento y el caudal de la zona. Así el modelo de humedad del suelo se mantiene fiel cuando riegas por otros medios. Los riegos de la propia Smart Irrigation ya se contabilizan y nunca se cuentan dos veces.",
+        "description": "Cuando la válvula vinculada de una zona funciona fuera de Irrigation Plus —un grifo manual, una automatización, tu propio horario— se acredita en su balance el agua aplicada, estimada a partir del tiempo de funcionamiento y el caudal de la zona. Así el modelo de humedad del suelo se mantiene fiel cuando riegas por otros medios. Los riegos de la propia Irrigation Plus ya se contabilizan y nunca se cuentan dos veces.",
         "label": "Acreditar el balance cuando una válvula vinculada funciona externamente",
         "note": "Requiere una válvula vinculada y un caudal en la zona. El volumen se estima (tiempo de funcionamiento × caudal), no se mide."
       },
@@ -817,7 +817,7 @@
       },
       "distributors": {
         "title": "Distribuidores de agua mecánicos",
-        "description": "Controla un distribuidor de presión mecánico —por ejemplo un Distribuidor de agua Gardena— que reparte un suministro en varias salidas y avanza con impulsos de encendido y apagado del agua. Asigna zonas a las salidas de un distribuidor y Smart Irrigation las riega en secuencia, sigue la posición y coordina una válvula maestra o una bomba. Es una función nueva que no pudo probarse por completo en hardware, así que trátala como una beta.",
+        "description": "Controla un distribuidor de presión mecánico —por ejemplo un Distribuidor de agua Gardena— que reparte un suministro en varias salidas y avanza con impulsos de encendido y apagado del agua. Asigna zonas a las salidas de un distribuidor y Irrigation Plus las riega en secuencia, sigue la posición y coordina una válvula maestra o una bomba. Es una función nueva que no pudo probarse por completo en hardware, así que trátala como una beta.",
         "label": "Activar distribuidores de agua mecánicos",
         "note": "Vigila de cerca los primeros días de uso y ten a mano el control manual del dispositivo. Puedes desactivarlo en cualquier momento: el riego de zonas existente no se ve afectado."
       }
@@ -932,7 +932,7 @@
       }
     }
   },
-  "title": "Smart Irrigation",
+  "title": "Irrigation Plus",
   "coordinate_config": {
     "title": "Coordenadas de Ubicación",
     "description": "Configure las coordenadas de ubicación para obtener datos meteorológicos. Puede usar coordenadas manuales diferentes a la ubicación de Home Assistant si es necesario.",
@@ -1122,7 +1122,7 @@
     "open_wizard": "Abrir asistente",
     "steps": {
       "welcome": {
-        "title": "Bienvenido a Smart Irrigation",
+        "title": "Bienvenido a Irrigation Plus",
         "intro": "Este asistente te guía por los cuatro pasos necesarios para que tu primera zona riegue automáticamente.",
         "step1_label": "Servicio meteorológico — de dónde obtener los datos meteorológicos",
         "step2_label": "Módulo de cálculo — cómo se calcula la duración del riego",
@@ -1163,7 +1163,7 @@
       },
       "done": {
         "title": "¡Configuración completada!",
-        "description": "Tu primera zona está lista. Smart Irrigation ahora calculará las duraciones de riego automáticamente según los datos meteorológicos.",
+        "description": "Tu primera zona está lista. Irrigation Plus ahora calculará las duraciones de riego automáticamente según los datos meteorológicos.",
         "next_steps": "Qué puedes hacer a continuación:",
         "tip1": "Ve a Zonas para ver las duraciones calculadas y los valores del depósito.",
         "tip2": "Añade más zonas desde la pestaña Zonas.",
@@ -1193,7 +1193,7 @@
     "title": "Envío por lotes (controladores con cola)",
     "description": "Entrega al controlador el riego completo en una sola llamada — una lista ordenada de zonas y duraciones — y deja que la recorra desde su propia cola. Pensado para controladores con una cola real como el componente sprinkler de ESPHome, aunque nada de esto es exclusivo suyo: los ayudantes normales de Home Assistant sirven igual. Una cola riega una válvula cada vez, así que las zonas por lotes van siempre en orden y el ajuste de secuencia de zonas no se les aplica.",
     "run_service": "Script de inicio",
-    "run_service_help": "El script que recibe el plan, en un único campo llamado zones con una lista ordenada de {zone_id, zone_name, duration}. Si tu controlador admite multiplicador o repeticiones, omítelos o déjalos neutros (multiplicador 1, repetición 0): reescalarían duraciones ya calculadas y Smart Irrigation no puede detectarlo.",
+    "run_service_help": "El script que recibe el plan, en un único campo llamado zones con una lista ordenada de {zone_id, zone_name, duration}. Si tu controlador admite multiplicador o repeticiones, omítelos o déjalos neutros (multiplicador 1, repetición 0): reescalarían duraciones ya calculadas y Irrigation Plus no puede detectarlo.",
     "stop_service": "Script de parada",
     "stop_service_help": "El script que detiene el riego Y vacía la cola. Ambas cosas importan. En un controlador ESPHome son sprinkler.shutdown seguido de sprinkler.clear_queued_valves.",
     "stop_service_missing": "Sin script de parada no se puede detener el controlador ni vaciar su cola. Detener una zona corregirá la contabilidad aquí, pero cualquier zona aún en cola regará más tarde sin nada que la supervise.",

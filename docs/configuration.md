@@ -4,7 +4,7 @@ title: Configuration
 ---
 # Configuration
 
-You configure the integration from the Smart Irrigation panel in the Home Assistant sidebar. Make sure you [install](installation.md) it first.
+You configure the integration from the Irrigation Plus panel in the Home Assistant sidebar. Make sure you [install](installation.md) it first.
 
 ![](assets/images/configuration-1.png)
 

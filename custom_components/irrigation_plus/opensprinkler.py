@@ -513,7 +513,7 @@ class OpenSprinklerMixin:
     # --- sequencing ---------------------------------------------------------
     #
     # The chain itself lives in run_chain.py, shared with every self-closing mode
-    # whose queue Smart Irrigation owns. These are the spellings this mode was
+    # whose queue Irrigation Plus owns. These are the spellings this mode was
     # written with, kept as delegates so its behaviour is unchanged and its tests
     # remain the oracle for the engine — including ``os-chain:``, the master-hold
     # token its tests assert on, which is why the prefix is a policy field.
@@ -531,7 +531,7 @@ class OpenSprinklerMixin:
         the controller everything and let it schedule", which is what a station's
         own sequential-group setting then governs.
 
-        ``sequential`` is the case Smart Irrigation has to enforce itself: it
+        ``sequential`` is the case Irrigation Plus has to enforce itself: it
         dispatches one station and holds the rest back until that run finalises,
         so the setting means the same thing on a controller whose stations are
         flagged to run concurrently as on one whose stations are not.

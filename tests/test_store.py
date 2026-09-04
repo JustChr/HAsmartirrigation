@@ -1,4 +1,4 @@
-"""Test the Smart Irrigation store (SmartIrrigationStorage).
+"""Test the Irrigation Plus store (SmartIrrigationStorage).
 
 Rewritten in A6 for the current store API: the registry is a
 SmartIrrigationStorage backed by MigratableStore; CRUD is async_create_/

@@ -1,4 +1,4 @@
-"""Test Smart Irrigation helper functions to improve coverage."""
+"""Test Irrigation Plus helper functions to improve coverage."""
 
 from custom_components.irrigation_plus.helpers import (
     CannotConnect,

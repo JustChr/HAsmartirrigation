@@ -1,1 +1,1 @@
-"""Weather modules for Smart Irrigation integration."""
+"""Weather modules for Irrigation Plus integration."""

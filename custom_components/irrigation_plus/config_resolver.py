@@ -1,4 +1,4 @@
-"""Weather-service config resolution for the Smart Irrigation integration.
+"""Weather-service config resolution for the Irrigation Plus integration.
 
 Extracted from async_setup_entry (Phase C8, scoped). The reconciliation of the
 weather-service settings — stored config defaults, then the config entry's

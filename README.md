@@ -4,7 +4,7 @@
 [release-url]: https://github.com/JustChr/HAsmartirrigation/releases
 [release-badge]: https://img.shields.io/github/v/release/JustChr/HAsmartirrigation?style=flat-square
 
-# Smart Irrigation — Maintained Community Fork
+# Irrigation Plus — Maintained Community Fork
 
 ![](logo.png?raw=true)
 
@@ -25,12 +25,12 @@ This integration calculates how long to run your irrigation system to compensate
 - **Everyday dashboard** — the **Zones** tab is an at-a-glance [dashboard](https://JustChr.github.io/HAsmartirrigation/usage-dashboard.html) showing, per zone, whether it will water and why, with one-tap Update / Calculate / Irrigate; full configuration lives under **Setup → My Zones**
 - **Forward-looking outlook** — a banner shows the next scheduled run and whether it will likely be skipped (tap **“Why?”** for the reasons); per-zone decisions are honest about skip conditions
 - **Live status estimate** — a read-only "Now ≈ −X mm" estimate of each zone's deficit *since the last calculation*, using the hourly FAO-56 equation where hourly solar data is available — so the status isn't stale between daily calculations
-- **Lovelace card** — a [`custom:smart-irrigation-zones-card`](https://JustChr.github.io/HAsmartirrigation/usage-lovelace-card.html) that mirrors the dashboard for **non-admin** users, addable to any dashboard
+- **Lovelace card** — a [`custom:irrigation-plus-zones-card`](https://JustChr.github.io/HAsmartirrigation/usage-lovelace-card.html) that mirrors the dashboard for **non-admin** users, addable to any dashboard
 - **Irrigate Now** — trigger immediate irrigation from the dashboard (all zones or per zone), bypassing skip conditions
 - **Recurring schedules** — create daily/weekly/monthly/interval irrigation schedules entirely from the UI (**Setup → When to Water**) — no automations needed
 - **Skip conditions** — skip irrigation based on forecasted rain (with a configurable forecast look-ahead window), low temperature, high wind speed, or a rain sensor
 - **Soil-moisture veto** — give a zone a soil-moisture sensor and a threshold; an automatic run skips that zone while it reads wet (a per-zone skip gate, never an ET input)
-- **Mechanical water distributors** *(experimental, opt-in)* — drive a Gardena-style pressure distributor that splits one supply across several outlets; assign zones to its outlets and Smart Irrigation waters them in sequence and tracks the position. Enable under **Setup → Experimental**.
+- **Mechanical water distributors** *(experimental, opt-in)* — drive a Gardena-style pressure distributor that splits one supply across several outlets; assign zones to its outlets and Irrigation Plus waters them in sequence and tracks the position. Enable under **Setup → Experimental**.
 - Enforces a configurable minimum number of days between irrigation events
 - Still fires HA events for power users who prefer automation-based control
 
@@ -74,7 +74,7 @@ A zone can delegate the valve **close** to self-closing hardware. In **Setup →
 
 Self-closing hardware means anything with its own timer: Zigbee2MQTT valves with a built-in countdown (Tuya `countdown_l1`, SONOFF `cyclic_timed_irrigation`), or a DIY/**ESPHome** controller that closes its own valve after a received runtime. (A plain switch with no hardware timer is *not* self-closing — use Classic mode.)
 
-To make the script part painless, three **script blueprints** ship with the integration and are copied into `config/blueprints/script/smart_irrigation/` automatically on setup (existing files are never overwritten):
+To make the script part painless, three **script blueprints** ship with the integration and are copied into `config/blueprints/script/irrigation_plus/` automatically on setup (existing files are never overwritten):
 
 | Blueprint | For | Notes |
 |-----------|-----|-------|
@@ -109,11 +109,11 @@ The master applies to every path (scheduled, "Irrigate Now", and manual runs), f
 
 Give a zone a soil-moisture sensor and a threshold under **Setup → My Zones → (zone)**. On an **automatic** (scheduled) run, if the sensor reads **above** the threshold, HASI **skips that zone** and resets its bucket to 0 (re-anchored to field capacity). Manual *Irrigate Now* always waters, and an unavailable or non-numeric sensor never blocks watering (fail-open).
 
-Soil moisture is used **only as a skip gate — never as an ET input**, so the water-balance model is unchanged. The sensor picker is restricted to `device_class: moisture`. Each skip fires a `smart_irrigation_zone_skipped` event, shows a dashboard chip, and is recorded in the zone's run history. See [My Zones → Soil-moisture veto](docs/configuration-my-zones.md#soil-moisture-veto).
+Soil moisture is used **only as a skip gate — never as an ET input**, so the water-balance model is unchanged. The sensor picker is restricted to `device_class: moisture`. Each skip fires an `irrigation_plus_zone_skipped` event, shows a dashboard chip, and is recorded in the zone's run history. See [My Zones → Soil-moisture veto](docs/configuration-my-zones.md#soil-moisture-veto).
 
 ## Mechanical water distributors (experimental)
 
-A mechanical pressure-driven **indexing distributor** (e.g. a Gardena Water Distributor) splits one supply into several outlets, advancing to the next each time the water is pulsed off and on. Enable it under **Setup → Experimental → Mechanical water distributors** (off by default), then assign zones to its outlets under **Setup → Distributors**. Smart Irrigation waters the mapped outlets in sequence, tracks the blind position, and coordinates a master valve/pump. See the [Distributors](https://JustChr.github.io/HAsmartirrigation/configuration-distributors.html) docs.
+A mechanical pressure-driven **indexing distributor** (e.g. a Gardena Water Distributor) splits one supply into several outlets, advancing to the next each time the water is pulsed off and on. Enable it under **Setup → Experimental → Mechanical water distributors** (off by default), then assign zones to its outlets under **Setup → Distributors**. Irrigation Plus waters the mapped outlets in sequence, tracks the blind position, and coordinates a master valve/pump. See the [Distributors](https://JustChr.github.io/HAsmartirrigation/configuration-distributors.html) docs.
 
 This is a new, experimental feature that could not be fully hardware-tested — treat it as a beta and watch the first days of use closely.
 
@@ -123,9 +123,9 @@ This integration is not in the default HACS store. Install it as a **custom repo
 
 1. In Home Assistant, open **HACS → Integrations → ⋮ → Custom repositories**
 2. Add `https://github.com/JustChr/HAsmartirrigation` with category **Integration**
-3. Search for "Smart Irrigation" and install
+3. Search for "Irrigation Plus" and install
 4. Restart Home Assistant
-5. Go to **Settings → Devices & Services → Add Integration**, search for "Smart Irrigation" and follow the wizard
+5. Go to **Settings → Devices & Services → Add Integration**, search for "Irrigation Plus" and follow the wizard
 
 ### Manual installation
 

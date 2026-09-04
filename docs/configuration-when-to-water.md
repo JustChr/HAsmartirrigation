@@ -131,13 +131,13 @@ Below these settings, the same tab hosts the **recurring schedules** — the dai
 
 ### Unit System Responsiveness
 
-Zone numbers are stored in the units Home Assistant is configured for, not in a canonical unit. So when you switch Home Assistant between metric and US customary, Smart Irrigation **rewrites the stored numbers** to preserve what they mean — it does not simply relabel them. Switching the unit system:
+Zone numbers are stored in the units Home Assistant is configured for, not in a canonical unit. So when you switch Home Assistant between metric and US customary, Irrigation Plus **rewrites the stored numbers** to preserve what they mean — it does not simply relabel them. Switching the unit system:
 
 * Converts every depth on each zone (bucket, maximum bucket, drainage rate, minimum deficit to irrigate), plus zone **size** and **throughput**. A minimum deficit of `-10` mm becomes `-0.39` in — the same depth of water, written the new way. Leaving the digits alone would turn it into a deficit no bucket ever reaches, silently stopping every deficit-gated run.
 * Logs what it did, one line per zone naming the fields it converted, plus a summary of how many zones were updated.
 * Refreshes the sensor entities and the panel, so they show the converted numbers under the new unit label rather than the old digits.
 
-A change made in the Home Assistant UI is applied immediately — no restart or integration reload. A change made in `configuration.yaml` is picked up during the restart it already requires. The conversion is guarded by the unit system recorded in Smart Irrigation's own storage rather than by the change event, so it happens exactly once per switch and repeating it is harmless.
+A change made in the Home Assistant UI is applied immediately — no restart or integration reload. A change made in `configuration.yaml` is picked up during the restart it already requires. The conversion is guarded by the unit system recorded in Irrigation Plus's own storage rather than by the change event, so it happens exactly once per switch and repeating it is harmless.
 
 > **Not converted, deliberately:** fields you have left empty stay empty — a blank *maximum bucket* means "no ceiling" and is not given one. The `current_drainage` sensor attribute is a read-only diagnostic that is always in mm and is overwritten by the next calculation.
 

@@ -1,4 +1,4 @@
-"""The Smart Irrigation Integration."""
+"""The Irrigation Plus Integration."""
 
 import asyncio
 import logging
@@ -122,12 +122,12 @@ async def _migrate_duration_unique_ids(hass: HomeAssistant, entry, store) -> Non
 
     The duration sensor historically used its own entity_id as unique_id
     (``sensor.smart_irrigation_<slug>`` — the only entity that did). Rewrite it
-    to ``smart_irrigation_<zone_id>_duration`` to match every other entity. The
+    to ``irrigation_plus_<zone_id>_duration`` to match every other entity. The
     registry entry (hence the entity_id + recorded history) carries over.
 
     Idempotent: already-migrated ids don't start with ``sensor.`` so they're
     skipped. The ``sensor.`` prefix uniquely identifies the legacy duration ids
-    (bucket/et/etc. use ``smart_irrigation_<id>_<suffix>`` without it).
+    (bucket/et/etc. use ``<domain>_<id>_<suffix>`` without it).
     """
     from homeassistant.util import slugify
 
@@ -163,7 +163,7 @@ async def _migrate_duration_unique_ids(hass: HomeAssistant, entry, store) -> Non
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up Smart Irrigation from a config entry."""
+    """Set up Irrigation Plus from a config entry."""
 
     _LOGGER.info("async_setup_entry called for %s", entry.entry_id)
 
@@ -377,7 +377,7 @@ async def async_handle_core_config_change(hass: HomeAssistant, event) -> None:
         return
 
     _LOGGER.info(
-        "Home Assistant unit system changed from %s to %s, updating Smart Irrigation",
+        "Home Assistant unit system changed from %s to %s, updating Irrigation Plus",
         unit_system_name(previous_unit_system),
         unit_system_name(current_unit_system),
     )
@@ -416,7 +416,7 @@ async def options_update_listener(hass: HomeAssistant, config_entry):
 
 
 async def async_unload_entry(hass: HomeAssistant, entry):
-    """Unload Smart Irrigation config entry."""
+    """Unload Irrigation Plus config entry."""
     unload_ok = all(
         await asyncio.gather(
             hass.config_entries.async_forward_entry_unload(entry, PLATFORM),
@@ -446,17 +446,17 @@ async def async_unload_entry(hass: HomeAssistant, entry):
         # live enough to settle the bucket against what was delivered.
         if entry.disabled_by is not None:
             await coordinator.async_abort_opensprinkler_runs(
-                "the Smart Irrigation config entry is being disabled"
+                "the Irrigation Plus config entry is being disabled"
             )
             await coordinator.async_abort_batch_runs(
-                "the Smart Irrigation config entry is being disabled"
+                "the Irrigation Plus config entry is being disabled"
             )
         await coordinator.async_unload()
     return True
 
 
 async def async_remove_entry(hass: HomeAssistant, entry):
-    """Remove Smart Irrigation config entry."""
+    """Remove Irrigation Plus config entry."""
     remove_panel(hass)
     # Uninstall only — never from async_unload_entry, which also runs on every
     # reload. Without this the Lovelace resource we registered outlived the
@@ -475,10 +475,10 @@ async def async_remove_entry(hass: HomeAssistant, entry):
             # settle=False because async_delete_config removes the store the
             # reconciliation would write to.
             await coordinator.async_abort_opensprinkler_runs(
-                "the Smart Irrigation config entry is being removed", settle=False
+                "the Irrigation Plus config entry is being removed", settle=False
             )
             await coordinator.async_abort_batch_runs(
-                "the Smart Irrigation config entry is being removed", settle=False
+                "the Irrigation Plus config entry is being removed", settle=False
             )
             await coordinator.async_delete_config()
         del hass.data[const.DOMAIN]
@@ -514,7 +514,7 @@ class SmartIrrigationCoordinator(
     DistributorMixin,
     RunStateMixin,
 ):
-    """Define an object to hold Smart Irrigation device.
+    """Define an object to hold Irrigation Plus device.
 
     This is a plain coordinator: it does all its own scheduling (auto
     update/calc/clear timers, midnight tracking, and — when continuous updates
@@ -639,7 +639,7 @@ class SmartIrrigationCoordinator(
         # Experimental observed-watering state (ObservedWateringMixin). Off until
         # async_setup_observed_watering() subscribes. ``_si_driven_until`` maps a
         # zone id → loop time the runner's valve-open suppression expires, so the
-        # observer doesn't double-credit Smart Irrigation's own runs.
+        # observer doesn't double-credit Irrigation Plus's own runs.
         self._observed_unsub = None
         self._observed_on_since = {}
         self._observed_entities = frozenset()
@@ -1105,7 +1105,7 @@ class SmartIrrigationCoordinator(
 
     async def async_handle_unit_system_change(self):
         """Handle changes to the Home Assistant unit system."""
-        _LOGGER.info("Processing unit system change for Smart Irrigation")
+        _LOGGER.info("Processing unit system change for Irrigation Plus")
 
         # Convert the stored zone values BEFORE anything re-reads them, so the
         # refreshed entities and panel show the converted numbers rather than
@@ -1220,7 +1220,7 @@ class SmartIrrigationCoordinator(
             await self.store.async_update_config(data)
 
     async def set_up_auto_calc_time(self, data):
-        """Set up the automatic calculation time for Smart Irrigation based on configuration data."""
+        """Set up the automatic calculation time for Irrigation Plus based on configuration data."""
         mode = data.get(
             const.CONF_AUTO_CALC_MODE,
             getattr(
@@ -1289,7 +1289,7 @@ class SmartIrrigationCoordinator(
             await self.store.async_update_config(data)
 
     async def track_update_time(self, *args):
-        """Track and schedule periodic updates for Smart Irrigation based on configuration."""
+        """Track and schedule periodic updates for Irrigation Plus based on configuration."""
         # The async_call_later that scheduled us has now fired — clear the handle
         self._pending_track_update_unsub = None
         # perform update once
@@ -2098,7 +2098,7 @@ class SmartIrrigationCoordinator(
             device_registry.async_remove_device(device.id)
 
     async def async_unload(self):
-        """Remove all Smart Irrigation objects."""
+        """Remove all Irrigation Plus objects."""
 
         # Cancel all periodic timers so a reloaded coordinator doesn't ghost-write
         for unsub in [
@@ -2195,7 +2195,7 @@ class SmartIrrigationCoordinator(
             self._subscriptions.pop()()
 
     async def async_delete_config(self):
-        """Wipe Smart Irrigation storage."""
+        """Wipe Irrigation Plus storage."""
         await self.store.async_delete()
 
     async def _async_set_all_buckets(self, val=0):

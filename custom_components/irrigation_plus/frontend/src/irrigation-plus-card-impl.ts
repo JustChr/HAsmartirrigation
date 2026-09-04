@@ -5,7 +5,7 @@ import { SmartIrrigationViewZones } from "./views/zones/view-zones";
 import { ensureTranslations, isTranslationLoaded } from "../localize/localize";
 
 /**
- * Heavy implementation of the Smart Irrigation zones card. This bundle is
+ * Heavy implementation of the Irrigation Plus zones card. This bundle is
  * lazy-loaded by the tiny `irrigation-plus-card.ts` stub the first time a card
  * actually renders, so the ~180 KB of view code is NOT loaded into the HA app
  * shell on every page (only the stub is, via add_extra_js_url).

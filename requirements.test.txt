@@ -1,4 +1,4 @@
-# Testing requirements for Smart Irrigation project
+# Testing requirements for Irrigation Plus project
 
 # Core component requirements
 -r custom_components/irrigation_plus/requirements.txt

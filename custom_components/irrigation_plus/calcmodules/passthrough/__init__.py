@@ -1,4 +1,4 @@
-"""The Passthrough module for Smart Irrigation Integration."""
+"""The Passthrough module for Irrigation Plus Integration."""
 
 import logging
 

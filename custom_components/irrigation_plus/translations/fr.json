@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "single_instance_allowed": "Une seule configuration de Smart Irrigation est autorisée."
+      "single_instance_allowed": "Une seule configuration de Irrigation Plus est autorisée."
     },
     "error": {
       "auth": "Weather service API key or version incorrect",
@@ -68,7 +68,7 @@
       }
     },
     "abort": {
-      "configure_in_panel": "Configurez Smart Irrigation depuis son panneau dans la barre latérale (Configuration → Météo et emplacement)."
+      "configure_in_panel": "Configurez Irrigation Plus depuis son panneau dans la barre latérale (Configuration → Météo et emplacement)."
     }
   },
   "services": {

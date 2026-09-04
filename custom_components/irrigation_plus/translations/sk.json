@@ -68,7 +68,7 @@
       }
     },
     "abort": {
-      "configure_in_panel": "Nakonfigurujte Smart Irrigation cez panel v bočnom paneli (Nastavenie → Počasie a poloha)."
+      "configure_in_panel": "Nakonfigurujte Irrigation Plus cez panel v bočnom paneli (Nastavenie → Počasie a poloha)."
     }
   },
   "services": {

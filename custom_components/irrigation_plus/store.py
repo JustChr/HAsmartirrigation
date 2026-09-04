@@ -1,4 +1,4 @@
-"""Storage and management for Smart Irrigation configuration, zones, modules, and mappings."""
+"""Storage and management for Irrigation Plus configuration, zones, modules, and mappings."""
 
 import datetime
 import logging
@@ -583,10 +583,10 @@ def _migrate_schedule_to_v14(old: dict) -> dict:
 
 
 class MigratableStore(Store):
-    """Store subclass that supports migration for Smart Irrigation storage."""
+    """Store subclass that supports migration for Irrigation Plus storage."""
 
     async def _async_migrate_func(self, old_version, data: dict):
-        """Migration function for Smart Irrigation storage.
+        """Migration function for Irrigation Plus storage.
 
         This function ALWAYS runs on version mismatch to ensure config compatibility.
         It performs critical tasks:
@@ -857,7 +857,7 @@ def _as_buffer(value) -> list:
 
 
 class SmartIrrigationStorage:
-    """Class to hold Smart Irrigation configuration data."""
+    """Class to hold Irrigation Plus configuration data."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the storage."""
@@ -1430,11 +1430,11 @@ class SmartIrrigationStorage:
 
     @callback
     def async_schedule_save(self) -> None:
-        """Schedule saving the registry of Smart Irrigation."""
+        """Schedule saving the registry of Irrigation Plus."""
         self._store.async_delay_save(self._data_to_save_scheduled, SAVE_DELAY)
 
     async def async_save(self) -> None:
-        """Save the registry of Smart Irrigation, buffers included."""
+        """Save the registry of Irrigation Plus, buffers included."""
         await self._store.async_save(self._data_to_save_full())
 
     @callback
@@ -1490,7 +1490,7 @@ class SmartIrrigationStorage:
 
     @callback
     def _data_to_save(self) -> dict:
-        """Return data for the registry for Smart Irrigation to store in a file.
+        """Return data for the registry for Irrigation Plus to store in a file.
 
         WITHOUT the sensor-group reading buffers. ``async_load`` treats a missing
         ``data`` key as an empty buffer, so this shape needs no migration.
@@ -1530,7 +1530,7 @@ class SmartIrrigationStorage:
 
     async def async_delete(self):
         """Delete config."""
-        _LOGGER.warning("Removing Smart Irrigation configuration data!")
+        _LOGGER.warning("Removing Irrigation Plus configuration data!")
         await self._store.async_remove()
         # async_remove() cancels HA's own pending/shutdown writes so the deleted
         # file cannot come back. Ours has to go the same way: a buffer left dirty
@@ -2081,7 +2081,7 @@ class SmartIrrigationStorage:
 
 @bind_hass
 async def async_get_registry(hass: HomeAssistant) -> SmartIrrigationStorage:
-    """Return Smart Irrigation storage instance."""
+    """Return Irrigation Plus storage instance."""
     task = hass.data.get(DATA_REGISTRY)
 
     if task is None:

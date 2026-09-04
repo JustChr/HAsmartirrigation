@@ -1,4 +1,4 @@
-"""Watering-calendar generation for the Smart Irrigation integration.
+"""Watering-calendar generation for the Irrigation Plus integration.
 
 Extracted from __init__.py (Phase C3). Methods live on a mixin the
 SmartIrrigationCoordinator inherits, so their bodies are unchanged — they still

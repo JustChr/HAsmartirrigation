@@ -10,7 +10,7 @@ title: "Configuration: Distributors"
 
 A **mechanical water distributor** splits one water supply into several outlets and steps to the next outlet each time the water is pulsed **off and on again**. There is no electronics and no wiring per outlet — the pressure surge itself advances an internal wheel. The best-known consumer example is the **Gardena Water Distributor**; the professional equivalent is an indexing valve such as K-Rain or FIMCO.
 
-Smart Irrigation drives one inlet valve (or pump) and waters each of the distributor's outlets in turn, so a handful of zones can share a single supply line and a single controllable valve. Because the device has **no position feedback** — it cannot tell you which outlet is currently open — Smart Irrigation *tracks* the position itself, counting each advance. Getting that tracking right is what most of this page is about.
+Irrigation Plus drives one inlet valve (or pump) and waters each of the distributor's outlets in turn, so a handful of zones can share a single supply line and a single controllable valve. Because the device has **no position feedback** — it cannot tell you which outlet is currently open — Irrigation Plus *tracks* the position itself, counting each advance. Getting that tracking right is what most of this page is about.
 
 > **Experimental.** This is a new feature that could **not be fully hardware-tested** before release. Enable it, but **watch the first days of use closely** and keep the device's **manual override** (its selector knob) within reach. It is opt-in and you can switch it back **off at any time** without losing data — see [Enabling it](#enabling-it).
 
@@ -28,7 +28,7 @@ Turn the toggle back off and both disappear again; any distributors and zone ass
 On the **Distributors** tab, add a distributor, give it a **name**, and choose how its inlet is opened and closed:
 
 - **Classic** — Home Assistant opens and closes an inlet `switch`/`valve`/`input_boolean` entity directly. Set the **Inlet valve / switch** to that entity. Each advance is a timed open-then-close pulse.
-- **Self-closing service** — a device that closes itself after each pulse (for example a battery valve driven by a script). You provide a **Run script** (and optionally a **Stop script**); Smart Irrigation calls the run script to open the inlet for the configured time. Here the **Inlet valve / switch** field is *optional and watch-only* — it is read to keep the tracked position in sync (see [Watching the inlet](#watching-the-inlet-for-foreign-pulses)), never actuated.
+- **Self-closing service** — a device that closes itself after each pulse (for example a battery valve driven by a script). You provide a **Run script** (and optionally a **Stop script**); Irrigation Plus calls the run script to open the inlet for the configured time. Here the **Inlet valve / switch** field is *optional and watch-only* — it is read to keep the tracked position in sync (see [Watching the inlet](#watching-the-inlet-for-foreign-pulses)), never actuated.
 
 Then set the **pulse duration** and its **unit** (seconds or minutes) — how long the inlet stays open to water an outlet before advancing. Give the distributor a supply with enough pressure and flow to actually step the wheel (see [Troubleshooting](#troubleshooting--tips)).
 
@@ -42,7 +42,7 @@ An outlet with **no mapped zone** is not watered — the distributor passes it w
 
 ## Commissioning & position tracking
 
-Because the outlets are blind, Smart Irrigation infers the position instead of reading it. An **advance is counted on the inlet valve's off-edge** — every time the water is switched off, the internal wheel is assumed to have stepped by one. From a known starting outlet, counting off-edges keeps the tracked position aligned with the hardware.
+Because the outlets are blind, Irrigation Plus infers the position instead of reading it. An **advance is counted on the inlet valve's off-edge** — every time the water is switched off, the internal wheel is assumed to have stepped by one. From a known starting outlet, counting off-edges keeps the tracked position aligned with the hardware.
 
 To establish that known starting point and confirm the mapping, the Distributors tab gives you:
 
@@ -61,14 +61,14 @@ Two timings control how the distributor steps:
 
 ## Master valve / pump coordination
 
-If you use a **master valve or pump**, Smart Irrigation switches it for the distributor's cycle. Two interactions are worth knowing:
+If you use a **master valve or pump**, Irrigation Plus switches it for the distributor's cycle. Two interactions are worth knowing:
 
 - With **master off after each zone** under **sequential** or **rotating** [sequencing](configuration-when-to-water.md), the pump is switched **per outlet**, so expect it to cycle between every outlet of the distributor.
 - A distributor feeds **one outlet at a time**. So even under **parallel** sequencing — where several ordinary zones open at once — a distributor's mapped zones still water **in sequence**. Plan the supply draw accordingly.
 
 ## Watching the inlet for foreign pulses
 
-The inlet may sometimes be opened **outside** a Smart Irrigation run — a manual turn, a Home Assistant automation, or your own script. If the tracked position is to stay correct, Smart Irrigation needs to know how to react. The optional **inlet-watch** does this, with three **watch modes**:
+The inlet may sometimes be opened **outside** a Irrigation Plus run — a manual turn, a Home Assistant automation, or your own script. If the tracked position is to stay correct, Irrigation Plus needs to know how to react. The optional **inlet-watch** does this, with three **watch modes**:
 
 - **Count it** — treat the foreign pulse as a real advance and step the tracked position with it.
 - **Warn** — mark the position **uncertain** (re-sync required) rather than guessing. This is the safe choice when you are not sure a foreign pulse actually stepped the wheel.

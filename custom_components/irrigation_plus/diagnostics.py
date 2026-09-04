@@ -1,4 +1,4 @@
-"""Diagnostics support for Smart Irrigation."""
+"""Diagnostics support for Irrigation Plus."""
 
 from __future__ import annotations
 

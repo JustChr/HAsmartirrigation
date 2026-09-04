@@ -1,7 +1,7 @@
 blueprint:
-  name: Smart Irrigation Notifications
+  name: Irrigation Plus Notifications
   description: >
-    Push a notification to your phone when Smart Irrigation **starts a watering
+    Push a notification to your phone when Irrigation Plus **starts a watering
     run** or when a **zone fault** is detected (a valve that didn't open or a
     flow that never started — surfaced by the hub "problem" sensor added in the
     valve-verification feature).
@@ -10,7 +10,7 @@ blueprint:
     notification automation for the whole system. Both notification types can be
     toggled independently below.
   domain: automation
-  author: HA Smart Irrigation
+  author: HA Irrigation Plus
   input:
     notify_device:
       name: Device to notify
@@ -24,10 +24,10 @@ blueprint:
     problem_sensor:
       name: Problem sensor
       description: >
-        The Smart Irrigation hub "problem" binary sensor
-        (binary_sensor.smart_irrigation_problem). Turns on when any zone has an
+        The Irrigation Plus hub "problem" binary sensor
+        (binary_sensor.irrigation_plus_problem). Turns on when any zone has an
         unresolved fault.
-      default: binary_sensor.smart_irrigation_problem
+      default: binary_sensor.irrigation_plus_problem
       selector:
         entity:
           filter:
@@ -53,7 +53,7 @@ max: 10
 
 triggers:
   - trigger: event
-    event_type: smart_irrigation_start_irrigation_all_zones
+    event_type: irrigation_plus_start_irrigation_all_zones
     id: run
   - trigger: state
     entity_id: !input problem_sensor
@@ -99,6 +99,6 @@ actions:
             title: ⚠️ Irrigation problem
             message: >
               {% set zones = state_attr(trigger.entity_id, 'zones') %}
-              Smart Irrigation reported a fault{{
+              Irrigation Plus reported a fault{{
                 ' on: ' ~ (zones | join(', ')) if zones else ''
               }}. Check the zone for a valve that didn't open or a flow that never started.

@@ -1,4 +1,4 @@
-"""Binary sensor platform for Smart Irrigation integration.
+"""Binary sensor platform for Irrigation Plus integration.
 
 Per zone (on the zone's device):
 - irrigation needed: mirrors the runner's deficit gate (enabled, duration > 0,
@@ -51,7 +51,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_devices: AddEntitiesCallback,
 ) -> None:
-    """Set up Smart Irrigation binary sensor entities."""
+    """Set up Irrigation Plus binary sensor entities."""
 
     @callback
     def async_add_binary_sensor_entities(config: dict) -> None:

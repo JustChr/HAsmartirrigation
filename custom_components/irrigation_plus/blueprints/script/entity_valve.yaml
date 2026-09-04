@@ -1,8 +1,8 @@
 blueprint:
-  name: "Smart Irrigation: Self-closing valve (entity based)"
+  name: "Irrigation Plus: Self-closing valve (entity based)"
   description: >-
     Drives a valve exposed as Home Assistant entities (e.g. a ZHA valve) that
-    closes itself via a hardware countdown. Smart Irrigation calls this script
+    closes itself via a hardware countdown. Irrigation Plus calls this script
     (service watering mode) with the run duration: it writes the duration to a
     countdown number entity, then turns the valve on. The valve owns the close,
     so an HA restart mid-run cannot cause continuous irrigation.
@@ -38,7 +38,7 @@ fields:
   duration:
     name: Duration
     description: >-
-      Run length from Smart Irrigation, in the zone's configured unit (must
+      Run length from Irrigation Plus, in the zone's configured unit (must
       match the countdown entity's unit). 0 closes the valve.
     default: 0
     selector:

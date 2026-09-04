@@ -2,7 +2,7 @@
 
 When enabled (Setup → Experimental), the coordinator watches each zone's linked
 valve/switch and credits the zone's bucket whenever water is applied OUTSIDE
-Smart Irrigation's own runner — a manual tap, an automation, anything that opens
+Irrigation Plus's own runner — a manual tap, an automation, anything that opens
 the valve. The applied depth is estimated from the run time and the zone's
 configured throughput (volume = minutes × throughput; depth_mm = volume_L /
 size_m2), which keeps the soil-moisture model honest when you water by other
@@ -124,7 +124,7 @@ class ObservedWateringMixin:
         old_on = old_state is not None and old_state.state in _ON_STATES
 
         if new_on and not old_on:
-            # Valve just opened. Ignore if Smart Irrigation itself opened it —
+            # Valve just opened. Ignore if Irrigation Plus itself opened it —
             # the runner already credits the bucket for its own runs. The marker
             # window is taken when the run is dispatched, which for a queued
             # OpenSprinkler station is well before the water; the in-flight lookup
@@ -139,7 +139,7 @@ class ObservedWateringMixin:
                 self._si_driven_until.get(zone_id, 0.0)
             ):
                 _LOGGER.debug(
-                    "Observed watering: zone %s opened by Smart Irrigation — not tracking",
+                    "Observed watering: zone %s opened by Irrigation Plus — not tracking",
                     zone_id,
                 )
                 return

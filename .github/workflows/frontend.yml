@@ -46,6 +46,17 @@ jobs:
         # edited .ts or bumped the version without rebuilding dist).
         run: |
           BUNDLES="dist/irrigation-plus.js dist/irrigation-plus-card.js dist/irrigation-plus-card-impl.js dist/irrigation-plus-card-legacy.js"
+          # dist/ is gitignored-but-tracked, so a NEW bundle needs `git add -f`
+          # or it stays untracked -- and git diff is blind to untracked files,
+          # so a missing bundle passes the freshness check below and ships as a
+          # 404. #120 built the legacy card shim, served it from panel.py, named
+          # it here, and did not commit it. Check tracked-ness first.
+          for bundle in $BUNDLES; do
+            if ! git ls-files --error-unmatch -- "$bundle" >/dev/null 2>&1; then
+              echo "::error::$bundle is built but NOT committed - run 'git add -f' on it."
+              exit 1
+            fi
+          done
           if ! git diff --quiet -- $BUNDLES; then
             echo "::error::A committed dist bundle is out of date - rebuild the frontend and commit the result."
             git --no-pager diff --stat -- $BUNDLES

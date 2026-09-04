@@ -1,4 +1,4 @@
-"""Panel registration for the Smart Irrigation integration."""
+"""Panel registration for the Irrigation Plus integration."""
 
 import logging
 from pathlib import Path
@@ -38,7 +38,7 @@ _STATIC_PATHS_REGISTERED = f"{DOMAIN}_static_paths_registered"
 
 
 async def async_register_panel(hass: HomeAssistant):
-    """Register the custom panel for the Smart Irrigation integration."""
+    """Register the custom panel for the Irrigation Plus integration."""
     root_dir = Path(hass.config.path(CUSTOM_COMPONENTS)) / INTEGRATION_FOLDER
     panel_dir = root_dir / PANEL_FOLDER
     view_url = panel_dir / PANEL_FILENAME
@@ -193,7 +193,7 @@ async def _async_register_card_resource(hass: HomeAssistant, version: int) -> bo
 
 
 def remove_panel(hass: HomeAssistant):
-    """Unregister the custom panel for the Smart Irrigation integration.
+    """Unregister the custom panel for the Irrigation Plus integration.
 
     Called on RELOAD as well as uninstall, so it must not touch anything that
     setup does not recreate. The Lovelace card resource is deliberately left
@@ -208,7 +208,7 @@ async def async_remove_card_resource(hass: HomeAssistant) -> bool:
 
     ``_async_register_card_resource`` writes a permanent entry into Lovelace's
     storage-mode resource collection, and nothing ever removed it: uninstalling
-    Smart Irrigation left a resource pointing at
+    Irrigation Plus left a resource pointing at
     ``/smart_irrigation_static/…`` that no longer exists, so every dashboard
     load fetched a 404 forever after.
 
@@ -235,7 +235,7 @@ async def async_remove_card_resource(hass: HomeAssistant) -> bool:
             await resources.async_delete_item(item["id"])
             removed = True
     if removed:
-        _LOGGER.debug("Removed the Smart Irrigation Lovelace card resource")
+        _LOGGER.debug("Removed the Irrigation Plus Lovelace card resource")
     return removed
 
 
@@ -297,7 +297,7 @@ async def async_remove_legacy_card_resource(hass: HomeAssistant) -> bool:
     if removed:
         _LOGGER.info(
             "Removed the stale Lovelace resource left by the previous "
-            "Smart Irrigation release (%s)",
+            "Irrigation Plus release (%s)",
             LEGACY_CARD_URL,
         )
     return removed

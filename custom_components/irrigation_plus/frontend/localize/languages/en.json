@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation: check flow rate",
+    "title": "Irrigation Plus: check flow rate",
     "message_over": "Zone '{zone}' is consistently over-watering: the measured flow is ~{percent}% above the configured rate over {runs} runs. Consider setting the throughput to about {rate} {unit} (currently {current}).",
     "message_under": "Zone '{zone}' is consistently under-watering: the measured flow is ~{percent}% below the configured rate over {runs} runs. Consider setting the throughput to about {rate} {unit} (currently {current}).",
     "open_settings": "Open zone settings"
@@ -332,7 +332,7 @@
       },
       "observed_watering": {
         "title": "Credit bucket from observed watering",
-        "description": "When a zone's linked valve runs outside Smart Irrigation — a manual tap, an automation, your own schedule — its bucket is credited for the water applied, estimated from the run time and the zone's throughput. This keeps the soil-moisture model honest when you water by other means. Smart Irrigation's own runs are already accounted for and are never double-counted.",
+        "description": "When a zone's linked valve runs outside Irrigation Plus — a manual tap, an automation, your own schedule — its bucket is credited for the water applied, estimated from the run time and the zone's throughput. This keeps the soil-moisture model honest when you water by other means. Irrigation Plus's own runs are already accounted for and are never double-counted.",
         "label": "Credit the bucket when a linked valve runs externally",
         "note": "Requires a linked valve and a throughput on the zone. Volume is estimated (run time × throughput), not metered."
       },
@@ -357,7 +357,7 @@
       },
       "distributors": {
         "title": "Mechanical water distributors",
-        "description": "Drive a mechanical pressure-distributor — for example a Gardena Water Distributor — that splits one supply into several outlets and advances on water on/off pulses. Assign zones to a distributor's outlets and Smart Irrigation waters them in sequence, tracks the position, and coordinates a master valve or pump. This is a new feature that could not be fully hardware-tested, so treat it as a beta.",
+        "description": "Drive a mechanical pressure-distributor — for example a Gardena Water Distributor — that splits one supply into several outlets and advances on water on/off pulses. Assign zones to a distributor's outlets and Irrigation Plus waters them in sequence, tracks the position, and coordinates a master valve or pump. This is a new feature that could not be fully hardware-tested, so treat it as a beta.",
         "label": "Enable mechanical water distributors",
         "note": "Watch the first days of use closely and keep the device's manual override handy. You can switch it back off at any time — existing zone watering is unaffected."
       }
@@ -932,7 +932,7 @@
       }
     }
   },
-  "title": "Smart Irrigation",
+  "title": "Irrigation Plus",
   "weather_service_config": {
     "title": "Weather Service",
     "description": "Configure which weather service to use for ET calculations and skip conditions.",
@@ -1128,7 +1128,7 @@
     "open_wizard": "Open Wizard",
     "steps": {
       "welcome": {
-        "title": "Welcome to Smart Irrigation",
+        "title": "Welcome to Irrigation Plus",
         "intro": "This wizard guides you through the four steps needed to get your first zone irrigating automatically.",
         "step1_label": "Weather Service — where to get weather data",
         "step2_label": "Calculation Module — how irrigation duration is computed",
@@ -1169,7 +1169,7 @@
       },
       "done": {
         "title": "Setup Complete!",
-        "description": "Your first zone is ready. Smart Irrigation will now calculate irrigation durations automatically based on weather data.",
+        "description": "Your first zone is ready. Irrigation Plus will now calculate irrigation durations automatically based on weather data.",
         "next_steps": "What you can do next:",
         "tip1": "Go to Zones to view calculated durations and bucket values.",
         "tip2": "Add more zones from the Zones tab.",
@@ -1193,7 +1193,7 @@
     "title": "Batch dispatch (queue controllers)",
     "description": "Hand a controller the whole irrigation in one call, as an ordered list of zones and durations, and let it run that list from its own queue. Intended for controllers with a real queue such as the ESPHome sprinkler component, but nothing here is specific to it — ordinary Home Assistant helpers work just as well. A queue waters one valve at a time, so batch zones always run in order and the zone sequencing setting does not apply to them.",
     "run_service": "Run service",
-    "run_service_help": "The script handed the plan. It receives one field, zones, holding an ordered list of {zone_id, zone_name, duration}. If your controller supports a duration multiplier or repeat, leave them out or set them to neutral values (multiplier 1, repeat 0) — they would rescale durations that have already been calculated, and Smart Irrigation cannot detect them.",
+    "run_service_help": "The script handed the plan. It receives one field, zones, holding an ordered list of {zone_id, zone_name, duration}. If your controller supports a duration multiplier or repeat, leave them out or set them to neutral values (multiplier 1, repeat 0) — they would rescale durations that have already been calculated, and Irrigation Plus cannot detect them.",
     "stop_service": "Stop service",
     "stop_service_help": "The script that stops the irrigation AND clears the queue. Both halves matter. On an ESPHome controller that is sprinkler.shutdown followed by sprinkler.clear_queued_valves.",
     "stop_service_missing": "Without a stop service the controller cannot be stopped and its queue cannot be cleared. Stopping a zone will correct the accounting here, but any zone still queued will water later with nothing supervising it.",

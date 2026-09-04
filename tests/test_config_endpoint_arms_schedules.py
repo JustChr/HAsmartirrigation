@@ -7,7 +7,7 @@ register their own tracker. But the REST and websocket config endpoints write
 the key straight to the store, and the manager was never told. The write was
 accepted, the stored document was correct, and yet no tracker existed so the
 schedule never fired, while ``get_schedules()`` -- which backs the
-``smart_irrigation/schedules`` command -- did not list it either. Silent in both
+``irrigation_plus/schedules`` command -- did not list it either. Silent in both
 directions until a config entry reload rebuilt the manager.
 
 The two halves failed independently, so every test here asserts both.

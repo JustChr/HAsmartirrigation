@@ -1,4 +1,4 @@
-"""Test the Smart Irrigation localization utilities."""
+"""Test the Irrigation Plus localization utilities."""
 
 import json
 from contextlib import contextmanager
@@ -29,7 +29,7 @@ def _patch_aiofiles_read(*read_values):
 
 
 class TestSmartIrrigationLocalize:
-    """Test Smart Irrigation localization utilities."""
+    """Test Irrigation Plus localization utilities."""
 
     @pytest.fixture
     def mock_translations(self):

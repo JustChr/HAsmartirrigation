@@ -1,4 +1,4 @@
-"""Test Smart Irrigation helper functions."""
+"""Test Irrigation Plus helper functions."""
 
 import contextlib
 from datetime import datetime

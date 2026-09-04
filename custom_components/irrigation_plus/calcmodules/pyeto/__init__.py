@@ -1,4 +1,4 @@
-"""The PyETO module for Smart Irrigation Integration."""
+"""The PyETO module for Irrigation Plus Integration."""
 
 import datetime
 import logging

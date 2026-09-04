@@ -1,1 +1,1 @@
-"""Tests for the Smart Irrigation integration."""
+"""Tests for the Irrigation Plus integration."""

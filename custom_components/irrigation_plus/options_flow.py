@@ -1,4 +1,4 @@
-"""Options flow handler for the Smart Irrigation integration.
+"""Options flow handler for the Irrigation Plus integration.
 
 Weather service and location are configured in the integration's own panel
 (Setup → Weather & Location), which is the single source of truth — the panel

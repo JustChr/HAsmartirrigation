@@ -1,4 +1,4 @@
-# Contributing to Smart Irrigation
+# Contributing to Irrigation Plus
 
 ## Development Setup
 

@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "single_instance_allowed": "Only a single configuration of Smart Irrigation is allowed."
+      "single_instance_allowed": "Only a single configuration of Irrigation Plus is allowed."
     },
     "error": {
       "auth": "Weather service API key incorrect",
@@ -13,7 +13,7 @@
         "description": "If you need help with the configuration, please see https://github.com/JustChr/HAsmartirrigation",
         "data": {
           "name": "Unique name of the integration",
-          "use_weather_service": "Use a weather service (Open-Meteo, Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irrigation will not be able to use forecasts."
+          "use_weather_service": "Use a weather service (Open-Meteo, Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Irrigation Plus will not be able to use forecasts."
         }
       },
       "step1": {
@@ -44,7 +44,7 @@
         "title": "Weather service API set up",
         "description": "If you need help with the configuration, please see https://github.com/JustChr/HAsmartirrigation",
         "data": {
-          "use_weather_service": "Use a weather service (Open-Meteo, Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irrigation will not be able to use forecasts."
+          "use_weather_service": "Use a weather service (Open-Meteo, Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Irrigation Plus will not be able to use forecasts."
         }
       },
       "step1": {
@@ -68,7 +68,7 @@
       }
     },
     "abort": {
-      "configure_in_panel": "Configure Smart Irrigation from its panel in the sidebar (Setup → Weather & Location)."
+      "configure_in_panel": "Configure Irrigation Plus from its panel in the sidebar (Setup → Weather & Location)."
     }
   },
   "services": {

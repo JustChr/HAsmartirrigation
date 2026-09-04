@@ -1,4 +1,4 @@
-"""Test Smart Irrigation sensor platform."""
+"""Test Irrigation Plus sensor platform."""
 
 from unittest.mock import AsyncMock, Mock, patch
 

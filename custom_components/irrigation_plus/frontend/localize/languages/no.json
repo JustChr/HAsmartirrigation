@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation: sjekk gjennomstrømningen",
+    "title": "Irrigation Plus: sjekk gjennomstrømningen",
     "message_over": "Sonen '{zone}' vanner konsekvent for mye: den målte gjennomstrømningen er ~{percent}% over den konfigurerte raten over {runs} kjøringer. Sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
     "message_under": "Sonen '{zone}' vanner konsekvent for lite: den målte gjennomstrømningen er ~{percent}% under den konfigurerte raten over {runs} kjøringer. Sett gjennomstrømningen til omtrent {rate} {unit} (nå {current}).",
     "open_settings": "Åpne soneinnstillinger"
@@ -792,7 +792,7 @@
       },
       "observed_watering": {
         "title": "Krediter vannbalansen fra observert vanning",
-        "description": "Når en sones tilknyttede ventil kjører utenfor Smart Irrigation – en manuell kran, en automasjon, din egen plan – krediteres vannbalansen for vannet som ble tilført, estimert ut fra kjøretid og sonens gjennomstrømning. Slik holder jordfuktighetsmodellen seg riktig når du vanner på andre måter. Smart Irrigations egne kjøringer er allerede medregnet og telles aldri dobbelt.",
+        "description": "Når en sones tilknyttede ventil kjører utenfor Irrigation Plus – en manuell kran, en automasjon, din egen plan – krediteres vannbalansen for vannet som ble tilført, estimert ut fra kjøretid og sonens gjennomstrømning. Slik holder jordfuktighetsmodellen seg riktig når du vanner på andre måter. Irrigation Pluss egne kjøringer er allerede medregnet og telles aldri dobbelt.",
         "label": "Krediter vannbalansen når en tilknyttet ventil kjører eksternt",
         "note": "Krever en tilknyttet ventil og en gjennomstrømning på sonen. Volumet estimeres (kjøretid × gjennomstrømning), ikke målt."
       },
@@ -817,7 +817,7 @@
       },
       "distributors": {
         "title": "Mekaniske vannfordelere",
-        "description": "Styr en mekanisk trykkfordeler — for eksempel en Gardena vannfordeler — som deler én tilførsel i flere uttak og rykker fram ved å pulse vannet av og på. Tilordne soner til uttakene på en fordeler, så vanner Smart Irrigation dem etter tur, sporer posisjonen og koordinerer en masterventil eller pumpe. Dette er en ny funksjon som ikke kunne testes fullt ut på maskinvare, så behandle den som en beta.",
+        "description": "Styr en mekanisk trykkfordeler — for eksempel en Gardena vannfordeler — som deler én tilførsel i flere uttak og rykker fram ved å pulse vannet av og på. Tilordne soner til uttakene på en fordeler, så vanner Irrigation Plus dem etter tur, sporer posisjonen og koordinerer en masterventil eller pumpe. Dette er en ny funksjon som ikke kunne testes fullt ut på maskinvare, så behandle den som en beta.",
         "label": "Aktiver mekaniske vannfordelere",
         "note": "Følg nøye med de første dagene med bruk og ha enhetens manuelle overstyring for hånden. Du kan slå den av igjen når som helst — eksisterende sonevanning påvirkes ikke."
       }
@@ -948,7 +948,7 @@
     "label": "Minimum dager mellom vanning",
     "help_text": "Sett til 0 for å deaktivere. Verdier fra 1-365 dager støttes."
   },
-  "title": "Smart Irrigation",
+  "title": "Irrigation Plus",
   "irrigation_start_triggers": {
     "title": "Utløsere for vanningsstart",
     "description": "Konfigurer når vanningen skal starte basert på solhendelser. Du kan legge til flere utløsere for ulike tidsplaner. For soloppgangsutløsere vil et forskyvning på 0 automatisk bruke den totale varigheten av alle aktiverte soner.",
@@ -1122,7 +1122,7 @@
     "open_wizard": "Åpne veiviser",
     "steps": {
       "welcome": {
-        "title": "Velkommen til Smart Irrigation",
+        "title": "Velkommen til Irrigation Plus",
         "intro": "Denne veiviseren leder deg gjennom de fire trinnene som trengs for å få den første sonen din til å vanne automatisk.",
         "step1_label": "Værtjeneste — hvor værdataene hentes fra",
         "step2_label": "Beregningsmodul — hvordan vanningsvarigheten beregnes",
@@ -1163,7 +1163,7 @@
       },
       "done": {
         "title": "Oppsett fullført!",
-        "description": "Den første sonen din er klar. Smart Irrigation vil nå beregne vanningsvarigheter automatisk basert på værdata.",
+        "description": "Den første sonen din er klar. Irrigation Plus vil nå beregne vanningsvarigheter automatisk basert på værdata.",
         "next_steps": "Hva du kan gjøre videre:",
         "tip1": "Gå til Soner for å se beregnede varigheter og bøtteverdier.",
         "tip2": "Legg til flere soner fra Soner-fanen.",
@@ -1193,7 +1193,7 @@
     "title": "Samlet utsending (kø-styringer)",
     "description": "Gir styringen hele vanningen i én forespørsel — en ordnet liste med soner og varigheter — og lar den kjøre listen fra sin egen kø. Ment for styringer med en ekte kø, som ESPHome sprinkler-komponenten, men ingenting her er bundet til den: vanlige Home Assistant-hjelpere fungerer like godt. En kø vanner én ventil om gangen, så samlede soner går alltid i rekkefølge og innstillingen for sonerekkefølge gjelder ikke for dem.",
     "run_service": "Startskript",
-    "run_service_help": "Skriptet som får planen. Det mottar ett felt, zones, med en ordnet liste av {zone_id, zone_name, duration}. Hvis styringen din har multiplikator eller gjentakelser: utelat dem eller sett dem nøytralt (multiplikator 1, gjentakelse 0) — de ville skalert om varigheter som allerede er beregnet, og Smart Irrigation kan ikke oppdage det.",
+    "run_service_help": "Skriptet som får planen. Det mottar ett felt, zones, med en ordnet liste av {zone_id, zone_name, duration}. Hvis styringen din har multiplikator eller gjentakelser: utelat dem eller sett dem nøytralt (multiplikator 1, gjentakelse 0) — de ville skalert om varigheter som allerede er beregnet, og Irrigation Plus kan ikke oppdage det.",
     "stop_service": "Stoppskript",
     "stop_service_help": "Skriptet som stopper vanningen OG tømmer køen. Begge deler teller. På en ESPHome-styring er det sprinkler.shutdown etterfulgt av sprinkler.clear_queued_valves.",
     "stop_service_missing": "Uten stoppskript kan ikke styringen stoppes og køen ikke tømmes. Å stoppe en sone retter opp regnskapet her, men enhver sone som fortsatt står i kø vil vanne senere uten at noe overvåker den.",

@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation: controleer de doorstroomsnelheid",
+    "title": "Irrigation Plus: controleer de doorstroomsnelheid",
     "message_over": "Zone '{zone}' geeft structureel te veel water: de gemeten doorstroming ligt ~{percent}% boven het ingestelde debiet over {runs} beurten. Stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
     "message_under": "Zone '{zone}' geeft structureel te weinig water: de gemeten doorstroming ligt ~{percent}% onder het ingestelde debiet over {runs} beurten. Stel de doorvoer in op ongeveer {rate} {unit} (nu {current}).",
     "open_settings": "Zone-instellingen openen"
@@ -792,7 +792,7 @@
       },
       "observed_watering": {
         "title": "Buffer bijschrijven op basis van waargenomen watergift",
-        "description": "Wanneer de gekoppelde klep van een zone buiten Smart Irrigation draait — een handmatige kraan, een automatisering, je eigen schema — wordt de buffer bijgeschreven met het toegediende water, geschat op basis van de looptijd en de doorvoer van de zone. Zo blijft het bodemvochtmodel kloppen wanneer je op andere manieren water geeft. De eigen beurten van Smart Irrigation worden al meegeteld en nooit dubbel geteld.",
+        "description": "Wanneer de gekoppelde klep van een zone buiten Irrigation Plus draait — een handmatige kraan, een automatisering, je eigen schema — wordt de buffer bijgeschreven met het toegediende water, geschat op basis van de looptijd en de doorvoer van de zone. Zo blijft het bodemvochtmodel kloppen wanneer je op andere manieren water geeft. De eigen beurten van Irrigation Plus worden al meegeteld en nooit dubbel geteld.",
         "label": "Buffer bijschrijven wanneer een gekoppelde klep extern draait",
         "note": "Vereist een gekoppelde klep en een doorvoer op de zone. Het volume wordt geschat (looptijd × doorvoer), niet gemeten."
       },
@@ -817,7 +817,7 @@
       },
       "distributors": {
         "title": "Mechanische waterverdelers",
-        "description": "Stuur een mechanische drukverdeler aan — bijvoorbeeld een Gardena Waterverdeler — die één toevoer over meerdere uitgangen verdeelt en doorschakelt op aan/uit-pulsen van het water. Wijs zones toe aan de uitgangen van een verdeler en Smart Irrigation bewatert ze na elkaar, houdt de positie bij en coördineert een masterklep of pomp. Dit is een nieuwe functie die niet volledig op hardware getest kon worden, dus behandel het als bèta.",
+        "description": "Stuur een mechanische drukverdeler aan — bijvoorbeeld een Gardena Waterverdeler — die één toevoer over meerdere uitgangen verdeelt en doorschakelt op aan/uit-pulsen van het water. Wijs zones toe aan de uitgangen van een verdeler en Irrigation Plus bewatert ze na elkaar, houdt de positie bij en coördineert een masterklep of pomp. Dit is een nieuwe functie die niet volledig op hardware getest kon worden, dus behandel het als bèta.",
         "label": "Mechanische waterverdelers inschakelen",
         "note": "Houd de eerste dagen van gebruik goed in de gaten en houd de handmatige bediening van het apparaat bij de hand. Je kunt het altijd weer uitschakelen — bestaande zonebewatering blijft ongewijzigd."
       }
@@ -932,7 +932,7 @@
       }
     }
   },
-  "title": "Smart Irrigation",
+  "title": "Irrigation Plus",
   "coordinate_config": {
     "title": "Locatie Coördinaten",
     "description": "Configureer locatie coördinaten voor het ophalen van weergegevens. Je kunt handmatige coördinaten gebruiken die verschillen van je Home Assistant locatie indien nodig.",
@@ -1122,7 +1122,7 @@
     "open_wizard": "Wizard openen",
     "steps": {
       "welcome": {
-        "title": "Welkom bij Smart Irrigation",
+        "title": "Welkom bij Irrigation Plus",
         "intro": "Deze wizard leidt je door de vier stappen die nodig zijn om je eerste zone automatisch te laten irrigeren.",
         "step1_label": "Weerdienst — waar de weergegevens vandaan komen",
         "step2_label": "Berekeningsmodule — hoe de irrigatieduur wordt berekend",
@@ -1163,7 +1163,7 @@
       },
       "done": {
         "title": "Configuratie voltooid!",
-        "description": "Je eerste zone is klaar. Smart Irrigation berekent nu automatisch de irrigatieduren op basis van weergegevens.",
+        "description": "Je eerste zone is klaar. Irrigation Plus berekent nu automatisch de irrigatieduren op basis van weergegevens.",
         "next_steps": "Wat je hierna kunt doen:",
         "tip1": "Ga naar Zones om de berekende duren en emmerwaarden te bekijken.",
         "tip2": "Voeg meer zones toe via het tabblad Zones.",
@@ -1193,7 +1193,7 @@
     "title": "Batchopdracht (wachtrij-regelaars)",
     "description": "Geef de regelaar de hele beregening in één aanroep — een geordende lijst van zones en looptijden — en laat hem die lijst uit zijn eigen wachtrij afwerken. Bedoeld voor regelaars met een echte wachtrij zoals de ESPHome sprinkler-component, maar niets hiervan is daaraan gebonden: gewone Home Assistant-helpers werken net zo goed. Een wachtrij beregent één klep tegelijk, dus batchzones lopen altijd op volgorde en de instelling voor zonevolgorde geldt niet voor hen.",
     "run_service": "Startscript",
-    "run_service_help": "Het script dat het plan krijgt. Het ontvangt één veld, zones, met een geordende lijst van {zone_id, zone_name, duration}. Als je regelaar een vermenigvuldiger of herhaling kent: laat ze weg of zet ze neutraal (vermenigvuldiger 1, herhaling 0) — ze zouden al berekende looptijden opnieuw schalen, en Smart Irrigation kan dat niet zien.",
+    "run_service_help": "Het script dat het plan krijgt. Het ontvangt één veld, zones, met een geordende lijst van {zone_id, zone_name, duration}. Als je regelaar een vermenigvuldiger of herhaling kent: laat ze weg of zet ze neutraal (vermenigvuldiger 1, herhaling 0) — ze zouden al berekende looptijden opnieuw schalen, en Irrigation Plus kan dat niet zien.",
     "stop_service": "Stopscript",
     "stop_service_help": "Het script dat de beregening stopt ÉN de wachtrij leegmaakt. Beide zijn nodig. Bij een ESPHome-regelaar is dat sprinkler.shutdown gevolgd door sprinkler.clear_queued_valves.",
     "stop_service_missing": "Zonder stopscript kan de regelaar niet gestopt worden en kan zijn wachtrij niet geleegd worden. Een zone stoppen corrigeert hier wel de administratie, maar elke nog wachtende zone gaat later beregenen zonder dat iets erop toeziet.",

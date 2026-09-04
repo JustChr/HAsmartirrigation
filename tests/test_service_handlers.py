@@ -31,7 +31,7 @@ async def test_handle_reset_bucket_sets_bucket_to_zero():
     coord.hass.states.get.return_value = state
 
     call = MagicMock()
-    call.data = {const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_test_zone"}
+    call.data = {const.SERVICE_ENTITY_ID: "sensor.irrigation_plus_test_zone"}
 
     await ServiceHandlersMixin.handle_reset_bucket(coord, call)
 
@@ -96,7 +96,7 @@ async def test_handle_run_zone_resolves_id_attribute():
 
     call = MagicMock()
     call.data = {
-        const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_lawn",
+        const.SERVICE_ENTITY_ID: "sensor.irrigation_plus_lawn",
         const.ATTR_DURATION_MINUTES: 5,
     }
 
@@ -115,7 +115,7 @@ async def test_handle_run_zone_resolves_zone_id_attribute():
 
     call = MagicMock()
     call.data = {
-        const.SERVICE_ENTITY_ID: "button.smart_irrigation_lawn_irrigate_now",
+        const.SERVICE_ENTITY_ID: "button.irrigation_plus_lawn_irrigate_now",
         const.ATTR_DURATION_MINUTES: 10,
     }
 
@@ -154,7 +154,7 @@ async def test_handle_stop_zone_resolves_id_attribute():
     coord.hass.states.get.return_value = state
 
     call = MagicMock()
-    call.data = {const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_lawn"}
+    call.data = {const.SERVICE_ENTITY_ID: "sensor.irrigation_plus_lawn"}
 
     await ServiceHandlersMixin.handle_stop_zone(coord, call)
 
@@ -170,7 +170,7 @@ async def test_handle_stop_zone_resolves_zone_id_attribute():
     coord.hass.states.get.return_value = state
 
     call = MagicMock()
-    call.data = {const.SERVICE_ENTITY_ID: "button.smart_irrigation_lawn_irrigate_now"}
+    call.data = {const.SERVICE_ENTITY_ID: "button.irrigation_plus_lawn_irrigate_now"}
 
     await ServiceHandlersMixin.handle_stop_zone(coord, call)
 
@@ -247,7 +247,7 @@ async def test_handle_set_zone_accepts_valid_state(monkeypatch):
 
     call = MagicMock()
     call.data = {
-        const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_lawn",
+        const.SERVICE_ENTITY_ID: "sensor.irrigation_plus_lawn",
         const.ATTR_NEW_STATE_VALUE: const.ZONE_STATE_AUTOMATIC,
     }
 
@@ -272,7 +272,7 @@ async def test_handle_set_zone_rejects_invalid_state():
 
     call = MagicMock()
     call.data = {
-        const.SERVICE_ENTITY_ID: "sensor.smart_irrigation_lawn",
+        const.SERVICE_ENTITY_ID: "sensor.irrigation_plus_lawn",
         const.ATTR_NEW_STATE_VALUE: "foobar",
     }
 

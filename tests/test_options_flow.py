@@ -1,4 +1,4 @@
-"""Test the Smart Irrigation options flow.
+"""Test the Irrigation Plus options flow.
 
 Weather + location config moved to the integration's panel (single source of
 truth), so the options flow no longer configures anything — it just points the
@@ -17,8 +17,8 @@ from tests.common import MockConfigEntry
 
 def _make_flow():
     entry = MockConfigEntry(
-        domain="smart_irrigation",
-        title="Smart Irrigation",
+        domain="irrigation_plus",
+        title="Irrigation Plus",
         data={},
         options={},
         entry_id="test_entry_id",

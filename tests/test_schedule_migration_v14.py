@@ -443,7 +443,7 @@ class TestFullMigrationPipeline:
     """Through `_async_migrate_func`, not just the pure per-schedule helper."""
 
     def _store(self, hass):
-        return MigratableStore(hass, STORAGE_VERSION, "smart_irrigation.storage")
+        return MigratableStore(hass, STORAGE_VERSION, "irrigation_plus.storage")
 
     async def test_every_schedule_in_the_collection_is_translated(self, hass):
         hass.config.units = METRIC_SYSTEM

@@ -1,4 +1,4 @@
-"""Test the Smart Irrigation performance monitoring utilities."""
+"""Test the Irrigation Plus performance monitoring utilities."""
 
 import asyncio
 import time

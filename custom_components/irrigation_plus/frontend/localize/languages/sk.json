@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation: skontrolujte prietok",
+    "title": "Irrigation Plus: skontrolujte prietok",
     "message_over": "Zóna '{zone}' trvalo zavlažuje priveľa: nameraný prietok je ~{percent}% nad nastavenou hodnotou počas {runs} cyklov. Nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
     "message_under": "Zóna '{zone}' trvalo zavlažuje primálo: nameraný prietok je ~{percent}% pod nastavenou hodnotou počas {runs} cyklov. Nastavte priepustnosť na približne {rate} {unit} (aktuálne {current}).",
     "open_settings": "Otvoriť nastavenia zóny"
@@ -792,7 +792,7 @@
       },
       "observed_watering": {
         "title": "Pripísať do bilancie pozorované zavlažovanie",
-        "description": "Keď prepojený ventil zóny beží mimo Smart Irrigation – ručný kohútik, automatizácia, váš vlastný plán – do jej bilancie sa pripíše privedená voda, odhadnutá z času behu a prietoku zóny. Model vlhkosti pôdy tak zostáva verný, keď zavlažujete inými spôsobmi. Vlastné zavlažovania Smart Irrigation sú už započítané a nikdy sa nepočítajú dvakrát.",
+        "description": "Keď prepojený ventil zóny beží mimo Irrigation Plus – ručný kohútik, automatizácia, váš vlastný plán – do jej bilancie sa pripíše privedená voda, odhadnutá z času behu a prietoku zóny. Model vlhkosti pôdy tak zostáva verný, keď zavlažujete inými spôsobmi. Vlastné zavlažovania Irrigation Plus sú už započítané a nikdy sa nepočítajú dvakrát.",
         "label": "Pripísať do bilancie, keď prepojený ventil beží externe",
         "note": "Vyžaduje prepojený ventil a prietok na zóne. Objem sa odhaduje (čas behu × prietok), nemeria sa."
       },
@@ -817,7 +817,7 @@
       },
       "distributors": {
         "title": "Mechanické rozvádzače vody",
-        "description": "Ovládajte mechanický tlakový rozvádzač — napríklad rozvádzač vody Gardena — ktorý rozdeľuje jeden prívod na niekoľko výstupov a posúva sa impulzmi zapnutia a vypnutia vody. Priraďte zóny k výstupom rozvádzača a Smart Irrigation ich zavlažuje postupne, sleduje polohu a koordinuje hlavný ventil alebo čerpadlo. Ide o novú funkciu, ktorú nebolo možné úplne otestovať na hardvéri, preto ju berte ako beta verziu.",
+        "description": "Ovládajte mechanický tlakový rozvádzač — napríklad rozvádzač vody Gardena — ktorý rozdeľuje jeden prívod na niekoľko výstupov a posúva sa impulzmi zapnutia a vypnutia vody. Priraďte zóny k výstupom rozvádzača a Irrigation Plus ich zavlažuje postupne, sleduje polohu a koordinuje hlavný ventil alebo čerpadlo. Ide o novú funkciu, ktorú nebolo možné úplne otestovať na hardvéri, preto ju berte ako beta verziu.",
         "label": "Povoliť mechanické rozvádzače vody",
         "note": "Prvé dni používania pozorne sledujte a majte po ruke manuálne ovládanie zariadenia. Kedykoľvek ho môžete znova vypnúť — existujúce zavlažovanie zón zostáva nedotknuté."
       }
@@ -1122,7 +1122,7 @@
     "open_wizard": "Otvoriť sprievodcu",
     "steps": {
       "welcome": {
-        "title": "Vitaj v Smart Irrigation",
+        "title": "Vitaj v Irrigation Plus",
         "intro": "Tento sprievodca ťa prevedie štyrmi krokmi potrebnými na to, aby tvoja prvá zóna automaticky zavlažovala.",
         "step1_label": "Poveternostná služba — odkiaľ získať poveternostné údaje",
         "step2_label": "Výpočtový modul — ako sa počíta trvanie zavlažovania",
@@ -1163,7 +1163,7 @@
       },
       "done": {
         "title": "Nastavenie dokončené!",
-        "description": "Tvoja prvá zóna je pripravená. Smart Irrigation teraz bude automaticky počítať trvania zavlažovania na základe poveternostných údajov.",
+        "description": "Tvoja prvá zóna je pripravená. Irrigation Plus teraz bude automaticky počítať trvania zavlažovania na základe poveternostných údajov.",
         "next_steps": "Čo môžeš urobiť ďalej:",
         "tip1": "Prejdi na Zóny a zobraz vypočítané trvania a hodnoty vedra.",
         "tip2": "Pridaj ďalšie zóny na karte Zóny.",
@@ -1193,7 +1193,7 @@
     "title": "Dávkové odoslanie (ovládače s frontom)",
     "description": "Odovzdá ovládaču celú závlahu jediným volaním — ako usporiadaný zoznam zón a dĺžok — a nechá ho tento zoznam vykonať z vlastného frontu. Určené pre ovládače so skutočným frontom, ako je komponent sprinkler v ESPHome, ale nič z toho naň nie je viazané: bežní pomocníci Home Assistant poslúžia rovnako. Front zavlažuje vždy len jeden ventil, takže dávkové zóny idú vždy po poradí a nastavenie poradia zón sa na ne nevzťahuje.",
     "run_service": "Spúšťací skript",
-    "run_service_help": "Skript, ktorý dostane plán. Prijme jediné pole zones s usporiadaným zoznamom {zone_id, zone_name, duration}. Ak váš ovládač pozná násobiteľa alebo opakovania, vynechajte ich alebo nastavte neutrálne (násobiteľ 1, opakovanie 0) — prepočítali by už vypočítané dĺžky a Smart Irrigation to nedokáže zistiť.",
+    "run_service_help": "Skript, ktorý dostane plán. Prijme jediné pole zones s usporiadaným zoznamom {zone_id, zone_name, duration}. Ak váš ovládač pozná násobiteľa alebo opakovania, vynechajte ich alebo nastavte neutrálne (násobiteľ 1, opakovanie 0) — prepočítali by už vypočítané dĺžky a Irrigation Plus to nedokáže zistiť.",
     "stop_service": "Zastavovací skript",
     "stop_service_help": "Skript, ktorý zastaví závlahu A vyprázdni front. Záleží na oboch. Pri ovládači ESPHome sú to sprinkler.shutdown a následne sprinkler.clear_queued_valves.",
     "stop_service_missing": "Bez zastavovacieho skriptu sa ovládač nedá zastaviť a jeho front vyprázdniť. Zastavenie zóny tu opraví účtovanie, ale každá zóna, ktorá zostáva vo fronte, bude zavlažovať neskôr bez akéhokoľvek dohľadu.",

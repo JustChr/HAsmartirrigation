@@ -1,4 +1,4 @@
-"""Sensor platform for Smart Irrigation integration."""
+"""Sensor platform for Irrigation Plus integration."""
 
 import datetime
 import logging
@@ -241,7 +241,7 @@ def check_zone_entity_in_hass_data(hass: HomeAssistant | None, entity_id: str) -
 
 
 class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
-    """Sensor entity representing a Smart Irrigation zone (irrigation duration)."""
+    """Sensor entity representing a Irrigation Plus zone (irrigation duration)."""
 
     _attr_has_entity_name = True
     _attr_translation_key = "duration"
@@ -475,7 +475,7 @@ class SmartIrrigationZoneEntity(SensorEntity, RestoreEntity):
 
 
 class SmartIrrigationZoneBucketEntity(SensorEntity, RestoreEntity):
-    """Sensor showing the current bucket value (mm) for a Smart Irrigation zone."""
+    """Sensor showing the current bucket value (mm) for a Irrigation Plus zone."""
 
     _attr_has_entity_name = True
     _attr_translation_key = "bucket"

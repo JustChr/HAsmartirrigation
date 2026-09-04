@@ -161,7 +161,7 @@ async def test_flow_calibration_advisory_is_localized_and_links_zone():
     assert f"/{const.DOMAIN}/setup/zones/zone/{z2[const.ZONE_ID]}" in msg2
     assert "{" not in msg2 and "}" not in msg2
     # The advisory is shared with the OBSERVED path, which watches a valve
-    # Smart Irrigation does not drive and cannot make any claim about (#111
+    # Irrigation Plus does not drive and cannot make any claim about (#111
     # follow-up). It used to open with "Its valve can't stop early, so ",
     # written for the self-closing / distributor callers and simply untrue for
     # an external run. Pinned here because the suite was green both before and

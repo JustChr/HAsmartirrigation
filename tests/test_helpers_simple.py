@@ -1,4 +1,4 @@
-"""Simple comprehensive tests for Smart Irrigation helper functions."""
+"""Simple comprehensive tests for Irrigation Plus helper functions."""
 
 import contextlib
 

@@ -6,7 +6,7 @@ title: How it works
 
 The below image shows a graphical representation of what this integration does.
 
-![](assets/images/smart_irrigation_diagram.png)
+![](assets/images/irrigation_plus_diagram.png)
 
 1. Snow and rain fall on the ground add moisture. Together, this makes up the `precipitation`.
 2. Sunshine, temperature, wind speed, place on earth and other factors influence the amount of moisture lost from the ground(`evapotranspiration`).
@@ -14,7 +14,7 @@ The below image shows a graphical representation of what this integration does.
 4. At some point in the day (configurable) the `nett precipitation` is added/substracted from the `bucket,` which starts as empty. The bucket is calculated using this formula: `old_bucket + nett precipitation`.
 5. If the bucket > 0, the `drainage rate` is taken into the account (if set) and subtracted from the bucket value. The actual drainage rate is determined dynamically by the fraction the bucket is of the maximum bucket value, following hydraulic conductivity method of [Brooks and Corey, Eq. 4-6](https://open.library.okstate.edu/rainorshine/chapter/1-8-models-for-soil-hydraulic-conductivity/)
 6. If the `bucket` falls below the zone's **minimum deficit to irrigate** ([a per-zone setting](configuration-my-zones.md), a 10 mm deficit by default — `-10` on metric installs, `-0.39` on imperial ones), irrigation is required. Set it to `0` if you want any deficit at all to trigger watering — that's the behaviour the simplified example below assumes.
-7. Irrigation should be run for the calculated duration, which is `sensor.smart_irrigation_[zone_name]` (0 if `bucket >= 0`). Afterwards the `bucket` must be reset so the integration knows irrigation happened. If you give a zone a [linked switch/valve entity](configuration-my-zones.md#linked-entity), the integration runs the valve for the calculated duration **and resets the bucket for you** — no automation needed. If you prefer to control the valve yourself, build an automation that reads the duration and calls the [`reset_bucket` service](usage-services.md) when done. See [Valve control & automations](usage-automations.md) for both options.
+7. Irrigation should be run for the calculated duration, which is `sensor.irrigation_plus_[zone_name]` (0 if `bucket >= 0`). Afterwards the `bucket` must be reset so the integration knows irrigation happened. If you give a zone a [linked switch/valve entity](configuration-my-zones.md#linked-entity), the integration runs the valve for the calculated duration **and resets the bucket for you** — no automation needed. If you prefer to control the valve yourself, build an automation that reads the duration and calls the [`reset_bucket` service](usage-services.md) when done. See [Valve control & automations](usage-automations.md) for both options.
 
 ## Weekly behavior example
 To understand how `precipitation`, `nett precipitation`, the `bucket` and irrigation interact, see let's look at an example behavior in a week.

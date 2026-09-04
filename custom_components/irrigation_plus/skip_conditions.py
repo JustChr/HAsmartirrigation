@@ -414,7 +414,7 @@ class SkipConditionsMixin:
             over-estimated the cycle and started a finish-anchored schedule too
             early on any install that had chosen sequential or rotating.
           * station track — OpenSprinkler zones, always sum(duration). Under
-            sequential/rotating Smart Irrigation chains them itself; under
+            sequential/rotating Irrigation Plus chains them itself; under
             parallel it hands the controller everything at once, and whether a
             station then waits for the ones before it is a flag in the
             CONTROLLER's own configuration which this integration cannot read

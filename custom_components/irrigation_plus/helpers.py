@@ -1,4 +1,4 @@
-"""Helpers for the Smart Irrigation integration."""
+"""Helpers for the Irrigation Plus integration."""
 
 import importlib
 import logging

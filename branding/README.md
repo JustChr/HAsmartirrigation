@@ -1,6 +1,6 @@
 # Branding assets
 
-Source files for the Smart Irrigation mark and logo. Edit the SVGs here, then
+Source files for the Irrigation Plus mark and logo. Edit the SVGs here, then
 regenerate the raster assets in the repo root / `docs/`.
 
 | Source | Generated |

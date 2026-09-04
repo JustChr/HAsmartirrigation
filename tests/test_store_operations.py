@@ -1,4 +1,4 @@
-"""Comprehensive tests for Smart Irrigation store operations."""
+"""Comprehensive tests for Irrigation Plus store operations."""
 
 import contextlib
 from unittest.mock import AsyncMock

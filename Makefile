@@ -1,10 +1,10 @@
-# Smart Irrigation Development Makefile
+# Irrigation Plus Development Makefile
 
 .PHONY: help setup test lint format clean install-dev bump
 
 # Default target
 help:
-	@echo "Smart Irrigation Development Commands:"
+	@echo "Irrigation Plus Development Commands:"
 	@echo ""
 	@echo "Setup:"
 	@echo "  setup       - Create virtual environment and install dependencies"
@@ -26,7 +26,7 @@ help:
 
 # Setup virtual environment with Python 3.13
 setup:
-	@echo "Setting up Smart Irrigation development environment..."
+	@echo "Setting up Irrigation Plus development environment..."
 	@which python3.13 > /dev/null || (echo "❌ Python 3.13 not found. Install it first." && exit 1)
 	python3.13 -m venv .venv
 	./.venv/bin/pip install --upgrade pip

@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation : vérifier le débit",
+    "title": "Irrigation Plus : vérifier le débit",
     "message_over": "La zone '{zone}' arrose systématiquement trop : le débit mesuré est ~{percent}% au-dessus du débit configuré sur {runs} cycles. Réglez le débit sur environ {rate} {unit} (actuellement {current}).",
     "message_under": "La zone '{zone}' arrose systématiquement trop peu : le débit mesuré est ~{percent}% en dessous du débit configuré sur {runs} cycles. Réglez le débit sur environ {rate} {unit} (actuellement {current}).",
     "open_settings": "Ouvrir les paramètres de la zone"
@@ -792,7 +792,7 @@
       },
       "observed_watering": {
         "title": "Créditer le réservoir d'après l'arrosage observé",
-        "description": "Lorsque la vanne associée d'une zone fonctionne en dehors de Smart Irrigation — un robinet manuel, une automatisation, votre propre programmation — son réservoir est crédité de l'eau appliquée, estimée d'après la durée de fonctionnement et le débit de la zone. Le modèle d'humidité du sol reste ainsi fidèle lorsque vous arrosez autrement. Les arrosages de Smart Irrigation eux-mêmes sont déjà comptabilisés et ne sont jamais comptés deux fois.",
+        "description": "Lorsque la vanne associée d'une zone fonctionne en dehors de Irrigation Plus — un robinet manuel, une automatisation, votre propre programmation — son réservoir est crédité de l'eau appliquée, estimée d'après la durée de fonctionnement et le débit de la zone. Le modèle d'humidité du sol reste ainsi fidèle lorsque vous arrosez autrement. Les arrosages de Irrigation Plus eux-mêmes sont déjà comptabilisés et ne sont jamais comptés deux fois.",
         "label": "Créditer le réservoir lorsqu'une vanne associée fonctionne en externe",
         "note": "Nécessite une vanne associée et un débit sur la zone. Le volume est estimé (durée × débit), non mesuré."
       },
@@ -817,7 +817,7 @@
       },
       "distributors": {
         "title": "Distributeurs d'eau mécaniques",
-        "description": "Pilotez un distributeur à pression mécanique — par exemple un Distributeur d'eau Gardena — qui répartit une alimentation sur plusieurs sorties et avance par impulsions d'ouverture et de fermeture de l'eau. Affectez des zones aux sorties d'un distributeur et Smart Irrigation les arrose en séquence, suit la position et coordonne une vanne maître ou une pompe. Il s'agit d'une nouvelle fonctionnalité qui n'a pas pu être entièrement testée sur matériel ; considérez-la donc comme une bêta.",
+        "description": "Pilotez un distributeur à pression mécanique — par exemple un Distributeur d'eau Gardena — qui répartit une alimentation sur plusieurs sorties et avance par impulsions d'ouverture et de fermeture de l'eau. Affectez des zones aux sorties d'un distributeur et Irrigation Plus les arrose en séquence, suit la position et coordonne une vanne maître ou une pompe. Il s'agit d'une nouvelle fonctionnalité qui n'a pas pu être entièrement testée sur matériel ; considérez-la donc comme une bêta.",
         "label": "Activer les distributeurs d'eau mécaniques",
         "note": "Surveillez de près les premiers jours d'utilisation et gardez la commande manuelle de l'appareil à portée de main. Vous pouvez la désactiver à tout moment — l'arrosage des zones existantes n'est pas affecté."
       }
@@ -932,7 +932,7 @@
       }
     }
   },
-  "title": "Smart Irrigation",
+  "title": "Irrigation Plus",
   "coordinate_config": {
     "title": "Coordonnées de Localisation",
     "description": "Configurez les coordonnées de localisation pour la récupération des données météo. Vous pouvez utiliser des coordonnées manuelles différentes de votre emplacement Home Assistant si nécessaire.",
@@ -1122,7 +1122,7 @@
     "open_wizard": "Ouvrir l'assistant",
     "steps": {
       "welcome": {
-        "title": "Bienvenue dans Smart Irrigation",
+        "title": "Bienvenue dans Irrigation Plus",
         "intro": "Cet assistant vous guide à travers les quatre étapes nécessaires pour que votre première zone arrose automatiquement.",
         "step1_label": "Service météo — où obtenir les données météo",
         "step2_label": "Module de calcul — comment la durée d'arrosage est calculée",
@@ -1163,7 +1163,7 @@
       },
       "done": {
         "title": "Configuration terminée !",
-        "description": "Votre première zone est prête. Smart Irrigation calculera désormais les durées d'arrosage automatiquement à partir des données météo.",
+        "description": "Votre première zone est prête. Irrigation Plus calculera désormais les durées d'arrosage automatiquement à partir des données météo.",
         "next_steps": "Ce que vous pouvez faire ensuite :",
         "tip1": "Allez dans Zones pour voir les durées calculées et les valeurs du réservoir.",
         "tip2": "Ajoutez d'autres zones depuis l'onglet Zones.",
@@ -1193,7 +1193,7 @@
     "title": "Envoi groupé (contrôleurs à file d'attente)",
     "description": "Confie au contrôleur l'arrosage complet en un seul appel — une liste ordonnée de zones et de durées — et le laisse dérouler cette liste depuis sa propre file d'attente. Prévu pour les contrôleurs dotés d'une vraie file comme le composant sprinkler d'ESPHome, mais rien ici ne lui est propre : de simples assistants Home Assistant conviennent tout autant. Une file n'arrose qu'une vanne à la fois : les zones groupées passent donc toujours dans l'ordre et le réglage d'enchaînement des zones ne s'y applique pas.",
     "run_service": "Script de démarrage",
-    "run_service_help": "Le script qui reçoit le plan, dans un champ unique nommé zones contenant une liste ordonnée de {zone_id, zone_name, duration}. Si votre contrôleur propose un multiplicateur ou des répétitions, omettez-les ou laissez-les neutres (multiplicateur 1, répétition 0) : ils remettraient à l'échelle des durées déjà calculées, et Smart Irrigation ne peut pas les détecter.",
+    "run_service_help": "Le script qui reçoit le plan, dans un champ unique nommé zones contenant une liste ordonnée de {zone_id, zone_name, duration}. Si votre contrôleur propose un multiplicateur ou des répétitions, omettez-les ou laissez-les neutres (multiplicateur 1, répétition 0) : ils remettraient à l'échelle des durées déjà calculées, et Irrigation Plus ne peut pas les détecter.",
     "stop_service": "Script d'arrêt",
     "stop_service_help": "Le script qui arrête l'arrosage ET vide la file d'attente. Les deux comptent. Sur un contrôleur ESPHome, c'est sprinkler.shutdown puis sprinkler.clear_queued_valves.",
     "stop_service_missing": "Sans script d'arrêt, le contrôleur ne peut pas être arrêté ni sa file vidée. Arrêter une zone corrigera bien la comptabilité ici, mais toute zone encore en file arrosera plus tard sans rien pour la surveiller.",

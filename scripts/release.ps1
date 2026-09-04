@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  Release the Smart Irrigation HACS integration.
+  Release the Irrigation Plus HACS integration.
 
 .DESCRIPTION
   One command for the whole release so the steps can't drift (manual releases

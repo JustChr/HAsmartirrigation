@@ -1,4 +1,4 @@
-"""Button platform for Smart Irrigation integration.
+"""Button platform for Irrigation Plus integration.
 
 Per zone (on the zone's device): irrigate this zone now (bypasses skip
 conditions, like the panel's button / the irrigate_now service).
@@ -31,7 +31,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_devices: AddEntitiesCallback,
 ) -> None:
-    """Set up Smart Irrigation button entities."""
+    """Set up Irrigation Plus button entities."""
 
     @callback
     def async_add_button_entity(config: dict) -> None:

@@ -1,4 +1,4 @@
-"""Test Smart Irrigation config flow."""
+"""Test Irrigation Plus config flow."""
 
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -48,7 +48,7 @@ sys.modules["homeassistant.components.websocket_api"] = websocket_mock
 
 
 class TestSmartIrrigationConfigFlow:
-    """Test Smart Irrigation config flow."""
+    """Test Irrigation Plus config flow."""
 
     async def test_form_user_step(self, hass: HomeAssistant) -> None:
         """Test we get the form for user step."""
@@ -85,7 +85,7 @@ class TestSmartIrrigationConfigFlow:
         )
 
         user_input = {
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: False,
         }
 
@@ -106,7 +106,7 @@ class TestSmartIrrigationConfigFlow:
         )
 
         user_input = {
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: True,
         }
 
@@ -129,7 +129,7 @@ class TestSmartIrrigationConfigFlow:
         )
 
         user_input_1 = {
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: True,
         }
 
@@ -164,7 +164,7 @@ class TestSmartIrrigationConfigFlow:
         )
 
         user_input_1 = {
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: True,
         }
 
@@ -196,7 +196,7 @@ class TestSmartIrrigationConfigFlow:
         )
 
         user_input_1 = {
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: True,
         }
 
@@ -225,7 +225,7 @@ class TestSmartIrrigationConfigFlow:
             domain=const.DOMAIN,
             title=const.NAME,
             data={
-                const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+                const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
                 const.CONF_USE_WEATHER_SERVICE: False,
             },
             entry_id="test_entry",

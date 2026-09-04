@@ -193,7 +193,7 @@ class TestTheBound:
 class TestPausesAreNotPriced:
     """A pause is not something the fit can anticipate.
 
-    Smart Irrigation has no pause service: the config surface is a run service,
+    Irrigation Plus has no pause service: the config surface is a run service,
     a stop service, a paused indicator and a timeout. A pause therefore
     originates at the controller or the user, at an unknowable moment, for an
     unknowable length. Reserving the six-hour backstop against that possibility

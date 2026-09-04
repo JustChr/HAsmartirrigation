@@ -1,4 +1,4 @@
-"""Performance monitoring utilities for Smart Irrigation."""
+"""Performance monitoring utilities for Irrigation Plus."""
 
 import inspect
 import logging

@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "single_instance_allowed": "Es ist nur eine Integration für Smart Irrigation zulässig."
+      "single_instance_allowed": "Es ist nur eine Integration für Irrigation Plus zulässig."
     },
     "error": {
       "auth": "API-Schlüssel des Wetterdienstes falsch",
@@ -68,7 +68,7 @@
       }
     },
     "abort": {
-      "configure_in_panel": "Konfiguriere Smart Irrigation über das Panel in der Seitenleiste (Einrichtung → Wetter & Standort)."
+      "configure_in_panel": "Konfiguriere Irrigation Plus über das Panel in der Seitenleiste (Einrichtung → Wetter & Standort)."
     }
   },
   "services": {

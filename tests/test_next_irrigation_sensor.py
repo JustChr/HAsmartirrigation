@@ -1,6 +1,6 @@
 """The next-irrigation sensor's cold-start population.
 
-The entity recomputes only on ``smart_irrigation_schedules_updated``. Its own
+The entity recomputes only on ``irrigation_plus_schedules_updated``. Its own
 add-time refresh is its one other chance, and during a cold start that lands
 before ``async_load_schedules`` has put anything in the manager, so the value it
 reads is "no schedules" rather than "no schedule yet". Nothing revisited it, and

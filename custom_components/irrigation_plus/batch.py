@@ -29,7 +29,7 @@ behaves that way (@pnaklicki tested every one of them against a controller):
   zone stops the whole cycle, but zones already queued stay queued and will water
   on a later manual start. So a stop must settle EVERY batch run in flight and
   must clear the queue, or those zones water later with nothing supervising them.
-* **The controller may manage its own pump.** Then a Smart Irrigation master
+* **The controller may manage its own pump.** Then a Irrigation Plus master
   entity must NOT also be configured — that gives one pump two independent
   owners, which is exactly what the master refcounting model exists to prevent.
   Documented rather than enforced; the integration cannot detect it.
@@ -486,7 +486,7 @@ class BatchMixin:
         the runs were dropped, their optimistic bucket credit reversed and a
         ``zone_never_ran`` fault raised, and then the controller resumed and
         watered them with nothing left watching the valve. The user sees a zone
-        water for precisely the duration Smart Irrigation asked for, and a bucket
+        water for precisely the duration Irrigation Plus asked for, and a bucket
         that never moves. Reported from the field against v2026.08.14 (#88).
 
         Applied to queue-bound runs only: a run that has started watering is

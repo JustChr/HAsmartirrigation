@@ -1,4 +1,4 @@
-"""Enhanced scheduling system for Smart Irrigation."""
+"""Enhanced scheduling system for Irrigation Plus."""
 
 import datetime
 import logging
@@ -69,7 +69,7 @@ _OCCURRENCE_FIELDS = frozenset(
 
 
 class RecurringScheduleManager:
-    """Manages recurring schedules for Smart Irrigation."""
+    """Manages recurring schedules for Irrigation Plus."""
 
     def __init__(self, hass: HomeAssistant, coordinator) -> None:
         """Initialize the recurring schedule manager."""

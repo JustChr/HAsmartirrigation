@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation: controlla la portata",
+    "title": "Irrigation Plus: controlla la portata",
     "message_over": "La zona '{zone}' irriga costantemente troppo: la portata misurata è ~{percent}% sopra il valore configurato su {runs} cicli. Imposta la portata a circa {rate} {unit} (attualmente {current}).",
     "message_under": "La zona '{zone}' irriga costantemente troppo poco: la portata misurata è ~{percent}% sotto il valore configurato su {runs} cicli. Imposta la portata a circa {rate} {unit} (attualmente {current}).",
     "open_settings": "Apri le impostazioni della zona"
@@ -792,7 +792,7 @@
       },
       "observed_watering": {
         "title": "Accredita il bilancio dall'irrigazione osservata",
-        "description": "Quando la valvola collegata di una zona funziona al di fuori di Smart Irrigation — un rubinetto manuale, un'automazione, una tua pianificazione — al suo bilancio viene accreditata l'acqua erogata, stimata dal tempo di funzionamento e dalla portata della zona. Così il modello di umidità del suolo resta fedele quando irrighi in altri modi. Le irrigazioni di Smart Irrigation sono già conteggiate e non vengono mai contate due volte.",
+        "description": "Quando la valvola collegata di una zona funziona al di fuori di Irrigation Plus — un rubinetto manuale, un'automazione, una tua pianificazione — al suo bilancio viene accreditata l'acqua erogata, stimata dal tempo di funzionamento e dalla portata della zona. Così il modello di umidità del suolo resta fedele quando irrighi in altri modi. Le irrigazioni di Irrigation Plus sono già conteggiate e non vengono mai contate due volte.",
         "label": "Accredita il bilancio quando una valvola collegata funziona esternamente",
         "note": "Richiede una valvola collegata e una portata sulla zona. Il volume è stimato (tempo × portata), non misurato."
       },
@@ -817,7 +817,7 @@
       },
       "distributors": {
         "title": "Distributori d'acqua meccanici",
-        "description": "Comanda un distributore a pressione meccanico — ad esempio un Distributore d'acqua Gardena — che suddivide un'alimentazione in più uscite e avanza tramite impulsi di apertura e chiusura dell'acqua. Assegna le zone alle uscite di un distributore e Smart Irrigation le irriga in sequenza, traccia la posizione e coordina una valvola master o una pompa. È una funzione nuova che non è stato possibile testare completamente sull'hardware, quindi trattala come una beta.",
+        "description": "Comanda un distributore a pressione meccanico — ad esempio un Distributore d'acqua Gardena — che suddivide un'alimentazione in più uscite e avanza tramite impulsi di apertura e chiusura dell'acqua. Assegna le zone alle uscite di un distributore e Irrigation Plus le irriga in sequenza, traccia la posizione e coordina una valvola master o una pompa. È una funzione nuova che non è stato possibile testare completamente sull'hardware, quindi trattala come una beta.",
         "label": "Abilita i distributori d'acqua meccanici",
         "note": "Tieni d'occhio i primi giorni di utilizzo e tieni a portata di mano il comando manuale del dispositivo. Puoi disattivarlo in qualsiasi momento: l'irrigazione delle zone esistenti non è influenzata."
       }
@@ -932,7 +932,7 @@
       }
     }
   },
-  "title": "Smart Irrigation",
+  "title": "Irrigation Plus",
   "coordinate_config": {
     "title": "Coordinate di Posizione",
     "description": "Configura le coordinate di posizione per il recupero dei dati meteorologici. Puoi usare coordinate manuali diverse dalla tua posizione Home Assistant se necessario.",
@@ -1122,7 +1122,7 @@
     "open_wizard": "Apri procedura guidata",
     "steps": {
       "welcome": {
-        "title": "Benvenuto in Smart Irrigation",
+        "title": "Benvenuto in Irrigation Plus",
         "intro": "Questa procedura guidata ti accompagna nei quattro passaggi necessari per far irrigare automaticamente la tua prima zona.",
         "step1_label": "Servizio meteo — dove ottenere i dati meteo",
         "step2_label": "Modulo di calcolo — come viene calcolata la durata dell'irrigazione",
@@ -1163,7 +1163,7 @@
       },
       "done": {
         "title": "Configurazione completata!",
-        "description": "La tua prima zona è pronta. Smart Irrigation calcolerà ora le durate di irrigazione automaticamente in base ai dati meteo.",
+        "description": "La tua prima zona è pronta. Irrigation Plus calcolerà ora le durate di irrigazione automaticamente in base ai dati meteo.",
         "next_steps": "Cosa puoi fare ora:",
         "tip1": "Vai su Zone per vedere le durate calcolate e i valori del secchio.",
         "tip2": "Aggiungi altre zone dalla scheda Zone.",
@@ -1193,7 +1193,7 @@
     "title": "Invio in blocco (centraline con coda)",
     "description": "Affida alla centralina l'intera irrigazione in una sola chiamata — un elenco ordinato di zone e durate — e la lascia eseguire quell'elenco dalla propria coda. Pensato per centraline con una coda vera come il componente sprinkler di ESPHome, ma nulla qui è legato a esso: anche i normali helper di Home Assistant vanno benissimo. Una coda irriga una valvola alla volta, quindi le zone in blocco procedono sempre in ordine e l'impostazione di sequenza delle zone non si applica.",
     "run_service": "Script di avvio",
-    "run_service_help": "Lo script che riceve il piano, in un unico campo chiamato zones contenente un elenco ordinato di {zone_id, zone_name, duration}. Se la centralina prevede un moltiplicatore o delle ripetizioni, omettili o lasciali neutri (moltiplicatore 1, ripetizione 0): riscalerebbero durate già calcolate e Smart Irrigation non può accorgersene.",
+    "run_service_help": "Lo script che riceve il piano, in un unico campo chiamato zones contenente un elenco ordinato di {zone_id, zone_name, duration}. Se la centralina prevede un moltiplicatore o delle ripetizioni, omettili o lasciali neutri (moltiplicatore 1, ripetizione 0): riscalerebbero durate già calcolate e Irrigation Plus non può accorgersene.",
     "stop_service": "Script di arresto",
     "stop_service_help": "Lo script che ferma l'irrigazione E svuota la coda. Servono entrambe le cose. Su una centralina ESPHome sono sprinkler.shutdown seguito da sprinkler.clear_queued_valves.",
     "stop_service_missing": "Senza script di arresto la centralina non può essere fermata né la sua coda svuotata. Fermare una zona correggerà la contabilità qui, ma ogni zona ancora in coda irrigherà più tardi senza nulla che la sorvegli.",

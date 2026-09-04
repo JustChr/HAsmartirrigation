@@ -1,4 +1,4 @@
-"""Test Smart Irrigation services are registered.
+"""Test Irrigation Plus services are registered.
 
 Revived in Phase C/A6: updated to the current service layer — registration is
 async_register_services (renamed + moved to services.py in C1), and the dead
@@ -16,7 +16,7 @@ from custom_components.irrigation_plus import async_register_services, const
 
 
 class TestSmartIrrigationServices:
-    """Test Smart Irrigation service registration."""
+    """Test Irrigation Plus service registration."""
 
     @pytest.fixture
     def mock_coordinator(self):

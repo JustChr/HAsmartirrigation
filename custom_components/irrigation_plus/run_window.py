@@ -47,7 +47,7 @@ TRACK_BATCH = "batch"
 #     governs them and the pricing has to follow it — a track priced as parallel
 #     while it runs sequentially is the longest zone instead of all of them, and
 #     anchors a finish-governed run hours early. Issue #98.
-#   station  — sequential. Under sequential/rotating Smart Irrigation chains the
+#   station  — sequential. Under sequential/rotating Irrigation Plus chains the
 #     stations itself; under parallel it hands the controller everything at once
 #     and the controller's own grouping decides. Where that grouping can be read
 #     off the station entities :func:`_grouped_station_wall_clock` prices it
@@ -454,7 +454,7 @@ def concurrent_wall_clock(
         clock = None
         if track == TRACK_STATION and sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL:
             # Only parallel hands the controller a queue to schedule. Under
-            # sequential and rotating Smart Irrigation dispatches one station and
+            # sequential and rotating Irrigation Plus dispatches one station and
             # holds the rest until it finalises — see
             # ``async_dispatch_opensprinkler_zones`` — so the chain below is not
             # an assumption there, it is what runs, and the grouping cannot

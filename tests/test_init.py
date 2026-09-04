@@ -1,4 +1,4 @@
-"""Test Smart Irrigation integration initialization."""
+"""Test Irrigation Plus integration initialization."""
 
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -26,7 +26,7 @@ from custom_components.irrigation_plus import (
 
 
 class TestSmartIrrigationIntegration:
-    """Test Smart Irrigation integration setup and teardown."""
+    """Test Irrigation Plus integration setup and teardown."""
 
     async def test_async_setup(self, hass: HomeAssistant) -> None:
         """Test basic integration setup."""

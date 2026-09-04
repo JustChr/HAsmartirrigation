@@ -220,7 +220,7 @@ class TestStationGrouping:
     """Pricing the station track from the controller's own grouping.
 
     Every clock below is hand-computed. The grouping only applies under
-    parallel: sequential and rotating are chains Smart Irrigation enforces
+    parallel: sequential and rotating are chains Irrigation Plus enforces
     itself, one station at a time, so the controller's queue never forms.
     """
 
@@ -309,7 +309,7 @@ class TestStationGrouping:
         assert self._conc(runs) == 900
 
     def test_sequential_sequencing_is_untouched(self):
-        # Smart Irrigation holds each station back until the last finalises, so
+        # Irrigation Plus holds each station back until the last finalises, so
         # the grouping cannot make them overlap.
         runs = [
             _station(0, 300, group=PARALLEL_STATION_GROUP, delay=15),

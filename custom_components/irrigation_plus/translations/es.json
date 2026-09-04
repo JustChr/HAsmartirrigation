@@ -68,7 +68,7 @@
       }
     },
     "abort": {
-      "configure_in_panel": "Configura Smart Irrigation desde su panel en la barra lateral (Configuración → Clima y ubicación)."
+      "configure_in_panel": "Configura Irrigation Plus desde su panel en la barra lateral (Configuración → Clima y ubicación)."
     }
   },
   "services": {

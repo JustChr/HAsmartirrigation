@@ -315,7 +315,7 @@ class TestTheEstimateFollowsHowEachModeIsActuallyDispatched:
 
     @pytest.mark.asyncio
     async def test_stations_are_summed_under_sequential(self, coordinator, mock_store):
-        """Guard, not a change: Smart Irrigation chains stations itself here."""
+        """Guard, not a change: Irrigation Plus chains stations itself here."""
         mock_store.config = Mock(zone_sequencing=const.CONF_ZONE_SEQUENCING_SEQUENTIAL)
         mock_store.async_get_zones = AsyncMock(
             return_value=_mode_zones(const.WATERING_MODE_OPENSPRINKLER)

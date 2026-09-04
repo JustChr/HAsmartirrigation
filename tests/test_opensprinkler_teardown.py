@@ -158,7 +158,7 @@ class TestUnloadAndRemove:
         """The store is deleted immediately after, so the reconciliation is moot.
 
         The stop itself is not: it is the last moment anything knows these
-        stations belonged to Smart Irrigation.
+        stations belonged to Irrigation Plus.
         """
         coordinator = self._coordinator(hass)
         with (

@@ -1,4 +1,4 @@
-"""Irrigation execution for the Smart Irrigation integration.
+"""Irrigation execution for the Irrigation Plus integration.
 
 Extracted from __init__.py (Phase C2). The runner methods live on a mixin the
 SmartIrrigationCoordinator inherits, so their bodies are unchanged — they still
@@ -57,7 +57,7 @@ _EVICTABLE_SKIP_DETAILS = frozenset(
     {const.SKIP_REASON_NO_DEMAND, const.SKIP_REASON_DAYS_BETWEEN}
 )
 
-# How long (seconds) a zone stays flagged as "Smart Irrigation is driving this
+# How long (seconds) a zone stays flagged as "Irrigation Plus is driving this
 # valve" after the runner opens it, so the experimental observed-watering
 # observer does not also credit the bucket for a run SI already accounts for.
 # Grace added on top of the run's own length: covers valve-confirm lag before

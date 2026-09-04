@@ -3,5 +3,5 @@ plugins:
 - jekyll-remote-theme
 - jekyll-redirect-from
 markdown: GFM
-title: Smart Irrigation
-description: A maintained community fork of the Smart Irrigation Home Assistant integration — precise, evapotranspiration-based irrigation scheduling
+title: Irrigation Plus
+description: Evapotranspiration-based irrigation scheduling for Home Assistant — a maintained community fork of Smart Irrigation, renamed to Irrigation Plus

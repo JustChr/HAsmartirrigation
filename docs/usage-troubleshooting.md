@@ -8,7 +8,7 @@ title: Usage: Troubleshooting
 > Previous: [Automations](usage-automations.md)<br/>
 
 In order to troubleshoot this integration or get help, it's important to check two sources:
-- the diagnostic file / storage file. You can either generate a diagnostic file or get the `smart_irrigation.storage` file from the `configuration/.storage` folder. To download a diagnostics file, in Home Assistant, go to Settings >Devices&Services > Integrations >Smart Irrigation, or use this [link](https://my.home-assistant.io/redirect/integration/?domain=smart_irrigation). Click the 'three vertical dots' menu and select 'download diagnostics'.
+- the diagnostic file / storage file. You can either generate a diagnostic file or get the `irrigation_plus.storage` file from the `configuration/.storage` folder. To download a diagnostics file, in Home Assistant, go to Settings >Devices&Services > Integrations >Irrigation Plus, or use this [link](https://my.home-assistant.io/redirect/integration/?domain=irrigation_plus). Click the 'three vertical dots' menu and select 'download diagnostics'.
 
 ## Reading the diagnostic / storage file
 The diagnostic / storage file is in a JSON format and lists your configuration settings, your zones, sensor groups and modules.

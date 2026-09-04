@@ -1,1 +1,1 @@
-"""Calculation modules for Smart Irrigation integration."""
+"""Calculation modules for Irrigation Plus integration."""

@@ -1,5 +1,5 @@
 blueprint:
-  name: "Smart Irrigation: Self-closing valve (Tuya TS0601 dual water valve, Zigbee2MQTT)"
+  name: "Irrigation Plus: Self-closing valve (Tuya TS0601 dual water valve, Zigbee2MQTT)"
   description: >-
     Drives a Tuya dual water valve over Zigbee2MQTT -- model "TS0601_water_switch"
     ("Dual water valve") -- that closes itself via a hardware countdown. Smart
@@ -52,7 +52,7 @@ fields:
   duration:
     name: Duration
     description: >-
-      Run length from Smart Irrigation, in the zone's configured unit
+      Run length from Irrigation Plus, in the zone's configured unit
       (Tuya = minutes). 0 closes the valve.
     default: 0
     selector:

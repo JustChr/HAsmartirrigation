@@ -1,4 +1,4 @@
-"""Service registration and handlers for the Smart Irrigation integration.
+"""Service registration and handlers for the Irrigation Plus integration.
 
 Extracted from __init__.py (Phase C1). The handlers live on a mixin that the
 SmartIrrigationCoordinator inherits, so their bodies are unchanged — they still
@@ -319,7 +319,7 @@ class ServiceHandlersMixin:
                 zone_id = state.attributes.get("zone_id")
             if zone_id is None:
                 raise SmartIrrigationError(
-                    f"Entity {entity} is not a Smart Irrigation zone entity "
+                    f"Entity {entity} is not a Irrigation Plus zone entity "
                     "(no zone id in its attributes)."
                 )
             await self.async_run_zone(zone_id, float(duration))
@@ -343,7 +343,7 @@ class ServiceHandlersMixin:
                 zone_id = state.attributes.get("zone_id")
             if zone_id is None:
                 raise SmartIrrigationError(
-                    f"Entity {entity} is not a Smart Irrigation zone entity "
+                    f"Entity {entity} is not a Irrigation Plus zone entity "
                     "(no zone id in its attributes)."
                 )
             await self.async_stop_zone(zone_id)
@@ -399,7 +399,7 @@ class ServiceHandlersMixin:
 
 @callback
 def async_register_services(hass: HomeAssistant):
-    """Register services used by Smart Irrigation integration."""
+    """Register services used by Irrigation Plus integration."""
 
     coordinator = hass.data[const.DOMAIN]["coordinator"]
 

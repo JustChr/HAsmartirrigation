@@ -1,4 +1,4 @@
-"""DateTime platform for Smart Irrigation integration.
+"""DateTime platform for Irrigation Plus integration.
 
 A single hub-level "Pause until" control (WS-5): the rain-delay / vacation hold.
 Setting it pauses all AUTOMATIC/scheduled irrigation until the chosen moment;
@@ -27,7 +27,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_devices: AddEntitiesCallback,
 ) -> None:
-    """Set up the Smart Irrigation datetime entities."""
+    """Set up the Irrigation Plus datetime entities."""
     async_add_devices([SmartIrrigationRainDelayDateTime(hass)])
 
 

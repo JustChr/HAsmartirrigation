@@ -84,7 +84,7 @@ def mock_entry():
         domain=const.DOMAIN,
         title=const.NAME,
         data={
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: False,
             CONF_LATITUDE: 52.379189,
             CONF_LONGITUDE: 4.899431,
@@ -200,7 +200,7 @@ def mock_config_entry():
         domain=const.DOMAIN,
         title=const.NAME,
         data={
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: False,
             CONF_LATITUDE: 52.379189,
             CONF_LONGITUDE: 4.899431,
@@ -223,7 +223,7 @@ def mock_config_entry_with_weather():
         domain=const.DOMAIN,
         title=const.NAME,
         data={
-            const.CONF_INSTANCE_NAME: "Test Smart Irrigation",
+            const.CONF_INSTANCE_NAME: "Test Irrigation Plus",
             const.CONF_USE_WEATHER_SERVICE: True,
             const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
             const.CONF_WEATHER_SERVICE_API_KEY: "validate_api_key",

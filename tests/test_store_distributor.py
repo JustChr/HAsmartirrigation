@@ -83,7 +83,7 @@ def test_storage_version_is_14():
 
 
 async def test_migration_v10_adds_distributors_and_zone_fields(hass):
-    store = MigratableStore(hass, STORAGE_VERSION, "smart_irrigation.storage")
+    store = MigratableStore(hass, STORAGE_VERSION, "irrigation_plus.storage")
     old = {
         "config": {},
         "zones": [{"id": 0, "name": "A"}, {"id": 1, "name": "B"}],

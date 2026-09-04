@@ -6,17 +6,17 @@ title: Lovelace card
 
 > Main page: [Usage](usage.md)
 
-The Smart Irrigation **panel** in the sidebar is admin-only. To give non-admin household members an everyday view, the integration also ships a **Lovelace card** that mirrors the [Zones dashboard](usage-dashboard.md) — status and manual irrigation, without any access to configuration.
+The Irrigation Plus **panel** in the sidebar is admin-only. To give non-admin household members an everyday view, the integration also ships a **Lovelace card** that mirrors the [Zones dashboard](usage-dashboard.md) — status and manual irrigation, without any access to configuration.
 
 ## Adding the card
 
 The card is registered automatically — there is no manual resource to add. On any dashboard:
 
-1. **Edit dashboard → Add card**, search for **“Smart Irrigation Zones”**, or
+1. **Edit dashboard → Add card**, search for **“Irrigation Plus Zones”**, or
 2. add it as YAML:
 
 ```yaml
-type: custom:smart-irrigation-zones-card
+type: custom:irrigation-plus-zones-card
 ```
 
 > If it does not appear right after updating the integration, do a hard refresh of your browser (Ctrl/Cmd-Shift-R) to clear the cached frontend.
@@ -40,7 +40,7 @@ Any authenticated Home Assistant user can use the card. The status data and the 
 Example — a read-only status display (e.g. for a wall tablet or a shared dashboard):
 
 ```yaml
-type: custom:smart-irrigation-zones-card
+type: custom:irrigation-plus-zones-card
 actions: none
 ```
 

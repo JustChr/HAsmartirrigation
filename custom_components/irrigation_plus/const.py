@@ -2,7 +2,7 @@
 
 
 class SmartIrrigationError(Exception):
-    """Exception raised for errors in the Smart Irrigation integration."""
+    """Exception raised for errors in the Irrigation Plus integration."""
 
 
 VERSION = "v2026.09.05"
@@ -73,7 +73,7 @@ CONF_DEFAULT_FREEZE_THRESHOLD = 1.0  # °C — frost forms near 0 °C
 CONF_FORECAST_WEIGHTING_ENABLED = "forecast_weighting_enabled"
 CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED = False
 # Observed watering: credit the bucket whenever a zone's linked valve runs,
-# including manual/automation runs outside Smart Irrigation, estimated from the
+# including manual/automation runs outside Irrigation Plus, estimated from the
 # run time and configured throughput.
 CONF_OBSERVED_WATERING_ENABLED = "observed_watering_enabled"
 CONF_DEFAULT_OBSERVED_WATERING_ENABLED = False
@@ -580,7 +580,7 @@ RUN_RESULT_PARTIAL = "partial"
 RUN_RESULT_FAILED = "failed"
 RUN_RESULT_SKIPPED = "skipped"
 # External run credited by observed watering (opt-in): the zone's valve ran
-# outside Smart Irrigation and its estimated volume was credited to the bucket.
+# outside Irrigation Plus and its estimated volume was credited to the bucket.
 RUN_RESULT_OBSERVED = "observed"
 
 # Bucket movements that happened part-way through the current calculation
@@ -901,7 +901,7 @@ RUN_OBSERVED_START = "observed_start"
 # Entity whose on/off state IS the run, resolved once at dispatch and persisted so
 # restart reconciliation can re-subscribe without re-deriving it. Re-derivation
 # reads state attributes, and the integration that owns them may not have loaded
-# yet when Smart Irrigation reconciles.
+# yet when Irrigation Plus reconciles.
 RUN_WATCH_ENTITY = "watch_entity"
 # --- Segmented run time (issue #88) ----------------------------------------
 # A run is normally one contiguous stretch of watering, so its length is simply
@@ -952,7 +952,7 @@ CONF_BATCH_STOP_SERVICE = "batch_stop_service"
 CONF_BATCH_PAUSED_ENTITY = "batch_paused_entity"
 # Optional bound on a pause, in seconds, and an optional service called when it
 # expires so the user decides what giving up means on their hardware (resume,
-# shut down, clear the queue). Smart Irrigation settles the run for what was
+# shut down, clear the queue). Irrigation Plus settles the run for what was
 # actually delivered either way.
 CONF_BATCH_PAUSE_TIMEOUT = "batch_pause_timeout"
 CONF_BATCH_PAUSE_TIMEOUT_SERVICE = "batch_pause_timeout_service"
@@ -1003,7 +1003,7 @@ OPENSPRINKLER_SERVICE_STOP = "stop"
 OPENSPRINKLER_FIELD_RUN_SECONDS = "run_seconds"
 OPENSPRINKLER_FIELD_QUEUE_OPTION = "queue_option"
 # Append: never pre-empt whatever the controller is already running, whether that
-# is another Smart Irrigation zone or one of the controller's own programs.
+# is another Irrigation Plus zone or one of the controller's own programs.
 OPENSPRINKLER_QUEUE_APPEND = "append"
 OPENSPRINKLER_ATTR_TYPE = "opensprinkler_type"
 OPENSPRINKLER_ATTR_INDEX = "index"
@@ -1115,7 +1115,7 @@ DISTRIBUTOR_REASON_RESTART_MID_ADVANCE = "restart_mid_advance"
 # Run-log trigger tag for distributor-delivered watering.
 RUN_TRIGGER_DISTRIBUTOR = "distributor"
 # Run-log trigger tag for observed (externally run) watering (opt-in): the valve
-# ran outside Smart Irrigation and its estimated volume was credited.
+# ran outside Irrigation Plus and its estimated volume was credited.
 RUN_TRIGGER_OBSERVED = "observed"
 
 # Distributor inlet-watch reaction to a foreign inlet pulse (E4).

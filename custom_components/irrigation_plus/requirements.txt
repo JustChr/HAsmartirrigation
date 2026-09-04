@@ -1,4 +1,4 @@
-# Runtime requirements for the Smart Irrigation integration.
+# Runtime requirements for the Irrigation Plus integration.
 # The authoritative list Home Assistant installs is in manifest.json ("requirements").
 # Keep this file in sync with it.
 #

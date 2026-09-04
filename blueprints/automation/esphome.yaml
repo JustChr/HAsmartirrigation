@@ -13,7 +13,7 @@ blueprint:
 
     irrigation_zone:
       name: Irrigation Zone
-      description: Smart Irrigation zone for irrigate
+      description: Irrigation Plus zone for irrigate
       selector:
         entity:
           filter:
@@ -31,7 +31,7 @@ description: "Irrigation with ESPHome device"
 
 trigger:
   platform: event
-  event_type: smart_irrigation_start_irrigation_all_zones
+  event_type: irrigation_plus_start_irrigation_all_zones
 
 condition:
   - condition: numeric_state
@@ -44,7 +44,7 @@ action:
       duration: "{{ states(duration) }}"
       valve: "{{ esphome_valve }}"
 
-  - service: smart_irrigation.reset_bucket
+  - service: irrigation_plus.reset_bucket
     data: {}
     target:
       entity_id: !input irrigation_zone

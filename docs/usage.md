@@ -4,7 +4,7 @@ title: Usage
 ---
 # Usage
 
-Once Smart Irrigation is installed, the following things will be created in Home Assistant:
+Once Irrigation Plus is installed, the following things will be created in Home Assistant:
 - A sidebar panel that you can use to [configure the integration](configuration.md). Its **Zones** tab is an everyday [dashboard](usage-dashboard.md) showing, per zone, whether it will water and why.
 - A **[Lovelace card](usage-lovelace-card.md)** you can add to your own dashboards — usable by non-admin users.
 - A **[device with entities](usage-entities.md)** for [each zone you configured](configuration-my-zones.md) — duration, bucket, live estimate, irrigation-needed, buttons and more.

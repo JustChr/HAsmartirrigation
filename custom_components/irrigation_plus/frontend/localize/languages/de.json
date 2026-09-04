@@ -1,6 +1,6 @@
 {
   "flow_calibration": {
-    "title": "Smart Irrigation: Durchflussrate prüfen",
+    "title": "Irrigation Plus: Durchflussrate prüfen",
     "message_over": "Zone '{zone}' bewässert dauerhaft zu viel: der gemessene Durchfluss liegt ~{percent}% über der konfigurierten Rate über {runs} Läufe. Stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
     "message_under": "Zone '{zone}' bewässert dauerhaft zu wenig: der gemessene Durchfluss liegt ~{percent}% unter der konfigurierten Rate über {runs} Läufe. Stelle den Durchsatz auf etwa {rate} {unit} (aktuell {current}).",
     "open_settings": "Zonen-Einstellungen öffnen"
@@ -792,7 +792,7 @@
       },
       "observed_watering": {
         "title": "Wasserspeicher aus beobachteter Bewässerung gutschreiben",
-        "description": "Wenn das verknüpfte Ventil einer Zone außerhalb von Smart Irrigation läuft – ein manueller Hahn, eine Automatisierung, Ihr eigener Zeitplan – wird dem Wasserspeicher die aufgebrachte Wassermenge gutgeschrieben, geschätzt aus Laufzeit und Durchfluss der Zone. So bleibt das Bodenfeuchtemodell korrekt, wenn Sie anderweitig bewässern. Die Läufe von Smart Irrigation selbst werden bereits berücksichtigt und niemals doppelt gezählt.",
+        "description": "Wenn das verknüpfte Ventil einer Zone außerhalb von Irrigation Plus läuft – ein manueller Hahn, eine Automatisierung, Ihr eigener Zeitplan – wird dem Wasserspeicher die aufgebrachte Wassermenge gutgeschrieben, geschätzt aus Laufzeit und Durchfluss der Zone. So bleibt das Bodenfeuchtemodell korrekt, wenn Sie anderweitig bewässern. Die Läufe von Irrigation Plus selbst werden bereits berücksichtigt und niemals doppelt gezählt.",
         "label": "Wasserspeicher gutschreiben, wenn ein verknüpftes Ventil extern läuft",
         "note": "Erfordert ein verknüpftes Ventil und einen Durchfluss in der Zone. Die Menge wird geschätzt (Laufzeit × Durchfluss), nicht gemessen."
       },
@@ -817,7 +817,7 @@
       },
       "distributors": {
         "title": "Mechanische Wasserverteiler",
-        "description": "Steuert einen mechanischen Druck-Verteiler — z. B. einen Gardena Wasserverteiler — der eine Zuleitung auf mehrere Abgänge aufteilt und durch An-/Aus-Impulse des Wassers weiterschaltet. Ordne Zonen den Abgängen eines Verteilers zu; Smart Irrigation bewässert sie der Reihe nach, verfolgt die Position und koordiniert ein Master-Ventil bzw. eine Pumpe. Das ist eine neue Funktion, die nicht vollständig an Hardware getestet werden konnte — behandle sie als Beta.",
+        "description": "Steuert einen mechanischen Druck-Verteiler — z. B. einen Gardena Wasserverteiler — der eine Zuleitung auf mehrere Abgänge aufteilt und durch An-/Aus-Impulse des Wassers weiterschaltet. Ordne Zonen den Abgängen eines Verteilers zu; Irrigation Plus bewässert sie der Reihe nach, verfolgt die Position und koordiniert ein Master-Ventil bzw. eine Pumpe. Das ist eine neue Funktion, die nicht vollständig an Hardware getestet werden konnte — behandle sie als Beta.",
         "label": "Mechanische Wasserverteiler aktivieren",
         "note": "Beobachte die ersten Tage der Nutzung genau und halte die manuelle Übersteuerung des Geräts bereit. Du kannst sie jederzeit wieder ausschalten — die bestehende Zonen-Bewässerung bleibt unberührt."
       }
@@ -932,7 +932,7 @@
       }
     }
   },
-  "title": "Smart Irrigation",
+  "title": "Irrigation Plus",
   "coordinate_config": {
     "title": "Standortkoordinaten",
     "description": "Konfigurieren Sie Standortkoordinaten für den Abruf von Wetterdaten. Sie können manuelle Koordinaten verwenden, die sich von Ihrem Home Assistant Standort unterscheiden.",
@@ -1122,7 +1122,7 @@
     "open_wizard": "Assistent öffnen",
     "steps": {
       "welcome": {
-        "title": "Willkommen bei Smart Irrigation",
+        "title": "Willkommen bei Irrigation Plus",
         "intro": "Dieser Assistent führt dich durch die vier Schritte, die nötig sind, damit deine erste Zone automatisch bewässert.",
         "step1_label": "Wetterdienst — woher die Wetterdaten kommen",
         "step2_label": "Berechnungsmodul — wie die Bewässerungsdauer berechnet wird",
@@ -1163,7 +1163,7 @@
       },
       "done": {
         "title": "Einrichtung abgeschlossen!",
-        "description": "Deine erste Zone ist bereit. Smart Irrigation berechnet die Bewässerungsdauern nun automatisch auf Basis der Wetterdaten.",
+        "description": "Deine erste Zone ist bereit. Irrigation Plus berechnet die Bewässerungsdauern nun automatisch auf Basis der Wetterdaten.",
         "next_steps": "Was du als Nächstes tun kannst:",
         "tip1": "Gehe zu „Zonen“, um die berechneten Dauern und Eimerwerte anzuzeigen.",
         "tip2": "Füge über den Tab „Zonen“ weitere Zonen hinzu.",
@@ -1193,7 +1193,7 @@
     "title": "Sammel-Start (Warteschlangen-Steuerungen)",
     "description": "Übergibt der Steuerung die gesamte Bewässerung in einem einzigen Aufruf — als geordnete Liste aus Zonen und Laufzeiten — und lässt sie diese Liste aus ihrer eigenen Warteschlange abarbeiten. Gedacht für Steuerungen mit echter Warteschlange wie die ESPHome-Sprinkler-Komponente, aber nichts davon ist darauf festgelegt: gewöhnliche Home-Assistant-Helfer funktionieren genauso. Eine Warteschlange bewässert immer nur ein Ventil, deshalb laufen Sammel-Zonen stets der Reihe nach und die Einstellung zur Zonenabfolge gilt für sie nicht.",
     "run_service": "Start-Skript",
-    "run_service_help": "Das Skript, das den Plan erhält. Es bekommt ein Feld namens zones mit einer geordneten Liste aus {zone_id, zone_name, duration}. Falls deine Steuerung einen Multiplikator oder Wiederholungen kennt: weglassen oder neutral setzen (Multiplikator 1, Wiederholung 0) — sie würden bereits berechnete Laufzeiten erneut skalieren, und Smart Irrigation kann das nicht erkennen.",
+    "run_service_help": "Das Skript, das den Plan erhält. Es bekommt ein Feld namens zones mit einer geordneten Liste aus {zone_id, zone_name, duration}. Falls deine Steuerung einen Multiplikator oder Wiederholungen kennt: weglassen oder neutral setzen (Multiplikator 1, Wiederholung 0) — sie würden bereits berechnete Laufzeiten erneut skalieren, und Irrigation Plus kann das nicht erkennen.",
     "stop_service": "Stopp-Skript",
     "stop_service_help": "Das Skript, das die Bewässerung stoppt UND die Warteschlange leert. Beides ist nötig. Bei einer ESPHome-Steuerung sind das sprinkler.shutdown und anschließend sprinkler.clear_queued_valves.",
     "stop_service_missing": "Ohne Stopp-Skript kann die Steuerung nicht gestoppt und ihre Warteschlange nicht geleert werden. Ein Zonen-Stopp korrigiert hier zwar die Buchhaltung, aber jede noch eingereihte Zone bewässert später, ohne dass etwas sie überwacht.",
