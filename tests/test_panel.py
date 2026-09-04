@@ -1,5 +1,6 @@
 """Test the Smart Irrigation panel registration."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -10,12 +11,44 @@ from custom_components.irrigation_plus.const import (
     DOMAIN,
     FULL_CARD_URL,
     LANG_URL,
+    LEGACY_ALIAS_URL,
+    LEGACY_CARD_URL,
     PANEL_ICON,
     PANEL_NAME,
     PANEL_TITLE,
     PANEL_URL,
 )
 from custom_components.irrigation_plus.panel import async_register_panel, remove_panel
+
+
+class _FakeResources:
+    """Writable Lovelace resource store double.
+
+    Must satisfy the duck-type check in ``panel._writable_resource_store``
+    (async_items / async_create_item / async_update_item / loaded) plus
+    async_delete_item, which is what separates storage mode from YAML mode.
+    """
+
+    def __init__(self, items=None):
+        self.loaded = True
+        self.items = list(items or [])
+        self.created = []
+        self.updated = []
+        self.deleted = []
+
+    def async_items(self):
+        return list(self.items)
+
+    async def async_create_item(self, item):
+        self.created.append(item)
+        self.items.append({"id": f"new{len(self.items)}", **item})
+
+    async def async_update_item(self, item_id, item):
+        self.updated.append((item_id, item))
+
+    async def async_delete_item(self, item_id):
+        self.deleted.append(item_id)
+        self.items = [i for i in self.items if i.get("id") != item_id]
 
 
 class TestSmartIrrigationPanel:
@@ -48,12 +81,12 @@ class TestSmartIrrigationPanel:
             # Verify static path registration
             mock_hass.http.async_register_static_paths.assert_called_once()
 
-            # No writable Lovelace resource store on the mock hass, so the card
-            # bundle falls back to add_extra_js_url (with a cache-bust query).
-            mock_extra_js.assert_called_once()
-            called_hass, called_url = mock_extra_js.call_args[0]
-            assert called_hass is mock_hass
-            assert called_url.split("?")[0] == CARD_URL
+            # No writable Lovelace resource store on the mock hass, so both the
+            # card bundle and the pre-#120 compatibility shim fall back to
+            # add_extra_js_url (each with a cache-bust query).
+            urls = [c.args[1].split("?")[0] for c in mock_extra_js.call_args_list]
+            assert urls == [CARD_URL, LEGACY_ALIAS_URL]
+            assert all(c.args[0] is mock_hass for c in mock_extra_js.call_args_list)
 
             # Verify panel registration
             mock_register.assert_called_once()
@@ -106,11 +139,11 @@ class TestSmartIrrigationPanel:
         ):
             await async_register_panel(mock_hass)
 
-            # The card is registered as a module resource, deduped by base URL.
-            assert len(resources.created) == 1
-            item = resources.created[0]
-            assert item["res_type"] == "module"
-            assert item["url"].split("?")[0] == CARD_URL
+            # The card and the pre-#120 compatibility shim are both registered
+            # as module resources, deduped by base URL.
+            by_url = {i["url"].split("?")[0]: i for i in resources.created}
+            assert set(by_url) == {CARD_URL, LEGACY_ALIAS_URL}
+            assert all(i["res_type"] == "module" for i in resources.created)
             # ...and the racy fallback is NOT used.
             mock_extra_js.assert_not_called()
 
@@ -127,10 +160,16 @@ class TestSmartIrrigationPanel:
             # The panel bundle, the tiny card stub, the lazy card impl and the
             # per-language translation JSON are all served.
             call_args = mock_hass.http.async_register_static_paths.call_args[0][0]
-            assert len(call_args) == 4
+            assert len(call_args) == 5
 
             by_url = {c.url_path: c for c in call_args}
-            assert set(by_url) == {PANEL_URL, CARD_URL, FULL_CARD_URL, LANG_URL}
+            assert set(by_url) == {
+                PANEL_URL,
+                CARD_URL,
+                FULL_CARD_URL,
+                LEGACY_ALIAS_URL,
+                LANG_URL,
+            }
             assert by_url[PANEL_URL].cache_headers is False
             assert "frontend/dist/irrigation-plus.js" in str(by_url[PANEL_URL].path)
             assert "frontend/dist/irrigation-plus-card.js" in str(by_url[CARD_URL].path)
@@ -165,3 +204,77 @@ class TestSmartIrrigationPanel:
 
             # Verify static path registration was called
             mock_hass.http.async_register_static_paths.assert_called_once()
+
+
+class TestLegacyCardAlias:
+    """The pre-#120 card tag is only claimed where nobody else owns it.
+
+    Claiming `smart-irrigation-zones-card` unconditionally would recreate the
+    exact collision the rename removes: whichever bundle loads second silently
+    loses, and a user's card renders the other project's code with no error.
+    """
+
+    @pytest.fixture
+    def mock_hass(self):
+        hass = Mock(spec=HomeAssistant)
+        hass.config = Mock()
+        hass.config.path = Mock(return_value="/config")
+        hass.http = Mock()
+        hass.http.async_register_static_paths = AsyncMock()
+        hass.data = {}
+        return hass
+
+    async def _register(self, mock_hass, *, foreign):
+        resources = _FakeResources()
+        mock_hass.data = {"lovelace": SimpleNamespace(resources=resources)}
+        with (
+            patch(
+                "custom_components.irrigation_plus.panel.panel_custom.async_register_panel"
+            ),
+            patch("custom_components.irrigation_plus.panel.frontend.add_extra_js_url"),
+            patch(
+                "custom_components.irrigation_plus.panel.foreign_legacy_install",
+                return_value=foreign,
+            ),
+        ):
+            await async_register_panel(mock_hass)
+        return resources
+
+    async def test_alias_registered_when_nobody_else_owns_the_domain(self, mock_hass):
+        resources = await self._register(mock_hass, foreign=False)
+        urls = {i["url"].split("?")[0] for i in resources.created}
+        assert LEGACY_ALIAS_URL in urls
+
+    async def test_alias_withheld_when_another_project_owns_the_domain(self, mock_hass):
+        resources = await self._register(mock_hass, foreign=True)
+        urls = {i["url"].split("?")[0] for i in resources.created}
+        assert LEGACY_ALIAS_URL not in urls
+        # ...but our own card is still registered.
+        assert CARD_URL in urls
+
+    async def test_stale_legacy_resource_is_removed_only_when_safe(self, mock_hass):
+        """A pre-#120 release left a resource pointing at its own static path.
+
+        Nothing serves it after the rename, so it 404s on every dashboard load
+        for ever -- but it must not be touched if another project now owns that
+        path.
+        """
+        for foreign, expected in ((False, True), (True, False)):
+            resources = _FakeResources(
+                items=[{"id": "r1", "url": f"{LEGACY_CARD_URL}?v=1"}]
+            )
+            mock_hass.data = {"lovelace": SimpleNamespace(resources=resources)}
+            with (
+                patch(
+                    "custom_components.irrigation_plus.panel.panel_custom.async_register_panel"
+                ),
+                patch(
+                    "custom_components.irrigation_plus.panel.frontend.add_extra_js_url"
+                ),
+                patch(
+                    "custom_components.irrigation_plus.panel.foreign_legacy_install",
+                    return_value=foreign,
+                ),
+            ):
+                await async_register_panel(mock_hass)
+            assert ("r1" in resources.deleted) is expected

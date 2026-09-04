@@ -335,5 +335,27 @@
         "name": "Pozastaviť do"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "Starý priečinok Smart Irrigation je stále nainštalovaný",
+      "description": "Irrigation Plus sa už inštaluje do vlastného priečinka, ale pôvodný priečinok Smart Irrigation je stále v `{path}`. HACS ho pri zmene priečinka neodstraňuje a Home Assistant ho načíta ako druhú integráciu — uvidíš teda každý senzor dvakrát.\n\nZmaž tento priečinok a reštartuj Home Assistant. Tvoja konfigurácia už bola prenesená."
+    },
+    "foreign_legacy_install": {
+      "title": "Tento priečinok zdieľa iná zavlažovacia integrácia",
+      "description": "V `{path}` je nainštalovaná iná integrácia `smart_irrigation`. To je v poriadku — obe môžu bežať vedľa seba, presne o to pri premenovaní išlo.\n\nJedna vec: nástenky používajúce starý typ `smart-irrigation-zones-card` teraz patria tej integrácii, nie tejto. Prepni ich na `irrigation-plus-zones-card`."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} kariet nástenky stále používa starý názov",
+      "description": "{count} kariet stále odkazuje na `custom:smart-irrigation-zones-card`. Zatiaľ fungujú, ale prestanú, ak niekedy nainštaluješ druhú integráciu `smart_irrigation` vedľa tejto.\n\nTáto oprava ich prepne na `custom:irrigation-plus-zones-card`. Nástenky definované v YAML nemožno zmeniť automaticky a budú vypísané v logu.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Prepnúť karty nástenky",
+            "description": "Aktualizovať {count} kariet na nový typ? Nástenky sa uložia ako nové verzie, takže zmenu môžeš vrátiť cez históriu nástenky."
+          }
+        }
+      }
+    }
   }
 }

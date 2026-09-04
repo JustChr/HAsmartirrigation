@@ -335,5 +335,27 @@
         "name": "Pausa fino a"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "La vecchia cartella Smart Irrigation è ancora installata",
+      "description": "Irrigation Plus ora si installa in una cartella propria, ma la precedente cartella Smart Irrigation si trova ancora in `{path}`. HACS non la rimuove quando un’integrazione cambia cartella, e Home Assistant la caricherà come una seconda integrazione: vedrai quindi ogni sensore in doppio.\n\nElimina quella cartella e riavvia Home Assistant. La tua configurazione è già stata trasferita."
+    },
+    "foreign_legacy_install": {
+      "title": "Un’altra integrazione di irrigazione condivide questa cartella",
+      "description": "In `{path}` è installata un’altra integrazione `smart_irrigation`. Va bene: le due possono convivere, ed è proprio lo scopo della rinomina.\n\nUna cosa da sapere: le dashboard che usano il vecchio tipo `smart-irrigation-zones-card` ora appartengono a quell’integrazione, non a questa. Passale a `irrigation-plus-zones-card`."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} scheda/e della dashboard usano ancora il vecchio nome",
+      "description": "{count} scheda/e fanno ancora riferimento a `custom:smart-irrigation-zones-card`. Per ora funzionano, ma smetteranno di farlo se un giorno installerai l’altra integrazione `smart_irrigation` accanto a questa.\n\nQuesta riparazione le riporta su `custom:irrigation-plus-zones-card`. Le dashboard definite in YAML non possono essere modificate automaticamente e verranno elencate nel log per la modifica manuale.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Aggiorna le schede della dashboard",
+            "description": "Aggiornare {count} scheda/e al nuovo tipo? Le dashboard vengono salvate come nuove versioni, quindi puoi annullare dalla cronologia."
+          }
+        }
+      }
+    }
   }
 }

@@ -393,6 +393,16 @@ LEGACY_PANEL_SLUG = LEGACY_DOMAIN.replace("_", "-")  # "smart-irrigation"
 LEGACY_CARD_STATIC_ROOT = f"/{LEGACY_DOMAIN}_card"
 LEGACY_CARD_URL = f"{LEGACY_CARD_STATIC_ROOT}/{LEGACY_PANEL_SLUG}-card.js"
 
+# The compatibility shim that re-registers the pre-#120 card tag. Served from
+# OUR static root (the legacy one belongs to the other project now) and only
+# when no foreign smart_irrigation integration is installed.
+LEGACY_ALIAS_FILENAME = f"dist/{PANEL_SLUG}-card-legacy.js"
+LEGACY_ALIAS_URL = f"{CARD_STATIC_ROOT}/{PANEL_SLUG}-card-legacy.js"
+
+MIGRATION_GUIDE_URL = (
+    "https://justchr.github.io/HAsmartirrigation/installation-migration"
+)
+
 ATTR_REMOVE = "remove"
 ATTR_CALCULATE = "calculate"
 ATTR_CALCULATE_ALL = "calculate_all"

@@ -335,5 +335,27 @@
         "name": "Pauzeren tot"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "De oude Smart Irrigation-map staat er nog",
+      "description": "Irrigation Plus installeert nu in een eigen map, maar de vorige Smart Irrigation-map staat nog in `{path}`. HACS verwijdert die niet wanneer een integratie van map verandert, en Home Assistant laadt hem als tweede integratie — je ziet dan elke sensor dubbel.\n\nVerwijder die map en start Home Assistant opnieuw. Je configuratie is al overgenomen."
+    },
+    "foreign_legacy_install": {
+      "title": "Een andere beregeningsintegratie deelt deze map",
+      "description": "In `{path}` staat een andere `smart_irrigation`-integratie. Dat is prima — de twee kunnen naast elkaar draaien, en dat is precies het doel van de naamswijziging.\n\nLet op: dashboards met het oude type `smart-irrigation-zones-card` horen nu bij die integratie, niet bij deze. Zet ze om naar `irrigation-plus-zones-card`."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} dashboardkaart(en) gebruiken nog de oude naam",
+      "description": "{count} kaart(en) verwijzen nog naar `custom:smart-irrigation-zones-card`. Ze werken voorlopig, maar breken zodra je de andere `smart_irrigation`-integratie hiernaast installeert.\n\nDeze reparatie zet ze om naar `custom:irrigation-plus-zones-card`. Dashboards in YAML kunnen niet automatisch worden aangepast en worden in het logboek vermeld.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Dashboardkaarten omzetten",
+            "description": "{count} kaart(en) omzetten naar het nieuwe type? Je dashboards worden als nieuwe versies opgeslagen, dus je kunt dit via de dashboardgeschiedenis ongedaan maken."
+          }
+        }
+      }
+    }
   }
 }

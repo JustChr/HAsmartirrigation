@@ -335,5 +335,27 @@
         "name": "Suspendre jusqu'à"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "L’ancien dossier Smart Irrigation est toujours installé",
+      "description": "Irrigation Plus s’installe désormais dans son propre dossier, mais l’ancien dossier Smart Irrigation se trouve toujours dans `{path}`. HACS ne le supprime pas lorsqu’une intégration change de dossier, et Home Assistant le chargera comme une seconde intégration : vous verrez donc chaque capteur en double.\n\nSupprimez ce dossier et redémarrez Home Assistant. Votre configuration a déjà été reprise."
+    },
+    "foreign_legacy_install": {
+      "title": "Une autre intégration d’arrosage partage ce dossier",
+      "description": "Une autre intégration `smart_irrigation` est installée dans `{path}`. Ce n’est pas un problème : les deux peuvent coexister, c’est précisément le but du renommage.\n\nÀ savoir : les tableaux de bord utilisant l’ancien type `smart-irrigation-zones-card` appartiennent maintenant à cette intégration-là, pas à celle-ci. Basculez-les vers `irrigation-plus-zones-card`."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} carte(s) de tableau de bord utilisent encore l’ancien nom",
+      "description": "{count} carte(s) référencent encore `custom:smart-irrigation-zones-card`. Elles fonctionnent pour l’instant, mais cesseront de fonctionner si vous installez un jour l’autre intégration `smart_irrigation` à côté de celle-ci.\n\nCette réparation les bascule vers `custom:irrigation-plus-zones-card`. Les tableaux de bord définis en YAML ne peuvent pas être modifiés automatiquement et seront listés dans le journal pour édition manuelle.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Mettre à jour les cartes",
+            "description": "Mettre à jour {count} carte(s) vers le nouveau type ? Vos tableaux de bord sont enregistrés comme de nouvelles versions : vous pouvez annuler depuis leur historique."
+          }
+        }
+      }
+    }
   }
 }

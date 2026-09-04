@@ -17,6 +17,9 @@ from .const import (
     INTEGRATION_FOLDER,
     LANG_FOLDER,
     LANG_URL,
+    LEGACY_ALIAS_FILENAME,
+    LEGACY_ALIAS_URL,
+    LEGACY_CARD_URL,
     PANEL_FILENAME,
     PANEL_FOLDER,
     PANEL_ICON,
@@ -24,6 +27,7 @@ from .const import (
     PANEL_TITLE,
     PANEL_URL,
 )
+from .migrate_domain import foreign_legacy_install
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +44,7 @@ async def async_register_panel(hass: HomeAssistant):
     view_url = panel_dir / PANEL_FILENAME
     card_url = panel_dir / CARD_FILENAME
     full_card_url = panel_dir / FULL_CARD_FILENAME
+    alias_url = panel_dir / LEGACY_ALIAS_FILENAME
     lang_dir = panel_dir / LANG_FOLDER
 
     # Once per HA PROCESS, not once per setup. HA's
@@ -65,6 +70,10 @@ async def async_register_panel(hass: HomeAssistant):
                 StaticPathConfig(
                     FULL_CARD_URL, str(full_card_url), cache_headers=False
                 ),
+                # Compatibility shim for the pre-#120 card tag. Registering the
+                # static path is harmless; whether it is ever LOADED is decided
+                # below, per install.
+                StaticPathConfig(LEGACY_ALIAS_URL, str(alias_url), cache_headers=False),
                 # Per-language translation JSON (only en is bundled into the
                 # frontend; the rest are fetched on demand from here).
                 StaticPathConfig(LANG_URL, str(lang_dir), cache_headers=False),
@@ -87,6 +96,29 @@ async def async_register_panel(hass: HomeAssistant):
         version = 0
     if not await _async_register_card_resource(hass, version):
         frontend.add_extra_js_url(hass, f"{CARD_URL}?v={version}")
+
+    # Keep pre-#120 dashboards working, but ONLY where the old card tag is
+    # genuinely unowned. If a different project holds the smart_irrigation
+    # domain here, claiming its tag is the very collision this rename removed:
+    # whichever bundle loads second silently loses, and a user's card ends up
+    # rendering the other project's code with no error anywhere.
+    #
+    # Deciding it here rather than in the browser is the whole point — load
+    # order is not something either project can control.
+    if foreign_legacy_install(hass):
+        _LOGGER.debug(
+            "A different smart_irrigation integration is installed; not "
+            "registering the legacy card alias"
+        )
+    else:
+        await _async_register_alias_resource(hass, version)
+
+    # A pre-#120 release left a Lovelace resource pointing at its own static
+    # path. Nothing serves that any more, so every dashboard load fetches a 404
+    # for ever. Only ours is removed, and only when no other project could own
+    # it.
+    if not foreign_legacy_install(hass):
+        await async_remove_legacy_card_resource(hass)
 
     try:
         panel_version = int(
@@ -204,4 +236,68 @@ async def async_remove_card_resource(hass: HomeAssistant) -> bool:
             removed = True
     if removed:
         _LOGGER.debug("Removed the Smart Irrigation Lovelace card resource")
+    return removed
+
+
+async def _async_register_alias_resource(hass: HomeAssistant, version: int) -> bool:
+    """Register the pre-#120 card shim as a Lovelace resource.
+
+    Same mechanics as the card stub: a storage-mode dashboard awaits its
+    registered resources before rendering custom cards, so the legacy tag is
+    defined in time; YAML-mode Lovelace has no writable store and falls back to
+    ``add_extra_js_url``.
+
+    The caller decides WHETHER this should happen. This function only does it.
+    """
+    target = f"{LEGACY_ALIAS_URL}?v={version}"
+    resources = _writable_resource_store(hass)
+    if resources is None:
+        frontend.add_extra_js_url(hass, target)
+        return False
+
+    if not resources.loaded:
+        await resources.async_load()
+
+    for item in resources.async_items():
+        if item.get("url", "").split("?")[0] == LEGACY_ALIAS_URL:
+            if item.get("url") != target:
+                await resources.async_update_item(
+                    item["id"], {"res_type": "module", "url": target}
+                )
+            return True
+
+    await resources.async_create_item({"res_type": "module", "url": target})
+    return True
+
+
+async def async_remove_legacy_card_resource(hass: HomeAssistant) -> bool:
+    """Drop the Lovelace resource a pre-#120 release registered.
+
+    Those releases wrote a resource pointing at ``/smart_irrigation_card/…``.
+    After the rename nothing serves that path, so it 404s on every single
+    dashboard load, for ever — the same failure ``async_remove_card_resource``
+    was written to stop happening on uninstall.
+
+    Only touches the exact URL our own releases wrote, and the caller must
+    already have established that no other project owns that path here.
+    """
+    resources = _writable_resource_store(hass)
+    if resources is None or not hasattr(resources, "async_delete_item"):
+        return False
+
+    if not resources.loaded:
+        await resources.async_load()
+
+    removed = False
+    # Snapshot first: async_items() is a live view of the collection we mutate.
+    for item in list(resources.async_items()):
+        if item.get("url", "").split("?")[0] == LEGACY_CARD_URL:
+            await resources.async_delete_item(item["id"])
+            removed = True
+    if removed:
+        _LOGGER.info(
+            "Removed the stale Lovelace resource left by the previous "
+            "Smart Irrigation release (%s)",
+            LEGACY_CARD_URL,
+        )
     return removed

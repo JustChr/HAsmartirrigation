@@ -44,6 +44,20 @@ export default [
     context: 'window'
   },
   {
+    // Backwards-compatibility shim registering the pre-#120 card tag. Served
+    // ONLY when no foreign smart_irrigation integration is installed — see
+    // panel.py; the decision is the backend's, not the browser's.
+    input: 'src/irrigation-plus-card-legacy.ts',
+    output: {
+      dir: 'dist',
+      format: 'iife',
+      inlineDynamicImports: true,
+      sourcemap: false,
+    },
+    plugins: [...plugins],
+    context: 'window'
+  },
+  {
     // Heavy card implementation, lazy-loaded by the stub. Served as a separate
     // static file so non-card pages never download it.
     input: 'src/irrigation-plus-card-impl.ts',

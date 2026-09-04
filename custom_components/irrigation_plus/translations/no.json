@@ -335,5 +335,27 @@
         "name": "Pause til"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "Den gamle Smart Irrigation-mappen er fortsatt installert",
+      "description": "Irrigation Plus installeres nå i sin egen mappe, men den forrige Smart Irrigation-mappen ligger fortsatt i `{path}`. HACS fjerner den ikke når en integrasjon bytter mappe, og Home Assistant laster den som en integrasjon nummer to — da ser du hver sensor dobbelt.\n\nSlett mappen og start Home Assistant på nytt. Konfigurasjonen din er allerede overført."
+    },
+    "foreign_legacy_install": {
+      "title": "En annen vanningsintegrasjon deler denne mappen",
+      "description": "En annen `smart_irrigation`-integrasjon er installert i `{path}`. Det er greit — de to kan kjøre side om side, som er hele poenget med navnebyttet.\n\nMerk: dashbord som bruker den gamle typen `smart-irrigation-zones-card` tilhører nå den integrasjonen, ikke denne. Bytt dem til `irrigation-plus-zones-card`."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} dashbordkort bruker fortsatt det gamle navnet",
+      "description": "{count} kort viser fortsatt til `custom:smart-irrigation-zones-card`. De virker inntil videre, men slutter å virke hvis du en gang installerer den andre `smart_irrigation`-integrasjonen ved siden av denne.\n\nDenne reparasjonen bytter dem til `custom:irrigation-plus-zones-card`. Dashbord definert i YAML kan ikke endres automatisk og listes i loggen.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Bytt dashbordkort",
+            "description": "Oppdatere {count} kort til den nye korttypen? Dashbordene lagres som nye versjoner, så du kan angre fra dashbordhistorikken."
+          }
+        }
+      }
+    }
   }
 }

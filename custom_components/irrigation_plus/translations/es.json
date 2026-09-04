@@ -335,5 +335,27 @@
         "name": "Pausar hasta"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "La carpeta antigua de Smart Irrigation sigue instalada",
+      "description": "Irrigation Plus ya se instala en su propia carpeta, pero la carpeta anterior de Smart Irrigation sigue en `{path}`. HACS no la elimina cuando una integración cambia de carpeta, y Home Assistant la cargará como una segunda integración, por lo que verás cada sensor duplicado.\n\nElimina esa carpeta y reinicia Home Assistant. Tu configuración ya se ha trasladado."
+    },
+    "foreign_legacy_install": {
+      "title": "Otra integración de riego comparte esta carpeta",
+      "description": "Hay otra integración `smart_irrigation` instalada en `{path}`. No pasa nada: ambas pueden convivir, que es justamente el objetivo del cambio de nombre.\n\nTen en cuenta una cosa: los paneles que usan el tipo antiguo `smart-irrigation-zones-card` ahora pertenecen a esa integración, no a esta. Cámbialos a `irrigation-plus-zones-card`."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} tarjeta(s) del panel siguen usando el nombre antiguo",
+      "description": "{count} tarjeta(s) siguen apuntando a `custom:smart-irrigation-zones-card`. De momento funcionan, pero dejarán de hacerlo si algún día instalas la otra integración `smart_irrigation` junto a esta.\n\nEsta reparación las cambia a `custom:irrigation-plus-zones-card`. Los paneles definidos en YAML no pueden modificarse automáticamente y se listarán en el registro para que los edites.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Actualizar las tarjetas del panel",
+            "description": "¿Actualizar {count} tarjeta(s) al nuevo tipo? Tus paneles se guardan como versiones nuevas, así que puedes deshacerlo desde el historial del panel."
+          }
+        }
+      }
+    }
   }
 }

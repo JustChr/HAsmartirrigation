@@ -76,6 +76,7 @@ from .migrate_domain import (
 from .observed_watering import ObservedWateringMixin
 from .opensprinkler import OpenSprinklerMixin
 from .panel import async_register_panel, async_remove_card_resource, remove_panel
+from .repairs import async_check_issues
 from .run_chain import RunChainMixin
 from .run_state import RunStateMixin
 from .run_watch import RunWatchMixin
@@ -300,6 +301,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # identifiers are domain-scoped and the rename orphans the originals.
     if entry.data.get(const.CONF_MIGRATED_FROM_LEGACY):
         await async_migrate_device_areas(hass)
+
+    # Rename-related repairs (leftover directory, dashboards still on the old
+    # card type). Re-evaluated on every setup so they clear themselves once the
+    # user has acted.
+    await async_check_issues(hass)
     # update listener for options flow
     entry.async_on_unload(entry.add_update_listener(options_update_listener))
 

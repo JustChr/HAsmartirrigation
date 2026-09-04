@@ -118,6 +118,26 @@ def legacy_config_seed(hass: HomeAssistant) -> dict:
     return seed
 
 
+def legacy_directory(hass: HomeAssistant) -> Path:
+    """Where a pre-#120 install (ours or upstream's) lives on disk."""
+    return Path(hass.config.path("custom_components")) / const.LEGACY_DOMAIN
+
+
+def foreign_legacy_install(hass: HomeAssistant) -> bool:
+    """Whether a DIFFERENT project owns the ``smart_irrigation`` domain here.
+
+    True only when the directory is actually present and its manifest says it is
+    not ours. This is the one condition under which we must not touch anything
+    named ``smart_irrigation`` — the card tag, the static paths, a dashboard.
+
+    Deliberately filesystem-based rather than ``hass.config.components``:
+    integration setup order is not guaranteed, so asking whether the other
+    integration has loaded yet gives a different answer depending on timing. The
+    directory either exists or it does not.
+    """
+    return legacy_directory(hass).is_dir() and not legacy_install_is_ours(hass)
+
+
 def legacy_install_is_ours(hass: HomeAssistant) -> bool:
     """Whether the surviving ``smart_irrigation`` install is THIS project's.
 
@@ -135,11 +155,7 @@ def legacy_install_is_ours(hass: HomeAssistant) -> bool:
     True, because by far the likeliest reason for a legacy install to be present
     at all is that it is the one we are replacing.
     """
-    manifest = (
-        Path(hass.config.path("custom_components"))
-        / const.LEGACY_DOMAIN
-        / "manifest.json"
-    )
+    manifest = legacy_directory(hass) / "manifest.json"
     try:
         data = json.loads(manifest.read_text(encoding="utf-8"))
     except (OSError, ValueError):

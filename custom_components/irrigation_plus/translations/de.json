@@ -335,5 +335,27 @@
         "name": "Pausieren bis"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "Der alte Smart-Irrigation-Ordner ist noch installiert",
+      "description": "Irrigation Plus installiert jetzt in einen eigenen Ordner, der bisherige Smart-Irrigation-Ordner liegt aber weiterhin unter `{path}`. HACS entfernt ihn bei einem Ordnerwechsel nicht, und Home Assistant lädt ihn als zweite Integration — dadurch erscheint jeder Sensor doppelt.\n\nLösche diesen Ordner und starte Home Assistant neu. Deine Konfiguration wurde bereits übernommen."
+    },
+    "foreign_legacy_install": {
+      "title": "Eine andere Bewässerungs-Integration nutzt diesen Ordner",
+      "description": "Unter `{path}` ist eine andere `smart_irrigation`-Integration installiert. Das ist in Ordnung — beide können parallel laufen, genau dafür war die Umbenennung da.\n\nWichtig zu wissen: Dashboards mit dem alten Typ `smart-irrigation-zones-card` gehören jetzt zu jener Integration, nicht zu dieser. Stelle sie auf `irrigation-plus-zones-card` um."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} Dashboard-Karte(n) nutzen noch den alten Namen",
+      "description": "{count} Karte(n) verweisen noch auf `custom:smart-irrigation-zones-card`. Sie funktionieren vorerst, brechen aber, sobald du die andere `smart_irrigation`-Integration zusätzlich installierst.\n\nDiese Reparatur stellt sie auf `custom:irrigation-plus-zones-card` um. In YAML definierte Dashboards können nicht automatisch geändert werden und werden im Log aufgeführt.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Dashboard-Karten umstellen",
+            "description": "{count} Karte(n) auf den neuen Kartentyp umstellen? Deine Dashboards werden als neue Versionen gespeichert, du kannst das über den Dashboard-Verlauf rückgängig machen."
+          }
+        }
+      }
+    }
   }
 }

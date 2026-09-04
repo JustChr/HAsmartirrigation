@@ -335,5 +335,27 @@
         "name": "Pause until"
       }
     }
+  },
+  "issues": {
+    "leftover_legacy_directory": {
+      "title": "The old Smart Irrigation folder is still installed",
+      "description": "Irrigation Plus now installs to its own folder, but the previous Smart Irrigation folder is still at `{path}`. HACS does not remove it when an integration changes folder, and Home Assistant will load it as a second integration — so you will see two of every sensor.\n\nDelete that folder and restart Home Assistant. Your configuration has already been carried over."
+    },
+    "foreign_legacy_install": {
+      "title": "Another irrigation integration shares this folder",
+      "description": "A different `smart_irrigation` integration is installed at `{path}`. That is fine — the two can run side by side, which is the point of the rename.\n\nOne thing to know: dashboards using the old `smart-irrigation-zones-card` type now belong to that integration, not this one. Switch them to `irrigation-plus-zones-card`."
+    },
+    "legacy_dashboard_cards": {
+      "title": "{count} dashboard card(s) still use the old name",
+      "description": "{count} card(s) still refer to `custom:smart-irrigation-zones-card`. They keep working for now, but they will break if you ever install the other `smart_irrigation` integration alongside this one.\n\nThis repair repoints them at `custom:irrigation-plus-zones-card`. Dashboards defined in YAML cannot be changed automatically and will be listed in the log for you to edit.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Repoint dashboard cards",
+            "description": "Update {count} card(s) to the new card type? Your dashboards are saved as new versions, so you can undo this from the dashboard history."
+          }
+        }
+      }
+    }
   }
 }
