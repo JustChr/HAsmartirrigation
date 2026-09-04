@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "Premenovanie zmenilo {count} ID entít",
+      "description": "Premenovaním sa zmenili všetky ID entít. História, štatistiky a konfigurácia sa preniesli automaticky a volania služieb `smart_irrigation.*` zatiaľ stále fungujú.\n\nID entít, ktoré máš zapísané vo vlastných automatizáciách, skriptoch, šablónach a nástenkách, sa nezmenili — Home Assistant ich nedokáže prepísať a šablóna odkazujúca na staré ID ticho vráti `unknown` namiesto chyby.\n\nCelá tabuľka staré → nové je v `{path}`. Prejdi ju a potom túto správu zavri.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Premenované ID entít",
+            "description": "Zmenilo sa {count} ID entít. Celá tabuľka je v `{path}`.\n\n{examples}\n\nPotvrď, keď si aktualizoval vlastné automatizácie, šablóny a nástenky. Týmto sa iba zavrie správa — nič sa nemení."
+          }
+        }
+      }
     }
   }
 }

@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "De naamswijziging heeft {count} entiteits-ID’s veranderd",
+      "description": "Door de naamswijziging is elk entiteits-ID veranderd. Je geschiedenis, statistieken en configuratie zijn automatisch overgenomen, en serviceaanroepen naar `smart_irrigation.*` blijven voorlopig werken.\n\nEntiteits-ID’s in je eigen automatiseringen, scripts, templates en dashboards zijn niet aangepast — Home Assistant kan die niet herschrijven, en een template met een oud ID geeft stilletjes `unknown` in plaats van een foutmelding.\n\nDe volledige tabel oud → nieuw staat in `{path}`. Werk die door en sluit dit bericht daarna.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Hernoemde entiteits-ID’s",
+            "description": "{count} entiteits-ID’s zijn veranderd. De volledige tabel staat in `{path}`.\n\n{examples}\n\nBevestig zodra je je eigen automatiseringen, templates en dashboards hebt bijgewerkt. Hiermee sluit je alleen dit bericht — er wordt niets gewijzigd."
+          }
+        }
+      }
     }
   }
 }

@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "Beim Umbenennen haben sich {count} Entitäts-IDs geändert",
+      "description": "Durch die Umbenennung hat sich jede Entitäts-ID geändert. Verlauf, Statistiken und Konfiguration wurden automatisch übernommen, und Dienstaufrufe an `smart_irrigation.*` funktionieren vorerst weiter.\n\nEntitäts-IDs in deinen eigenen Automationen, Skripten, Templates und Dashboards wurden nicht geändert — Home Assistant kann das nicht für dich tun, und ein Template mit einer alten ID liefert stillschweigend `unknown`, statt einen Fehler zu melden.\n\nDie vollständige Tabelle alt → neu liegt unter `{path}`. Arbeite sie durch und schließe diese Meldung dann.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Geänderte Entitäts-IDs",
+            "description": "{count} Entitäts-IDs haben sich geändert. Die vollständige Tabelle liegt unter `{path}`.\n\n{examples}\n\nBestätige, sobald du deine eigenen Automationen, Templates und Dashboards angepasst hast. Damit wird nur die Meldung geschlossen — es wird nichts geändert."
+          }
+        }
+      }
     }
   }
 }

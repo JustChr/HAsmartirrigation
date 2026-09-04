@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "{count} entity IDs changed in the rename",
+      "description": "The rename changed every entity ID. Your history, statistics and configuration were carried across automatically, and service calls to `smart_irrigation.*` still work for now.\n\nEntity IDs written into your own automations, scripts, templates and dashboards were not changed — nothing in Home Assistant can rewrite those, and a template pointing at an old ID quietly renders `unknown` instead of raising an error.\n\nThe full old → new table is saved at `{path}`. Work through it, then dismiss this.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Renamed entity IDs",
+            "description": "{count} entity IDs changed. The full table is at `{path}`.\n\n{examples}\n\nConfirm once you have updated your own automations, templates and dashboards. This only dismisses the message — nothing is changed."
+          }
+        }
+      }
     }
   }
 }

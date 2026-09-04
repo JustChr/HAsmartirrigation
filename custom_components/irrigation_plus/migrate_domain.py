@@ -76,6 +76,22 @@ def storage_path(hass: HomeAssistant) -> Path:
     return _storage_file(hass, f"{const.DOMAIN}.storage")
 
 
+def legacy_backup_path(hass: HomeAssistant) -> Path:
+    """Where the pre-#120 storage file is copied for safekeeping.
+
+    Removing the old integration through the UI does not merely forget it: its
+    ``async_remove_entry`` calls ``store.async_delete()``, which DELETES
+    ``.storage/smart_irrigation.storage``. So the file this migration reads
+    stops existing the moment the user follows the last step of the guide, and
+    a migration that turns out to have gone wrong has nothing left to re-read.
+
+    The backup is written at import time, never touched again, and never read
+    by this integration -- it exists purely so a user (or we, on an issue) can
+    recover the original by hand.
+    """
+    return _storage_file(hass, f"{const.LEGACY_DOMAIN}.storage.pre-{const.DOMAIN}.bak")
+
+
 def find_legacy_entry(hass: HomeAssistant) -> ConfigEntry | None:
     """Return the old integration's config entry, if it is still present.
 
@@ -194,12 +210,27 @@ async def async_import_legacy_store(hass: HomeAssistant) -> bool:
     """
     src = legacy_storage_path(hass)
     dst = storage_path(hass)
+    backup = legacy_backup_path(hass)
 
     def _copy() -> bool:
         if dst.exists() or not src.is_file():
             return False
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dst)
+        # Second copy, kept for the user rather than for us. Taken in the same
+        # executor job so it cannot be skipped by a later failure, and never
+        # overwritten: the first import is the one made against untouched
+        # data, and a re-run must not replace it with something later.
+        if not backup.exists():
+            try:
+                shutil.copyfile(src, backup)
+            except OSError as err:  # a lost backup must not lose the migration
+                _LOGGER.warning(
+                    "Could not write the safety copy of %s to %s: %s",
+                    src,
+                    backup,
+                    err,
+                )
         return True
 
     try:
@@ -218,11 +249,47 @@ async def async_import_legacy_store(hass: HomeAssistant) -> bool:
     if copied:
         _LOGGER.info(
             "Imported the previous Smart Irrigation configuration from %s. "
-            "The original file is left in place and can be deleted once you are "
-            "satisfied with the migration",
+            "The original file is left in place, and a safety copy was written "
+            "to %s -- keep that until you are satisfied with the migration, "
+            "because removing the old integration deletes the original",
             src,
+            legacy_backup_path(hass),
         )
     return copied
+
+
+async def async_verify_import(hass: HomeAssistant, store) -> bool:
+    """Sanity-check what the import actually produced.
+
+    Returns True when the result looks right.
+
+    A copy that succeeds byte-for-byte and still yields nothing is the failure
+    mode worth catching: the file was written by a schema this build cannot
+    migrate, or by a different project entirely. The user sees an empty panel
+    and no error, concludes the migration "just didn't work", and by then the
+    old integration may already be gone. Say it loudly instead, and point at
+    the backup that still holds their data.
+    """
+    if not await hass.async_add_executor_job(legacy_storage_path(hass).is_file):
+        return True  # nothing was imported, so there is nothing to verify
+
+    try:
+        zone_count = len(list(getattr(store, "zones", None) or []))
+    except TypeError:  # a partially initialised or mocked store
+        return True
+
+    if zone_count:
+        _LOGGER.info("Carried %s zone(s) across the domain rename", zone_count)
+        return True
+
+    _LOGGER.error(
+        "The previous configuration at %s was imported but produced NO zones. "
+        "Do not remove the old integration yet -- removing it deletes that "
+        "file. A safety copy is at %s. Please open an issue with both",
+        legacy_storage_path(hass),
+        legacy_backup_path(hass),
+    )
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +317,11 @@ async def async_import_legacy_store(hass: HomeAssistant) -> bool:
 MIGRATION_STORE_KEY = f"{const.DOMAIN}.migration"
 _MIGRATION_STORE_VERSION = 1
 _HISTORY_MIGRATED = "history_migrated"
+_ENTITY_ID_MAP = "entity_id_map"
+_REPORT_ACKNOWLEDGED = "rename_report_acknowledged"
+
+# Where the human-readable old -> new table is written, next to configuration.yaml.
+RENAME_REPORT_FILENAME = f"{const.DOMAIN}_renamed_entities.md"
 
 
 def _migration_store(hass: HomeAssistant):
@@ -422,10 +494,6 @@ async def async_migrate_history(hass: HomeAssistant, zones: dict | None = None) 
         )
 
         instance = get_instance(hass)
-        for old_id, new_id in mapping.items():
-            instance.async_update_states_metadata(old_id, new_id)
-            async_update_statistics_metadata(hass, old_id, new_statistic_id=new_id)
-            summary["renamed"] += 1
     except (ImportError, KeyError, AttributeError, RuntimeError) as err:
         summary["reason"] = f"recorder_error: {err}"
         _LOGGER.error(
@@ -435,6 +503,37 @@ async def async_migrate_history(hass: HomeAssistant, zones: dict | None = None) 
             err,
         )
         return summary
+
+    # Per entity, not per batch. One bad row -- a states_meta collision on an id
+    # something already recorded, a statistic that no longer exists -- used to
+    # abort the whole loop, so a single unlucky sensor cost every zone after it
+    # its history, silently and in registry order. Each id now stands or falls
+    # on its own and the failures are named.
+    failed: list[str] = []
+    for old_id, new_id in mapping.items():
+        try:
+            instance.async_update_states_metadata(old_id, new_id)
+            async_update_statistics_metadata(hass, old_id, new_statistic_id=new_id)
+        except Exception as err:  # noqa: BLE001 - one id must not sink the rest
+            failed.append(old_id)
+            _LOGGER.warning(
+                "Could not move the recorded history of %s onto %s: %s",
+                old_id,
+                new_id,
+                err,
+            )
+            continue
+        summary["renamed"] += 1
+
+    if failed:
+        summary["failed"] = failed
+        _LOGGER.error(
+            "%s of %s entities kept their history under the old id: %s. The "
+            "integration works; those graphs start from scratch",
+            len(failed),
+            len(mapping),
+            ", ".join(sorted(failed)),
+        )
 
     await _async_mark_history_migrated(hass, summary)
     _LOGGER.info(
@@ -505,3 +604,118 @@ def plan_device_area_moves(devices) -> dict:
         if area:
             moves[device.id] = area
     return moves
+
+
+# ---------------------------------------------------------------------------
+# The rename report (#120)
+# ---------------------------------------------------------------------------
+#
+# History and statistics follow an entity id. The id WRITTEN IN A USER'S OWN
+# YAML does not: an automation trigger, a template sensor, a REST call, a
+# dashboard on another Home Assistant instance. Nothing in Home Assistant can
+# rewrite those and nothing warns about them -- a template referencing a dead
+# entity id just renders `unknown` for ever.
+#
+# We cannot fix that, but we are the only party that will ever know the exact
+# mapping, and only for as long as the OLD registry entries survive. So it is
+# captured on the one setup where it is still computable, persisted, and handed
+# back as a table the user can work through.
+
+
+def render_rename_report(mapping: dict) -> str:
+    """The old -> new table, as Markdown. Pure, so it is testable as text."""
+    lines = [
+        f"# {const.NAME}: renamed entities",
+        "",
+        f"`{const.LEGACY_DOMAIN}` was renamed to `{const.DOMAIN}`, so every "
+        "entity id changed.",
+        "",
+        "History, long-term statistics and your configuration were carried "
+        "across automatically. Entity ids written into **your own** "
+        "automations, scripts, templates and dashboards were not — nothing in "
+        "Home Assistant can rewrite those, and a template pointing at an old "
+        "id renders `unknown` without ever raising an error.",
+        "",
+        "Search your configuration for each id on the left and replace it with "
+        "the one on the right.",
+        "",
+        "| Old entity id | New entity id |",
+        "| --- | --- |",
+    ]
+    lines += [f"| `{old}` | `{new}` |" for old, new in sorted(mapping.items())]
+    lines += [
+        "",
+        f"Service calls are the exception: `{const.LEGACY_DOMAIN}.*` still "
+        f"works, forwarding to `{const.DOMAIN}.*`, so automations keep running "
+        "while you migrate them. That compatibility layer will be removed in a "
+        "future release.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+async def async_capture_rename_report(hass: HomeAssistant, zones: dict | None = None):
+    """Compute, persist and write out the old -> new entity id table.
+
+    Returns the mapping (possibly empty). Must run on the same setup as the
+    history migration and for the same reason: it needs the OLD registry
+    entries, which are gone once the user removes the old integration.
+
+    One-shot. A second run would see only our own entities, produce an empty
+    map, and overwrite a good report with nothing.
+    """
+    store = _migration_store(hass)
+    data = await store.async_load() or {}
+    if _ENTITY_ID_MAP in data:
+        return data[_ENTITY_ID_MAP]
+
+    mapping = build_entity_id_map(hass, zones)
+    if not mapping:
+        return {}
+
+    data[_ENTITY_ID_MAP] = mapping
+    await store.async_save(data)
+
+    path = Path(hass.config.path(RENAME_REPORT_FILENAME))
+    report = render_rename_report(mapping)
+
+    def _write() -> None:
+        path.write_text(report, encoding="utf-8")
+
+    try:
+        await hass.async_add_executor_job(_write)
+    except OSError as err:
+        # The mapping is safe in the store and surfaced in the repair either
+        # way, so a read-only config directory costs formatting, not data.
+        _LOGGER.warning("Could not write the rename report to %s: %s", path, err)
+    else:
+        _LOGGER.info(
+            "Wrote a table of the %s renamed entity ids to %s", len(mapping), path
+        )
+    return mapping
+
+
+async def async_rename_report(hass: HomeAssistant) -> dict:
+    """The persisted old -> new mapping, or {} if there is none."""
+    data = await _migration_store(hass).async_load()
+    return dict((data or {}).get(_ENTITY_ID_MAP) or {})
+
+
+async def async_rename_report_acknowledged(hass: HomeAssistant) -> bool:
+    """Whether the user has said they are done with the rename report."""
+    data = await _migration_store(hass).async_load()
+    return bool((data or {}).get(_REPORT_ACKNOWLEDGED))
+
+
+async def async_acknowledge_rename_report(hass: HomeAssistant) -> None:
+    """Record that the user has worked through the report.
+
+    Persisted rather than merely deleting the repair, because repairs are
+    re-raised on every setup and an issue the user cannot make stay dismissed
+    is worse than no issue at all. The report file and the stored mapping are
+    left in place -- they cost nothing and the user may want them again.
+    """
+    store = _migration_store(hass)
+    data = await store.async_load() or {}
+    data[_REPORT_ACKNOWLEDGED] = True
+    await store.async_save(data)

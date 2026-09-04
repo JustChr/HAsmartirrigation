@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "La rinomina ha cambiato {count} ID di entità",
+      "description": "La rinomina ha cambiato tutti gli ID di entità. Cronologia, statistiche e configurazione sono state trasferite automaticamente e le chiamate ai servizi `smart_irrigation.*` continuano a funzionare per ora.\n\nGli ID scritti nelle tue automazioni, script, template e dashboard non sono stati modificati: Home Assistant non può riscriverli e un template che punta a un vecchio ID restituisce silenziosamente `unknown` invece di segnalare un errore.\n\nLa tabella completa vecchio → nuovo si trova in `{path}`. Esaminala e poi chiudi questo messaggio.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "ID di entità rinominati",
+            "description": "{count} ID di entità sono cambiati. La tabella completa è in `{path}`.\n\n{examples}\n\nConferma dopo aver aggiornato le tue automazioni, i template e le dashboard. Questo chiude soltanto il messaggio: non viene modificato nulla."
+          }
+        }
+      }
     }
   }
 }

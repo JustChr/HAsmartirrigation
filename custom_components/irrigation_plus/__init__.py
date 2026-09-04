@@ -66,12 +66,18 @@ from .helpers import (
     to_absolute_pressure,
 )
 from .irrigation import IrrigationRunnerMixin
+from .legacy_services import (
+    async_register_legacy_service_aliases,
+    async_remove_legacy_service_aliases,
+)
 from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin
 from .migrate_domain import (
+    async_capture_rename_report,
     async_import_legacy_store,
     async_migrate_device_areas,
     async_migrate_history,
+    async_verify_import,
 )
 from .observed_watering import ObservedWateringMixin
 from .opensprinkler import OpenSprinklerMixin
@@ -177,6 +183,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         await async_import_legacy_store(hass)
 
     store = await async_get_registry(hass)
+
+    # A byte-identical copy that yields no zones is the migration failure the
+    # user would otherwise diagnose as "it just didn't work" -- after removing
+    # the old integration, which deletes the file it came from. Say so while
+    # the original is still on disk.
+    if entry.data.get(const.CONF_MIGRATED_FROM_LEGACY):
+        await async_verify_import(hass, store)
     # store Weather Service info in hass.data
     hass.data.setdefault(const.DOMAIN, {})
     hass.data[const.DOMAIN]["entry"] = entry
@@ -279,9 +292,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # one of our entities records a state first there are two states_meta rows
     # for the same entity_id and the rename hits a unique constraint.
     if entry.data.get(const.CONF_MIGRATED_FROM_LEGACY):
-        await async_migrate_history(
-            hass, {str(zid): store.get_zone(zid) for zid in store.zones}
-        )
+        legacy_zones = {str(zid): store.get_zone(zid) for zid in store.zones}
+        # Capture the old -> new table FIRST. Both steps read the old registry
+        # entries, and this is the only window in which they exist -- but the
+        # history migration is skipped outright when the recorder is not up,
+        # and the table is worth having either way. It is what a user needs to
+        # repoint their own automations and templates, which nothing else can
+        # do for them.
+        await async_capture_rename_report(hass, legacy_zones)
+        await async_migrate_history(hass, legacy_zones)
 
     _LOGGER.info("Calling async_forward_entry_setups")
     await hass.config_entries.async_forward_entry_setups(
@@ -317,6 +336,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Register custom services
     async_register_services(hass)
+
+    # AFTER the real services exist: mirror them onto the pre-#120 domain so a
+    # user's own automations, scripts and blueprints keep working (#120). The
+    # alias list is read back from what was just registered, never restated.
+    # Skipped entirely if a different project owns smart_irrigation here.
+    await async_register_legacy_service_aliases(hass)
 
     # Finish up by setting factory defaults if needed for zones, mappings and modules
     await store.set_up_factory_defaults()
@@ -430,6 +455,9 @@ async def async_unload_entry(hass: HomeAssistant, entry):
         return False
 
     remove_panel(hass)
+    # Take the pre-#120 service aliases down with us, so a removed or disabled
+    # integration leaves no service behind that forwards into nothing.
+    async_remove_legacy_service_aliases(hass)
     # Harden against a missing coordinator so a config-entry reload can still
     # unload cleanly if the coordinator is gone from hass.data. Without this an
     # unguarded KeyError fails the unload (failed_unload) and only a full Home

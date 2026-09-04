@@ -26,13 +26,21 @@ from homeassistant.data_entry_flow import FlowResult
 
 from . import const
 from .lovelace_cards import async_count_legacy_cards, async_rewrite_legacy_cards
-from .migrate_domain import legacy_directory, legacy_install_is_ours
+from .migrate_domain import (
+    RENAME_REPORT_FILENAME,
+    async_acknowledge_rename_report,
+    async_rename_report,
+    async_rename_report_acknowledged,
+    legacy_directory,
+    legacy_install_is_ours,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 ISSUE_LEFTOVER_DIRECTORY = "leftover_legacy_directory"
 ISSUE_FOREIGN_INSTALL = "foreign_legacy_install"
 ISSUE_LEGACY_CARDS = "legacy_dashboard_cards"
+ISSUE_RENAMED_ENTITY_IDS = "renamed_entity_ids"
 
 
 async def async_check_issues(hass: HomeAssistant) -> None:
@@ -75,6 +83,28 @@ async def async_check_issues(hass: HomeAssistant) -> None:
             translation_placeholders={"path": str(directory)},
             learn_more_url=const.MIGRATION_GUIDE_URL,
         )
+
+    # Entity ids the user has written into their OWN automations, templates and
+    # dashboards. We cannot rewrite those and Home Assistant will not warn about
+    # them -- a template pointing at a dead id renders `unknown` for ever. The
+    # exact mapping is knowable only here, so hand it over.
+    renamed = await async_rename_report(hass)
+    if renamed and not await async_rename_report_acknowledged(hass):
+        ir.async_create_issue(
+            hass,
+            const.DOMAIN,
+            ISSUE_RENAMED_ENTITY_IDS,
+            is_fixable=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=ISSUE_RENAMED_ENTITY_IDS,
+            translation_placeholders={
+                "count": str(len(renamed)),
+                "path": str(hass.config.path(RENAME_REPORT_FILENAME)),
+            },
+            learn_more_url=const.MIGRATION_GUIDE_URL,
+        )
+    else:
+        ir.async_delete_issue(hass, const.DOMAIN, ISSUE_RENAMED_ENTITY_IDS)
 
     count = await async_count_legacy_cards(hass)
     if count:
@@ -122,8 +152,62 @@ class LegacyCardsRepairFlow(RepairsFlow):
         )
 
 
+class RenamedEntityIdsRepairFlow(RepairsFlow):
+    """Show the old -> new entity id table and let the user dismiss it.
+
+    Confirming records an acknowledgement in the migration store rather than
+    only deleting the issue: repairs are re-raised on every setup, so an issue
+    that cannot be made to stay dismissed is worse than no issue at all. The
+    report file and the stored mapping survive -- they cost nothing, and a user
+    part-way through repointing their automations will want them again.
+    """
+
+    async def async_step_init(self, user_input=None) -> FlowResult:
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(self, user_input=None) -> FlowResult:
+        renamed = await async_rename_report(self.hass)
+        if user_input is not None:
+            await async_acknowledge_rename_report(self.hass)
+            _LOGGER.info(
+                "The rename report for %s entity ids was acknowledged; the "
+                "table stays at %s",
+                len(renamed),
+                self.hass.config.path(RENAME_REPORT_FILENAME),
+            )
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "count": str(len(renamed)),
+                "path": str(self.hass.config.path(RENAME_REPORT_FILENAME)),
+                "examples": _render_examples(renamed),
+            },
+        )
+
+
+def _render_examples(mapping: dict, limit: int = 5) -> str:
+    """A few old -> new lines for the dialog. The file holds the full table.
+
+    A repair dialog is not a place to print eighty rows: a seven-zone install
+    renames ~60 entities, and a wall of them buries the one instruction that
+    matters. Pure, so the truncation is testable.
+    """
+    if not mapping:
+        return ""
+    items = sorted(mapping.items())
+    lines = [f"{old} -> {new}" for old, new in items[:limit]]
+    if len(items) > limit:
+        lines.append(f"... and {len(items) - limit} more")
+    return "\n".join(lines)
+
+
 async def async_create_fix_flow(hass, issue_id, data):
     """Return the repair flow for a fixable issue."""
     if issue_id == ISSUE_LEGACY_CARDS:
         return LegacyCardsRepairFlow()
+    if issue_id == ISSUE_RENAMED_ENTITY_IDS:
+        return RenamedEntityIdsRepairFlow()
     return None

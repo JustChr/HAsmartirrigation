@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "Le renommage a modifié {count} identifiants d’entité",
+      "description": "Le renommage a modifié tous les identifiants d’entité. Votre historique, vos statistiques et votre configuration ont été repris automatiquement, et les appels de service `smart_irrigation.*` continuent de fonctionner pour l’instant.\n\nLes identifiants inscrits dans vos propres automatisations, scripts, modèles et tableaux de bord n’ont pas été modifiés : Home Assistant ne peut pas les réécrire, et un modèle pointant vers un ancien identifiant renvoie discrètement `unknown` au lieu de signaler une erreur.\n\nLe tableau complet ancien → nouveau se trouve dans `{path}`. Parcourez-le, puis fermez ce message.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Identifiants d’entité renommés",
+            "description": "{count} identifiants d’entité ont changé. Le tableau complet se trouve dans `{path}`.\n\n{examples}\n\nConfirmez une fois vos automatisations, modèles et tableaux de bord mis à jour. Cela ne fait que fermer le message — rien n’est modifié."
+          }
+        }
+      }
     }
   }
 }

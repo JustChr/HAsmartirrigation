@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "Navnebyttet endret {count} enhets-ID-er",
+      "description": "Navnebyttet endret alle enhets-ID-er. Historikk, statistikk og oppsett ble overført automatisk, og tjenestekall til `smart_irrigation.*` virker fortsatt inntil videre.\n\nEnhets-ID-er du selv har skrevet inn i automasjoner, skript, maler og dashbord er ikke endret — Home Assistant kan ikke skrive dem om, og en mal som peker på en gammel ID gir stille `unknown` i stedet for en feilmelding.\n\nHele tabellen gammel → ny ligger i `{path}`. Gå gjennom den, og lukk så denne meldingen.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Endrede enhets-ID-er",
+            "description": "{count} enhets-ID-er er endret. Hele tabellen ligger i `{path}`.\n\n{examples}\n\nBekreft når du har oppdatert dine egne automasjoner, maler og dashbord. Dette lukker bare meldingen — ingenting endres."
+          }
+        }
+      }
     }
   }
 }

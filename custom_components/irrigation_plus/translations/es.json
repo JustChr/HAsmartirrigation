@@ -356,6 +356,18 @@
           }
         }
       }
+    },
+    "renamed_entity_ids": {
+      "title": "El cambio de nombre ha modificado {count} IDs de entidad",
+      "description": "El cambio de nombre ha modificado todos los IDs de entidad. Tu historial, tus estadísticas y tu configuración se han trasladado automáticamente, y las llamadas a servicios `smart_irrigation.*` siguen funcionando por ahora.\n\nLos IDs de entidad escritos en tus propias automatizaciones, scripts, plantillas y paneles no se han cambiado: Home Assistant no puede reescribirlos, y una plantilla que apunte a un ID antiguo devuelve `unknown` en silencio en lugar de dar un error.\n\nLa tabla completa antiguo → nuevo está en `{path}`. Revísala y después descarta este aviso.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "IDs de entidad renombrados",
+            "description": "Han cambiado {count} IDs de entidad. La tabla completa está en `{path}`.\n\n{examples}\n\nConfirma cuando hayas actualizado tus automatizaciones, plantillas y paneles. Esto solo descarta el aviso: no se cambia nada."
+          }
+        }
+      }
     }
   }
 }
