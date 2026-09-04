@@ -18,6 +18,11 @@ DOMAIN = "irrigation_plus"
 # duration unique_id migration below.
 LEGACY_DOMAIN = "smart_irrigation"
 LEGACY_NAME = "Smart Irrigation"
+
+# Set in the new config entry's data when the user accepted the import of a
+# pre-#120 install. Gates the storage copy, so declining the offer really does
+# give a clean install even though the old storage file is still on disk.
+CONF_MIGRATED_FROM_LEGACY = "migrated_from_legacy"
 CUSTOM_COMPONENTS = "custom_components"
 
 LANGUAGE_FILES_DIR = "frontend/localize/languages"

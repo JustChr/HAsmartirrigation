@@ -24,6 +24,13 @@
           "weather_service_api_key": "API sleutel",
           "weather_service_api_version": "API versie"
         }
+      },
+      "migrate": {
+        "title": "Neem je bestaande installatie over",
+        "description": "Er is een bestaande Smart Irrigation-installatie gevonden. Irrigation Plus kan de configuratie overnemen: zones, buckets, schema's, beregeningsgeschiedenis en weerinstellingen, inclusief je API-sleutel.\n\nBelangrijk: verwijder de oude Smart Irrigation-integratie pas nadat dit is afgerond. Verwijder je die eerder, dan gaat de opgeslagen API-sleutel definitief verloren.",
+        "data": {
+          "migrated_from_legacy": "Mijn bestaande Smart Irrigation-configuratie importeren"
+        }
       }
     }
   },

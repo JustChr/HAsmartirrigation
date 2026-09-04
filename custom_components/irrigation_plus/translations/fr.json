@@ -24,6 +24,13 @@
           "weather_service_api_key": "API key for weather service",
           "weather_service_api_version": "Version de l'API du service météo"
         }
+      },
+      "migrate": {
+        "title": "Reprendre votre installation existante",
+        "description": "Une installation Smart Irrigation existante a été détectée. Irrigation Plus peut importer sa configuration : zones, réservoirs, programmations, historique d'arrosage et paramètres météo, y compris votre clé API.\n\nImportant : ne supprimez pas l'ancienne intégration Smart Irrigation avant la fin de cette opération. La supprimer d'abord efface sa clé API, qui sera alors irrécupérable.",
+        "data": {
+          "migrated_from_legacy": "Importer ma configuration Smart Irrigation existante"
+        }
       }
     }
   },

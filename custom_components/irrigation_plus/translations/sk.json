@@ -24,6 +24,13 @@
           "weather_service_api_key": "API key for weather service",
           "weather_service_api_version": "Verzia API poveternostnej služby"
         }
+      },
+      "migrate": {
+        "title": "Preniesok existujúce nastavenie",
+        "description": "Našla sa existujúca inštalácia Smart Irrigation. Irrigation Plus dokáže prevziať jej konfiguráciu — zóny, buckety, harmonogramy, históriu zavlažovania a nastavenia počasia vrátane API kľúča.\n\nDôležité: starú integráciu Smart Irrigation odstráň až po dokončení. Ak ju odstrániš skôr, uložený API kľúč sa nenávratne stratí.",
+        "data": {
+          "migrated_from_legacy": "Importovať moju existujúcu konfiguráciu Smart Irrigation"
+        }
       }
     }
   },

@@ -24,6 +24,13 @@
           "weather_service_api_key": "API key for weather service (not required for Open-Meteo)",
           "weather_service_api_version": "Weather service API version"
         }
+      },
+      "migrate": {
+        "title": "Bring your existing set-up across",
+        "description": "We found an existing Smart Irrigation installation. Irrigation Plus can import its configuration — your zones, buckets, schedules, run history and weather settings, including your API key.\n\nImportant: leave the old Smart Irrigation integration in place until this finishes. Removing it first deletes its stored API key, which cannot be recovered afterwards.",
+        "data": {
+          "migrated_from_legacy": "Import my existing Smart Irrigation configuration"
+        }
       }
     }
   },

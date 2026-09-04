@@ -68,6 +68,7 @@ from .helpers import (
 from .irrigation import IrrigationRunnerMixin
 from .live_estimate import LiveEstimateMixin
 from .master import MasterMixin
+from .migrate_domain import async_import_legacy_store
 from .observed_watering import ObservedWateringMixin
 from .opensprinkler import OpenSprinklerMixin
 from .panel import async_register_panel, async_remove_card_resource, remove_panel
@@ -162,6 +163,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     _LOGGER.info("async_setup_entry called for %s", entry.entry_id)
 
     session = async_get_clientsession(hass)
+
+    # BEFORE the store is loaded: import a pre-#120 install's storage file onto
+    # our key, so zones/buckets/schedules/run logs survive the domain rename
+    # (#120). No-ops once we have storage of our own, and only runs when the
+    # user accepted the offer in the config flow.
+    if entry.data.get(const.CONF_MIGRATED_FROM_LEGACY):
+        await async_import_legacy_store(hass)
 
     store = await async_get_registry(hass)
     # store Weather Service info in hass.data
@@ -511,6 +519,28 @@ class SmartIrrigationCoordinator(
         # Per-zone intraday estimates, refreshed on the update/calc cycles
         # (see LiveEstimateMixin.async_refresh_zone_estimates).
         self._zone_estimates_cache = None
+
+        # A keyed weather service with no key must not build a client: every
+        # client does `api_key.strip()` in __init__, so a None key raises
+        # AttributeError and takes the whole setup down. That is reachable on a
+        # partially migrated entry — the API key lives in the config entry, not
+        # in the storage file, so importing the store without the entry leaves
+        # exactly this state (#120, flagged by altmenorg).
+        #
+        # Clearing use_weather_service rather than leaving a None client is
+        # deliberate: every consumer gates on this flag, not on the client, so
+        # this one assignment disables every fetch path instead of scattering
+        # None checks. The user keeps a working integration with weather off,
+        # and re-entering the key in the panel restores it.
+        if self.use_weather_service and not self._weather_service_key_available(hass):
+            _LOGGER.warning(
+                "Weather service %s is configured but no API key is available; "
+                "starting with weather updates disabled. Re-enter the API key "
+                "under Setup to re-enable them",
+                self.weather_service,
+            )
+            self.use_weather_service = False
+
         if self.use_weather_service:
             # Get effective coordinates before creating weather service clients
             effective_lat, effective_lon, effective_elev = (
@@ -653,6 +683,29 @@ class SmartIrrigationCoordinator(
         self._track_midnight_time_unsub = async_track_time_change(
             hass, self._reset_event_fired_today, 0, 0, 0
         )
+
+    def _weather_service_key_available(self, hass) -> bool:
+        """Whether the configured weather service has a usable API key.
+
+        Open-Meteo needs none. For the keyed services, accept either the
+        per-service slot (written since v2026.05.14) or the legacy single-key
+        slot, mirroring the fallback each client construction below uses.
+        """
+        if self.weather_service in const.CONF_WEATHER_SERVICES_NO_API_KEY:
+            return True
+
+        per_service = {
+            const.CONF_WEATHER_SERVICE_OWM: const.CONF_OWM_API_KEY,
+            const.CONF_WEATHER_SERVICE_PW: const.CONF_PW_API_KEY,
+            const.CONF_WEATHER_SERVICE_MET: const.CONF_MET_API_KEY,
+        }.get(self.weather_service)
+        if per_service is None:
+            # An unknown service builds no client at all, so nothing to guard.
+            return True
+
+        data = hass.data[const.DOMAIN]
+        key = data.get(per_service) or data.get(const.CONF_WEATHER_SERVICE_API_KEY)
+        return bool(key and str(key).strip())
 
     async def async_setup_timers(self):
         """Set up the auto update/calc/clear timers from stored config.

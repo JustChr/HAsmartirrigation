@@ -24,6 +24,13 @@
           "weather_service_api_key": "API key for weather service",
           "weather_service_api_version": "API-Version des Wetterdienstes"
         }
+      },
+      "migrate": {
+        "title": "Bestehende Einrichtung übernehmen",
+        "description": "Es wurde eine bestehende Smart-Irrigation-Installation gefunden. Irrigation Plus kann deren Konfiguration übernehmen — Zonen, Buckets, Zeitpläne, Bewässerungsverlauf und Wettereinstellungen einschließlich API-Schlüssel.\n\nWichtig: Entferne die alte Smart-Irrigation-Integration erst, wenn dieser Vorgang abgeschlossen ist. Wird sie vorher entfernt, geht der gespeicherte API-Schlüssel unwiederbringlich verloren.",
+        "data": {
+          "migrated_from_legacy": "Bestehende Smart-Irrigation-Konfiguration übernehmen"
+        }
       }
     }
   },

@@ -24,6 +24,13 @@
           "weather_service_api_key": "API key for weather service",
           "weather_service_api_version": "API-versjon for værtjenesten"
         }
+      },
+      "migrate": {
+        "title": "Ta med det eksisterende oppsettet",
+        "description": "Det ble funnet en eksisterende Smart Irrigation-installasjon. Irrigation Plus kan importere konfigurasjonen — soner, buckets, tidsplaner, vanningshistorikk og værinnstillinger, inkludert API-nøkkelen din.\n\nViktig: la den gamle Smart Irrigation-integrasjonen stå til dette er ferdig. Fjerner du den først, slettes den lagrede API-nøkkelen, og den kan ikke gjenopprettes.",
+        "data": {
+          "migrated_from_legacy": "Importer det eksisterende Smart Irrigation-oppsettet mitt"
+        }
       }
     }
   },

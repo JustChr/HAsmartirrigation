@@ -7,6 +7,7 @@ from homeassistant.helpers.selector import selector
 
 from . import const
 from .helpers import CannotConnect, InvalidAuth, validate_api_key
+from .migrate_domain import legacy_config_seed, legacy_install_present
 from .options_flow import SmartIrrigationOptionsFlowHandler
 
 
@@ -22,6 +23,7 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
         self._use_weather_service = False
         self._weather_service_api_key = ""
         self._weather_service = ""
+        self._migrate_offered = False
         # not needed anymore because versions are hardcoded
         # self._forecasting_api_version = 3.0
 
@@ -32,6 +34,14 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
         # Only a single instance of the integration
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
+
+        # Offer to import a pre-#120 "Smart Irrigation" install before asking
+        # the user to configure anything from scratch (#120). Only on the first
+        # pass: once they have answered the migrate step it must not reappear.
+        if user_input is None and not self._migrate_offered:
+            self._migrate_offered = True
+            if legacy_install_present(self.hass):
+                return await self.async_step_migrate()
 
         if user_input is not None:
             try:
@@ -45,6 +55,37 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
             except NotUnique:
                 self._errors["base"] = "name"
         return await self._show_step_user(user_input)
+
+    async def async_step_migrate(self, user_input=None):
+        """Offer to carry a pre-#120 Smart Irrigation install over (#120).
+
+        Seeds the weather settings and the API key into the new entry's data AT
+        CREATION. Merging them afterwards with ``async_update_entry`` triggers a
+        reload that drops them — altmenorg hit exactly that doing this rename,
+        and said so on #120.
+        """
+        if user_input is not None:
+            if not user_input.get(const.CONF_MIGRATED_FROM_LEGACY, True):
+                # Declined: fall through to a normal, empty set-up. The old
+                # storage file stays on disk, untouched and unused.
+                return await self._show_step_user(None)
+
+            seed = legacy_config_seed(self.hass)
+            seed[const.CONF_MIGRATED_FROM_LEGACY] = True
+            seed.setdefault(const.CONF_INSTANCE_NAME, const.NAME)
+            seed.setdefault(const.CONF_USE_WEATHER_SERVICE, False)
+            await self._check_unique(seed[const.CONF_INSTANCE_NAME])
+            return self.async_create_entry(title=const.NAME, data=seed)
+
+        return self.async_show_form(
+            step_id="migrate",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(const.CONF_MIGRATED_FROM_LEGACY, default=True): bool,
+                }
+            ),
+            errors=self._errors,
+        )
 
     async def _show_step_user(self, user_input):
         return self.async_show_form(
