@@ -24,7 +24,6 @@ After installation, the following services are available:
 |`Irrigation Plus: set_bucket`|Sets a specific bucket to to a specific `new_bucket_value` (default is 0).|
 |`Irrigation Plus: set_multiplier`|Sets a specific multiplier to a specific `new_multiplier_value` (default is 1.0).|
 |`Irrigation Plus: set_rain_delay`|Pauses all automatic/scheduled irrigation — either for `hours` from now, or until a specific datetime `until`. Manual runs still work. See [rain delay](usage-dashboard.md#rain-delay).|
-|`Irrigation Plus: set_state`|Sets a zone's state to a specific `new_state_value` (`automatic`, `manual` or `disabled`).|
 |`Irrigation Plus: stop_zone`|Stops an in-progress run for one zone immediately and turns its valve off. The water already delivered is kept (the run is logged as *partial*). Target the zone by any of its entities (duration `sensor`, a per-zone `button` or `binary_sensor`).|
 |`Irrigation Plus: set_zone`| Allows configuration for bucket (with `new_bucket_value` (default 0)), multiplier (with `new_multiplier_value` (default 1.0)), duration (with `new_duration_value` (default 0)), state (with `new_state_value` (default 'automatic')) and throughput (with `new_throughput_value` (default 50)) settings for a zone.|
 |`Irrigation Plus: update_all_zones`|Updates all automatic zones with weather data|

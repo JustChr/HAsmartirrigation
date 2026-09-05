@@ -176,20 +176,6 @@
         }
       }
     },
-    "set_state": {
-      "name": "Sett tilstanden for en sone",
-      "description": "Sett tilstanden for en sone til en bestemt verdi",
-      "fields": {
-        "entity": {
-          "name": "Enhet",
-          "description": "Sone som tilstanden skal settes for"
-        },
-        "new_state_value": {
-          "name": "Ny tilstandsverdi",
-          "description": "Ny verdi for tilstanden"
-        }
-      }
-    },
     "set_zone": {
       "name": "Sett verdiene for en sone",
       "description": "Sett alle konfigurerbare verdier for en sone",

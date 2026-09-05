@@ -176,20 +176,6 @@
         }
       }
     },
-    "set_state": {
-      "name": "Status einer Zone setzen",
-      "description": "Den Status einer Zone auf einen bestimmten Wert setzen",
-      "fields": {
-        "entity": {
-          "name": "Entität",
-          "description": "Zone, deren Status gesetzt werden soll"
-        },
-        "new_state_value": {
-          "name": "Neuer Statuswert",
-          "description": "Neuer Wert des Status"
-        }
-      }
-    },
     "set_zone": {
       "name": "Werte einer Zone setzen",
       "description": "Alle konfigurierbaren Werte einer Zone setzen",

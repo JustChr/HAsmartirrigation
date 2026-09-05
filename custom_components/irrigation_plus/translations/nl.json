@@ -176,20 +176,6 @@
         }
       }
     },
-    "set_state": {
-      "name": "De status van een zone instellen",
-      "description": "De status van een zone op een specifieke waarde instellen",
-      "fields": {
-        "entity": {
-          "name": "Entiteit",
-          "description": "Zone waarvan de status ingesteld moet worden"
-        },
-        "new_state_value": {
-          "name": "Nieuwe statuswaarde",
-          "description": "Nieuwe waarde van de status"
-        }
-      }
-    },
     "set_zone": {
       "name": "De waarden van een zone instellen",
       "description": "Alle configureerbare waarden van een zone instellen",
