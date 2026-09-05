@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "Rimuovere la vecchia installazione Smart Irrigation?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Rimuovi la vecchia installazione",
+            "description": "La tua configurazione è stata trasferita; ciò che resta in `{path}` è l'installazione da cui proviene. Home Assistant la carica ancora come seconda integrazione, per questo vedi ogni sensore due volte.\n\nVerranno rimossi entrambi, in quest'ordine:\n\n1. L'integrazione **{name}** con la sua configurazione salvata. La copia creata durante la migrazione resta in `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. La cartella `{path}`.\n\nL'ordine è importante: rimuovere prima l'integrazione permette a Home Assistant di chiuderla correttamente.\n\nDa qui non è reversibile. Se non sei ancora sicuro che la migrazione sia completa, chiudi e controlla prima zone e cronologia."
+          },
+          "done": {
+            "title": "Rimossa",
+            "description": "La vecchia integrazione e la cartella `{path}` sono state rimosse.\n\n**Riavvia Home Assistant** per completare. Le entità duplicate spariscono con quel riavvio."
+          },
+          "partial": {
+            "title": "La cartella è ancora presente",
+            "description": "La vecchia integrazione è stata rimossa, ma la cartella `{path}` non è stata eliminata — quasi sempre un problema di permessi. Il motivo è nel log.\n\nEliminala manualmente e riavvia Home Assistant. Fino ad allora Home Assistant continua a caricarla."
+          },
+          "unsafe": {
+            "title": "Non è stato rimosso nulla",
+            "description": "L'operazione non è stata eseguita perché la migrazione non sembra più completa: questa integrazione al momento non ha zone.\n\nRimuovere la vecchia integrazione cancellerebbe la configurazione in `.storage/smart_irrigation.storage`, che in questo stato è la tua unica copia completa. Non è stato modificato nulla. Apri una issue invece di eliminare `{path}` a mano."
+          }
+        }
+      }
     }
   }
 }

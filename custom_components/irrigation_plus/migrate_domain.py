@@ -771,6 +771,104 @@ async def async_migrate_device_areas(hass: HomeAssistant) -> int:
     return len(moves)
 
 
+def cleanup_is_safe(is_ours: bool, our_zone_count: int | None) -> bool:
+    """Whether the leftover pre-#120 install may be removed for the user.
+
+    Pure, so the decision can be exercised without a running Home Assistant.
+
+    Two conditions, and both are about not destroying something irreplaceable:
+
+    * **It has to be ours.** A ``smart_irrigation`` directory may belong to the
+      upstream project, which is a different, working integration. Removing its
+      config entry and its files would be deleting a stranger's install.
+    * **Our own store has to hold zones.** Removing the old config entry runs
+      the old integration's ``async_remove_entry``, which DELETES
+      ``.storage/smart_irrigation.storage``. After a migration that silently
+      imported nothing -- which happened in the field on v2026.09.07 -- that
+      file is the user's only remaining copy. ``None`` (unknown) is refused for
+      the same reason ``stored_zone_count`` distinguishes it from ``0``.
+    """
+    return bool(is_ours) and bool(our_zone_count)
+
+
+async def async_cleanup_is_safe(hass: HomeAssistant) -> bool:
+    """:func:`cleanup_is_safe` against the live filesystem, off the event loop."""
+
+    def _check() -> bool:
+        return cleanup_is_safe(
+            legacy_install_is_ours(hass), stored_zone_count(storage_path(hass))
+        )
+
+    return await hass.async_add_executor_job(_check)
+
+
+async def async_remove_legacy_entry(hass: HomeAssistant) -> bool:
+    """Remove the pre-#120 config entry. Returns True when one was removed.
+
+    MUST happen before the directory is deleted. Home Assistant can only run an
+    integration's own ``async_remove_entry`` while it can still import it, and
+    that teardown is what releases the panel, the Lovelace resource and the
+    storage file. Delete the directory first and the entry becomes unremovable
+    housekeeping instead: an orphaned entry beside an orphaned store, which is
+    exactly the state that made v2026.09.07's failed setups unrecoverable.
+    """
+    entry = find_legacy_entry(hass)
+    if entry is None:
+        return False
+    _LOGGER.info(
+        "Removing the pre-rename %s config entry %s. Its storage file goes with "
+        "it; the copy taken at import time remains at %s",
+        const.LEGACY_DOMAIN,
+        entry.entry_id,
+        legacy_backup_path(hass),
+    )
+    await hass.config_entries.async_remove(entry.entry_id)
+    return True
+
+
+async def async_delete_legacy_directory(hass: HomeAssistant) -> bool:
+    """Delete ``custom_components/smart_irrigation/``. Returns True when deleted.
+
+    Gated on the directory being OURS, re-checked here rather than trusted from
+    the caller: this is a recursive delete of a path outside our own namespace,
+    and it is the one action in this module that cannot be undone from anything
+    we keep. The path is always built by :func:`legacy_directory` and never
+    taken from input.
+
+    The running process keeps the module it has already imported, so nothing
+    breaks until the restart this is expected to be followed by.
+    """
+    directory = legacy_directory(hass)
+
+    def _delete() -> bool:
+        if not directory.is_dir():
+            return False
+        if not legacy_install_is_ours(hass):
+            _LOGGER.warning(
+                "Refusing to delete %s: its manifest says it belongs to another "
+                "project, not to this one",
+                directory,
+            )
+            return False
+        shutil.rmtree(directory)
+        return True
+
+    try:
+        deleted = await hass.async_add_executor_job(_delete)
+    except OSError as err:
+        _LOGGER.error(
+            "Could not delete the leftover %s: %s. Delete it by hand and "
+            "restart Home Assistant",
+            directory,
+            err,
+        )
+        return False
+
+    if deleted:
+        _LOGGER.info("Deleted the leftover pre-rename directory at %s", directory)
+    return deleted
+
+
 def all_registry_devices(registry) -> list:
     """Every device entry, across Home Assistant's two registry APIs.
 

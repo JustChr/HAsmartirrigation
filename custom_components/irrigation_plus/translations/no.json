@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "Fjerne den gamle Smart Irrigation-installasjonen?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Fjern den gamle installasjonen",
+            "description": "Konfigurasjonen din er overført; det som ligger i `{path}` er installasjonen den kom fra. Home Assistant laster den fortsatt som en andre integrasjon, og derfor ser du hver sensor to ganger.\n\nBegge deler fjernes, i denne rekkefølgen:\n\n1. Integrasjonen **{name}** med den lagrede konfigurasjonen. Kopien fra migreringen blir liggende i `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. Mappen `{path}`.\n\nRekkefølgen betyr noe: fjernes integrasjonen først, kan Home Assistant avslutte den ordentlig.\n\nDette kan ikke angres herfra. Er du usikker på om migreringen er fullført, lukk dette og sjekk soner og historikk først."
+          },
+          "done": {
+            "title": "Fjernet",
+            "description": "Den gamle integrasjonen og mappen `{path}` er fjernet.\n\n**Start Home Assistant på nytt** for å fullføre. De dupliserte enhetene forsvinner med omstarten."
+          },
+          "partial": {
+            "title": "Mappen ligger der fortsatt",
+            "description": "Den gamle integrasjonen ble fjernet, men mappen `{path}` kunne ikke slettes — nesten alltid et rettighetsproblem. Årsaken står i loggen.\n\nSlett mappen selv og start Home Assistant på nytt. Inntil da laster Home Assistant den videre."
+          },
+          "unsafe": {
+            "title": "Ingenting ble fjernet",
+            "description": "Dette ble ikke utført, fordi migreringen ikke lenger ser fullstendig ut: denne integrasjonen har for øyeblikket ingen soner.\n\nÅ fjerne den gamle integrasjonen ville slettet konfigurasjonen i `.storage/smart_irrigation.storage`, som i denne tilstanden er din eneste fullstendige kopi. Ingenting er endret. Opprett heller en sak i stedet for å slette `{path}` for hånd."
+          }
+        }
+      }
     }
   }
 }

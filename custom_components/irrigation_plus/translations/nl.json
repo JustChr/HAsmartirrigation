@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "De oude Smart Irrigation-installatie verwijderen?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Oude installatie verwijderen",
+            "description": "Je configuratie is overgezet; wat in `{path}` staat is de installatie waar die vandaan komt. Home Assistant laadt die nog steeds als tweede integratie, daarom zie je elke sensor dubbel.\n\nDit verwijdert beide, in deze volgorde:\n\n1. De integratie **{name}** met de opgeslagen configuratie. De kopie van de migratie blijft staan in `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. De map `{path}`.\n\nDie volgorde is belangrijk: door de integratie eerst te verwijderen kan Home Assistant haar netjes afsluiten.\n\nDit kan hier niet ongedaan worden gemaakt. Twijfel je of de migratie compleet is, sluit dit dan en controleer eerst je zones en geschiedenis."
+          },
+          "done": {
+            "title": "Verwijderd",
+            "description": "De oude integratie en de map `{path}` zijn verwijderd.\n\n**Herstart Home Assistant** om het af te ronden. De dubbele entiteiten verdwijnen met die herstart."
+          },
+          "partial": {
+            "title": "De map staat er nog",
+            "description": "De oude integratie is verwijderd, maar de map `{path}` kon niet worden gewist — vrijwel altijd een rechtenprobleem. De reden staat in het log.\n\nVerwijder de map zelf en herstart Home Assistant. Tot die tijd blijft Home Assistant hem laden."
+          },
+          "unsafe": {
+            "title": "Er wordt niets verwijderd",
+            "description": "Dit is niet uitgevoerd, omdat de migratie niet meer compleet lijkt: deze integratie heeft op dit moment geen zones.\n\nDe oude integratie verwijderen zou de configuratie in `.storage/smart_irrigation.storage` wissen, in deze toestand je enige volledige kopie. Er is niets gewijzigd. Maak een issue aan in plaats van `{path}` met de hand te verwijderen."
+          }
+        }
+      }
     }
   }
 }

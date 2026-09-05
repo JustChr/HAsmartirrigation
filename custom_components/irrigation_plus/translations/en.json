@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "Remove the old Smart Irrigation installation?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Remove the old installation",
+            "description": "Your configuration has been carried over, so what is left at `{path}` is the installation it came from. Home Assistant is still loading it as a second integration, which is why you see two of every sensor.\n\nThis removes both halves, in this order:\n\n1. The **{name}** integration entry, together with its stored configuration. The copy taken during the migration is kept at `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. The folder at `{path}`.\n\nThat order matters: removing the entry first lets Home Assistant shut the old integration down properly.\n\nThis cannot be undone from here. If you are not yet sure the migration is complete, close this and check your zones and history first."
+          },
+          "done": {
+            "title": "Removed",
+            "description": "The old integration and its folder at `{path}` are gone.\n\n**Restart Home Assistant** to finish. The duplicate entities disappear with that restart."
+          },
+          "partial": {
+            "title": "The folder is still there",
+            "description": "The old integration entry was removed, but the folder at `{path}` could not be deleted — almost always a file-permission problem. The reason is in the log.\n\nDelete that folder yourself and restart Home Assistant. Until you do, Home Assistant keeps loading it."
+          },
+          "unsafe": {
+            "title": "Not removing anything yet",
+            "description": "This was not carried out, because the migration no longer looks complete: this integration currently has no zones.\n\nRemoving the old integration would delete the configuration at `.storage/smart_irrigation.storage`, which in that state is your only full copy. Nothing has been changed. Please open an issue rather than deleting `{path}` by hand."
+          }
+        }
+      }
     }
   }
 }

@@ -34,6 +34,9 @@ from .lovelace_cards import (
 from .migrate_domain import (
     RENAME_REPORT_FILENAME,
     async_acknowledge_rename_report,
+    async_cleanup_is_safe,
+    async_delete_legacy_directory,
+    async_remove_legacy_entry,
     async_rename_report,
     async_rename_report_acknowledged,
     legacy_directory,
@@ -43,6 +46,10 @@ from .migrate_domain import (
 _LOGGER = logging.getLogger(__name__)
 
 ISSUE_LEFTOVER_DIRECTORY = "leftover_legacy_directory"
+# A separate id, not a flag on the one above: Home Assistant's issue schema
+# allows a `description` OR a `fix_flow`, never both, so an issue that is
+# sometimes fixable cannot be one key with two shapes. hassfest enforces it.
+ISSUE_LEFTOVER_REMOVABLE = "leftover_legacy_directory_removable"
 ISSUE_FOREIGN_INSTALL = "foreign_legacy_install"
 ISSUE_LEGACY_CARDS = "legacy_dashboard_cards"
 ISSUE_RENAMED_ENTITY_IDS = "renamed_entity_ids"
@@ -73,23 +80,35 @@ async def async_check_issues(hass: HomeAssistant) -> None:
 
     if not present:
         ir.async_delete_issue(hass, const.DOMAIN, ISSUE_LEFTOVER_DIRECTORY)
+        ir.async_delete_issue(hass, const.DOMAIN, ISSUE_LEFTOVER_REMOVABLE)
         ir.async_delete_issue(hass, const.DOMAIN, ISSUE_FOREIGN_INSTALL)
     elif await hass.async_add_executor_job(legacy_install_is_ours, hass):
         # OUR own previous release, left behind by the HACS update. This one
         # matters: Home Assistant will load it as a second integration and the
         # user ends up with two of every entity.
+        #
+        # Offered as a fixable repair only when the migration demonstrably
+        # landed -- see migrate_domain.cleanup_is_safe. Where it did not, the
+        # same issue is raised as information, because the fix would delete the
+        # user's only surviving copy of their configuration.
         ir.async_delete_issue(hass, const.DOMAIN, ISSUE_FOREIGN_INSTALL)
+        removable = await async_cleanup_is_safe(hass)
+        stale = ISSUE_LEFTOVER_DIRECTORY if removable else ISSUE_LEFTOVER_REMOVABLE
+        ir.async_delete_issue(hass, const.DOMAIN, stale)
         ir.async_create_issue(
             hass,
             const.DOMAIN,
-            ISSUE_LEFTOVER_DIRECTORY,
-            is_fixable=False,
+            ISSUE_LEFTOVER_REMOVABLE if removable else ISSUE_LEFTOVER_DIRECTORY,
+            is_fixable=removable,
             severity=ir.IssueSeverity.WARNING,
-            translation_key=ISSUE_LEFTOVER_DIRECTORY,
+            translation_key=(
+                ISSUE_LEFTOVER_REMOVABLE if removable else ISSUE_LEFTOVER_DIRECTORY
+            ),
             translation_placeholders={"path": str(directory)},
             learn_more_url=const.MIGRATION_GUIDE_URL,
         )
     else:
+        ir.async_delete_issue(hass, const.DOMAIN, ISSUE_LEFTOVER_REMOVABLE)
         # A DIFFERENT project owns that directory. Running both side by side is
         # the supported outcome of this rename, so this is information, not a
         # problem — but it explains why the old card type keeps working there.
@@ -272,10 +291,101 @@ def _render_examples(mapping: dict, limit: int = 5) -> str:
     return "\n".join(lines)
 
 
+class LeftoverInstallRepairFlow(RepairsFlow):
+    """Remove the pre-#120 install: its config entry first, then its directory.
+
+    The order is the whole design. Home Assistant can only run an integration's
+    own ``async_remove_entry`` while it can still import it, and that teardown
+    is what releases the panel, the Lovelace resource and the storage file.
+    Deleting the directory first turns the entry into something Home Assistant
+    cannot clean up -- an orphaned entry beside an orphaned store, which is the
+    state that made v2026.09.07's failed setups unrecoverable.
+
+    Offered only when ``cleanup_is_safe``: the install is ours AND our own
+    store holds zones. Removing that entry deletes
+    ``.storage/smart_irrigation.storage``, so after a migration that imported
+    nothing this flow would delete the user's last good copy.
+    """
+
+    def __init__(self) -> None:
+        self._entry_removed = False
+        self._directory_deleted = False
+
+    async def async_step_init(self, user_input=None) -> FlowResult:
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(self, user_input=None) -> FlowResult:
+        if user_input is not None:
+            # Re-check rather than trust the issue: it was raised at setup, and
+            # the store could have been emptied since.
+            if not await async_cleanup_is_safe(self.hass):
+                _LOGGER.warning(
+                    "Refusing to remove the previous install: the migration no "
+                    "longer looks complete"
+                )
+                return await self.async_step_unsafe()
+
+            self._entry_removed = await async_remove_legacy_entry(self.hass)
+            self._directory_deleted = await async_delete_legacy_directory(self.hass)
+            if self._directory_deleted:
+                return await self.async_step_done()
+            return await self.async_step_partial()
+
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "path": str(legacy_directory(self.hass)),
+                "name": const.LEGACY_NAME,
+            },
+        )
+
+    async def async_step_done(self, user_input=None) -> FlowResult:
+        """Both halves went through. Ask for the restart that completes it."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="done",
+            data_schema=vol.Schema({}),
+            description_placeholders={"path": str(legacy_directory(self.hass))},
+        )
+
+    async def async_step_partial(self, user_input=None) -> FlowResult:
+        """The directory survived -- almost always a file-permission problem.
+
+        A separate step rather than a yes/no placeholder in the success text:
+        "Folder deleted: no" cannot be translated, and a flow that closes on a
+        success message it did not earn is how a user ends up with two of every
+        entity and no idea why.
+        """
+        if user_input is not None:
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="partial",
+            data_schema=vol.Schema({}),
+            description_placeholders={"path": str(legacy_directory(self.hass))},
+        )
+
+    async def async_step_unsafe(self, user_input=None) -> FlowResult:
+        """Refuse, and say why, rather than closing as though it had worked."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="unsafe",
+            data_schema=vol.Schema({}),
+            description_placeholders={"path": str(legacy_directory(self.hass))},
+        )
+
+
 async def async_create_fix_flow(hass, issue_id, data):
     """Return the repair flow for a fixable issue."""
     if issue_id == ISSUE_LEGACY_CARDS:
         return LegacyCardsRepairFlow()
     if issue_id == ISSUE_RENAMED_ENTITY_IDS:
         return RenamedEntityIdsRepairFlow()
+    if issue_id == ISSUE_LEFTOVER_REMOVABLE:
+        return LeftoverInstallRepairFlow()
     return None

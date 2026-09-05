@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "Odstrániť starú inštaláciu Smart Irrigation?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Odstrániť starú inštaláciu",
+            "description": "Tvoja konfigurácia bola prenesená; to, čo zostalo v `{path}`, je inštalácia, z ktorej pochádza. Home Assistant ju stále načítava ako druhú integráciu, preto vidíš každý senzor dvakrát.\n\nOdstránia sa obe, v tomto poradí:\n\n1. Integrácia **{name}** spolu s uloženou konfiguráciou. Kópia vytvorená pri migrácii zostáva v `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. Priečinok `{path}`.\n\nNa poradí záleží: ak sa najprv odstráni integrácia, Home Assistant ju dokáže korektne ukončiť.\n\nOdtiaľto sa to nedá vrátiť späť. Ak si nie si istý, či je migrácia úplná, zavri toto okno a najprv skontroluj zóny a históriu."
+          },
+          "done": {
+            "title": "Odstránené",
+            "description": "Stará integrácia aj priečinok `{path}` boli odstránené.\n\n**Reštartuj Home Assistant**, aby sa to dokončilo. Duplicitné entity zmiznú s týmto reštartom."
+          },
+          "partial": {
+            "title": "Priečinok tam stále je",
+            "description": "Stará integrácia bola odstránená, ale priečinok `{path}` sa nepodarilo zmazať — takmer vždy ide o problém s oprávneniami. Dôvod je v logu.\n\nZmaž ho ručne a reštartuj Home Assistant. Dovtedy ho Home Assistant načítava ďalej."
+          },
+          "unsafe": {
+            "title": "Nič sa neodstránilo",
+            "description": "Operácia sa nevykonala, pretože migrácia už nevyzerá úplne: táto integrácia momentálne nemá žiadne zóny.\n\nOdstránenie starej integrácie by zmazalo konfiguráciu v `.storage/smart_irrigation.storage`, ktorá je v tomto stave tvoja jediná úplná kópia. Nič sa nezmenilo. Namiesto ručného mazania `{path}` prosím založ issue."
+          }
+        }
+      }
     }
   }
 }

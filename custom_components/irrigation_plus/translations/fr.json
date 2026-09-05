@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "Supprimer l'ancienne installation Smart Irrigation ?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Supprimer l'ancienne installation",
+            "description": "Votre configuration a été reprise ; ce qui reste dans `{path}` est l'installation dont elle provient. Home Assistant la charge toujours comme une seconde intégration, d'où les capteurs en double.\n\nLes deux seront supprimés, dans cet ordre :\n\n1. L'intégration **{name}** et sa configuration enregistrée. La copie prise lors de la migration reste dans `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. Le dossier `{path}`.\n\nCet ordre compte : supprimer l'intégration d'abord permet à Home Assistant de l'arrêter proprement.\n\nCette action est irréversible ici. Si vous n'êtes pas certain que la migration soit complète, fermez cette fenêtre et vérifiez d'abord vos zones et votre historique."
+          },
+          "done": {
+            "title": "Supprimée",
+            "description": "L'ancienne intégration et le dossier `{path}` ont été supprimés.\n\n**Redémarrez Home Assistant** pour terminer. Les entités en double disparaîtront à ce redémarrage."
+          },
+          "partial": {
+            "title": "Le dossier est toujours là",
+            "description": "L'ancienne intégration a été supprimée, mais le dossier `{path}` n'a pas pu être effacé — presque toujours un problème de permissions. La raison figure dans le journal.\n\nSupprimez ce dossier vous-même puis redémarrez Home Assistant. D'ici là, Home Assistant continue de le charger."
+          },
+          "unsafe": {
+            "title": "Rien n'a été supprimé",
+            "description": "L'opération n'a pas été effectuée : la migration ne semble plus complète, cette intégration n'a actuellement aucune zone.\n\nSupprimer l'ancienne intégration effacerait la configuration de `.storage/smart_irrigation.storage`, qui est dans cet état votre seule copie complète. Rien n'a été modifié. Ouvrez plutôt une issue au lieu de supprimer `{path}` à la main."
+          }
+        }
+      }
     }
   }
 }

@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "¿Eliminar la instalación antigua de Smart Irrigation?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Eliminar la instalación antigua",
+            "description": "Tu configuración se ha trasladado; lo que queda en `{path}` es la instalación de la que procede. Home Assistant la sigue cargando como una segunda integración, por eso ves cada sensor duplicado.\n\nSe eliminarán ambas, en este orden:\n\n1. La integración **{name}** junto con su configuración guardada. La copia tomada durante la migración permanece en `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. La carpeta `{path}`.\n\nEl orden importa: eliminar primero la integración permite que Home Assistant la cierre correctamente.\n\nEsto no se puede deshacer desde aquí. Si aún no estás seguro de que la migración esté completa, cierra esto y revisa antes tus zonas y tu historial."
+          },
+          "done": {
+            "title": "Eliminada",
+            "description": "La integración antigua y la carpeta `{path}` se han eliminado.\n\n**Reinicia Home Assistant** para terminar. Las entidades duplicadas desaparecen con ese reinicio."
+          },
+          "partial": {
+            "title": "La carpeta sigue ahí",
+            "description": "La integración antigua se eliminó, pero no se pudo borrar la carpeta `{path}` — casi siempre un problema de permisos. El motivo está en el registro.\n\nBórrala tú mismo y reinicia Home Assistant. Hasta entonces, Home Assistant la sigue cargando."
+          },
+          "unsafe": {
+            "title": "No se ha eliminado nada",
+            "description": "No se ha realizado, porque la migración ya no parece completa: esta integración no tiene zonas en este momento.\n\nEliminar la integración antigua borraría la configuración de `.storage/smart_irrigation.storage`, que en ese estado es tu única copia completa. No se ha cambiado nada. Abre una incidencia en lugar de borrar `{path}` a mano."
+          }
+        }
+      }
     }
   }
 }

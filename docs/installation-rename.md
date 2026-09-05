@@ -60,12 +60,24 @@ least once — that release copied it into the storage file for exactly this cas
    there. Compare it against the old one before going any further. (If the
    sidebar panel or the card looks stale, hard-reload the browser with
    Ctrl-Shift-R — that is a cached frontend, not a failed import.)
-6. Only now, remove the old integration: **Settings → Devices & Services →
-   Smart Irrigation → ⋮ → Delete**.
-7. Delete the leftover `custom_components/smart_irrigation/` folder and restart.
-   HACS does not remove it when an integration changes folder, and Home
-   Assistant will otherwise load it as a second integration — you would see two
-   of every sensor. A repair notice will point this out if it applies to you.
+6. **Let the repair finish the job.** Once your zones are across, a repair
+   appears under **Settings → System → Repairs** offering to remove the old
+   installation for you. It removes the Smart Irrigation integration entry
+   first, then deletes the leftover `custom_components/smart_irrigation/`
+   folder — in that order, because Home Assistant can only shut the old
+   integration down properly while its files are still present. Restart
+   afterwards.
+
+   The repair is only offered when the migration demonstrably worked (your
+   zones are here) and the folder belongs to this project rather than to the
+   upstream one. Otherwise you get an informational notice instead, and the
+   manual route below.
+7. **Or do it by hand**, if you would rather: remove the integration at
+   **Settings → Devices & Services → Smart Irrigation → ⋮ → Delete**, then
+   delete `custom_components/smart_irrigation/` and restart. HACS does not
+   remove that folder when an integration changes folder, and Home Assistant
+   will otherwise load it as a second integration — you would see two of every
+   sensor.
 
 ## What is carried across automatically
 

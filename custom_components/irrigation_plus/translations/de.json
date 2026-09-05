@@ -358,6 +358,29 @@
           }
         }
       }
+    },
+    "leftover_legacy_directory_removable": {
+      "title": "Alte Smart-Irrigation-Installation entfernen?",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Alte Installation entfernen",
+            "description": "Deine Konfiguration wurde übernommen; was unter `{path}` liegt, ist die Installation, aus der sie stammt. Home Assistant lädt sie weiterhin als zweite Integration — daher siehst du jeden Sensor doppelt.\n\nBeides wird entfernt, in dieser Reihenfolge:\n\n1. Der Integrationseintrag **{name}** samt gespeicherter Konfiguration. Die bei der Migration angelegte Kopie bleibt unter `.storage/smart_irrigation.storage.pre-irrigation_plus.bak` erhalten.\n2. Der Ordner `{path}`.\n\nDie Reihenfolge ist wichtig: Wird der Eintrag zuerst entfernt, kann Home Assistant die alte Integration sauber herunterfahren.\n\nDas lässt sich hier nicht rückgängig machen. Wenn du dir noch nicht sicher bist, ob die Migration vollständig ist, schließe das hier und prüfe zuerst Zonen und Verlauf."
+          },
+          "done": {
+            "title": "Entfernt",
+            "description": "Die alte Integration und der Ordner `{path}` sind entfernt.\n\n**Starte Home Assistant neu**, um den Vorgang abzuschließen. Mit dem Neustart verschwinden auch die doppelten Entitäten."
+          },
+          "partial": {
+            "title": "Der Ordner ist noch vorhanden",
+            "description": "Der alte Integrationseintrag wurde entfernt, der Ordner `{path}` konnte jedoch nicht gelöscht werden — fast immer ein Rechteproblem. Die Ursache steht im Log.\n\nLösche den Ordner bitte selbst und starte Home Assistant neu. Bis dahin lädt Home Assistant ihn weiter."
+          },
+          "unsafe": {
+            "title": "Es wird nichts entfernt",
+            "description": "Der Vorgang wurde nicht ausgeführt, weil die Migration nicht mehr vollständig aussieht: Diese Integration hat derzeit keine Zonen.\n\nDie alte Integration zu entfernen würde die Konfiguration unter `.storage/smart_irrigation.storage` löschen — in diesem Zustand deine einzige vollständige Kopie. Es wurde nichts verändert. Bitte erstelle ein Issue, statt `{path}` von Hand zu löschen."
+          }
+        }
+      }
     }
   }
 }
