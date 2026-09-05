@@ -328,5 +328,11 @@
         "name": "Pausar hasta"
       }
     }
+  },
+  "issues": {
+    "renamed_to_irrigation_plus": {
+      "title": "Smart Irrigation pasa a llamarse {new_name}",
+      "description": "Esta integración cambia de nombre a **{new_name}** y se traslada al dominio `{new_domain}`. Esta es la última versión con el nombre antiguo.\n\nEl motivo es un conflicto: este proyecto y el original del que deriva usan ambos `smart_irrigation`, se instalan en la misma carpeta y generan los mismos IDs de entidad, así que solo uno de los dos podía funcionar en un mismo sistema.\n\nTus zonas, programaciones, historial, estadísticas y clave API meteorológica se trasladan automáticamente, **pero el orden importa**: añade {new_name} *antes* de eliminar esta integración. Si eliminas esta primero, se borran sus datos guardados.\n\nHoy no tienes que hacer nada. Lee la guía antes de actualizar."
+    }
   }
 }

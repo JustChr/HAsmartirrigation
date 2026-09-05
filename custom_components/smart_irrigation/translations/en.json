@@ -328,5 +328,11 @@
         "name": "Pause until"
       }
     }
+  },
+  "issues": {
+    "renamed_to_irrigation_plus": {
+      "title": "Smart Irrigation is becoming {new_name}",
+      "description": "This integration is being renamed to **{new_name}** and will move to the `{new_domain}` domain. This is the last release under the old name.\n\nThe reason is a collision: this project and the upstream one it was forked from both used `smart_irrigation`, install into the same folder and produce the same entity IDs, so only one of them could ever work on a given system.\n\nYour zones, schedules, history, statistics and weather API key are carried across automatically — **but the order matters**: add {new_name} *before* you remove this integration. Removing this one first deletes its stored data.\n\nNothing is required of you today. Read the guide before you update."
+    }
   }
 }

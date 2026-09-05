@@ -328,5 +328,11 @@
         "name": "Pauzeren tot"
       }
     }
+  },
+  "issues": {
+    "renamed_to_irrigation_plus": {
+      "title": "Smart Irrigation wordt {new_name}",
+      "description": "Deze integratie wordt hernoemd naar **{new_name}** en verhuist naar het domein `{new_domain}`. Dit is de laatste versie onder de oude naam.\n\nDe reden is een botsing: dit project en het project waarvan het is afgeleid gebruiken allebei `smart_irrigation`, installeren in dezelfde map en maken dezelfde entiteits-ID’s — er kon dus altijd maar één van de twee werken.\n\nJe zones, schema’s, geschiedenis, statistieken en weer-API-sleutel gaan automatisch mee, **maar de volgorde is belangrijk**: voeg {new_name} toe *voordat* je deze integratie verwijdert. Verwijder je deze eerst, dan worden de opgeslagen gegevens gewist.\n\nJe hoeft vandaag niets te doen. Lees de handleiding voordat je bijwerkt."
+    }
   }
 }

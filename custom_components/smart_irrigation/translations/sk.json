@@ -328,5 +328,11 @@
         "name": "Pozastaviť do"
       }
     }
+  },
+  "issues": {
+    "renamed_to_irrigation_plus": {
+      "title": "Zo Smart Irrigation sa stáva {new_name}",
+      "description": "Táto integrácia sa premenováva na **{new_name}** a presúvame ju do domény `{new_domain}`. Toto je posledná verzia pod starým názvom.\n\nDôvodom je kolízia: tento projekt aj projekt, z ktorého vznikol, používajú `smart_irrigation`, inštalujú sa do rovnakého priečinka a vytvárajú rovnaké ID entít — na jednom systéme teda mohol fungovať vždy len jeden z nich.\n\nZóny, harmonogramy, história, štatistiky aj API kľúč k počasiu sa prenesú automaticky, **ale záleží na poradí**: {new_name} pridaj *skôr*, než odstrániš túto integráciu. Ak najprv odstrániš túto, jej uložené údaje sa zmažú.\n\nDnes nemusíš robiť nič. Pred aktualizáciou si prečítaj návod."
+    }
   }
 }

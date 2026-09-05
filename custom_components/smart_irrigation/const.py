@@ -262,6 +262,15 @@ CONF_WEATHER_SERVICE = "weather_service"
 CONF_WEATHER_SERVICE_API_KEY = (
     "weather_service_api_key"  # legacy single-key slot (kept for migration)
 )
+# --- #120: this integration is becoming Irrigation Plus -------------------
+# The domain this project moves to. Named here rather than derived, because it
+# is a fact about a DIFFERENT integration from this one's point of view -- the
+# announcement and the migration guide both have to name it, and nothing in this
+# release should ever try to compute it.
+NEW_DOMAIN = "irrigation_plus"
+NEW_NAME = "Irrigation Plus"
+MIGRATION_GUIDE_URL = "https://justchr.github.io/HAsmartirrigation/installation-rename"
+
 CONF_OWM_API_KEY = "owm_api_key"
 CONF_PW_API_KEY = "pw_api_key"
 CONF_MET_API_KEY = "met_api_key"

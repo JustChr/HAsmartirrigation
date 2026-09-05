@@ -328,5 +328,11 @@
         "name": "Pausieren bis"
       }
     }
+  },
+  "issues": {
+    "renamed_to_irrigation_plus": {
+      "title": "Aus Smart Irrigation wird {new_name}",
+      "description": "Diese Integration wird in **{new_name}** umbenannt und wechselt auf die Domain `{new_domain}`. Dies ist die letzte Version unter dem alten Namen.\n\nDer Grund ist eine Kollision: dieses Projekt und das ursprüngliche, aus dem es geforkt wurde, verwenden beide `smart_irrigation`, installieren in denselben Ordner und erzeugen dieselben Entitäts-IDs — es konnte also immer nur eines von beiden funktionieren.\n\nZonen, Zeitpläne, Verlauf, Statistiken und der Wetter-API-Schlüssel werden automatisch übernommen — **aber die Reihenfolge zählt**: installiere {new_name}, *bevor* du diese Integration entfernst. Entfernst du diese zuerst, werden ihre gespeicherten Daten gelöscht.\n\nHeute musst du nichts tun. Lies die Anleitung, bevor du aktualisierst."
+    }
   }
 }

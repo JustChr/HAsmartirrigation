@@ -71,6 +71,7 @@ from .master import MasterMixin
 from .observed_watering import ObservedWateringMixin
 from .opensprinkler import OpenSprinklerMixin
 from .panel import async_register_panel, async_remove_card_resource, remove_panel
+from .rename_notice import async_announce_rename, async_stash_api_keys
 from .run_chain import RunChainMixin
 from .run_state import RunStateMixin
 from .run_watch import RunWatchMixin
@@ -309,6 +310,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # SmartIrrigationZoneChildSensor.async_added_to_hass, which by then sees the
     # same loaded schedules.
     async_dispatcher_send(hass, const.DOMAIN + "_schedules_updated")
+
+    # #120: this is the last release on the smart_irrigation domain. Tell the
+    # user through Repairs, since release notes only reach people who read them,
+    # and stage the weather API key into the storage file so the migration works
+    # whichever order they do it in. Both are best-effort by design -- neither is
+    # worth failing setup over. Last in setup deliberately: the announcement is
+    # not a reason for anything above it not to run.
+    await async_stash_api_keys(hass, entry, store)
+    await async_announce_rename(hass)
 
     return True
 

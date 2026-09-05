@@ -25,12 +25,28 @@ _SECRET_DATA_KEYS = (
     const.CONF_MET_API_KEY,
 )
 
-# Store-config fields that carry the user's real home location. The maintainer
-# treats real coordinates as private, so they must never appear in a shared dump.
+# Store-config fields that must never appear in a shared dump.
+#
+# The coordinates are here because the maintainer treats a real home location as
+# private. The API keys are here because of #120: `rename_notice` copies the four
+# weather key slots OUT of the config entry and INTO the storage file, so that
+# the move to Irrigation Plus stops depending on whether the user removes this
+# integration before or after adding that one. This function dumps that store,
+# and the issue template REQUIRES a diagnostics file on a public bug report.
+#
+# _SECRET_DATA_KEYS above redacts hass.data, which is a DIFFERENT dict. Adding a
+# key there does not cover the store; this was checked rather than assumed.
 _SECRET_CONFIG_KEYS = (
     "manual_latitude",
     "manual_longitude",
     "manual_elevation",
+    const.CONF_WEATHER_SERVICE_API_KEY,
+    const.CONF_OWM_API_KEY,
+    const.CONF_PW_API_KEY,
+    const.CONF_MET_API_KEY,
+    # The pre-v2026.05.14 spelling, still migrated by resolve_weather_config and
+    # therefore still able to reach a store written by a very old install.
+    "owm_api_key",
 )
 
 

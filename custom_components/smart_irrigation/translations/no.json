@@ -328,5 +328,11 @@
         "name": "Pause til"
       }
     }
+  },
+  "issues": {
+    "renamed_to_irrigation_plus": {
+      "title": "Smart Irrigation blir {new_name}",
+      "description": "Denne integrasjonen bytter navn til **{new_name}** og flytter til domenet `{new_domain}`. Dette er den siste versjonen under det gamle navnet.\n\nÅrsaken er en kollisjon: dette prosjektet og prosjektet det ble forket fra bruker begge `smart_irrigation`, installeres i samme mappe og lager de samme enhets-ID-ene — bare ett av dem kunne fungere på samme system.\n\nSoner, tidsplaner, historikk, statistikk og vær-API-nøkkelen følger med automatisk, **men rekkefølgen betyr noe**: legg til {new_name} *før* du fjerner denne integrasjonen. Fjerner du denne først, slettes de lagrede dataene.\n\nDu trenger ikke gjøre noe i dag. Les veiledningen før du oppdaterer."
+    }
   }
 }
