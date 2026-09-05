@@ -241,6 +241,88 @@ def drained_over_window(
     return surplus - w_end
 
 
+class DrainSegment(NamedTuple):
+    """One stretch of a lumped window over which nothing but drainage happens.
+
+    ``level_out`` is the level once ``drained`` has left it, and ``credit_mm`` is
+    the irrigation that lands at that instant. The clamp runs after the credit,
+    so ``level_out + credit_mm`` is not always the next segment's ``level_in``;
+    the difference is runoff.
+    """
+
+    hours: float
+    level_in: float
+    drained: float
+    level_out: float
+    credit_mm: float
+
+
+def lumped_water_balance(
+    bucket: float,
+    delta: float,
+    applied,
+    elapsed_hours: float,
+    drainage_rate: float,
+    maximum_bucket: float | None,
+    drain_maximum: float | None = None,
+) -> tuple[float, float, float, list[DrainSegment]]:
+    """The single-shot water balance, with drainage cut at the credit times.
+
+    ``applied`` is ``[(hours_after_window_start, mm)]`` for irrigation already
+    added to the stored ``bucket`` part-way through the window. Integrating
+    drainage from the window start charges such a credit the whole window even
+    though it was not there for most of it, and because drainage stops acting
+    once the zone is back in deficit that error never washes out. Splitting the
+    integral at the credit times places each one on the timeline it actually
+    arrived on.
+
+    Everything else is unchanged from the single-shot form: the window's whole ET
+    and rain are still netted at the window start, so a standing surplus is still
+    drained from a lower level than it ever sat at. Placing ET on a timeline is
+    the replayed balance (see ``replay_water_balance``), not this.
+
+    With no credits this is one segment over the whole window and one call to
+    ``drained_over_window`` on the clamped start level, which is the arithmetic
+    it replaces, digit for digit.
+
+    Returns ``(bucket, drainage_total, runoff_total, segments)``. The first three
+    conserve water against the inputs: ``bucket + delta - drainage - runoff``.
+    """
+    window = max(0.0, float(elapsed_hours))
+    booked = sorted(
+        (min(max(float(at), 0.0), window), float(mm))
+        for at, mm in (applied or [])
+        if mm
+    )
+
+    # The stored bucket already holds every credit, so the window opens from the
+    # level before them and each one goes back in where it belongs.
+    value = float(bucket) - sum(mm for _, mm in booked) + float(delta)
+    runoff_total = 0.0
+    if maximum_bucket is not None and value > maximum_bucket:
+        runoff_total += value - float(maximum_bucket)
+        value = float(maximum_bucket)
+
+    drainage_total = 0.0
+    segments: list[DrainSegment] = []
+    previous = 0.0
+    # The sentinel closes the last segment at the window end and carries no
+    # credit, so the final segment always has ``credit_mm`` 0.
+    for at, mm in [*booked, (window, 0.0)]:
+        hours = at - previous
+        previous = at
+        drained = drained_over_window(value, drainage_rate, hours, drain_maximum)
+        level_in = value
+        value -= drained
+        drainage_total += drained
+        segments.append(DrainSegment(hours, level_in, drained, value, mm))
+        value += mm
+        if maximum_bucket is not None and value > maximum_bucket:
+            runoff_total += value - float(maximum_bucket)
+            value = float(maximum_bucket)
+    return value, drainage_total, runoff_total, segments
+
+
 def replay_water_balance(
     bucket: float,
     et_total: float,
