@@ -63,6 +63,7 @@ from .day_projection import (
     diurnal_remainder,
     forecast_remainder,
 )
+from .duration_math import zone_run_duration
 from .et_estimate import (
     SiteGeometry,
     estimate_daily_et0_hargreaves,
@@ -740,6 +741,7 @@ class LiveEstimateMixin:
             "precip_since": None,
             "drainage_since": None,
             "live_deficit": None,
+            "live_duration": None,
             "as_of": None,
             # Which form of the balance produced the number above. Published
             # because nothing else makes the difference visible from outside the
@@ -1011,15 +1013,17 @@ class LiveEstimateMixin:
             # Nothing renders these — the panel chip formats live_deficit alone
             # — so the extra digits cost only bytes.
             trace_digits = ndigits + 2
+            # The sensor's own state, which IS displayed. Kept at display
+            # precision so the entity does not show five decimals.
+            live_display = round(from_mm(live_mm), ndigits)
             result.update(
                 available=True,
                 method=method,
                 et_since=round(from_mm(et_mm), trace_digits),
                 precip_since=round(from_mm(precip_mm), trace_digits),
                 drainage_since=round(from_mm(drained_mm), trace_digits),
-                # The sensor's own state, which IS displayed. Kept at display
-                # precision so the entity does not show five decimals.
-                live_deficit=round(from_mm(live_mm), ndigits),
+                live_deficit=live_display,
+                live_duration=self._live_run_duration(zone, live_display, metric),
                 as_of=as_of,
                 balance_form="replayed" if steps is not None else "lumped",
                 forecast_tier=forecast_tier,
@@ -1027,6 +1031,28 @@ class LiveEstimateMixin:
         except Exception as e:  # noqa: BLE001 — estimate must never raise
             _LOGGER.debug("intraday estimate failed for a zone: %s", e)
         return result
+
+    @staticmethod
+    def _live_run_duration(zone, deficit, metric):
+        """Seconds a live-estimate run would water this zone for, or ``None``.
+
+        Published so the panel can show the duration the run will actually use
+        rather than the last commit's frozen one. It is the *same packing of
+        the same number* the runner's ``_zone_run_decision`` sizes with —
+        :func:`zone_run_duration` on the published (rounded) deficit — so the
+        screen and the run cannot state different durations for one run; a
+        second formula on the frontend is exactly how they would drift apart.
+
+        ``None`` where the runner does not size the zone from the live deficit:
+        flow-metered zones deliver to a measured volume and deliberately keep
+        the daily gate, so the panel has to fall back to the committed figures
+        for them the way the runner does. Independent of
+        ``live_estimate_enabled``: with the feature off the runner ignores this
+        number entirely, and so does the panel.
+        """
+        if zone.get(const.ZONE_FLOW_SENSOR):
+            return None
+        return zone_run_duration(zone, deficit, metric)
 
     async def async_get_zone_estimates(self) -> dict:
         """Return ``{zone_id: estimate}`` for every zone with an available value."""

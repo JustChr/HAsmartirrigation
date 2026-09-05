@@ -197,6 +197,41 @@ async def test_apply_live_durations_leaves_flow_zones_untouched():
     assert coord._live_run_zones == set()
 
 
+# --------------------------------------------------------------------------- #
+# _live_run_duration — the figure published to the panel's decision line
+# --------------------------------------------------------------------------- #
+def test_live_run_duration_matches_the_run_the_runner_would_start():
+    """The published duration is the one the runner sizes the run to.
+
+    The panel's decision line reads this instead of the committed duration, so
+    the two disagreeing is the whole defect it exists to prevent.
+    """
+    coord = _live_coordinator()
+    zone = _timed_zone()
+    assert coord._live_run_duration(zone, -8.0, True) == 480
+
+
+def test_live_run_duration_none_for_flow_zones():
+    """Flow zones keep the daily gate in the runner, so no live figure is
+    offered for them and the panel falls back to the committed one."""
+    coord = _live_coordinator()
+    zone = _timed_zone(**{const.ZONE_FLOW_SENSOR: "sensor.flow"})
+    assert coord._live_run_duration(zone, -8.0, True) is None
+
+
+def test_live_run_duration_zero_when_the_deficit_is_covered():
+    coord = _live_coordinator()
+    assert coord._live_run_duration(_timed_zone(), 2.0, True) == 0
+
+
+async def test_live_run_duration_is_what_apply_live_durations_uses():
+    """No-drift guard between the published figure and the started run."""
+    coord = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
+    zone = _timed_zone()
+    out = await coord._apply_live_durations([zone])
+    assert out[0][const.ZONE_DURATION] == coord._live_run_duration(zone, -8.0, True)
+
+
 async def test_live_gate_triggers_when_daily_bucket_satisfied():
     """The key new behaviour: a zone the daily calc would NOT water (bucket 0,
     duration 0) still waters when the live intra-day deficit crosses zero."""
