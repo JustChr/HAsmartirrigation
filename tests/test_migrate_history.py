@@ -323,3 +323,38 @@ class TestIdentifierPairs:
     def test_a_list_identifier_is_accepted(self):
         """Restored from storage, identifiers come back as lists, not tuples."""
         assert list(identifier_pairs(self._dev([[D, "x_zone_1"]]))) == [(D, "x_zone_1")]
+
+
+class TestRecorderIsDeclared:
+    """The manifest is what makes the history migration reachable at all.
+
+    `async_migrate_history` skips itself with reason "no_recorder" when
+    `recorder` is not in `hass.config.components` yet. Home Assistant does not
+    guarantee setup order without a declaration, so a missing
+    `after_dependencies` turns "your history and statistics come across" into a
+    coin flip -- and it fails SILENTLY, with the user's graphs simply starting
+    from scratch. hassfest catches it too (`[DEPENDENCIES] Using component
+    recorder but it's not in 'dependencies' or 'after_dependencies'`), but that
+    workflow was disabled on this fork for its whole life, so pin it here.
+
+    `after_dependencies`, not `dependencies`: the integration must still work
+    for someone who has turned the recorder off, which is why the guard exists.
+    """
+
+    def _manifest(self):
+        import json
+        import pathlib
+
+        path = (
+            pathlib.Path(__file__).parent.parent
+            / "custom_components"
+            / const.DOMAIN
+            / "manifest.json"
+        )
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_recorder_is_an_after_dependency(self):
+        assert "recorder" in self._manifest().get("after_dependencies", [])
+
+    def test_recorder_is_not_a_hard_dependency(self):
+        assert "recorder" not in self._manifest().get("dependencies", [])
