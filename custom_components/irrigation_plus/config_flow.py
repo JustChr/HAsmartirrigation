@@ -7,7 +7,7 @@ from homeassistant.helpers.selector import selector
 
 from . import const
 from .helpers import CannotConnect, InvalidAuth, validate_api_key
-from .migrate_domain import legacy_config_seed, legacy_install_present
+from .migrate_domain import async_legacy_config_seed, legacy_install_present
 from .options_flow import SmartIrrigationOptionsFlowHandler
 
 
@@ -70,7 +70,7 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
                 # storage file stays on disk, untouched and unused.
                 return await self._show_step_user(None)
 
-            seed = legacy_config_seed(self.hass)
+            seed = await async_legacy_config_seed(self.hass)
             seed[const.CONF_MIGRATED_FROM_LEGACY] = True
             seed.setdefault(const.CONF_INSTANCE_NAME, const.NAME)
             seed.setdefault(const.CONF_USE_WEATHER_SERVICE, False)

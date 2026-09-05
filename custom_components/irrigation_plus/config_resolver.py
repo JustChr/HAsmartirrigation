@@ -14,6 +14,51 @@ larger step.
 
 from . import const
 
+# The per-service key slots, in the order the panel writes them. Named once so
+# the ``data`` and ``options`` passes cannot drift apart — they did: only
+# ``options`` read these, which meant a #120 migration seeded them into a new
+# entry's ``data`` and this function then dropped them on the floor.
+_PER_SERVICE_KEY_SLOTS = (
+    const.CONF_OWM_API_KEY,
+    const.CONF_PW_API_KEY,
+    const.CONF_MET_API_KEY,
+)
+
+_SERVICE_KEY_SLOT = {
+    const.CONF_WEATHER_SERVICE_OWM: const.CONF_OWM_API_KEY,
+    const.CONF_WEATHER_SERVICE_PW: const.CONF_PW_API_KEY,
+    const.CONF_WEATHER_SERVICE_MET: const.CONF_MET_API_KEY,
+}
+
+
+def _apply_api_keys(result: dict, source: dict, existing: dict) -> None:
+    """Fold every API key slot present in ``source`` into ``result``, in place.
+
+    Applied to ``entry.data`` and then to ``entry.options``, so the later call
+    overrides the earlier one and "options always win" still holds.
+
+    Promoting the legacy single-key slot into the per-service slot is part of
+    this, not a separate step: ``result[const.CONF_WEATHER_SERVICE]`` is already
+    resolved for whichever pass is running, so the promotion follows the service
+    that pass selected. ``existing`` is consulted so a key already live in
+    hass.data (a reload keeps it) is not overwritten by an older legacy value.
+    """
+    for slot in _PER_SERVICE_KEY_SLOTS:
+        if slot in source:
+            stored = source.get(slot)
+            result[slot] = stored.strip() if stored else None
+
+    if const.CONF_WEATHER_SERVICE_API_KEY not in source:
+        return
+    legacy_key = source.get(const.CONF_WEATHER_SERVICE_API_KEY)
+    if not legacy_key:
+        return
+    legacy_key = legacy_key.strip()
+    result[const.CONF_WEATHER_SERVICE_API_KEY] = legacy_key
+    slot = _SERVICE_KEY_SLOT.get(result.get(const.CONF_WEATHER_SERVICE))
+    if slot and not (result.get(slot) or existing.get(slot)):
+        result[slot] = legacy_key
+
 
 def resolve_weather_config(
     store_config: dict, entry, existing: dict | None = None
@@ -56,10 +101,12 @@ def resolve_weather_config(
                 result[const.CONF_WEATHER_SERVICE] = data.get(
                     const.CONF_WEATHER_SERVICE
                 )
-            if const.CONF_WEATHER_SERVICE_API_KEY in data:
-                result[const.CONF_WEATHER_SERVICE_API_KEY] = data.get(
-                    const.CONF_WEATHER_SERVICE_API_KEY
-                ).strip()
+            # Reads the per-service slots too. A #120 migration seeds the old
+            # entry's merged weather settings into the NEW entry's `data`, and
+            # the panel only ever wrote the key to a per-service slot — so
+            # without this the migrated user's key is silently dropped and
+            # weather starts disabled.
+            _apply_api_keys(result, data, existing)
             result[const.CONF_WEATHER_SERVICE_API_VERSION] = data.get(
                 const.CONF_WEATHER_SERVICE_API_VERSION
             )
@@ -78,37 +125,8 @@ def resolve_weather_config(
                 result[const.CONF_WEATHER_SERVICE] = options.get(
                     const.CONF_WEATHER_SERVICE
                 )
-            # per-service API keys
-            for key_const in (
-                const.CONF_OWM_API_KEY,
-                const.CONF_PW_API_KEY,
-                const.CONF_MET_API_KEY,
-            ):
-                if key_const in options:
-                    stored = options.get(key_const)
-                    result[key_const] = stored.strip() if stored else None
-            # promote a legacy single-slot key to the per-service slot
-            if const.CONF_WEATHER_SERVICE_API_KEY in options:
-                legacy_key = options.get(const.CONF_WEATHER_SERVICE_API_KEY)
-                if legacy_key:
-                    legacy_key = legacy_key.strip()
-                    result[const.CONF_WEATHER_SERVICE_API_KEY] = legacy_key
-                    svc = result.get(const.CONF_WEATHER_SERVICE)
-                    if svc == const.CONF_WEATHER_SERVICE_OWM and not (
-                        result.get(const.CONF_OWM_API_KEY)
-                        or existing.get(const.CONF_OWM_API_KEY)
-                    ):
-                        result[const.CONF_OWM_API_KEY] = legacy_key
-                    elif svc == const.CONF_WEATHER_SERVICE_PW and not (
-                        result.get(const.CONF_PW_API_KEY)
-                        or existing.get(const.CONF_PW_API_KEY)
-                    ):
-                        result[const.CONF_PW_API_KEY] = legacy_key
-                    elif svc == const.CONF_WEATHER_SERVICE_MET and not (
-                        result.get(const.CONF_MET_API_KEY)
-                        or existing.get(const.CONF_MET_API_KEY)
-                    ):
-                        result[const.CONF_MET_API_KEY] = legacy_key
+            # per-service API keys, plus promotion of the legacy single slot
+            _apply_api_keys(result, options, existing)
             if const.CONF_WEATHER_SERVICE_API_VERSION in options:
                 result[const.CONF_WEATHER_SERVICE_API_VERSION] = options.get(
                     const.CONF_WEATHER_SERVICE_API_VERSION

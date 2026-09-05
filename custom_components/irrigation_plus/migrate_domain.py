@@ -9,9 +9,10 @@ This module exists to make that cost as close to invisible as we can:
 
 * ``async_import_legacy_store`` copies the old storage file to the new key, so
   zones, buckets, schedules, run logs and flow-learning state all survive.
-* ``legacy_config_seed`` hands the config flow the old config entry's weather
-  settings **including the API key**, which is the one thing the storage file
-  does NOT contain.
+* ``async_legacy_config_seed`` hands the config flow the old config entry's
+  weather settings **including the API key**, which pre-bridge releases did not
+  write to the storage file at all — falling back to the copy the bridge release
+  staged there when the entry is already gone.
 
 The API key point is worth stating plainly, because it is easy to get wrong:
 ``websockets.save_weather_config`` persists the key to ``entry.options`` and
@@ -44,20 +45,40 @@ _LOGGER = logging.getLogger(__name__)
 # Identifies a pre-#120 manifest as belonging to THIS fork rather than upstream.
 _OUR_MARKER = "justchr"
 
-# Weather keys that live ONLY in the config entry, never in the storage file.
+# Every slot a weather credential can occupy. This restates
+# `rename_notice._API_KEY_SLOTS` from the bridge release (v2026.09.06), which is
+# what wrote these into the storage file read back below -- that module does not
+# exist on this domain, and the release it shipped in is tagged and immutable,
+# so the list can be pinned here rather than derived. A LEGACY_* case: it
+# describes a historical fact, not a live contract.
+_API_KEY_SLOTS = (
+    const.CONF_WEATHER_SERVICE_API_KEY,
+    const.CONF_OWM_API_KEY,
+    const.CONF_PW_API_KEY,
+    const.CONF_MET_API_KEY,
+)
+
+# Weather keys that live in the config entry rather than the storage file.
 # Losing any of these means the user has to go and find their API key again.
 _WEATHER_SEED_KEYS = (
     const.CONF_USE_WEATHER_SERVICE,
     const.CONF_WEATHER_SERVICE,
-    const.CONF_WEATHER_SERVICE_API_KEY,
     const.CONF_WEATHER_SERVICE_API_VERSION,
-    const.CONF_OWM_API_KEY,
-    const.CONF_PW_API_KEY,
-    const.CONF_MET_API_KEY,
+    *_API_KEY_SLOTS,
     # The pre-v2026.05.14 spellings. resolve_weather_config still migrates
     # these, so carrying them keeps that path working for very old installs.
+    # (`owm_api_key` is already CONF_OWM_API_KEY above; `use_owm` is not.)
     "use_owm",
-    "owm_api_key",
+)
+
+# What the bridge release staged into the storage file, and therefore all this
+# module can recover once the config entry is gone. The two flags matter as much
+# as the keys: without them the new entry is created with weather switched off,
+# and a recovered credential sits unused behind a disabled service.
+_STAGED_SEED_KEYS = (
+    const.CONF_USE_WEATHER_SERVICE,
+    const.CONF_WEATHER_SERVICE,
+    *_API_KEY_SLOTS,
 )
 
 
@@ -131,6 +152,82 @@ def legacy_config_seed(hass: HomeAssistant) -> dict:
             entry.entry_id,
             sorted(seed),
         )
+    return seed
+
+
+def plan_staged_seed(stored: dict | None, seed: dict | None) -> dict:
+    """What the staged storage config can add to a config-entry ``seed``.
+
+    Pure, so the precedence can be exercised without a running Home Assistant.
+
+    The config entry always wins: it is the live value the old integration was
+    actually running on, while the store holds a copy the bridge release took at
+    some earlier setup. So this only ever FILLS what the entry could not supply
+    — which in practice means the entry is gone entirely.
+
+    An empty value never counts as supplied, in either direction: a seed that
+    carries ``owm_api_key: None`` has told us nothing.
+    """
+    stored = stored or {}
+    seed = seed or {}
+    out = {}
+    for key in _STAGED_SEED_KEYS:
+        if seed.get(key) is not None and seed.get(key) != "":
+            continue
+        value = stored.get(key)
+        if value is None or value == "":
+            continue
+        out[key] = value
+    return out
+
+
+def _read_staged_config(path: Path) -> dict:
+    """The ``config`` dict out of a Home Assistant storage file. Never raises.
+
+    Best-effort by design, like everything else here: an unreadable or
+    hand-edited legacy store costs the user a re-typed API key, and must not
+    cost them the config flow.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as err:
+        _LOGGER.debug("Could not read staged weather settings from %s: %s", path, err)
+        return {}
+    config = (document or {}).get("data", {}).get("config")
+    return config if isinstance(config, dict) else {}
+
+
+async def async_legacy_config_seed(hass: HomeAssistant) -> dict:
+    """The weather seed for a new config entry: config entry first, store second.
+
+    The config entry is the whole story whenever it is still there, which is the
+    order the migration guide asks for. The fallback covers the one way it can
+    be gone while the data is not: deleting the old integration's DIRECTORY and
+    then removing the now-broken entry. Home Assistant cannot run a missing
+    integration's ``async_remove_entry``, so ``store.async_delete()`` never
+    fires and ``smart_irrigation.storage`` outlives the entry — carrying the
+    credentials the bridge release (v2026.09.06) staged into it.
+
+    Nothing here can recover a key from an install that removed the old
+    integration through the UI in working order: that deletes the storage file
+    along with the entry, and takes every zone with it.
+    """
+    seed = legacy_config_seed(hass)
+    if all(seed.get(key) for key in _STAGED_SEED_KEYS):
+        return seed
+
+    stored = await hass.async_add_executor_job(
+        _read_staged_config, legacy_storage_path(hass)
+    )
+    staged = plan_staged_seed(stored, seed)
+    if staged:
+        # The NAMES only — these are live credentials.
+        _LOGGER.info(
+            "Recovered %s weather setting(s) staged in the previous storage file: %s",
+            len(staged),
+            sorted(staged),
+        )
+        seed.update(staged)
     return seed
 
 

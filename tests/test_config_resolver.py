@@ -120,3 +120,88 @@ def test_existing_per_service_key_blocks_legacy_promotion():
     result = resolve_weather_config(store, entry, existing=existing)
     # promotion is skipped because the slot is already set in existing state
     assert result.get(const.CONF_OWM_API_KEY) != "legacy"
+
+
+class TestMigratedEntry:
+    """The shape a #120 migration creates: everything in `data`, nothing in options.
+
+    `legacy_config_seed` merges the old entry's data and options and hands the
+    result to `async_create_entry(data=...)`, so a key the panel had written to
+    `options[owm_api_key]` arrives in the NEW entry's `data`. The per-service
+    slots used to be read from `options` only, which dropped it silently and
+    started the migrated install with weather disabled.
+    """
+
+    def test_per_service_key_in_data_survives(self):
+        entry = _entry(
+            data={
+                const.CONF_USE_WEATHER_SERVICE: True,
+                const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+                const.CONF_OWM_API_KEY: "  owm-from-panel  ",
+            }
+        )
+        result = resolve_weather_config({}, entry)
+        assert result[const.CONF_OWM_API_KEY] == "owm-from-panel"
+
+    def test_the_current_key_beats_the_original_one(self):
+        """The seam that made this worth fixing.
+
+        A user who changed their key in the panel has the CURRENT one under the
+        per-service slot and the ORIGINAL one under the legacy slot, both now in
+        `data`. Reading only the legacy slot migrates them onto a credential
+        they replaced — the exact outcome `legacy_config_seed` merges options
+        over data to avoid.
+        """
+        entry = _entry(
+            data={
+                const.CONF_USE_WEATHER_SERVICE: True,
+                const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+                const.CONF_WEATHER_SERVICE_API_KEY: "original-from-setup",
+                const.CONF_OWM_API_KEY: "current-from-panel",
+            }
+        )
+        result = resolve_weather_config({}, entry)
+        assert result[const.CONF_OWM_API_KEY] == "current-from-panel"
+
+    def test_legacy_slot_in_data_still_promotes(self):
+        """An install that never touched the panel has only the legacy slot."""
+        entry = _entry(
+            data={
+                const.CONF_USE_WEATHER_SERVICE: True,
+                const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_PW,
+                const.CONF_WEATHER_SERVICE_API_KEY: " pw-key ",
+            }
+        )
+        result = resolve_weather_config({}, entry)
+        assert result[const.CONF_PW_API_KEY] == "pw-key"
+        assert result[const.CONF_WEATHER_SERVICE_API_KEY] == "pw-key"
+
+    def test_options_still_win_over_a_key_in_data(self):
+        """Precedence is unchanged: a live options key beats the seeded one."""
+        entry = _entry(
+            data={
+                const.CONF_USE_WEATHER_SERVICE: True,
+                const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+                const.CONF_OWM_API_KEY: "seeded",
+            },
+            options={
+                const.CONF_USE_WEATHER_SERVICE: True,
+                const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+                const.CONF_OWM_API_KEY: "re-entered",
+            },
+        )
+        result = resolve_weather_config({}, entry)
+        assert result[const.CONF_OWM_API_KEY] == "re-entered"
+
+    def test_a_none_key_in_data_does_not_crash(self):
+        """`data[key] = None` used to raise AttributeError on .strip()."""
+        entry = _entry(
+            data={
+                const.CONF_USE_WEATHER_SERVICE: True,
+                const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+                const.CONF_WEATHER_SERVICE_API_KEY: None,
+                const.CONF_OWM_API_KEY: None,
+            }
+        )
+        result = resolve_weather_config({}, entry)
+        assert result.get(const.CONF_OWM_API_KEY) is None

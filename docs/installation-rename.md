@@ -42,6 +42,11 @@ Delete the folder if you like — that leaves the config entry intact. But do no
 remove the integration from **Settings → Devices & Services** until the new one
 is set up and you are happy with it.
 
+If you already deleted the folder *and* removed the entry that then showed as
+broken, your storage file is still on disk and Irrigation Plus will import it.
+Your API key comes back too, as long as Home Assistant ran **v2026.09.06** at
+least once — that release copied it into the storage file for exactly this case.
+
 ## Steps
 
 1. **Update through HACS as normal.** HACS reads the new domain from the
@@ -144,6 +149,10 @@ upstream `smart_irrigation` integration as well:
   diagnostics file — the backup still holds your configuration.
 - **Two of every sensor.** The old `custom_components/smart_irrigation/` folder
   is still there. Delete it and restart.
+- **Weather updates are switched off after importing.** The API key could not be
+  recovered — the old config entry was already gone and the storage file held no
+  copy of it (installs that never ran v2026.09.06 have none). Everything else
+  imported: re-enter the key under **Setup → Weather service** and it resumes.
 - **Graphs start from scratch on one or two entities.** The recorder rename is
   applied per entity and any that failed are named in the log. The integration is
   fine; only those entities' history stays under the old ID.

@@ -14,10 +14,12 @@ import pytest
 from custom_components.irrigation_plus import const
 from custom_components.irrigation_plus.migrate_domain import (
     async_import_legacy_store,
+    async_legacy_config_seed,
     find_legacy_entry,
     legacy_config_seed,
     legacy_install_present,
     legacy_storage_path,
+    plan_staged_seed,
     storage_path,
 )
 
@@ -276,3 +278,110 @@ class TestLegacyOwnership:
 
         self._write_manifest(tmp_path, {"codeowners": ["@JustChr"]})
         assert legacy_install_is_ours(_hass(tmp_path)) is True
+
+
+def _write_legacy_store(hass, config):
+    """A legacy storage file whose `data.config` holds `config`."""
+    legacy_storage_path(hass).write_text(
+        json.dumps({"version": 9, "data": {"config": config, "zones": {}}}),
+        encoding="utf-8",
+    )
+
+
+class TestStagedSeedPlanning:
+    """`plan_staged_seed` — what the staged store may add to an entry seed."""
+
+    def test_fills_what_the_entry_could_not_supply(self):
+        stored = {
+            const.CONF_USE_WEATHER_SERVICE: True,
+            const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+            const.CONF_OWM_API_KEY: "staged",
+        }
+        assert plan_staged_seed(stored, {}) == stored
+
+    def test_the_config_entry_always_wins(self):
+        """The entry is live; the store is a copy the bridge took earlier."""
+        stored = {const.CONF_OWM_API_KEY: "staged-earlier"}
+        seed = {const.CONF_OWM_API_KEY: "from-the-entry"}
+        assert plan_staged_seed(stored, seed) == {}
+
+    def test_an_empty_seed_value_does_not_count_as_supplied(self):
+        stored = {const.CONF_PW_API_KEY: "staged"}
+        assert plan_staged_seed(stored, {const.CONF_PW_API_KEY: ""}) == {
+            const.CONF_PW_API_KEY: "staged"
+        }
+        assert plan_staged_seed(stored, {const.CONF_PW_API_KEY: None}) == {
+            const.CONF_PW_API_KEY: "staged"
+        }
+
+    def test_an_empty_stored_value_is_never_carried(self):
+        assert plan_staged_seed({const.CONF_MET_API_KEY: ""}, {}) == {}
+
+    def test_use_weather_service_false_is_not_mistaken_for_missing(self):
+        """False is a real answer, and it is what the store holds most often."""
+        seed = {const.CONF_USE_WEATHER_SERVICE: False}
+        stored = {const.CONF_USE_WEATHER_SERVICE: True}
+        assert const.CONF_USE_WEATHER_SERVICE not in plan_staged_seed(stored, seed)
+
+    def test_unrelated_stored_config_is_not_dragged_along(self):
+        stored = {"zones": 3, "auto_calc_enabled": True, const.CONF_OWM_API_KEY: "k"}
+        assert plan_staged_seed(stored, {}) == {const.CONF_OWM_API_KEY: "k"}
+
+
+class TestStagedSeedRecovery:
+    """The end of the seam: entry gone, storage file (and its staged keys) left.
+
+    Reachable by deleting the old integration's DIRECTORY and then removing the
+    now-broken config entry: Home Assistant cannot run a missing integration's
+    `async_remove_entry`, so `store.async_delete()` never fires.
+    """
+
+    async def test_recovers_the_staged_key_when_the_entry_is_gone(self, tmp_path):
+        hass = _hass(tmp_path)
+        _write_legacy_store(
+            hass,
+            {
+                const.CONF_USE_WEATHER_SERVICE: True,
+                const.CONF_WEATHER_SERVICE: const.CONF_WEATHER_SERVICE_OWM,
+                const.CONF_OWM_API_KEY: "staged-by-the-bridge",
+            },
+        )
+
+        seed = await async_legacy_config_seed(hass)
+
+        assert seed[const.CONF_OWM_API_KEY] == "staged-by-the-bridge"
+        # The flags travel too, or the recovered key sits behind a service the
+        # new entry was created with switched off.
+        assert seed[const.CONF_USE_WEATHER_SERVICE] is True
+        assert seed[const.CONF_WEATHER_SERVICE] == const.CONF_WEATHER_SERVICE_OWM
+
+    async def test_the_entry_still_wins_when_both_are_present(self, tmp_path):
+        entry = _entry(options={const.CONF_OWM_API_KEY: "live-key"})
+        hass = _hass(tmp_path, [entry])
+        _write_legacy_store(hass, {const.CONF_OWM_API_KEY: "staged-key"})
+
+        seed = await async_legacy_config_seed(hass)
+
+        assert seed[const.CONF_OWM_API_KEY] == "live-key"
+
+    async def test_a_pre_bridge_store_recovers_nothing(self, tmp_path):
+        """Releases before v2026.09.06 staged no keys; there is nothing to find."""
+        hass = _hass(tmp_path)
+        _write_legacy_store(hass, {const.CONF_USE_WEATHER_SERVICE: False})
+
+        seed = await async_legacy_config_seed(hass)
+
+        assert const.CONF_OWM_API_KEY not in seed
+
+    async def test_a_corrupt_store_does_not_break_the_config_flow(self, tmp_path):
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text("{not json", encoding="utf-8")
+        assert await async_legacy_config_seed(hass) == {}
+
+    async def test_a_missing_store_does_not_break_the_config_flow(self, tmp_path):
+        assert await async_legacy_config_seed(_hass(tmp_path)) == {}
+
+    async def test_a_store_without_a_config_section(self, tmp_path):
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text('{"version": 9, "data": {}}', "utf-8")
+        assert await async_legacy_config_seed(hass) == {}
