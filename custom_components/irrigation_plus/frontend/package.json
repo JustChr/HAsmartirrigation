@@ -1,6 +1,6 @@
 {
   "name": "irrigation-plus",
-  "version": "2026.09.08",
+  "version": "2026.09.09",
   "description": "Irrigation Plus frontend",
   "main": "dist/irrigation-plus.js",
   "scripts": {
