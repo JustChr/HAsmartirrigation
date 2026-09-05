@@ -36,7 +36,7 @@ import shutil
 from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
 from . import const
 
@@ -330,6 +330,32 @@ def stored_zone_count(path: Path) -> int | None:
         return None
 
 
+@callback
+def _async_forget_cached_absence(hass: HomeAssistant) -> None:
+    """Tell Home Assistant that our storage file exists after all.
+
+    Home Assistant lists ``.storage`` ONCE, during startup, and thereafter
+    answers "that key does not exist" for anything missing from that listing
+    without going near the disk. Our storage file is created by the copy below,
+    long after startup, so ``Store.async_load`` returns ``None`` for a file
+    sitting right there -- the store seeds itself empty and its first save
+    overwrites the import. Invalidating the key is what ``Store`` itself does
+    before every write, and it costs nothing when the key was already known.
+
+    Imported here rather than at module scope, and tolerant of the name being
+    gone: this reaches into a cache Home Assistant does not promise, and a
+    migration must never be the reason setup fails.
+    """
+    try:
+        from homeassistant.helpers.storage import STORAGE_MANAGER
+    except ImportError:  # a future Home Assistant that moved or dropped it
+        _LOGGER.debug("No storage manager to invalidate")
+        return
+    manager = hass.data.get(STORAGE_MANAGER)
+    if manager is not None:
+        manager.async_invalidate(storage_path(hass).name)
+
+
 def _replaces_an_empty_store(dst: Path, src: Path) -> bool:
     """Whether ``dst`` is a zone-less store that ``src`` can legitimately replace."""
     ours = stored_zone_count(dst)
@@ -424,6 +450,7 @@ async def async_import_legacy_store(hass: HomeAssistant) -> bool:
         return False
 
     if copied:
+        _async_forget_cached_absence(hass)
         _LOGGER.info(
             "Imported the previous Smart Irrigation configuration from %s. "
             "The original file is left in place, and a safety copy was written "
