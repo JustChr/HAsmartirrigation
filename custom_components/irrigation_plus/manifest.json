@@ -1,6 +1,9 @@
 {
   "domain": "irrigation_plus",
   "name": "Irrigation Plus",
+  "after_dependencies": [
+    "recorder"
+  ],
   "codeowners": [
     "@JustChr"
   ],
@@ -8,9 +11,6 @@
   "dependencies": [
     "http",
     "panel_custom"
-  ],
-  "after_dependencies": [
-    "recorder"
   ],
   "documentation": "https://github.com/JustChr/HAsmartirrigation",
   "iot_class": "local_push",

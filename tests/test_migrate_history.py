@@ -358,3 +358,14 @@ class TestRecorderIsDeclared:
 
     def test_recorder_is_not_a_hard_dependency(self):
         assert "recorder" not in self._manifest().get("dependencies", [])
+
+    def test_manifest_keys_are_ordered_the_way_hassfest_demands(self):
+        """domain, name, then alphabetical. hassfest fails the build otherwise.
+
+        Adding `after_dependencies` in the obvious place — next to
+        `dependencies` — broke this immediately, so pin the rule rather than
+        the current key list: it stays true as keys come and go.
+        """
+        keys = list(self._manifest())
+        assert keys[:2] == ["domain", "name"]
+        assert keys[2:] == sorted(keys[2:])
