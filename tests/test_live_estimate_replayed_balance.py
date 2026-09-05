@@ -41,6 +41,7 @@ however the two paths drift.
 """
 
 import datetime
+import math
 from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
 
@@ -49,6 +50,10 @@ import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.smart_irrigation import SmartIrrigationCoordinator, const
+from custom_components.smart_irrigation.calcmodules.pyeto import (
+    PyETO,
+    SOLRAD_behavior,
+)
 from custom_components.smart_irrigation.et_estimate import live_balance
 from custom_components.smart_irrigation.sensor import (
     SmartIrrigationZoneLiveDeficitSensor,
@@ -1030,3 +1035,583 @@ class TestTheBalanceFormIsVisibleFromOutside:
         )
 
         assert sensor.extra_state_attributes["balance_form"] == "replayed"
+
+
+# ---------------------------------------------------------------------------
+# Zones whose module ESTIMATES solar radiation from the day's temperature range.
+#
+# The shipped default, and the population this whole area served worst. Their
+# commit runs the DAILY equation; their estimate ran a different one, so no
+# amount of fixing the balance form could close the gap -- which is why every
+# case above has to pin both sides to one evapotranspiration through
+# ``_committed_with_et`` before the balance form is the only difference left.
+# For these zones that pinning is exactly what must no longer be needed: the
+# assertions below run the real commit against the real estimate and expect the
+# two evapotranspirations to agree on their own.
+#
+# These zones are anchored at 02:00 rather than at midnight like the cases
+# above, because the anchor decides which extreme is observable early and the
+# 02:00 one is the awkward case: the window runs to 02:00 the NEXT day, so its
+# coldest hours fall on the following date and cannot be observed until it is
+# nearly over.
+# ---------------------------------------------------------------------------
+
+ANCHOR = T0 + timedelta(hours=2)
+WINDOW_END = ANCHOR + timedelta(hours=24)
+# Where a cold_tail fixture turns cold: after midnight, inside the window and on
+# the following date.
+COLD_FROM = T0 + timedelta(hours=24)
+
+
+def _temp_at(when, cold_tail=False):
+    """The site's temperature at an instant. Trough near 04:00, peak near 14:00.
+
+    Shared by the buffer and the forecast so that a forecast asked for the truth
+    returns exactly the truth, and any disagreement between them is one a test
+    introduced on purpose.
+    """
+    clock = when.hour + when.minute / 60.0
+    temp = 12.0 + 14.0 * max(0.0, math.sin(math.pi * (clock - 4.0) / 20.0))
+    if cold_tail and when >= COLD_FROM:
+        temp -= 9.0
+    return temp
+
+
+def _diurnal_readings(rain_at=None, cold_tail=False):
+    """A window with a real temperature swing, and the fields the daily form needs.
+
+    The constant-temperature buffer the cases above use has a range of zero, and
+    ``sol_rad_from_t`` is proportional to its square root, so an
+    estimated-radiation zone would price every window at nothing and every
+    comparison here would hold vacuously. Dewpoint and pressure are present for
+    the same reason: without them the daily equation refuses the day and
+    returns 0.
+
+    ``rain_at`` is ``{clock hour: mm}``, delivered through a cumulative gauge as
+    in ``_readings``.
+    """
+    rain_at = rain_at or {}
+    readings = []
+    cumulative = 0.0
+    for step in range(24 * 6):
+        when = ANCHOR + timedelta(minutes=10 * step)
+        clock = when.hour
+        cumulative += rain_at.get(clock, 0.0) / 6
+        readings.append(
+            {
+                const.RETRIEVED_AT: when,
+                const.MAPPING_TEMPERATURE: _temp_at(when, cold_tail),
+                const.MAPPING_HUMIDITY: 55.0,
+                const.MAPPING_WINDSPEED: 1.5,
+                const.MAPPING_DEWPOINT: 9.0,
+                const.MAPPING_PRESSURE: 977.0,
+                const.MAPPING_SOLRAD: (
+                    700.0 * 0.0864 * (clock - 6) / 8 if 6 <= clock < 20 else 0.0
+                ),
+                const.MAPPING_PRECIPITATION: cumulative,
+            }
+        )
+    return readings
+
+
+async def _estimating_zone(c, store, bucket, *, rain_at=None, cold_tail=False, **kw):
+    """A zone on the shipped default: PyETO estimating radiation from temperature.
+
+    A REAL module instance, not a double. The claim under test is that the
+    estimate and the commit run the same equation, and two doubles would agree
+    with each other however far the two paths had drifted.
+    """
+    zone = await _zone(
+        c,
+        store,
+        bucket,
+        rain_at=rain_at,
+        solrad=SOLRAD_behavior.EstimateFromTemp.value,
+        readings=_diurnal_readings(rain_at, cold_tail=cold_tail),
+        **kw,
+    )
+    zone = dict(zone)
+    zone[const.ZONE_LAST_CONSUMED] = ANCHOR
+    zone[const.ZONE_LAST_CALCULATED] = ANCHOR
+    await store.async_update_zone(
+        zone[const.ZONE_ID],
+        {
+            const.ZONE_LAST_CONSUMED: ANCHOR,
+            const.ZONE_LAST_CALCULATED: ANCHOR,
+        },
+    )
+    module = store.get_module(zone[const.ZONE_MODULE])
+    instance = PyETO(
+        c.hass,
+        description="",
+        config={
+            const.CONF_PYETO_SOLRAD_BEHAVIOR: SOLRAD_behavior.EstimateFromTemp.value,
+            const.CONF_PYETO_FORECAST_DAYS: 0,
+        },
+    )
+    instance._latitude = LAT
+    instance._elevation = ELEV
+    # The fixture writes its diurnal curve against the LOCAL clock, and the
+    # self-contained projection reads the site's solar geometry. Under pytest
+    # the site is UTC, so at the install's real longitude the two describe
+    # days eight hours apart and the projection would be measured against a
+    # sun that rises after the fixture's afternoon. Putting the site on the
+    # prime meridian makes local clock and solar clock the same day; the
+    # latitude the equation itself uses is untouched.
+    c._effective_longitude = 0.0
+    c.getModuleInstanceByID = AsyncMock(return_value=instance)
+    return zone, module, instance
+
+
+def _observed_to(store, zone, now):
+    """Cut the sensor group's buffer back to what has actually been read by ``now``.
+
+    A live buffer holds no future readings, so a fixture that leaves them in
+    would hand the estimate the whole window's extremes at every check time and
+    every convergence assertion would pass without the projection doing anything.
+    """
+    readings = [
+        row
+        for row in _diurnal_readings(getattr(store, "_rain_at", None) or {})
+        if row[const.RETRIEVED_AT] <= now
+    ]
+    store.set_mapping_buffer(zone[const.ZONE_MAPPING], readings)
+
+
+def _observed_rows(readings, now):
+    return [row for row in readings if row[const.RETRIEVED_AT] <= now]
+
+
+def _hourly_forecast(offset_c=0.0, through=None, cold_tail=False):
+    """The service's own hourly temperatures across the window and beyond.
+
+    ``offset_c`` makes the forecast deliberately wrong, so convergence is
+    something the composition has to earn rather than something the fixture
+    hands it. ``through`` truncates the series.
+    """
+    out = []
+    for hour in range(30):
+        when = T0 + timedelta(hours=hour)
+        if through is not None and when > through:
+            break
+        out.append((when, _temp_at(when, cold_tail) + offset_c))
+    return out
+
+
+def _estimating_inputs(instance, module, now=WINDOW_END, forecast=None):
+    """A sensor-only install whose zone runs the daily form.
+
+    The module instances are handed in the way ``async_get_zone_estimates`` hands
+    them in, because the resolver lives on the calculation mixin and the per-zone
+    reduction must not reach across to it.
+    """
+    inputs = _inputs(now)
+    # ``_inputs`` declares a zero UTC offset, but the shared fixture's site
+    # timezone is whatever Home Assistant defaults to under pytest, and the
+    # projection resolves the offset from that in preference to the scalar --
+    # correctly, since a window can straddle a DST transition. Left
+    # inconsistent the geometry would place sunrise seven hours from where
+    # this fixture's temperature curve puts it. The cases above never notice
+    # because both sides of their comparison resolve the same offset.
+    inputs["site_tz"] = datetime.timezone.utc
+    inputs["modules"] = {module[const.MODULE_ID]: instance}
+    inputs["hourly_forecast"] = forecast
+    return inputs
+
+
+async def _committed_daily_et(c, zone, now=WINDOW_END):
+    """The whole-window evapotranspiration the commit books, in mm."""
+    weatherdata, _ = await c._aggregate_for_zone(zone, now=now)
+    instance = await c.getModuleInstanceByID(zone[const.ZONE_MODULE])
+    delta = instance.calculate(weather_data=weatherdata, forecast_data=None)
+    return -delta * (weatherdata.get(const.MAPPING_DATA_MULTIPLIER) or 1.0)
+
+
+def _implied_daily(c, store, zone, module, instance, now, forecast, *, cold_tail=False):
+    """The whole-window figure the estimate's projection is claiming.
+
+    The estimate charges the elapsed share; dividing it back out recovers the day
+    total the projected inputs implied, which is the quantity that has to
+    converge on the one the commit books.
+    """
+    store.set_mapping_buffer(
+        zone[const.ZONE_MAPPING],
+        _observed_rows(_diurnal_readings(cold_tail=cold_tail), now),
+    )
+    est = c._intraday_for_zone(
+        zone, _estimating_inputs(instance, module, now=now, forecast=forecast)
+    )
+    elapsed = (now - ANCHOR).total_seconds() / 3600.0
+    return est["et_since"] / (elapsed / 24.0), est
+
+
+class TestEstimatedRadiationZonesRunTheirOwnCommitsEquation:
+    """The claim itself, at the seam every other case here uses.
+
+    Note what is ABSENT: no ``_committed_with_et``. These comparisons run the
+    real commit against the real estimate and expect their evapotranspirations to
+    agree unaided, which is the whole point.
+    """
+
+    async def test_the_live_bucket_lands_on_the_committed_bucket(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(
+            c, store, 2.0, rain_at={20: 14.0}
+        )
+
+        est = c._intraday_for_zone(
+            zone, _estimating_inputs(instance, module, forecast=_hourly_forecast())
+        )
+        data = await _committed(c, zone, now=WINDOW_END)
+
+        assert est["available"] is True
+        assert est["method"] == "daily_mirror"
+        assert est["live_deficit"] == pytest.approx(
+            round(data[const.ZONE_BUCKET], 2), abs=0.01
+        )
+
+    async def test_its_evapotranspiration_is_the_one_the_commit_books(self, coordinator):
+        """Asserted on the quantity itself rather than only on the bucket, so a
+        balance that happened to absorb a wrong evapotranspiration could not pass
+        this."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+
+        est = c._intraday_for_zone(
+            zone, _estimating_inputs(instance, module, forecast=_hourly_forecast())
+        )
+        booked = await _committed_daily_et(c, zone)
+
+        assert booked > 0.5
+        assert est["et_since"] == pytest.approx(booked, abs=1e-4)
+
+    async def test_the_previous_source_would_have_disagreed(self, coordinator):
+        """Guards the two above against being vacuous. The Hargreaves-seeded
+        proxy is what one of these zones fell through to on a sensor-only
+        install, and it is a different equation on different inputs."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+
+        mirrored = c._intraday_for_zone(
+            zone, _estimating_inputs(instance, module, forecast=_hourly_forecast())
+        )
+        # No module handed in: the cascade falls through to what it used before.
+        previous = c._intraday_for_zone(zone, _proxy_inputs(now=WINDOW_END))
+
+        assert previous["method"] == "proxy"
+        assert previous["et_since"] != pytest.approx(mirrored["et_since"], abs=0.1)
+
+    async def test_the_balance_is_still_replayed_for_these_zones(self, coordinator):
+        """The source axis moved; the balance-form axis must not have. A zone
+        dropped back to lumping here would trade one gap for another."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(
+            c, store, 2.0, rain_at={20: 14.0}
+        )
+
+        est = c._intraday_for_zone(
+            zone, _estimating_inputs(instance, module, forecast=_hourly_forecast())
+        )
+
+        assert est["balance_form"] == "replayed"
+
+    async def test_the_drainage_trace_matches_the_committed_drainage(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(
+            c, store, 2.0, rain_at={20: 14.0}
+        )
+
+        est = c._intraday_for_zone(
+            zone, _estimating_inputs(instance, module, forecast=_hourly_forecast())
+        )
+        data = await _committed(c, zone, now=WINDOW_END)
+
+        assert est["drainage_since"] == pytest.approx(
+            data[const.ZONE_CURRENT_DRAINAGE], abs=0.01
+        )
+
+    async def test_a_zone_that_measures_radiation_keeps_the_buffer_source(
+        self, coordinator
+    ):
+        """The mirror is for the zones the hourly form declines. One it accepts
+        must be untouched -- that path already agreed with its commit."""
+        c, store = coordinator
+        zone = await _zone(c, store, 2.0, rain_at={20: 14.0})
+
+        est = c._intraday_for_zone(zone, _inputs())
+
+        assert est["method"] == "hourly_sensor"
+        assert est["forecast_tier"] is None
+
+    async def test_the_estimate_stays_read_only(self, coordinator):
+        c, store = coordinator
+        events = [{"ts": (ANCHOR + timedelta(hours=20)).isoformat(), "mm": 10.0}]
+        zone, module, instance = await _estimating_zone(
+            c, store, 2.0, rain_at={20: 14.0}, events=events
+        )
+        before = dict(store.get_zone(zone[const.ZONE_ID]))
+        rows_before = len(store.get_mapping_buffer(zone[const.ZONE_MAPPING]))
+
+        for _ in range(3):
+            c._intraday_for_zone(
+                zone, _estimating_inputs(instance, module, forecast=_hourly_forecast())
+            )
+
+        after = store.get_zone(zone[const.ZONE_ID])
+        for field in (
+            const.ZONE_BUCKET,
+            const.ZONE_LAST_CONSUMED,
+            const.ZONE_LAST_CALCULATED,
+        ):
+            assert after.get(field) == before.get(field)
+        assert len(store.get_mapping_buffer(zone[const.ZONE_MAPPING])) == rows_before
+        assert zone[const.ZONE_PENDING_BUCKET_EVENTS] == events
+
+
+class TestTheGapNarrowsAsTheWindowCloses:
+    """Convergence is the property that makes a projection honest.
+
+    The forecast here is deliberately wrong by three degrees, so the projected
+    extremes start away from the truth and the observation has to overtake them.
+    A fixture handing over a perfect forecast would show equality at every point
+    and prove nothing about the construction.
+    """
+
+    async def test_the_projected_day_closes_on_the_committed_one(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+        forecast = _hourly_forecast(offset_c=3.0)
+        target = await _committed_daily_et(c, zone)
+
+        gaps = [
+            abs(
+                _implied_daily(
+                    c,
+                    store,
+                    zone,
+                    module,
+                    instance,
+                    ANCHOR + timedelta(hours=h),
+                    forecast,
+                )[0]
+                - target
+            )
+            for h in (10, 14, 16, 24)
+        ]
+
+        # Three points inside the window, each closer than the last, and the
+        # forecast's three degrees fully absorbed once the observation has passed
+        # the day's peak. The last figure is not asserted to be smaller than the
+        # one before it: measured over a year, convergence is real but NOT
+        # monotone, and past the peak the remaining difference here is the
+        # published precision of ``et_since`` rather than a disagreement.
+        assert gaps[0] > gaps[1] > gaps[2]
+        assert gaps[0] > 0.4
+        assert gaps[-1] < 1e-3
+
+    async def test_it_is_exact_once_the_window_has_closed(self, coordinator):
+        """The remainder is empty then, so the composition IS the observation and
+        the two equations are handed identical inputs -- however wrong the
+        forecast was."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+
+        est = c._intraday_for_zone(
+            zone,
+            _estimating_inputs(instance, module, forecast=_hourly_forecast(offset_c=9.0)),
+        )
+        booked = await _committed_daily_et(c, zone)
+
+        assert est["et_since"] == pytest.approx(booked, abs=1e-4)
+
+
+class TestThePostMidnightTail:
+    """A 02:00-anchored window runs to 02:00 the next day, so its coldest hours
+    fall on the FOLLOWING date and cannot be observed until it is nearly over.
+
+    Taking that low from a daily forecast was refused: tomorrow's daily low
+    usually falls after the window closes, so the construction imports an extreme
+    the commit never sees and never lets go of it. Only the forecast hours INSIDE
+    the window may take part, which is what reading them off the composed series
+    gives for free.
+    """
+
+    async def test_the_tail_is_taken_from_the_composed_series(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0, cold_tail=True)
+        # Late evening, with the cold snap still on the other side of midnight.
+        evening = ANCHOR + timedelta(hours=19)
+
+        implied, _est = _implied_daily(
+            c,
+            store,
+            zone,
+            module,
+            instance,
+            evening,
+            _hourly_forecast(cold_tail=True),
+            cold_tail=True,
+        )
+        store.set_mapping_buffer(
+            zone[const.ZONE_MAPPING], _diurnal_readings(cold_tail=True)
+        )
+        booked = await _committed_daily_et(c, zone)
+
+        assert implied == pytest.approx(booked, abs=0.02)
+
+    async def test_a_forecast_that_stops_before_the_window_closes_is_refused(
+        self, coordinator
+    ):
+        """A remainder that stops short would read the extremes off a window with
+        its last hours missing and present that as the commit's -- and for this
+        anchor those hours are precisely where the low is. Declining to a tier
+        that covers the whole window is the honest answer, and it is published."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0, cold_tail=True)
+        evening = ANCHOR + timedelta(hours=19)
+        store.set_mapping_buffer(
+            zone[const.ZONE_MAPPING],
+            _observed_rows(_diurnal_readings(cold_tail=True), evening),
+        )
+
+        est = c._intraday_for_zone(
+            zone,
+            _estimating_inputs(
+                instance,
+                module,
+                now=evening,
+                forecast=_hourly_forecast(cold_tail=True, through=COLD_FROM),
+            ),
+        )
+
+        assert est["available"] is True
+        assert est["forecast_tier"] != "service"
+
+
+class TestTheForecastTierIsPublished:
+    """Which source filled the unobserved hours. Measured over a year the tiers
+    differ by a factor of three on the temperature range they supply, so the live
+    figure alone never says which one produced it.
+    """
+
+    async def test_a_service_hourly_forecast_reports_the_service_tier(
+        self, coordinator
+    ):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+        _implied, est = _implied_daily(
+            c,
+            store,
+            zone,
+            module,
+            instance,
+            ANCHOR + timedelta(hours=6),
+            _hourly_forecast(),
+        )
+
+        assert est["forecast_tier"] == "service"
+
+    async def test_without_a_forecast_the_self_contained_tier_is_used_and_named(
+        self, coordinator
+    ):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+        await store.async_update_mapping(
+            zone[const.ZONE_MAPPING],
+            {const.MAPPING_TEMPERATURE_AMPLITUDES: [["2026-05-21", 14.0]]},
+        )
+
+        _implied, est = _implied_daily(
+            c, store, zone, module, instance, ANCHOR + timedelta(hours=6), None
+        )
+
+        assert est["available"] is True
+        assert est["forecast_tier"] == "self_contained"
+
+    async def test_the_self_contained_tier_beats_reading_the_extremes_off_the_morning(
+        self, coordinator
+    ):
+        """Its whole reason for existing. Without it a default zone's projected
+        range at mid-morning is the morning's spread, which is most of the day's
+        evapotranspiration missing."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+        morning = ANCHOR + timedelta(hours=6)
+        target = await _committed_daily_et(c, zone)
+
+        await store.async_update_mapping(
+            zone[const.ZONE_MAPPING],
+            {const.MAPPING_TEMPERATURE_AMPLITUDES: [["2026-05-21", 14.0]]},
+        )
+        projected, _p = _implied_daily(c, store, zone, module, instance, morning, None)
+        await store.async_update_mapping(
+            zone[const.ZONE_MAPPING], {const.MAPPING_TEMPERATURE_AMPLITUDES: []}
+        )
+        bare, est = _implied_daily(c, store, zone, module, instance, morning, None)
+
+        assert est["forecast_tier"] == "observed"
+        assert abs(projected - target) < abs(bare - target)
+
+    async def test_a_closed_window_reports_that_nothing_was_projected(self, coordinator):
+        """The attribute answers which source supplied the unobserved part of the
+        window. Once the window has closed there is no unobserved part, so no
+        source supplied one -- and this is the reading a user checks the live
+        figure and the commit against each other on, where claiming a forecast
+        contributed would be exactly wrong."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+
+        est = c._intraday_for_zone(
+            zone, _estimating_inputs(instance, module, forecast=_hourly_forecast())
+        )
+
+        assert est["method"] == "daily_mirror"
+        assert est["forecast_tier"] == "observed"
+
+    async def test_the_sensor_publishes_the_tier(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+        midday = ANCHOR + timedelta(hours=10)
+        store.set_mapping_buffer(
+            zone[const.ZONE_MAPPING], _observed_rows(_diurnal_readings(), midday)
+        )
+        c.hass.data[const.DOMAIN]["coordinator"] = c
+        c._zone_estimates_cache = {
+            str(zone[const.ZONE_ID]): c._intraday_for_zone(
+                zone,
+                _estimating_inputs(
+                    instance, module, now=midday, forecast=_hourly_forecast()
+                ),
+            )
+        }
+
+        sensor = SmartIrrigationZoneLiveDeficitSensor(
+            c.hass, "sensor.si_live_deficit", zone
+        )
+
+        assert sensor.extra_state_attributes["forecast_tier"] == "service"
+
+
+class TestTheEstimatePathDoesNotSpendTheClampWarning:
+    """The estimate and the commit share one cached module instance, and the
+    clamp warning is once-only. An estimate refreshing every minute would spend
+    it long before the nightly calculation ever reached it, turning a noisy
+    misconfiguration into a silent one.
+    """
+
+    async def test_a_refreshing_estimate_leaves_the_flag_unset(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+
+        for hour in range(1, 25):
+            c._intraday_for_zone(
+                zone,
+                _estimating_inputs(
+                    instance,
+                    module,
+                    now=ANCHOR + timedelta(hours=hour),
+                    forecast=_hourly_forecast(),
+                ),
+            )
+
+        assert getattr(instance, "_warned_solrad_clamp", False) is False
