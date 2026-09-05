@@ -119,6 +119,43 @@ def replayed_balance_applies(store, zone) -> bool:
     return bool(module) and module.get(const.MODULE_NAME) == "PyETO"
 
 
+def trailing_temperature_amplitude(store, mapping_id):
+    """Mean ``Tmax - Tmin`` of this sensor group's recent windows, or None.
+
+    Free function over the store rather than a method, for the reason
+    :func:`hourly_calculation_enabled` is: the live estimate's mixin is
+    instantiated on its own in its tests, where a cross-mixin call raises, and on
+    that path an exception is indistinguishable from an estimate with nothing to
+    say.
+
+    This is the amplitude the self-contained temperature projection scales its
+    canonical curve by. Deliberately an amplitude and not a shape: fitting
+    today's amplitude to the observed part of a window was measured and rejected,
+    because at a late-evening anchor the observed part is all night and the fit
+    is a division by nearly nothing. Nothing about today's amplitude is inferred
+    from a partial day.
+
+    None until at least one full window has been recorded, which is what makes a
+    fresh install decline to the observed extremes and say so through its tier
+    rather than project from a number it does not have.
+    """
+    mapping = store.get_mapping(mapping_id) if mapping_id is not None else None
+    if not mapping:
+        return None
+    values = []
+    for entry in mapping.get(const.MAPPING_TEMPERATURE_AMPLITUDES) or []:
+        try:
+            _when, amplitude = entry
+            amplitude = float(amplitude)
+        except (TypeError, ValueError):
+            continue
+        if amplitude > 0:
+            values.append(amplitude)
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
 class CalculationMixin:
     """Aggregation + ET/bucket calculation for SmartIrrigationCoordinator.
 
@@ -435,6 +472,8 @@ class CalculationMixin:
             )
             return
 
+        await self._record_window_amplitude(zone, weatherdata, now=now)
+
         calc_data[const.ZONE_LAST_CALCULATED] = now
         calc_data[const.ZONE_LAST_UPDATED] = now
         # Advance this zone's watermark so it never re-consumes this window.
@@ -450,6 +489,56 @@ class CalculationMixin:
             zone.get(const.ZONE_ID),
         )
         async_dispatcher_send(self.hass, const.DOMAIN + "_update_frontend")
+
+    async def _record_window_amplitude(self, zone, weatherdata, *, now):
+        """Record this window's temperature spread against its sensor group.
+
+        The live estimate's self-contained tier scales its projection by the mean
+        of these, so a sensor-only install can place a window's extremes at all.
+        The reading buffer cannot supply the same history: it is pruned back to
+        the oldest zone watermark, so a daily-committing install holds roughly
+        the current window and nothing older.
+
+        Keyed by the window's end DATE, replacing rather than appending, because
+        several zones share a sensor group and each commits its own window --
+        appending would fill the whole ring with one evening's seven copies of
+        very nearly the same number and turn a week's mean into a day's.
+
+        Skipped for a window materially shorter than a day: its spread is not a
+        day's amplitude, and recording it would drag the mean down exactly when
+        the projection leans on it hardest.
+        """
+        mapping_id = zone.get(const.ZONE_MAPPING)
+        if mapping_id is None:
+            return
+        multiplier = weatherdata.get(const.MAPPING_DATA_MULTIPLIER) or 0.0
+        if multiplier < const.TEMPERATURE_AMPLITUDE_MIN_MULTIPLIER:
+            return
+        low = weatherdata.get(const.MAPPING_MIN_TEMP)
+        high = weatherdata.get(const.MAPPING_MAX_TEMP)
+        if low is None or high is None:
+            return
+        amplitude = float(high) - float(low)
+        if amplitude <= 0:
+            return
+        mapping = self.store.get_mapping(mapping_id)
+        if not mapping:
+            return
+        key = now.date().isoformat()
+        kept = [
+            entry
+            for entry in (mapping.get(const.MAPPING_TEMPERATURE_AMPLITUDES) or [])
+            if isinstance(entry, (list, tuple)) and len(entry) == 2 and entry[0] != key
+        ]
+        kept.append([key, amplitude])
+        await self.store.async_update_mapping(
+            mapping_id,
+            {
+                const.MAPPING_TEMPERATURE_AMPLITUDES: kept[
+                    -const.TEMPERATURE_AMPLITUDE_WINDOWS :
+                ]
+            },
+        )
 
     def _module_instances(self) -> dict:
         """The resolved calc-module instances by module id, created on first use.

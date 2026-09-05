@@ -520,11 +520,13 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   }
 
   /**
-   * Per-zone irrigation gate. Mirrors the backend runner, but prefers the live
-   * intra-day deficit estimate over the once-daily calc's stored bucket when
-   * available — it reflects ET/rain since the last calc, so the "watering
-   * needed?" verdict stays current (e.g. flips to "no" after rain). Falls back
-   * to the stored bucket when no estimate exists.
+   * The classic daily gate: committed duration + deficit below threshold. Still
+   * what *Irrigate now* runs on (it waters for the committed duration and keeps
+   * the daily gate whatever live-estimate watering is set to), so it gates that
+   * button. Prefers the live intra-day deficit estimate over the once-daily
+   * calc's stored bucket when available — it reflects ET/rain since the last
+   * calc, so the verdict stays current (e.g. flips to "no" after rain). Falls
+   * back to the stored bucket when no estimate exists.
    */
   private _zoneHasDeficit(zone: SmartIrrigationZone): boolean {
     const duration = zone.duration ?? 0;
@@ -535,6 +537,48 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
         ? est.live_deficit
         : Number(zone.bucket ?? 0);
     return duration > 0 && deficit < threshold;
+  }
+
+  /**
+   * The duration a scheduled run will actually use for this zone, and whether it
+   * came from the live bucket. With live-estimate watering on the runner sizes
+   * every timed zone's run from the live deficit and never looks at the
+   * committed duration, so showing the committed one puts a figure on screen
+   * that will not run. `live` is false wherever the runner itself falls back to
+   * the committed figures: the feature off, no live estimate for this zone, or a
+   * flow-metered zone (the backend publishes no `live_duration` for those,
+   * matching the runner keeping them on the daily gate).
+   */
+  private _zoneRunDuration(zone: SmartIrrigationZone): {
+    seconds: number;
+    live: boolean;
+  } {
+    const est = this._zoneEstimate(zone);
+    if (
+      this.config?.live_estimate_enabled &&
+      est &&
+      est.available &&
+      est.live_deficit != null &&
+      est.live_duration != null
+    ) {
+      return { seconds: est.live_duration, live: true };
+    }
+    return { seconds: zone.duration ?? 0, live: false };
+  }
+
+  /**
+   * Will the next scheduled run water this zone? With live-estimate watering on
+   * the runner's gate is the live deficit against the zone's threshold plus a
+   * non-zero recomputed duration — the committed duration is not a condition at
+   * all, so keeping it here reported "no watering needed" for zones that were
+   * about to be watered. With the feature off this is the daily gate, unchanged.
+   */
+  private _zoneWillWater(zone: SmartIrrigationZone): boolean {
+    const run = this._zoneRunDuration(zone);
+    if (!run.live) return this._zoneHasDeficit(zone);
+    const threshold = Number(zone.bucket_threshold ?? 0);
+    const deficit = this._zoneEstimate(zone)!.live_deficit!;
+    return deficit < threshold && run.seconds > 0;
   }
 
   /** Compact local time for a run, e.g. "today 06:00" / "tomorrow 06:00". */
@@ -820,7 +864,6 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
   private _renderZoneDecision(zone: SmartIrrigationZone): TemplateResult {
     if (!this.hass) return html``;
     const lang = this.hass.language;
-    const duration = zone.duration ?? 0;
 
     let text: string;
     let cls: string;
@@ -837,13 +880,14 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
       text = localize("panels.zones.status.decision_unknown", lang);
       cls = "unknown";
       icon = "mdi:help-circle-outline";
-    } else if (!this._zoneHasDeficit(zone)) {
+    } else if (!this._zoneWillWater(zone)) {
       text = localize("panels.zones.status.decision_no_water", lang);
       cls = "ok";
       icon = "mdi:check-circle-outline";
     } else {
-      // Deficit exists — but will the next run actually water it?
-      const dur = formatDuration(duration);
+      // Deficit exists — but will the next run actually water it? The duration
+      // is whichever one that run will use (live bucket or last commit).
+      const dur = formatDuration(this._zoneRunDuration(zone).seconds);
       const triggered = this._triggeredGuards;
       const nextRun = this._nextIrrigateRunForZone(zone);
       if (triggered.length > 0) {
@@ -1057,7 +1101,7 @@ class SmartIrrigationViewZones extends SubscribeMixin(LitElement) {
     const decisionShowsTime =
       zone.state !== SmartIrrigationZoneState.Disabled &&
       zone.last_calculated &&
-      this._zoneHasDeficit(zone) &&
+      this._zoneWillWater(zone) &&
       this._triggeredGuards.length === 0;
     if (decisionShowsTime) return html``;
     return html`

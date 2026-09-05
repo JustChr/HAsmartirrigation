@@ -775,6 +775,14 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             # the zones that get each form are a configuration question rather
             # than a visible one.
             "balance_form": est.get("balance_form"),
+            # Which source filled in the hours this window has not reached, for a
+            # zone whose evapotranspiration comes from the commit's own daily
+            # equation: the configured weather service, the site's own solar
+            # geometry, or nothing at all. None on the other sources, which need
+            # no projection. Measured over a year the tiers differ by a factor of
+            # three on the temperature range they supply, so the live figure
+            # alone never says which one produced it.
+            "forecast_tier": est.get("forecast_tier"),
         }
 
 

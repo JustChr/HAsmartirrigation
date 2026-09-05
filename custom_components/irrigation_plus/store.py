@@ -132,6 +132,7 @@ from .const import (
     MAPPING_PRESSURE,
     MAPPING_SOLRAD,
     MAPPING_TEMPERATURE,
+    MAPPING_TEMPERATURE_AMPLITUDES,
     MAPPING_WINDSPEED,
     MODULE_CONFIG,
     MODULE_DESCRIPTION,
@@ -343,6 +344,10 @@ class MappingEntry:
     data_last_updated = attr.ib(type=datetime, default=None)
     data_last_entry = attr.ib(type=str, default={})
     data_last_calculation = attr.ib(type=str, default={})
+    # ``[[window end date, Tmax - Tmin], ...]``, newest last, capped at
+    # TEMPERATURE_AMPLITUDE_WINDOWS. Small and bounded, so unlike the reading
+    # buffer it belongs in the routine save payload.
+    temperature_amplitudes = attr.ib(type=list, factory=list)
 
 
 @attr.s(slots=True, frozen=True)
@@ -1255,6 +1260,12 @@ class SmartIrrigationStorage:
                         data_last_calculation=mapping.get(
                             MAPPING_DATA_LAST_CALCULATION, {}
                         ),
+                        # .get with a default rather than strict indexing, so a
+                        # document written before this field existed still loads.
+                        temperature_amplitudes=mapping.get(
+                            MAPPING_TEMPERATURE_AMPLITUDES
+                        )
+                        or [],
                     )
             if "distributors" in data:
                 for dist in data["distributors"]:

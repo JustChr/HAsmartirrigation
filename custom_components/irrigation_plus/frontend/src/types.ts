@@ -219,6 +219,14 @@ export interface ZoneEstimate {
   precip_since: number | null;
   drainage_since: number | null;
   live_deficit: number | null;
+  /**
+   * Seconds a live-estimate run would water this zone for, sized from
+   * `live_deficit` by the backend with the same call the runner makes. Null
+   * where the runner does not size the zone from the live deficit (flow-metered
+   * zones keep the daily gate), and absent from older backends — either way the
+   * panel falls back to the committed duration.
+   */
+  live_duration?: number | null;
   as_of: string | null;
 }
 

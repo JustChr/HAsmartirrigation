@@ -153,12 +153,14 @@ class PyETO(SmartIrrigationCalculationModule):
                 item["description"] = desc
         return items
 
-    def calculate(self, weather_data, forecast_data) -> float:
+    def calculate(self, weather_data, forecast_data, *, warn_on_clamp=True) -> float:
         """Calculate the average evapotranspiration delta for the given weather and forecast data.
 
         Args:
             weather_data: Dictionary containing current weather data.
             forecast_data: List of dictionaries containing forecasted weather data for upcoming days.
+            warn_on_clamp: whether a solar-radiation clamp may warn the user.
+                See :meth:`calculate_et_for_day`.
 
         Returns:
             The mean evapotranspiration delta as a float.
@@ -169,7 +171,9 @@ class PyETO(SmartIrrigationCalculationModule):
         if forecast_data is None:
             forecast_data = []
         if weather_data:
-            deltas.append(self.calculate_et_for_day(weather_data))
+            deltas.append(
+                self.calculate_et_for_day(weather_data, warn_on_clamp=warn_on_clamp)
+            )
             # loop over the forecast days
             for x in range(self.forecast_days):
                 _LOGGER.debug(
@@ -177,7 +181,11 @@ class PyETO(SmartIrrigationCalculationModule):
                     x,
                 )
                 if len(forecast_data) - 1 >= x:
-                    deltas.append(self.calculate_et_for_day(forecast_data[x]))
+                    deltas.append(
+                        self.calculate_et_for_day(
+                            forecast_data[x], warn_on_clamp=warn_on_clamp
+                        )
+                    )
         # return average of the collected deltas
         _LOGGER.debug("[pyETO: calculate_et_for_day] collected deltas: %s", deltas)
         if deltas:
@@ -185,11 +193,20 @@ class PyETO(SmartIrrigationCalculationModule):
             _LOGGER.debug("[pyETO: calculate]: mean of deltas returned: %s", delta)
         return delta
 
-    def calculate_et_for_day(self, weather_data):
+    def calculate_et_for_day(self, weather_data, *, warn_on_clamp=True):
         """Calculate the evapotranspiration delta for a single day's weather data.
 
         Args:
             weather_data: Dictionary containing weather data for the day..
+            warn_on_clamp: whether a solar-radiation clamp may warn the user.
+                The clamp itself always applies; only the warning is suppressed.
+                Off for the read-only live estimate, which runs this equation
+                every minute per zone over a window that may be entirely daylight
+                and would therefore warn about a sensor on every refresh. The
+                once-only flag is deliberately left UNSET when this is off,
+                because the estimate and the daily calculation share one cached
+                module instance -- consuming it here would silence the
+                calculation's own warning, which is the one that means something.
 
         Returns:
             The evapotranspiration delta as a float.
@@ -275,7 +292,9 @@ class PyETO(SmartIrrigationCalculationModule):
                 # otherwise blow the net radiation — and ET — up several-fold.
                 # Clamp to clear-sky and warn once so the bad input is visible.
                 if sol_rad is not None and cs_radvar and sol_rad > cs_radvar:
-                    if not getattr(self, "_warned_solrad_clamp", False):
+                    if warn_on_clamp and not getattr(
+                        self, "_warned_solrad_clamp", False
+                    ):
                         self._warned_solrad_clamp = True
                         _LOGGER.warning(
                             "Solar radiation %.1f MJ/day/m2 exceeds the physical "

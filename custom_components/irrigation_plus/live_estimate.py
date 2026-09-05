@@ -1,18 +1,26 @@
 """Intra-day "live status" estimate orchestration.
 
 Read-only: estimates how much each zone's bucket has drifted *since its last
-calculation*. Three sources, in decreasing order of agreement with the stored
+calculation*. Four sources, in decreasing order of agreement with the stored
 ledger:
 
 * **the zone's own sensor-group buffer** — the same rows the daily calculation
   reduces, summed as FAO-56 hourly ETo by the same row builder and run through
   the same replayed water balance, so the live curve is the path the stored
   bucket takes and the two coincide at every calculation time;
+* **the zone's own daily equation over the composed window**, for the zones the
+  hourly form declines because their module estimates solar radiation from the
+  day's temperature range. Those cannot agree with their commit however the
+  balance is combined, because the two were computing different quantities. The
+  window's observed part is reduced by the call the commit will use, its
+  day-level extremes are extended over the hours still to come (see
+  ``day_projection``), and the module instance the commit uses prices the
+  result — so the inputs converge on exactly what the commit will see;
 * **the weather client's hourly series**, where one exposes solar radiation;
 * a **Hargreaves-seeded proxy** distributed over the elapsed hours, for
   providers with neither.
 
-Those three choose the EVAPOTRANSPIRATION only. Precipitation comes from the
+Those four choose the EVAPOTRANSPIRATION only. Precipitation comes from the
 reading buffer on every one of them, because that is the only source the daily
 calculation ever books rain from: a total taken from anywhere else is a total
 the ledger will never record.
@@ -42,7 +50,20 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .calcmodules.pyeto import SOLRAD_behavior
-from .calculation import pending_bucket_events, replayed_balance_applies
+from .calculation import (
+    pending_bucket_events,
+    replayed_balance_applies,
+    trailing_temperature_amplitude,
+)
+from .day_projection import (
+    TIER_OBSERVED,
+    TIER_SELF_CONTAINED,
+    TIER_SERVICE,
+    compose_extremes,
+    diurnal_remainder,
+    forecast_remainder,
+)
+from .duration_math import zone_run_duration
 from .et_estimate import (
     SiteGeometry,
     estimate_daily_et0_hargreaves,
@@ -169,7 +190,113 @@ class LiveEstimateMixin:
         inputs["rows"] = rows
         inputs["tz"] = tz
         inputs["forecast"] = forecast
+        inputs["hourly_forecast"] = self._hourly_forecast_temperatures(client)
         return inputs
+
+    @staticmethod
+    def _hourly_forecast_temperatures(client):
+        """``[(naive local datetime, temperature C)]`` from the configured service.
+
+        Fills the hours a calculation window has not reached yet, so the day-level
+        extremes the commit's equation consumes can be read off the whole window
+        rather than off its observed part. The clients hand back absolute
+        instants, because three of the four products stamp in UTC and one in the
+        site's own zone; they are localised once here, since everything the
+        estimate compares them against is naive local.
+
+        The accessor reads an already-fetched document and never issues a request
+        of its own, so the estimate path adds no external polling. ``None``
+        where the service has no hourly series
+        or nothing has been fetched yet; the caller then falls to the
+        self-contained tier and publishes that it did.
+        """
+        if client is None or not hasattr(client, "get_hourly_temperature_forecast"):
+            return None
+        try:
+            series = client.get_hourly_temperature_forecast()
+        except Exception as e:  # noqa: BLE001 — estimate must never raise
+            _LOGGER.debug("intraday: get_hourly_temperature_forecast failed: %s", e)
+            return None
+        if not series:
+            return None
+        out = []
+        for when, temp in series:
+            if when is None or temp is None:
+                continue
+            if when.tzinfo is not None:
+                when = dt_util.as_local(when).replace(tzinfo=None)
+            out.append((when, float(temp)))
+        return out or None
+
+    async def _resolve_zone_modules(self, zones):
+        """``{module_id: instance}`` for the zones about to be estimated.
+
+        Resolved HERE rather than inside ``_intraday_for_zone`` because the
+        resolver lives on the calculation mixin, and the estimate's mixin is
+        instantiated on its own in its tests -- a cross-mixin call raises there,
+        and on this path an exception is indistinguishable from an estimate that
+        simply has nothing to say. Handing the instances in through ``inputs``
+        keeps the per-zone reduction free of that dependency, and a caller that
+        supplies none simply gets the sources that came before this one.
+
+        Affordable only because the resolver caches: it re-scans the calc-module
+        directory over an executor hop on a miss, which is fine once a day and
+        not once a minute per zone.
+        """
+        resolver = getattr(self, "getModuleInstanceByID", None)
+        if resolver is None:
+            return {}
+        out = {}
+        for zone in zones:
+            module_id = zone.get(const.ZONE_MODULE)
+            if module_id is None or module_id in out:
+                continue
+            try:
+                out[module_id] = await resolver(module_id)
+            except Exception as e:  # noqa: BLE001 — estimate must never raise
+                _LOGGER.debug("intraday: could not resolve module %s: %s", module_id, e)
+        return out
+
+    def _aggregate_live_window(self, zone, anchor, *, now=None):
+        """The zone's elapsed window, reduced exactly as ``_aggregate_for_zone`` will.
+
+        One reduction serving both halves of the estimate: the precipitation
+        trace, and the day-level inputs the mirrored daily equation consumes. The
+        commit runs this same call over the whole window when it closes, so the
+        two agree by construction rather than by two hand-maintained argument
+        lists happening to match -- which is how they drifted before.
+        """
+        mapping_id = zone.get(const.ZONE_MAPPING)
+        if mapping_id is None:
+            return None
+        mapping = self.store.get_mapping(mapping_id)
+        if not mapping:
+            return None
+        readings = self.store.get_mapping_buffer(mapping_id)
+        if not readings:
+            return None
+        return aggregate_window(
+            readings,
+            anchor,
+            mapping.get(const.MAPPING_MAPPINGS) or {},
+            now=now,
+            # Same carry-forward the daily calc uses, so the live estimate and the
+            # daily calculation aggregate the identical window — a difference here
+            # would show up as the "Live bucket" sensor disagreeing with the
+            # bucket the nightly calc produces.
+            last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
+            # Must match _aggregate_for_zone exactly: a different aggregation
+            # here would show up as the "Live bucket" sensor disagreeing with
+            # the bucket the nightly calc produces.
+            time_weighted=(
+                getattr(
+                    getattr(self.store, "config", None),
+                    const.CONF_CONTINUOUS_UPDATES,
+                    False,
+                )
+                is True
+            ),
+        )
 
     def _observed_precip_since_mm(self, zone, anchor):
         """Observed precipitation (mm) collected for the zone's sensor group
@@ -190,36 +317,7 @@ class LiveEstimateMixin:
         only shows up after a weather-data reset or a source change and then
         looks like anything but a window bug.
         """
-        mapping_id = zone.get(const.ZONE_MAPPING)
-        if mapping_id is None:
-            return 0.0
-        mapping = self.store.get_mapping(mapping_id)
-        if not mapping:
-            return 0.0
-        readings = self.store.get_mapping_buffer(mapping_id)
-        if not readings:
-            return 0.0
-        agg = aggregate_window(
-            readings,
-            anchor,
-            mapping.get(const.MAPPING_MAPPINGS) or {},
-            # Same carry-forward the daily calc uses, so the live estimate and the
-            # daily calculation aggregate the identical window — a difference here
-            # would show up as the "Live bucket" sensor disagreeing with the
-            # bucket the nightly calc produces.
-            last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
-            # Must match _aggregate_for_zone exactly: a different aggregation
-            # here would show up as the "Live bucket" sensor disagreeing with
-            # the bucket the nightly calc produces.
-            time_weighted=(
-                getattr(
-                    getattr(self.store, "config", None),
-                    const.CONF_CONTINUOUS_UPDATES,
-                    False,
-                )
-                is True
-            ),
-        )
+        agg = self._aggregate_live_window(zone, anchor)
         if not agg:
             return 0.0
         return agg.get(const.MAPPING_PRECIPITATION, 0.0) or 0.0
@@ -349,6 +447,176 @@ class LiveEstimateMixin:
             )
         return sum(per_hour.values()), per_hour
 
+    def _daily_form_applies(self, zone, modinst) -> bool:
+        """Whether this zone's commit runs the DAILY equation on estimated radiation.
+
+        The complement of :meth:`_hourly_form_applies` on the source axis, and the
+        largest population there is: estimating solar radiation from the day's
+        temperature range is the shipped default. Their commit replays the window
+        and prices it with the daily equation, while their estimate priced it from
+        a weather client's own hourly series or a temperature-seeded proxy -- a
+        different quantity, which no amount of fixing the balance form closes.
+
+        Read from the module INSTANCE rather than the stored config, unlike the
+        hourly gate, because the instance is needed anyway to run the equation and
+        it is the same object the commit reads.
+
+        Forecast days are excluded: with them the commit averages today with days
+        that need a projection of their own, which is a separate construction.
+        """
+        if modinst is None:
+            return False
+        if not replayed_balance_applies(self.store, zone):
+            return False
+        if str(getattr(modinst, "_solrad_behavior", "")) == str(
+            SOLRAD_behavior.DontEstimate.value
+        ):
+            return False
+        return not getattr(modinst, "forecast_days", 0)
+
+    def _latest_temperature(self, zone, agg):
+        """The temperature the sensor group is reading now, or None.
+
+        The self-contained projection is held to pass through this, so it
+        re-anchors on every refresh instead of freezing a curve drawn hours ago.
+        The mapping's last-seen entry is preferred over the window mean because
+        it is the CURRENT reading; the window's mean is the fallback for a group
+        that has no last entry at all.
+        """
+        mapping = self.store.get_mapping(zone.get(const.ZONE_MAPPING))
+        if mapping:
+            latest = (mapping.get(const.MAPPING_DATA_LAST_ENTRY) or {}).get(
+                const.MAPPING_TEMPERATURE
+            )
+            if latest is not None:
+                try:
+                    return float(latest)
+                except (TypeError, ValueError):
+                    pass
+        value = (agg or {}).get(const.MAPPING_TEMPERATURE)
+        return None if value is None else float(value)
+
+    def _projected_extremes(self, zone, agg, inputs, *, now, window_end, geometry):
+        """``(tmin, tmax, tier)`` for the whole window, read off the composition.
+
+        Observed so far, extended over the hours the window has not reached, with
+        the extremes taken from the two together. The remainder shrinks to
+        nothing as the window closes, so the inputs converge on exactly what the
+        commit will see -- no blend rule, no gate times, and no residual left
+        standing at the moment of commit.
+
+        Tiers are tried in a fixed order. A Home Assistant weather entity sits
+        between these two and is not built yet; its absence shows up
+        as the self-contained tier being published, never as a wrong number
+        presented as a good one.
+        """
+        low = agg.get(const.MAPPING_MIN_TEMP)
+        high = agg.get(const.MAPPING_MAX_TEMP)
+        if low is None or high is None:
+            return None, None, None
+
+        remainder = forecast_remainder(inputs.get("hourly_forecast"), now, window_end)
+        tier = TIER_SERVICE
+        if remainder is None:
+            remainder = diurnal_remainder(
+                now,
+                self._latest_temperature(zone, agg),
+                trailing_temperature_amplitude(
+                    self.store, zone.get(const.ZONE_MAPPING)
+                ),
+                geometry,
+                window_end,
+            )
+            tier = TIER_SELF_CONTAINED
+        if not remainder:
+            # Either no source could fill the remaining hours, or there are none
+            # left to fill. Both publish the observed tier: the attribute answers
+            # which source supplied the unobserved part of the window, and at the
+            # moment of commit nothing did, because there was nothing to supply.
+            # Reporting a forecast tier there would claim a contribution that was
+            # not made, on exactly the reading a user checks the two figures
+            # against each other with.
+            remainder, tier = [], TIER_OBSERVED
+        low, high = compose_extremes(float(low), float(high), remainder)
+        return low, high, tier
+
+    def _daily_mirror_et(self, zone, agg, inputs, *, anchor, now, geometry):
+        """``(et_mm, tier)`` from the zone's OWN daily equation, or None.
+
+        The whole point: a zone that estimates solar radiation gets a live
+        bucket computed with the equation its commit runs, rather than one
+        computed with a different equation and then compared against it.
+
+        The elapsed window is reduced by the same call the commit reduces the
+        whole window with, its day-level extremes are replaced by the composed
+        ones, and the zone's own module instance prices the result. The window's
+        share is ``MAPPING_DATA_MULTIPLIER`` -- the commit's own ``hour_multiplier``
+        out of the same aggregate -- so the estimate charges the elapsed hours at
+        the rate the projected day total sets, and never charges past now.
+
+        The crop coefficient is deliberately NOT applied here; the caller applies
+        it to whichever source produced the window total, exactly as the commit
+        applies it to the ET term alone.
+
+        The clamp warning is suppressed explicitly. The calculation avoids it
+        structurally by never running the daily equation when it will not use the
+        answer; this path runs it every minute per zone and would otherwise warn
+        about a sensor on every refresh -- and, sharing the cached instance, would
+        consume the once-only flag the commit's own warning depends on.
+        """
+        modinst = (inputs.get("modules") or {}).get(zone.get(const.ZONE_MODULE))
+        if not self._daily_form_applies(zone, modinst):
+            return None
+        if not agg:
+            return None
+        low, high, tier = self._projected_extremes(
+            zone,
+            agg,
+            inputs,
+            now=now,
+            # The window is a day from its anchor: that is what the commit's own
+            # equation is defined over, and it is where the remainder has to run
+            # out for the two to meet. Anchor-agnostic on purpose -- a fixed calc
+            # time and a schedule's decision point are both just an anchor.
+            #
+            # A day is an assumption, and it is a good one under both commit
+            # modes. The fixed-time mode makes it exact: the anchor IS calctime.
+            # The before-run mode commits at a schedule's decision point, which
+            # is either a configured earliest start -- a clock time, so exact
+            # again -- or the solar target minus a bound priced from
+            # configuration alone. Only the solar target moves night to night,
+            # by at most 1.75 minutes at this latitude, so consecutive windows
+            # are a day apart to within a couple of minutes either way.
+            #
+            # What does break it is a SKIPPED commit, which the before-run mode
+            # allows whenever a night produces no run. Then the real window is
+            # longer than a day and this runs out early, so both extremes fall
+            # back to the observation -- the conservative direction, and the
+            # published tier says ``observed`` rather than claiming a forecast
+            # supplied something. ``async_guard_ledger_staleness`` caps that
+            # stretch at a day, so the window never exceeds about two.
+            window_end=anchor + datetime.timedelta(hours=24),
+            geometry=geometry,
+        )
+        if low is None:
+            return None
+        projected = {
+            **agg,
+            const.MAPPING_MIN_TEMP: low,
+            const.MAPPING_MAX_TEMP: high,
+        }
+        delta = modinst.calculate(
+            weather_data=projected, forecast_data=None, warn_on_clamp=False
+        )
+        if delta is None:
+            return None
+        multiplier = agg.get(const.MAPPING_DATA_MULTIPLIER)
+        if multiplier is None:
+            return None
+        # ``delta`` is the daily equation's own sign convention: negative for a
+        # loss. The estimate carries evapotranspiration as a positive quantity.
+        return max(0.0, -float(delta)) * float(multiplier), tier
+
     def _buffer_water_steps(
         self, zone, anchor, *, now, hourly_et, precip_total, applied
     ):
@@ -473,6 +741,7 @@ class LiveEstimateMixin:
             "precip_since": None,
             "drainage_since": None,
             "live_deficit": None,
+            "live_duration": None,
             "as_of": None,
             # Which form of the balance produced the number above. Published
             # because nothing else makes the difference visible from outside the
@@ -480,6 +749,12 @@ class LiveEstimateMixin:
             # close are the same reading, and the gap between them is exactly
             # what an operator would be diagnosing.
             "balance_form": None,
+            # Which source filled in the hours the window has not reached, where
+            # the evapotranspiration came from the commit's own daily equation.
+            # None on every other source, which needs no projection at all. The
+            # tiers differ by a factor of three on the input they supply, so a
+            # figure alone never says which one produced it.
+            "forecast_tier": None,
         }
         try:
             client = inputs["client"]
@@ -554,13 +829,32 @@ class LiveEstimateMixin:
             # same row builder is the only source that coincides with the stored
             # bucket at each calculation. A client's series is a different set of
             # observations for the same site and drifts from the ledger.
+            geometry = SiteGeometry(lat, lon, elevation, tz_offset_h, site_tz)
             buffer_et = self._buffer_hourly_et(
                 zone,
                 anchor,
                 now=now_local,
-                geometry=SiteGeometry(lat, lon, elevation, tz_offset_h, site_tz),
+                geometry=geometry,
             )
             hourly_et = None
+            forecast_tier = None
+            # Reduced once and shared: the mirrored daily equation reads its
+            # day-level inputs from this, and the precipitation trace is the same
+            # window's rain. Two reductions of one window is a needless second
+            # pass on a path that runs every minute per zone.
+            agg = self._aggregate_live_window(zone, anchor, now=now_local)
+            mirrored = (
+                None
+                if buffer_et is not None
+                else self._daily_mirror_et(
+                    zone,
+                    agg,
+                    inputs,
+                    anchor=anchor,
+                    now=now_local,
+                    geometry=geometry,
+                )
+            )
             if buffer_et is not None:
                 et_mm, hourly_et = buffer_et
                 # Same anchor as the ET, aggregated the way the daily calc does
@@ -568,6 +862,15 @@ class LiveEstimateMixin:
                 precip_mm = self._observed_precip_since_mm(zone, anchor)
                 method = "hourly_sensor"
                 # The buffer is current to now, not to the last closed hour.
+                as_of = now_local.isoformat()
+            elif mirrored is not None:
+                # A zone whose module estimates solar radiation from the day's
+                # temperature range. Its commit runs the daily equation, so the
+                # estimate runs the same one over the composed window rather than
+                # a different equation whose answer is then compared against it.
+                et_mm, forecast_tier = mirrored
+                precip_mm = (agg or {}).get(const.MAPPING_PRECIPITATION, 0.0) or 0.0
+                method = "daily_mirror"
                 as_of = now_local.isoformat()
             elif rows:
                 tz = inputs["tz"] or 0.0
@@ -710,26 +1013,52 @@ class LiveEstimateMixin:
             # Nothing renders these — the panel chip formats live_deficit alone
             # — so the extra digits cost only bytes.
             trace_digits = ndigits + 2
+            # The sensor's own state, which IS displayed. Kept at display
+            # precision so the entity does not show five decimals.
+            live_display = round(from_mm(live_mm), ndigits)
             result.update(
                 available=True,
                 method=method,
                 et_since=round(from_mm(et_mm), trace_digits),
                 precip_since=round(from_mm(precip_mm), trace_digits),
                 drainage_since=round(from_mm(drained_mm), trace_digits),
-                # The sensor's own state, which IS displayed. Kept at display
-                # precision so the entity does not show five decimals.
-                live_deficit=round(from_mm(live_mm), ndigits),
+                live_deficit=live_display,
+                live_duration=self._live_run_duration(zone, live_display, metric),
                 as_of=as_of,
                 balance_form="replayed" if steps is not None else "lumped",
+                forecast_tier=forecast_tier,
             )
         except Exception as e:  # noqa: BLE001 — estimate must never raise
             _LOGGER.debug("intraday estimate failed for a zone: %s", e)
         return result
 
+    @staticmethod
+    def _live_run_duration(zone, deficit, metric):
+        """Seconds a live-estimate run would water this zone for, or ``None``.
+
+        Published so the panel can show the duration the run will actually use
+        rather than the last commit's frozen one. It is the *same packing of
+        the same number* the runner's ``_zone_run_decision`` sizes with —
+        :func:`zone_run_duration` on the published (rounded) deficit — so the
+        screen and the run cannot state different durations for one run; a
+        second formula on the frontend is exactly how they would drift apart.
+
+        ``None`` where the runner does not size the zone from the live deficit:
+        flow-metered zones deliver to a measured volume and deliberately keep
+        the daily gate, so the panel has to fall back to the committed figures
+        for them the way the runner does. Independent of
+        ``live_estimate_enabled``: with the feature off the runner ignores this
+        number entirely, and so does the panel.
+        """
+        if zone.get(const.ZONE_FLOW_SENSOR):
+            return None
+        return zone_run_duration(zone, deficit, metric)
+
     async def async_get_zone_estimates(self) -> dict:
         """Return ``{zone_id: estimate}`` for every zone with an available value."""
         inputs = await self._fetch_intraday_inputs()
         zones = await self.store.async_get_zones()
+        inputs["modules"] = await self._resolve_zone_modules(zones)
         out = {}
         for zone in zones:
             est = self._intraday_for_zone(zone, inputs)

@@ -37,7 +37,15 @@ _SESSION = requests.Session()
 _MIN_CACHE_SECONDS = 60
 
 # Open Weather Map URL
-PirateWeather_URL = "https://api.pirateweather.net/forecast/{}/{},{}?units={}&version={}&exclude=minutely,hourly,alerts"
+#
+# ``hourly`` is requested even though nothing reads it hour by hour for the
+# ledger: the composed window needs the temperatures of a window's remaining
+# hours, and a daily high and low cannot supply them. Measured, substituting a
+# daily low for the window's post-midnight tail does not converge -- tomorrow's
+# low usually falls after the window closes, so the construction imports an
+# extreme the commit will never see and never lets go of it. Costs response size
+# on a call that is made anyway, and no extra call.
+PirateWeather_URL = "https://api.pirateweather.net/forecast/{}/{},{}?units={}&version={}&exclude=minutely,alerts"
 
 RETRY_TIMES = 3
 # Required PirateWeather keys for validation
@@ -101,6 +109,10 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
         self._cached_data_at = None
         self._cached_forecast_data = None
         self._cached_forecast_at = None
+        # The raw response, kept by whichever accessor fetched it, so the
+        # hourly temperatures stay reachable without a second call on a
+        # metered key.
+        self._cached_doc = None
 
     def _is_fresh(self, fetched_at) -> bool:
         """Whether a result fetched at ``fetched_at`` may still be served cached."""
@@ -125,6 +137,34 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                 f"Pirate Weather validation failed with HTTP {req.status_code}"
             )
 
+    def get_hourly_temperature_forecast(self):
+        """``[(aware UTC datetime, temperature C)]`` from the hourly block.
+
+        Temperatures are Celsius because the request asks for SI units.
+
+        Reads an already-fetched document only; see
+        ``OpenMeteoClient.get_hourly_temperature_forecast`` for why.
+        """
+        doc = self._cached_doc
+        if not doc:
+            return None
+        out = []
+        for entry in (doc.get("hourly") or {}).get("data") or []:
+            temp = entry.get(PirateWeather_temp_key_name)
+            stamp = entry.get("time")
+            if temp is None or stamp is None:
+                continue
+            try:
+                out.append(
+                    (
+                        datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc),
+                        float(temp),
+                    )
+                )
+            except (TypeError, ValueError, OSError):
+                continue
+        return out or None
+
     def get_forecast_data(self):
         """Validate and return forecast data."""
         if not self._is_fresh(self._cached_forecast_at):
@@ -141,6 +181,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                     )
                     return None
                 doc = json.loads(req.text)
+                self._cached_doc = doc
                 _LOGGER.debug(
                     "PirateWeatherClient get_forecast_data called API %s and received %s",
                     self.url.replace(self.api_key, "***") if self.api_key else self.url,
@@ -221,6 +262,7 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                     )
                     return None
                 doc = json.loads(req.text)
+                self._cached_doc = doc
                 _LOGGER.debug(
                     "PirateWeatherClient get_data called API %s and received %s",
                     self.url.replace(self.api_key, "***") if self.api_key else self.url,
