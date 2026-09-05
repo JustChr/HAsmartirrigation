@@ -447,3 +447,23 @@ async def test_live_credit_then_daily_calc_no_double_subtraction(monkeypatch):
     assert credited[const.ZONE_BUCKET] == pytest.approx(-5.0)
     assert zeroed[const.ZONE_BUCKET] == pytest.approx(-8.0)
     assert credited[const.ZONE_BUCKET] - zeroed[const.ZONE_BUCKET] == pytest.approx(3.0)
+
+
+def test_live_run_duration_respects_the_maximum_duration_clamp():
+    """A clamped zone is where panel-vs-run drift is most visible.
+
+    The runner sizes through ``_duration_for_deficit``, which returns the CAPPED
+    duration (and warns). Publishing the uncapped figure would put a number on
+    screen that the run cannot reach -- on precisely the zones whose runs are
+    already being cut short.
+    """
+    coord = _live_coordinator()
+    zone = _timed_zone(**{const.ZONE_MAXIMUM_DURATION: 120})
+    assert coord._live_run_duration(zone, -8.0, True) == 120
+
+
+async def test_the_clamped_published_figure_is_still_what_the_runner_starts():
+    coord = _live_coordinator(estimates={"1": {"live_deficit": -8.0}})
+    zone = _timed_zone(**{const.ZONE_MAXIMUM_DURATION: 120})
+    out = await coord._apply_live_durations([zone])
+    assert out[0][const.ZONE_DURATION] == coord._live_run_duration(zone, -8.0, True)
