@@ -68,7 +68,7 @@ from .et_estimate import (
     SiteGeometry,
     estimate_daily_et0_hargreaves,
     hourly_eto_priced,
-    live_balance,
+    lumped_water_balance,
     proxy_et_since,
     replay_water_balance,
     rigorous_et_since,
@@ -994,13 +994,23 @@ class LiveEstimateMixin:
                     max_bucket_mm if max_bucket_mm and max_bucket_mm > 0 else None,
                 )
             else:
-                live_mm, drained_mm = live_balance(
+                # Lumped, but still with the drainage integral cut at the credit
+                # times, because the commit's lumped arm cuts it there too. Both
+                # arms are gated by the same predicate, so this is the same
+                # population -- reading it through an uncut integral is exactly
+                # the "lumped form against a replayed ledger" gap described
+                # above, in the one place it would not be visible as one.
+                live_mm, drained_mm, _runoff, _segments = lumped_water_balance(
                     bucket_mm,
-                    et_mm,
-                    precip_mm,
+                    precip_mm - et_mm,
+                    [
+                        ((stamp - anchor).total_seconds() / 3600.0, mm)
+                        for stamp, mm in pending_bucket_events(zone)
+                    ],
+                    elapsed_hours,
+                    drainage_rate_mm,
                     max_bucket_mm,
-                    drainage_rate=drainage_rate_mm,
-                    elapsed_hours=elapsed_hours,
+                    max_bucket_mm if max_bucket_mm and max_bucket_mm > 0 else None,
                 )
             ndigits = 2 if metric else 3
             # The three accumulators are graph inputs rather than display

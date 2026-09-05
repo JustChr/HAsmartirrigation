@@ -20,8 +20,8 @@ from .calcmodules.pyeto import SOLRAD_behavior
 from .duration_math import duration_from_deficit, zone_run_duration  # noqa: F401
 from .et_estimate import (
     SiteGeometry,
-    drained_over_window,
     hourly_eto_priced,
+    lumped_water_balance,
     replay_water_balance,
 )
 from .helpers import as_datetime as _as_datetime
@@ -947,6 +947,10 @@ class CalculationMixin:
         # further from where they belong, not closer.
         data[const.ZONE_PENDING_BUCKET_EVENTS] = []
         runoff = 0.0
+        # The lumped path's drainage segments, only where a mid-window credit
+        # actually split them. None everywhere else, which is what keeps the
+        # explanation for a window without credits exactly what it was.
+        credit_segments = None
         # Kept for the explanation in both paths: it is the number the reader
         # recognises as "bucket plus delta, capped", and it is what selects the
         # no-drainage wording.
@@ -972,19 +976,51 @@ class CalculationMixin:
                 applied_total,
             )
         else:
-            newbucket = bucket_plus_delta_capped
             # Drainage only acts on water above field capacity (surplus > 0) and
             # is integrated analytically over the elapsed window (see
             # ``drained_over_window``). This replaces the previous single
             # explicit-Euler step, which over-drained because the rate was sampled
             # once at the end-of-window surplus and charged for the whole window.
-            drainage = drained_over_window(
-                bucket_plus_delta_capped,
-                drainage_rate,
+            #
+            # The integral is cut at the times irrigation was credited. Without
+            # that a credit added six hours ago is charged the whole window's
+            # drainage, which reads the zone drier than it is and freezes in once
+            # the bucket is back in deficit and drainage stops acting. With no
+            # credits there is one segment over the whole window and the result is
+            # the same arithmetic as before, digit for digit.
+            # The consume watermark, which is where the window really opens, and
+            # is what ``build_substeps`` is handed on the replayed arm. Deriving
+            # it from ``elapsed_hours`` instead agrees exactly while a watermark
+            # exists and silently does not for a zone that has never consumed:
+            # ``_hour_multiplier`` then reports the span of the buffer's own
+            # stamps, which does not end at ``now``, and every credit before the
+            # reconstructed start would clamp back to the window start -- the
+            # behaviour this replaces.
+            window_start = _as_datetime(zone.get(const.ZONE_LAST_CONSUMED))
+            if window_start is None:
+                window_start = now - timedelta(hours=elapsed_hours)
+            newbucket, drainage, runoff, segments = lumped_water_balance(
+                bucket,
+                delta,
+                [
+                    ((stamp - window_start).total_seconds() / 3600.0, mm)
+                    for stamp, mm in applied
+                ],
                 elapsed_hours,
+                drainage_rate,
+                maximum_bucket,
                 drain_maximum,
             )
-            newbucket = bucket_plus_delta_capped - drainage
+            if applied:
+                credit_segments = segments
+                _LOGGER.debug(
+                    "[calculate-module]: drainage split across %s segments for "
+                    "%s mm of mid-window irrigation: drainage %s, runoff %s",
+                    len(segments),
+                    sum(mm for _, mm in applied),
+                    drainage,
+                    runoff,
+                )
         _LOGGER.debug("[calculate-module]: current_drainage: %s", drainage)
 
         data[const.ZONE_CURRENT_DRAINAGE] = drainage
@@ -1104,14 +1140,21 @@ class CalculationMixin:
             self.hass.config.language,
         )
 
-        if steps is not None:
-            # The single-shot formulas below would not add up here: the balance
-            # was replayed, so rain, drainage and the clamp were applied at the
-            # times they happened. Report what the replay actually did instead.
+        # The highest level any segment opened at. A credited window that never
+        # rose above field capacity drained nothing, and saying that it did is
+        # what the Brooks-Corey wording below would claim.
+        peak_level = max((s.level_in for s in credit_segments or ()), default=0.0)
+
+        if steps is not None or credit_segments is not None:
             runoff_loc = await localize(
                 "module.calculation.explanation.runoff-variable",
                 self.hass.config.language,
             )
+
+        if steps is not None:
+            # The single-shot formulas below would not add up here: the balance
+            # was replayed, so rain, drainage and the clamp were applied at the
+            # times they happened. Report what the replay actually did instead.
             explanation += (
                 await localize(
                     "module.calculation.explanation.water-balance-substepped",
@@ -1124,6 +1167,48 @@ class CalculationMixin:
                 )
                 + f" {drainage:.2f}"
             )
+            if runoff > 0:
+                explanation += (
+                    ".<br/>"
+                    + await localize(
+                        "module.calculation.explanation.runoff-is",
+                        self.hass.config.language,
+                    )
+                    + f" {runoff:.2f}"
+                )
+        elif credit_segments is not None:
+            # Every one of the single-shot formulas below is written around
+            # ``bucket + delta``, which here is the level AFTER the credits went
+            # back in and is not a level anything was tested against. Report the
+            # walk instead, unconditionally: it is the only wording that stays
+            # true when a credited window happens to drain nothing.
+            explanation += await localize(
+                "module.calculation.explanation.current-drainage-is",
+                self.hass.config.language,
+            )
+            if peak_level > 0:
+                if maximum_bucket is not None and maximum_bucket > 0:
+                    explanation += await localize(
+                        "module.calculation.explanation.drainage-integrated",
+                        self.hass.config.language,
+                    )
+                    explanation += (
+                        f" ([{drainage_rate_loc}] * (W/[{max_bucket_loc}])^4)"
+                    )
+                else:
+                    explanation += f" ([{drainage_rate_loc}] * [{hours_loc}])"
+            explanation += f": W = {credit_segments[0].level_in:.2f}"
+            for index, segment in enumerate(credit_segments):
+                explanation += (
+                    f" &rarr;({segment.hours:.2f} [{hours_loc}])"
+                    f" {segment.level_out:.2f}"
+                )
+                if segment.credit_mm:
+                    explanation += (
+                        f" + {segment.credit_mm:.2f}"
+                        f" = {credit_segments[index + 1].level_in:.2f}"
+                    )
+            explanation += f", [{drainage_loc}] = {drainage:.2f}"
             if runoff > 0:
                 explanation += (
                     ".<br/>"
@@ -1162,7 +1247,7 @@ class CalculationMixin:
             self.hass.config.language,
         )
 
-        if steps is not None:
+        if steps is not None or credit_segments is not None:
             # Water in minus water out, and it balances exactly: every sub-step
             # adds its ET share and its rain and removes its drainage and its
             # runoff, so the totals telescope back to this one line.

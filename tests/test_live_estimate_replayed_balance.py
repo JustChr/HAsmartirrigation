@@ -981,6 +981,54 @@ class TestZonesWhoseCommitLumps:
             round(data[const.ZONE_BUCKET], 2), abs=0.01
         )
 
+    async def test_a_credited_window_agrees_when_both_sides_lump(self, coordinator):
+        """The credit ledger is not a feature of the replayed arm.
+
+        Both arms lump here and both are gated by the same predicate, so this is
+        the one configuration where a credit placed on the drainage timeline by
+        the commit and folded into the window start by the estimate would show up
+        nowhere else. With ``live_estimate_enabled`` on, the estimate is what
+        sizes the run.
+        """
+        c, store = coordinator
+        await store.async_update_config({const.CONF_HOURLY_CALCULATION: False})
+        events = [{"ts": (T0 + timedelta(hours=20)).isoformat(), "mm": 10.0}]
+        zone = await _zone(c, store, 10.0, events=events, solrad="1")
+
+        est = c._intraday_for_zone(zone, _client_inputs(_provider_rows(0.0)))
+        data = await _committed_with_et(c, zone, est["et_since"])
+
+        assert est["balance_form"] == "lumped"
+        assert est["live_deficit"] == pytest.approx(
+            round(data[const.ZONE_BUCKET], 2), abs=0.01
+        )
+
+    async def test_the_lumped_credit_placement_is_not_vacuous(self, coordinator):
+        """Guards the test above against passing whatever the estimate does.
+
+        A credit at hour 20 and the same water folded into the window start are
+        different amounts of drainage, and the equality above pins nothing unless
+        the estimate can tell them apart.
+        """
+        c, store = coordinator
+        await store.async_update_config({const.CONF_HOURLY_CALCULATION: False})
+        late = await _zone(
+            c,
+            store,
+            20.0,
+            events=[{"ts": (T0 + timedelta(hours=20)).isoformat(), "mm": 12.0}],
+            solrad="1",
+        )
+        folded = await _zone(c, store, 20.0, solrad="1")
+
+        with_ledger = c._intraday_for_zone(late, _client_inputs(_provider_rows(0.0)))
+        without = c._intraday_for_zone(folded, _client_inputs(_provider_rows(0.0)))
+
+        assert with_ledger["balance_form"] == "lumped"
+        # The whole difference is drainage that was never owed.
+        assert with_ledger["live_deficit"] > without["live_deficit"] + 1.0
+        assert with_ledger["drainage_since"] < without["drainage_since"]
+
     async def test_a_client_window_that_cannot_be_sub_stepped_still_estimates(
         self, coordinator, monkeypatch
     ):
