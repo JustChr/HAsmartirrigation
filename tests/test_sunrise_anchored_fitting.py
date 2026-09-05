@@ -730,6 +730,38 @@ class TestAnInvertedPairingIsAnnouncedOncePerPairing:
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-20 20:00:00")
+    async def test_a_viewer_read_does_not_spend_the_announcement(self, caplog):
+        """The dashboard and every zone's Next irrigation entity resolve the
+        same pairing, now on the estimate refresh rather than only on a config
+        write. Reading it is not deciding anything, so a read must not consume
+        the one announcement the arm is entitled to make -- otherwise the
+        misconfiguration is reported at DEBUG, where nobody sees it, and the
+        only trace of it is in a log level.
+        """
+        mgr = _manager()
+        sched = self._inverted()
+        mgr._schedules = [sched]
+        caplog.set_level(logging.DEBUG)
+
+        for _ in range(3):
+            await mgr.async_get_upcoming_runs()
+        assert [
+            r for r in caplog.records if "does not precede/follow" in r.message
+        ] == []
+
+        with patch(
+            "custom_components.irrigation_plus.scheduler."
+            "async_track_point_in_utc_time"
+        ):
+            await mgr._setup_schedule_tracker(sched)
+
+        levels = [
+            r.levelno for r in caplog.records if "does not precede/follow" in r.message
+        ]
+        assert levels[:1] == [logging.WARNING]
+
+    @pytest.mark.asyncio
+    @freeze_time("2026-06-20 20:00:00")
     async def test_repeating_the_same_pairing_drops_to_debug(self, caplog):
         mgr = _manager()
         sched = self._inverted()

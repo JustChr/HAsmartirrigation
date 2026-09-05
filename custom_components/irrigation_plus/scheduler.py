@@ -997,7 +997,7 @@ class RecurringScheduleManager:
                 next_run = target - datetime.timedelta(seconds=duration)
                 if paired is not None:
                     floor = await self._paired_bound_time(
-                        schedule, const.SCHEDULE_ANCHOR_START, target
+                        schedule, const.SCHEDULE_ANCHOR_START, target, quiet=True
                     )
                     decision_point = None
                     if floor is not None:
@@ -1021,7 +1021,7 @@ class RecurringScheduleManager:
                     )
             elif governing == const.SCHEDULE_ANCHOR_START and paired is not None:
                 finish = await self._paired_bound_time(
-                    schedule, const.SCHEDULE_ANCHOR_FINISH, target
+                    schedule, const.SCHEDULE_ANCHOR_FINISH, target, quiet=True
                 )
                 if finish is not None:
                     entry["start_bound_utc"] = target.isoformat()
@@ -1220,6 +1220,16 @@ class RecurringScheduleManager:
             return None
         else:
             target = await self._next_governing_time(schedule, governing)
+            if target is not None:
+                # The arm advances off an occurrence it has already fired; so
+                # must this. Between a dispatch and its own target the resolver
+                # still answers with that target, and publishing a start, a
+                # decision point and a set of durations for a run that already
+                # watered is a confident wrong answer during exactly the window
+                # someone is most likely to be looking.
+                target = await self._advance_past_fired_occurrence(
+                    schedule, governing, target, quiet=True
+                )
         if target is None:
             return None
 
@@ -1232,8 +1242,12 @@ class RecurringScheduleManager:
         two_stage = finish_governed and paired is not None
 
         armed = self._armed_runs.get(sid)
-        if armed is not None and armed.get("target") != target:
+        if armed is not None and abs(armed["target"] - target) >= SAME_OCCURRENCE:
             # An arm for a different occurrence says nothing about this one.
+            # Proximity, not equality, for the reason _advance_past_fired_
+            # occurrence gives: a solar bound answers a second or two later
+            # every time it is asked, so an equality test would discard a
+            # perfectly good arm and the published start would never snap.
             armed = None
 
         floor = None
@@ -1246,6 +1260,12 @@ class RecurringScheduleManager:
         if two_stage:
             floor = pair_instant
             decision = await self._decision_point(schedule, target, floor)
+            if decision is None:
+                # No fixed point to decide at, so the arm falls back to the
+                # single-stage estimate: it fits nothing, orders nothing and
+                # picks its zones at dispatch. Keeping two_stage here would
+                # publish a truncated selection the run will not make.
+                two_stage = False
         if decision is None:
             if armed is not None and armed.get("start_utc") is not None:
                 # A single-stage schedule decides its zones at dispatch, so the
@@ -1306,7 +1326,9 @@ class RecurringScheduleManager:
                 durations = dict(armed["zones"])
 
         skipped, reasons = await self._projected_skip(start)
-        zone_runs = await self._projected_zone_runs(durations, estimates, skipped)
+        zone_runs = await self._projected_zone_runs(
+            durations, estimates, skipped, start
+        )
         return {
             "schedule_id": sid,
             "name": schedule.get(const.SCHEDULE_CONF_NAME),
@@ -1354,7 +1376,7 @@ class RecurringScheduleManager:
         return bool(reasons), reasons
 
     async def _projected_zone_runs(
-        self, durations: dict[int, float], estimates: dict, skipped: bool
+        self, durations: dict[int, float], estimates: dict, skipped: bool, start
     ) -> dict[str, dict[str, Any]]:
         """Per-zone: will it water, for how long, and off which bucket.
 
@@ -1362,9 +1384,23 @@ class RecurringScheduleManager:
         asked here through their own predicates rather than restated, so a zone
         the soil-moisture veto or the days-between counter would hold back is
         not promised a run.
+
+        The days-between counter is read at the RUN's date, the same correction
+        ``_projected_skip`` applies to the whole-run check. Both have to move
+        together: the counter increments once per local midnight, so a run
+        yesterday and a threshold of two holds every zone today and none
+        tomorrow, and reporting the whole run as going ahead while every zone
+        in it says it will not water is a self-contradiction rather than a
+        conservative answer. Applied to the threshold rather than to each
+        zone's stored count because the two are the same comparison --
+        ``days_since + offset < threshold`` is ``days_since < threshold -
+        offset`` -- and this way the stored zone is left untouched.
         """
         zones = await self.coordinator.store.async_get_zones()
         days_between = self.coordinator._days_between_setting()  # noqa: SLF001
+        if days_between > 0 and start is not None:
+            offset = (dt_util.as_local(start).date() - dt_util.now().date()).days
+            days_between -= max(0, offset)
         out: dict[str, dict[str, Any]] = {}
         for zone in zones:
             zone_id = int(zone.get(const.ZONE_ID))
@@ -1387,7 +1423,11 @@ class RecurringScheduleManager:
                 # because the two tiers differ by a factor of three on the input
                 # they supply, so a duration alone never says how well founded
                 # it is.
-                "bucket": estimate.get("live_deficit"),
+                "bucket": (
+                    estimate.get("live_deficit")
+                    if estimate.get("carried_to_decision")
+                    else None
+                ),
                 "forecast_tier": estimate.get("projection_tier"),
                 "projected_rain": estimate.get("projected_rain"),
                 "projected_et": estimate.get("projected_et"),
@@ -1395,7 +1435,7 @@ class RecurringScheduleManager:
         return out
 
     async def _advance_past_fired_occurrence(
-        self, schedule: dict[str, Any], end: str, target
+        self, schedule: dict[str, Any], end: str, target, *, quiet=False
     ):
         """``target``, or the occurrence after it when this one already ran.
 
@@ -1430,6 +1470,8 @@ class RecurringScheduleManager:
 
         nxt = await self._next_governing_time(schedule, end, reference_utc=target)
         if nxt is None:
+            if quiet:
+                return None
             _LOGGER.warning(
                 "Schedule '%s': could not resolve its %s bound after %s",
                 name,
@@ -1438,6 +1480,8 @@ class RecurringScheduleManager:
             )
             return None
         if nxt - fired < SAME_OCCURRENCE:
+            if quiet:
+                return None
             _LOGGER.warning(
                 "Schedule '%s': its %s bound will not advance past the "
                 "occurrence just run (%s then %s); leaving it unarmed until "

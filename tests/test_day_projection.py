@@ -32,7 +32,10 @@ from custom_components.irrigation_plus.day_projection import (
     remainder_hours,
     solar_marks,
 )
-from custom_components.irrigation_plus.et_estimate import SiteGeometry
+from custom_components.irrigation_plus.et_estimate import (
+    SiteGeometry,
+    proxy_et_since,
+)
 
 # The install's own coordinates, as every other test in this area uses.
 GEO = SiteGeometry(39.68987, -84.07865, 311.0, -4.0, None)
@@ -256,6 +259,33 @@ class TestTheRadiationShare:
         whole = radiation_share(_at(12), _at(13), GEO)
 
         assert 0 < half < whole
+
+    def test_it_matches_the_shape_the_commit_distributes_a_day_with(self):
+        """The one assertion the others cannot make. Everything above is an
+        internal property -- a whole day is 1.0, the parts sum to the whole,
+        night is worth less than afternoon -- and every one of them survives
+        this function drifting away from ``proxy_et_since``, which is the thing
+        it is a generalisation of. A self-consistent copy of the wrong shape
+        passes them all.
+
+        So drive both on the same geometry and the same hours. ``proxy_et_since``
+        takes a list of whole hours and weights them by the same Ra; over a span
+        aligned to the hourly grid the two have to agree, or the remainder a
+        projection charges is not the shape the commit will book.
+        """
+        hours = list(range(6, 18))
+        expected = proxy_et_since(
+            daily_et0=1.0,
+            latitude_deg=GEO.latitude,
+            longitude_deg=GEO.longitude,
+            doy=_at(0).timetuple().tm_yday,
+            tz_offset_h=GEO.tz_offset_h,
+            elapsed_hours=[h + 0.5 for h in hours],
+        )
+
+        assert radiation_share(_at(6), _at(18), GEO) == pytest.approx(
+            expected, rel=1e-9
+        )
 
 
 class TestTheForecastRain:

@@ -1926,7 +1926,7 @@ class TestTheProjectionRefusesASpanItCannotPrice:
                         const.SCHEDULE_CONF_RECURRENCE: (
                             const.SCHEDULE_RECURRENCE_WEEKLY
                         ),
-                        const.SCHEDULE_CONF_DAYS_OF_WEEK: ["wed"],
+                        const.SCHEDULE_CONF_DAYS_OF_WEEK: ["wednesday"],
                     }
                 )
             ],
@@ -1943,11 +1943,18 @@ class TestTheProjectionRefusesASpanItCannotPrice:
                 (noon + timedelta(days=5)).replace(tzinfo=None),
             )
 
-        # Declined: no evapotranspiration charged, and the bucket is still the
-        # live one rather than a carried-forward figure wearing its name.
+        # Declined: no evapotranspiration charged, and the live bucket left
+        # exactly where it was.
         assert carried["projected_et"] is None
         assert carried["projection_tier"] is None
         assert carried["live_deficit"] == live["live_deficit"]
+        # And said so, which is the part that reaches a reader. The live bucket
+        # is not the decision-point bucket, so publishing it under that name
+        # would answer a question nobody asked with a number that looks like the
+        # answer to the one they did.
+        assert carried["carried_to_decision"] is False
+        entry = await _project_at(c, store, zone, manager, noon)
+        assert _run_of(entry, zone)["bucket"] is None
 
     async def test_a_decision_the_same_night_still_carries(self, coordinator, utc_site):
         """The other side of the bound, so the refusal above cannot pass by
@@ -2297,3 +2304,303 @@ class TestForecastRainBeforeTheDecision:
         assert wet_run["projected_rain"] == pytest.approx(10.0, abs=0.01)
         assert wet_run["bucket"] > dry_run["bucket"]
         assert _seconds(wet, zone) < _seconds(dry, zone)
+
+
+class TestTheProjectionFollowsTheArmItPredicts:
+    """Every branch here answers one question: which arm will this schedule
+    actually take? A projection that models a different one is wrong in the way
+    that is hardest to see, because each half is internally consistent."""
+
+    async def test_an_occurrence_that_already_ran_is_not_published_as_upcoming(
+        self, coordinator, utc_site
+    ):
+        """Between a dispatch and its own finish the resolver still answers with
+        that finish, so nothing but the fired marker distinguishes the run that
+        just started from the one tomorrow."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        schedule = manager._schedules[0]
+
+        # The 02:00 run has dispatched; the arm records the occurrence it fired.
+        manager._finish_last_target[schedule[const.SCHEDULE_CONF_ID]] = _utc(
+            NEXT_RUN_TARGET
+        ).isoformat()
+
+        # Half an hour into that run, which is when someone looks.
+        entry = await _project_at(
+            c, store, zone, manager, _utc(NEXT_RUN_TARGET) - timedelta(minutes=30)
+        )
+
+        assert entry is not None
+        target = dt_util.parse_datetime(entry["target_utc"])
+        assert target > _utc(
+            NEXT_RUN_TARGET
+        ), "published the occurrence that is already watering as the next run"
+        assert target - _utc(NEXT_RUN_TARGET) > timedelta(hours=20)
+
+    async def test_an_arm_a_second_off_the_resolved_target_is_still_this_arm(
+        self, coordinator, utc_site
+    ):
+        """A solar bound answers a second or two later every time it is asked.
+        Matched by equality, the arm is discarded and the published start never
+        snaps to the decided one -- silently, since a re-derived estimate is a
+        perfectly plausible number."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+        # The bound drifts by two seconds between the arm and the next read.
+        armed["target"] = armed["target"] + timedelta(seconds=2)
+
+        entry = await _project_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        assert entry["estimated"] is False
+        assert entry["start_utc"] == armed["start_utc"].isoformat()
+
+    async def test_an_arm_for_another_night_is_not_this_nights_decision(
+        self, coordinator, utc_site
+    ):
+        """The other side of the bound above, so the proximity match cannot pass
+        by accepting anything at all."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+        armed["target"] = armed["target"] - timedelta(days=1)
+
+        entry = await _project_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        assert entry["estimated"] is True
+
+    async def test_a_schedule_bounded_only_at_its_finish_fits_nothing(
+        self, coordinator, utc_site
+    ):
+        """One open end is the single-stage arm: no window to fit to, no order,
+        and a start that is the target minus the running estimate."""
+        c, store = coordinator
+        zone, manager = await _scheduled(
+            c,
+            store,
+            schedules=[_projection_schedule(start_mode=const.SCHEDULE_BOUND_MODE_NONE)],
+        )
+        noon = _utc(T0 + timedelta(hours=12))
+
+        entry = await _project_at(c, store, zone, manager, noon)
+
+        # The decision point is the armed start itself, not a Start bound: a
+        # single-stage schedule has no earlier fixed point to decide at.
+        assert entry["decision_point_utc"] == entry["start_utc"]
+        assert entry["decision_point_utc"] != _utc(NEXT_RUN_DECISION).isoformat()
+        assert _run_of(entry, zone)["will_water"] is True
+
+    async def test_a_start_pinned_schedule_begins_at_its_start_bound(
+        self, coordinator, utc_site
+    ):
+        """Pinned to Start there is nothing duration-dependent to wait for, so
+        the configured instant IS the start and no demand is subtracted from
+        anything."""
+        c, store = coordinator
+        zone, manager = await _scheduled(
+            c,
+            store,
+            schedules=[_projection_schedule(anchor=const.SCHEDULE_ANCHOR_START)],
+        )
+        noon = _utc(T0 + timedelta(hours=12))
+
+        entry = await _project_at(c, store, zone, manager, noon)
+
+        assert entry["start_utc"] == entry["target_utc"]
+        assert entry["target_utc"] == _utc(NEXT_RUN_DECISION).isoformat()
+        assert _run_of(entry, zone)["will_water"] is True
+
+    async def test_no_fixed_point_to_decide_at_projects_an_unfitted_run(
+        self, coordinator, utc_site
+    ):
+        """Both ends bounded puts a schedule on the two-stage arm, but a Start
+        bound that resolves onto the Finish it should precede leaves no window
+        and is ignored, and a zone with no ceiling makes ``target - bound`` name
+        no instant either. The arm gives up and falls back to the single-stage
+        estimate, which fits nothing and picks its zones at dispatch. A fitted
+        projection there publishes a truncation the run will not perform.
+        """
+        c, store = coordinator
+        zone, manager = await _scheduled(
+            c,
+            store,
+            # Start resolving to the same clock time as the Finish it is meant
+            # to precede: no window at all, so the pairing is discarded.
+            schedules=[_projection_schedule(start_time="02:00")],
+        )
+        await store.async_update_zone(
+            zone[const.ZONE_ID], {const.ZONE_MAXIMUM_DURATION: None}
+        )
+        noon = _utc(T0 + timedelta(hours=12))
+
+        entry = await _project_at(c, store, zone, manager, noon)
+
+        # The single-stage arm's own start: target minus the running estimate,
+        # which is where its decision point is too.
+        assert entry["start_utc"] == entry["decision_point_utc"]
+        assert _run_of(entry, zone)["will_water"] is True
+
+    async def test_no_fixed_point_to_decide_at_starts_on_the_unfitted_estimate(
+        self, coordinator, utc_site
+    ):
+        """The arm's fallback prices every enabled zone and fits nothing; the
+        fitted decision prices only the zones it can actuate. The two diverge on
+        any install that drives some of its valves externally, because such a
+        zone is due and carries a duration but has no linked entity, so it is in
+        the estimate and out of the plan. Projecting the fitted start there
+        publishes a run that begins later than the one the arm will actually
+        set.
+        """
+        c, store = coordinator
+        zone, manager = await _scheduled(
+            c,
+            store,
+            # Start resolving onto the Finish it should precede: no window, so
+            # the pairing is discarded and no Start bound survives to decide at.
+            schedules=[_projection_schedule(start_time="02:00")],
+        )
+        # No ceiling either, so target minus the duration bound names no instant
+        # and the arm falls back to the single-stage estimate.
+        await store.async_update_zone(
+            zone[const.ZONE_ID], {const.ZONE_MAXIMUM_DURATION: None}
+        )
+        # A second due zone this install waters through something else, and the
+        # longer of the two, so it governs the estimate that counts it and is
+        # absent from the demand that cannot.
+        external = await _zone(c, store, -30.0)
+        await store.async_update_zone(
+            external[const.ZONE_ID],
+            {
+                const.ZONE_LINKED_ENTITY: None,
+                const.ZONE_BUCKET_THRESHOLD: -2.0,
+                const.ZONE_DURATION: 600,
+            },
+        )
+        noon = _utc(T0 + timedelta(hours=12))
+
+        entry = await _project_at(c, store, zone, manager, noon)
+
+        # The unfitted arm's own start, which is its decision point. A fitted
+        # start sits later, because it subtracts a demand the external zone is
+        # absent from, so the two are more than fifteen minutes apart here.
+        assert entry["start_utc"] == entry["decision_point_utc"]
+        assert _run_of(entry, zone)["will_water"] is True
+        # And the zone the runner cannot actuate is not promised a run.
+        assert _run_of(entry, external)["will_water"] is False
+
+    async def test_a_zone_with_no_ceiling_still_projects_its_run(
+        self, coordinator, utc_site
+    ):
+        """``_duration_bound`` is infinite for a zone with no
+        ``maximum_duration``, which is what leaves a two-stage schedule with no
+        fixed point to decide at. On one open end there was no fixed point to
+        begin with, so the run is still projected rather than refused."""
+        c, store = coordinator
+        zone, manager = await _scheduled(
+            c,
+            store,
+            schedules=[_projection_schedule(start_mode=const.SCHEDULE_BOUND_MODE_NONE)],
+        )
+        await store.async_update_zone(
+            zone[const.ZONE_ID], {const.ZONE_MAXIMUM_DURATION: None}
+        )
+        noon = _utc(T0 + timedelta(hours=12))
+
+        entry = await _project_at(c, store, zone, manager, noon)
+
+        assert entry["start_utc"] == entry["decision_point_utc"]
+        assert _run_of(entry, zone)["will_water"] is True
+        assert _seconds(entry, zone) > 0
+
+
+class TestTheDaysBetweenCounterIsReadAtTheRunsDate:
+    """The counter increments once per local midnight, so reading it now answers
+    for today and the run is tomorrow. Read at the wrong date it holds every
+    zone back on the very day the whole-run check says the run goes ahead."""
+
+    async def test_a_run_tomorrow_is_not_held_by_todays_counter(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await c.store.async_update_config({const.CONF_DAYS_BETWEEN_IRRIGATION: 2})
+        # One midnight short today and exactly on the threshold tomorrow, which
+        # is the only counter that separates reading it at the wrong date from
+        # reading it at the right one.
+        await store.async_update_zone(
+            zone[const.ZONE_ID], {const.ZONE_DAYS_SINCE_IRRIGATION: 1}
+        )
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert entry["skipped"] is False
+        assert (
+            _run_of(entry, zone)["will_water"] is True
+        ), "the whole run goes ahead while every zone in it says it will not"
+        assert _seconds(entry, zone) > 0
+
+    async def test_a_counter_that_will_still_be_short_holds_the_zone(
+        self, coordinator, utc_site
+    ):
+        """The other side, so the correction above cannot pass by never holding
+        anything: three days between, watered today, run tomorrow -- one
+        midnight is not enough."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await c.store.async_update_config({const.CONF_DAYS_BETWEEN_IRRIGATION: 3})
+        await store.async_update_zone(
+            zone[const.ZONE_ID], {const.ZONE_DAYS_SINCE_IRRIGATION: 0}
+        )
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _run_of(entry, zone)["will_water"] is False
+
+
+class TestOnceArmedThePublishedRunStopsMoving:
+    """The decision is the point past which the numbers are no longer a
+    forecast. Comparing the published start against the armed one only shows
+    that a copy is a copy; what has to hold is that the published run stops
+    following the inputs the moment the arm has read them."""
+
+    async def test_a_bucket_that_moves_after_the_arm_does_not_move_the_run(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+        decided_start = armed["start_utc"].isoformat()
+        decided_seconds = armed["zones"][zone[const.ZONE_ID]]
+
+        # A deficit three times deeper. Before the decision this would lengthen
+        # the run and pull the start earlier; after it, the run is already
+        # decided and the runner will water what was chosen.
+        await store.async_update_zone(zone[const.ZONE_ID], {const.ZONE_BUCKET: -18.0})
+        entry = await _project_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        assert entry["estimated"] is False
+        assert entry["start_utc"] == decided_start
+        assert _seconds(entry, zone) == pytest.approx(decided_seconds, abs=1)
+
+    async def test_the_same_deeper_bucket_does_move_it_before_the_arm(
+        self, coordinator, utc_site
+    ):
+        """The control. Without it the test above passes on a projection that
+        ignores its inputs entirely rather than on one that has been decided."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        evening = _utc(T0 + timedelta(hours=21))
+
+        before = await _project_at(c, store, zone, manager, evening)
+        await store.async_update_zone(zone[const.ZONE_ID], {const.ZONE_BUCKET: -18.0})
+        after = await _project_at(c, store, zone, manager, evening)
+
+        assert _seconds(after, zone) > _seconds(before, zone)

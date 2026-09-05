@@ -1258,12 +1258,20 @@ class LiveEstimateMixin:
             "projected_et": None,
             "projected_rain": None,
             "projection_tier": None,
+            # Whether ``live_deficit`` below is the bucket AT ``until_local``.
+            # False on every path that gives up before charging the remainder --
+            # no site, no anchor, no day total, or a span too long to price --
+            # because each of those leaves the live bucket in place, and a live
+            # bucket published as a decision-point bucket is a different
+            # quantity wearing the name of the one that was asked for.
+            "carried_to_decision": False,
         }
         try:
             now_local = inputs.get("now") or dt_util.now().replace(tzinfo=None)
             if until_local <= now_local:
                 # At or past the decision point the live bucket IS the
                 # decision-point bucket; there is no remainder to charge.
+                projected["carried_to_decision"] = True
                 return projected
             deficit = estimate.get("live_deficit")
             if deficit is None:
@@ -1371,6 +1379,7 @@ class LiveEstimateMixin:
                     None if rain_mm is None else round(from_mm(rain_mm), ndigits + 2)
                 ),
                 projection_tier=tier,
+                carried_to_decision=True,
             )
         except Exception as e:  # noqa: BLE001 — a projection must never raise
             _LOGGER.debug("next run: could not carry a zone's estimate forward: %s", e)
