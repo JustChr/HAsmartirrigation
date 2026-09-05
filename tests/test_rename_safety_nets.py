@@ -104,6 +104,7 @@ def _hass(tmp_path, services=None, legacy_dir=None, manifest=None):
             path=lambda *parts: str(tmp_path.joinpath(*parts)),
             components=set(),
         ),
+        data={},
         services=services if services is not None else _Services(),
         async_add_executor_job=_executor,
     )

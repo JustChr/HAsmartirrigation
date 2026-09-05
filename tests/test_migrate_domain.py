@@ -36,6 +36,7 @@ def _hass(tmp_path, legacy_entries=()):
 
     return SimpleNamespace(
         config=SimpleNamespace(path=lambda *parts: str(tmp_path.joinpath(*parts))),
+        data={},
         config_entries=SimpleNamespace(
             async_entries=lambda domain: (
                 list(legacy_entries) if domain == const.LEGACY_DOMAIN else []
