@@ -259,6 +259,11 @@ class TestStaticPathsRegisterOnce:
         hass.data = {}
         hass.http.async_register_static_paths = AsyncMock()
         hass.config.path = Mock(return_value="/config/custom_components")
+
+        async def _executor(func, *args):
+            return func(*args)
+
+        hass.async_add_executor_job = _executor
         return hass
 
     async def _register(self, hass):

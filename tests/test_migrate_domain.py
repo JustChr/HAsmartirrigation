@@ -15,12 +15,14 @@ from custom_components.irrigation_plus import const
 from custom_components.irrigation_plus.migrate_domain import (
     async_import_legacy_store,
     async_legacy_config_seed,
+    async_legacy_install_present,
     find_legacy_entry,
     legacy_config_seed,
     legacy_install_present,
     legacy_storage_path,
     plan_staged_seed,
     storage_path,
+    stored_zone_count,
 )
 
 
@@ -385,3 +387,142 @@ class TestStagedSeedRecovery:
         hass = _hass(tmp_path)
         legacy_storage_path(hass).write_text('{"version": 9, "data": {}}', "utf-8")
         assert await async_legacy_config_seed(hass) == {}
+
+
+def _store_doc(zones):
+    return {"version": 9, "data": {"config": {}, "zones": zones}}
+
+
+class TestStoredZoneCount:
+    """`stored_zone_count` — 'unreadable' and 'empty' must not be the same answer."""
+
+    def test_counts_the_zones(self, tmp_path):
+        p = tmp_path / "s.json"
+        p.write_text(json.dumps(_store_doc({"1": {}, "2": {}})), encoding="utf-8")
+        assert stored_zone_count(p) == 2
+
+    def test_no_zones_key_is_zero(self, tmp_path):
+        p = tmp_path / "s.json"
+        p.write_text(json.dumps({"version": 9, "data": {}}), encoding="utf-8")
+        assert stored_zone_count(p) == 0
+
+    def test_empty_zones_is_zero(self, tmp_path):
+        p = tmp_path / "s.json"
+        p.write_text(json.dumps(_store_doc({})), encoding="utf-8")
+        assert stored_zone_count(p) == 0
+
+    def test_unreadable_is_none_not_zero(self, tmp_path):
+        p = tmp_path / "s.json"
+        p.write_text("{not json", encoding="utf-8")
+        assert stored_zone_count(p) is None
+
+    def test_a_missing_file_is_none(self, tmp_path):
+        assert stored_zone_count(tmp_path / "nope.json") is None
+
+    def test_a_non_dict_document_is_none(self, tmp_path):
+        p = tmp_path / "s.json"
+        p.write_text("[1, 2, 3]", encoding="utf-8")
+        assert stored_zone_count(p) is None
+
+
+class TestReimportOverAnEmptyStore:
+    """The state a crashed setup leaves behind, and how a retry escapes it.
+
+    A setup that fails after the store is created leaves an EMPTY
+    irrigation_plus.storage; `async_remove_entry` then skips deleting it
+    (no coordinator on a failed setup), so the plain refuse-to-overwrite rule
+    made that file permanent and every later import silently did nothing.
+    """
+
+    async def test_reimports_when_ours_holds_no_zones(self, tmp_path):
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text(
+            json.dumps(_store_doc({"1": {"name": "Lawn"}})), encoding="utf-8"
+        )
+        storage_path(hass).write_text(json.dumps(_store_doc({})), encoding="utf-8")
+
+        assert await async_import_legacy_store(hass) is True
+        assert stored_zone_count(storage_path(hass)) == 1
+        # The discarded file is kept, never silently destroyed.
+        superseded = (
+            tmp_path / ".storage" / f"{const.DOMAIN}.storage.empty-before-import.bak"
+        )
+        assert superseded.is_file()
+        assert stored_zone_count(superseded) == 0
+
+    async def test_never_overwrites_a_store_that_has_zones(self, tmp_path):
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text(
+            json.dumps(_store_doc({"1": {"name": "Legacy"}})), encoding="utf-8"
+        )
+        storage_path(hass).write_text(
+            json.dumps(_store_doc({"7": {"name": "Ours"}})), encoding="utf-8"
+        )
+
+        assert await async_import_legacy_store(hass) is False
+        assert "Ours" in storage_path(hass).read_text(encoding="utf-8")
+
+    async def test_an_unreadable_store_of_ours_is_never_overwritten(self, tmp_path):
+        """Corrupt is not empty: refuse, or a bad parse licenses data loss."""
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text(
+            json.dumps(_store_doc({"1": {}})), encoding="utf-8"
+        )
+        storage_path(hass).write_text("{not json", encoding="utf-8")
+
+        assert await async_import_legacy_store(hass) is False
+        assert storage_path(hass).read_text(encoding="utf-8") == "{not json"
+
+    async def test_an_empty_legacy_store_does_not_replace_ours(self, tmp_path):
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text(
+            json.dumps(_store_doc({})), encoding="utf-8"
+        )
+        storage_path(hass).write_text(json.dumps(_store_doc({})), encoding="utf-8")
+
+        assert await async_import_legacy_store(hass) is False
+
+    async def test_the_superseded_backup_is_never_overwritten(self, tmp_path):
+        hass = _hass(tmp_path)
+        superseded = (
+            tmp_path / ".storage" / f"{const.DOMAIN}.storage.empty-before-import.bak"
+        )
+        superseded.write_text('{"first": true}', encoding="utf-8")
+        legacy_storage_path(hass).write_text(
+            json.dumps(_store_doc({"1": {}})), encoding="utf-8"
+        )
+        storage_path(hass).write_text(json.dumps(_store_doc({})), encoding="utf-8")
+
+        assert await async_import_legacy_store(hass) is True
+        assert "first" in superseded.read_text(encoding="utf-8")
+
+
+class TestLegacyPresenceOffTheLoop:
+    """The config flow must not stat/read files on the event loop.
+
+    Home Assistant detects it and logs "blocking call ... inside the event loop
+    ... please create a bug report", naming us. It fired on the live instance
+    from `async_step_user` -> `legacy_install_present` -> `legacy_install_is_ours`.
+    """
+
+    async def test_goes_through_the_executor(self, tmp_path):
+        hass = _hass(tmp_path)
+        legacy_storage_path(hass).write_text('{"version": 9, "data": {}}', "utf-8")
+
+        calls = []
+        inner = hass.async_add_executor_job
+
+        async def _counting(func, *args):
+            calls.append(getattr(func, "__name__", str(func)))
+            return await inner(func, *args)
+
+        hass.async_add_executor_job = _counting
+
+        assert await async_legacy_install_present(hass) is True
+        assert calls == ["legacy_install_present"]
+
+    async def test_agrees_with_the_synchronous_version(self, tmp_path):
+        hass = _hass(tmp_path)
+        assert await async_legacy_install_present(hass) is legacy_install_present(hass)
+        legacy_storage_path(hass).write_text('{"version": 9, "data": {}}', "utf-8")
+        assert await async_legacy_install_present(hass) is legacy_install_present(hass)

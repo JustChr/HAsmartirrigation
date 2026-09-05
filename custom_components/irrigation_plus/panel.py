@@ -105,7 +105,12 @@ async def async_register_panel(hass: HomeAssistant):
     #
     # Deciding it here rather than in the browser is the whole point — load
     # order is not something either project can control.
-    if foreign_legacy_install(hass):
+    # Read the filesystem ONCE, and off the event loop: this stats a directory
+    # and reads a manifest, which Home Assistant reports as a blocking call
+    # inside the loop (and asks the user to file a bug about).
+    foreign = await hass.async_add_executor_job(foreign_legacy_install, hass)
+
+    if foreign:
         _LOGGER.debug(
             "A different smart_irrigation integration is installed; not "
             "registering the legacy card alias"
@@ -117,7 +122,7 @@ async def async_register_panel(hass: HomeAssistant):
     # path. Nothing serves that any more, so every dashboard load fetches a 404
     # for ever. Only ours is removed, and only when no other project could own
     # it.
-    if not foreign_legacy_install(hass):
+    if not foreign:
         await async_remove_legacy_card_resource(hass)
 
     try:

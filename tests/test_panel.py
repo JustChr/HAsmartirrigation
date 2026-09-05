@@ -21,6 +21,18 @@ from custom_components.irrigation_plus.const import (
 from custom_components.irrigation_plus.panel import async_register_panel, remove_panel
 
 
+async def _run_in_executor(func, *args):
+    """Stand-in for hass.async_add_executor_job on a Mock hass.
+
+    panel.async_register_panel resolves foreign_legacy_install through the
+    executor (it stats a directory and reads a manifest, which Home Assistant
+    reports as a blocking call on the event loop). A bare Mock returns a Mock,
+    which cannot be awaited -- so the double has to model this or every panel
+    test fails on the harness rather than on the code.
+    """
+    return func(*args)
+
+
 class _FakeResources:
     """Writable Lovelace resource store double.
 
@@ -62,6 +74,7 @@ class TestSmartIrrigationPanel:
         hass.config.path = Mock(return_value="/config")
         hass.http = Mock()
         hass.http.async_register_static_paths = AsyncMock()
+        hass.async_add_executor_job = _run_in_executor
         # No Lovelace store by default → card falls back to add_extra_js_url.
         hass.data = {}
         return hass
@@ -221,6 +234,7 @@ class TestLegacyCardAlias:
         hass.config.path = Mock(return_value="/config")
         hass.http = Mock()
         hass.http.async_register_static_paths = AsyncMock()
+        hass.async_add_executor_job = _run_in_executor
         hass.data = {}
         return hass
 

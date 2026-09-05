@@ -7,7 +7,7 @@ from homeassistant.helpers.selector import selector
 
 from . import const
 from .helpers import CannotConnect, InvalidAuth, validate_api_key
-from .migrate_domain import async_legacy_config_seed, legacy_install_present
+from .migrate_domain import async_legacy_config_seed, async_legacy_install_present
 from .options_flow import SmartIrrigationOptionsFlowHandler
 
 
@@ -40,7 +40,7 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
         # pass: once they have answered the migrate step it must not reappear.
         if user_input is None and not self._migrate_offered:
             self._migrate_offered = True
-            if legacy_install_present(self.hass):
+            if await async_legacy_install_present(self.hass):
                 return await self.async_step_migrate()
 
         if user_input is not None:

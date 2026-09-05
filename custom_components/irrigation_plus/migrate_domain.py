@@ -290,6 +290,53 @@ def legacy_install_present(hass: HomeAssistant) -> bool:
     return legacy_storage_path(hass).is_file() or find_legacy_entry(hass) is not None
 
 
+async def async_legacy_install_present(hass: HomeAssistant) -> bool:
+    """:func:`legacy_install_present`, off the event loop.
+
+    The config flow runs inside the loop, and this reads two files: the legacy
+    manifest and the legacy storage path. Home Assistant detects that and logs
+    a "blocking call inside the event loop ... please create a bug report"
+    warning naming us, which is both true and ours to fix.
+
+    ``find_legacy_entry`` touches no disk, so the whole predicate can go to the
+    executor without splitting it.
+    """
+    return await hass.async_add_executor_job(legacy_install_present, hass)
+
+
+def stored_zone_count(path: Path) -> int | None:
+    """How many zones a storage document holds, or ``None`` if that is unknowable.
+
+    Reads the raw file rather than a loaded store, because this has to answer
+    the question BEFORE anything is loaded. ``None`` and ``0`` are deliberately
+    different answers: "unreadable" must never be treated as "empty", or a
+    corrupt file would license overwriting a good one.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(document, dict):
+        return None
+    data = document.get("data")
+    if not isinstance(data, dict):
+        return None
+    zones = data.get("zones")
+    if zones is None:
+        return 0
+    try:
+        return len(zones)
+    except TypeError:
+        return None
+
+
+def _replaces_an_empty_store(dst: Path, src: Path) -> bool:
+    """Whether ``dst`` is a zone-less store that ``src`` can legitimately replace."""
+    ours = stored_zone_count(dst)
+    theirs = stored_zone_count(src)
+    return ours == 0 and bool(theirs)
+
+
 async def async_import_legacy_store(hass: HomeAssistant) -> bool:
     """Copy the pre-#120 storage file onto this integration's storage key.
 
@@ -304,14 +351,47 @@ async def async_import_legacy_store(hass: HomeAssistant) -> bool:
     storage, that is the truth and a stale legacy file must never clobber it.
     Callers must therefore treat this as a one-shot that silently does nothing
     on every later run.
+
+    **One exception, and it exists because of a real failure.** A setup that
+    crashes after the store is created leaves an EMPTY storage file behind, and
+    Home Assistant cannot delete it when the entry is removed -- our
+    ``async_remove_entry`` skips the delete when there is no coordinator, which
+    is exactly the state a failed setup leaves. The refusal above then makes
+    that empty file permanent, and every later attempt imports nothing while
+    the user's real configuration sits untouched next to it. So when OUR store
+    holds no zones and the legacy one does, the copy goes ahead. Both counts
+    must be known: an unreadable file on either side falls back to refusing.
     """
     src = legacy_storage_path(hass)
     dst = storage_path(hass)
     backup = legacy_backup_path(hass)
+    superseded = _storage_file(hass, f"{const.DOMAIN}.storage.empty-before-import.bak")
 
     def _copy() -> bool:
-        if dst.exists() or not src.is_file():
+        if not src.is_file():
             return False
+        if dst.exists():
+            if not _replaces_an_empty_store(dst, src):
+                return False
+            # Keep even the discarded file. It holds no zones by definition, but
+            # it may hold settings made between the failed setup and now, and a
+            # migration that deletes something unrecoverably is worse than one
+            # that leaves a file behind.
+            if not superseded.exists():
+                try:
+                    shutil.copyfile(dst, superseded)
+                except OSError as err:
+                    _LOGGER.warning(
+                        "Could not set aside the empty store at %s: %s", dst, err
+                    )
+            _LOGGER.warning(
+                "The existing %s holds no zones while %s does -- re-importing "
+                "over it. This is the state a failed setup leaves behind; the "
+                "discarded file is at %s",
+                dst,
+                src,
+                superseded,
+            )
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dst)
         # Second copy, kept for the user rather than for us. Taken in the same
@@ -683,12 +763,53 @@ async def async_migrate_device_areas(hass: HomeAssistant) -> int:
     from homeassistant.helpers import device_registry as dr
 
     registry = dr.async_get(hass)
-    moves = plan_device_area_moves(list(registry.devices.values()))
+    moves = plan_device_area_moves(all_registry_devices(registry))
     for device_id, area_id in moves.items():
         registry.async_update_device(device_id, area_id=area_id)
     if moves:
         _LOGGER.info("Restored the area assignment for %s zone devices", len(moves))
     return len(moves)
+
+
+def all_registry_devices(registry) -> list:
+    """Every device entry, across Home Assistant's two registry APIs.
+
+    Since 2026.9 ``DeviceRegistry.devices`` is a compatibility VIEW whose
+    ``__iter__`` yields ``DeviceEntry`` objects, and whose ``.values()`` is
+    deprecated and reported to the log (it breaks in 2027.9). Before that,
+    ``devices`` was the raw mapping, where iterating yields device *ids*.
+
+    Our declared floor is HA 2025.5, so both shapes are live. Detect rather than
+    branch on a version string: ask for the entries and check what came back.
+    """
+    devices = list(registry.devices)
+    if devices and isinstance(devices[0], str):
+        return list(registry.devices.values())
+    return devices
+
+
+def identifier_pairs(device):
+    """``(namespace, identifier)`` for each usable identifier on a device.
+
+    Home Assistant TYPES ``DeviceEntry.identifiers`` as ``set[tuple[str, str]]``
+    and does not enforce it. The HomeKit integration writes three-element
+    identifiers -- ``("homekit", "<id>", "homekit.bridge")`` -- and this module
+    walks the WHOLE device registry, not just ours. Unpacking every identifier
+    as a pair therefore raised ``ValueError: too many values to unpack`` on any
+    system with a HomeKit bridge, which aborted the migration and left the
+    integration in ``setup_error`` with no panel (#120 follow-up).
+
+    Anything that is not a sized sequence of at least two strings is skipped: it
+    cannot be one of ours, and a foreign device's shape is not ours to police.
+    """
+    for identifier in device.identifiers or ():
+        if isinstance(identifier, str) or not isinstance(identifier, (tuple, list)):
+            continue
+        if len(identifier) < 2:
+            continue
+        namespace, ident = identifier[0], identifier[1]
+        if isinstance(namespace, str) and isinstance(ident, str):
+            yield namespace, ident
 
 
 def plan_device_area_moves(devices) -> dict:
@@ -700,14 +821,14 @@ def plan_device_area_moves(devices) -> dict:
     marker = "_zone_"
 
     def _zone_key(device) -> str | None:
-        for namespace, ident in device.identifiers:
+        for namespace, ident in identifier_pairs(device):
             if namespace in (const.DOMAIN, const.LEGACY_DOMAIN) and marker in ident:
                 return ident.rsplit(marker, 1)[-1]
         return None
 
     legacy_areas: dict[str, str] = {}
     for device in devices:
-        if not any(ns == const.LEGACY_DOMAIN for ns, _ in device.identifiers):
+        if not any(ns == const.LEGACY_DOMAIN for ns, _ in identifier_pairs(device)):
             continue
         key = _zone_key(device)
         if key and device.area_id:
@@ -717,7 +838,7 @@ def plan_device_area_moves(devices) -> dict:
 
     moves: dict[str, str] = {}
     for device in devices:
-        if not any(ns == const.DOMAIN for ns, _ in device.identifiers):
+        if not any(ns == const.DOMAIN for ns, _ in identifier_pairs(device)):
             continue
         if device.area_id:
             continue  # never overwrite a choice the user has already made
