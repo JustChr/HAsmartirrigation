@@ -401,6 +401,14 @@ LEGACY_ALIAS_URL = f"{CARD_STATIC_ROOT}/{PANEL_SLUG}-card-legacy.js"
 
 # The #120 rename guide. NOT installation-migration, which is the unrelated
 # V1 (0.0.x) -> V2 page and would send every rename repair to the wrong place.
+# The project's documentation, shown in the config-flow forms. hassfest rejects a
+# literal URL inside a translated string ("use description placeholders instead"),
+# so the flows pass this in as {docs}. Restated from manifest.json's
+# "documentation" because a manifest read at flow time would be a blocking call on
+# the event loop; test_manifest_documentation_matches_const pins the two together.
+DOCUMENTATION_URL = "https://github.com/JustChr/HAsmartirrigation"
+
+
 MIGRATION_GUIDE_URL = "https://justchr.github.io/HAsmartirrigation/installation-rename"
 
 ATTR_REMOVE = "remove"

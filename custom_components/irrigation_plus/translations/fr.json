@@ -10,7 +10,7 @@
     "step": {
       "user": {
         "title": "Configuration générale",
-        "description": "Si vous avez besoin d'aide avec la configuration, allez sur https://github.com/JustChr/HAsmartirrigation",
+        "description": "Si vous avez besoin d'aide avec la configuration, allez sur {docs}",
         "data": {
           "name": "Nom unique de l'intégration",
           "use_weather_service": "Use a weather service (Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irigation will not be able to use forecasts."
@@ -18,7 +18,7 @@
       },
       "step1": {
         "title": "Configuration de l'API du service météo",
-        "description": "Si vous avez besoin d'aide avec la configuration, allez sur https://github.com/JustChr/HAsmartirrigation",
+        "description": "Si vous avez besoin d'aide avec la configuration, allez sur {docs}",
         "data": {
           "weather_service": "Service météo à utiliser",
           "weather_service_api_key": "API key for weather service",
@@ -40,22 +40,6 @@
       "invalid_coordinates": "Coordonnées invalides. Veuillez vérifier la latitude (-90 à 90) et la longitude (-180 à 180)."
     },
     "step": {
-      "init": {
-        "title": "Configuration de l'API du service météo",
-        "description": "Si vous avez besoin d'aide avec la configuration, allez sur https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "use_weather_service": "Use a weather service (Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irigation will not be able to use forecasts."
-        }
-      },
-      "step1": {
-        "title": "Configuration de l'API du service météo",
-        "description": "Si vous avez besoin d'aide avec la configuration, allez sur https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "weather_service": "Service météo à utiliser",
-          "weather_service_api_key": "API key for weather service",
-          "weather_service_api_version": "Version de l'API du service météo"
-        }
-      },
       "coordinates": {
         "title": "Coordonnées de localisation",
         "description": "Configurez les coordonnées de localisation pour la récupération des données météo. Vous pouvez utiliser des coordonnées manuelles différentes de l'emplacement de votre Home Assistant si nécessaire.",
@@ -333,7 +317,6 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} carte(s) de tableau de bord utilisent encore l’ancien nom",
-      "description": "{count} carte(s) référencent encore `custom:smart-irrigation-zones-card`. Elles fonctionnent pour l’instant, mais cesseront de fonctionner si vous installez un jour l’autre intégration `smart_irrigation` à côté de celle-ci.\n\nCette réparation les bascule vers `custom:irrigation-plus-zones-card`. Les tableaux de bord définis en YAML ne peuvent pas être modifiés automatiquement ; ils vous sont nommés à la fin pour que vous puissiez les éditer.",
       "fix_flow": {
         "step": {
           "confirm": {
@@ -349,7 +332,6 @@
     },
     "renamed_entity_ids": {
       "title": "Le renommage a modifié {count} identifiants d’entité",
-      "description": "Le renommage a modifié tous les identifiants d’entité. Votre historique, vos statistiques et votre configuration ont été repris automatiquement, et les appels de service `smart_irrigation.*` continuent de fonctionner pour l’instant.\n\nLes identifiants inscrits dans vos propres automatisations, scripts, modèles et tableaux de bord n’ont pas été modifiés : Home Assistant ne peut pas les réécrire, et un modèle pointant vers un ancien identifiant renvoie discrètement `unknown` au lieu de signaler une erreur.\n\nLe tableau complet ancien → nouveau se trouve dans `{path}`. Parcourez-le, puis fermez ce message.",
       "fix_flow": {
         "step": {
           "confirm": {

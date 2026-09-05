@@ -10,7 +10,7 @@
     "step": {
       "user": {
         "title": "General set up",
-        "description": "If you need help with the configuration, please see https://github.com/JustChr/HAsmartirrigation",
+        "description": "If you need help with the configuration, please see {docs}",
         "data": {
           "name": "Unique name of the integration",
           "use_weather_service": "Use a weather service (Open-Meteo, Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Irrigation Plus will not be able to use forecasts."
@@ -18,7 +18,7 @@
       },
       "step1": {
         "title": "Weather service API set up",
-        "description": "If you need help with the configuration, please see https://github.com/JustChr/HAsmartirrigation",
+        "description": "If you need help with the configuration, please see {docs}",
         "data": {
           "weather_service": "Weather service to use",
           "weather_service_api_key": "API key for weather service (not required for Open-Meteo)",
@@ -40,22 +40,6 @@
       "invalid_coordinates": "Invalid coordinates provided. Please check latitude (-90 to 90) and longitude (-180 to 180) values."
     },
     "step": {
-      "init": {
-        "title": "Weather service API set up",
-        "description": "If you need help with the configuration, please see https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "use_weather_service": "Use a weather service (Open-Meteo, Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Irrigation Plus will not be able to use forecasts."
-        }
-      },
-      "step1": {
-        "title": "Weather service API set up",
-        "description": "If you need help with the configuration, please see https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "weather_service": "Weather service to use",
-          "weather_service_api_key": "API key for weather service (not required for Open-Meteo)",
-          "weather_service_api_version": "Weather service API version"
-        }
-      },
       "coordinates": {
         "title": "Location coordinates",
         "description": "Configure location coordinates for weather data retrieval. You can use manual coordinates different from your Home Assistant location if needed.",
@@ -333,7 +317,6 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} dashboard card(s) still use the old name",
-      "description": "{count} card(s) still refer to `custom:smart-irrigation-zones-card`. They keep working for now, but they will break if you ever install the other `smart_irrigation` integration alongside this one.\n\nThis repair repoints them at `custom:irrigation-plus-zones-card`. Dashboards defined in YAML cannot be changed automatically; those are named for you at the end so you can edit them yourself.",
       "fix_flow": {
         "step": {
           "confirm": {
@@ -349,7 +332,6 @@
     },
     "renamed_entity_ids": {
       "title": "{count} entity IDs changed in the rename",
-      "description": "The rename changed every entity ID. Your history, statistics and configuration were carried across automatically, and service calls to `smart_irrigation.*` still work for now.\n\nEntity IDs written into your own automations, scripts, templates and dashboards were not changed — nothing in Home Assistant can rewrite those, and a template pointing at an old ID quietly renders `unknown` instead of raising an error.\n\nThe full old → new table is saved at `{path}`. Work through it, then dismiss this.",
       "fix_flow": {
         "step": {
           "confirm": {

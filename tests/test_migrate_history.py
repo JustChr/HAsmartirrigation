@@ -369,3 +369,13 @@ class TestRecorderIsDeclared:
         keys = list(self._manifest())
         assert keys[:2] == ["domain", "name"]
         assert keys[2:] == sorted(keys[2:])
+
+    def test_manifest_documentation_matches_const(self):
+        """`const.DOCUMENTATION_URL` restates manifest.json's `documentation`.
+
+        Restated on purpose — reading the manifest while a config flow is open
+        would be a blocking file read on the event loop, which Home Assistant
+        reports and asks for a bug report about. Restated values drift, so pin
+        them together here.
+        """
+        assert self._manifest()["documentation"] == const.DOCUMENTATION_URL

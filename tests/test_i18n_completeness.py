@@ -209,3 +209,52 @@ def test_placeholders_match_the_english_string(catalogue, path):
         f"from en.json, so a value the integration supplies will not be "
         f"substituted: {dict(list(mismatches.items())[:5])}"
     )
+
+
+def _catalogues():
+    import json
+    import pathlib
+
+    root = (
+        pathlib.Path(__file__).parent.parent
+        / "custom_components"
+        / "irrigation_plus"
+        / "translations"
+    )
+    return {
+        p.stem: json.loads(p.read_text(encoding="utf-8")) for p in root.glob("*.json")
+    }
+
+
+class TestHassfestStringRules:
+    """Rules hassfest enforces that key-parity checks cannot see.
+
+    Both were failing on this fork for its whole life, because the hassfest
+    workflow was disabled on the fork and had never run once.
+    """
+
+    def test_no_translated_string_contains_a_url(self):
+        """hassfest: 'the string should not contain URLs, use placeholders'."""
+        import json as _json
+
+        offenders = []
+        for lang, data in _catalogues().items():
+            for section in ("config", "options"):
+                for step, body in data.get(section, {}).get("step", {}).items():
+                    blob = _json.dumps(body)
+                    if "http://" in blob or "https://" in blob:
+                        offenders.append(f"{lang}:{section}.step.{step}")
+        assert offenders == []
+
+    def test_a_fixable_issue_never_also_carries_a_description(self):
+        """hassfest: description and fix_flow are mutually exclusive.
+
+        A fixable issue takes its text from the fix_flow steps, so a
+        `description` alongside one is both a schema error and dead text.
+        """
+        offenders = []
+        for lang, data in _catalogues().items():
+            for key, body in data.get("issues", {}).items():
+                if "fix_flow" in body and "description" in body:
+                    offenders.append(f"{lang}:issues.{key}")
+        assert offenders == []

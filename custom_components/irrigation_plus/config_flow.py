@@ -90,6 +90,7 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
     async def _show_step_user(self, user_input):
         return self.async_show_form(
             step_id="user",
+            description_placeholders={"docs": const.DOCUMENTATION_URL},
             data_schema=vol.Schema(
                 {
                     vol.Required(const.CONF_INSTANCE_NAME, default=const.NAME): str,
@@ -129,6 +130,7 @@ class SmartIrrigationConfigFlow(config_entries.ConfigFlow, domain=const.DOMAIN):
     async def _show_step_1(self, user_input):
         return self.async_show_form(
             step_id="step1",
+            description_placeholders={"docs": const.DOCUMENTATION_URL},
             data_schema=vol.Schema(
                 {
                     vol.Required(const.CONF_WEATHER_SERVICE): selector(

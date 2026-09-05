@@ -10,7 +10,7 @@
     "step": {
       "user": {
         "title": "Generell oppsett",
-        "description": "Hvis du trenger hjelp med konfigurasjonen, kan du se https://github.com/JustChr/HAsmartirrigation",
+        "description": "Hvis du trenger hjelp med konfigurasjonen, kan du se {docs}",
         "data": {
           "name": "Unikt navn for integrasjonen",
           "use_weather_service": "Use a weather service (Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irigation will not be able to use forecasts."
@@ -18,7 +18,7 @@
       },
       "step1": {
         "title": "Oppsett av værtjeneste-API",
-        "description": "Hvis du trenger hjelp med konfigurasjonen, kan du se https://github.com/JustChr/HAsmartirrigation",
+        "description": "Hvis du trenger hjelp med konfigurasjonen, kan du se {docs}",
         "data": {
           "weather_service": "Værtjeneste som skal brukes",
           "weather_service_api_key": "API key for weather service",
@@ -40,22 +40,6 @@
       "invalid_coordinates": "Ugyldige koordinater. Sjekk breddegrad (-90 til 90) og lengdegrad (-180 til 180) verdier."
     },
     "step": {
-      "init": {
-        "title": "Oppsett av værtjeneste-API",
-        "description": "Hvis du trenger hjelp med konfigurasjonen, kan du se https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "use_weather_service": "Use a weather service (Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irigation will not be able to use forecasts."
-        }
-      },
-      "step1": {
-        "title": "Oppsett av værtjeneste-API",
-        "description": "Hvis du trenger hjelp med konfigurasjonen, kan du se https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "weather_service": "Værtjeneste som skal brukes",
-          "weather_service_api_key": "API key for weather service",
-          "weather_service_api_version": "API-versjon for værtjenesten"
-        }
-      },
       "coordinates": {
         "title": "Stedskoordinater",
         "description": "Konfigurer stedskoordinater for innhenting av værdata. Du kan bruke manuelle koordinater som er forskjellige fra din Home Assistant plassering om nødvendig.",
@@ -333,7 +317,6 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} dashbordkort bruker fortsatt det gamle navnet",
-      "description": "{count} kort viser fortsatt til `custom:smart-irrigation-zones-card`. De virker inntil videre, men slutter å virke hvis du en gang installerer den andre `smart_irrigation`-integrasjonen ved siden av denne.\n\nDenne reparasjonen bytter dem til `custom:irrigation-plus-zones-card`. Dashbord definert i YAML kan ikke endres automatisk; de navngis til slutt så du kan redigere dem selv.",
       "fix_flow": {
         "step": {
           "confirm": {
@@ -349,7 +332,6 @@
     },
     "renamed_entity_ids": {
       "title": "Navnebyttet endret {count} enhets-ID-er",
-      "description": "Navnebyttet endret alle enhets-ID-er. Historikk, statistikk og oppsett ble overført automatisk, og tjenestekall til `smart_irrigation.*` virker fortsatt inntil videre.\n\nEnhets-ID-er du selv har skrevet inn i automasjoner, skript, maler og dashbord er ikke endret — Home Assistant kan ikke skrive dem om, og en mal som peker på en gammel ID gir stille `unknown` i stedet for en feilmelding.\n\nHele tabellen gammel → ny ligger i `{path}`. Gå gjennom den, og lukk så denne meldingen.",
       "fix_flow": {
         "step": {
           "confirm": {

@@ -10,7 +10,7 @@
     "step": {
       "user": {
         "title": "Algemeen",
-        "description": "Als je hulp nodig hebt, zie https://github.com/JustChr/HAsmartirrigation",
+        "description": "Als je hulp nodig hebt, zie {docs}",
         "data": {
           "name": "Unieke naam",
           "use_weather_service": "Gebruik een weersdient (Open Weather Map of Pirate Weather) voor weergegevens en voorspellingen. Zet dit aan als je van plan bent dit te gebruiken voor in ieder geval een deel van de benodigde weersinformatie of voorspellingen. Zet het uit als je een andere weersdienst of een andere bron (zoals een eigen weersstation) wilt gebruiken. In dat geval zijn er geen voorspellingen beschikbaar."
@@ -18,7 +18,7 @@
       },
       "step1": {
         "title": "Weerdienst API instellingen",
-        "description": "Als je hulp nodig hebt, zie https://github.com/JustChr/HAsmartirrigation",
+        "description": "Als je hulp nodig hebt, zie {docs}",
         "data": {
           "weather_service": "Weerdienst",
           "weather_service_api_key": "API sleutel",
@@ -40,22 +40,6 @@
       "invalid_coordinates": "Ongeldige coördinaten. Controleer breedtegraad (-90 tot 90) en lengtegraad (-180 tot 180) waarden."
     },
     "step": {
-      "init": {
-        "title": "Weerdienst API instellingen",
-        "description": "Als je hulp nodig hebt, zie https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "use_weather_service": "Gebruik een weersdient (Open Weather Map of Pirate Weather) voor weergegevens en voorspellingen. Zet dit aan als je van plan bent dit te gebruiken voor in ieder geval een deel van de benodigde weersinformatie of voorspellingen. Zet het uit als je een andere weersdienst of een andere bron (zoals een eigen weersstation) wilt gebruiken. In dat geval zijn er geen voorspellingen beschikbaar."
-        }
-      },
-      "step1": {
-        "title": "Weerdienst API instellingen",
-        "description": "Als je hulp nodig hebt, zie https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "weather_service": "Weerdienst",
-          "weather_service_api_key": "API sleutel",
-          "weather_service_api_version": "API versie"
-        }
-      },
       "coordinates": {
         "title": "Locatie coördinaten",
         "description": "Configureer locatie coördinaten voor het ophalen van weergegevens. Je kunt handmatige coördinaten gebruiken die verschillen van je Home Assistant locatie indien nodig.",
@@ -333,7 +317,6 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} dashboardkaart(en) gebruiken nog de oude naam",
-      "description": "{count} kaart(en) verwijzen nog naar `custom:smart-irrigation-zones-card`. Ze werken voorlopig, maar breken zodra je de andere `smart_irrigation`-integratie hiernaast installeert.\n\nDeze reparatie zet ze om naar `custom:irrigation-plus-zones-card`. Dashboards in YAML kunnen niet automatisch worden aangepast; die worden aan het eind bij naam genoemd zodat je ze zelf kunt bewerken.",
       "fix_flow": {
         "step": {
           "confirm": {
@@ -349,7 +332,6 @@
     },
     "renamed_entity_ids": {
       "title": "De naamswijziging heeft {count} entiteits-ID’s veranderd",
-      "description": "Door de naamswijziging is elk entiteits-ID veranderd. Je geschiedenis, statistieken en configuratie zijn automatisch overgenomen, en serviceaanroepen naar `smart_irrigation.*` blijven voorlopig werken.\n\nEntiteits-ID’s in je eigen automatiseringen, scripts, templates en dashboards zijn niet aangepast — Home Assistant kan die niet herschrijven, en een template met een oud ID geeft stilletjes `unknown` in plaats van een foutmelding.\n\nDe volledige tabel oud → nieuw staat in `{path}`. Werk die door en sluit dit bericht daarna.",
       "fix_flow": {
         "step": {
           "confirm": {

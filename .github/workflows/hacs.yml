@@ -1,3 +1,20 @@
+# DISABLED (2026-09-06), and disabled in the repository's Actions settings too.
+#
+# The HACS Action checks 9 things; two fail here and one of them can never pass:
+#
+#   * brands - the integration is not in the home-assistant/brands repository and
+#     ships no local brand assets. That is a settled decision for this fork, not
+#     an oversight, so this check stays red for ever.
+#   * topics - the GitHub repository has no topics set.
+#
+# A check that cannot go green trains everyone to ignore a red X, including on
+# the checks that matter. hassfest stays enabled and IS meaningful: it found a
+# missing `after_dependencies: [recorder]` that was silently costing users their
+# history across the #120 rename.
+#
+# To bring it back: enable it here and in Settings -> Actions, and expect brands
+# to fail until that decision changes.
+
 name: HACS Action
 
 on:

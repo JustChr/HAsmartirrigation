@@ -10,7 +10,7 @@
     "step": {
       "user": {
         "title": "Configuración general",
-        "description": "Si necesita ayuda con la configuración, consulte https://github.com/JustChr/HAsmartirrigation",
+        "description": "Si necesita ayuda con la configuración, consulte {docs}",
         "data": {
           "name": "Nombre único de la integración",
           "use_weather_service": "Use a weather service (Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irigation will not be able to use forecasts."
@@ -18,7 +18,7 @@
       },
       "step1": {
         "title": "Configuración de la API del servicio meteorológico",
-        "description": "Si necesita ayuda con la configuración, consulte https://github.com/JustChr/HAsmartirrigation",
+        "description": "Si necesita ayuda con la configuración, consulte {docs}",
         "data": {
           "weather_service": "Servicio meteorológico a utilizar",
           "weather_service_api_key": "API key for weather service",
@@ -40,22 +40,6 @@
       "invalid_coordinates": "Coordenadas inválidas. Verifique los valores de latitud (-90 a 90) y longitud (-180 a 180)."
     },
     "step": {
-      "init": {
-        "title": "Configuración de la API del servicio meteorológico",
-        "description": "Si necesita ayuda con la configuración, consulte https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "use_weather_service": "Use a weather service (Open Weather Map or Pirate Weather) for weather data or forecasting. Enable this option if you intent to use one of the supported weather services for at least part of the weather data, including forecasting. Disable this option if you want to use another source, such as your own weather station, exclusively. In this case, Smart Irigation will not be able to use forecasts."
-        }
-      },
-      "step1": {
-        "title": "Configuración de la API del servicio meteorológico",
-        "description": "Si necesita ayuda con la configuración, consulte https://github.com/JustChr/HAsmartirrigation",
-        "data": {
-          "weather_service": "Servicio meteorológico a utilizar",
-          "weather_service_api_key": "API key for weather service",
-          "weather_service_api_version": "Versión de la API del servicio meteorológico"
-        }
-      },
       "coordinates": {
         "title": "Coordenadas de ubicación",
         "description": "Configure las coordenadas de ubicación para obtener datos meteorológicos. Puede usar coordenadas manuales diferentes a la ubicación de Home Assistant si es necesario.",
@@ -333,7 +317,6 @@
     },
     "legacy_dashboard_cards": {
       "title": "{count} tarjeta(s) del panel siguen usando el nombre antiguo",
-      "description": "{count} tarjeta(s) siguen apuntando a `custom:smart-irrigation-zones-card`. De momento funcionan, pero dejarán de hacerlo si algún día instalas la otra integración `smart_irrigation` junto a esta.\n\nEsta reparación las cambia a `custom:irrigation-plus-zones-card`. Los paneles definidos en YAML no pueden modificarse automáticamente; se te indicarán por su nombre al final para que los edites tú.",
       "fix_flow": {
         "step": {
           "confirm": {
@@ -349,7 +332,6 @@
     },
     "renamed_entity_ids": {
       "title": "El cambio de nombre ha modificado {count} IDs de entidad",
-      "description": "El cambio de nombre ha modificado todos los IDs de entidad. Tu historial, tus estadísticas y tu configuración se han trasladado automáticamente, y las llamadas a servicios `smart_irrigation.*` siguen funcionando por ahora.\n\nLos IDs de entidad escritos en tus propias automatizaciones, scripts, plantillas y paneles no se han cambiado: Home Assistant no puede reescribirlos, y una plantilla que apunte a un ID antiguo devuelve `unknown` en silencio en lugar de dar un error.\n\nLa tabla completa antiguo → nuevo está en `{path}`. Revísala y después descarta este aviso.",
       "fix_flow": {
         "step": {
           "confirm": {
