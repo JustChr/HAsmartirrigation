@@ -1038,7 +1038,8 @@
   },
   "zone_sequencing": {
     "title": "Sonesekvens",
-    "description": "Når flere soner trenger vanning, velg om de kjører samtidig eller én etter én. I sekvensiell modus venter systemet til hver sone er ferdig før neste starter.",
+    "description": "Når flere soner trenger vanning, velg om de kjører samtidig eller én etter én. I sekvensiell modus venter systemet til hver sone er ferdig før neste starter. Dette gjelder klassiske, selvlukkende og OpenSprinkler-soner; soner på en kontroller med kø beholder rekkefølgen kontrolleren bestemmer.",
+    "batch_note": "Batch-soner er unntatt: kontrolleren kjører sin egen kø, så roterende modus når dem ikke, og hver av dem vanner hele varigheten sin i én omgang.",
     "parallel": "Parallell (alle soner samtidig)",
     "sequential": "Sekvensiell (én sone om gangen)",
     "rotating": "Roterende (soner bytter på)",

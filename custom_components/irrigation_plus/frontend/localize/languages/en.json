@@ -1063,7 +1063,8 @@
   },
   "zone_sequencing": {
     "title": "Zone Sequencing",
-    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next. Rotating mode cycles through zones, giving each one a limited consecutive run before moving to the next.",
+    "description": "When multiple zones need irrigation, choose whether they run at the same time or one after another. Sequential mode waits for each zone to finish before starting the next. Rotating mode cycles through zones, giving each one a limited consecutive run before moving to the next. This governs classic, self-closing and OpenSprinkler zones; zones on a queue controller keep the order their controller decides.",
+    "batch_note": "Batch zones are not included: the controller runs its own queue, so rotating never reaches them and each of those zones waters its full duration in one go.",
     "parallel": "Parallel (all zones at once)",
     "sequential": "Sequential (one zone at a time)",
     "rotating": "Rotating (zones take turns)",

@@ -1038,7 +1038,8 @@
   },
   "zone_sequencing": {
     "title": "Séquençage des zones",
-    "description": "Lorsque plusieurs zones ont besoin d'irrigation, choisissez si elles fonctionnent simultanément ou l'une après l'autre. En mode séquentiel, le système attend que chaque zone se termine avant de démarrer la suivante.",
+    "description": "Lorsque plusieurs zones ont besoin d'irrigation, choisissez si elles fonctionnent simultanément ou l'une après l'autre. En mode séquentiel, le système attend que chaque zone se termine avant de démarrer la suivante. Cela régit les zones classiques, autofermantes et OpenSprinkler ; les zones reliées à un contrôleur à file d'attente conservent l'ordre décidé par leur contrôleur.",
+    "batch_note": "Les zones en lot sont exclues : le contrôleur gère sa propre file d'attente, le mode rotatif ne les atteint donc pas et chacune arrose toute sa durée d'un seul tenant.",
     "parallel": "Parallèle (toutes les zones simultanément)",
     "sequential": "Séquentiel (une zone à la fois)",
     "rotating": "Rotatif (les zones se relaient)",

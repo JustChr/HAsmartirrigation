@@ -1038,7 +1038,8 @@
   },
   "zone_sequencing": {
     "title": "Zonenreihenfolge",
-    "description": "Wenn mehrere Zonen bewässert werden müssen, legen Sie fest, ob alle gleichzeitig oder nacheinander laufen. Im sequenziellen Modus wartet das System, bis jede Zone fertig ist, bevor die nächste beginnt.",
+    "description": "Wenn mehrere Zonen bewässert werden müssen, legen Sie fest, ob alle gleichzeitig oder nacheinander laufen. Im sequenziellen Modus wartet das System, bis jede Zone fertig ist, bevor die nächste beginnt. Das gilt für klassische, selbstschließende und OpenSprinkler-Zonen; Zonen an einem Queue-Controller behalten die Reihenfolge, die ihr Controller bestimmt.",
+    "batch_note": "Batch-Zonen sind davon ausgenommen: Der Controller fährt seine eigene Warteschlange, der rotierende Modus erreicht sie also nicht, und jede dieser Zonen läuft ihre volle Dauer am Stück.",
     "parallel": "Parallel (alle Zonen gleichzeitig)",
     "sequential": "Sequenziell (eine Zone nach der anderen)",
     "rotating": "Rotierend (Zonen wechseln sich ab)",

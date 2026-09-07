@@ -1038,7 +1038,8 @@
   },
   "zone_sequencing": {
     "title": "Sequenza zone",
-    "description": "Quando più zone necessitano di irrigazione, scegliere se funzionano contemporaneamente o una dopo l'altra. In modalità sequenziale, il sistema attende che ogni zona finisca prima di avviare la successiva. In modalità rotante, il sistema alterna tra le zone assegnando a ciascuna un tempo massimo consecutivo prima di passare alla successiva.",
+    "description": "Quando più zone necessitano di irrigazione, scegliere se funzionano contemporaneamente o una dopo l'altra. In modalità sequenziale, il sistema attende che ogni zona finisca prima di avviare la successiva. In modalità rotante, il sistema alterna tra le zone assegnando a ciascuna un tempo massimo consecutivo prima di passare alla successiva. Vale per le zone classiche, autochiudenti e OpenSprinkler; le zone collegate a un controller con coda mantengono l'ordine deciso dal loro controller.",
+    "batch_note": "Le zone batch sono escluse: il controller gestisce la propria coda, quindi la modalità a rotazione non le raggiunge e ognuna irriga per l'intera durata in una volta sola.",
     "parallel": "Parallelo (tutte le zone insieme)",
     "sequential": "Sequenziale (una zona alla volta)",
     "rotating": "Rotante (le zone si alternano)",

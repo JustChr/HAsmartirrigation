@@ -1038,7 +1038,8 @@
   },
   "zone_sequencing": {
     "title": "Poradie zón",
-    "description": "Keď viacero zón potrebuje závlahu, vyberte, či prebiehajú súčasne alebo jedna po druhej. V sekvenčnom režime systém čaká, kým každá zóna skončí, pred spustením ďalšej.",
+    "description": "Keď viacero zón potrebuje závlahu, vyberte, či prebiehajú súčasne alebo jedna po druhej. V sekvenčnom režime systém čaká, kým každá zóna skončí, pred spustením ďalšej. Platí to pre klasické, samozatváracie a OpenSprinkler zóny; zóny na ovládači s frontou si zachovávajú poradie, ktoré určí ich ovládač.",
+    "batch_note": "Dávkové zóny sú z toho vyňaté: ovládač si riadi vlastnú frontu, rotujúci režim sa k nim teda nedostane a každá z nich zavlažuje celý svoj čas naraz.",
     "parallel": "Paralelne (všetky zóny súčasne)",
     "sequential": "Sekvenčne (jedna zóna naraz)",
     "rotating": "Rotujúce (zóny sa striedajú)",

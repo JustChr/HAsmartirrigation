@@ -1038,7 +1038,8 @@
   },
   "zone_sequencing": {
     "title": "Zone-volgorde",
-    "description": "Als meerdere zones irrigatie nodig hebben, kies of ze tegelijkertijd of na elkaar worden uitgevoerd. In sequentiële modus wacht het systeem tot elke zone klaar is voordat de volgende start.",
+    "description": "Als meerdere zones irrigatie nodig hebben, kies of ze tegelijkertijd of na elkaar worden uitgevoerd. In sequentiële modus wacht het systeem tot elke zone klaar is voordat de volgende start. Dit geldt voor klassieke, zelfsluitende en OpenSprinkler-zones; zones achter een controller met wachtrij houden de volgorde die hun controller bepaalt.",
+    "batch_note": "Batchzones vallen hierbuiten: de controller draait zijn eigen wachtrij, dus de roterende modus bereikt ze niet en elk van die zones geeft zijn volledige duur in één keer water.",
     "parallel": "Parallel (alle zones tegelijk)",
     "sequential": "Sequentieel (één zone tegelijk)",
     "rotating": "Roterend (zones wisselen elkaar af)",

@@ -1038,7 +1038,8 @@
   },
   "zone_sequencing": {
     "title": "Secuencia de zonas",
-    "description": "Cuando varias zonas necesitan riego, elija si se ejecutan al mismo tiempo o una tras otra. En modo secuencial, el sistema espera a que cada zona termine antes de iniciar la siguiente.",
+    "description": "Cuando varias zonas necesitan riego, elija si se ejecutan al mismo tiempo o una tras otra. En modo secuencial, el sistema espera a que cada zona termine antes de iniciar la siguiente. Esto rige las zonas clásicas, autocerrables y de OpenSprinkler; las zonas conectadas a un controlador con cola mantienen el orden que decide su controlador.",
+    "batch_note": "Las zonas por lotes quedan excluidas: el controlador gestiona su propia cola, por lo que el modo rotativo no las alcanza y cada una riega toda su duración de una sola vez.",
     "parallel": "Paralelo (todas las zonas a la vez)",
     "sequential": "Secuencial (una zona a la vez)",
     "rotating": "Rotativo (las zonas se turnan)",

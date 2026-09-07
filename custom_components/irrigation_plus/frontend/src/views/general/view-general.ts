@@ -13,6 +13,7 @@ import {
   fetchCoordinates,
   saveCoordinates,
   CoordinatesConfig,
+  fetchZones,
 } from "../../data/websockets";
 import "../../components/ip-field";
 import "../../components/ip-weather-source-config";
@@ -20,7 +21,7 @@ import { SubscribeMixin } from "../../subscribe-mixin";
 import { localize } from "../../../localize/localize";
 import { output_unit, pick, showErrorToast } from "../../helpers";
 import { loadHaForm } from "../../load-ha-elements";
-import { SmartIrrigationConfig } from "../../types";
+import { SmartIrrigationConfig, SmartIrrigationZone } from "../../types";
 import { globalStyle } from "../../styles/global-style";
 import { Path } from "../../common/navigation";
 import {
@@ -42,6 +43,7 @@ import {
   CONF_ZONE_SEQUENCING_SEQUENTIAL,
   CONF_ZONE_SEQUENCING_PARALLEL,
   CONF_ZONE_SEQUENCING_ROTATING,
+  WATERING_MODE_BATCH,
   CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
   CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
   CONF_WEATHER_SERVICE_OPENMETEO,
@@ -107,6 +109,12 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
   @state() private _coordsElev = "";
   @state() private _coordsSaving = false;
 
+  // Only the watering_mode of each zone is read, to tell whether the sequencing
+  // card has to mention queue-driven zones at all. Fetched here rather than
+  // derived from batch_run_service: that field says the instance CAN dispatch a
+  // batch, not that any zone is set to one.
+  @state() private _zones: SmartIrrigationZone[] = [];
+
   // Transient feedback for debounced auto-save of settings (UX H3).
   @state() private _saveStatus: "idle" | "saving" | "saved" = "idle";
   private _savedResetTimer: number | null = null;
@@ -165,13 +173,15 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
       this._scheduleUpdate();
     }
     try {
-      const [configResult, weatherConfigResult, coordsResult] =
+      const [configResult, weatherConfigResult, coordsResult, zonesResult] =
         await Promise.all([
           fetchConfig(this.hass),
           fetchWeatherConfig(this.hass),
           fetchCoordinates(this.hass),
+          fetchZones(this.hass),
         ]);
       this.config = configResult;
+      this._zones = zonesResult;
       this._weatherConfig = weatherConfigResult;
       this._useWeatherService = weatherConfigResult.use_weather_service;
       this._weatherService =
@@ -1096,6 +1106,13 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
     const isRotating =
       (this.config.zone_sequencing || CONF_ZONE_SEQUENCING_PARALLEL) ===
       CONF_ZONE_SEQUENCING_ROTATING;
+    // Gated on a zone actually being on a queue controller, not on the setting:
+    // a queue drops sequential as well as rotating, because the controller owns
+    // the order once the plan is handed over. Shown for any sequencing value,
+    // and not shown at all on the installs that have no batch zone.
+    const hasBatchZones = this._zones.some(
+      (zone) => zone.watering_mode === WATERING_MODE_BATCH,
+    );
     return html`
       <ha-card
         header="${localize("zone_sequencing.title", this.hass.language)}"
@@ -1103,6 +1120,19 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
         <div class="card-content description-text">
           ${localize("zone_sequencing.description", this.hass.language)}
         </div>
+        ${hasBatchZones
+          ? html`<div class="card-content">
+              <div class="advisory">
+                <ha-icon icon="mdi:information-outline"></ha-icon>
+                <span
+                  >${localize(
+                    "zone_sequencing.batch_note",
+                    this.hass.language,
+                  )}</span
+                >
+              </div>
+            </div>`
+          : ""}
         <div class="card-content">
           <div class="setting-row">
             <label>
@@ -1602,6 +1632,27 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
         font-size: 0.875rem;
         color: var(--secondary-text-color);
         padding-bottom: 4px;
+      }
+
+      /* Same treatment as the distributor panel's instance-level advisories
+         (view-distributor-settings.ts), so a note that qualifies a setting reads
+         the same wherever it appears. */
+      .advisory {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 0.85rem;
+        line-height: 1.45;
+        color: var(--secondary-text-color);
+        background: var(--secondary-background-color);
+        border-left: 3px solid var(--primary-color);
+        border-radius: 0 3px 3px 0;
+        padding: 6px 10px;
+      }
+      .advisory ha-icon {
+        --mdc-icon-size: 18px;
+        flex: 0 0 auto;
+        color: var(--primary-color);
       }
 
       /* Batch mode notes that are safety matters rather than tips: a missing
