@@ -27,7 +27,7 @@
       },
       "migrate": {
         "title": "Ta med det eksisterende oppsettet",
-        "description": "Det ble funnet en eksisterende Smart Irrigation-installasjon. Irrigation Plus kan importere konfigurasjonen — soner, buckets, tidsplaner, vanningshistorikk og værinnstillinger, inkludert API-nøkkelen din.\n\nViktig: la den gamle Smart Irrigation-integrasjonen stå til dette er ferdig. Fjerner du den først, slettes den lagrede API-nøkkelen, og den kan ikke gjenopprettes.",
+        "description": "Det ble funnet en eksisterende Smart Irrigation-installasjon. Irrigation Plus kan importere konfigurasjonen — soner, buckets, tidsplaner, vanningshistorikk og værinnstillinger, inkludert API-nøkkelen din.\n\nViktig: la den gamle Smart Irrigation-integrasjonen stå til dette er ferdig. Fjerner du den først, slettes den lagrede API-nøkkelen, og den kan ikke gjenopprettes.\n\nFullfør flyttingen i samme økt: så lenge begge er installert, kjører hver sine egne tidsplaner på de samme ventilene.",
         "data": {
           "migrated_from_legacy": "Importer det eksisterende Smart Irrigation-oppsettet mitt"
         }
@@ -313,7 +313,7 @@
   "issues": {
     "leftover_legacy_directory": {
       "title": "Den gamle Smart Irrigation-mappen er fortsatt installert",
-      "description": "Irrigation Plus installeres nå i sin egen mappe, men den forrige Smart Irrigation-mappen ligger fortsatt i `{path}`. HACS fjerner den ikke når en integrasjon bytter mappe, og Home Assistant laster den som en integrasjon nummer to — da ser du hver sensor dobbelt.\n\nSlett mappen og start Home Assistant på nytt. Konfigurasjonen din er allerede overført."
+      "description": "Irrigation Plus installeres nå i sin egen mappe, men den forrige Smart Irrigation-mappen ligger fortsatt i `{path}`. HACS fjerner den ikke når en integrasjon bytter mappe, og Home Assistant laster den som en integrasjon nummer to.\n\nDet er ikke bare doble sensorer. Det er en vanningsstyring nummer to: den har en kopi av tidsplanene dine og peker på de samme ventilene, og de to vet ikke om hverandre. Der kjøringene overlapper, krediterer hver sin egen bucket fullt ut mens plantene bare får en del av vannet — og etterpå står begge som vannet.\n\nSlett mappen og start Home Assistant på nytt. Konfigurasjonen din er allerede overført. Sett vanningen på pause på en av de to inntil videre."
     },
     "foreign_legacy_install": {
       "title": "En annen vanningsintegrasjon deler denne mappen",
@@ -351,11 +351,11 @@
         "step": {
           "confirm": {
             "title": "Fjern den gamle installasjonen",
-            "description": "Konfigurasjonen din er overført; det som ligger i `{path}` er installasjonen den kom fra. Home Assistant laster den fortsatt som en andre integrasjon, og derfor ser du hver sensor to ganger.\n\nBegge deler fjernes, i denne rekkefølgen:\n\n1. Integrasjonen **{name}** med den lagrede konfigurasjonen. Kopien fra migreringen blir liggende i `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. Mappen `{path}`.\n\nRekkefølgen betyr noe: fjernes integrasjonen først, kan Home Assistant avslutte den ordentlig.\n\nDette kan ikke angres herfra. Er du usikker på om migreringen er fullført, lukk dette og sjekk soner og historikk først."
+            "description": "Konfigurasjonen din er overført; det som ligger i `{path}` er installasjonen den kom fra. Home Assistant laster den fortsatt som en andre integrasjon. Derfor ser du hver sensor to ganger — og, mindre synlig, kjører en vanningsstyring nummer to med en kopi av tidsplanene dine på de samme ventilene. Der kjøringene overlapper, krediterer hver sin egen bucket fullt ut mens plantene bare får en del av vannet, så dette bør fullføres nå i stedet for å bli liggende.\n\nBegge deler fjernes, i denne rekkefølgen:\n\n1. Integrasjonen **{name}** med den lagrede konfigurasjonen. Kopien fra migreringen blir liggende i `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. Mappen `{path}`.\n\nRekkefølgen betyr noe: fjernes integrasjonen først, kan Home Assistant avslutte den ordentlig.\n\nDette kan ikke angres herfra. Er du usikker på om migreringen er fullført, lukk dette og sjekk soner og historikk først."
           },
           "done": {
             "title": "Fjernet",
-            "description": "Den gamle integrasjonen og mappen `{path}` er fjernet.\n\n**Start Home Assistant på nytt** for å fullføre. De dupliserte enhetene forsvinner med omstarten."
+            "description": "Den gamle integrasjonen og mappen `{path}` er fjernet, og tjenestenavnene `smart_irrigation.*` er tatt tilbake — en automasjon som fortsatt kaller ett av dem, videresendes fra nå av til Irrigation Plus.\n\n**Start Home Assistant på nytt** for å fullføre: det er det som fjerner de doble entitetene den andre installasjonen etterlot seg."
           },
           "partial": {
             "title": "Mappen ligger der fortsatt",

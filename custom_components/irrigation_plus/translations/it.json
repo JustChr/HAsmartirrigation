@@ -27,7 +27,7 @@
       },
       "migrate": {
         "title": "Trasferisci la configurazione esistente",
-        "description": "È stata trovata un'installazione di Smart Irrigation. Irrigation Plus può importarne la configurazione: zone, bucket, pianificazioni, cronologia delle irrigazioni e impostazioni meteo, inclusa la tua chiave API.\n\nImportante: non rimuovere la vecchia integrazione Smart Irrigation prima che l'operazione sia completata. Rimuoverla prima cancella la chiave API memorizzata, che non potrà più essere recuperata.",
+        "description": "È stata trovata un'installazione di Smart Irrigation. Irrigation Plus può importarne la configurazione: zone, bucket, pianificazioni, cronologia delle irrigazioni e impostazioni meteo, inclusa la tua chiave API.\n\nImportante: non rimuovere la vecchia integrazione Smart Irrigation prima che l'operazione sia completata. Rimuoverla prima cancella la chiave API memorizzata, che non potrà più essere recuperata.\n\nCompleta il passaggio nella stessa sessione: finché entrambe sono installate, ciascuna esegue le proprie pianificazioni sulle stesse valvole.",
         "data": {
           "migrated_from_legacy": "Importa la mia configurazione Smart Irrigation esistente"
         }
@@ -313,7 +313,7 @@
   "issues": {
     "leftover_legacy_directory": {
       "title": "La vecchia cartella Smart Irrigation è ancora installata",
-      "description": "Irrigation Plus ora si installa in una cartella propria, ma la precedente cartella Smart Irrigation si trova ancora in `{path}`. HACS non la rimuove quando un’integrazione cambia cartella, e Home Assistant la caricherà come una seconda integrazione: vedrai quindi ogni sensore in doppio.\n\nElimina quella cartella e riavvia Home Assistant. La tua configurazione è già stata trasferita."
+      "description": "Irrigation Plus ora si installa in una cartella propria, ma la precedente cartella Smart Irrigation si trova ancora in `{path}`. HACS non la rimuove quando un’integrazione cambia cartella, e Home Assistant la carica come una seconda integrazione.\n\nNon sono solo sensori doppi. È un secondo sistema di irrigazione: conserva una copia delle tue pianificazioni e punta alle stesse valvole, e i due non sanno l’uno dell’altro. Quando i cicli si sovrappongono, ciascuno accredita per intero il proprio bucket mentre le piante ricevono solo una parte dell’acqua — e dopo entrambi risultano irrigati.\n\nElimina quella cartella e riavvia Home Assistant. La tua configurazione è già stata trasferita. Nel frattempo metti in pausa l’irrigazione su una delle due."
     },
     "foreign_legacy_install": {
       "title": "Un’altra integrazione di irrigazione condivide questa cartella",
@@ -351,11 +351,11 @@
         "step": {
           "confirm": {
             "title": "Rimuovi la vecchia installazione",
-            "description": "La tua configurazione è stata trasferita; ciò che resta in `{path}` è l'installazione da cui proviene. Home Assistant la carica ancora come seconda integrazione, per questo vedi ogni sensore due volte.\n\nVerranno rimossi entrambi, in quest'ordine:\n\n1. L'integrazione **{name}** con la sua configurazione salvata. La copia creata durante la migrazione resta in `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. La cartella `{path}`.\n\nL'ordine è importante: rimuovere prima l'integrazione permette a Home Assistant di chiuderla correttamente.\n\nDa qui non è reversibile. Se non sei ancora sicuro che la migrazione sia completa, chiudi e controlla prima zone e cronologia."
+            "description": "La tua configurazione è stata trasferita; ciò che resta in `{path}` è l'installazione da cui proviene. Home Assistant la carica ancora come seconda integrazione. Per questo vedi ogni sensore due volte — e, in modo meno visibile, un secondo sistema di irrigazione conserva una copia delle tue pianificazioni e comanda le stesse valvole. Quando i cicli si sovrappongono, ciascuno accredita per intero il proprio bucket mentre le piante ricevono solo una parte dell'acqua: meglio concludere ora che lasciar correre.\n\nVerranno rimossi entrambi, in quest'ordine:\n\n1. L'integrazione **{name}** con la sua configurazione salvata. La copia creata durante la migrazione resta in `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. La cartella `{path}`.\n\nL'ordine è importante: rimuovere prima l'integrazione permette a Home Assistant di chiuderla correttamente.\n\nDa qui non è reversibile. Se non sei ancora sicuro che la migrazione sia completa, chiudi e controlla prima zone e cronologia."
           },
           "done": {
             "title": "Rimossa",
-            "description": "La vecchia integrazione e la cartella `{path}` sono state rimosse.\n\n**Riavvia Home Assistant** per completare. Le entità duplicate spariscono con quel riavvio."
+            "description": "La vecchia integrazione e la cartella `{path}` sono state rimosse e i nomi di servizio `smart_irrigation.*` sono stati ripresi: un'automazione che ne chiama ancora uno viene ora inoltrata a Irrigation Plus.\n\n**Riavvia Home Assistant** per completare: è questo a far sparire le entità duplicate lasciate dalla seconda installazione."
           },
           "partial": {
             "title": "La cartella è ancora presente",

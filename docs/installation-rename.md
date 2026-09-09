@@ -60,37 +60,93 @@ keeps the key.
 
 [#128]: https://github.com/JustChr/HAsmartirrigation/issues/128
 
+### Keep the window short, and pause watering before you open it
+
+The order above asks you to run both installs at once for a while. While you do,
+they are two complete, independently scheduling irrigation controllers pointed at
+the same valves, and they do not know about each other. The import copies the
+storage file whole, so both hold the same zones, the same schedules and the same
+linked entities; `zone_run_in_flight` resolves "is this zone already watering"
+against each integration's own memory and its own storage file, and nothing in
+the watering path asks about the other domain.
+
+Three consequences, worst first:
+
+- **A distributor loses its physical position.** An indexing valve advances one
+  outlet per inlet pressurisation. Both installs sweep the same distributor and
+  pulse the same shared inlet, so the ring ends up somewhere neither believes it
+  is — while both go on reporting `synced`. This one compounds: every later cycle
+  builds on the wrong position.
+- **The pump.** The second install sees its own master flag as off, so with the
+  kicker enabled it pulses the pump off and on again while the first one's valves
+  are open. With `master_off_after` set, the mirror case: whichever cycle ends
+  first switches the master off while the other is still watering, and that zone
+  runs its remaining time against a dead pump — and books the water anyway.
+- **The buckets, and not the way it looks.** Two runs of the same length starting
+  together deliver one run's worth of water: the second `turn_on` is a no-op, and
+  each store is individually right. The damage starts once they stop firing
+  together, which they will — only clock- and sun-anchored schedules arm on the
+  same second, while a finish-anchored one fires at `target − estimated duration`
+  computed from each install's own state. Then the shorter run closes the valve
+  while the longer one keeps crediting from its own clock, both stores read
+  "satisfied", and the zone stayed dry. That failure is quiet: the next day shows
+  no demand, so nothing corrects it.
+
+**So pause watering on Smart Irrigation before you add Irrigation Plus.** On its
+**Zones** page use **Pause watering → Delay 24 h**, or call
+`smart_irrigation.set_rain_delay` with `hours` for longer. The pause is part of
+the stored configuration, so the import copies it and **both** installs stay
+held — and manual runs are deliberately exempt from it, so you can still test the
+new install by hand while nothing waters on a schedule. Clear it when you are
+done (step 8).
+
+If you would rather not pause anything, keep both installed for minutes rather
+than days, and do it at a time of day when no schedule can fire.
+
 ## Steps
 
-1. **Update through HACS as normal.** HACS reads the new domain from the
+1. **Pause watering on Smart Irrigation** — see the section above for why this
+   matters more than it sounds like it does.
+2. **Update through HACS as normal.** HACS reads the new domain from the
    manifest and installs into `custom_components/irrigation_plus/`.
-2. **Restart Home Assistant.**
-3. Go to **Settings → Devices & Services → Add Integration** and add
+3. **Restart Home Assistant.**
+4. Go to **Settings → Devices & Services → Add Integration** and add
    **Irrigation Plus**.
-4. The first step of the setup asks whether to **import your existing Smart
+5. The first step of the setup asks whether to **import your existing Smart
    Irrigation installation**. Say yes.
-5. Check the panel: your zones, schedules, buckets and history should all be
-   there. Compare it against the old one before going any further. (If the
-   sidebar panel or the card looks stale, hard-reload the browser with
+6. Check the panel: your zones, schedules, buckets and history should all be
+   there. Compare it against the old one — in this session, not next week. (If
+   the sidebar panel or the card looks stale, hard-reload the browser with
    Ctrl-Shift-R — that is a cached frontend, not a failed import.)
-6. **Let the repair finish the job.** Once your zones are across, a repair
+7. **Let the repair finish the job.** Once your zones are across, a repair
    appears under **Settings → System → Repairs** offering to remove the old
    installation for you. It removes the Smart Irrigation integration entry
    first, then deletes the leftover `custom_components/smart_irrigation/`
    folder — in that order, because Home Assistant can only shut the old
-   integration down properly while its files are still present. Restart
-   afterwards.
+   integration down properly while its files are still present. It also takes
+   the `smart_irrigation.*` service names back, which the old integration leaves
+   registered behind it. Restart afterwards to clear the duplicate entities.
 
    The repair is only offered when the migration demonstrably worked (your
    zones are here) and the folder belongs to this project rather than to the
    upstream one. Otherwise you get an informational notice instead, and the
    manual route below.
-7. **Or do it by hand**, if you would rather: remove the integration at
+8. **Clear the pause** from step 1 — **Resume** on the panel, or
+   `irrigation_plus.clear_rain_delay`. Until you do, scheduled runs are skipped
+   with a `paused` entry in the run log, which is easy to read as "the migration
+   broke my watering".
+9. **Or do it by hand**, instead of steps 7 and 8: remove the integration at
    **Settings → Devices & Services → Smart Irrigation → ⋮ → Delete**, then
    delete `custom_components/smart_irrigation/` and restart. HACS does not
    remove that folder when an integration changes folder, and Home Assistant
-   will otherwise load it as a second integration — you would see two of every
-   sensor.
+   will otherwise load it as a second integration — two of every sensor, and a
+   second scheduler on your valves.
+
+   **The restart is not optional on this route.** Removing a config entry does
+   not unregister the services its integration declared, and the pre-rename
+   release never removed its own, so all 24 `smart_irrigation.*` names stay
+   registered until you restart — bound to an integration that is no longer
+   there. The repair in step 7 clears them for you; doing it by hand does not.
 
 ## What is carried across automatically
 
@@ -104,11 +160,11 @@ keeps the key.
 | Long-term statistics | ✅ follows the new entity IDs |
 | Zone device **area** assignments | ✅ copied onto the new devices |
 | Lovelace cards using `custom:smart-irrigation-zones-card` | ✅ keep working; a repair offers to repoint them |
-| `smart_irrigation.*` service calls in your automations | ✅ keep working, for now — see below |
+| `smart_irrigation.*` service calls in your automations | ⚠️ not while both are installed — see below |
 
 A **safety copy** of your old storage file is written to
 `.storage/smart_irrigation.storage.pre-irrigation_plus.bak` before anything
-else. Keep it until you are satisfied; it is the only copy that survives step 6.
+else. Keep it until you are satisfied; it is the only copy that survives step 7.
 
 ## What you have to change yourself
 
@@ -136,11 +192,27 @@ integrations are installed, which is the collision this rename removed.
 
 ### Service calls (eventually)
 
-`smart_irrigation.reset_bucket` and every other old service name still works: it
-forwards to `irrigation_plus.reset_bucket` and logs a deprecation warning the
-first time it is used. **This is a temporary compatibility layer and will be
-removed in a future release**, so repoint your automations while you are already
-in there for the entity IDs.
+Once the old installation is gone, `smart_irrigation.reset_bucket` and every
+other old service name works again: it forwards to
+`irrigation_plus.reset_bucket` and logs a deprecation warning the first time it
+is used. **This is a temporary compatibility layer and will be removed in a
+future release**, so repoint your automations while you are already in there for
+the entity IDs.
+
+**While both installations are up, those names are not aliases at all.** An
+alias can only claim a service name that is free, and the still-loaded old
+integration owns all 24 of them — so nothing is aliased, and an automation
+calling `smart_irrigation.run_zone` drives the **old** install and credits the
+**old** copy of your data, not the one you are about to keep. That is another
+reason to close the window in the same session rather than leave it open.
+
+Which of the three you are in:
+
+| While… | `smart_irrigation.run_zone` reaches… |
+|---|---|
+| both installations are up | the **old** integration, and its data |
+| after the repair in step 7 | the alias, forwarding to `irrigation_plus.run_zone` |
+| after the manual route in step 9, before restarting | nothing usable — the old names outlive the integration that declared them |
 
 The aliases are switched off entirely if a different `smart_irrigation`
 integration is installed alongside this one — that project owns those names, and
@@ -157,8 +229,10 @@ to do once no script depends on it.
 
 ## Running both integrations side by side
 
-That is now supported, and is the point of the rename. If you install the
-upstream `smart_irrigation` integration as well:
+That is now supported, and is the point of the rename. This means **a different
+project** on the `smart_irrigation` domain — not the old copy of this one, which
+is what the migration window above is about and which you should close promptly.
+If you install the upstream `smart_irrigation` integration as well:
 
 - The old Lovelace card type `custom:smart-irrigation-zones-card` belongs to
   **that** integration. Switch your cards to
@@ -174,7 +248,15 @@ upstream `smart_irrigation` integration as well:
   [open an issue](https://github.com/JustChr/HAsmartirrigation/issues) with your
   diagnostics file — the backup still holds your configuration.
 - **Two of every sensor.** The old `custom_components/smart_irrigation/` folder
-  is still there. Delete it and restart.
+  is still there. Delete it and restart — and treat it as urgent rather than
+  cosmetic: two loaded installations also means two schedulers on your valves.
+- **`smart_irrigation.*` services stopped working, and the old install is gone.**
+  You took the manual route and have not restarted since. Restart; the
+  compatibility aliases are registered on the next start.
+- **A zone reads as watered but the ground is dry.** If both installations were
+  up over a scheduled run, they overlapped on one valve and each credited its own
+  bucket in full. Correct the affected zones with `irrigation_plus.set_bucket`,
+  or reset them and let the next daily calculation rebuild from the weather.
 - **Weather updates are switched off after importing.** The API key could not be
   recovered, because the old config entry was already gone when the import ran
   and that entry is the only place the key ever lived. The setup flow says so at

@@ -27,7 +27,7 @@
       },
       "migrate": {
         "title": "Neem je bestaande installatie over",
-        "description": "Er is een bestaande Smart Irrigation-installatie gevonden. Irrigation Plus kan de configuratie overnemen: zones, buckets, schema's, beregeningsgeschiedenis en weerinstellingen, inclusief je API-sleutel.\n\nBelangrijk: verwijder de oude Smart Irrigation-integratie pas nadat dit is afgerond. Verwijder je die eerder, dan gaat de opgeslagen API-sleutel definitief verloren.",
+        "description": "Er is een bestaande Smart Irrigation-installatie gevonden. Irrigation Plus kan de configuratie overnemen: zones, buckets, schema's, beregeningsgeschiedenis en weerinstellingen, inclusief je API-sleutel.\n\nBelangrijk: verwijder de oude Smart Irrigation-integratie pas nadat dit is afgerond. Verwijder je die eerder, dan gaat de opgeslagen API-sleutel definitief verloren.\n\nRond de overstap in dezelfde sessie af: zolang beide geïnstalleerd zijn, draait elk zijn eigen schema's op dezelfde kleppen.",
         "data": {
           "migrated_from_legacy": "Mijn bestaande Smart Irrigation-configuratie importeren"
         }
@@ -313,7 +313,7 @@
   "issues": {
     "leftover_legacy_directory": {
       "title": "De oude Smart Irrigation-map staat er nog",
-      "description": "Irrigation Plus installeert nu in een eigen map, maar de vorige Smart Irrigation-map staat nog in `{path}`. HACS verwijdert die niet wanneer een integratie van map verandert, en Home Assistant laadt hem als tweede integratie — je ziet dan elke sensor dubbel.\n\nVerwijder die map en start Home Assistant opnieuw. Je configuratie is al overgenomen."
+      "description": "Irrigation Plus installeert nu in een eigen map, maar de vorige Smart Irrigation-map staat nog in `{path}`. HACS verwijdert die niet wanneer een integratie van map verandert, en Home Assistant laadt hem als tweede integratie.\n\nDat zijn niet alleen dubbele sensoren. Het is een tweede besproeiingsregeling: hij houdt een kopie van je schema’s en wijst naar dezelfde kleppen, en de twee weten niets van elkaar. Waar hun beurten overlappen, schrijft elk zijn eigen bucket volledig bij terwijl je planten maar een deel van het water krijgen — en achteraf staan beide op bewaterd.\n\nVerwijder die map en start Home Assistant opnieuw. Je configuratie is al overgenomen. Zet tot die tijd het water geven bij één van de twee op pauze."
     },
     "foreign_legacy_install": {
       "title": "Een andere beregeningsintegratie deelt deze map",
@@ -351,11 +351,11 @@
         "step": {
           "confirm": {
             "title": "Oude installatie verwijderen",
-            "description": "Je configuratie is overgezet; wat in `{path}` staat is de installatie waar die vandaan komt. Home Assistant laadt die nog steeds als tweede integratie, daarom zie je elke sensor dubbel.\n\nDit verwijdert beide, in deze volgorde:\n\n1. De integratie **{name}** met de opgeslagen configuratie. De kopie van de migratie blijft staan in `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. De map `{path}`.\n\nDie volgorde is belangrijk: door de integratie eerst te verwijderen kan Home Assistant haar netjes afsluiten.\n\nDit kan hier niet ongedaan worden gemaakt. Twijfel je of de migratie compleet is, sluit dit dan en controleer eerst je zones en geschiedenis."
+            "description": "Je configuratie is overgezet; wat in `{path}` staat is de installatie waar die vandaan komt. Home Assistant laadt die nog steeds als tweede integratie. Daarom zie je elke sensor dubbel — en, minder zichtbaar, draait er een tweede besproeiingsregeling met een kopie van je schema's op dezelfde kleppen. Waar hun beurten overlappen, schrijft elk zijn eigen bucket volledig bij terwijl je planten maar een deel van het water krijgen; rond dit dus nu af in plaats van het te laten staan.\n\nDit verwijdert beide, in deze volgorde:\n\n1. De integratie **{name}** met de opgeslagen configuratie. De kopie van de migratie blijft staan in `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. De map `{path}`.\n\nDie volgorde is belangrijk: door de integratie eerst te verwijderen kan Home Assistant haar netjes afsluiten.\n\nDit kan hier niet ongedaan worden gemaakt. Twijfel je of de migratie compleet is, sluit dit dan en controleer eerst je zones en geschiedenis."
           },
           "done": {
             "title": "Verwijderd",
-            "description": "De oude integratie en de map `{path}` zijn verwijderd.\n\n**Herstart Home Assistant** om het af te ronden. De dubbele entiteiten verdwijnen met die herstart."
+            "description": "De oude integratie en de map `{path}` zijn verwijderd, en de servicenamen `smart_irrigation.*` zijn overgenomen — een automatisering die er nog een aanroept, wordt vanaf nu doorgestuurd naar Irrigation Plus.\n\n**Herstart Home Assistant** om het af te ronden: dat ruimt de dubbele entiteiten op die de tweede installatie heeft achtergelaten."
           },
           "partial": {
             "title": "De map staat er nog",

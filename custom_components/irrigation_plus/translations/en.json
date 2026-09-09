@@ -27,7 +27,7 @@
       },
       "migrate": {
         "title": "Bring your existing set-up across",
-        "description": "We found an existing Smart Irrigation installation. Irrigation Plus can import its configuration — your zones, buckets, schedules, run history and weather settings, including your API key.\n\nImportant: leave the old Smart Irrigation integration in place until this finishes. Removing it first deletes its stored API key, which cannot be recovered afterwards.",
+        "description": "We found an existing Smart Irrigation installation. Irrigation Plus can import its configuration — your zones, buckets, schedules, run history and weather settings, including your API key.\n\nImportant: leave the old Smart Irrigation integration in place until this finishes. Removing it first deletes its stored API key, which cannot be recovered afterwards.\n\nThen finish the move in this session: while both are installed, both run their own schedules on the same valves.",
         "data": {
           "migrated_from_legacy": "Import my existing Smart Irrigation configuration"
         }
@@ -313,7 +313,7 @@
   "issues": {
     "leftover_legacy_directory": {
       "title": "The old Smart Irrigation folder is still installed",
-      "description": "Irrigation Plus now installs to its own folder, but the previous Smart Irrigation folder is still at `{path}`. HACS does not remove it when an integration changes folder, and Home Assistant will load it as a second integration — so you will see two of every sensor.\n\nDelete that folder and restart Home Assistant. Your configuration has already been carried over."
+      "description": "Irrigation Plus now installs to its own folder, but the previous Smart Irrigation folder is still at `{path}`. HACS does not remove it when an integration changes folder, so Home Assistant loads it as a second integration.\n\nThat is more than two of every sensor. It is a second irrigation controller: it holds a copy of your schedules and points at the same valves, and the two know nothing about each other. Where their runs overlap, each credits its own bucket in full while your plants get a fraction of the water — and afterwards both read as watered.\n\nDelete that folder and restart Home Assistant. Your configuration has already been carried over. Until then, pause watering on one of the two."
     },
     "foreign_legacy_install": {
       "title": "Another irrigation integration shares this folder",
@@ -351,11 +351,11 @@
         "step": {
           "confirm": {
             "title": "Remove the old installation",
-            "description": "Your configuration has been carried over, so what is left at `{path}` is the installation it came from. Home Assistant is still loading it as a second integration, which is why you see two of every sensor.\n\nThis removes both halves, in this order:\n\n1. The **{name}** integration entry, together with its stored configuration. The copy taken during the migration is kept at `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. The folder at `{path}`.\n\nThat order matters: removing the entry first lets Home Assistant shut the old integration down properly.\n\nThis cannot be undone from here. If you are not yet sure the migration is complete, close this and check your zones and history first."
+            "description": "Your configuration has been carried over, so what is left at `{path}` is the installation it came from. Home Assistant is still loading it as a second integration. That is why you see two of every sensor — and, less visibly, why a second irrigation controller is holding a copy of your schedules and pointing at the same valves. Where their runs overlap, each credits its own bucket in full while your plants get a fraction of the water, so this is worth finishing now rather than leaving to sit.\n\nThis removes both halves, in this order:\n\n1. The **{name}** integration entry, together with its stored configuration. The copy taken during the migration is kept at `.storage/smart_irrigation.storage.pre-irrigation_plus.bak`.\n2. The folder at `{path}`.\n\nThat order matters: removing the entry first lets Home Assistant shut the old integration down properly.\n\nThis cannot be undone from here. If you are not yet sure the migration is complete, close this and check your zones and history first."
           },
           "done": {
             "title": "Removed",
-            "description": "The old integration and its folder at `{path}` are gone.\n\n**Restart Home Assistant** to finish. The duplicate entities disappear with that restart."
+            "description": "The old integration and its folder at `{path}` are gone, and the `smart_irrigation.*` service names have been taken back — an automation still calling one of them forwards to Irrigation Plus from now on.\n\n**Restart Home Assistant** to finish: that is what clears the duplicate entities the second installation left behind."
           },
           "partial": {
             "title": "The folder is still there",

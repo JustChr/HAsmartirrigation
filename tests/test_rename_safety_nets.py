@@ -794,3 +794,115 @@ class TestAliasesAgainstTheRealServiceRegistry:
         assert alias["name"] == "Reset bucket"
         assert alias["target"] == {"entity": {"domain": "sensor"}}
         assert "Deprecated" in alias["description"]
+
+
+class TestRepairTextsDescribeTheWindow:
+    """A leftover install is a second irrigation controller, not two sensors.
+
+    Every rename repair described the consequence of the old install still being
+    loaded as "two of every sensor". It is also a complete second scheduler on
+    the same valves: the import copies the storage file whole, so both hold the
+    same zones, schedules and linked entities, and `zone_run_in_flight` resolves
+    against each integration's own memory and its own storage file (#129). The
+    failure that follows is quiet -- once the two stop firing together, the
+    shorter run closes the valve while the longer one keeps crediting, and both
+    stores read "satisfied" on a zone that stayed dry.
+
+    The done step is pinned separately and on a different fact. Since the repair
+    reclaims the legacy service names itself (#130), the restart is no longer
+    what makes the aliases work -- but the text still needs to say the names came
+    back, or an automation author has no way to know the old names are live
+    again without testing one.
+
+    Pinned per language rather than in English only: these catalogues fall back
+    to English per key at runtime, so a gap is invisible in testing and in the
+    maintainer's own install -- it only shows up as an English string in someone
+    else's UI, which nobody files a bug about.
+    """
+
+    # Stem of each language's word for watering/irrigation, lower-cased.
+    _WATERING = {
+        "de": "bewässer",
+        "en": "water",
+        "es": "rieg",
+        "fr": "arros",
+        # Not "irrig": that stem is inside the product name "Irrigation Plus".
+        "it": "irrigazion",
+        "nl": "water",
+        "no": "vann",
+        "sk": "zavla",
+    }
+
+    # Stem of each language's word for "valve", for the import step only.
+    # The watering stem above is useless there: six of the eight catalogues
+    # already carry it in "irrigation history", in the list of what gets
+    # imported, so the assertion would pass against the very text it exists to
+    # reject. The valve word appears nowhere in that step today.
+    _VALVES = {
+        "de": "ventil",
+        "en": "valve",
+        "es": "válvul",
+        "fr": "vanne",
+        "it": "valvol",
+        "nl": "klep",
+        "no": "ventil",
+        "sk": "ventil",
+    }
+
+    _CATALOGUES = Path(__file__).resolve().parents[1] / (
+        "custom_components/irrigation_plus/translations"
+    )
+
+    def _issues(self, lang):
+        return json.loads(
+            (self._CATALOGUES / f"{lang}.json").read_text(encoding="utf-8")
+        )["issues"]
+
+    def _cleanup_step(self, lang, step):
+        flow = self._issues(lang)["leftover_legacy_directory_removable"]["fix_flow"]
+        return flow["step"][step]["description"].lower()
+
+    @pytest.mark.parametrize("lang", sorted(_WATERING))
+    def test_the_cleanup_repair_says_the_old_install_still_waters(self, lang):
+        assert self._WATERING[lang] in self._cleanup_step(lang, "confirm"), (
+            f"{lang}.json still describes a leftover install as duplicate "
+            "entities only; it also runs its own schedules on the same valves"
+        )
+
+    @pytest.mark.parametrize("lang", sorted(_WATERING))
+    def test_the_standing_notice_says_it_too(self, lang):
+        text = self._issues(lang)["leftover_legacy_directory"]["description"].lower()
+        assert (
+            self._WATERING[lang] in text
+        ), f"{lang}.json's standing leftover notice warns about sensors only"
+
+    @pytest.mark.parametrize("lang", sorted(_WATERING))
+    def test_the_import_step_says_to_close_the_window_it_opens(self, lang):
+        """The config flow is where the user decides to run both at once.
+
+        Its "leave the old integration in place until this finishes" is the
+        sentence that opens the overlap, and it is read at the moment the
+        decision is made -- earlier than any repair text and earlier than the
+        guide. Saying only what to leave, and never what to close, is what makes
+        an open-ended soak look free.
+        """
+        text = json.loads(
+            (self._CATALOGUES / f"{lang}.json").read_text(encoding="utf-8")
+        )["config"]["step"]["migrate"]["description"].lower()
+        assert self._VALVES[lang] in text, (
+            f"{lang}.json's import step tells the user to keep both installs "
+            "but not that both of them drive the same valves"
+        )
+
+    @pytest.mark.parametrize("lang", sorted(_WATERING))
+    def test_the_done_step_says_the_legacy_service_names_came_back(self, lang):
+        """The repair reclaims them, so the user can stop worrying about them.
+
+        Pinned on the domain token rather than on prose: it is the one part of
+        the sentence that cannot be translated away.
+        """
+        text = self._cleanup_step(lang, "done")
+        assert f"{const.LEGACY_DOMAIN}." in text, (
+            f"{lang}.json's done step does not mention the "
+            f"{const.LEGACY_DOMAIN}.* service names the repair just reclaimed"
+        )
