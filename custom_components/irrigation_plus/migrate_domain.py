@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
+from functools import lru_cache
 from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
@@ -42,8 +43,10 @@ from . import const
 
 _LOGGER = logging.getLogger(__name__)
 
-# Identifies a pre-#120 manifest as belonging to THIS fork rather than upstream.
-_OUR_MARKER = "justchr"
+# Identifies a pre-#120 manifest as belonging to THIS project's lineage rather
+# than to upstream. Kept as a constant AND combined with whatever this build's
+# own manifest says -- see `plan_owner_markers` for why both halves are needed.
+_UPSTREAM_MARKER = "justchr"
 
 # Every slot a weather credential can occupy. This restates
 # `rename_notice._API_KEY_SLOTS` from the bridge release (v2026.09.06), which is
@@ -294,9 +297,72 @@ def legacy_install_is_ours(hass: HomeAssistant) -> bool:
         data = json.loads(manifest.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return True
-    documentation = str(data.get("documentation", ""))
-    codeowners = " ".join(data.get("codeowners") or [])
-    return _OUR_MARKER in f"{documentation} {codeowners}".lower()
+    return manifest_is_ours(data, our_owner_markers())
+
+
+def plan_owner_markers(codeowners) -> tuple:
+    """Who this build counts as "us", lower-cased, from its own codeowners.
+
+    Derived rather than listed. A downstream fork rebrands its manifest as a
+    matter of course, and the pre-rename release it published carried the same
+    owner -- so its old install answers `legacy_install_is_ours` with the FORK's
+    name, matched nothing, and the user was never offered the import at all.
+    Nothing said why: an unrecognised install is indistinguishable from no
+    install. Listing the forks here instead would mean this project shipping a
+    register of its own forks and updating it whenever someone else renames.
+
+    The upstream marker stays in the set rather than being replaced, because the
+    two halves can legitimately disagree: a fork that rebranded only after the
+    rename has an old manifest that still names upstream, and one that rebranded
+    before it has an old manifest that does not.
+
+    For this repository the result is exactly ``("justchr",)`` -- the value the
+    constant used to hold on its own. That equality is pinned, because a change
+    here that altered who UPSTREAM counts as its own would be a regression
+    wearing the clothes of a fix.
+
+    Note the matching stays a substring test, as it was: `documentation` is a
+    URL and has to be. A fork whose owner name is a substring of another
+    project's is therefore matching loosely -- but it is the fork's own manifest
+    that decides, which is the same trust boundary as before.
+    """
+    owners = {_UPSTREAM_MARKER}
+    for owner in codeowners or []:
+        cleaned = str(owner).lstrip("@").strip().lower()
+        if cleaned:
+            owners.add(cleaned)
+    return tuple(sorted(owners))
+
+
+@lru_cache(maxsize=1)
+def our_owner_markers() -> tuple:
+    """:func:`plan_owner_markers` against this component's own manifest.
+
+    Cached: the file cannot change while Home Assistant is running, and this is
+    reached from `panel.py` and `repairs.py` on the event loop as well as from
+    the executor, so it should not become a per-call read.
+
+    Falls back to the upstream marker alone if our own manifest is unreadable --
+    the same answer as before this was derived at all.
+    """
+    manifest = Path(__file__).parent / "manifest.json"
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return (_UPSTREAM_MARKER,)
+    return plan_owner_markers(data.get("codeowners"))
+
+
+def manifest_is_ours(data, markers) -> bool:
+    """Whether a manifest document names any of ``markers``.
+
+    Pure, so the ownership decision can be exercised for a fork's configuration
+    without writing that fork's manifest to disk first.
+    """
+    documentation = str((data or {}).get("documentation", ""))
+    codeowners = " ".join((data or {}).get("codeowners") or [])
+    haystack = f"{documentation} {codeowners}".lower()
+    return any(marker in haystack for marker in markers)
 
 
 def legacy_install_present(hass: HomeAssistant) -> bool:

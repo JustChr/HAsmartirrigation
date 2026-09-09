@@ -283,6 +283,71 @@ class TestLegacyOwnership:
         self._write_manifest(tmp_path, {"codeowners": ["@JustChr"]})
         assert legacy_install_is_ours(_hass(tmp_path)) is True
 
+    def test_this_repository_derives_exactly_the_upstream_marker(self):
+        """The widening must be a no-op for upstream itself.
+
+        The marker set is now read from this build's own manifest instead of a
+        constant, so for this repository it has to come back as the one value
+        the constant used to hold. If it ever does not, "widening" has quietly
+        changed who upstream counts as its own.
+        """
+        from custom_components.irrigation_plus.migrate_domain import (
+            our_owner_markers,
+        )
+
+        assert our_owner_markers() == ("justchr",)
+
+    def test_a_rebranded_fork_recognises_its_own_previous_release(self):
+        """The case the hard-coded marker got wrong.
+
+        A downstream fork rebrands its manifest, and its pre-rename release
+        carried the same owner -- so its old install answers this question with
+        the fork's name and never matched. The user was not offered the import
+        at all, and nothing said why.
+        """
+        from custom_components.irrigation_plus.migrate_domain import (
+            manifest_is_ours,
+            plan_owner_markers,
+        )
+
+        markers = plan_owner_markers(["@Eifel-Joe"])
+        assert manifest_is_ours(
+            {
+                "documentation": "https://github.com/Eifel-Joe/HAsmartirrigation",
+                "codeowners": ["@Eifel-Joe"],
+            },
+            markers,
+        )
+
+    def test_a_fork_still_recognises_an_unbranded_previous_release(self):
+        # A fork that rebranded only after the rename has an old manifest that
+        # still names upstream. That is why the upstream marker is kept in the
+        # set rather than replaced by the fork's own.
+        from custom_components.irrigation_plus.migrate_domain import (
+            manifest_is_ours,
+            plan_owner_markers,
+        )
+
+        markers = plan_owner_markers(["@Eifel-Joe"])
+        assert manifest_is_ours({"codeowners": ["@JustChr"]}, markers)
+
+    def test_upstreams_install_is_refused_by_a_fork_too(self):
+        # The whole point of the predicate, and the thing the widening must not
+        # cost: a fork must not migrate altmenorg's install either.
+        from custom_components.irrigation_plus.migrate_domain import (
+            manifest_is_ours,
+            plan_owner_markers,
+        )
+
+        markers = plan_owner_markers(["@Eifel-Joe"])
+        assert not manifest_is_ours(
+            {
+                "documentation": "https://altmenorg.github.io/HAsmartirrigation/",
+                "codeowners": ["@altmenorg", "@jeroenterheerdt"],
+            },
+            markers,
+        )
+
 
 def _write_legacy_store(hass, config):
     """A legacy storage file whose `data.config` holds `config`."""
