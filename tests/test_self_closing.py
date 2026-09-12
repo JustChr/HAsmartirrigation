@@ -1116,9 +1116,14 @@ async def test_self_closing_advisory_after_repeated_off_rate():
             const.ZONE_FLOW_CAL_ADVISED: False,
         }
     )
-    # Measured 6 L in 60 s -> observed 6 L/min == +50% over the configured 4 L/min.
+    # Measured 12 L in 120 s -> observed 6 L/min == +50% over the configured 4 L/min.
+    # The window is 120 s rather than 60 because the rate is what this test is about
+    # and the VOLUME is what the advisory's quantisation floor judges: 6 L on a 1 L
+    # meter carries more error than the 15% band it would be measured against, so it
+    # is no longer a sample at all (FLOW_CAL_MIN_SAMPLE_L, #133). Same rate, same
+    # deviation, a run big enough to mean it.
     for _ in range(const.FLOW_CAL_MIN_SAMPLES):
-        await c._flow_calibration_check(zone, measured_l=6.0, seconds=60.0)
+        await c._flow_calibration_check(zone, measured_l=12.0, seconds=120.0)
         # The Mock store does not mutate the dict; carry the persisted state forward so
         # the samples accumulate across runs (mirrors the distributor advisory test).
         changes = c.store.async_update_zone.await_args.args[1]

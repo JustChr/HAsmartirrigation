@@ -490,15 +490,17 @@ class ObservedWateringMixin:
         #  * measured_l > 0: a phantom-open credits a legitimate 0.0 here (unlike
         #    self-closing, which resolves 0 to None), and a 0 L/min sample would drive
         #    the advisory to recommend ~0 throughput after a few stuck-open runs.
-        #  * seconds >= OBSERVED_FLOW_CAL_MIN_SECONDS: below that the observed RATE is
-        #    dominated by the meter's pulse resolution rather than by the zone's real
-        #    flow — a few seconds of hand-testing on a 1 L/pulse meter reads as a wild
-        #    over-rate and both fires a false advisory and evicts the good samples.
-        #    See the constant for the arithmetic.
+        #  * seconds >= OBSERVED_SAMPLE_MIN_RUN_SECONDS: PROVENANCE, and nothing else.
+        #    Nobody hand-holds a valve for five minutes, so a shorter open is probably
+        #    testing rather than watering — and on a cistern-and-pump zone the rate a
+        #    hand-open delivers is not the rate a scheduled run delivers. The
+        #    quantisation half of this gate has moved into _flow_calibration_check as
+        #    FLOW_CAL_MIN_SAMPLE_L, where it is expressed in litres and inherited by
+        #    all three callers instead of this one (#133).
         # siehe test_observed_watering.py::test_short_external_open_does_not_feed_advisory
         if (
             measured_branch
             and float(measured_l) > 0
-            and seconds >= const.OBSERVED_FLOW_CAL_MIN_SECONDS
+            and seconds >= const.OBSERVED_SAMPLE_MIN_RUN_SECONDS
         ):
             await self._flow_calibration_check(zone, float(measured_l), seconds)

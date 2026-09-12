@@ -1220,6 +1220,23 @@ class IrrigationRunnerMixin:
         trailing store write is as safe as the credit write just before it)."""
         if measured_l is None or seconds <= 0:
             return
+        # Wurzel: the advisory divides litres by minutes, and a meter's error is one
+        #   whole pulse whichever way the division goes — so what bounds the error is
+        #   the VOLUME, never the duration. This was gated on a fixed 300 s in one of
+        #   the three callers; the other two accepted anything, and the derivation
+        #   behind the 300 was itself rate-dependent (#133).
+        # Fix-Logik: one floor, in the unit the argument was always about, applied
+        #   where every caller passes through. Rejected here rather than at a call
+        #   site so a quantised reading cannot evict a good sample from the 5-deep
+        #   window on its way past.
+        # NOT-TO-DO: do not re-add a duration gate at a caller "as well". A 30 s run
+        #   delivering 10 L is a better sample than 300 s of a trickle, and the
+        #   duplication is the defect this closes. The observed path's remaining
+        #   second count is a PROVENANCE rule about hand-testing, not this one, and
+        #   it is named separately for that reason.
+        # siehe tests/test_flow_cal_sample_floor.py
+        if float(measured_l) < const.FLOW_CAL_MIN_SAMPLE_L:
+            return
         cfg_lpm = self._throughput_lpm(zone)
         if not cfg_lpm or cfg_lpm <= 0:
             return

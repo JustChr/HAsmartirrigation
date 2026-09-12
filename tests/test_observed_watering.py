@@ -386,7 +386,7 @@ async def test_run_at_the_length_floor_still_feeds_the_advisory():
     # representative and must still be sampled, or the mirror test above would pass
     # against a feed that had simply been deleted.
     coord = _credit_coord(_flow_credit_zone())
-    seconds = float(const.OBSERVED_FLOW_CAL_MIN_SECONDS)
+    seconds = float(const.OBSERVED_SAMPLE_MIN_RUN_SECONDS)
     await coord._credit_observed_watering(
         2, seconds, measured_l=25.0, sensor_present=True
     )

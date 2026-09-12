@@ -858,21 +858,22 @@ ZONE_OBSERVED_ENTITY = "observed_entity"
 # NOT a ceiling on measured flow: since #102/#111 a flow sensor's reading is the
 # authority and is credited as-is. See ObservedWateringMixin.
 OBSERVED_CAP_MARGIN_SECONDS = 30
-# Shortest external run that may feed the flow-calibration advisory (#111 follow-up).
-# The advisory samples an observed RATE (litres / minutes), so a short run divides a
-# coarsely-quantised volume by a very small number. Residential meters commonly pulse
-# at 1 L: a 6 s open on a 3.1 L/min zone registers either 0 L (already gated out by
-# `measured_l > 0`) or one 1 L pulse, reading as 10 L/min — a +223% deviation on a
-# CORRECTLY configured zone. Three of those fill FLOW_CAL_MIN_SAMPLES, fire a
-# persistent notification recommending a throughput that was never wrong, AND evict
-# the healthy samples that real runs contributed to the 5-deep window.
-# Sized so one pulse of quantisation stays inside FLOW_CAL_DEVIATION: at 3.1 L/min a
-# 1 L error is 15% of the reading only once the run exceeds ~130 s, so 300 s leaves
-# room for a slower zone. Erring strict is deliberate — a missed sample only makes the
-# advisory less eager, while a false one tells the user to break a working setting.
-# Unlike self-closing and the distributor, which sample SI's OWN planned runs, the
-# observed path sees any external valve open, including a few seconds of hand-testing.
-OBSERVED_FLOW_CAL_MIN_SECONDS = 300
+# Shortest external open the observed path will offer to the flow-calibration
+# advisory. This is a PROVENANCE rule and nothing else: unlike self-closing and the
+# distributor, which sample Irrigation Plus's OWN planned runs, this path sees any
+# valve opening, including a few seconds of hand-testing at the tap. On a
+# cistern-and-pump zone the delivered rate depends on whether the pump is loaded and
+# on what else is open, so a hand-open is not necessarily a sample of the same system
+# a scheduled run measures.
+#
+# The number is a judgement about human behaviour, not a derivation — nobody
+# hand-holds a valve for five minutes — so it is deliberately unchanged from the value
+# this rule had when it also carried the quantisation argument. That argument now
+# lives with FLOW_CAL_MIN_SAMPLE_L below, where it is expressed in the unit it was
+# always really about, and applies to all three callers instead of this one.
+# Erring strict is deliberate here too: a missed sample only makes the advisory less
+# eager, while a false one tells the user to break a working setting.
+OBSERVED_SAMPLE_MIN_RUN_SECONDS = 300
 # Per-member flow-calibration advisory (distributor can't-stop members only). A
 # member whose valve can't early-stop runs a fixed window; if the configured
 # throughput is wrong it silently over/under-waters. We keep a rolling list of
@@ -885,6 +886,28 @@ ZONE_FLOW_CAL_ADVISED = "flow_calibration_advised"
 FLOW_CAL_MIN_SAMPLES = 3
 FLOW_CAL_MAX_SAMPLES = 5
 FLOW_CAL_DEVIATION = 0.15
+# Smallest measured volume that can carry a usable rate sample, and the reason the
+# advisory's floor is in litres rather than in seconds. The advisory divides litres
+# by minutes, and a residential meter pulses at about 1 L, so the error on any single
+# reading is a whole pulse regardless of how long the valve was open: one pulse
+# against 6 L is 17%, against 60 L it is 1.7%. A sample carrying more quantisation
+# error than FLOW_CAL_DEVIATION — the very band it will be judged against — cannot
+# say anything about the zone, but three of them fill FLOW_CAL_MIN_SAMPLES, fire a
+# notification recommending a throughput that was never wrong, AND evict the healthy
+# samples real runs contributed to the 5-deep window.
+#
+# Derived rather than chosen, so it follows the band: widen FLOW_CAL_DEVIATION and
+# the litres required halve. A 6 s open on a 3.1 L/min zone reads one pulse as
+# 10 L/min, +223% on a correctly configured zone; at 6.67 L it cannot.
+#
+# The 1 L pulse is an ASSUMPTION, not a reading. Pulse size is configurable nowhere
+# in the tree (`flow_counter_type` is auto/per_run/lifetime and nothing else), so
+# this is a stated prior about residential meters. It is on a far better axis than a
+# fixed duration, and it fails safe: a coarser meter than assumed lets a marginal
+# sample through, which makes the advisory slightly eager rather than silent. If a
+# 10 L meter turns up, this becomes a zone field then, not now.
+FLOW_CAL_METER_RESOLUTION_L = 1.0
+FLOW_CAL_MIN_SAMPLE_L = FLOW_CAL_METER_RESOLUTION_L / FLOW_CAL_DEVIATION
 # Optional soil-moisture sensor (per zone) + wet threshold. When both are set,
 # an AUTOMATIC run skips the zone while the sensor reads strictly above the
 # threshold (higher % = wetter), and resets the zone's bucket to 0. Skip-only:
