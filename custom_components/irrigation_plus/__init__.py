@@ -1954,6 +1954,64 @@ class SmartIrrigationCoordinator(
                     static_values[key] = val
         return static_values
 
+    async def _book_asserted_bucket(self, zone_id, old_zone, entry, data) -> None:
+        """A bucket set by hand supersedes the weather it was set on top of.
+
+        Wurzel: ``ZONE_BUCKET`` is the level as of NOW, but the water balance
+          takes it for the level the unconsumed weather window OPENED at, and
+          applies that whole window on top. Setting it by hand therefore had the
+          window's weather applied AFTER the statement it was already accounting
+          for. Measured: 8 mm of rain that fell eight hours BEFORE a user set the
+          bucket to -2 mm left the zone at +4 mm -- above field capacity, so it
+          then declined to water at all until the surplus had burned off.
+        Fix-Logik: someone stating the level has looked at the ground. Everything
+          before that moment is in their number already, so the zone's
+          consumption watermark moves to it and the window restarts there. The
+          mid-window ledger goes with it for the same reason: a credit from
+          before the statement is part of what was being looked at, and replaying
+          it afterwards would add water the number already carries.
+        NOT-TO-DO: do not book this on ``ZONE_PENDING_BUCKET_EVENTS`` instead. An
+          assertion is not a delta -- booked as one, a level of -2 set after 8 mm
+          of rain replays as "open at 0, add the 8 mm, then subtract 2", which is
+          a different wrong answer (measured: +2.75 instead of -3.00). The ledger
+          is for water that MOVED; this is a statement about where the level IS.
+        NOT-TO-DO: do not move this into ``store.async_update_zone``, the funnel
+          every bucket write passes through. A unit-system flip rewrites the
+          bucket by 25.4 without any water moving or any ground being looked at,
+          and it writes through the store directly -- as do the credit paths and
+          the calculation's own result. Only the two assertion paths, the
+          set_bucket / reset_bucket services and the panel's zone save, reach
+          this branch. ``async_write_watered_bucket`` carries the same warning.
+        siehe tests/test_manual_bucket_assertion.py
+        """
+        if const.ZONE_BUCKET not in data and const.ATTR_NEW_BUCKET_VALUE not in data:
+            return
+        try:
+            # Read the level BACK off the stored entry rather than off the
+            # request: the store clamps a value above ``maximum_bucket`` when the
+            # same payload carries one, which the panel's whole-zone save always
+            # does. An unchanged bucket -- every panel save that edited some
+            # other setting -- must not move anything.
+            before = float(old_zone.get(const.ZONE_BUCKET) or 0)
+            after = float(entry.get(const.ZONE_BUCKET) or 0)
+        except (TypeError, ValueError):
+            return
+        if before == after:
+            return
+        await self.store.async_update_zone(
+            zone_id,
+            {
+                # Naive local time, the convention every other writer of this
+                # field uses -- ``calculation.py`` stamps it from the stdlib
+                # clock, and an aware stamp would not compare against the
+                # buffer's own. Aliased, because a global named ``datetime``
+                # here is shadowed by the platform submodule of that name
+                # (see tests/test_datetime_platform_shadowing.py).
+                const.ZONE_LAST_CONSUMED: dt_datetime.now(),
+                const.ZONE_PENDING_BUCKET_EVENTS: [],
+            },
+        )
+
     async def async_update_zone_config(
         self, zone_id: int | None = None, data: dict | None = None
     ):
@@ -2053,6 +2111,7 @@ class SmartIrrigationCoordinator(
             # modify a zone
             old_zone = self.store.get_zone(zone_id)
             entry = await self.store.async_update_zone(zone_id, data)
+            await self._book_asserted_bucket(zone_id, old_zone, entry, data)
             async_dispatcher_send(self.hass, const.DOMAIN + "_config_updated", zone_id)
             for did in {
                 old_zone.get(const.ZONE_DISTRIBUTOR_ID),
