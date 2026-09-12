@@ -11,7 +11,7 @@ from custom_components.irrigation_plus.distributor import DistributorMixin
 from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
 from custom_components.irrigation_plus.master import MasterMixin
 from custom_components.irrigation_plus.run_state import RunStateMixin
-from tests.test_distributor import _dist, _host
+from tests.test_distributor import _dist, _host, _open_inlet_stub
 
 
 class _CycleHost(DistributorMixin, IrrigationRunnerMixin, MasterMixin, RunStateMixin):
@@ -176,7 +176,7 @@ def _loop_host(members, **cfg_over):
     c._dist_master_end = AsyncMock()
     c._dist_master_window_off = AsyncMock()
     c._dist_master_window_on = AsyncMock()
-    c._dist_open_inlet = AsyncMock()
+    c._dist_open_inlet = _open_inlet_stub()
     c._dist_close_inlet = AsyncMock()
     c._dist_sleep = AsyncMock()
     c._dist_credit_zone = AsyncMock()
@@ -560,12 +560,12 @@ async def test_cycle_stops_after_last_due_outlet():
     c._dist_uses_master = Mock(return_value=False)
     for m in (
         "_dist_persist_cycle",
-        "_dist_open_inlet",
         "_dist_close_inlet",
         "_dist_credit_zone",
         "_dist_clear_cycle",
     ):
         setattr(c, m, AsyncMock())
+    c._dist_open_inlet = _open_inlet_stub()
     advanced = []
     c._dist_advance = AsyncMock(
         side_effect=lambda did, cur, n: advanced.append((cur % n) + 1)
@@ -633,12 +633,12 @@ async def test_cycle_leading_skip_to_reach_later_due():
     c._dist_uses_master = Mock(return_value=False)
     for m in (
         "_dist_persist_cycle",
-        "_dist_open_inlet",
         "_dist_close_inlet",
         "_dist_credit_zone",
         "_dist_clear_cycle",
     ):
         setattr(c, m, AsyncMock())
+    c._dist_open_inlet = _open_inlet_stub()
     c._dist_advance = AsyncMock(side_effect=lambda did, cur, n: (cur % n) + 1)
     c._dist_sleep = AsyncMock()
     c._apply_soil_moisture_veto = AsyncMock(side_effect=lambda z: z)
@@ -672,12 +672,12 @@ async def test_test_run_still_sweeps_all_outlets():
     c._dist_uses_master = Mock(return_value=False)
     for m in (
         "_dist_persist_cycle",
-        "_dist_open_inlet",
         "_dist_close_inlet",
         "_dist_credit_zone",
         "_dist_clear_cycle",
     ):
         setattr(c, m, AsyncMock())
+    c._dist_open_inlet = _open_inlet_stub()
     c._dist_advance = AsyncMock(side_effect=lambda did, cur, n: (cur % n) + 1)
     c._dist_sleep = AsyncMock()
     members = [

@@ -1,9 +1,16 @@
 """Fitting an irrigation run into the window before its finish anchor.
 
-Pure arithmetic — no Home Assistant, no coordinator, no store — so the
-sequencing model can be tested directly against hand-computed clocks. The
-scheduler and the runner supply the zone facts; everything here is a function
-of them.
+Pure arithmetic — no coordinator, no store, no entity read — so the sequencing
+model can be tested directly against hand-computed clocks. The scheduler and
+the runner supply the zone facts; everything here is a function of them.
+
+"Pure" is about the FUNCTIONS, not the import graph, and the difference matters
+to anyone planning a change here: this module is not importable without Home
+Assistant. It reads its two mode predicates from where the modes live —
+``is_self_closing_zone`` from ``self_closing.py``, ``is_batch_zone`` from
+``batch.py`` — and both of those import ``homeassistant``. The module that is
+HA-free is ``duration_math`` (``math`` and ``const``, nothing else), which is
+why the deficit math lives there rather than here.
 
 The one non-obvious piece is the rotating model. ``sum(durations)`` is watering
 time, not wall clock: a single zone needing 600 s, sliced into 300 s slots with
@@ -22,7 +29,12 @@ from dataclasses import dataclass
 
 from . import const
 from .batch import is_batch_zone
-from .duration_math import calibrated_flow_seconds, zone_run_duration
+from .duration_math import (
+    calibrated_flow_seconds,
+    hardware_window,
+    opensprinkler_window,
+    zone_run_duration,
+)
 from .opensprinkler import is_opensprinkler_zone
 from .self_closing import is_self_closing_zone
 
@@ -206,6 +218,83 @@ def track_for_zone(zone: dict) -> str:
     if is_self_closing_zone(zone):
         return TRACK_SELF_CLOSING
     return TRACK_CLASSIC
+
+
+def hardware_priced_seconds(zone: dict, seconds: float) -> float:
+    """``seconds`` re-priced as the window ``zone``'s valve REALLY runs for.
+
+    Wurzel: a valve that owns its own close is told a duration in ITS unit, and
+    minute-granularity hardware is told a rounded-UP one — 263 priced seconds
+    become "5", and the valve really runs 300. The run books that 300
+    (``self_closing.async_run_self_closing``, ``batch``, the distributor
+    inlet), and so does the CHAIN: ``_sc_schedule_cleanup(zone_id,
+    planned_seconds)`` arms on exactly it, ``_sc_finish_run`` ends on
+    ``_chain_advance_for_run``, and ``run_chain.async_dispatch_chained_zones``
+    holds the zones behind this one until then. The finish anchor kept pricing
+    the unrounded 263 in both of its entry points —
+    ``irrigation.async_plan_zone_runs`` and :func:`nominal_zone_duration` —
+    so the model and the run named different durations for the same valve.
+
+    What that cost depends on the reduction, and the two halves have different
+    owners. Under ``parallel`` the track is ``max(b + c)``, so the anchor was
+    short by ONE rounding — true before this series as well, because the valve
+    always really ran the rounded window whatever the books said, so that half
+    is pre-existing. Under ``sequential`` the track is ``sum(b + c)`` and
+    ``rotating`` is analogous, so once the chain advance moved onto the
+    effective number the shortfall became one rounding PER ZONE: a pair of
+    minutes zones priced 263 s each anchored at 526 s for a run that ends at
+    600. That half was this series' own regression.
+
+    Fix-Logik: the anchor asks the same helper the run asks. One rounding rule,
+    in :func:`duration_math.hardware_window`, reached from here rather than
+    re-derived — pinned by
+    ``test_duration_math_hardware_window::test_the_rounding_rule_exists_exactly_once``.
+
+    NOT-TO-DO:
+
+    * Do not key this on ``duration_unit``. The unit only means anything to
+      hardware that owns its close. A CLASSIC zone is timed by Irrigation Plus
+      — it sleeps the priced seconds and closes the valve itself — and the
+      field survives on a zone switched back to classic, so converting there
+      stretches a 263 s run's reservation to 300. The mode is the question, and
+      the predicate is the existing ``is_self_closing_zone``, the same one
+      :func:`track_for_zone` keys on. ``_dist_inlet_instruction`` carries the
+      identical warning; that round of this series is where the mixed case was
+      shown to be real rather than hypothetical.
+    * Do not call this BEFORE ``calibrated_flow_seconds``. That helper
+      re-prices a flow zone's planned seconds at the rate its own runs
+      measured; rounding first rounds a number that is about to be rescaled,
+      and the result is then neither the priced duration nor the effective
+      window. Both callers convert last.
+    * Do not send the OpenSprinkler branch through ``hardware_window``.
+      ``run_station`` takes whole seconds and has no unit conversion at all, and
+      its rule is a ceiling with a floor of one rather than a round-to-nearest:
+      263.4 s is booked as 264 by the run and would be reserved as 263 here.
+      The branch exists because the two rules differ, not because stations are
+      exempt — they are converted, by :func:`duration_math.opensprinkler_window`,
+      the same function ``_sc_planned_window`` books them with.
+    * Do not add a non-positive guard here. ``hardware_window`` already clamps
+      non-positive input to ``(0, 0.0)`` BEFORE its minutes branch, and that
+      clamp — not anything in this function — is what keeps a zone priced at 0
+      off the one-minute floor; one was added here and measured dead. A
+      negative can only arrive via :func:`nominal_zone_duration` (the zone
+      schema coerces ``multiplier`` to float with no minimum;
+      ``async_plan_zone_runs`` skips any decision with ``duration <= 0``), and
+      every reduction drops it — ``simulate_wall_clock`` keeps only budgets
+      with ``b > 0``. So do not move that clamp out of ``hardware_window`` on
+      the grounds that callers guard themselves.
+
+    siehe tests/test_finish_anchor_hardware_window.py
+    """
+    priced = float(seconds or 0.0)
+    if not is_self_closing_zone(zone):
+        return priced
+    if is_opensprinkler_zone(zone):
+        return float(opensprinkler_window(priced))
+    _, window = hardware_window(
+        priced, zone.get(const.ZONE_DURATION_UNIT, const.DURATION_UNIT_SECONDS)
+    )
+    return window
 
 
 def zone_confirm_seconds(zone: dict) -> float:
@@ -492,6 +581,25 @@ def bound_wall_clock(
     open together moves the decision point hours earlier than the arm needs,
     and taking the longest of stations the controller may chain moves it later
     than it can afford.
+
+    **KNOWN GAP — this bound does NOT apply the hardware window, so it is
+    currently an under-estimate for self-closing zones, which is the direction
+    this docstring calls unaffordable.** A minutes-unit self-closing zone whose
+    ``maximum_duration`` is 263 is bounded here at 263 s, while
+    :func:`hardware_priced_seconds` prices the same zone's run at 300 — the
+    valve is told 5 whole minutes and really runs them. The two-stage arm
+    therefore stands on a fixed point one rounding per zone too early, and
+    under the chained sequencings that is per zone rather than once.
+
+    Not closed in the commit that wired the anchor, because it is a signature
+    change rather than a call: this function reads :class:`ZoneRun`, and a
+    ZoneRun does not carry the zone's ``duration_unit``. The MODE half is
+    already here — ``run.track in (TRACK_SELF_CLOSING, TRACK_BATCH)`` is
+    exactly the converting set, with ``TRACK_STATION`` the OpenSprinkler
+    carve-out — so only the unit is missing, and both producers
+    (``irrigation.async_plan_zone_runs`` and :func:`nominal_demand_seconds`)
+    build their ZoneRuns from a zone dict that has it. One field, threaded
+    through two constructors.
     """
     ceilings = {}
     for r in runs:
@@ -668,7 +776,11 @@ def nominal_zone_duration(zone: dict, metric: bool) -> float:
         # has to draw the same wall clock the arm reserves, or the window a
         # user designs against is not the window their run gets.
         priced = calibrated_flow_seconds(zone, priced, metric)
-    return priced
+    # LAST, after the flow calibration above, and keyed on the zone's MODE:
+    # a self-closing valve runs the window its hardware was told, which on
+    # minute granularity is longer than the price. Both the ordering and the
+    # mode-not-unit test are argued out in :func:`hardware_priced_seconds`.
+    return hardware_priced_seconds(zone, priced)
 
 
 def zone_eligible_for_demand(zone: dict) -> bool:

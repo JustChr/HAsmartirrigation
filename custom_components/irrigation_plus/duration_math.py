@@ -1,7 +1,19 @@
 """Deficit-to-duration pricing, shared by the calculation and the wall-clock model.
 
-Pure arithmetic — no Home Assistant import — so :mod:`run_window` (also HA-free)
-can price a zone's duration without pulling in the coordinator's import graph.
+Pure arithmetic — no Home Assistant import — so a caller can price a zone's
+duration without pulling in the coordinator's import graph. :mod:`run_window`
+is the caller that was written for, and it is NOT itself HA-free, whatever this
+sentence used to claim: ``run_window`` imports ``is_self_closing_zone`` from
+``self_closing.py``, which imports ``homeassistant.helpers.event`` and
+``homeassistant.util.dt``. Pre-existing and deliberate — a mode predicate lives
+with its mode — but worth stating, because "run_window is HA-free" is exactly
+the assumption under which someone plans a change to this file.
+
+The constraint it was protecting still holds HERE, which is the half that
+matters: this module's only imports are ``math`` and ``const``, and ``const``
+imports nothing at all, so ``duration_math`` stays importable without Home
+Assistant and its arithmetic stays testable on its own.
+
 ``calculation.py`` imports these two names for its existing callers (the
 runner's live-estimate gate, the finish-anchor estimate); this module is the
 one place the deficit math lives, not a second copy of it.
@@ -17,6 +29,8 @@ these specific unit pairs (see ``helpers.convert_length`` /
 """
 
 from __future__ import annotations
+
+import math
 
 from . import const
 
@@ -139,3 +153,80 @@ def calibrated_flow_seconds(zone, planned_seconds, metric):
     corrected = lead + watering * (configured / observed_lpm)
     ceiling = float(zone.get(const.ZONE_MAXIMUM_DURATION) or const.FLOW_SAFETY_TIMEOUT)
     return min(corrected, ceiling)
+
+
+def hardware_window(seconds, unit) -> tuple[int, float]:
+    """``(value_for_the_hardware, seconds_that_value_means)``.
+
+    A valve that owns its own close is told a duration in ITS unit. That
+    instruction is not always the duration that was priced, and everything that
+    books the run (the optimistic credit, the run record, the backstop, the
+    observed-watering suppression window) must use the second value, or the
+    zone silently receives more water than its bucket ever sees.
+
+    The first value is an ``int`` because it lands in a service-call duration
+    field, where ``5.0`` is not ``5`` for a Z2M/Tuya payload.
+
+    Minute-granularity hardware is rounded UP -- rather slightly too much water
+    than too little -- so the window the valve really runs is longer than the
+    duration priced. Seconds hardware is rounded to the NEAREST whole second,
+    in either direction, so 263.4 s is told 263; the second return value reports
+    whichever way it went. The seconds branch deliberately has no floor of one,
+    unlike the minutes branch: a request of 0.5 s or less commands nothing --
+    ``round(0.5)`` is 0 under banker's rounding, and the boundary flips at 0.51.
+    That is the behaviour of the helpers this replaces and is kept on purpose.
+
+    Non-positive input -- zero, ``None``, or a negative -- commands nothing and
+    is clamped here to ``(0, 0.0)``, so callers need no guard of their own.
+
+    The rounding is otherwise unchanged from the two helpers this replaces:
+    ``self_closing._sc_convert``, still there as a thin delegation to this, and
+    ``distributor._dist_convert``, now deleted -- the distributor takes both
+    values from here. Only the second return value is new.
+
+    The OpenSprinkler ``run_station`` path is deliberately NOT covered here; it
+    has :func:`opensprinkler_window` beside this one instead. Its unit is a
+    property of the user's own run_service script rather than of the zone, and
+    its rule is a ceiling with a floor of one rather than a round-to-nearest, so
+    routing it through here would turn 263.4 into 263 instead of 264 and drop
+    that floor.
+    """
+    seconds = float(seconds or 0)
+    if seconds <= 0:
+        return 0, 0.0
+    if unit == const.DURATION_UNIT_MINUTES:
+        minutes = max(1, math.ceil(seconds / 60.0))
+        return minutes, float(minutes * 60)
+    whole = int(round(seconds))
+    return whole, float(whole)
+
+
+def opensprinkler_window(seconds) -> int:
+    """Whole seconds an OpenSprinkler station is told to run -- and really runs.
+
+    A station's instruction is already in seconds, so the value sent and the
+    seconds it means are one number; there is no second return value to give.
+
+    The rule is NOT the one in :func:`hardware_window` and cannot be folded
+    into it. ``run_station`` takes whole seconds and has no unit conversion at
+    all, so there is nothing to branch on, and the rounding is a ceiling with a
+    floor of one rather than a round-to-nearest: 263.4 s is told 264 here and
+    would be told 263 there.
+
+    Root: the rule was spelled out twice -- once where the station run is
+    dispatched, once where its window is booked -- so the duration a station
+    was given and the window the model reserved for it were two independent
+    copies of one decision, free to drift at the next edit. Naming it once is
+    what lets the finish anchor reserve exactly what the run books.
+
+    Non-positive input commands nothing and returns 0, matching the guard the
+    run path applies before it ever reaches a dispatch.
+
+    NOT-TO-DO: do not "unify" this with :func:`hardware_window` on the grounds
+    that both round a duration for hardware. They disagree by design at every
+    fractional second, and at the step from zero to one.
+    """
+    seconds = float(seconds or 0)
+    if seconds <= 0:
+        return 0
+    return max(1, math.ceil(seconds))

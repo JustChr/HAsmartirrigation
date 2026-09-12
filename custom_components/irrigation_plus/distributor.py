@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
+from typing import NamedTuple
 
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
@@ -23,10 +23,31 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
 
 from . import const
+from .duration_math import hardware_window
 from .flow_metering import FlowMeter, flow_learn_resolve
 from .localize import localize
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class InletInstruction(NamedTuple):
+    """What one inlet open means, in both of the numbers it has to mean it in.
+
+    Wurzel: each of the three call sites wants ONE half and drops the other. As
+      a bare tuple that reads ``_, window = ...`` / ``told, _ = ...``, and
+      putting the underscore on the wrong side silently swaps 300 seconds of
+      water for 5 -- the same class of unit mix-up this series exists to remove,
+      and CI runs black and ruff, so no type checker would catch it.
+    Fix: name the halves. ``.told`` and ``.window`` cannot be transposed by
+      accident, and they say at the call site which number is being read.
+    NOT-TO-DO: do not reach for a dataclass or a plain object -- a NamedTuple is
+      still a tuple, so it unpacks, and compares equal to the plain tuples both
+      :func:`hardware_window` and the tests speak in.
+    siehe test_distributor.py::test_inlet_instruction_classic_has_no_hardware_value
+    """
+
+    told: int | None  # the value the hardware is given, or None on classic
+    window: float  # the seconds that value means
 
 
 class DistributorMixin:
@@ -59,24 +80,61 @@ class DistributorMixin:
         domain, _, service = (dotted or "").partition(".")
         return domain, service
 
-    @staticmethod
-    def _dist_convert(seconds: float, unit: str) -> int:
-        """Convert a window (seconds) to the inlet hardware's unit, rounding up."""
-        seconds = float(seconds or 0)
-        if unit == const.DURATION_UNIT_MINUTES:
-            return max(1, math.ceil(seconds / 60.0)) if seconds > 0 else 0
-        return int(round(seconds))
+    def _dist_inlet_instruction(
+        self, distributor: dict, seconds: float
+    ) -> InletInstruction:
+        """``(told, window)`` -- the hardware's value and the seconds it means.
+        Pure; no actuation.
+
+        service (self-closing): the hardware owns the close and is told the
+        window in ITS unit, which on minute granularity is rounded UP -- 263
+        priced seconds become "5", and the inlet really flows 300. Both numbers
+        come from :func:`hardware_window`.
+        classic: HASI owns the timed close, so there is no hardware value at all
+        (``None``) and the window is the seconds asked for -- an early-stop
+        outlet may still meter on past it up to `cap`, which is why this is "the
+        window the inlet was given", not "the seconds it will really flow".
+
+        Wurzel: this arithmetic used to be reachable only by ACTUATING -- it sat
+          inside :meth:`_dist_open_inlet` and came back as its return value, so
+          the sweep could not know the real window until after it had bound
+          `cap` and written the master-off note against the priced one.
+        Fix: the pure half is split out, so the sweep can ask before it opens
+          anything and both are bound while the valve is still shut.
+        NOT-TO-DO: do not key the conversion on ``duration_unit`` alone. A
+          classic ring may carry a minutes unit and is timed by HASI itself;
+          converting there stretches its window 263 -> 300 s.
+        siehe test_distributor.py::test_inlet_instruction_classic_has_no_hardware_value
+        siehe test_distributor_dispatch.py::test_service_inlet_window_matches_what_the_inlet_is_told
+        """
+        if distributor.get("watering_mode") == const.WATERING_MODE_SERVICE:
+            unit = distributor.get("duration_unit", const.DURATION_UNIT_SECONDS)
+            return InletInstruction(*hardware_window(seconds, unit))
+        return InletInstruction(None, float(seconds or 0))
 
     async def _dist_open_inlet(self, distributor: dict, seconds: float) -> None:
-        """Open the inlet for a window. classic: domain-aware open (the loop owns
-        the timed close). service (self-closing): fire the run_service with the
-        converted duration; the hardware owns the close."""
+        """Open the inlet for the window it was priced for. Actuation only.
+
+        The classic branch ignores ``seconds`` entirely -- the sweep owns that
+        close; only the service branch turns it into an instruction.
+
+        Wurzel: this used to RETURN the effective window and the sweep read it
+          from here -- below the point where `cap` and the master-off note are
+          bound, so both kept following the PRICED number while the inlet ran the
+          rounded-up one (the gap c413f937 left open on purpose).
+        Fix: the sweep takes the window from _dist_inlet_instruction before it
+          binds either, so there is nothing here left to read too late.
+        NOT-TO-DO: do not hand the window back from here again "for symmetry" --
+          a second source for the same number is what let the two drift apart,
+          and no production caller would read it.
+        siehe test_distributor_dispatch.py::test_classic_inlet_actuates_and_hands_nothing_back
+        siehe test_distributor.py::test_open_inlet_classic_opens_entity
+        """
         if distributor.get("watering_mode") == const.WATERING_MODE_SERVICE:
             domain, service = self._dist_split_service(distributor.get("run_service"))
             data = {}
-            unit = distributor.get("duration_unit", const.DURATION_UNIT_SECONDS)
             field = distributor.get("duration_field") or "duration"
-            data[field] = self._dist_convert(seconds, unit)
+            data[field] = self._dist_inlet_instruction(distributor, seconds).told
             data["distributor_id"] = distributor.get("id")
             await self.hass.services.async_call(domain, service, data)
             return
@@ -501,6 +559,8 @@ class DistributorMixin:
         windows + (k-1) pauses + per-gap master settle (if the master cycles) + a
         safety buffer, where k is the number of outlets swept. Pause/skip are
         floored (spec §4.5); a ring with no will-water outlet sweeps nothing -> 0.0.
+        A "window" here is the EFFECTIVE one -- what the inlet is told, not what
+        the outlet was priced for; see the conversion in the loop below.
 
         ``only_zone_ids`` restricts which outlets actually water, mirroring
         ``async_run_distributor_cycle(only_zone_ids=...)``: a schedule targeting a
@@ -554,9 +614,24 @@ class DistributorMixin:
         for z in order[:k]:
             # Leading non-targeted / non-due outlets before the last watering one
             # are physically skip-pulsed to reach it, so they cost the skip window.
-            windows += (
-                float(z.get(const.ZONE_DURATION) or 0) if _will_water(z) else skip
-            )
+            asked = float(z.get(const.ZONE_DURATION) or 0) if _will_water(z) else skip
+            # Wurzel: this summed the PRICED seconds while the sweep runs the
+            #   window the inlet is actually told -- on minute hardware every
+            #   watered outlet is rounded up by up to 59 s and every skip pulse
+            #   (30 s by default) becomes a whole 60, so the model came out SHORT
+            #   and a finish-anchored schedule started too late.
+            # Fix: price every window through the same _dist_inlet_instruction the
+            #   sweep uses, so the model and the sweep cannot disagree ABOUT THE
+            #   WINDOW. They can still disagree about the rest: a confirm_entity
+            #   ring polls up to VALVE_CONFIRM_TIMEOUT per outlet (the master note
+            #   at the sweep adds that term; this model deliberately does not,
+            #   because over-reserving a finish anchor is its own bug -- see the
+            #   full-ring paragraph above), and an early-stopping metered outlet
+            #   finishes sooner. Both ride the safety buffer.
+            # NOT-TO-DO: do not convert only the watered windows -- a skip pulse
+            #   goes through the same inlet and is rounded by the same rule.
+            # siehe test_distributor.py::test_cycle_estimate_prices_the_windows_the_inlet_really_runs
+            windows += self._dist_inlet_instruction(distributor, asked).window
         total = windows + (k - 1) * pause
         if self._dist_uses_master(distributor) and self._dist_master_off_after():
             settle = float(
@@ -1295,6 +1370,30 @@ class DistributorMixin:
                 if duration_override is not None and water:
                     window = float(duration_override)
 
+            # Wurzel: a minute-granularity service inlet is told a window ROUNDED
+            #   UP (263 s -> "5") and really flows 300 s, but the sweep learned
+            #   that only from _dist_open_inlet's return -- AFTER `cap` and the
+            #   master-off note were bound to the priced number. Two live defects:
+            #   a flow-metered outlet was metered to `cap` = 263 s while the inlet
+            #   ran 300 (the ring advanced ~37 s early and actual_seconds came back
+            #   short against planned_seconds in the same credit call), and the note
+            #   `cap + pause + settle + BUFFER` could expire INSIDE the window --
+            #   pause 10, settle 10, 241 s priced/300 s real = 291 s noted against
+            #   310 s consumed, i.e. the master pump switched off mid-watering.
+            # Fix: convert ONCE here, before anything binds to `window`. `cap`, the
+            #   note, the sleep and the credit then all read the same number from
+            #   the same call. `priced` is kept only to hand _dist_open_inlet the
+            #   same input this conversion saw -- one rule, one input, one answer.
+            # NOT-TO-DO: do not convert the unit inline here; the rounding rule
+            #   lives in duration_math.hardware_window and nowhere else (pinned by
+            #   test_duration_math_hardware_window::test_the_rounding_rule_exists_exactly_once).
+            #   And do not pass `window` (the effective one) to _dist_open_inlet to
+            #   save the local: that only happens to work while the conversion is
+            #   idempotent, which is not a promise hardware_window makes.
+            # siehe test_distributor_dispatch.py::test_the_master_note_covers_the_window_the_inlet_really_runs
+            priced = window
+            window = self._dist_inlet_instruction(distributor, priced).window
+
             # Part B (early stop): a watered member with a rate flow meter and a
             # positive volume target stops at the target instead of running the full
             # window. classic (we hold the inlet) may run up to the safety
@@ -1303,8 +1402,9 @@ class DistributorMixin:
             # can only be stopped EARLY within its passed window (extension impossible),
             # and only when a stop_service is configured. The master note below uses
             # `cap` so the pump covers the (possibly extended) run; the terminal
-            # _dist_master_end collapses it to the real close. `cap == window` for every
-            # non-extend path, so the master note is byte-for-byte b23 there.
+            # _dist_master_end collapses it to the real close. `cap` starts at the
+            # EFFECTIVE window, so `cap == window` holds on every path except the
+            # classic-extend one, which raises it on purpose.
             target = None
             cap = window
             if water:
@@ -1375,7 +1475,14 @@ class DistributorMixin:
             await self._dist_persist_cycle(
                 dist_id, current, const.DISTRIBUTOR_PHASE_WATERING
             )
-            await self._dist_open_inlet(distributor, window)
+            # Actuation only: `window` already holds the seconds this open will
+            # really flow (converted above) and _dist_open_inlet returns nothing.
+            # It is handed `priced` -- the same input that conversion saw -- so the
+            # value the hardware is told comes from one rule applied to one number.
+            # NOT-TO-DO: do not give this call a return value to read again; taking
+            # the window from here is what left `cap` and the master note on the
+            # priced number until this commit.
+            await self._dist_open_inlet(distributor, priced)
 
             if confirm_entity:
                 # Poll the shared inlet flow sensor across its grace window

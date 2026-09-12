@@ -9,7 +9,6 @@ at start and the in-flight run is persisted for restart reconciliation.
 from __future__ import annotations
 
 import logging
-import math
 from datetime import timedelta
 
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
@@ -17,6 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from . import const
 from .batch import is_batch_zone
+from .duration_math import hardware_window, opensprinkler_window
 from .opensprinkler import is_opensprinkler_zone
 from .run_chain import ChainPolicy, register_chain_policy
 from .run_watch import (
@@ -98,11 +98,16 @@ class SelfClosingMixin:
 
     @staticmethod
     def _sc_convert(seconds: float, unit: str) -> int:
-        """Convert a run duration (seconds) to the hardware's unit, rounding up."""
-        seconds = float(seconds or 0)
-        if unit == const.DURATION_UNIT_MINUTES:
-            return max(1, math.ceil(seconds / 60.0)) if seconds > 0 else 0
-        return int(round(seconds))
+        """Convert a run duration (seconds) to the hardware's unit, rounding up.
+
+        The rounding itself lives in :func:`duration_math.hardware_window`, which
+        answers the same question in both directions at once. The distributor's
+        inlet asked it too and carried a byte-identical copy of these four lines;
+        two copies of one rule is what let the window a valve runs drift from the
+        window the books reserved for it. Kept as a name because it reads well at
+        the dispatch, where only the value sent matters.
+        """
+        return hardware_window(seconds, unit)[0]
 
     @staticmethod
     def _sc_effective_seconds(seconds: float, unit: str) -> float:
@@ -125,13 +130,12 @@ class SelfClosingMixin:
         configured zone — enough to fire a false advisory, since the self-closing
         caller has no duration gate of its own; see #133).
 
-        Derived from _sc_convert rather than restating the rounding, so the window
-        priced here cannot drift from the duration actually dispatched.
+        Both answers come from one call to :func:`duration_math.hardware_window`,
+        so the window priced here cannot drift from the duration dispatched even
+        by an edit that changes the rounding: they are the two halves of a single
+        return value, not two derivations of one rule.
         """
-        duration = SelfClosingMixin._sc_convert(seconds, unit)
-        if unit == const.DURATION_UNIT_MINUTES:
-            return float(duration) * 60.0
-        return float(duration)
+        return hardware_window(seconds, unit)[1]
 
     def _sc_planned_window(self, zone: dict) -> float:
         """The seconds the hardware will hold this zone's valve open for its run.
@@ -144,7 +148,9 @@ class SelfClosingMixin:
             return 0.0
         if is_opensprinkler_zone(zone):
             # run_station takes whole seconds and nothing else (see _sc_dispatch_open).
-            return float(max(1, math.ceil(seconds)))
+            # The ceiling is named in duration_math so the finish anchor can reserve
+            # the same window this books, rather than a second copy of the rule.
+            return float(opensprinkler_window(seconds))
         unit = zone.get(const.ZONE_DURATION_UNIT, const.DURATION_UNIT_SECONDS)
         return self._sc_effective_seconds(seconds, unit)
 

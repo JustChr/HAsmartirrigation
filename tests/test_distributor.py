@@ -56,6 +56,33 @@ def _host(**master_cfg):
     return c
 
 
+def _open_inlet_stub():
+    """A stub for ``_dist_open_inlet``: records the call, actuates nothing.
+
+    That is now its whole job. The window the cycle times and credits against
+    comes from ``_dist_inlet_instruction``, which every one of these tests
+    leaves REAL, so stubbing the open hides no unit conversion -- it only keeps
+    a cycle test off the real service call / entity turn-on, and keeps the
+    ``await_count`` and ``args[1]`` the eleven call sites assert on.
+
+    ``return_value=None`` is the production contract, and it arms the NOT-TO-DO
+    at the call site rather than being tidiness: reinstate
+    ``window = await self._dist_open_inlet(...)`` and every stubbed cycle times
+    its outlet against a None that ``_dist_measure_window`` floats to 0.0, so
+    the ones asserting a window fail. Measured against exactly that mutation:
+    with this stub 7 tests fail, with a stub that handed the seconds back only
+    5 -- the two extra are stubbed classic cycles
+    (test_cycle_duration_override_sets_target_window,
+    test_sweep_classic_passes_target_and_extend_cap), which the old stub hid
+    because on classic the priced and the effective window are equal.
+
+    Not for a service-mode test: there the actuation payload (the value the
+    hardware is told) is part of what is under test, so use the real
+    ``_dist_open_inlet``.
+    """
+    return AsyncMock(return_value=None)
+
+
 def _dist(**kw):
     d = {
         "id": 0,
@@ -94,9 +121,29 @@ async def test_domain_turn_valve_uses_open_close():
     )
 
 
+def test_inlet_instruction_classic_has_no_hardware_value():
+    """classic: HASI owns the timed close, so nothing is told to hardware
+    (``None``) and the window is the seconds asked for, untouched -- including
+    the fraction, which the service branch would have rounded away.
+
+    The second case is the one that bites: a distributor carrying a minutes
+    ``duration_unit`` (left over from a service-mode configuration, or simply
+    set) must still not be converted while it is classic. Convert on the unit
+    alone instead of on the mode and this outlet's window jumps 263 -> 300.
+    """
+    c = _host()
+    assert c._dist_inlet_instruction(_dist(), 263.6) == (None, 263.6)
+    assert c._dist_inlet_instruction(
+        _dist(duration_unit=const.DURATION_UNIT_MINUTES), 263.0
+    ) == (None, 263.0)
+
+
 async def test_open_inlet_classic_opens_entity():
     c = _host()
-    await c._dist_open_inlet(_dist(), 30)
+    # Actuation only. The window the cycle times and credits against comes from
+    # _dist_inlet_instruction (above), so this hands nothing back -- reading it
+    # from here is what left `cap` and the master note on the priced window.
+    assert await c._dist_open_inlet(_dist(), 30) is None
     c.hass.services.async_call.assert_awaited_once_with(
         "homeassistant", "turn_on", {"entity_id": "switch.inlet"}
     )
@@ -109,11 +156,14 @@ async def test_open_inlet_service_fires_run_service_with_converted_duration():
         duration_field="dauer",
         duration_unit=const.DURATION_UNIT_MINUTES,
     )
-    await c._dist_open_inlet(d, 600)  # 600 s -> 10 min
+    assert await c._dist_open_inlet(d, 600) is None  # 600 s -> 10 min, nothing back
     domain, service, data = c.hass.services.async_call.await_args.args
     assert (domain, service) == ("script", "dist_inlet")
     assert data["dauer"] == 10
     assert data["distributor_id"] == 0
+    # What that instruction MEANS in seconds is _dist_inlet_instruction's answer,
+    # pinned there; the rounded-UP case lives in test_distributor_dispatch.
+    assert c._dist_inlet_instruction(d, 600) == (10, 600.0)
 
 
 async def test_close_inlet_classic_closes_entity():
@@ -335,6 +385,44 @@ def test_cycle_estimate_zero_for_no_members():
     assert c.distributor_cycle_estimate(_dist(), []) == 0.0
 
 
+def test_cycle_estimate_prices_the_windows_the_inlet_really_runs():
+    """The estimate models the sweep for the finish anchor, so it has to price
+    the windows the INLET gets, not the ones the outlets were priced for.
+
+    Minute hardware: the 30 s skip pulse is told "1" and really flows 60 s, the
+    263 s window is told "5" and really flows 300. Summing the priced numbers
+    (30 + 263) under-states this two-outlet sweep by 67 s -- and the skip pulse
+    is the larger half of that error, which is why both halves convert.
+    """
+    c = _host(master_off_after=False)
+    d = _dist(
+        watering_mode=const.WATERING_MODE_SERVICE,
+        duration_unit=const.DURATION_UNIT_MINUTES,
+        pause_seconds=100,
+        skip_pulse_seconds=30,
+    )
+    # Outlet 1 is not due and is skip-pulsed to physically reach outlet 2.
+    zones = [_zone(0), _zone(263)]
+    est = c.distributor_cycle_estimate(d, zones)
+    assert est == 60 + 300 + 100 + const.DISTRIBUTOR_CYCLE_SAFETY_BUFFER_SECONDS
+
+
+def test_cycle_estimate_leaves_a_classic_ring_on_its_priced_windows():
+    """The conversion is the service inlet's, not the unit's. A classic ring
+    that happens to carry a minutes duration_unit is timed by HASI itself, so
+    its estimate must stay on the priced seconds.
+    """
+    c = _host(master_off_after=False)
+    d = _dist(
+        duration_unit=const.DURATION_UNIT_MINUTES,
+        pause_seconds=100,
+        skip_pulse_seconds=30,
+    )
+    zones = [_zone(0), _zone(263)]
+    est = c.distributor_cycle_estimate(d, zones)
+    assert est == 30 + 263 + 100 + const.DISTRIBUTOR_CYCLE_SAFETY_BUFFER_SECONDS
+
+
 async def test_cycle_persists_phase_constants_not_raw_strings():
     c = _host()
     # E1 (early-stop): the PAUSING persist only fires BETWEEN swept outlets. Use a
@@ -365,7 +453,7 @@ async def test_cycle_persists_phase_constants_not_raw_strings():
     )
     c._dist_persist_cycle = AsyncMock()
     c._dist_sleep = AsyncMock()
-    c._dist_open_inlet = AsyncMock()
+    c._dist_open_inlet = _open_inlet_stub()
     c._dist_close_inlet = AsyncMock()
     # G2: cycle end now defers the master shutdown to the shared overlap-safe
     # scheduler; stub it (bare-Mock hass has no real loop for async_call_later).

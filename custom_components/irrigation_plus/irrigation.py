@@ -40,6 +40,7 @@ from .run_watch import run_is_paused, run_is_queue_bound, run_is_segmented
 from .run_window import (
     TRACK_STATION,
     ZoneRun,
+    hardware_priced_seconds,
     nominal_demand_seconds,
     track_for_zone,
     zone_confirm_seconds,
@@ -2515,6 +2516,26 @@ class IrrigationRunnerMixin:
                 # throughput, the way a timed zone is priced. Its own runs have
                 # measured what the plumbing actually delivers.
                 duration = calibrated_flow_seconds(zone, duration, metric)
+            # Wurzel: a self-closing valve runs the window its hardware was
+            # told, not the number that was priced — 263 s become "5 minutes",
+            # which is 300 s of water. e9f2da51 (#88) moved the run AND its
+            # chain advance onto that effective number while this anchor kept
+            # pricing the unrounded one, so under sequential/rotating — where
+            # the track is a SUM — the model falls one rounding short PER ZONE
+            # (526 s reserved for a pair the chain ends at 600). Under parallel
+            # the track is a max and the shortfall is one rounding, which it
+            # was before that commit too.
+            # Fix-Logik: price through the same helper the run prices with, so
+            # the model and the run cannot name different durations.
+            # NOT-TO-DO: not BEFORE calibrated_flow_seconds above — that
+            # rescales a flow zone's seconds, and rounding a number that is
+            # about to move gives neither the price nor the window. And not
+            # keyed on duration_unit: a CLASSIC zone carrying that field is
+            # timed by us and keeps its priced seconds. Both traps, and which
+            # of the two rounding rules a station gets, are argued out in
+            # hardware_priced_seconds.
+            # siehe test_finish_anchor_hardware_window.py
+            duration = hardware_priced_seconds(zone, duration)
             planned.append(
                 ZoneRun(
                     zone_id=int(zone.get(const.ZONE_ID)),
