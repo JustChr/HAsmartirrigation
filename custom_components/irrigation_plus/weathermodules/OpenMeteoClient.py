@@ -8,6 +8,8 @@ import math
 import requests
 
 from ..const import (
+    FORECAST_DAY_END,
+    FORECAST_DAY_START,
     MAPPING_CURRENT_PRECIPITATION,
     MAPPING_DEWPOINT,
     MAPPING_HUMIDITY,
@@ -105,15 +107,30 @@ class OpenMeteoClient:
         self._cached_doc_at = datetime.datetime.now()
         return doc
 
-    def _current_hour_index(self, time_list):
-        """Return the index of the current UTC hour in the hourly time list."""
-        now = datetime.datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-        prefix = now.strftime("%Y-%m-%dT%H:")
+    def _current_hour_index(self, time_list, utc_offset_seconds=0):
+        """Return the index of the current hour in the hourly time list.
+
+        The series is local wall-clock time (``timezone=auto`` in the request),
+        so the current hour is the last row that does not start after "now" at
+        the site, and "now" at the site comes from the document's own UTC offset.
+        Matching the UTC hour's digits against local rows read a row that many
+        hours off: two hours stale at UTC+2, five hours ahead, in the forecast,
+        at UTC-5. Requesting the series in UTC instead is not an option, because
+        the daily arrays and ``get_hourly_data`` rely on local dates and hours.
+        See test_weather_modules.py::TestOpenMeteoClientGetData.
+        """
+        now_local = datetime.datetime.now(datetime.timezone.utc).replace(
+            tzinfo=None
+        ) + datetime.timedelta(seconds=utc_offset_seconds)
+        idx = 0
         for i, t in enumerate(time_list):
-            if t.startswith(prefix):
-                return i
-        # Fall back: most recent past entry
-        return max(0, len(time_list) - 1)
+            try:
+                if datetime.datetime.fromisoformat(t) > now_local:
+                    break
+            except (TypeError, ValueError):
+                continue
+            idx = i
+        return idx
 
     def _wind_2m(self, wind_10m):
         return wind_10m * _WIND_10M_TO_2M
@@ -128,7 +145,8 @@ class OpenMeteoClient:
             doc = self._fetch()
             hourly = doc.get("hourly", {})
             times = hourly.get("time", [])
-            idx = self._current_hour_index(times)
+            offset_seconds = doc.get("utc_offset_seconds", 0)
+            idx = self._current_hour_index(times, offset_seconds)
 
             def h(key):
                 vals = hourly.get(key, [])
@@ -157,10 +175,13 @@ class OpenMeteoClient:
                 MAPPING_PRESSURE: self._abs_pressure(pressure),
                 MAPPING_CURRENT_PRECIPITATION: precipitation,
                 MAPPING_PRECIPITATION: precipitation,
+                # The row's stamp is local, so it becomes an instant by removing
+                # the offset; tagging it as UTC as written moved it by the offset.
                 OBSERVATION_TIME: (
                     datetime.datetime.fromisoformat(obs_time_str).replace(
                         tzinfo=datetime.timezone.utc
                     )
+                    - datetime.timedelta(seconds=offset_seconds)
                     if obs_time_str
                     else None
                 ),
@@ -185,11 +206,28 @@ class OpenMeteoClient:
         try:
             doc = self._fetch()
             daily = doc.get("daily", {})
-            n_days = len(daily.get("time", []))
+            # The request asks for past_days=1 so the intra-day estimate can
+            # reach back to the previous evening's calculation, which puts
+            # yesterday at index 0 and today at index 1. Skipping index 0 served
+            # today as the first forecast day, although get_forecast_data starts
+            # at tomorrow for every client.
+            # Filter on the date instead, against today at the site from the
+            # document's own offset: skipping two positions breaks as soon as a
+            # document is read from the cache after the site's midnight or
+            # past_days changes, and the UTC date or HA's clock can be a
+            # different day than the site's.
+            # See test_weather_modules.py::TestOpenMeteoClientGetForecastData.
+            offset = datetime.timedelta(seconds=doc.get("utc_offset_seconds", 0))
+            site_today = (datetime.datetime.now(datetime.timezone.utc) + offset).date()
 
             result = []
-            # Skip index 0 (today); iterate the remaining forecast days
-            for i in range(1, n_days):
+            for i, day_str in enumerate(daily.get("time", [])):
+                try:
+                    day_date = datetime.date.fromisoformat(day_str)
+                except (TypeError, ValueError):
+                    continue
+                if day_date <= site_today:
+                    continue
                 max_temp = (
                     (daily.get("temperature_2m_max") or [])[i]
                     if i < len(daily.get("temperature_2m_max", []))
@@ -219,12 +257,27 @@ class OpenMeteoClient:
                 if None in (max_temp, min_temp, wind):
                     continue
 
+                # Local midnight of this date, expressed in UTC. One offset for
+                # the whole document, so when a DST change falls inside the
+                # forecast, every boundary from the change on is an hour off.
+                day_start = (
+                    datetime.datetime(
+                        day_date.year,
+                        day_date.month,
+                        day_date.day,
+                        tzinfo=datetime.timezone.utc,
+                    )
+                    - offset
+                )
+
                 day = {
                     MAPPING_TEMPERATURE: (max_temp + min_temp) / 2.0,
                     MAPPING_MAX_TEMP: max_temp,
                     MAPPING_MIN_TEMP: min_temp,
                     MAPPING_PRECIPITATION: precip or 0.0,
                     MAPPING_WINDSPEED: self._wind_2m(wind),
+                    FORECAST_DAY_START: day_start,
+                    FORECAST_DAY_END: day_start + datetime.timedelta(days=1),
                 }
                 if radiation_sum is not None:
                     day[MAPPING_SOLRAD] = radiation_sum

@@ -1350,12 +1350,16 @@ class RecurringScheduleManager:
         Evaluated through ``async_evaluate_skip_conditions`` - the same call
         ``_check_skip_conditions`` makes before every scheduled dispatch, minus
         its logging and its persistence - so a guard that early-returns for the
-        runner early-returns identically here. The days-between counter is
-        advanced to the run's own date first, exactly as the dashboard preview
-        does, because it is a day counter and reading it as of now would report
-        a skip the run will not perform.
+        runner early-returns identically here. It names this run's start, because
+        the precipitation guard's window starts at the run's date; without a
+        start it names now, since only dispatch names none. The days-between
+        counter is advanced to the run's own date first, exactly as the dashboard
+        preview does, because it is a day counter and reading it as of now would
+        report a skip the run will not perform.
         """
-        evaluation = await self.coordinator.async_evaluate_skip_conditions()
+        evaluation = await self.coordinator.async_evaluate_skip_conditions(
+            run_start=start if start is not None else dt_util.utcnow()
+        )
         if start is not None:
             self.coordinator._project_days_between_to_next_run(  # noqa: SLF001
                 evaluation,

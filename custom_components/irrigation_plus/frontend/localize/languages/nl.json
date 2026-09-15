@@ -1013,7 +1013,10 @@
     "threshold_label": "Neerslagdrempel",
     "threshold_description": "Minimale totale verwachte neerslag (in mm) over het vooruitblik-venster om irrigatie over te slaan.",
     "lookahead_label": "Vooruitblik (dagen)",
-    "lookahead_help": "Hoeveel komende verwachtingsdagen worden opgeteld bij de regencontrole. De verwachting begint morgen (vandaag wordt uitgesloten), dus 1 = alleen de volgende dag, 2 = de volgende twee dagen, enzovoort.",
+    "lookahead_help": {
+      "skip": "Hoeveel verwachtingsdagen worden opgeteld bij de regencontrole, te beginnen met de dag waarop wordt beregend: 1 = de dag van de beregening, 2 = die dag en de volgende, enzovoort. Voor uren die al voorbij zijn, is er geen verwachting en ze tellen niet mee; een beregening die 's avonds start, heeft daarom 2 nodig om de volgende ochtend te zien.",
+      "water_less": "Hoeveel verwachtingsdagen worden opgeteld om de beregening in te korten, te beginnen met de dag na de berekening: 1 = die dag, 2 = die dag en de volgende, enzovoort."
+    },
     "temp_section_title": "Overslaan bij lage temperatuur",
     "temp_threshold_label": "Overslaan als temperatuur onder",
     "wind_section_title": "Overslaan bij hoge windsnelheid",
@@ -1101,7 +1104,7 @@
     "general_cleardatatime": "Tijdstip van de dag waarop oude weergegevens worden gewist. Moet later worden ingesteld dan de berekeningstijd.",
     "general_days_between": "Minimum aantal dagen tussen irrigatiebeurten voor dezelfde zone. Zet op 0 om uit te schakelen (irrigeren zodra er een tekort is).",
     "general_autoupdateinterval": "Hoe vaak weergegevens worden verzameld. Kies een waarde die verse gegevens afweegt tegen API-limieten.",
-    "general_precipitation_threshold": "Irrigatie wordt overgeslagen als de totale voorspelde neerslag over het vooruitblik-venster deze hoeveelheid overschrijdt.",
+    "general_precipitation_threshold": "Irrigatie wordt overgeslagen als de totale voorspelde neerslag over het vooruitblik-venster deze hoeveelheid bereikt of overschrijdt.",
     "general_temp_threshold": "Irrigatie wordt overgeslagen als de huidige temperatuur onder deze waarde ligt (bijv. om vorstschade te voorkomen).",
     "general_wind_threshold": "Irrigatie wordt overgeslagen als de windsnelheid deze waarde overschrijdt (harde wind vermindert de efficiëntie en veroorzaakt drift).",
     "zone_plant_type": "Kies een plantentype voor een typische gewascoëfficiënt, of kies Aangepast om Kc zelf in te voeren.",

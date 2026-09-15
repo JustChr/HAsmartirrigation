@@ -1013,7 +1013,10 @@
     "threshold_label": "Nedbørsterskel",
     "threshold_description": "Minimum total forventet nedbør (i mm) over varslingsvinduet for å hoppe over vanning.",
     "lookahead_label": "Varslingsvindu (dager)",
-    "lookahead_help": "Hvor mange kommende varseldøgn som summeres ved regnsjekken. Varselet starter i morgen (i dag utelates), så 1 = bare neste dag, 2 = de neste to dagene, og så videre.",
+    "lookahead_help": {
+      "skip": "Hvor mange varseldøgn som summeres ved regnsjekken, fra og med dagen vanningen skjer: 1 = vanningsdagen, 2 = den dagen og neste, og så videre. Timer som allerede er passert, varsles ikke og telles ikke med, så en vanning som starter om kvelden trenger 2 for å se neste morgen.",
+      "water_less": "Hvor mange varseldøgn som summeres når vanningen forkortes, fra og med dagen etter beregningen: 1 = den dagen, 2 = den dagen og neste, og så videre."
+    },
     "temp_section_title": "Hopp over ved lav temperatur",
     "temp_threshold_label": "Hopp over hvis temperatur under",
     "wind_section_title": "Hopp over ved sterk vind",
@@ -1101,7 +1104,7 @@
     "general_cleardatatime": "Tidspunkt på dagen da gamle værdata slettes. Må settes senere enn beregningstidspunktet.",
     "general_days_between": "Minimum antall dager mellom vanninger for samme sone. Sett til 0 for å deaktivere (vann så snart det er et underskudd).",
     "general_autoupdateinterval": "Hvor ofte værdata samles inn. Velg en verdi som balanserer ferske data mot API-grenser.",
-    "general_precipitation_threshold": "Vanning hoppes over hvis total varslet nedbør over varslingsvinduet overstiger denne mengden.",
+    "general_precipitation_threshold": "Vanning hoppes over hvis total varslet nedbør over varslingsvinduet når eller overstiger denne mengden.",
     "general_temp_threshold": "Vanning hoppes over hvis nåværende temperatur er under denne verdien (f.eks. for å forhindre frostskade).",
     "general_wind_threshold": "Vanning hoppes over hvis vindhastigheten overstiger denne verdien (sterk vind reduserer effektiviteten og forårsaker avdrift).",
     "zone_plant_type": "Velg en plantetype for å sette en typisk plantekoeffisient, eller velg Egendefinert for å angi Kc selv.",

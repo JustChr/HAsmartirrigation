@@ -1013,7 +1013,10 @@
     "threshold_label": "Soglia di precipitazioni",
     "threshold_description": "Precipitazione totale minima prevista (in mm) sulla finestra di previsione per saltare l'irrigazione.",
     "lookahead_label": "Finestra di previsione (giorni)",
-    "lookahead_help": "Quanti giorni di previsione futuri sommare nel controllo della pioggia. La previsione parte da domani (oggi è escluso), quindi 1 = solo il giorno successivo, 2 = i prossimi due giorni, e così via.",
+    "lookahead_help": {
+      "skip": "Quanti giorni di previsione sommare nel controllo della pioggia, a partire dal giorno dell'irrigazione: 1 = il giorno dell'irrigazione, 2 = quel giorno e il successivo, e così via. Le ore già trascorse non sono previste e non vengono contate, quindi un'irrigazione che parte la sera ha bisogno di 2 per vedere la mattina seguente.",
+      "water_less": "Quanti giorni di previsione sommare per accorciare l'irrigazione, a partire dal giorno successivo al calcolo: 1 = quel giorno, 2 = quel giorno e il successivo, e così via."
+    },
     "temp_section_title": "Salta per bassa temperatura",
     "temp_threshold_label": "Salta se temperatura sotto",
     "wind_section_title": "Salta per vento forte",
@@ -1101,7 +1104,7 @@
     "general_cleardatatime": "Ora del giorno in cui i vecchi dati meteo vengono eliminati. Deve essere impostata dopo l'ora di calcolo.",
     "general_days_between": "Giorni minimi tra gli eventi di irrigazione per la stessa zona. Imposta 0 per disabilitare (irrigare ogni volta che c'è un deficit).",
     "general_autoupdateinterval": "Con quale frequenza vengono raccolti i dati meteo. Scegli un valore che bilanci dati aggiornati e limiti dell'API.",
-    "general_precipitation_threshold": "L'irrigazione viene saltata se le precipitazioni totali previste sulla finestra di previsione superano questa quantità.",
+    "general_precipitation_threshold": "L'irrigazione viene saltata se le precipitazioni totali previste sulla finestra di previsione raggiungono o superano questa quantità.",
     "general_temp_threshold": "L'irrigazione viene saltata se la temperatura attuale è inferiore a questo valore (ad es. per prevenire danni da gelo).",
     "general_wind_threshold": "L'irrigazione viene saltata se la velocità del vento supera questo valore (il vento forte riduce l'efficienza e causa deriva).",
     "zone_plant_type": "Scegli un tipo di pianta per impostare un coefficiente colturale tipico, oppure «Personalizzato» per inserire Kc manualmente.",

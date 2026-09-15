@@ -1022,7 +1022,10 @@
     "threshold_label": "Precipitation Threshold",
     "threshold_description": "Minimum total precipitation (in mm) forecast across the look-ahead window to skip irrigation.",
     "lookahead_label": "Forecast look-ahead (days)",
-    "lookahead_help": "How many upcoming forecast days to add up when checking for rain. The forecast starts at tomorrow (today is excluded), so 1 = just the next day, 2 = the next two days, and so on.",
+    "lookahead_help": {
+      "skip": "How many days of forecast to add up when checking for rain, starting with the day the run takes place: 1 = the day of the run, 2 = that day and the next, and so on. Hours that have already passed are not forecast and do not count, so a run that starts in the evening needs 2 to see the next morning.",
+      "water_less": "How many forecast days to add up when shortening the run, starting with the day after the calculation: 1 = that day, 2 = that day and the next, and so on."
+    },
     "temp_section_title": "Skip on low temperature",
     "temp_threshold_label": "Skip if temperature is below",
     "wind_section_title": "Skip on high wind speed",
@@ -1101,7 +1104,7 @@
     "general_cleardatatime": "Time of day when old weather data is purged. Must be set later than the calculation time.",
     "general_days_between": "Minimum days between irrigation events for the same zone. Set to 0 to disable (irrigate whenever deficit exists).",
     "general_autoupdateinterval": "How often weather data is collected. Choose a value that balances fresh data against API rate limits.",
-    "general_precipitation_threshold": "Irrigation is skipped if total forecast precipitation across the look-ahead window exceeds this amount.",
+    "general_precipitation_threshold": "Irrigation is skipped if total forecast precipitation across the look-ahead window reaches or exceeds this amount.",
     "general_temp_threshold": "Irrigation is skipped if the current temperature is below this value (e.g. to prevent frost damage).",
     "general_wind_threshold": "Irrigation is skipped if wind speed exceeds this value (high winds reduce efficiency and cause drift).",
     "zone_plant_type": "Pick a plant type to set a typical crop coefficient, or choose Custom to enter Kc yourself.",

@@ -10,6 +10,8 @@ import requests
 
 # DO NOT USE THESE FOR TESTING, INSTEAD DEFINE THE CONSTS IN THIS FILE
 from ..const import (
+    FORECAST_DAY_END,
+    FORECAST_DAY_START,
     MAPPING_CURRENT_PRECIPITATION,
     MAPPING_DEWPOINT,
     MAPPING_HUMIDITY,
@@ -232,6 +234,14 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                         1, len(doc[PirateWeather_daily_weather_key_name]["data"]) - 1
                     ):
                         data = doc[PirateWeather_daily_weather_key_name]["data"][x]
+                        # Each block is stamped with the start of its local day;
+                        # the next block's stamp ends it. That stamp is the local-day
+                        # boundary as the API documents it, so a DST day comes out as
+                        # 23 or 25 hours, which start + 1 day would not. The loop
+                        # stops one short of the last block, so x + 1 always exists.
+                        next_data = doc[PirateWeather_daily_weather_key_name]["data"][
+                            x + 1
+                        ]
                         parsed_data = {}
                         parsed_data[MAPPING_WINDSPEED] = data[
                             PirateWeather_wind_speed_key_name
@@ -262,6 +272,18 @@ class PirateWeatherClient:  # pylint: disable=invalid-name
                         # add precip from daily — PirateWeather SI returns cm, convert to mm
                         parsed_data[MAPPING_PRECIPITATION] = (
                             data[PirateWeather_precip_key_name] * 10.0
+                        )
+                        # A daily block's "time" is read as local midnight at the
+                        # start of that day, as the Pirate Weather API
+                        # documentation describes it: taken from the API, not
+                        # measured against a live response.
+                        parsed_data[FORECAST_DAY_START] = (
+                            datetime.datetime.fromtimestamp(
+                                data["time"], datetime.timezone.utc
+                            )
+                        )
+                        parsed_data[FORECAST_DAY_END] = datetime.datetime.fromtimestamp(
+                            next_data["time"], datetime.timezone.utc
                         )
                         parsed_data_total.append(parsed_data)
                     self._cached_forecast_data = parsed_data_total

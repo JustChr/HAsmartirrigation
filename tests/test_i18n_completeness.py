@@ -258,3 +258,21 @@ class TestHassfestStringRules:
                 if "fix_flow" in body and "description" in body:
                     offenders.append(f"{lang}:issues.{key}")
         assert offenders == []
+
+
+def test_the_precipitation_threshold_help_includes_the_equal_case():
+    """The help text must describe the comparison the skip guard actually makes.
+
+    Wurzel: the precipitation guard skips when ``observed >= threshold``
+    (skip_conditions.py), and ``observed`` is rounded to two decimals, so rain
+    adding up to exactly the threshold is a reachable case that skips. The help
+    text said "exceeds", which tells the user that case waters.
+    Fix-Logik: the English text, which every other language falls back to and is
+    translated from, says "reaches or exceeds".
+    NOT-TO-DO: do not pin the translations word for word; key parity and the
+    copy check above already cover them, and an exact pin would freeze wording
+    a translator may legitimately rephrase.
+    """
+    en = _load(_CATALOGUES["panel"] / "en.json")
+    text = en["field_help"]["general_precipitation_threshold"]
+    assert "reaches or exceeds" in text, text

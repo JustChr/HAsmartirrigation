@@ -705,7 +705,7 @@ export class SmartIrrigationViewGeneral extends SubscribeMixin(LitElement) {
                   />
                 </div>
                 <div class="description-text">
-                  ${localize("weather_skip.lookahead_help", lang)}
+                  ${localize(`weather_skip.lookahead_help.${rainMode}`, lang)}
                 </div>
               `
             : ""}

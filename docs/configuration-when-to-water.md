@@ -37,9 +37,9 @@ A single control decides how upcoming forecast rain affects watering. Requires a
 
 - **Ignore it** — forecast rain is ignored; runs use the calculated duration.
 - **Water less** — the upcoming forecast precipitation (summed over the look-ahead window) is subtracted from the deficit used to compute the **duration**, so the zone waters a little less. The bucket keeps the *true* deficit, so when the rain actually falls it tops the bucket up the rest of the way — the forecast rain is never double-counted once collected. If the rain misses, the next run makes up the difference.
-- **Skip watering** — the run is skipped entirely when the **total** forecast precipitation across the look-ahead window exceeds the **precipitation threshold** (default 2 mm).
+- **Skip watering** — the run is skipped entirely when the **total** forecast precipitation across the look-ahead window reaches or exceeds the **precipitation threshold** (default 2 mm).
 
-For *Water less* and *Skip watering* you also set the **Forecast look-ahead (days)** — how many upcoming forecast days are added together. The forecast starts at *tomorrow* (today is excluded), so `1` (the default) means just the next day, `2` the next two days, and so on.
+For *Water less* and *Skip watering* you also set the **Forecast look-ahead (days)** — how many forecast days are added together. The two modes count from different days. *Skip watering* starts with the day the run takes place: `1` (the default) means the day of the run, `2` that day and the next, and so on. Hours already past do not count, so a run that starts in the evening needs `2` to see the next morning. *Water less* is applied when the duration is calculated and starts with the day after the calculation.
 
 > **Worked example (Water less).** A zone has a 10 mm deficit and 4 mm of rain is forecast within the look-ahead window. The run delivers **6 mm** and stops; the bucket is left 4 mm short, which the forecast rain is expected to fill. If the rain doesn't come, the deficit is still there and the next run waters it.
 

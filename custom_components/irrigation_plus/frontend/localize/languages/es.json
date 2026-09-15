@@ -1013,7 +1013,10 @@
     "threshold_label": "Umbral de precipitación",
     "threshold_description": "Precipitación total mínima prevista (en mm) en la ventana de previsión para omitir el riego.",
     "lookahead_label": "Ventana de previsión (días)",
-    "lookahead_help": "Cuántos días de previsión próximos se suman al comprobar la lluvia. La previsión empieza mañana (hoy se excluye), así que 1 = solo el día siguiente, 2 = los próximos dos días, etc.",
+    "lookahead_help": {
+      "skip": "Cuántos días de previsión se suman al comprobar la lluvia, empezando por el día en que se realiza el riego: 1 = el día del riego, 2 = ese día y el siguiente, etc. Las horas ya pasadas no se prevén y no cuentan, así que un riego que empieza por la noche necesita 2 para ver la mañana siguiente.",
+      "water_less": "Cuántos días de previsión se suman al acortar el riego, empezando por el día siguiente al cálculo: 1 = ese día, 2 = ese día y el siguiente, etc."
+    },
     "temp_section_title": "Omitir por temperatura baja",
     "temp_threshold_label": "Omitir si temperatura por debajo de",
     "wind_section_title": "Omitir por viento fuerte",
@@ -1101,7 +1104,7 @@
     "general_cleardatatime": "Hora del día en que se purgan los datos meteorológicos antiguos. Debe ser posterior a la hora de cálculo.",
     "general_days_between": "Días mínimos entre eventos de riego para la misma zona. Pon 0 para desactivar (regar siempre que haya déficit).",
     "general_autoupdateinterval": "Con qué frecuencia se recopilan los datos meteorológicos. Elige un valor que equilibre datos frescos con los límites de la API.",
-    "general_precipitation_threshold": "El riego se omite si la precipitación total prevista en la ventana de previsión supera esta cantidad.",
+    "general_precipitation_threshold": "El riego se omite si la precipitación total prevista en la ventana de previsión alcanza o supera esta cantidad.",
     "general_temp_threshold": "El riego se omite si la temperatura actual es inferior a este valor (p. ej. para evitar daños por heladas).",
     "general_wind_threshold": "El riego se omite si la velocidad del viento supera este valor (el viento fuerte reduce la eficiencia y causa deriva).",
     "zone_plant_type": "Elige un tipo de planta para fijar un coeficiente de cultivo típico, o «Personalizado» para introducir Kc tú mismo.",

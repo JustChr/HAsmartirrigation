@@ -1013,7 +1013,10 @@
     "threshold_label": "Niederschlagsschwelle",
     "threshold_description": "Mindestmenge an prognostiziertem Gesamtniederschlag (in mm) über das Vorhersagefenster, um die Bewässerung zu überspringen.",
     "lookahead_label": "Vorhersage-Fenster (Tage)",
-    "lookahead_help": "Wie viele kommende Vorhersagetage beim Regen-Check zusammengezählt werden. Die Vorhersage beginnt morgen (heute ausgeschlossen), also 1 = nur der nächste Tag, 2 = die nächsten zwei Tage usw.",
+    "lookahead_help": {
+      "skip": "Wie viele Vorhersagetage beim Regen-Check zusammengezählt werden, beginnend mit dem Tag, an dem der Lauf stattfindet: 1 = der Tag des Laufs, 2 = dieser Tag und der nächste usw. Bereits vergangene Stunden werden nicht vorhergesagt und zählen nicht mit; ein Lauf am Abend braucht deshalb 2, um den nächsten Morgen zu sehen.",
+      "water_less": "Wie viele Vorhersagetage beim Kürzen des Laufs zusammengezählt werden, beginnend mit dem Tag nach der Berechnung: 1 = dieser Tag, 2 = dieser Tag und der nächste usw."
+    },
     "temp_section_title": "Bei niedriger Temperatur überspringen",
     "temp_threshold_label": "Überspringen wenn Temperatur unter",
     "wind_section_title": "Bei hoher Windgeschwindigkeit überspringen",
@@ -1101,7 +1104,7 @@
     "general_cleardatatime": "Tageszeit, zu der alte Wetterdaten gelöscht werden. Muss später als die Berechnungszeit eingestellt sein.",
     "general_days_between": "Mindestanzahl an Tagen zwischen Bewässerungsereignissen für dieselbe Zone. Auf 0 setzen, um zu deaktivieren (bewässern, sobald ein Defizit besteht).",
     "general_autoupdateinterval": "Wie oft Wetterdaten gesammelt werden. Wähle einen Wert, der frische Daten gegen API-Ratenbegrenzungen abwägt.",
-    "general_precipitation_threshold": "Die Bewässerung wird übersprungen, wenn der vorhergesagte Gesamtniederschlag über das Vorhersagefenster diesen Wert überschreitet.",
+    "general_precipitation_threshold": "Die Bewässerung wird übersprungen, wenn der vorhergesagte Gesamtniederschlag über das Vorhersagefenster diesen Wert erreicht oder überschreitet.",
     "general_temp_threshold": "Die Bewässerung wird übersprungen, wenn die aktuelle Temperatur unter diesem Wert liegt (z. B. zur Vermeidung von Frostschäden).",
     "general_wind_threshold": "Die Bewässerung wird übersprungen, wenn die Windgeschwindigkeit diesen Wert überschreitet (starker Wind verringert die Effizienz und verursacht Abdrift).",
     "zone_plant_type": "Wähle einen Pflanzentyp für einen typischen Pflanzenkoeffizienten oder „Benutzerdefiniert“, um Kc selbst einzugeben.",

@@ -33,6 +33,8 @@ import math
 import requests
 
 from ..const import (
+    FORECAST_DAY_END,
+    FORECAST_DAY_START,
     MAPPING_CURRENT_PRECIPITATION,
     MAPPING_DEWPOINT,
     MAPPING_HUMIDITY,
@@ -58,6 +60,10 @@ _SESSION = requests.Session()
 # hit the network (and a DNS lookup); this caps them to at most one call per
 # endpoint per minute, which also keeps us well under the free-tier daily quota.
 _MIN_CACHE_SECONDS = 60
+
+# The three-hourly product's step: the most the hourly document may lag behind it
+# and still be read in its place, whatever the cache lifetime (_forecast_document).
+_THREE_HOURLY_STEP = datetime.timedelta(hours=3)
 
 _BASE_URL = "https://data.hub.api.metoffice.gov.uk/sitespecific/v0/point"
 _HOURLY_URL = (
@@ -185,19 +191,61 @@ class MetOfficeClient:  # pylint: disable=invalid-name
         self._cached_three_hourly_at = datetime.datetime.now()
         return doc
 
+    def _forecast_document(self):
+        """The fetched document the hourly accessors read, or None.
+
+        Wurzel: both accessors took the hourly document whenever one existed. Only
+          ``get_data`` refreshes it, and the precipitation skip guard runs before
+          any ``get_data`` of a dispatch, so an install whose sensors take nothing
+          from Met Office read the hourly forecast of an earlier run beside a
+          three-hourly document ``get_forecast_data`` had just fetched. A tolerance
+          of one cache lifetime alone did not end it on a daily or two-day
+          auto-update: the lifetime is then a day or two, so an hourly document
+          fetched the evening before a fresh three-hourly one still won, and its
+          T..T+48 h series can end before the run's local date does. The guard
+          then found the run date uncovered and did not decide, although the
+          three-hourly document covered it.
+        Fix-Logik: prefer the hourly product, the finer of the two, unless the
+          three-hourly one was fetched more than one cache lifetime, at most three
+          hours, after it. Three hours is the three-hourly product's own step: a
+          three-hourly document newer than the hourly one by more than one of its
+          steps is the more current forecast, and the cap bounds how far behind
+          the hourly series can fall whatever the update interval. Within an
+          hourly update cycle the lifetime is below the cap and nothing changes:
+          a document younger than that is as current as the cache allows.
+        NOT-TO-DO: do not fetch here; the accessors read already-fetched documents
+          only. And do not simply take the later fetch: the calculation's forecast
+          fetch follows the update cycle by minutes and would swap the finer
+          product out of the intra-day estimate after every calculation.
+        siehe tests/test_met_office_forecast_document.py
+        """
+        hourly, three_hourly = self._cached_hourly, self._cached_three_hourly
+        if not hourly or not three_hourly:
+            return hourly or three_hourly
+        if self._cached_hourly_at is None or self._cached_three_hourly_at is None:
+            return hourly
+        lifetime = datetime.timedelta(
+            seconds=max(self.cache_seconds, _MIN_CACHE_SECONDS)
+        )
+        tolerance = min(lifetime, _THREE_HOURLY_STEP)
+        if self._cached_three_hourly_at - self._cached_hourly_at > tolerance:
+            return three_hourly
+        return hourly
+
     def get_hourly_temperature_forecast(self):
         """``[(aware UTC datetime, temperature C)]`` from the hourly product.
 
         The hourly endpoint runs T to T+48, which covers a calculation window's
         remaining hours with room to spare. Falls back to the three-hourly
-        product where only that has been fetched -- coarser, but it still
-        places the window's extremes far better than reading them off the
-        observation.
+        product where only that has been fetched, or where the hourly document
+        is more than one cache lifetime, at most three hours, older
+        (``_forecast_document``) -- coarser, but it still places the window's
+        extremes far better than reading them off the observation.
 
         Reads an already-fetched document only; see
         ``OpenMeteoClient.get_hourly_temperature_forecast`` for why.
         """
-        doc = self._cached_hourly or self._cached_three_hourly
+        doc = self._forecast_document()
         if not doc:
             return None
         out = []
@@ -220,13 +268,14 @@ class MetOfficeClient:  # pylint: disable=invalid-name
         interval ENDING at it -- the convention every client hands back, and the
         one the consumer integrates. The step length is taken from the series
         itself, so the three-hourly product stands in where only it was fetched
-        and its samples are divided back to a rate rather than counted as an
-        hour's worth.
+        or the hourly document is more than one cache lifetime, at most three
+        hours, older (``_forecast_document``), and its samples are divided back
+        to a rate rather than counted as an hour's worth.
 
         Reads only the already-fetched document and never issues a request of its
         own, for the same reason the temperature accessor does not.
         """
-        doc = self._cached_hourly or self._cached_three_hourly
+        doc = self._forecast_document()
         if not doc:
             return None
         stamps = []
@@ -375,12 +424,22 @@ class MetOfficeClient:  # pylint: disable=invalid-name
                 mean_wind = sum(winds) / len(winds)
                 precip = sum(s.get("totalPrecipAmount") or 0.0 for s in day_steps)
 
+                # day is the UTC calendar date the steps were grouped by. When the
+                # product ends mid-day the last entry still spans the whole date,
+                # but its precipitation holds only the steps that exist, so that
+                # day's total is short.
+                day_start = datetime.datetime(
+                    day.year, day.month, day.day, tzinfo=datetime.timezone.utc
+                )
+
                 day_data = {
                     MAPPING_TEMPERATURE: mean_temp,
                     MAPPING_MAX_TEMP: max_temp,
                     MAPPING_MIN_TEMP: min_temp,
                     MAPPING_WINDSPEED: self._wind_2m(mean_wind),
                     MAPPING_PRECIPITATION: precip,
+                    FORECAST_DAY_START: day_start,
+                    FORECAST_DAY_END: day_start + datetime.timedelta(days=1),
                 }
                 if humidities:
                     mean_humidity = sum(humidities) / len(humidities)

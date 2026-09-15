@@ -23,7 +23,7 @@ Changes take effect after pressing **Save**, which reloads the integration (coor
 
 ## Forecast
 
-A card with the coming days from your weather service: minimum/maximum temperature, expected precipitation and wind speed. This is the same forecast data the precipitation skip condition evaluates.
+A card with the coming days from your weather service: minimum/maximum temperature, expected precipitation and wind speed. The precipitation skip condition reads the same service, but its hourly forecast first and these days only beyond it, counted by local day starting with the day of the run, leaving out hours already past — so its figure is not the sum of these rows.
 
 ![](assets/images/configuration-weather-location-1.png)
 

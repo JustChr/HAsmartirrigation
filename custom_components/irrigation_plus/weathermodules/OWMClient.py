@@ -8,6 +8,8 @@ import math
 import requests
 
 from ..const import (
+    FORECAST_DAY_END,
+    FORECAST_DAY_START,
     MAPPING_CURRENT_PRECIPITATION,
     MAPPING_DEWPOINT,
     MAPPING_HUMIDITY,
@@ -236,7 +238,8 @@ class OWMClient:  # pylint: disable=invalid-name
     def get_forecast_data(self):
         """Fetch and return daily forecast data from /data/2.5/forecast.
 
-        The 3-hourly entries are aggregated into calendar days.
+        The 3-hourly entries are aggregated into UTC calendar days, and each entry
+        carries the span it covers (FORECAST_DAY_START/END).
         Today's partial data is excluded; up to 4 complete future days are returned.
         """
         if not self._is_fresh(self._cached_forecast_at):
@@ -287,6 +290,11 @@ class OWMClient:  # pylint: disable=invalid-name
                     rain = sum(s.get("rain", {}).get("3h", 0.0) for s in slots)
                     snow_mm = sum(s.get("snow", {}).get("3h", 0.0) for s in slots)
 
+                    # The bucket IS a UTC calendar day (see the grouping above).
+                    day_start = datetime.datetime(
+                        day.year, day.month, day.day, tzinfo=datetime.timezone.utc
+                    )
+
                     parsed_data_total.append(
                         {
                             MAPPING_TEMPERATURE: avg_temp,
@@ -301,6 +309,8 @@ class OWMClient:  # pylint: disable=invalid-name
                                 avg_temp, avg_humidity
                             ),
                             MAPPING_PRECIPITATION: rain + snow_mm,
+                            FORECAST_DAY_START: day_start,
+                            FORECAST_DAY_END: day_start + datetime.timedelta(days=1),
                         }
                     )
 

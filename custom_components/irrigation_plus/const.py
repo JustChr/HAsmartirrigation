@@ -38,8 +38,9 @@ CONF_SKIP_IRRIGATION_ON_PRECIPITATION = "skip_irrigation_on_precipitation"
 CONF_DEFAULT_SKIP_IRRIGATION_ON_PRECIPITATION = False
 CONF_PRECIPITATION_THRESHOLD_MM = "precipitation_threshold_mm"
 CONF_DEFAULT_PRECIPITATION_THRESHOLD_MM = 2.0  # 2mm threshold
-# How many forecast days to sum when checking precipitation. The weather clients
-# return future days only (today is excluded), so 1 = the next forecast day.
+# How many forecast days to sum for forecast rain. The skip guard counts from the
+# run's own local date (1 = the day of the run); forecast weighting sums
+# get_forecast_data, which starts at the day after the calculation (1 = that day).
 CONF_PRECIPITATION_FORECAST_DAYS = "precipitation_forecast_days"
 CONF_DEFAULT_PRECIPITATION_FORECAST_DAYS = 1
 
@@ -68,8 +69,9 @@ CONF_DEFAULT_FREEZE_THRESHOLD = 1.0  # °C — frost forms near 0 °C
 # Experimental features (opt-in, surfaced on the Setup → Experimental tab).
 # Forecast weighting: water LESS (shorter durations) when rain is forecast,
 # folding the look-ahead precipitation into the deficit used for the duration
-# while leaving the true deficit in the bucket for the real rain to fill. Reuses
-# the precipitation look-ahead window (CONF_PRECIPITATION_FORECAST_DAYS).
+# while leaving the true deficit in the bucket for the real rain to fill. Shares
+# the look-ahead setting (CONF_PRECIPITATION_FORECAST_DAYS) with the skip guard
+# but counts it from the day after the calculation, not from the run's date.
 CONF_FORECAST_WEIGHTING_ENABLED = "forecast_weighting_enabled"
 CONF_DEFAULT_FORECAST_WEIGHTING_ENABLED = False
 # Observed watering: credit the bucket whenever a zone's linked valve runs,
@@ -700,6 +702,13 @@ MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION = MAPPING_CONF_AGGREGATE_DE
 # For timestamps
 RETRIEVED_AT = "retrieved"  # when HA fetched the data (datetime.now())
 OBSERVATION_TIME = "observed"  # when the weather station measured it (API dt)
+
+# The span a daily forecast entry covers, as aware UTC datetimes. The clients
+# bucket days differently -- OWM and Met Office by UTC date, Open-Meteo and
+# Pirate Weather by the site's local date -- so a bare date would not say which
+# day an entry means. Not a sensor mapping: never offered as a mappable field.
+FORECAST_DAY_START = "day_start"
+FORECAST_DAY_END = "day_end"
 
 EVENT_IRRIGATE_START = "start_irrigation_all_zones"
 
