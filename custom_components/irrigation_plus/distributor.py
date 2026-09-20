@@ -1033,9 +1033,16 @@ class DistributorMixin:
         # manual run with its own duration — and they keep the surplus allowance.
         if ceiling is None:
             ceiling = zone.get(const.ZONE_MAXIMUM_BUCKET)
-        new_bucket = float(zone.get(const.ZONE_BUCKET) or 0) + depth
+        pre_bucket = float(zone.get(const.ZONE_BUCKET) or 0)
+        new_bucket = pre_bucket + depth
         if ceiling is not None and new_bucket > float(ceiling):
-            new_bucket = float(ceiling)
+            # Absorbing stops at the level the run started from. A ceiling under
+            # the current bucket would write it DOWN and make the run a
+            # withdrawal; this path derives its sweep ceiling from
+            # _zone_target_bucket directly, so the floor _run_ceiling applies
+            # does not reach it.
+            # siehe test_credit_ceiling.py::test_a_distributor_sweep_never_takes_credit_away
+            new_bucket = max(float(ceiling), pre_bucket)
         await self.async_write_watered_bucket(zone_id, new_bucket)
         await self._stamp_run_finalized(zone_id, volume_l)
         await self._record_run(

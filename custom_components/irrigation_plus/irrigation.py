@@ -1374,7 +1374,17 @@ class IrrigationRunnerMixin:
             live = getattr(self, "_live_run_zones", None)
             if live:
                 live.discard(int(zone_id))
-            ceiling = self._zone_target_bucket(zone)
+            # Never below the bucket the run starts from. This branch derives its
+            # ceiling from _zone_target_bucket directly, so the floor _run_ceiling
+            # applies does not reach it — and here the withdrawal is at its
+            # starkest: a zone already above target has 0 L to deliver, and the
+            # clamp would still write it down to the target.
+            # The target volume is unchanged by the floor: _metered_target_volume
+            # floors at 0 L, which is what `ceiling - bucket` already gave.
+            # siehe test_metered_run.py::test_a_metered_run_never_takes_credit_away
+            ceiling = max(
+                self._zone_target_bucket(zone), float(zone.get(const.ZONE_BUCKET) or 0)
+            )
             target_volume = self._metered_target_volume(zone, ceiling)
             max_seconds = float(
                 zone.get(const.ZONE_MAXIMUM_DURATION) or const.FLOW_SAFETY_TIMEOUT

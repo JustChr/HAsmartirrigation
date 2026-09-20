@@ -670,3 +670,21 @@ async def test_an_uncut_run_carries_no_deadline_marker(monkeypatch):
     assert entry["result"] == const.RUN_RESULT_COMPLETED
     assert entry["detail"] != const.RUN_DETAIL_DEADLINE
     assert entry["planned_s"] == 300
+
+
+async def test_a_metered_run_never_takes_credit_away(monkeypatch):
+    """A real-flow zone already ABOVE its target must not be written back down.
+
+    The metered branch derives its ceiling from ``_zone_target_bucket`` directly
+    rather than through ``_run_ceiling``, so the floor added there does not reach
+    it. With the bucket above the target the run has nothing to deliver
+    (``_metered_target_volume`` floors at 0 L), but the credit still clamps — and
+    a clamp below the starting level is a withdrawal.
+    """
+    over = {const.ZONE_BUCKET: 3.0, const.ZONE_FLOW_SENSOR: "sensor.flow"}
+    coord = _coord(monkeypatch, [_zone(**over)], flow_rate=10.0)
+    coord._live_run_zones = set()
+
+    await coord._run_valve_metered(_zone(**over), "switch.v", real_flow=True)
+
+    assert [b for b in coord.store.bucket_writes if b < 3.0] == []

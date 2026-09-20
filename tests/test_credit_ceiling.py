@@ -581,3 +581,21 @@ async def test_irrigate_now_still_absorbs_the_lead_time_over_credit():
     await c.async_irrigate_now()
 
     assert _bucket_written(c) == pytest.approx(0.0, abs=1e-9)
+
+
+async def test_a_distributor_sweep_never_takes_credit_away():
+    """The same withdrawal on the ring: a member zone already above its target.
+
+    ``_dist_credit_zone`` derives its scheduled-sweep ceiling from
+    ``_zone_target_bucket`` directly rather than through ``_run_ceiling``, so the
+    floor added there does not reach this path — the mirror the sister-path check
+    is for.
+    """
+    c = _coord()
+    zone = _zone(**{const.ZONE_BUCKET: 3.0})
+    c.store.get_zone = Mock(return_value=zone)
+    c._stamp_run_finalized = AsyncMock()
+
+    await c._dist_credit_zone(zone, 600, ceiling=c._zone_target_bucket(zone))
+
+    assert _bucket_written(c) >= 3.0
