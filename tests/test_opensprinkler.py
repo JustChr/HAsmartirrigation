@@ -1335,3 +1335,37 @@ async def test_abort_survives_a_controller_that_refuses_the_stop(hass):
     await c.async_abort_opensprinkler_runs("Home Assistant is stopping")
 
     assert c._runs == []
+
+
+async def test_restart_mid_run_arms_from_after_the_master_settle(hass, freezer):
+    """Issue #152, the OpenSprinkler mirror of the service-path defect.
+
+    ``elapsed`` is read before ``async_master_acquire``, and that await is not
+    free: with a master configured and the pump off it waits the kick pause and
+    the master settle. The timer armed afterwards from the earlier reading is
+    due that much after the instant it is meant to sit on. The sleep is modelled
+    by advancing the clock inside the stub.
+    """
+    freezer.move_to("2026-08-04T12:03:00+00:00")
+    _publish(hass, running="on", program_id=99)
+    c = _coord(hass)
+    started = "2026-08-04T12:00:00+00:00"
+    c._runs = [
+        _run(
+            planned=600.0,
+            observed_start=started,
+            **{const.RUN_WATCH_ENTITY: RUNNING},
+        )
+    ]
+    c.store.get_zone = Mock(return_value=_zone())
+    c.async_master_acquire = AsyncMock(side_effect=lambda *_: freezer.tick(11))
+
+    await c.async_resume_self_closing_runs()
+
+    zone_id, remaining = c._sc_schedule_cleanup.call_args.args
+    elapsed_at_arm = (
+        dt_util.utcnow() - dt_util.parse_datetime(started)
+    ).total_seconds()
+    assert zone_id == 2
+    # The station stops at observed start + planned, whenever the timer is made.
+    assert abs((remaining + elapsed_at_arm) - 600.0) < 0.5

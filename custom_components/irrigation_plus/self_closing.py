@@ -1069,6 +1069,21 @@ class SelfClosingMixin:
                 # as finishing it outright above always has.
                 if elapsed < planned:
                     await self.async_master_acquire(self._sc_master_token(zone_id))
+                    # Re-read: that await is not free. With a master configured
+                    # and the pump off it waits the kick pause and then the
+                    # master settle, so the instant the timer below is created
+                    # is about a settle later than the one `elapsed` was read
+                    # at. Arming from the stale value makes the backstop due
+                    # that much after the anchor it is meant to sit on, while
+                    # the in-flight predicate — which counts from RUN_STARTED
+                    # and knows nothing of the sleep — has already ended: the
+                    # gap between the two is a window in which a second
+                    # dispatch for this zone passes the guard and the old
+                    # record then finalises over it (#152). A remainder that
+                    # has gone negative meanwhile is clamped by
+                    # _sc_schedule_cleanup, which fires it at once — correct,
+                    # since such a run is past its whole grace.
+                    elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
                 self._sc_schedule_cleanup(zone_id, planned + grace - elapsed)
                 # The valve subscription did not survive either, and without it
                 # the rest of this run is back to being timed blind. Re-adopt it

@@ -482,8 +482,11 @@ async def test_resume_finalises_overdue_and_reschedules_partial():
         return_value={const.CONF_ACTIVE_VALVE_RUNS: [overdue, partial]}
     )
     c._sc_finish_run = AsyncMock()
-    # zone 1 overdue (elapsed 10000 >= 60), zone 2 partial (elapsed 100 < 600)
-    c._sc_elapsed = Mock(side_effect=[10000.0, 100.0])
+    # zone 1 overdue (elapsed 10000 >= 60), zone 2 partial (elapsed 100 < 600).
+    # The third value is zone 2's re-read after the master acquire (#152); this
+    # coordinator's acquire does not sleep, so it reads the same instant and the
+    # armed remainder below is unchanged.
+    c._sc_elapsed = Mock(side_effect=[10000.0, 100.0, 100.0])
 
     await c.async_resume_self_closing_runs()
 

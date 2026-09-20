@@ -663,6 +663,13 @@ class OpenSprinklerMixin:
             # lived in memory only, so re-take it for the remainder.
             await self.async_master_acquire(self._sc_master_token(zone_id))
             await self._os_start_watch(zone_id, watch_entity, planned, accepted=True)
+            # Re-read after both awaits: acquiring a configured master with the
+            # pump off waits the kick pause and the master settle, so the timer
+            # created below is made about a settle after `elapsed` was read.
+            # Arming from the stale value leaves the station's own stop and this
+            # backstop that far apart — the same shape as the service path
+            # (#152); see self_closing.async_resume_self_closing_runs.
+            elapsed = self._sc_elapsed(observed_start)
             self._sc_schedule_cleanup(zone_id, planned - elapsed)
             return
 

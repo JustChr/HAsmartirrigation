@@ -22,6 +22,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from freezegun import freeze_time
 from homeassistant.util import dt as dt_util
+
+from custom_components.irrigation_plus.run_watch import (
+    run_finish_grace_seconds,
+)
 from pytest_homeassistant_custom_component.common import (
     async_capture_events,
     async_fire_time_changed,
@@ -2179,3 +2183,41 @@ class TestTheAdvisoryIsPricedOnTheWindowItMeasured:
         assert kw["actual_s"] == kw["planned_s"] == 60
         c._flow_calibration_check.assert_awaited_once()
         assert c._flow_calibration_check.await_args.args[2] == 60
+
+
+class TestARestartArmsTheBackstopWhereItBelongs:
+    """Issue #152: the arming instant is not the instant elapsed was read at.
+
+    ``async_resume_self_closing_runs`` reads ``elapsed`` once at the top of the
+    loop body, then, for a run still inside its plan, awaits
+    ``async_master_acquire``. With a master configured and the pump off, that
+    await is not free: it waits the kick pause and then the master settle. The
+    backstop armed afterwards from the earlier ``elapsed`` is therefore due that
+    much later than the anchor it is meant to sit on, and the in-flight
+    predicate -- which counts from ``RUN_STARTED`` and knows nothing of the
+    sleep -- has already ended by then. That gap is the double-dispatch window.
+
+    The acquire's sleep is modelled here by advancing the clock inside the stub;
+    its real source is the kick pause plus the master settle in
+    ``async_master_begin_cycle``.
+    """
+
+    async def test_the_backstop_is_due_at_start_plus_plan_plus_grace(self, hass):
+        with freeze_time("2026-09-20 06:00:00") as frozen:
+            c = _coord(hass)
+            c.store.config.master_entity = "switch.zisterne"
+            await _dispatch(hass, c, _zone())
+            run = await c._sc_find_run(2)
+            started = dt_util.parse_datetime(run[const.RUN_STARTED])
+            grace = run_finish_grace_seconds(run)
+            c._sc_schedule_cleanup.reset_mock()
+
+            frozen.tick(100)  # HA was down for 100 s of a 600 s run
+            c.async_master_acquire = AsyncMock(side_effect=lambda *_: frozen.tick(11))
+
+            await c.async_resume_self_closing_runs()
+
+            armed = c._sc_schedule_cleanup.call_args.args[1]
+            elapsed_at_arm = (dt_util.utcnow() - started).total_seconds()
+            # The run is due at start + plan + grace, whenever the timer is made.
+            assert armed + elapsed_at_arm == pytest.approx(600 + grace, abs=0.5)
