@@ -22,6 +22,8 @@ from custom_components.irrigation_plus.run_window import (
     nominal_demand_seconds,
     simulate_wall_clock,
     zone_confirm_seconds,
+    zone_finish_grace_seconds,
+    zone_non_water_seconds,
 )
 
 
@@ -263,6 +265,27 @@ class TestTheDialAgreesWithTheArm:
         one = self._nominal([self._zone()])
         assert one == 600 + const.VALVE_CONFIRM_TIMEOUT
 
+    def test_the_dial_carries_the_finish_grace_too(self):
+        """Issue #151: the poll was priced into the dial, the grace was not.
+
+        A confirmed service zone holds the chain past its water, so the window
+        the user designs against has to include that as much as it includes the
+        open. Both producers move together -- see this class's docstring.
+        """
+        service = self._zone(
+            **{
+                const.ZONE_WATERING_MODE: const.WATERING_MODE_SERVICE,
+                const.ZONE_RUN_SERVICE: "script.x",
+                const.ZONE_CONFIRM_ENTITY: "binary_sensor.flowing",
+            }
+        )
+        assert self._nominal([service]) == (
+            600
+            + const.VALVE_CONFIRM_TIMEOUT
+            + const.SERVICE_WATCH_SETTLE_SECONDS
+            + const.DEFAULT_LATENCY_MARGIN_SECONDS
+        )
+
     def test_the_dial_prices_a_flow_zone_at_the_measured_rate(self):
         measured = self._nominal(
             [
@@ -276,3 +299,82 @@ class TestTheDialAgreesWithTheArm:
         )
         # 600 s of water at half the configured rate, plus the one poll.
         assert measured == 1200 + const.VALVE_CONFIRM_TIMEOUT
+
+
+class TestZoneNonWaterSeconds:
+    """Issue #151: a confirmed service run holds the chain past its water.
+
+    Since #150 such a run is settled on the valve's own off report plus the
+    debounce, or by the backstop at plan + debounce + the zone's latency
+    margin. The next zone of a service chain starts only then, so that time is
+    chain wall clock and the window has to survive it -- the same reason the
+    poll is priced at its 30 s ceiling rather than at what a prompt valve does.
+    """
+
+    @staticmethod
+    def _service(**over):
+        z = {
+            const.ZONE_LINKED_ENTITY: "switch.z",
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_SERVICE,
+            const.ZONE_CONFIRM_ENTITY: "binary_sensor.flowing",
+        }
+        z.update(over)
+        return z
+
+    def test_a_confirmed_service_zone_pays_the_poll_and_the_grace(self):
+        assert zone_non_water_seconds(self._service()) == (
+            const.VALVE_CONFIRM_TIMEOUT
+            + const.SERVICE_WATCH_SETTLE_SECONDS
+            + const.DEFAULT_LATENCY_MARGIN_SECONDS
+        )
+
+    def test_the_margin_priced_is_the_zone_s_own(self):
+        """Not the default: the margin is per zone, and it is the larger half."""
+        none = self._service(**{const.ZONE_LATENCY_MARGIN: 0})
+        most = self._service(
+            **{const.ZONE_LATENCY_MARGIN: const.MAX_LATENCY_MARGIN_SECONDS}
+        )
+        assert zone_finish_grace_seconds(none) == const.SERVICE_WATCH_SETTLE_SECONDS
+        assert zone_finish_grace_seconds(most) == (
+            const.SERVICE_WATCH_SETTLE_SECONDS + const.MAX_LATENCY_MARGIN_SECONDS
+        )
+
+    def test_a_service_zone_without_a_confirm_entity_pays_no_grace(self):
+        """Nothing polls it and nothing watches its close, so neither term
+        applies -- the same zone the poll price already exempts."""
+        bare = self._service()
+        del bare[const.ZONE_CONFIRM_ENTITY]
+        assert zone_finish_grace_seconds(bare) == 0.0
+        assert zone_non_water_seconds(bare) == 0.0
+
+    def test_a_station_and_a_batch_zone_pay_no_grace(self):
+        """Their close is the controller's, and neither is watched for it."""
+        station = {
+            const.ZONE_LINKED_ENTITY: "switch.s01",
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_OPENSPRINKLER,
+            const.ZONE_CONFIRM_ENTITY: "binary_sensor.flowing",
+        }
+        batch = {
+            const.ZONE_LINKED_ENTITY: "switch.b01",
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_BATCH,
+            const.ZONE_CONFIRM_ENTITY: "binary_sensor.flowing",
+        }
+        assert zone_finish_grace_seconds(station) == 0.0
+        assert zone_finish_grace_seconds(batch) == 0.0
+
+    def test_a_classic_zone_pays_its_poll_and_no_grace(self):
+        """A classic valve is closed by the runner itself, not waited out."""
+        classic = {
+            const.ZONE_LINKED_ENTITY: "switch.z",
+            const.ZONE_WATERING_MODE: const.WATERING_MODE_CLASSIC,
+        }
+        assert zone_finish_grace_seconds(classic) == 0.0
+        assert zone_non_water_seconds(classic) == const.VALVE_CONFIRM_TIMEOUT
+
+    def test_the_poll_price_keeps_its_own_meaning(self):
+        """The anti-drift pin: zone_confirm_seconds is the POLL, and stays it.
+
+        The grace is a second term, not a bigger first one -- so this number can
+        still be read as "what the open may cost" wherever that is what is meant.
+        """
+        assert zone_confirm_seconds(self._service()) == const.VALVE_CONFIRM_TIMEOUT

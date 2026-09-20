@@ -36,7 +36,8 @@ from .duration_math import (
     zone_run_duration,
 )
 from .opensprinkler import is_opensprinkler_zone
-from .self_closing import is_self_closing_zone
+from .run_watch import zone_latency_margin
+from .self_closing import SERVICE_WATCH_POLICY, is_self_closing_zone
 
 # Which dispatch track a zone runs on. ``_dispatch_by_mode`` starts each track
 # and returns without awaiting it, so the tracks run CONCURRENTLY and the wall
@@ -359,6 +360,44 @@ def zone_confirm_seconds(zone: dict) -> float:
     if not zone.get(const.ZONE_LINKED_ENTITY):
         return 0.0
     return float(const.VALVE_CONFIRM_TIMEOUT)
+
+
+def zone_finish_grace_seconds(zone: dict) -> float:
+    """Seconds a confirmed service run holds the chain AFTER its water (#151).
+
+    The mirror of :func:`run_watch.run_finish_grace_seconds`, read from the zone
+    instead of from a record that does not exist yet at pricing time. Since
+    #150 such a run is settled on the valve's own off report plus the debounce,
+    or by the backstop at plan + debounce + the zone's latency margin; the next
+    zone of a service chain starts only then. So this is chain wall clock, and
+    it is priced at its ceiling for the same reason the poll above is: a valve
+    that reports promptly leaves the run finishing early, the harmless
+    direction.
+
+    Zero wherever nothing waits for a close report: a station and a batch zone
+    are closed by their controller, a classic valve is closed by the runner
+    itself, and a service zone with no confirm entity is neither polled nor
+    watched — the same zone the poll price already exempts.
+    """
+    if track_for_zone(zone) != TRACK_SELF_CLOSING:
+        return 0.0
+    if not zone.get(const.ZONE_CONFIRM_ENTITY):
+        return 0.0
+    return float(SERVICE_WATCH_POLICY.finish_settle_seconds) + float(
+        zone_latency_margin(zone)
+    )
+
+
+def zone_non_water_seconds(zone: dict) -> float:
+    """Wall clock one slot of ``zone`` costs beside its water: poll + grace.
+
+    What a window has to survive per dispatch. Kept as the sum of two terms
+    rather than a fatter confirm price so each keeps its own meaning — the poll
+    is paid before the water, the grace after it — and so the settle + margin
+    formula has exactly one owner (:func:`run_watch.run_finish_grace_seconds`
+    for a record, :func:`zone_finish_grace_seconds` for a zone).
+    """
+    return zone_confirm_seconds(zone) + zone_finish_grace_seconds(zone)
 
 
 def _epoch(moment: datetime.datetime | str | None) -> float:
@@ -893,7 +932,7 @@ def nominal_demand_seconds(
             last_irrigation=None,
             maximum_duration=z.get(const.ZONE_MAXIMUM_DURATION),
             track=track_for_zone(z),
-            confirm_seconds=zone_confirm_seconds(z),
+            confirm_seconds=zone_non_water_seconds(z),
             station=(station_facts or {}).get(int(z.get(const.ZONE_ID))),
             duration_unit=z.get(const.ZONE_DURATION_UNIT),
         )

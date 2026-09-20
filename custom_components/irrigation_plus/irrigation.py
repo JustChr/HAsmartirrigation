@@ -43,8 +43,8 @@ from .run_window import (
     hardware_priced_seconds,
     nominal_demand_seconds,
     track_for_zone,
-    zone_confirm_seconds,
     zone_eligible_for_demand,
+    zone_non_water_seconds,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -2563,7 +2563,7 @@ class IrrigationRunnerMixin:
                     track=track_for_zone(zone),
                     lead_time=zone.get(const.ZONE_LEAD_TIME) or 0.0,
                     flow=bool(zone.get(const.ZONE_FLOW_SENSOR)),
-                    confirm_seconds=zone_confirm_seconds(zone),
+                    confirm_seconds=zone_non_water_seconds(zone),
                     station=station_facts(self.hass, zone),
                     duration_unit=zone.get(const.ZONE_DURATION_UNIT),
                 )
