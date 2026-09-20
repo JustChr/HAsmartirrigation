@@ -17,6 +17,7 @@ from custom_components.irrigation_plus.const import (
     FORECAST_DAY_END,
     FORECAST_DAY_START,
     MAPPING_PRECIPITATION,
+    MAPPING_TEMPERATURE,
 )
 from custom_components.irrigation_plus.weathermodules.PirateWeatherClient import (
     PirateWeatherClient,
@@ -118,3 +119,25 @@ def test_the_request_asks_for_the_long_hourly_block():
     client = PirateWeatherClient("key", "1", 52.52, 13.41, 0)
 
     assert "extend=hourly" in client.url
+
+
+def test_the_daily_mean_is_the_mean_of_the_extremes():
+    """``max + min / 2.0`` is not ``(max + min) / 2.0`` -- issue #142.
+
+    The two expressions agree only where ``temperatureMax`` is 0, so a pair with
+    a non-zero maximum is what separates them. ``_block``'s 22/12 gives 17.0 for
+    the mean and 28.0 for the precedence bug.
+    """
+    utc = datetime.timezone.utc
+    starts = [
+        datetime.datetime(2024, 5, 31, 22, 0, tzinfo=utc) + datetime.timedelta(days=i)
+        for i in range(4)
+    ]
+    doc = {"daily": {"data": [_block(s, 0.1) for s in starts]}}
+    response = MagicMock(status_code=200, text=json.dumps(doc))
+    client = PirateWeatherClient("key", "1", 52.0, 5.0, 0)
+
+    with patch(_PATCH, return_value=response):
+        data = client.get_forecast_data()
+
+    assert [d[MAPPING_TEMPERATURE] for d in data] == [17.0, 17.0]
