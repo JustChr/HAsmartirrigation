@@ -88,6 +88,74 @@ async def test_self_closing_fields_survive_reload(hass):
     assert z["confirm_entity"] == "valve.beet"
 
 
+def _reload_payload(reg):
+    """The store's own persisted format, as async_load reads it back."""
+    return {
+        "config": attr.asdict(reg.config),
+        "zones": [attr.asdict(z) for z in reg.zones.values()],
+        "modules": [],
+        "mappings": [],
+    }
+
+
+async def _reloaded(hass, data):
+    fresh = SmartIrrigationStorage(hass)
+    fresh._store.async_load = AsyncMock(return_value=data)
+    await fresh.async_load()
+    return fresh
+
+
+async def test_latency_margin_survives_reload(hass):
+    """Regression guard: the margin must be hydrated on load (#139).
+
+    Without the zone.get(...) line in the load block the attr default wins and a
+    margin the user set silently reverts to 4 s on every restart.
+    """
+    reg = await async_get_registry(hass)
+    created = await reg.async_create_zone(
+        {
+            "name": "Beet",
+            "size": 10.0,
+            "throughput": 5.0,
+            "watering_mode": const.WATERING_MODE_SERVICE,
+            "run_service": "script.irrigation_beet",
+            "confirm_entity": "valve.beet",
+            const.ZONE_LATENCY_MARGIN: 7,
+        }
+    )
+    zone_id = created["id"]
+    assert created[const.ZONE_LATENCY_MARGIN] == 7
+
+    fresh = await _reloaded(hass, _reload_payload(reg))
+
+    assert fresh.get_zone(zone_id)[const.ZONE_LATENCY_MARGIN] == 7
+
+
+async def test_zone_stored_without_latency_margin_loads_the_default(hass):
+    """A zone persisted before #139 has no key and loads with 4 s, no migration."""
+    reg = await async_get_registry(hass)
+    created = await reg.async_create_zone(
+        {
+            "name": "Front",
+            "size": 10.0,
+            "throughput": 5.0,
+            "watering_mode": const.WATERING_MODE_SERVICE,
+            "run_service": "script.irrigation_front",
+            "confirm_entity": "valve.front",
+        }
+    )
+    zone_id = created["id"]
+    data = _reload_payload(reg)
+    for stored in data["zones"]:
+        stored.pop(const.ZONE_LATENCY_MARGIN, None)
+    assert all(const.ZONE_LATENCY_MARGIN not in z for z in data["zones"])
+
+    fresh = await _reloaded(hass, data)
+
+    assert const.DEFAULT_LATENCY_MARGIN_SECONDS == 4
+    assert fresh.get_zone(zone_id)[const.ZONE_LATENCY_MARGIN] == 4
+
+
 async def test_active_valve_runs_survive_reload(hass):
     """Regression: an in-flight self-closing run must be hydrated on load.
 

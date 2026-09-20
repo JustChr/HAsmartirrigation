@@ -302,6 +302,11 @@ class SmartIrrigationZoneView(HomeAssistantView):
                 vol.Optional(const.ZONE_MAPPING): vol.Or(int, str, None),
                 vol.Optional(const.ZONE_LEAD_TIME): vol.Coerce(float),
                 vol.Optional(const.ZONE_MAXIMUM_DURATION): vol.Coerce(float),
+                # #139: whole seconds from the panel's number input. Coerced so a
+                # posted "6" is stored as 6 (ALLOW_EXTRA would pass the string on).
+                # User-editable, so NOT in the server-owned strip list below; see
+                # test_zone_view_coerces_latency_margin_to_int.
+                vol.Optional(const.ZONE_LATENCY_MARGIN): vol.Coerce(int),
                 vol.Optional(const.ZONE_MAXIMUM_BUCKET): vol.Or(float, int, None),
                 vol.Optional(const.ZONE_LAST_CALCULATED): vol.Or(
                     None, str, datetime.datetime

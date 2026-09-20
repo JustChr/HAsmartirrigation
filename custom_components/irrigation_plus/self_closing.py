@@ -22,9 +22,13 @@ from .run_chain import ChainPolicy, register_chain_policy
 from .run_watch import (
     WatchPolicy,
     register_watch_policy,
+    run_completion_tolerance,
     run_credit_ceiling,
+    run_finish_grace_seconds,
+    run_has_finish_grace,
     run_is_queue_bound,
     run_is_segmented,
+    zone_latency_margin,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +64,12 @@ SERVICE_WATCH_POLICY = WatchPolicy(
     # _confirm_valve_running is written around. One off sample is not evidence
     # the water stopped, so look again before settling the run.
     finish_settle_seconds=const.SERVICE_WATCH_SETTLE_SECONDS,
+    # The valve reports both ends of the run itself, so actual_s is the window
+    # between those reports and a close that arrives within the zone's latency
+    # margin of the planned end still settles through the watcher (#139). The
+    # backstop, armed at exactly the window, used to beat that report on every
+    # normal run.
+    settles_on_valve_window=True,
 )
 register_watch_policy(SERVICE_WATCH_POLICY)
 
@@ -298,11 +308,15 @@ class SelfClosingMixin:
         if sample is not None:
             meter.sample(*sample, at=at)
 
-    def _sc_finish_flow(self, zone_id):
+    def _sc_finish_flow(self, zone_id, run: dict | None = None):
         """Cancel a zone's sampling and return (measured_l | None, end_changes). measured
         is None when there is no sensor, the meter was lost to a restart, or no positive
         flow was seen (caller then keeps its time-based volume). Takes ONE final reading
         at close so a totalizer's last (up to a poll interval) of climb isn't dropped.
+
+        ``run`` is the record being finalised; the callers that only discard a meter
+        pass none. When it carries the valve's off report, a rate sensor is metered to
+        that report and not to this read (#139).
         """
         entry = self._sc_meters().pop(zone_id, None)
         if not entry:
@@ -314,6 +328,28 @@ class SelfClosingMixin:
         final = self._read_flow_sample(sensor)
         if final is not None:
             meter.sample(*final, at=(dt_util.utcnow() - started).total_seconds())
+        off = dt_util.parse_datetime((run or {}).get(const.RUN_VALVE_OFF) or "")
+        if off is not None:
+            # A rate meter credits each interval at the rate read at its end. A run
+            # whose valve reported its close is finalised after it: by the watcher,
+            # the debounce later, or by the backstop at planned + grace. Before the
+            # finish grace a normal end was the backstop's read at the planned end,
+            # with the valve still open (#139). Now this read, or a 15 s tick before
+            # it, ends the interval spanning the close with the water already
+            # stopped, and up to a poll of flow the valve reported open is credited
+            # at 0 (a sensor holding its last value credits the seconds after the
+            # close instead). The report is when the water stopped, so the
+            # integration ends there, the last interval at its last measured rate
+            # (FlowMeter.end_rate_at), bounded by ONE poll — the cadence just
+            # above — because the far end of that last interval is this report and
+            # not a reading: a sensor that died mid-run credits nothing past its
+            # last mark. Read first, cut after: a totalizer ignores the cut and
+            # keeps this read, whose climb is water that flowed. A run without the
+            # report (write-only, unverifiable, a close nobody reported, a backstop
+            # that beat the report) is metered to this read as before.
+            meter.end_rate_at(
+                (off - started).total_seconds(), poll_s=const.FLOW_POLL_INTERVAL
+            )
         d = meter.delivered()
         if d is None and sensor:
             # The per-tick reads are DEBUG (they poll every 15 s), so a persistently
@@ -329,12 +365,21 @@ class SelfClosingMixin:
         measured = d if (d is not None and d > 0) else None
         return measured, self._flow_learn_end_changes(zone, meter, open_start_l)
 
-    async def _sc_finish_run(self, zone_id) -> None:
+    async def _sc_finish_run(self, zone_id, *, actual_s: float | None = None) -> None:
         """Finalise a completed run: record actual usage, clear, fire finished.
 
         Idempotent: a no-op if the run is no longer active (e.g. the cleanup
         timer fires after an early stop already removed it), so usage is never
         double-counted.
+
+        ``actual_s`` is the window the valve itself reported open, passed by the
+        watcher when it settles a confirmed service run on its stored off report
+        (#139), and by a manual stop that settles such a run inside its finish
+        grace by the same rule (see async_stop_self_closing), where a valve still
+        reporting on makes it the plan. Without it the run is recorded for its
+        plan, as it is for every caller with no reported close to go on (the
+        backstop, the watcher's rule for a close nobody reported, OpenSprinkler,
+        batch).
         """
         run = await self._sc_find_run(zone_id)
         if run is None:
@@ -349,14 +394,16 @@ class SelfClosingMixin:
         # The hardware has closed the valve — drop the master hold taken at open.
         await self.async_master_release(self._sc_master_token(zone_id))
         zone = self.store.get_zone(zone_id) or {}
-        # Count usage once, at completion, for the actual delivered volume (the
-        # run ran for its full planned duration).
+        # Count usage once, at completion, for the actual delivered volume.
+        # planned_s is what the run was sized and credited for; it no longer
+        # implies the run ran that long — actual_s below may record a shorter
+        # or longer reported window (#139).
         planned_s = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
         # Iter FM-5: prefer the measured volume from the non-blocking sampler over the
         # open-time time-based estimate. Cancel the sampler + persist the totalizer end
         # for cross-run learning. measured is None when the zone has no flow_sensor, the
         # meter was lost to a restart, or no positive flow was seen -> time-based volume.
-        measured, end_changes = self._sc_finish_flow(zone_id)
+        measured, end_changes = self._sc_finish_flow(zone_id, run)
         if end_changes:
             await self.store.async_update_zone(zone_id, end_changes)
         if measured is not None:
@@ -382,7 +429,13 @@ class SelfClosingMixin:
             result=const.RUN_RESULT_COMPLETED,
             volume_l=volume_l,
             planned_s=planned_s,
-            actual_s=planned_s,
+            # The observed window when there is one (#139): a completed run used
+            # to discard it for planned_s, so a valve closing 2-3 s late, or up
+            # to its margin early, was recorded as exactly on time. It is also
+            # what the calibration probe below prices its litres over; the timed
+            # volume above stays on planned_s, the window the run was credited
+            # and sized for.
+            actual_s=planned_s if actual_s is None else actual_s,
             trigger=const.RUN_TRIGGER_SELF_CLOSING,
             add_to_total=True,
         )
@@ -401,7 +454,19 @@ class SelfClosingMixin:
         )
         # A self-closing zone can't stop early, so it gets the same calibration advisory
         # (shared base helper) as a can't-stop distributor member (FM-7).
-        await self._flow_calibration_check(zone, measured, planned_s)
+        # Root: the advisory reads litres / minutes as the zone's observed rate, and
+        #   since the meter is cut at the valve's off report (#139) those litres span
+        #   the REPORTED window. Divided by the plan, a 60 s run whose close is reported
+        #   4 s late reads 6.7 % fast on every run, in a band judged at 15 %.
+        # Fix: divide by the window the litres were measured over. A run with no report
+        #   (the backstop, write-only, OpenSprinkler, batch) has only its plan, as it
+        #   has for actual_s above.
+        # NOT-TO-DO: do not move the timed volume above onto actual_s as well — it
+        #   prices the water the run was CREDITED for, which stays the plan.
+        # See test_service_watch.py::TestTheAdvisoryIsPricedOnTheWindowItMeasured.
+        await self._flow_calibration_check(
+            zone, measured, planned_s if actual_s is None else actual_s
+        )
         # Ordered AFTER _sc_remove_run above so the calculation no longer sees a run
         # in flight. No-op unless this run displaced one.
         await self.async_run_deferred_calculation(zone_id)
@@ -412,7 +477,12 @@ class SelfClosingMixin:
         await self._chain_advance_for_run(zone_id, run)
 
     def _sc_schedule_cleanup(self, zone_id, delay_seconds: float) -> None:
-        """Schedule the cosmetic finish after the run's planned duration."""
+        """Schedule the cosmetic finish after the given delay.
+
+        The caller decides what that delay covers — the run's planned
+        duration, or, for a confirmed service run waiting out its finish
+        grace (#139), planned + grace minus what has already elapsed.
+        """
 
         async def _done(_now):
             await self._sc_finish_run(zone_id)
@@ -427,6 +497,22 @@ class SelfClosingMixin:
         self._sc_cleanup_timers()[zone_id] = async_call_later(
             self.hass, max(0.0, delay_seconds), _done
         )
+
+    def _sc_valve_on_instant(self, entity_id, lower, upper) -> str:
+        """The instant a confirmed valve reported itself on, as ISO-8601 UTC.
+
+        Its state's last_changed, clamped to [lower, upper] = [dispatch, confirm
+        return] (#139). RUN_STARTED is stamped after the confirm poll returns, up
+        to a poll later than the water, so measuring the valve window from it
+        would shorten every run by that poll. But last_changed alone is not safe
+        either: _confirm_valve_running accepts a valve that was ALREADY on at its
+        first read, whose last_changed can be hours old, and a report can never
+        precede the command that caused it. Without a state (nothing to read) the
+        confirm return is the only instant known to be on.
+        """
+        state = self.hass.states.get(entity_id)
+        reported = state.last_changed if state else upper
+        return min(max(reported, lower), upper).isoformat()
 
     async def async_run_self_closing(
         self, zone: dict, *, trigger: str = "schedule"
@@ -493,6 +579,11 @@ class SelfClosingMixin:
         # threading a value through the persisted run record.
         await self.async_master_acquire(self._sc_master_token(zone_id))
 
+        # The earliest instant the valve can have opened BECAUSE of this run: the
+        # lower bound of RUN_VALVE_ON (#139). Taken immediately before the open
+        # is fired, so a valve that was already on before the dispatch is
+        # anchored here and not at its hours-old last_changed.
+        dispatched_at = dt_util.utcnow()
         await self._sc_dispatch_open(zone)
 
         # Iter FM-5 (unified flow engine): measure delivered volume across the fixed
@@ -536,6 +627,12 @@ class SelfClosingMixin:
                 if confirm_target
                 else None
             )
+            # The upper bound of RUN_VALVE_ON (#139): the poll that saw the valve
+            # on has just returned, so it cannot have reported on any later.
+            # Stamped here and not at RUN_STARTED below, which follows the bucket
+            # write and is later still. _confirm_valve_running keeps its boolean
+            # return: three other callers compare it with `is False`.
+            confirmed_at = dt_util.utcnow()
             if confirmed is False:
                 # The valve never opened -> abort the run. Cancel the just-started
                 # sampling (discard the measurement) so the aborted run leaks no
@@ -601,6 +698,17 @@ class SelfClosingMixin:
                 # — a write-only run (no confirm_entity) has nothing to watch, and
                 # the hardware still owns its close.
                 record[const.RUN_WATCH_ENTITY] = confirm_target
+                # And the two things its finish is settled on (#139): the zone's
+                # latency margin, frozen so a margin edited mid-run cannot move a
+                # backstop that is already armed (and whose presence is what gives
+                # this record a finish grace at all), and the valve's own on
+                # report, the anchor of the window actual_s is measured over. Only
+                # here: a write-only or unverifiable run has no valve reports, so
+                # it keeps the backstop at exactly its window, as before.
+                record[const.RUN_LATENCY_MARGIN] = zone_latency_margin(zone)
+                record[const.RUN_VALVE_ON] = self._sc_valve_on_instant(
+                    confirm_target, dispatched_at, confirmed_at
+                )
             await self._sc_add_run(record)
 
             self._sc_fire(
@@ -626,7 +734,18 @@ class SelfClosingMixin:
                 # The backstop is armed FIRST and stays the mode's own: the valve
                 # is already open and its window already running, so the watcher
                 # below must not re-arm it (WatchPolicy.opens_at_dispatch).
-                self._sc_schedule_cleanup(zone_id, planned_seconds)
+                #
+                # For a confirmed run it waits the finish grace past the window:
+                # the debounce plus the frozen latency margin (#139). Armed at
+                # exactly the window it fired before the valve's off report on
+                # every normal run (measured 2-3 s late on Tuya valves) or inside
+                # the debounce, cancelling the watcher, so the run was never
+                # settled on what the valve did. Added HERE and not inside
+                # _sc_schedule_cleanup, which batch and OpenSprinkler share; a
+                # record without the margin gets 0 and the window as before.
+                self._sc_schedule_cleanup(
+                    zone_id, planned_seconds + run_finish_grace_seconds(record)
+                )
                 if confirmed:
                     # And now watch the valve for the rest of the run. Only a
                     # CONFIRMED run: without a confirm_entity there is nothing to
@@ -707,7 +826,12 @@ class SelfClosingMixin:
         return None
 
     async def async_stop_self_closing(
-        self, zone_id, *, close_valve: bool = True, detail: str | None = None
+        self,
+        zone_id,
+        *,
+        close_valve: bool = True,
+        detail: str | None = None,
+        actual_s: float | None = None,
     ) -> bool:
         """Stop a self-closing run early: close the valve + correct the bucket.
 
@@ -715,6 +839,12 @@ class SelfClosingMixin:
         hardware, for the case where the hardware has already ended the run
         itself — an OpenSprinkler station that stopped short of its window, or
         one that never opened at all. ``detail`` overrides the run-log marker.
+        ``actual_s`` is the delivered window when the caller measured it from
+        the valve's own reports (#139). Without it, a stop that closes a
+        confirmed service run's valve is measured from the valve's on report,
+        and one past the planned end, inside the run's finish grace, is settled
+        by the watcher's rule, which may complete the run; every other call
+        reads the run's elapsed time, as before.
         """
         run = await self._sc_find_run(zone_id)
         if run is None:
@@ -761,14 +891,63 @@ class SelfClosingMixin:
         # Correct the bucket for the undelivered portion of the optimistic open credit.
         planned = float(run.get(const.RUN_PLANNED_SECONDS) or 0)
         planned_mm = float(run.get(const.RUN_PLANNED_MM) or 0)
-        elapsed = self._sc_run_elapsed(run)
+        # A caller that measured the window at the valve's off report passes it
+        # (#139). Reading the clock here instead puts the debounce into a
+        # watcher-settled partial: this runs 5 s after the close, and those 5 s
+        # are credited, volumed and recorded as delivered. The watcher accepts
+        # that only for a close nobody reported, which has no other end (see
+        # _watch_finish). One value feeds all three below, so the bucket, the
+        # volume and actual_s agree.
+        if actual_s is not None:
+            elapsed = actual_s
+        elif close_valve and run_has_finish_grace(run):
+            # A stop that closes a confirmed service run's valve is measured from
+            # the valve's own on report, the anchor the watcher settles on:
+            # RUN_OBSERVED_START is the confirm return, up to a poll after that
+            # report, so a stopped run would be measured shorter than a settled
+            # one. Only such a stop. A caller passing close_valve=False saw the
+            # hardware end the run and keeps its own clock: the watcher decided
+            # its partial for a close nobody reported on the elapsed time below,
+            # so it is booked on it too. And _sc_run_elapsed stays for every run
+            # without a frozen margin (write-only, batch, OpenSprinkler, a
+            # pre-update service record), whose queue-bound and segmented timing
+            # the window does not know.
+            if self._sc_elapsed(run.get(const.RUN_STARTED)) < planned:
+                # Before the planned end (from RUN_STARTED, where the backstop is
+                # anchored) the run is not in its finish grace, and the stop is
+                # its end, as it always was: measured to the stop and capped at
+                # the plan, even with an off report stored, whose debounce has
+                # not decided yet whether it was the close or a blip.
+                elapsed = self._watch_valve_window({**run, const.RUN_VALVE_OFF: None})
+            else:
+                # Past the planned end the run is only waiting in its finish
+                # grace for the valve to report the close. Before the grace the
+                # backstop finished it at the planned end for its plan; measured
+                # to the stop, the grace would now be booked as watering, a
+                # partial for more than the plan. So it is settled by the
+                # watcher's rule (_watch_settle_by_window) on the same reports:
+                # the window to the stored off report, or the plan while the
+                # valve still reports on, completes within the tolerance, with
+                # the finished event and the calibration sample as the watcher
+                # would, and a shorter window is a partial on it below. The
+                # valve was closed above first, as by any stop. _sc_finish_run
+                # cancels the subscription and releases the master hold again:
+                # the subscription is already gone, and releasing a dropped
+                # token only re-arms the pump's off timer for the deadline it
+                # already has.
+                elapsed = self._watch_valve_window(run)
+                if elapsed + run_completion_tolerance(run) >= planned:
+                    await self._sc_finish_run(zone_id, actual_s=elapsed)
+                    return True
+        else:
+            elapsed = self._sc_run_elapsed(run)
         delivered_frac = min(elapsed / planned, 1.0) if planned > 0 else 1.0
         # Iter FM-5: finalize the flow sampler UP FRONT — the measured litres both refine
         # the recorded usage below AND (review finding F) reconcile the bucket. Cancels the
         # sampler and persists the totalizer end for cross-run learning. measured is None
         # when there is no sensor, the meter was lost to a restart, or no positive flow was
         # seen. See test_self_closing.
-        measured, end_changes = self._sc_finish_flow(zone_id)
+        measured, end_changes = self._sc_finish_flow(zone_id, run)
         if end_changes:
             await self.store.async_update_zone(zone_id, end_changes)
         # Reconcile ABSOLUTELY from the pre-run level (RUN_PRE_BUCKET) when we have it: the
@@ -833,10 +1012,12 @@ class SelfClosingMixin:
     async def async_resume_self_closing_runs(self) -> None:
         """Reconcile persisted in-flight runs after a restart.
 
-        Self-closing hardware closes on its own, so we NEVER re-open: if the run
-        is overdue it has already closed (finalise); if it is still within its
-        window the hardware countdown is still running (reschedule the cosmetic
-        cleanup for the remainder). The bucket was credited at start
+        Self-closing hardware closes on its own, so we NEVER re-open: overdue
+        now means past its plan AND its finish grace (#139) — only then has
+        the run definitely closed, so it is finalised. Anything short of
+        that — still running, or past the plan but still waiting out the
+        grace for its close to be reported — reschedules the cosmetic
+        cleanup for the remainder instead. The bucket was credited at start
         (credited=True), so it is never re-credited here.
         """
         for run in await self._sc_active_runs():
@@ -857,17 +1038,49 @@ class SelfClosingMixin:
                 await self._batch_resume_run(run)
                 continue
             elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
-            if elapsed >= planned:
+            # A confirmed service run waits planned + debounce + margin for its
+            # valve to report the close (#139), and a restart must not take that
+            # away: finishing it at planned, or re-arming the backstop for
+            # planned - elapsed, would settle a run inside its grace for its plan
+            # before a late close had the chance to be seen, which is the defect
+            # the grace exists to fix. 0 for every record without a frozen margin
+            # (write-only, pre-update), which keeps the formula it had.
+            grace = run_finish_grace_seconds(run)
+            if elapsed >= planned + grace:
+                # Past the whole grace the run is finished for its plan, as it
+                # was past the plan before, even with the valve's off report on
+                # record: the backstop finishes such a run for its plan too.
+                # Settling it on the reported window instead would improve a
+                # record the grace does not make worse, so it is left as it was.
                 await self._sc_finish_run(zone_id)
             else:
-                # Still inside the hardware window: the valve is open but master
-                # holds live only in memory and did not survive the restart.
-                # Re-take it so the pump keeps running for the remainder.
-                await self.async_master_acquire(self._sc_master_token(zone_id))
-                self._sc_schedule_cleanup(zone_id, planned - elapsed)
+                # Not yet overdue: the backstop is re-armed for the remainder,
+                # inside the plan or inside the grace alike, and the watcher is
+                # re-adopted below without retaking the master in the grace.
+                # Master holds live only in memory and did not survive the
+                # restart, so it is re-taken for the remainder — but only
+                # while the valve is still running (elapsed < planned). Past
+                # the plan but inside the grace, the valve's own countdown is
+                # over and the run only waits for the report of its close: a
+                # hold taken for that would switch the pump on, kick it and wait
+                # the master settle for a valve that has closed, where a restart
+                # past the plan used to finish the run without starting the
+                # pump. Settling the run then releases a token that is not held,
+                # as finishing it outright above always has.
+                if elapsed < planned:
+                    await self.async_master_acquire(self._sc_master_token(zone_id))
+                self._sc_schedule_cleanup(zone_id, planned + grace - elapsed)
                 # The valve subscription did not survive either, and without it
                 # the rest of this run is back to being timed blind. Re-adopt it
-                # for the runs that recorded one (a confirmed service run).
+                # for the runs that recorded one (a confirmed service run). A
+                # valve that closed while HA was down is found off by the
+                # watcher's first evaluate, or reports off after coming back as
+                # unavailable; neither is stored as the off report (its
+                # last_changed is the entity's return, not the close), so the
+                # run is settled like any close nobody reported (_watch_finish).
+                # An off report stored before HA went down stays on the record
+                # and settles the run on its window, provided the debounce
+                # decides before the backstop re-armed above.
                 watch_entity = run.get(const.RUN_WATCH_ENTITY)
                 if watch_entity:
                     await self._watch_start(

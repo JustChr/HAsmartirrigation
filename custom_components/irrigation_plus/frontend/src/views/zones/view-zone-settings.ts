@@ -67,6 +67,7 @@ import {
   ZONE_DURATION_UNIT,
   ZONE_STOP_SERVICE,
   ZONE_CONFIRM_ENTITY,
+  ZONE_LATENCY_MARGIN,
   ZONE_OBSERVED_ENTITY,
   ZONE_SOIL_MOISTURE_SENSOR,
   ZONE_SOIL_MOISTURE_THRESHOLD,
@@ -213,6 +214,23 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
     if (st.attributes?.state_class === "total_increasing") return true;
     if (!unit || unit.includes("/")) return false;
     return !["gpm", "lpm", "gph", "lph"].includes(unit.toLowerCase());
+  }
+
+  // #139: the latency margin only widens the finish backstop of a run the
+  // watcher CONFIRMED. Without a confirm_entity nothing reports the valve's own
+  // close, the backend applies no grace and the field would be a dead knob, so
+  // the row is hidden (already scoped to SERVICE zones by the mode check above).
+  private _showLatencyMargin(zone: any): boolean {
+    return !!zone?.confirm_entity;
+  }
+
+  // Whole seconds in [0, 30], the same bounds the backend clamps to
+  // (MAX_LATENCY_MARGIN_SECONDS in const.py). null = empty or invalid input
+  // (valueAsNumber is NaN while the field is cleared); the handler ignores it
+  // instead of saving 0 mid-typing, like the lead_time input.
+  private _clampLatencyMargin(v: number): number | null {
+    if (isNaN(v)) return null;
+    return Math.max(0, Math.min(30, Math.round(v)));
   }
 
   firstUpdated() {
@@ -1310,6 +1328,45 @@ class SmartIrrigationViewZoneSettings extends SubscribeMixin(LitElement) {
                                   })}"
                               ></ha-entity-picker>
                             </ha-settings-row>
+                            ${this._showLatencyMargin(zone)
+                              ? html`
+                                  <ha-settings-row>
+                                    <span slot="heading"
+                                      >${localize(
+                                        "panels.zones.labels.latency_margin",
+                                        this.hass.language,
+                                      )}
+                                      (${UNIT_SECONDS})</span
+                                    >
+                                    <span slot="description"
+                                      >${localize(
+                                        "panels.zones.labels.latency_margin_help",
+                                        this.hass.language,
+                                      )}</span
+                                    >
+                                    <input
+                                      type="number"
+                                      class="settings-input shortfield"
+                                      step="1"
+                                      min="0"
+                                      max="30"
+                                      inputmode="numeric"
+                                      .value="${zone.latency_margin ?? 4}"
+                                      @input="${(e: Event) => {
+                                        const v = this._clampLatencyMargin(
+                                          (e.target as HTMLInputElement)
+                                            .valueAsNumber,
+                                        );
+                                        if (v !== null)
+                                          this.handleEditZone(index, {
+                                            ...zone,
+                                            [ZONE_LATENCY_MARGIN]: v,
+                                          });
+                                      }}"
+                                    />
+                                  </ha-settings-row>
+                                `
+                              : ""}
                             ${this.config?.observed_watering_enabled
                               ? html`
                                   <ha-settings-row>

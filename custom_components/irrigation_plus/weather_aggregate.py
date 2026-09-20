@@ -420,6 +420,65 @@ def effective_aggregate(key, mappings_config):
     return aggregate
 
 
+def cumulative_reset_threshold(mark: float) -> float:
+    """The reading at or below which a DROP is a counter restart, not a revision.
+
+    Proportional to the mark, so it scales with the counter instead of assuming
+    a unit, and so a freshly restarted gauge sitting at small values does not
+    read its own jitter as further restarts. See CUMULATIVE_RESET_FRAC.
+    """
+    return const.CUMULATIVE_RESET_FRAC * max(float(mark), 0.0)
+
+
+def cumulative_delta_increments(samples):
+    """``[(tag, mm)]``, one per sample, whose sum is the window's new climb (#149).
+
+    The single source of the DELTA rule. ``cumulative_delta_total`` sums this and
+    ``_precip_increments`` re-tags it, so the aggregate's total and the increments
+    that drive the bucket cannot drift apart — they are the same arithmetic, not
+    two copies of it that have to be kept agreeing by hand.
+    """
+    out = []
+    if not samples:
+        return out
+    mark = float(samples[0][1])
+    for tag, raw in samples:
+        val = float(raw)
+        if val < mark and val <= cumulative_reset_threshold(mark):
+            # The counter restarted (midnight rollover). It began again at zero,
+            # so this reading is itself rain that fell after the restart.
+            mark = 0.0
+        if val > mark:
+            out.append((tag, val - mark))
+            mark = val
+        else:
+            # At the mark (nothing new) or below it (a revision — the water it
+            # takes back was already credited, and the climb back is not new).
+            out.append((tag, 0.0))
+    return out
+
+
+def cumulative_delta_total(values) -> float:
+    """The NEW climb of a cumulative counter across ``values`` (#149).
+
+    Root: the old rule re-based the baseline onto ANY lower reading, so a
+      source that revised its total DOWN and climbed back was credited for the
+      recovery as if it were fresh rain — a gauge going 4.3 -> 3.0 -> 5.0 booked
+      2.0 mm where 0.7 mm fell, and one dipping repeatedly through a wet day
+      booked 5.5 mm for 4.3. The comment above it claimed the opposite ("any
+      other decrease is spurious and contributes nothing"), which is the rule
+      implemented here and the one FlowMeter already applies to a totalizer.
+    Fix: carry a HIGH-WATER mark. Only a reading above it is new water, and a
+      drop leaves it alone unless the drop is far enough to be a restart, in
+      which case the counter began again at zero and its own value is new.
+    NOT-TO-DO: do not re-base onto the dipped value "to be safe" — that is the
+      defect. Under-crediting rain over-waters, over-crediting it under-waters,
+      and the second is the one that costs a plant.
+    See tests/test_cumulative_delta.py.
+    """
+    return sum(inc for _, inc in cumulative_delta_increments(list(enumerate(values))))
+
+
 def _aggregate(
     by_sensor,
     mappings_config,
@@ -441,19 +500,7 @@ def _aggregate(
         aggregate = effective_aggregate(key, mappings_config)
 
         if aggregate == const.MAPPING_CONF_AGGREGATE_DELTA:
-            # Cumulative counter: sum positive increments, treating the first
-            # value (the carried-forward boundary) as the baseline and resetting
-            # on a drop to zero (midnight rollover).
-            prev = d[0]
-            result = 0
-            for val in d:
-                if val < prev:
-                    # Reset to zero (midnight rollover) re-bases at 0; any other
-                    # decrease is spurious and contributes nothing.
-                    prev = 0 if val == 0 else val
-                result += val - prev
-                prev = val
-            resultdata[key] = result
+            resultdata[key] = cumulative_delta_total(d)
         elif len(d) < 2:
             if key == const.MAPPING_TEMPERATURE:
                 resultdata[const.MAPPING_MAX_TEMP] = d[0]
@@ -594,15 +641,10 @@ def _precip_increments(samples, aggregate):
     """
     if aggregate == const.MAPPING_CONF_AGGREGATE_DELTA:
         # Cumulative counter: the first sample is the baseline (contributing 0),
-        # and a drop to zero is a midnight rollover rather than negative rain.
-        out = []
-        prev = samples[0][1]
-        for t, val in samples:
-            if val < prev:
-                prev = 0.0 if val == 0 else val
-            out.append((t, val - prev))
-            prev = val
-        return out
+        # a restart re-bases at zero and a downward revision contributes nothing
+        # (#149). Taken from the shared rule rather than re-stated here, so this
+        # cannot drift from the total ``_aggregate`` reports.
+        return cumulative_delta_increments(samples)
     if aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM:
         if len(samples) < 2:
             # A lone rate sample takes _aggregate's single-value path, which

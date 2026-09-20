@@ -1,5 +1,7 @@
 """Unit tests for the pure FlowMeter engine + learning functions (no Home Assistant)."""
 
+import pytest
+
 from custom_components.irrigation_plus.flow_metering import (
     FlowMeter,
     flow_is_totalizer,
@@ -345,3 +347,120 @@ def test_rate_gap_uncapped_by_default_bridges():
     # Default (no cap) preserves the original bridge-across-gap behaviour.
     m = FlowMeter()
     assert _feed(m, [(6.0, "L/min", None, 0.0), (6.0, "L/min", None, 600.0)]) == 60.0
+
+
+# --- end_rate_at: a rate integration ended at a known close ---
+# A self-closing run whose valve reported its close is finalised seconds after it, and
+# the reads by then find the water stopped. end_rate_at ends the integration at the
+# report: the last interval runs on at the last measured rate, later samples are taken
+# back out. See test_service_watch.TestAConfirmedRunsFlowEndsAtItsOffReport.
+def test_end_rate_at_holds_the_last_rate_to_the_cut_and_drops_later_samples():
+    m = FlowMeter()
+    series = [
+        (10.0, "L/min", None, 0.0),
+        (10.0, "L/min", None, 15.0),
+        (0.0, "L/min", None, 30.0),  # (15, 30] credited at the 0 read at its end
+        (0.0, "L/min", None, 45.0),
+    ]
+    assert _feed(m, series) == 2.5
+    m.end_rate_at(20.0)
+    assert m.delivered() == pytest.approx(10.0 * 20 / 60)
+
+
+def test_end_rate_at_holds_the_converted_rate():
+    m = FlowMeter()
+    _feed(m, [(600.0, "L/h", None, 0.0), (0.0, "L/h", None, 60.0)])
+    m.end_rate_at(30.0)
+    assert m.delivered() == pytest.approx(5.0)  # 10 L/min for 30 s
+
+
+def test_end_rate_at_bridges_no_wider_gap_than_one_poll():
+    # The tail's far end is a valve REPORT, not a flow sample: max_gap_s (4 polls) is
+    # the bound for an interval with a live reading at BOTH ends. Told the sampler's
+    # cadence, the tail is bridged one poll and no further -- past that the sensor may
+    # have been gone since the mark.
+    series = [(10.0, "L/min", None, 0.0), (10.0, "L/min", None, 15.0)]
+    bridged = FlowMeter(max_gap_s=60.0)
+    _feed(bridged, series)
+    bridged.end_rate_at(30.0, poll_s=15.0)
+    assert bridged.delivered() == pytest.approx(2.5 + 2.5)
+    too_wide = FlowMeter(max_gap_s=60.0)
+    _feed(too_wide, series)
+    too_wide.end_rate_at(30.5, poll_s=15.0)
+    assert too_wide.delivered() == pytest.approx(2.5)
+
+
+def test_end_rate_at_without_a_poll_keeps_the_max_gap_bound():
+    # No cadence given: the meter has nothing tighter to go on and bounds the tail as
+    # it bounds any interval. Unchanged for every caller that passes no poll.
+    series = [(10.0, "L/min", None, 0.0), (10.0, "L/min", None, 15.0)]
+    bridged = FlowMeter(max_gap_s=60.0)
+    _feed(bridged, series)
+    bridged.end_rate_at(75.0)
+    assert bridged.delivered() == pytest.approx(2.5 + 10.0)
+    too_wide = FlowMeter(max_gap_s=60.0)
+    _feed(too_wide, series)
+    too_wide.end_rate_at(75.5)
+    assert too_wide.delivered() == pytest.approx(2.5)
+
+
+def test_end_rate_at_credits_no_tail_from_a_sensor_dead_since_the_mark():
+    # A 612 s run at 10 L/min whose sensor goes 'unavailable' at +570 -- every later
+    # tick and the final read return None -- and whose valve reports off at +614. The
+    # 4-poll bound bridged 44 s x 10 L/min = 7.3 L no sensor measured, and
+    # _sc_finish_run reconciles the bucket from those litres absolutely, so the surplus
+    # would be carried into the next run's deficit. Nothing past the last mark is known.
+    m = FlowMeter(max_gap_s=60.0)
+    _feed(m, [(10.0, "L/min", None, float(t)) for t in range(0, 571, 15)])
+    m.sample(None, "L/min", None, 585.0)  # unavailable: nothing is fed
+    m.sample(None, "L/min", None, 600.0)
+    m.end_rate_at(614.0, poll_s=15.0)
+    assert m.delivered() == pytest.approx(10.0 * 570 / 60)  # 95 L, not 102.3
+
+
+def test_end_rate_at_a_sample_keeps_that_samples_credit():
+    m = FlowMeter()
+    series = [
+        (10.0, "L/min", None, 0.0),
+        (20.0, "L/min", None, 15.0),
+        (0.0, "L/min", None, 30.0),
+    ]
+    _feed(m, series)
+    m.end_rate_at(15.0)
+    assert m.delivered() == pytest.approx(5.0)  # (0, 15] at the 20 read at 15
+
+
+def test_end_rate_at_before_any_reading_credits_nothing():
+    # Every reading came after the close: nothing is known of the flow before it.
+    m = FlowMeter()
+    _feed(m, [(10.0, "L/min", None, 30.0), (10.0, "L/min", None, 45.0)])
+    m.end_rate_at(20.0)
+    assert m.delivered() == 0.0
+
+
+def test_end_rate_at_without_any_reading_stays_none():
+    m = FlowMeter()
+    m.end_rate_at(20.0)
+    assert m.delivered() is None
+
+
+def test_end_rate_at_ignores_a_sample_that_did_not_advance():
+    m = FlowMeter()
+    series = [
+        (10.0, "L/min", None, 0.0),
+        (10.0, "L/min", None, 60.0),
+        (50.0, "L/min", None, 30.0),  # backward -> skipped, as by the integration
+    ]
+    _feed(m, series)
+    m.end_rate_at(45.0)
+    assert m.delivered() == pytest.approx(7.5)
+
+
+def test_end_rate_at_leaves_a_totalizer_alone():
+    # A counter only climbs for water that flowed, so a read after the close counts.
+    m = FlowMeter("lifetime")
+    _feed(
+        m, [(100.0, "L", None, 0.0), (105.0, "L", None, 15.0), (110.0, "L", None, 30.0)]
+    )
+    m.end_rate_at(10.0)
+    assert m.delivered() == 10.0

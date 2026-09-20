@@ -108,6 +108,7 @@ from .const import (
     CONF_ZONE_SEQUENCING,
     CONF_ZONE_SEQUENCING_MAX_CONSECUTIVE_DURATION,
     CONF_ZONE_SEQUENCING_MIN_ABSORPTION_TIME,
+    DEFAULT_LATENCY_MARGIN_SECONDS,
     DOMAIN,
     MAPPING_CONF_SENSOR,
     MAPPING_CONF_SOURCE,
@@ -163,6 +164,7 @@ from .const import (
     ZONE_LAST_CONSUMED,
     ZONE_LAST_IRRIGATION,
     ZONE_LAST_UPDATED,
+    ZONE_LATENCY_MARGIN,
     ZONE_LEAD_TIME,
     ZONE_LINKED_ENTITY,
     ZONE_MAPPING,
@@ -291,6 +293,10 @@ class ZoneEntry:
     # Optional entity reflecting the real valve/switch state for liveness confirm
     # (poll-only); None = write-only service run, credited optimistically.
     confirm_entity = attr.ib(type=str, default=None)
+    # Seconds a confirmed service valve may report its close after its window
+    # (#139). Additive: a zone stored without it loads with the default, no
+    # schema bump. See ZONE_LATENCY_MARGIN.
+    latency_margin = attr.ib(type=int, default=DEFAULT_LATENCY_MARGIN_SECONDS)
     # Observed-watering (opt-in): physical valve/switch watched for EXTERNAL runs
     # of a service/self-closing zone (no linked_entity). See ZONE_OBSERVED_ENTITY.
     observed_entity = attr.ib(type=str, default=None)
@@ -1191,6 +1197,11 @@ class SmartIrrigationStorage:
                         duration_unit=zone.get("duration_unit", "seconds"),
                         stop_service=zone.get("stop_service", None),
                         confirm_entity=zone.get("confirm_entity", None),
+                        # Migration: a zone stored before #139 has no margin and
+                        # gets the default (additive, no STORAGE_VERSION bump).
+                        latency_margin=zone.get(
+                            ZONE_LATENCY_MARGIN, DEFAULT_LATENCY_MARGIN_SECONDS
+                        ),
                         observed_entity=zone.get(ZONE_OBSERVED_ENTITY, None),
                         # Migration: pre-FM zones have no counter override / learning
                         # state; default to auto and a clean streak (additive).

@@ -346,6 +346,9 @@ export class SmartIrrigationZone {
   duration_unit?: string;
   stop_service?: string;
   confirm_entity?: string | null;
+  // Seconds a confirmed service valve may report its own close after the planned
+  // window (whole seconds, 0-30, backend default 4). See ZONE_LATENCY_MARGIN.
+  latency_margin?: number;
   // Observed-watering (opt-in): physical valve/switch watched for EXTERNAL runs
   // of this service/self-closing zone. See ZONE_OBSERVED_ENTITY / store.py.
   observed_entity?: string | null;

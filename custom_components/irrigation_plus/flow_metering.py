@@ -133,6 +133,10 @@ class FlowMeter:
         self._have_reading = False
         self._reset_done = False  # per_run: the one-time open reset already consumed
         self._saw_reset = False  # a totalizer near-zero drop was observed this run
+        # Rate sensors: one mark per sample that advanced the clock (its time, the
+        # litres credited through it, the L/min it read), so end_rate_at can end the
+        # integration at an instant later samples have already passed.
+        self._rate_marks: list[tuple[float, float, float]] = []
 
     def sample(self, value, unit: str, state_class: str | None, at: float) -> None:
         """Feed one poll reading. ``value`` may be None/non-numeric/NaN (ignored). ``at``
@@ -154,14 +158,16 @@ class FlowMeter:
             self._sample_rate(raw, unit, at)
 
     def _sample_rate(self, raw: float, unit: str, at: float) -> None:
+        rate = flow_rate_to_l_per_min(raw, unit)
         if self._last_at is not None and at > self._last_at:
             dt = at - self._last_at
             if self._max_gap_s is None or dt <= self._max_gap_s:
-                self._delivered += flow_rate_to_l_per_min(raw, unit) * dt / 60.0
+                self._delivered += rate * dt / 60.0
             # else: gap too large (dropped/unavailable samples) — do not credit the
             # recovered rate across it (would over-credit); just advance the clock.
         if self._last_at is None or at > self._last_at:
             self._last_at = at
+            self._rate_marks.append((at, self._delivered, rate))
 
     def _sample_totalizer(self, raw: float, unit: str) -> None:
         litres = flow_litres_from_total(raw, unit)
@@ -188,6 +194,54 @@ class FlowMeter:
                 self._last = litres  # reseed to the reset floor (credit nothing)
                 self._reset_done = True
         # else glitch (or lifetime): keep _last, add nothing (never over-credit a dip)
+
+    def end_rate_at(self, at: float, *, poll_s: float | None = None) -> None:
+        """End a rate sensor's integration at ``at``, the instant the water is known to
+        have stopped. The meter's last call: nothing is sampled after it.
+
+        Each interval is credited at the rate read at its END, so a meter read after the
+        close credits the interval spanning it at the stopped rate (0) — up to a poll of
+        real flow lost — or, from a sensor that holds its last value, credits the seconds
+        after the close as water. Here the interval from the last sample at or before
+        ``at`` runs on to ``at`` at that sample's rate, the last one measured with the
+        water on, and every sample after ``at`` is taken back out. With no sample at or
+        before ``at`` nothing is known of the flow before the close and nothing is
+        credited (the caller falls back to its time-based volume).
+
+        ``poll_s`` is the sampler's own cadence, and bounds that tail: this interval's
+        far end is the CALLER's evidence that the water stopped, not a reading, so
+        ``max_gap_s`` — the bound for an interval with a live reading at both ends —
+        would extrapolate four polls from a sensor that may have died at the mark. A
+        live sensor leaves a mark within one poll of the cut, so the bound only bites
+        when reads are missing. Without ``poll_s`` the tail is bounded by ``max_gap_s``
+        as any interval is.
+
+        A totalizer is left as it is: its counter only climbs for water that flowed, so
+        a read after the close (a counter reporting late) still belongs to the run.
+        """
+        if self._is_totalizer:
+            return
+        mark = next((m for m in reversed(self._rate_marks) if m[0] <= at), None)
+        if mark is None:
+            self._delivered = 0.0
+            return
+        mark_at, delivered, rate = mark
+        dt = at - mark_at
+        # Root: a sensor that goes 'unavailable' mid-run leaves its last mark behind,
+        #   and the caller's cut is no evidence that water flowed on to it. Bounded by
+        #   max_gap_s alone, a sensor dead since +570 of a 612 s run still credited the
+        #   44 s up to a close reported at +614 — litres the caller reconciles the
+        #   bucket from, so the surplus rides into the next run (#139 review).
+        # Fix: bridge no more than one poll, the widest tail a live sensor can leave.
+        # NOT-TO-DO: do not derive the poll from max_gap_s (it is FLOW_POLL_INTERVAL x 4
+        #   today, a coupling the next tuning of either silently breaks), and do not
+        #   tighten _sample_rate the same way — its intervals have a reading at both
+        #   ends, which is what max_gap_s was chosen for.
+        # See test_end_rate_at_credits_no_tail_from_a_sensor_dead_since_the_mark.
+        bounds = [b for b in (self._max_gap_s, poll_s) if b is not None]
+        if not bounds or dt <= min(bounds):
+            delivered += rate * dt / 60.0
+        self._delivered = delivered
 
     def _near_zero(self) -> float:
         return max(self._near_zero_floor, self._near_zero_frac * (self._last or 0.0))

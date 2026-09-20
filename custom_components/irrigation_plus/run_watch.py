@@ -203,6 +203,20 @@ class WatchPolicy:
     # or spurious `off` would otherwise settle a run as a partial and reverse the
     # credit for water that never stopped flowing.
     finish_settle_seconds: float = 0.0
+    # Whether a run's end is settled on the VALVE'S OWN reports rather than on
+    # the wall clock: its backstop waits finish_settle_seconds plus the zone's
+    # latency margin past the planned window, and a close the valve reports
+    # within that margin of its window is completed, not partial, for the window
+    # from the on report to the off report (#139). A close nobody reported keeps
+    # the wall-clock rule.
+    #
+    # Only a mode whose valve opens at dispatch and reports its own close has
+    # those reports. A queue controller's watch entity is its station, whose
+    # timing is the controller's, and a batch controller can pause, so both keep
+    # False and stay byte-for-byte on the timing their tests pin. Keyed on the
+    # policy rather than on RUN_WATCH_ENTITY, because batch and OpenSprinkler
+    # records carry that key as well.
+    settles_on_valve_window: bool = False
 
 
 def is_acknowledged(state) -> bool:
@@ -248,6 +262,80 @@ def run_credit_ceiling(run: dict, zone: dict) -> float:
         return float(recorded)
     except (TypeError, ValueError):
         return float("inf")
+
+
+def zone_latency_margin(zone: dict) -> int:
+    """The zone's latency margin in whole seconds, clamped to [0, MAX]."""
+    raw = (zone or {}).get(const.ZONE_LATENCY_MARGIN)
+    if raw is None:
+        return const.DEFAULT_LATENCY_MARGIN_SECONDS
+    try:
+        value = int(round(float(raw)))
+    except (TypeError, ValueError):
+        return const.DEFAULT_LATENCY_MARGIN_SECONDS
+    return max(0, min(const.MAX_LATENCY_MARGIN_SECONDS, value))
+
+
+def run_latency_margin(run: dict) -> float | None:
+    """The margin frozen into a run at dispatch, or None (write-only / pre-update record)."""
+    raw = run.get(const.RUN_LATENCY_MARGIN) if isinstance(run, dict) else None
+    if raw is None:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except (TypeError, ValueError):
+        return None
+
+
+def run_has_finish_grace(run: dict) -> bool:
+    """True for a run whose end the watcher settles on the valve's own reports.
+
+    All three: its mode's policy settles on the valve window (service only), it was
+    confirmed (RUN_WATCH_ENTITY) and it carries a frozen margin. RUN_WATCH_ENTITY alone
+    is not enough — OpenSprinkler and batch records carry it too.
+    """
+    if not isinstance(run, dict) or not run.get(const.RUN_WATCH_ENTITY):
+        return False
+    if run_latency_margin(run) is None:
+        return False
+    return watch_policy_for(run.get(const.RUN_MODE)).settles_on_valve_window
+
+
+def run_finish_grace_seconds(run: dict) -> float:
+    """settle + frozen margin for a run with a finish grace, else 0."""
+    if not run_has_finish_grace(run):
+        return 0.0
+    policy = watch_policy_for(run.get(const.RUN_MODE))
+    return float(policy.finish_settle_seconds) + float(run_latency_margin(run))
+
+
+def run_completion_tolerance(run: dict) -> float:
+    """Seconds short of the planned window that still count as a completed run."""
+    if not run_has_finish_grace(run):
+        return 1.0
+    return max(1.0, float(run_latency_margin(run)))
+
+
+def valve_window_seconds(run: dict, now) -> float:
+    """Seconds the valve was reported open: its off report minus its on report.
+
+    Anchor = RUN_VALVE_ON, else RUN_OBSERVED_START, else RUN_STARTED. Without an off
+    report the window runs to ``now`` and is bounded by the plan, not guessed:
+    min(now - anchor, planned).
+    """
+    planned = planned_seconds(run)
+    anchor = dt_util.parse_datetime(
+        run.get(const.RUN_VALVE_ON)
+        or run.get(const.RUN_OBSERVED_START)
+        or run.get(const.RUN_STARTED)
+        or ""
+    )
+    if anchor is None:
+        return planned
+    off = dt_util.parse_datetime(run.get(const.RUN_VALVE_OFF) or "")
+    if off is not None:
+        return max(0.0, (off - anchor).total_seconds())
+    return max(0.0, min((now - anchor).total_seconds(), planned))
 
 
 def queue_deadline_seconds(runs: list, run: dict, *, mode: str | None = None) -> float:
@@ -570,11 +658,22 @@ class RunWatchMixin:
             if watcher.entity != entity_id:
                 continue
             self.hass.async_create_task(
-                self._watch_evaluate(zone_id, event.data.get("new_state"))
+                self._watch_evaluate(
+                    zone_id,
+                    event.data.get("new_state"),
+                    previous_state=event.data.get("old_state"),
+                )
             )
 
-    async def _watch_evaluate(self, zone_id, state) -> None:
-        """Advance a watched run from one observation of its entity."""
+    async def _watch_evaluate(self, zone_id, state, *, previous_state=None) -> None:
+        """Advance a watched run from one observation of its entity.
+
+        ``previous_state`` is the state ``state`` replaced, passed only by the
+        subscription (the event's old_state). The one-off read in
+        ``_watch_start`` and a mode's own re-evaluation of the current state
+        leave it None: they did not see the entity move, so they cannot say
+        what ``state`` followed or when the valve moved.
+        """
         zid = int(zone_id)
         watcher = self._watchers().get(zid)
         if watcher is None:
@@ -602,6 +701,14 @@ class RunWatchMixin:
             elif policy.segmented and run.get(const.RUN_SEGMENT_STARTED) is None:
                 # Watering again after a pause: open the next segment.
                 await self._watch_resume(zid, run)
+            if policy.settles_on_valve_window and run.get(const.RUN_VALVE_OFF):
+                # The valve is on again, so the off report it made was a blip
+                # and not the close (#139). Dropped rather than kept: the run's
+                # window ends at the first off AFTER this on, and a stale value
+                # would survive the next off unchanged (it is only recorded
+                # when unset) and cut the window short by the blip's distance
+                # from the real end.
+                await self._watch_update_run(zid, {const.RUN_VALVE_OFF: None})
             return
 
         if observed_start is not None:
@@ -610,6 +717,41 @@ class RunWatchMixin:
                 # time; bank what has been delivered and wait.
                 await self._watch_pause(zid, run)
                 return
+            if (
+                previous_state is not None
+                and previous_state.state in RUNNING_STATES
+                and run_has_finish_grace(run)
+                and not run.get(const.RUN_VALVE_OFF)
+            ):
+                # The end of the valve window this run is settled on (#139): the
+                # first off report since the last on, taken from the state's
+                # last_changed and never from the clock. This evaluate runs as a
+                # task a moment after the report, and the debounce below decides
+                # seconds later still; both would stretch the window by their
+                # latency. last_changed is also stable against the reports that
+                # follow: HA keeps it while the state text stays "off", so an
+                # attribute-only update (which is a state_changed event of its
+                # own and restarts the debounce) cannot move it, and a value
+                # already stored is never overwritten.
+                #
+                # The close is the first off that directly follows a running
+                # state, so only that event records it. Never the initial
+                # evaluate (no previous state: a watcher re-adopted after a
+                # restart reads a state restored when the entity came back), and
+                # never unavailable/unknown/None -> off: after a restart Zigbee
+                # valves come back as unavailable first, and the last_changed of
+                # the off that follows is the entity's return, not the close.
+                # Either would stretch the window by the downtime. Do not widen
+                # this to "any off the subscription delivered". Accepted
+                # trade-off: on -> unavailable -> off mid-run records nothing,
+                # and that run is settled like any close nobody reported, on
+                # its elapsed time when the debounce decides.
+                run = (
+                    await self._watch_update_run(
+                        zid, {const.RUN_VALVE_OFF: state.last_changed.isoformat()}
+                    )
+                    or run
+                )
             # The zone stopped. The controller ended the run, on time or early;
             # either way it is over now — unless this mode's pause indicator may
             # simply not have caught up yet, in which case decide in a moment.
@@ -815,10 +957,51 @@ class RunWatchMixin:
 
         watcher.finish_cancel = async_call_later(self.hass, max(0.0, delay), _decide)
 
+    def _watch_valve_window(self, run: dict) -> float:
+        """Seconds the run's valve reported itself open (see valve_window_seconds)."""
+        return valve_window_seconds(run, dt_util.utcnow())
+
+    async def _watch_settle_by_window(self, zone_id, run: dict) -> None:
+        """Settle a run with a finish grace on the window its valve reported.
+
+        Only for a run whose off report is on record (see _watch_finish). The
+        window is RUN_VALVE_OFF minus RUN_VALVE_ON, both taken from the valve's
+        own reports, so it does not grow with the 5 s debounce or with anything
+        else that settles the run later (#139).
+        The run completes when that window falls short of the plan by no more
+        than the tolerance, max(1 s, frozen margin): a valve's own reports land
+        either side of the planned end (measured within 0.7 s on a seconds-unit
+        valve, one normal run 0.67 s short), so the old one second left a third
+        of a second between a normal end and a partial with its credit reversed.
+        A shorter window was cut off and settles as a partial on that window.
+        """
+        zid = int(zone_id)
+        self._watch_cancel(zid)
+        window = self._watch_valve_window(run)
+        if window + run_completion_tolerance(run) >= planned_seconds(run):
+            await self._sc_finish_run(zid, actual_s=window)
+        else:
+            await self.async_stop_self_closing(zid, close_valve=False, actual_s=window)
+
     async def _watch_finish(self, zone_id, run: dict) -> None:
         """Watering stopped. Settle the run against what it actually delivered."""
         zid = int(zone_id)
         self._watch_cancel(zid)
+        if run_has_finish_grace(run) and run.get(const.RUN_VALVE_OFF):
+            # The valve reported both ends of this run, so it is settled on
+            # them (#139). The clock read below comes after the debounce and
+            # would count those 5 s as watering.
+            #
+            # Only with the off report on record. A close nobody reported (on ->
+            # unavailable -> off, or an off seen by a watcher's first evaluate)
+            # has no end but that same clock, and the margin as a tolerance on
+            # it would complete a close up to debounce + margin short of the
+            # plan, where the one second below stops at debounce + 1. Such a run
+            # keeps the rule below, as does every run without a frozen margin
+            # (batch, OpenSprinkler, a service record persisted before the
+            # margin existed), whose timing must not move.
+            await self._watch_settle_by_window(zid, run)
+            return
         planned = planned_seconds(run)
         elapsed = self._sc_run_elapsed(run)
         # A zone that ran its full window is a completed run; one the controller

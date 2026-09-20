@@ -276,3 +276,29 @@ def test_the_precipitation_threshold_help_includes_the_equal_case():
     en = _load(_CATALOGUES["panel"] / "en.json")
     text = en["field_help"]["general_precipitation_threshold"]
     assert "reaches or exceeds" in text, text
+
+
+def test_the_latency_margin_help_says_what_it_waits_for_and_what_it_tolerates():
+    """The panel text must carry BOTH halves of what this one value does.
+
+    Wurzel: the margin feeds two different things -- ``run_finish_grace_seconds``
+    (settle + margin: how long the watcher waits for the close report before it
+    settles the run without one) and ``run_completion_tolerance`` (how far short
+    of the planned duration the reported window may fall and still count as
+    complete). The 2026-09-20 rewrite sharpened the second half and dropped the
+    first, so the panel and docs/configuration-my-zones.md disagreed about what
+    the setting controls, and a user raising the margin for a valve that never
+    reports its close could not see from the panel that the run now settles
+    that much later.
+    Fix-Logik: pin one phrase per half in the English text -- the file the
+    frontend bundles, every fallback resolves to and every translation is made
+    from.
+    NOT-TO-DO: do not pin the seven translations word for word; key parity and
+    the copy check above already cover them, and an exact pin would freeze
+    wording a translator may legitimately rephrase (same reasoning as the
+    precipitation-threshold pin above).
+    """
+    en = _load(_CATALOGUES["panel"] / "en.json")
+    text = en["panels"]["zones"]["labels"]["latency_margin_help"]
+    assert "waits this long" in text, text
+    assert "still counts as a complete run" in text, text

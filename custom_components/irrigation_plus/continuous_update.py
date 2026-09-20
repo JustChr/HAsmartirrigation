@@ -396,25 +396,33 @@ class ContinuousUpdateMixin:
                 and effective_aggregate(key, {key: the_map})
                 == const.MAPPING_CONF_AGGREGATE_DELTA
             ):
-                # The delta aggregate treats an exact zero as a legitimate
-                # counter rollover; any other decrease re-bases at the lower
-                # value, so the climb back to the old level will be counted as
-                # NEW accumulation. One glitch costs one dip's worth of phantom
-                # rain; an oscillating value (a failing gauge, two writers on
-                # one entity) accumulates it without bound and nothing else in
-                # the pipeline can tell. Warned here, once per stored reading,
-                # rather than in the aggregation — the pure engine runs every
-                # minute per zone via the live estimate, which would turn one
-                # bad reading into thousands of log lines.
+                # A cumulative counter that goes DOWN without restarting is a
+                # glitch, a revision, or two writers on one entity. Since #149
+                # the aggregate holds its high-water mark through such a dip, so
+                # the climb back is no longer counted as new accumulation and
+                # this cannot inflate the bucket any more. It is still worth one
+                # line, because the READING is still wrong and the water that
+                # fell during the dip is not recoverable from it.
+                #
+                # Do NOT restore the old wording ("the rise back will be counted
+                # as new accumulation"). That described the defect #149 fixed,
+                # and it is exactly what the fix stops happening.
+                #
+                # Warned here, once per stored reading, rather than in the
+                # aggregation — the pure engine runs every minute per zone via
+                # the live estimate, which would turn one bad reading into
+                # thousands of log lines.
                 _LOGGER.warning(
                     "Continuous updates: cumulative %s on sensor group %s "
-                    "decreased (%s -> %s) without resetting to zero; the rise "
-                    "back will be counted as new accumulation - check the "
-                    "sensor for glitches or a second writer",
+                    "decreased (%s -> %s) without resetting to zero; the climb "
+                    "back to %s will not be counted again, so any rain during "
+                    "the dip is lost - check the sensor for glitches or a "
+                    "second writer",
                     key,
                     mapping_id,
                     previous,
                     value,
+                    previous,
                 )
             self._continuous_last_value[(mapping_id, key)] = value
             # Synchronous, O(1), and no task hop: store.merge_or_append_mapping_

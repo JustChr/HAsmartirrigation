@@ -310,6 +310,36 @@ async def test_zone_view_accepts_membership_fields():
     assert forwarded["outlet_number"] == 3
 
 
+async def test_zone_view_coerces_latency_margin_to_int():
+    """The panel posts the margin from a number input; the view hands on an int.
+
+    The schema allows extra keys, so without an explicit Coerce(int) a posted
+    "6" would reach the store as the string "6" (#139).
+    """
+    from unittest.mock import patch
+
+    from custom_components.irrigation_plus.websockets import SmartIrrigationZoneView
+
+    coordinator = AsyncMock()
+    hass = SimpleNamespace(data={const.DOMAIN: {"coordinator": coordinator}})
+    request = MagicMock()
+    request.app = {"hass": hass}
+    data = {const.ZONE_ID: 2, const.ZONE_LATENCY_MARGIN: "6"}
+    request.json = AsyncMock(return_value=data)
+
+    view = SmartIrrigationZoneView()
+    view.json = MagicMock(return_value="OK")
+
+    with patch("custom_components.irrigation_plus.websockets.async_dispatcher_send"):
+        await view.post(request)
+
+    coordinator.async_update_zone_config.assert_awaited_once()
+    called = coordinator.async_update_zone_config.await_args
+    forwarded = called.args[1] if len(called.args) > 1 else called.kwargs.get("data")
+    assert forwarded[const.ZONE_LATENCY_MARGIN] == 6
+    assert isinstance(forwarded[const.ZONE_LATENCY_MARGIN], int)
+
+
 async def test_zone_view_ignores_server_owned_fields():
     """A client zone save must never overwrite server-owned run accounting.
 

@@ -5,7 +5,7 @@ class SmartIrrigationError(Exception):
     """Exception raised for errors in the Irrigation Plus integration."""
 
 
-VERSION = "v2026.09.17"
+VERSION = "v2026.09.18"
 NAME = "Irrigation Plus"
 MANUFACTURER = "@JustChr"
 
@@ -699,6 +699,30 @@ MAPPING_CONF_AGGREGATE_RIEMANNSUM = "riemannsum"
 MAPPING_CONF_AGGREGATE_DELTA = "delta"
 MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT = MAPPING_CONF_AGGREGATE_AVERAGE
 MAPPING_CONF_AGGREGATE_OPTIONS_DEFAULT_PRECIPITATION = MAPPING_CONF_AGGREGATE_DELTA
+# A DELTA counter only ever climbs, so a reading BELOW the running high-water
+# mark is one of two things, and they are credited oppositely (#149):
+#   - the counter restarted (a "today" rain gauge at local midnight), after
+#     which everything above zero is new rain;
+#   - the source revised its figure DOWN, which an API-backed daily total does
+#     routinely. Nothing fell; the climb back to the old mark is the SAME water
+#     and must not be credited twice.
+# They are told apart by how far the reading fell RELATIVE TO THE MARK: at or
+# below this fraction of it the counter restarted, anything above it is a
+# revision. Same idea as FlowMeter's totalizer rule (FLOW_NEAR_ZERO_FRAC), with
+# its own constant because that one is litres of water and this is whatever
+# field a user has pointed a DELTA aggregate at.
+# Deliberately NOT max(floor, frac x mark) as FlowMeter uses. An absolute floor
+# would catch a gauge whose first reading after midnight is already non-zero,
+# but it also swallows the small-value regime a freshly reset daily gauge lives
+# in: with a 0.5 mm floor, a mark of 0.4 and a dip to 0.2 is "near zero", so the
+# revision it is gets re-credited and the defect reappears in miniature for the
+# rest of the morning. A proportional threshold scales with the counter and has
+# no such blind spot, and it carries no unit assumption.
+# The residual cost is the mild direction: a restart whose first reading is more
+# than this fraction of yesterday's total reads as a revision, so that day's
+# rain is under-credited and the zone waters slightly more than it needed.
+# Over-crediting rain under-waters, which is the one that costs a plant.
+CUMULATIVE_RESET_FRAC = 0.1
 
 # For timestamps
 RETRIEVED_AT = "retrieved"  # when HA fetched the data (datetime.now())
@@ -857,6 +881,18 @@ ZONE_STOP_SERVICE = "stop_service"  # optional "domain.service" for early stop
 # re-actuation); when unset, the service run is treated as write-only and credited
 # optimistically. The momentary run_service script is NOT a valid liveness signal.
 ZONE_CONFIRM_ENTITY = "confirm_entity"
+# How late a confirmed service valve may report its own close, in whole seconds.
+# A run with a confirm_entity is finished by the watcher on the valve's off report
+# plus SERVICE_WATCH_SETTLE_SECONDS of debounce; a backstop armed at exactly the
+# planned window beat that report on every normal run (#139): measured Tuya valves
+# report their close 2-3 s after their window, so the watcher never got to decide
+# and actual_s was never the observed window. The margin is added to the backstop
+# of confirmed service runs only (batch and OpenSprinkler keep their own timing)
+# and is the tolerance between a completed and a partial run. Default 4 covers the
+# measured need with ~2 s to spare; capped so a typo cannot hold a chain for minutes.
+ZONE_LATENCY_MARGIN = "latency_margin"
+DEFAULT_LATENCY_MARGIN_SECONDS = 4
+MAX_LATENCY_MARGIN_SECONDS = 30
 # Observed-watering (opt-in): the physical valve/switch to watch for EXTERNAL
 # runs of a service/self-closing zone (which has no linked_entity). Distinct from
 # confirm_entity (run confirmation). Only consulted when observed_watering_enabled.
@@ -959,6 +995,38 @@ RUN_OBSERVED_START = "observed_start"
 # reads state attributes, and the integration that owns them may not have loaded
 # yet when Irrigation Plus reconciles.
 RUN_WATCH_ENTITY = "watch_entity"
+# The zone's latency margin, frozen into a CONFIRMED service run at dispatch
+# (#139). Read back by the backstop, the completed/partial tolerance, the restart
+# re-arm and the in-flight window, so a margin edited mid-run cannot move a
+# backstop that is already armed. Its presence is also the gate: a record
+# persisted before this field existed keeps the timing it was dispatched under,
+# and a batch or OpenSprinkler record (which carries RUN_WATCH_ENTITY too) never
+# gets one. See run_watch.run_has_finish_grace.
+RUN_LATENCY_MARGIN = "latency_margin"
+# ISO-8601 UTC instant the valve REPORTED itself on: the confirm entity's
+# last_changed, clamped to [dispatch, confirm return]. RUN_STARTED is stamped
+# after the confirm poll returns, up to a poll later than the water; measuring
+# actual_s from it would shorten every run by that poll and turn a normal end
+# into a partial. The clamp keeps a valve that was already open before dispatch
+# from dragging the anchor hours back. RUN_STARTED stays as it is for everything
+# else that reads it.
+RUN_VALVE_ON = "valve_on"
+# ISO-8601 UTC of the valve's first off report since its last on, taken from the
+# state event's last_changed, so attribute updates of an already-off valve and
+# the debounce task's own latency cannot move it. Recorded only from a state
+# event whose previous state was running (on/open/opening), which is what "first
+# off since the last on" means: never from the first evaluation after a restart
+# (it has no previous state, and last_changed is the entity coming back, not the
+# close) and never from unavailable/unknown/None -> off (Zigbee valves come back
+# from a restart as unavailable first, and the off that follows carries their
+# return in last_changed, not the close). Only a run with this report is settled
+# on its window, valve_on to valve_off, and that window is the actual_s the
+# watcher records. A close nobody reported keeps the watcher's wall-clock rule
+# (elapsed when the debounce decides, one second of slack): the latency margin as
+# a tolerance on that clock, which already holds the debounce, would complete an
+# unreported close up to settle + margin short of the plan. Cleared when the
+# valve reports running again.
+RUN_VALVE_OFF = "valve_off"
 # --- Segmented run time (issue #88) ----------------------------------------
 # A run is normally one contiguous stretch of watering, so its length is simply
 # "now minus the observed start". That breaks for a controller that can PAUSE:

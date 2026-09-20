@@ -35,7 +35,7 @@ from homeassistant.util import dt as dt_util
 
 from . import const
 from .opensprinkler import queue_deadline_seconds
-from .run_watch import run_is_queue_bound
+from .run_watch import run_finish_grace_seconds, run_is_queue_bound
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +72,16 @@ class RunStateMixin:
         accepted. So it measures from ``RUN_OBSERVED_START`` once the station is
         seen running, and until then treats the run as in flight for as long as it
         could plausibly still be waiting (:func:`queue_deadline_seconds`).
+
+        A confirmed service run stays in flight past its plan for its finish
+        grace (debounce + frozen latency margin, :func:`run_finish_grace_seconds`,
+        #139), because the run is not over when the window is: its record, its
+        watcher and its backstop all live through that grace, waiting for the
+        valve's own off report. A second dispatch inside it would replace the
+        record that has not settled yet, or let the old run's backstop or
+        debounce finalise it mid-confirm with the new run's pump hold and meter.
+        Every other record (write-only, pre-update, batch, OpenSprinkler) has a
+        grace of 0 and keeps its plain window.
         """
         config = getattr(self.store, "config", None)
         runs = getattr(config, const.CONF_ACTIVE_VALVE_RUNS, None)
@@ -90,7 +100,11 @@ class RunStateMixin:
                 return True
             observed = run.get(const.RUN_OBSERVED_START)
             queued = run_is_queue_bound(run)
-            window = queue_deadline_seconds(runs, run) if queued else planned
+            window = (
+                queue_deadline_seconds(runs, run)
+                if queued
+                else planned + run_finish_grace_seconds(run)
+            )
             anchor = dt_util.parse_datetime(
                 (observed or run.get(const.RUN_STARTED)) or ""
             )
