@@ -514,3 +514,70 @@ async def test_a_distributor_member_still_stops_at_maximum_bucket():
     await c._dist_credit_zone(zone, 600, ceiling=None)
 
     assert _bucket_written(c) == pytest.approx(2.0, abs=1e-9)
+
+
+# --- the same defect on the twin path: "Jetzt bewässern" ------------------
+
+
+def _irrigate_now_coord(zone):
+    """A coordinator wired for async_irrigate_now down to the real credit.
+
+    Everything between the button and ``_run_valve_metered`` is left real so the
+    arithmetic under test is the shipped one; only the edges are stubbed.
+    """
+    c = _coord()
+    c.store.async_get_zones = AsyncMock(return_value=[zone])
+    c.store.get_zone = Mock(return_value=zone)
+    c.store.config = Mock(zone_sequencing=const.CONF_ZONE_SEQUENCING_PARALLEL)
+    c.zone_run_in_flight = Mock(return_value=False)
+    c.async_master_acquire = AsyncMock()
+    c.async_master_release = AsyncMock()
+    c._sc_start_flow_sampling = AsyncMock()
+    c._sc_finish_flow = Mock(return_value=(None, {}))
+    c._note_si_valve = Mock()
+    c._dispatch_distributor_cycles = AsyncMock()
+    c.async_dispatch_opensprinkler_zones = AsyncMock()
+    c.async_dispatch_batch_zones = AsyncMock()
+    return c
+
+
+async def test_irrigate_now_never_takes_credit_away():
+    """The #88 row, on the button async_run_zone's fix never reached.
+
+    ``async_run_zone`` marks its run (``_mark_manual_run``) so the credit is not
+    clamped at the daily target; ``async_irrigate_now`` does not, so a zone whose
+    bucket sits ABOVE the target is written back DOWN to it — the run removes
+    credit it did not use.
+
+    The state is reachable, not hypothetical: setting a bucket by hand only
+    zeroes the stored duration when the new value is exactly 0
+    (``store.py`` async_update_zone), so any other hand-set value leaves
+    ``duration > 0`` — which is exactly what this button filters on.
+    """
+    zone = _manual_zone(3.0)
+    c = _irrigate_now_coord(zone)
+
+    await c.async_irrigate_now()
+
+    # The defect is the WITHDRAWAL, so that is what this pins: the run may
+    # absorb its own over-credit, never dip below the level it started from.
+    assert _bucket_written(c) >= 3.0
+
+
+async def test_irrigate_now_still_absorbs_the_lead_time_over_credit():
+    """The floor that fix must NOT remove — the regression pin for issue #88.
+
+    A zone below target is priced to be brought TO the target, and a timed run
+    always delivers the lead time's flow on top of that price. That surplus is
+    absorbed at the target; a fix that simply marked this button's runs manual
+    would hand it ``maximum_bucket`` instead and let the surplus escape, which
+    is the row issue #88 opened with.
+
+    90 s of lead time at 10 L/min over 5 m2 is +3.000 mm exactly.
+    """
+    zone = _zone()  # bucket -8.0, duration priced from that deficit
+    c = _irrigate_now_coord(zone)
+
+    await c.async_irrigate_now()
+
+    assert _bucket_written(c) == pytest.approx(0.0, abs=1e-9)
