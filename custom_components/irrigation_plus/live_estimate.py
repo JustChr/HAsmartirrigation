@@ -1054,9 +1054,25 @@ class LiveEstimateMixin:
                 if not forecast:
                     result["unavailable_reason"] = REASON_NO_ET_SOURCE
                     return result
-                day0 = forecast[0]
-                tmin = day0.get(const.MAPPING_MIN_TEMP)
-                tmax = day0.get(const.MAPPING_MAX_TEMP)
+                # TOMORROW's extremes, used as a stated proxy for today's — which
+                # is why this tier reports its method as "proxy" below.
+                # ``get_forecast_data`` excludes today by contract, so on every
+                # client that reaches here ``forecast[0]`` is tomorrow, never today.
+                #
+                # Deriving today's extremes from ``get_hourly_temperature_forecast``
+                # instead sounds more precise and is not: the hourly series starts
+                # at or after the current hour, so by the time this estimate runs,
+                # today's early-morning low — Hargreaves' ``tmin``, the input that
+                # moves this result most — has already fallen out of it. That trades
+                # tomorrow's full range for a narrower range over part of today,
+                # which is not the same thing as a closer one.
+                #
+                # Reached only with no sensor buffer, no mirrored daily equation and
+                # a client without ``get_hourly_data``: OWM, Met Office and Pirate
+                # Weather.
+                tomorrow = forecast[0]
+                tmin = tomorrow.get(const.MAPPING_MIN_TEMP)
+                tmax = tomorrow.get(const.MAPPING_MAX_TEMP)
                 if tmin is None or tmax is None:
                     result["unavailable_reason"] = REASON_NO_ET_SOURCE
                     return result
