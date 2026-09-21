@@ -1,5 +1,6 @@
 """Self-closing valve mode (Phase 1)."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -560,6 +561,58 @@ async def test_resume_inside_the_grace_keeps_a_window_shorter_than_the_margin():
     )
     # Explicitly SHORTER than a bare margin: that is what a floor would destroy.
     assert c._si_driven_until[3] < 1000.0 + SI_VALVE_SUPPRESS_MARGIN
+
+
+async def test_after_a_resume_the_observer_stays_silent_in_the_old_gap():
+    """End to end for the defect this re-take exists for.
+
+    Resume a still-running service run, then let its watched entity flap on
+    inside the band the restart used to open: past ``planned + grace``, where
+    ``zone_run_in_flight`` has already let go, but before ``planned + margin``,
+    where a normal dispatch still holds the observer off. Before the re-take the
+    observer armed here and the following close credited the bucket for water
+    the run already accounts for.
+    """
+    c = _coord()
+    c._si_driven_until = {}
+    c._observed_on_since = {}
+    c._observed_zone_by_entity = {"switch.valve": 2}
+    c.store.get_zone = Mock(return_value={})
+    c.hass.loop.time = Mock(return_value=1000.0)
+    c._watch_start = AsyncMock()
+    run = {
+        const.RUN_ZONE_ID: 2,
+        const.RUN_STARTED: "2026-06-30T08:00:00+00:00",
+        const.RUN_PLANNED_SECONDS: 600.0,
+        const.RUN_MODE: const.WATERING_MODE_SERVICE,
+        const.RUN_WATCH_ENTITY: "binary_sensor.confirm",
+        const.RUN_LATENCY_MARGIN: 4,  # grace = 9
+    }
+    c.store.async_get_config = AsyncMock(
+        return_value={const.CONF_ACTIVE_VALVE_RUNS: [run]}
+    )
+    c._sc_elapsed = Mock(side_effect=[100.0, 100.0])
+
+    await c.async_resume_self_closing_runs()
+
+    # Resume happened 100 s in, so loop time 1000 is start + 100. The band the
+    # defect lived in is start + 609 .. start + 630, i.e. loop 1509 .. 1530.
+    c.hass.loop.time = Mock(return_value=1520.0)
+    # The record is long past its window by now, so the other half of the
+    # suppression is already gone.
+    c.zone_run_in_flight = Mock(return_value=False)
+    state = lambda s: SimpleNamespace(state=s)
+    c._observed_state_changed(
+        SimpleNamespace(
+            data={
+                "entity_id": "switch.valve",
+                "new_state": state("on"),
+                "old_state": state("off"),
+            }
+        )
+    )
+
+    assert 2 not in c._observed_on_since
 
 
 def test_is_self_closing_distinguishes_modes():
