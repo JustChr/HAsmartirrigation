@@ -749,8 +749,19 @@ class BatchMixin:
         # nothing. The open-segment case is the one where watering really was in
         # progress, and it is bounded anyway — a run can never be credited for
         # more than its planned window.
-        if self._sc_run_elapsed(run) >= planned:
+        # Read once: the check below and the marker re-take have to price the
+        # same instant, and this walks with the clock.
+        elapsed = self._sc_run_elapsed(run)
+        if elapsed >= planned:
             await self._sc_finish_run(zone_id)
             return
 
+        # Same reason as the service and station paths: the marker lived in
+        # memory, the restart dropped it, and _watch_observed_start will not
+        # take it back for a record that already carries an observed start.
+        # A batch record's grace is 0, so the observer would otherwise be free
+        # a full margin early.
+        # siehe test_batch.py::TestRestart::
+        # test_a_resumed_run_that_is_watering_retakes_the_suppression_window
+        self._note_si_valve(zone_id, planned - elapsed)
         await self._watch_start(zone_id, watch_entity, planned, accepted=True)

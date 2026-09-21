@@ -14,6 +14,7 @@ who can actually run it.
 from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
 
+import pytest
 from freezegun import freeze_time
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
@@ -23,6 +24,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 from custom_components.irrigation_plus.batch import batch_watch_entity, is_batch_zone
+from custom_components.irrigation_plus.irrigation import SI_VALVE_SUPPRESS_MARGIN
 from custom_components.irrigation_plus.self_closing import is_self_closing_zone
 
 VALVE_A = "switch.valve_front"
@@ -787,6 +789,47 @@ class TestRestart:
 
         assert c._runs == []
         assert c._record_run.await_args.kwargs["result"] == const.RUN_RESULT_COMPLETED
+
+    async def test_a_resumed_run_that_is_watering_retakes_the_suppression_window(
+        self, hass
+    ):
+        """The marker lived in memory, so the restart dropped it, and nothing
+        else takes it back: both call sites of ``_watch_observed_start`` are
+        gated on a record with NO observed start, and a resumed run has one.
+
+        A batch record's finish grace is 0, so ``zone_run_in_flight`` ends
+        exactly at its planned window and the observer would otherwise be free a
+        full margin before a normal dispatch would have released it.
+        """
+        c = _coord(hass)
+        # The fixture stubs the marker helper; this test is about the real one.
+        c._note_si_valve = SmartIrrigationCoordinator._note_si_valve.__get__(c)
+        _register(c, _zone(1, VALVE_A, 600))
+        await _set(hass, VALVE_A, "on")
+        started = (dt_util.utcnow() - timedelta(seconds=100)).isoformat()
+        c._runs = [
+            {
+                const.RUN_ZONE_ID: 1,
+                const.RUN_MODE: const.WATERING_MODE_BATCH,
+                const.RUN_PLANNED_SECONDS: 600,
+                const.RUN_STARTED: started,
+                const.RUN_OBSERVED_START: started,
+                const.RUN_SEGMENT_STARTED: started,
+                const.RUN_WATERED_SECONDS: 0.0,
+                const.RUN_WATCH_ENTITY: VALVE_A,
+                const.RUN_PRE_BUCKET: -20.0,
+            }
+        ]
+        c.store.config.active_valve_runs = c._runs
+        await c._batch_resume_run(dict(c._runs[0]))
+        await hass.async_block_till_done()
+
+        window = c._si_driven_until[1] - hass.loop.time()
+        # Ends where a normal dispatch would have put it: start + planned, plus
+        # the marker's own margin.
+        assert window == pytest.approx(
+            600.0 - 100.0 + SI_VALVE_SUPPRESS_MARGIN, abs=1.0
+        )
 
     async def test_a_run_still_queued_is_re_armed_without_being_re_sent(self, hass):
         c = _coord(hass)
