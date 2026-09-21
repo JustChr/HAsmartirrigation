@@ -140,6 +140,10 @@ class IrrigationRunnerMixin:
         pending = getattr(self, "_observed_on_since", None)
         if pending is not None:
             pending.pop(zid, None)
+        # Cancel its sampler in the same breath, or the 15-s interval timer keeps
+        # polling a run nobody will credit. Idempotent, and safe on a coordinator
+        # whose observed state was never built: _observed_meters() heals itself.
+        self._observed_cancel_meter(zid)
 
     @staticmethod
     def _zone_target_bucket(zone: dict) -> float:

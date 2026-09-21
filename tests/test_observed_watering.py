@@ -492,6 +492,36 @@ async def test_reopen_cancels_prior_sampler(monkeypatch):
     assert list(coord._observed_meters()) == [2]  # exactly one entry
 
 
+async def test_si_takeover_cancels_an_external_flow_sampler(monkeypatch):
+    """Claiming a valve that is already open externally must also cancel that
+    run's sampler. Otherwise its 15-s timer keeps ticking until the valve
+    happens to close, and the volume it measures is credited nowhere."""
+    zone = {
+        const.ZONE_ID: 2,
+        const.ZONE_FLOW_SENSOR: "sensor.flow",
+        const.ZONE_FLOW_COUNTER_TYPE: "lifetime",
+        const.ZONE_SIZE: 5.0,
+    }
+    coord = _sampler_coord(zone)
+    cancels = []
+    monkeypatch.setattr(
+        "custom_components.irrigation_plus.observed_watering.async_track_time_interval",
+        lambda *a, **k: (cancels.append(Mock()) or cancels[-1]),
+    )
+    coord._observed_zone_by_entity = {"valve.x": 2}
+    coord._si_driven_until = {}
+    coord.hass.loop.time = Mock(return_value=1000.0)
+    coord.zone_run_in_flight = Mock(return_value=False)
+    coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
+    assert 2 in coord._observed_meters()
+
+    coord._note_si_valve(2, 600)
+
+    cancels[0].assert_called_once()
+    assert coord._observed_meters() == {}
+    assert 2 not in coord._observed_on_since
+
+
 # --- Review hardening (adversarial review 2026-08-17) -----------------------
 
 
