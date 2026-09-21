@@ -151,6 +151,7 @@ from .const import (
     ZONE_DELTA,
     ZONE_DRAINAGE_RATE,
     ZONE_DURATION,
+    ZONE_EXPLANATION,
     ZONE_FLOW_CAL_ADVISED,
     ZONE_FLOW_CAL_SAMPLES,
     ZONE_FLOW_COUNTER_TYPE,
@@ -1147,6 +1148,10 @@ class SmartIrrigationStorage:
                             zone.get(ZONE_LAST_CALCULATED, None),
                         ),
                         last_updated=zone.get(ZONE_LAST_UPDATED, None),
+                        # The calculation writes this and the zone settings view
+                        # reads it back; left out here, every restart rebuilt the
+                        # zone without it and the next save made that permanent.
+                        explanation=zone.get(ZONE_EXPLANATION, None),
                         # Migration: existing zones have no recorded last
                         # irrigation until they next water.
                         last_irrigation=zone.get(ZONE_LAST_IRRIGATION, None),
