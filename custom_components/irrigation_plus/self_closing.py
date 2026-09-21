@@ -1084,6 +1084,21 @@ class SelfClosingMixin:
                     # _sc_schedule_cleanup, which fires it at once — correct,
                     # since such a run is past its whole grace.
                     elapsed = self._sc_elapsed(run.get(const.RUN_STARTED))
+                # The marker lived in memory only, so the restart dropped it, and
+                # nothing else re-takes it: _watch_observed_start is gated on a
+                # record with NO observed start, which a resumed run always has.
+                # Without this the observer is held off only to planned + grace
+                # where a normal dispatch holds it to planned + the margin, and an
+                # off -> on inside that difference credits the bucket for water
+                # this run already accounts for.
+                # The REMAINDER, not the cleanup's expression below: that one
+                # carries the grace and would overshoot by it. Passed raw, because
+                # a run resumed inside its grace has a NEGATIVE remainder and
+                # flooring it at 0 would over-extend the window instead - the
+                # mirror of what the metered runner's close-side re-notes prevent.
+                # siehe test_self_closing.py::
+                # test_resume_inside_the_grace_keeps_a_window_shorter_than_the_margin
+                self._note_si_valve(zone_id, planned - elapsed)
                 self._sc_schedule_cleanup(zone_id, planned + grace - elapsed)
                 # The valve subscription did not survive either, and without it
                 # the rest of this run is back to being timed blind. Re-adopt it

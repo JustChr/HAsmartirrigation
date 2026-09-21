@@ -2,6 +2,8 @@
 
 from unittest.mock import AsyncMock, Mock
 
+import pytest
+
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
@@ -492,6 +494,72 @@ async def test_resume_finalises_overdue_and_reschedules_partial():
 
     c._sc_finish_run.assert_awaited_once_with(1)
     c._sc_schedule_cleanup.assert_called_once_with(2, 500.0)
+
+
+async def test_resume_retakes_the_observed_suppression_window():
+    """After a restart the marker has to end where a normal dispatch would have
+    put it: start + planned + margin. The resume knows `elapsed`, so it re-takes
+    with the REMAINDER — handing it the neighbouring cleanup's expression would
+    overshoot by the finish grace, and adding the margin here would count it
+    twice."""
+    c = _coord()
+    c._si_driven_until = {}
+    c.hass.loop.time = Mock(return_value=1000.0)
+    c._watch_start = AsyncMock()  # a confirmed record re-adopts its watcher
+    run = {
+        const.RUN_ZONE_ID: 2,
+        const.RUN_STARTED: "2026-06-30T08:00:00+00:00",
+        const.RUN_PLANNED_SECONDS: 600.0,
+        const.RUN_MODE: const.WATERING_MODE_SERVICE,
+        const.RUN_WATCH_ENTITY: "binary_sensor.confirm",
+        const.RUN_LATENCY_MARGIN: 4,  # grace = settle 5 + 4 = 9
+    }
+    c.store.async_get_config = AsyncMock(
+        return_value={const.CONF_ACTIVE_VALVE_RUNS: [run]}
+    )
+    c._sc_elapsed = Mock(side_effect=[100.0, 100.0])
+
+    await c.async_resume_self_closing_runs()
+
+    assert c._si_driven_until[2] == pytest.approx(
+        1000.0 + 500.0 + SI_VALVE_SUPPRESS_MARGIN
+    )
+    # The cleanup keeps its own expression, which carries the grace. The two
+    # numbers differing by exactly the grace is the point.
+    c._sc_schedule_cleanup.assert_called_once_with(2, 509.0)
+
+
+async def test_resume_inside_the_grace_keeps_a_window_shorter_than_the_margin():
+    """A run resumed past its plan but still inside its finish grace has a
+    NEGATIVE remainder, and it has to be passed raw. Flooring it at 0 would
+    stretch the window past what a normal dispatch gives and swallow a genuine
+    external run afterwards — the mirror of what the two close-side re-notes in
+    the metered runner prevent."""
+    c = _coord()
+    c._si_driven_until = {}
+    c.hass.loop.time = Mock(return_value=1000.0)
+    c._watch_start = AsyncMock()
+    run = {
+        const.RUN_ZONE_ID: 3,
+        const.RUN_STARTED: "2026-06-30T08:00:00+00:00",
+        const.RUN_PLANNED_SECONDS: 600.0,
+        const.RUN_MODE: const.WATERING_MODE_SERVICE,
+        const.RUN_WATCH_ENTITY: "binary_sensor.confirm",
+        const.RUN_LATENCY_MARGIN: 4,
+    }
+    c.store.async_get_config = AsyncMock(
+        return_value={const.CONF_ACTIVE_VALVE_RUNS: [run]}
+    )
+    # 605 s in: past the plan, still inside the 9 s grace, so not finalised.
+    c._sc_elapsed = Mock(side_effect=[605.0])
+
+    await c.async_resume_self_closing_runs()
+
+    assert c._si_driven_until[3] == pytest.approx(
+        1000.0 - 5.0 + SI_VALVE_SUPPRESS_MARGIN
+    )
+    # Explicitly SHORTER than a bare margin: that is what a floor would destroy.
+    assert c._si_driven_until[3] < 1000.0 + SI_VALVE_SUPPRESS_MARGIN
 
 
 def test_is_self_closing_distinguishes_modes():
