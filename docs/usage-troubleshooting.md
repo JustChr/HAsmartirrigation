@@ -25,5 +25,38 @@ Here's a list of units:
 The reason we're using these units is consistency but also because the most-used module (PyETO) requires the data to be provided in these units (at least, that's what the limited documentation and code seem to imply).
 For those interested, [here's the function that does this most of the conversion in code (with the exception of the absolute to relative conversion for pressure)](https://github.com/JustChr/HAsmartirrigation/blob/7c206809ac35a686a16eb8b3b209d030a28463f7/custom_components/irrigation_plus/helpers.py#L115): 
 
+## Docker or Core: the container's time zone {#container-timezone}
+
+If you run Home Assistant in Docker, or as a Core install in a virtual environment, check that the
+container's time zone matches the one you set in Home Assistant. These are two separate settings,
+and nothing warns you when they disagree.
+
+Home Assistant OS and Supervised keep the two in step for you, so this cannot happen there — which
+is also why it is easy to miss.
+
+**The symptom:** the intra-day live estimate pulls away from the figure the nightly calculation
+commits, in the same direction every day and by roughly the same amount. On installs that use solar
+radiation, the radiation figures are off as well. Nothing errors, and the zone's **Last calculated**
+time looks perfectly normal.
+
+**The cause:** the integration records when it collected each weather reading. Those stamps are
+written in the container's time zone, while parts of the calculation read them in the zone you
+configured in Home Assistant. Where the two differ, every elapsed-time window is stretched or
+squeezed by the whole offset between them. At UTC+2 an hour that really passed is measured as three.
+
+**The fix:** start the container with `TZ` set to the same zone you chose under
+**Settings → System → General**. In a `docker-compose.yml`:
+
+```yaml
+environment:
+  - TZ=Europe/Berlin
+```
+
+or `-e TZ=Europe/Berlin` on a `docker run` command line. For a Core install, set `TZ` in the
+environment the Home Assistant process starts in. Restart Home Assistant afterwards.
+
+Readings already in the buffer keep the stamps they were written with, so the figures settle over
+the following day as the buffer turns over.
+
 > Main page: [Usage](usage.md)<br/>
 > Previous: [Automations](usage-automations.md)<br/>

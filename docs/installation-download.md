@@ -28,6 +28,7 @@ This integration is not in the default HACS catalogue. You need to add it as a c
 2. Go to **Settings → Devices & Services → Add Integration**
 3. Search for **Irrigation Plus** and click to add it
 4. Follow the wizard — the first step is [setting up a weather service](installation-weatherservice.md)
+5. If you run Home Assistant in **Docker** or as a **Core** install, set the container's `TZ` to the same time zone you use in Home Assistant — see [the troubleshooting note](usage-troubleshooting.md#container-timezone)
 
 > Main page: [Installation](installation.md)<br/>
 > Next: [Set up weather service](installation-weatherservice.md)
