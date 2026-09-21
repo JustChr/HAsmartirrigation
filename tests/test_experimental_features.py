@@ -325,6 +325,69 @@ def test_observed_long_run_flap_stays_suppressed(monkeypatch):
     assert 1 in coord._observed_on_since
 
 
+def test_si_dispatch_onto_an_already_open_valve_drops_the_external_window(monkeypatch):
+    """SI dispatching onto a valve a hand already opened leaves nothing for the
+    close edge to credit — the runner accounts for its own run.
+
+    The open edge is the observer's only gate, and it never fires here: the
+    entity is already "on", so there is no state transition to judge.
+    """
+    coord = _observer_coordinator(monkeypatch, loop_time=1000.0)
+    # The user opens the tap by hand: no SI run in flight, no suppression window.
+    coord._observed_state_changed(_event("switch.valve", "on", "off"))
+    assert 1 in coord._observed_on_since
+
+    # Hours later SI dispatches its own 10-minute run on the same valve.
+    coord._note_si_valve(1, 600)
+
+    # The valve finally goes off.
+    coord._observed_state_changed(_event("switch.valve", "off", "on"))
+
+    coord.hass.async_create_task.assert_not_called()
+
+
+def test_a_flap_after_the_takeover_credits_nothing(monkeypatch):
+    """`unavailable` is a CLOSE edge, so a Zigbee dropout mid-run would credit
+    the stretch since the external open — a partial double credit that needs no
+    particular ordering of the run's end and the valve's close."""
+    coord = _observer_coordinator(monkeypatch, loop_time=1000.0)
+    coord._observed_state_changed(_event("switch.valve", "on", "off"))
+    coord._note_si_valve(1, 600)
+
+    coord._observed_state_changed(_event("switch.valve", "unavailable", "on"))
+
+    coord.hass.async_create_task.assert_not_called()
+
+
+def test_the_takeover_drops_the_marker_for_a_string_zone_id(monkeypatch):
+    """Both marker dicts are keyed by int, and not every caller of
+    _note_si_valve normalises its id (irrigation.py does not, batch.py does).
+    A raw-key drop would silently miss."""
+    coord = _observer_coordinator(monkeypatch, loop_time=1000.0)
+    coord._observed_state_changed(_event("switch.valve", "on", "off"))
+    assert 1 in coord._observed_on_since
+
+    coord._note_si_valve("1", 600)
+
+    assert 1 not in coord._observed_on_since
+
+
+def test_the_takeover_does_not_outlive_the_tightened_window(monkeypatch):
+    """Regression pin for the unconditional drop. The two close-side re-notes
+    (_run_valve_metered, _irrigate_zone_flow_slot) call _note_si_valve with
+    run_seconds=0 to SHRINK the window so a genuine external open after the run
+    is tracked again. Dropping the marker there must not turn that into a
+    permanent block."""
+    coord = _observer_coordinator(monkeypatch, loop_time=1000.0)
+    coord._note_si_valve(1, 0)  # run end: window = now + SI_VALVE_SUPPRESS_MARGIN
+    assert coord._si_driven_until[1] == pytest.approx(1030.0)
+
+    coord.hass.loop.time = Mock(return_value=1031.0)
+    coord._observed_state_changed(_event("switch.valve", "on", "off"))
+
+    assert 1 in coord._observed_on_since
+
+
 def test_observed_close_schedules_credit(monkeypatch):
     """Closing a tracked valve schedules a bucket credit."""
     coord = _observer_coordinator(monkeypatch)

@@ -124,10 +124,22 @@ class IrrigationRunnerMixin:
         (on → unavailable → on) or reports "open" slowly mid-run stays suppressed
         for the entire run instead of only the first 30s.
         """
+        zid = int(zone_id)
         until = getattr(self, "_si_driven_until", None)
         if until is not None:
             window = (run_seconds or 0.0) + SI_VALVE_SUPPRESS_MARGIN
-            until[int(zone_id)] = self.hass.loop.time() + window
+            until[zid] = self.hass.loop.time() + window
+        # The open edge is the observer's ONLY gate, and a dispatch onto a valve
+        # a hand already opened produces no open edge at all - the state does not
+        # change, so the gate is never consulted and the external run's marker
+        # survives into this run. Drop it as the runner claims the valve.
+        # ``getattr`` for the same reason as ``_si_driven_until`` above: the
+        # runner-only test fixtures build the coordinator with __new__ and set
+        # neither. ``int`` because both marker dicts are keyed by int and not
+        # every caller normalises its zone id.
+        pending = getattr(self, "_observed_on_since", None)
+        if pending is not None:
+            pending.pop(zid, None)
 
     @staticmethod
     def _zone_target_bucket(zone: dict) -> float:
