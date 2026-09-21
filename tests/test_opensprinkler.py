@@ -14,6 +14,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
+import pytest
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
@@ -32,6 +33,7 @@ from custom_components.irrigation_plus.opensprinkler import (
     station_facts,
     zone_watch_entity,
 )
+from custom_components.irrigation_plus.irrigation import SI_VALVE_SUPPRESS_MARGIN
 from custom_components.irrigation_plus.run_window import concurrent_wall_clock
 
 STATION = "switch.front_south_station_enabled"
@@ -1369,3 +1371,34 @@ async def test_restart_mid_run_arms_from_after_the_master_settle(hass, freezer):
     assert zone_id == 2
     # The station stops at observed start + planned, whenever the timer is made.
     assert abs((remaining + elapsed_at_arm) - 600.0) < 0.5
+
+
+async def test_restart_mid_run_retakes_the_observed_suppression_window(hass, freezer):
+    """A station run that was already watering before the restart never gets its
+    marker back on its own: both call sites of ``_watch_observed_start`` are
+    gated on a record with NO observed start, and a resumed run always has one.
+
+    A station's finish grace is 0 -- its policy does not settle on the valve
+    window -- so ``zone_run_in_flight`` ends exactly at observed start + planned,
+    a full margin before a normal dispatch would have released the observer.
+    """
+    freezer.move_to("2026-08-04T12:03:00+00:00")
+    _publish(hass, running="on", program_id=99)
+    c = _coord(hass)
+    started = "2026-08-04T12:00:00+00:00"
+    c._runs = [
+        _run(
+            planned=600.0,
+            observed_start=started,
+            **{const.RUN_WATCH_ENTITY: RUNNING},
+        )
+    ]
+    c.store.get_zone = Mock(return_value=_zone())
+
+    await c.async_resume_self_closing_runs()
+
+    elapsed = (dt_util.utcnow() - dt_util.parse_datetime(started)).total_seconds()
+    window = c._si_driven_until[2] - c.hass.loop.time()
+    # Ends where a normal dispatch would have put it: observed start + planned,
+    # plus the marker's own margin.
+    assert window == pytest.approx(600.0 - elapsed + SI_VALVE_SUPPRESS_MARGIN, abs=0.5)

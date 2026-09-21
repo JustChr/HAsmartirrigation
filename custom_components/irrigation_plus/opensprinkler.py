@@ -670,6 +670,14 @@ class OpenSprinklerMixin:
             # backstop that far apart — the same shape as the service path
             # (#152); see self_closing.async_resume_self_closing_runs.
             elapsed = self._sc_elapsed(observed_start)
+            # Same reason as the service path: the marker lived in memory and
+            # the restart dropped it, and _watch_observed_start will not re-take
+            # it for a record that already carries an observed start - both its
+            # call sites are gated on that being absent. A station's grace is 0,
+            # so the observer would otherwise be free a full margin early.
+            # siehe test_opensprinkler.py::
+            # test_restart_mid_run_retakes_the_observed_suppression_window
+            self._note_si_valve(zone_id, planned - elapsed)
             self._sc_schedule_cleanup(zone_id, planned - elapsed)
             return
 
