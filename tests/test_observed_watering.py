@@ -515,7 +515,9 @@ async def test_si_takeover_cancels_an_external_flow_sampler(monkeypatch):
     coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
     assert 2 in coord._observed_meters()
 
-    coord._note_si_valve(2, 600)
+    # A string id, because _note_si_valve normalises and the meter dict is keyed
+    # by the store's int: a cancel on the raw id would silently miss.
+    coord._note_si_valve("2", 600)
 
     cancels[0].assert_called_once()
     assert coord._observed_meters() == {}
