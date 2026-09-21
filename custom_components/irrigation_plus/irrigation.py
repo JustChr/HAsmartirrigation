@@ -113,30 +113,65 @@ class IrrigationRunnerMixin:
     """
 
     def _note_si_valve(self, zone_id, run_seconds: float = 0.0) -> None:
-        """Flag that SI itself is opening this zone's valve.
+        """Claim this zone's valve for Irrigation Plus.
 
-        The observed-watering observer (ObservedWateringMixin) checks this so it
-        only credits the bucket for runs SI did NOT start (manual taps,
-        automations). No-op unless that experimental feature is wired up.
+        Two effects, because they are one statement: the runner drives this
+        valve now, so the observed-watering observer (ObservedWateringMixin)
+        must not credit the bucket for water the runner already accounts for.
 
-        ``run_seconds`` is how long this run/slot will hold the valve open; the
-        suppression window spans that plus a fixed grace, so a valve that flaps
-        (on → unavailable → on) or reports "open" slowly mid-run stays suppressed
-        for the entire run instead of only the first 30s.
+        1. Arm the suppression window. ``run_seconds`` is how long this run/slot
+           holds the valve open; the window spans that plus a fixed grace, so a
+           valve that flaps (on -> unavailable -> on) or reports "open" slowly
+           mid-run stays suppressed for the whole run instead of only the first
+           30s. The OPEN edge consults that window.
+        2. Discard any external-run marker for this zone, and its flow sampler.
+           The open edge is the observer's ONLY gate, and a dispatch onto a
+           valve a hand already opened produces no open edge: the state does not
+           change, so the gate is never consulted and the marker survives into
+           this run. The close edge decides on the marker alone, so it would
+           then credit the whole external+SI window on top of the run's own
+           credit.
+
+        Why here and not at the close edge: a close-edge test would have to ask
+        "is the runner driving this valve right now", and that question has two
+        answers. A valve held open past the run closes after the window has
+        lapsed -> the test says no, and credits the run's own water twice. A
+        valve that closes on time closes inside it -> the test says yes, and
+        silently discards a genuinely external prefix. At claim time the
+        question is "did the runner take this window over", which has one answer
+        and does not depend on timing. The distributor excludes the runner the
+        same way at its cycle claim, for the same reason.
+
+        NOT re-armed when the run ends. The external water before the takeover -
+        and, on a valve held open past the run, after it - is credited nowhere.
+        Deliberate: that under-credits, leaving the bucket low so the next run
+        waters more, the milder direction this module already chose for its
+        substituted ceiling (observed_watering._observed_capped_seconds).
+        Re-arming would have to reproduce BOTH halves of the open edge, marker
+        and sampler; with the marker alone a flow-sensor zone falls back to
+        time x throughput, which is the phantom-open class.
+
+        Unconditional, so it also runs at the two close-side re-notes
+        (``run_seconds=0``, after the runner's own turn_off). Those are no-ops:
+        the window still holds the whole run at that instant, so no external
+        open could have armed a marker in between. A ``run_seconds > 0`` gate
+        would be a branch with no reachable case.
+
+        siehe test_experimental_features.py::
+        test_si_dispatch_onto_an_already_open_valve_drops_the_external_window
+        und test_observed_watering.py::
+        test_si_takeover_cancels_an_external_flow_sampler
         """
         zid = int(zone_id)
         until = getattr(self, "_si_driven_until", None)
         if until is not None:
             window = (run_seconds or 0.0) + SI_VALVE_SUPPRESS_MARGIN
             until[zid] = self.hass.loop.time() + window
-        # The open edge is the observer's ONLY gate, and a dispatch onto a valve
-        # a hand already opened produces no open edge at all - the state does not
-        # change, so the gate is never consulted and the external run's marker
-        # survives into this run. Drop it as the runner claims the valve.
         # ``getattr`` for the same reason as ``_si_driven_until`` above: the
         # runner-only test fixtures build the coordinator with __new__ and set
         # neither. ``int`` because both marker dicts are keyed by int and not
-        # every caller normalises its zone id.
+        # every caller normalises its zone id (batch and self-closing do, the
+        # classic and rotating runners hand theirs through).
         pending = getattr(self, "_observed_on_since", None)
         if pending is not None:
             pending.pop(zid, None)
