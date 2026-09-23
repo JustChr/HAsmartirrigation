@@ -801,8 +801,8 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             # the tiers differ by a factor of three on the temperature range they
             # supply, so the live figure alone never says which one produced it.
             "forecast_tier": est.get("forecast_tier"),
-            # The weather entity the entity tier read, adopted or pinned; None on
-            # every other tier.
+            # The pinned weather entity the entity tier read; None on every
+            # other tier.
             "forecast_entity_id": est.get("forecast_entity_id"),
             # Why this sensor has no value, for the zones that have none: which
             # of the preconditions is missing, rather than an empty state and a

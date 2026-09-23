@@ -806,8 +806,10 @@
       },
       "forecast_entity": {
         "title": "Værvarselkilde for sanntidsbøtta",
-        "description": "En sone der modulen estimerer solstråling ut fra dagens temperaturspenn, trenger dagens maksimum og minimum før dagen er omme, så timene vinduet ennå ikke har nådd, fylles ut fra et værvarsel. En konfigurert værtjeneste leverer de timene selv. Uten en slik leverer en værenhet i Home Assistant dem i stedet; finnes heller ingen slik, brukes en reserve som bygges bare på tidligere døgn på dette stedet. Står feltet tomt, velges det automatisk en værenhet med værvarsel per time, den første etter enhets-id; å fylle inn en her låser i stedet en bestemt. Sensoren «Sanntidsbøtte» oppgir gjennom attributtet forecast_tier hvilken kilde som fylte timene, og gjennom forecast_entity_id hvilken enhet som ble lest. Værvarselet til enheten leses fra det dens egen integrasjon allerede har, høyst én gang hvert 15. minutt.",
-        "label": "Værenhet (valgfritt)"
+        "description": "En sone der modulen estimerer solstråling ut fra dagens temperaturspenn, trenger dagens maksimum og minimum før dagen er omme, så timene vinduet ennå ikke har nådd, fylles ut fra et værvarsel. En konfigurert værtjeneste leverer de timene selv. Uten en slik leverer værenheten som er valgt her, dem i stedet; finnes heller ingen slik, brukes en reserve som bygges bare på tidligere døgn på dette stedet. Ingen enhet leses før en er valgt her; uten værtjeneste gir det et bedre anslag å velge en. Sensoren «Sanntidsbøtte» oppgir gjennom attributtet forecast_tier hvilken kilde som fylte timene, og gjennom forecast_entity_id hvilken enhet som ble lest. Værvarselet til enheten leses fra det dens egen integrasjon allerede har, høyst én gang hvert 15. minutt.",
+        "label": "Værenhet (valgfritt)",
+        "suggestion": "Forslag: {entity}",
+        "use_suggestion": "Bruk den"
       },
       "continuous_updates": {
         "title": "Kontinuerlige sensoroppdateringer",

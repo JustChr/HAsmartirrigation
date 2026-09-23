@@ -67,6 +67,42 @@ describe("view-experimental forecast entity picker", () => {
     });
     expect(flatten(el.render())).toContain("weather.home");
   });
+
+  const off = {
+    observed_watering_enabled: false,
+    live_estimate_enabled: false,
+    distributors_enabled: false,
+  };
+  const states = {
+    "weather.zulu": { attributes: { supported_features: 3 } },
+    "weather.daily_only": { attributes: { supported_features: 1 } },
+    "weather.alpha": { attributes: { supported_features: 2 } },
+    "sensor.not_weather": { attributes: { supported_features: 2 } },
+  };
+
+  it("suggests an hourly-capable entity without selecting it", () => {
+    const el = make({ ...off, forecast_weather_entity: null });
+    el.hass.states = states;
+    const text = flatten(el.render());
+    // First hourly-capable weather entity by id; daily-only is passed over.
+    expect(text).toContain("Suggested: weather.alpha");
+    expect(text).toContain("Use it");
+    expect(el.config.forecast_weather_entity).toBeNull();
+  });
+
+  it("offers no suggestion once an entity is pinned", () => {
+    const el = make({ ...off, forecast_weather_entity: "weather.zulu" });
+    el.hass.states = states;
+    expect(flatten(el.render())).not.toContain("Suggested:");
+  });
+
+  it("offers no suggestion when no entity forecasts hourly", () => {
+    const el = make({ ...off, forecast_weather_entity: null });
+    el.hass.states = {
+      "weather.daily_only": { attributes: { supported_features: 1 } },
+    };
+    expect(flatten(el.render())).not.toContain("Suggested:");
+  });
 });
 
 describe("view-experimental distributors toggle", () => {

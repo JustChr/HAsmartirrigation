@@ -344,8 +344,10 @@
       },
       "forecast_entity": {
         "title": "Live-bucket forecast source",
-        "description": "A zone whose module estimates solar radiation from the day's temperature range needs the day's high and low before the day is over, so the hours the window has not reached yet are filled in from a forecast. A configured weather service supplies those hours itself. Without one, a Home Assistant weather entity supplies them instead; with neither, a fallback built from nothing but this site's own past days is used. Left empty, a weather entity offering an hourly forecast is chosen automatically, the first by entity id; naming one here pins that one instead. The Live bucket sensor reports which source filled the hours through its forecast_tier attribute and which entity it read through forecast_entity_id. The entity's forecast is read from what its own integration already holds, at most once every 15 minutes.",
-        "label": "Weather entity (optional)"
+        "description": "A zone whose module estimates solar radiation from the day's temperature range needs the day's high and low before the day is over, so the hours the window has not reached yet are filled in from a forecast. A configured weather service supplies those hours itself. Without one, the weather entity picked here supplies them; with neither, a fallback built from nothing but this site's own past days is used. Nothing is read until an entity is picked here, and on an install without a weather service picking one improves the estimate. The Live bucket sensor reports which source filled the hours through its forecast_tier attribute and which entity it read through forecast_entity_id. The entity's forecast is read from what its own integration already holds, at most once every 15 minutes.",
+        "label": "Weather entity (optional)",
+        "suggestion": "Suggested: {entity}",
+        "use_suggestion": "Use it"
       },
       "continuous_updates": {
         "title": "Continuous sensor updates",

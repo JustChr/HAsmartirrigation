@@ -137,6 +137,9 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
   private _renderForecastEntityCard(): TemplateResult {
     if (!this.hass || !this.config) return html``;
     const base = "panels.experimental.forecast_entity";
+    const suggested = this.config.forecast_weather_entity
+      ? undefined
+      : this._suggestedForecastEntity();
     return html`
       <ha-card header="${localize(`${base}.title`, this.hass.language)}">
         <div class="card-content description-text">
@@ -155,9 +158,45 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
                 this._saveForecastEntity(e.detail.value || null)}"
             ></ha-entity-picker>
           </div>
+          ${suggested
+            ? html`<div class="setting-row">
+                <label class="suggestion"
+                  >${localize(
+                    `${base}.suggestion`,
+                    this.hass.language,
+                    "{entity}",
+                    suggested,
+                  )}</label
+                >
+                <ha-button
+                  .disabled="${this._saving}"
+                  @click="${() => this._saveForecastEntity(suggested)}"
+                  >${localize(
+                    `${base}.use_suggestion`,
+                    this.hass.language,
+                  )}</ha-button
+                >
+              </div>`
+            : ""}
         </div>
       </ha-card>
     `;
+  }
+
+  /**
+   * A weather entity offering an hourly forecast, offered but never selected:
+   * reading one is opt-in. First by entity id, so the hint is stable.
+   */
+  private _suggestedForecastEntity(): string | undefined {
+    const states = this.hass?.states ?? {};
+    return Object.keys(states)
+      .filter(
+        (id) =>
+          id.startsWith("weather.") &&
+          // WeatherEntityFeature.FORECAST_HOURLY
+          (Number(states[id]?.attributes?.supported_features) & 2) !== 0,
+      )
+      .sort()[0];
   }
 
   private async _saveForecastEntity(value: string | null): Promise<void> {
@@ -354,6 +393,11 @@ export class SmartIrrigationViewExperimental extends SubscribeMixin(
         flex: 1;
         color: var(--primary-text-color);
         font-size: 0.9375rem;
+      }
+
+      .setting-row label.suggestion {
+        color: var(--secondary-text-color);
+        font-size: 0.875rem;
       }
 
       .setting-note {

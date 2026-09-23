@@ -92,10 +92,8 @@ CONF_LIVE_ESTIMATE_ENABLED = "live_estimate_enabled"
 CONF_DEFAULT_LIVE_ESTIMATE_ENABLED = False
 # A Home Assistant weather entity the live bucket's projection reads an hourly
 # forecast from: tier 2 of the fixed order (the configured weather service, then
-# this, then the site's own history). An OVERRIDE, not the switch that turns the
-# tier on — left None, a weather entity offering an hourly forecast is adopted
-# automatically (first by entity id, so the pick is stable across restarts). Set
-# it to an entity id to pin one, on an install with several of differing skill.
+# this, then the site's own history). Opt-in: left None, no entity is read and
+# the tier is skipped.
 CONF_FORECAST_WEATHER_ENTITY = "forecast_weather_entity"
 CONF_DEFAULT_FORECAST_WEATHER_ENTITY = None
 # Mechanical water distributors (Gardena-style indexing distributor): opt-in,

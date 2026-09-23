@@ -806,8 +806,10 @@
       },
       "forecast_entity": {
         "title": "Verwachtingsbron voor de live-emmer",
-        "description": "Een zone waarvan de module de zonnestraling uit het temperatuurbereik van de dag schat, heeft het maximum en minimum van de dag nodig voordat de dag om is; de uren die het venster nog niet heeft bereikt, worden daarom aangevuld uit een verwachting. Een ingestelde weerdienst levert die uren zelf. Zonder weerdienst levert een Home Assistant-weerentiteit ze; is die er ook niet, dan wordt een terugval gebruikt die alleen uit de eerdere dagen van deze locatie wordt opgebouwd. Blijft het veld leeg, dan wordt automatisch een weerentiteit met een uurlijkse verwachting gekozen, de eerste op entiteit-id; hier een invullen legt in plaats daarvan een bepaalde vast. De sensor ‘Live-emmer’ meldt via zijn attribuut forecast_tier welke bron de uren heeft ingevuld en via forecast_entity_id welke entiteit is gelezen. De verwachting van de entiteit wordt gelezen uit wat de eigen integratie al bijhoudt, hooguit eens per 15 minuten.",
-        "label": "Weerentiteit (optioneel)"
+        "description": "Een zone waarvan de module de zonnestraling uit het temperatuurbereik van de dag schat, heeft het maximum en minimum van de dag nodig voordat de dag om is; de uren die het venster nog niet heeft bereikt, worden daarom aangevuld uit een verwachting. Een ingestelde weerdienst levert die uren zelf. Zonder weerdienst levert de hier gekozen weerentiteit ze; is die er ook niet, dan wordt een terugval gebruikt die alleen uit de eerdere dagen van deze locatie wordt opgebouwd. Er wordt geen entiteit gelezen zolang hier geen is gekozen; zonder weerdienst verbetert het kiezen van een entiteit de schatting. De sensor ‘Live-emmer’ meldt via zijn attribuut forecast_tier welke bron de uren heeft ingevuld en via forecast_entity_id welke entiteit is gelezen. De verwachting van de entiteit wordt gelezen uit wat de eigen integratie al bijhoudt, hooguit eens per 15 minuten.",
+        "label": "Weerentiteit (optioneel)",
+        "suggestion": "Voorstel: {entity}",
+        "use_suggestion": "Gebruiken"
       },
       "continuous_updates": {
         "title": "Continue sensorupdates",

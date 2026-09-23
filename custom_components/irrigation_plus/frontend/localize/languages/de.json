@@ -806,8 +806,10 @@
       },
       "forecast_entity": {
         "title": "Vorhersagequelle für den Live-Eimer",
-        "description": "Eine Zone, deren Modul die Solarstrahlung aus der Temperaturspanne des Tages schätzt, braucht Höchst- und Tiefstwert des Tages, bevor der Tag vorbei ist; die Stunden, die das Zeitfenster noch nicht erreicht hat, werden deshalb aus einer Vorhersage ergänzt. Ein eingerichteter Wetterdienst liefert diese Stunden selbst. Ohne ihn liefert sie eine Home-Assistant-Wetterentität; fehlt auch diese, wird ein Rückfall verwendet, der allein aus den vergangenen Tagen dieses Standorts gebildet wird. Bleibt das Feld leer, wird automatisch eine Wetterentität mit stündlicher Vorhersage gewählt, die erste nach Entitäts-ID; ein Eintrag hier legt stattdessen eine bestimmte fest. Der Sensor „Live-Eimer“ gibt über sein Attribut forecast_tier an, welche Quelle die Stunden gefüllt hat, und über forecast_entity_id, welche Entität gelesen wurde. Die Vorhersage der Entität wird aus dem gelesen, was ihre eigene Integration bereits vorhält, höchstens einmal alle 15 Minuten.",
-        "label": "Wetterentität (optional)"
+        "description": "Eine Zone, deren Modul die Solarstrahlung aus der Temperaturspanne des Tages schätzt, braucht Höchst- und Tiefstwert des Tages, bevor der Tag vorbei ist; die Stunden, die das Zeitfenster noch nicht erreicht hat, werden deshalb aus einer Vorhersage ergänzt. Ein eingerichteter Wetterdienst liefert diese Stunden selbst. Ohne ihn liefert sie die hier gewählte Wetterentität; fehlt auch diese, wird ein Rückfall verwendet, der allein aus den vergangenen Tagen dieses Standorts gebildet wird. Solange hier keine Entität gewählt ist, wird keine gelesen; ohne Wetterdienst verbessert die Wahl einer Entität die Schätzung. Der Sensor „Live-Eimer“ gibt über sein Attribut forecast_tier an, welche Quelle die Stunden gefüllt hat, und über forecast_entity_id, welche Entität gelesen wurde. Die Vorhersage der Entität wird aus dem gelesen, was ihre eigene Integration bereits vorhält, höchstens einmal alle 15 Minuten.",
+        "label": "Wetterentität (optional)",
+        "suggestion": "Vorschlag: {entity}",
+        "use_suggestion": "Übernehmen"
       },
       "continuous_updates": {
         "title": "Kontinuierliche Sensoraktualisierungen",

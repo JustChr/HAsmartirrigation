@@ -41,6 +41,7 @@ different anchors for the two halves of the same balance is upstream issue #38,
 where precipitation was aggregated from a window the ET was not.
 """
 
+import asyncio
 import datetime
 import logging
 import time
@@ -127,6 +128,10 @@ REASON_NOT_COMPUTED = "not_computed_yet"
 # 3.5 h gap forecast_remainder tolerates, so the cache never serves a series the
 # coverage check would refuse fresh.
 FORECAST_ENTITY_TTL_SECONDS = 900
+# The read sits in front of a scheduled run and the end of every calculation, so
+# a slow or hung weather integration must not hold either. A cached forecast
+# answers in milliseconds; a timeout counts as a declined read.
+FORECAST_ENTITY_TIMEOUT_SECONDS = 10
 
 
 class _ForecastEntitySeries(NamedTuple):
@@ -325,46 +330,20 @@ class LiveEstimateMixin:
         return bool(features & WeatherEntityFeature.FORECAST_HOURLY)
 
     def _forecast_weather_entity(self):
-        """The weather entity the projection should read, or ``None``.
+        """The pinned weather entity, if it can forecast hourly, or ``None``.
 
-        The configured one where there is one -- it is an override, and pinning
-        an entity means that entity or nothing. Where the field is empty, one is
-        adopted automatically: a sensor-only install that never opens this
-        setting would otherwise sit on the self-contained tier at roughly twice
-        the residual, which is the gap the entity tier exists to close, and the
-        install that needs it most is the one least likely to go looking for a
-        switch.
-
-        Sorted by entity id and the first taken, NOT whichever the state machine
-        happens to yield first. The published live bucket is priced off this
-        choice, so a pick that reshuffled across a restart would move a figure
-        nobody changed anything to move, and leave no way to tell why.
+        Opt-in: an empty setting reads no entity at all, so an install that
+        updates and touches nothing makes no new call and keeps its figure.
         """
         configured = getattr(
             getattr(self.store, "config", None),
             const.CONF_FORECAST_WEATHER_ENTITY,
             None,
         )
-        if configured:
-            state = self.hass.states.get(configured)
-            return configured if self._offers_hourly_forecast(state) else None
-        # Defensive around the state machine itself, unlike the configured
-        # branch: this now runs on EVERY install rather than only where somebody
-        # filled the field in, and it runs before the per-zone reduction's own
-        # guard. An optional tier must not be able to take the whole refresh --
-        # and with it every zone's live bucket -- down with it.
-        try:
-            candidates = [
-                state.entity_id
-                for state in self.hass.states.async_all(WEATHER_DOMAIN)
-                if self._offers_hourly_forecast(state)
-            ]
-        except Exception as e:  # noqa: BLE001 — estimate must never raise
-            _LOGGER.debug("intraday: could not enumerate weather entities: %s", e)
+        if not configured:
             return None
-        if not candidates:
-            return None
-        return sorted(candidates)[0]
+        state = self.hass.states.get(configured)
+        return configured if self._offers_hourly_forecast(state) else None
 
     async def _weather_entity_temperatures(self):
         """``(entity_id, [(naive local datetime, temperature C)])``, or ``(None, None)``.
@@ -385,7 +364,7 @@ class LiveEstimateMixin:
 
         Declines on every unhappy path -- no entity to read, the entity gone or
         unavailable, no hourly forecast among its supported features, an empty or
-        unparseable series. The caller then falls to the self-contained tier and
+        unparseable series, a read that times out. The caller then falls to the self-contained tier and
         publishes that it did, so the failure mode is a weaker projection that
         says so rather than a fabricated one.
         """
@@ -414,13 +393,21 @@ class LiveEstimateMixin:
         if state is None:
             return None
         try:
-            response = await self.hass.services.async_call(
-                WEATHER_DOMAIN,
-                SERVICE_GET_FORECASTS,
-                {"entity_id": entity_id, "type": "hourly"},
-                blocking=True,
-                return_response=True,
+            async with asyncio.timeout(FORECAST_ENTITY_TIMEOUT_SECONDS):
+                response = await self.hass.services.async_call(
+                    WEATHER_DOMAIN,
+                    SERVICE_GET_FORECASTS,
+                    {"entity_id": entity_id, "type": "hourly"},
+                    blocking=True,
+                    return_response=True,
+                )
+        except TimeoutError:
+            _LOGGER.debug(
+                "intraday: weather.get_forecasts on %s timed out after %s s",
+                entity_id,
+                FORECAST_ENTITY_TIMEOUT_SECONDS,
             )
+            return None
         except Exception as e:  # noqa: BLE001 — estimate must never raise
             _LOGGER.debug("intraday: weather.get_forecasts failed: %s", e)
             return None
@@ -1163,11 +1150,7 @@ class LiveEstimateMixin:
             # tiers differ by a factor of three on the input they supply, so a
             # figure alone never says which one produced it.
             "forecast_tier": None,
-            # And, on the entity tier, WHICH entity that was. The entity is
-            # adopted automatically where none is configured, so naming it is the
-            # only thing that answers "why did this number move" from outside the
-            # process -- and it answers the same way whether the entity was
-            # adopted or pinned, which is what a reader needs. None on every
+            # And, on the entity tier, WHICH entity that was. None on every
             # other tier, where no entity supplied the series.
             "forecast_entity_id": None,
             # Why there is no estimate, for the zones that get none. Every exit

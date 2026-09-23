@@ -806,8 +806,10 @@
       },
       "forecast_entity": {
         "title": "Source de prévision pour le réservoir en direct",
-        "description": "Une zone dont le module estime le rayonnement solaire à partir de l'amplitude de température du jour a besoin du maximum et du minimum avant la fin de la journée ; les heures que la fenêtre n'a pas encore atteintes sont donc complétées par une prévision. Un service météo configuré fournit ces heures lui-même. À défaut, c'est une entité météo de Home Assistant qui les fournit ; sans elle non plus, un repli construit uniquement à partir des journées passées de ce site est utilisé. Laissé vide, une entité météo proposant une prévision horaire est choisie automatiquement, la première par identifiant d'entité ; en indiquer une ici en fixe une en particulier. Le capteur « Réservoir en direct » indique via son attribut forecast_tier quelle source a rempli les heures et via forecast_entity_id quelle entité a été lue. La prévision de l'entité est lue à partir de ce que son intégration détient déjà, au plus une fois toutes les 15 minutes.",
-        "label": "Entité météo (optionnel)"
+        "description": "Une zone dont le module estime le rayonnement solaire à partir de l'amplitude de température du jour a besoin du maximum et du minimum avant la fin de la journée ; les heures que la fenêtre n'a pas encore atteintes sont donc complétées par une prévision. Un service météo configuré fournit ces heures lui-même. À défaut, c'est l'entité météo choisie ici qui les fournit ; sans elle non plus, un repli construit uniquement à partir des journées passées de ce site est utilisé. Aucune entité n'est lue tant qu'aucune n'est choisie ici ; sans service météo, en choisir une améliore l'estimation. Le capteur « Réservoir en direct » indique via son attribut forecast_tier quelle source a rempli les heures et via forecast_entity_id quelle entité a été lue. La prévision de l'entité est lue à partir de ce que son intégration détient déjà, au plus une fois toutes les 15 minutes.",
+        "label": "Entité météo (optionnel)",
+        "suggestion": "Suggestion : {entity}",
+        "use_suggestion": "L'utiliser"
       },
       "continuous_updates": {
         "title": "Mises à jour continues des capteurs",

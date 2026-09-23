@@ -806,8 +806,10 @@
       },
       "forecast_entity": {
         "title": "Fonte di previsione per il secchio in tempo reale",
-        "description": "Una zona il cui modulo stima l'irradiamento solare dall'escursione termica del giorno ha bisogno del massimo e del minimo prima che il giorno finisca, perciò le ore che la finestra non ha ancora raggiunto vengono completate da una previsione. Un servizio meteo configurato fornisce quelle ore da sé. In sua assenza le fornisce un'entità meteo di Home Assistant; se manca anche questa, si usa un ripiego costruito solo sui giorni passati di questo sito. Se il campo resta vuoto viene scelta automaticamente un'entità meteo che offra una previsione oraria, la prima per identificatore di entità; indicarne una qui ne fissa invece una precisa. Il sensore «Secchio in tempo reale» indica tramite il suo attributo forecast_tier quale fonte abbia riempito le ore e tramite forecast_entity_id quale entità sia stata letta. La previsione dell'entità viene letta da ciò che la sua stessa integrazione già conserva, al massimo una volta ogni 15 minuti.",
-        "label": "Entità meteo (opzionale)"
+        "description": "Una zona il cui modulo stima l'irradiamento solare dall'escursione termica del giorno ha bisogno del massimo e del minimo prima che il giorno finisca, perciò le ore che la finestra non ha ancora raggiunto vengono completate da una previsione. Un servizio meteo configurato fornisce quelle ore da sé. In sua assenza le fornisce l'entità meteo scelta qui; se manca anche questa, si usa un ripiego costruito solo sui giorni passati di questo sito. Nessuna entità viene letta finché non se ne sceglie una qui; senza un servizio meteo, sceglierne una migliora la stima. Il sensore «Secchio in tempo reale» indica tramite il suo attributo forecast_tier quale fonte abbia riempito le ore e tramite forecast_entity_id quale entità sia stata letta. La previsione dell'entità viene letta da ciò che la sua stessa integrazione già conserva, al massimo una volta ogni 15 minuti.",
+        "label": "Entità meteo (opzionale)",
+        "suggestion": "Suggerita: {entity}",
+        "use_suggestion": "Usala"
       },
       "continuous_updates": {
         "title": "Aggiornamenti continui dei sensori",

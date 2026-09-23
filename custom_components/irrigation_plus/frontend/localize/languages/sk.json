@@ -806,8 +806,10 @@
       },
       "forecast_entity": {
         "title": "Zdroj predpovede pre živé vedro",
-        "description": "Zóna, ktorej modul odhaduje slnečné žiarenie z dennej teplotnej amplitúdy, potrebuje maximum a minimum dňa ešte pred jeho koncom, takže hodiny, ktoré okno zatiaľ nedosiahlo, sa doplnia z predpovede. Nakonfigurovaná poveternostná služba tieto hodiny dodá sama. Bez nej ich dodá poveternostná entita Home Assistant; ak chýba aj tá, použije sa náhrada zostavená len z minulých dní tejto lokality. Ak zostane pole prázdne, automaticky sa zvolí poveternostná entita s hodinovou predpoveďou, prvá podľa identifikátora entity; vyplnenie poľa namiesto toho určí konkrétnu. Senzor „Živé vedro“ cez atribút forecast_tier uvedie, ktorý zdroj hodiny doplnil, a cez forecast_entity_id, ktorá entita sa načítala. Predpoveď entity sa načíta z toho, čo už má jej vlastná integrácia, najviac raz za 15 minút.",
-        "label": "Poveternostná entita (voliteľné)"
+        "description": "Zóna, ktorej modul odhaduje slnečné žiarenie z dennej teplotnej amplitúdy, potrebuje maximum a minimum dňa ešte pred jeho koncom, takže hodiny, ktoré okno zatiaľ nedosiahlo, sa doplnia z predpovede. Nakonfigurovaná poveternostná služba tieto hodiny dodá sama. Bez nej ich dodá poveternostná entita zvolená tu; ak chýba aj tá, použije sa náhrada zostavená len z minulých dní tejto lokality. Kým tu nie je zvolená žiadna entita, žiadna sa nenačíta; bez poveternostnej služby zvolenie entity zlepší odhad. Senzor „Živé vedro“ cez atribút forecast_tier uvedie, ktorý zdroj hodiny doplnil, a cez forecast_entity_id, ktorá entita sa načítala. Predpoveď entity sa načíta z toho, čo už má jej vlastná integrácia, najviac raz za 15 minút.",
+        "label": "Poveternostná entita (voliteľné)",
+        "suggestion": "Návrh: {entity}",
+        "use_suggestion": "Použiť"
       },
       "continuous_updates": {
         "title": "Priebežné aktualizácie senzorov",

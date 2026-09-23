@@ -40,6 +40,7 @@ number -- a reimplementation of the balance in the test would agree with itself
 however the two paths drift.
 """
 
+import asyncio
 import datetime
 import math
 from datetime import timedelta
@@ -53,6 +54,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import live_estimate as live_estimate_module
 from custom_components.irrigation_plus.calcmodules.pyeto import (
     PyETO,
     SOLRAD_behavior,
@@ -2821,13 +2823,7 @@ def _register_weather_entity(
 
 
 def _register_weather_entities(hass, entity_ids, *, features=2, entries=None):
-    """Several weather entities behind one ``get_forecasts`` service.
-
-    The states are set in the order given, so a test can register them
-    counter-alphabetically and still expect the sorted pick -- which is the
-    claim, since the state machine's own order is not something the estimate may
-    depend on.
-    """
+    """Several weather entities behind one ``get_forecasts`` service."""
     calls = []
 
     async def _handle(call):
@@ -3017,31 +3013,24 @@ class TestTheWeatherEntityTierIsReachedAndNamed:
         assert calls == []
 
 
-class TestTheEntityIsAdoptedWithoutBeingConfigured:
-    """The install the entity tier exists for never opens the setting.
+class TestTheEntityIsReadOnlyWhenPinned:
+    """Reading a weather entity is opt-in. An install that updates and touches
+    nothing makes no new outbound call, and its live bucket does not move."""
 
-    Leaving the tier switched off until somebody picks an entity left exactly the
-    gap the tier exists to close: a sensor-only install sat on the self-contained
-    projection at roughly twice the residual, and the user with no weather
-    service is the least likely to go looking for a field that would fix it. So
-    the field is an override, and an entity is adopted where it is empty.
-    """
-
-    async def test_an_entity_is_adopted_where_the_field_is_empty(self, coordinator):
-        c, _store = coordinator
-        _register_weather_entities(
-            c.hass, ["weather.home"], entries=_forecast_entries()
+    async def test_an_empty_setting_reads_no_entity(self, coordinator):
+        c, store = coordinator
+        assert not store.config.forecast_weather_entity
+        calls = _register_weather_entities(
+            c.hass, ["weather.forecast_home"], entries=_forecast_entries()
         )
 
         inputs = await c._fetch_intraday_inputs()
 
-        assert inputs["hourly_forecast_tier"] == "entity"
-        assert inputs["hourly_forecast_entity_id"] == "weather.home"
-        assert len(inputs["hourly_forecast"]) == 30
+        assert calls == []
+        assert inputs["hourly_forecast_tier"] is None
+        assert inputs["hourly_forecast_entity_id"] is None
 
-    async def test_a_configured_entity_still_wins(self, coordinator):
-        """The override's semantics are unchanged: pinning one means that one,
-        not the one adoption would have reached for."""
+    async def test_the_pinned_entity_is_read(self, coordinator):
         c, store = coordinator
         _register_weather_entities(
             c.hass, ["weather.aaa_first", "weather.pinned"], entries=_forecast_entries()
@@ -3052,16 +3041,15 @@ class TestTheEntityIsAdoptedWithoutBeingConfigured:
 
         inputs = await c._fetch_intraday_inputs()
 
+        assert inputs["hourly_forecast_tier"] == "entity"
         assert inputs["hourly_forecast_entity_id"] == "weather.pinned"
 
-    async def test_a_pinned_entity_that_cannot_forecast_hourly_adopts_nothing(
+    async def test_a_pinned_entity_that_cannot_forecast_hourly_reads_nothing(
         self, coordinator
     ):
-        """An override is a pin, not a preference. Falling back to adoption
-        would price the bucket off an entity the user explicitly did not
-        choose, and the attribute would be the only trace."""
+        """A pin is not a preference: no other entity is read in its place."""
         c, store = coordinator
-        _register_weather_entities(
+        calls = _register_weather_entities(
             c.hass, ["weather.able"], entries=_forecast_entries()
         )
         c.hass.states.async_set(
@@ -3073,50 +3061,11 @@ class TestTheEntityIsAdoptedWithoutBeingConfigured:
 
         inputs = await c._fetch_intraday_inputs()
 
+        assert calls == []
         assert inputs["hourly_forecast_tier"] is None
         assert inputs["hourly_forecast_entity_id"] is None
 
-    async def test_the_pick_is_sorted_rather_than_whatever_arrived_first(
-        self, coordinator
-    ):
-        """Registration order must not decide it. A pick that reshuffled across a
-        restart would move the published live bucket with nothing configured
-        having changed, and leave nothing to explain it by."""
-        c, _store = coordinator
-        _register_weather_entities(
-            c.hass,
-            ["weather.zulu", "weather.mike", "weather.alpha"],
-            entries=_forecast_entries(),
-        )
-
-        assert c._forecast_weather_entity() == "weather.alpha"
-
-        for entity_id in ("weather.zulu", "weather.mike", "weather.alpha"):
-            c.hass.states.async_remove(entity_id)
-        _register_weather_entities(
-            c.hass,
-            ["weather.alpha", "weather.mike", "weather.zulu"],
-            entries=_forecast_entries(),
-        )
-
-        assert c._forecast_weather_entity() == "weather.alpha"
-
-    async def test_an_unavailable_candidate_is_passed_over(self, coordinator):
-        """Sorted first is not a reason to adopt an entity that cannot answer.
-        The next one that can is the honest pick, and it is still deterministic."""
-        c, _store = coordinator
-        _register_weather_entities(
-            c.hass, ["weather.alpha", "weather.bravo"], entries=_forecast_entries()
-        )
-        c.hass.states.async_set("weather.alpha", "unavailable", {})
-
-        inputs = await c._fetch_intraday_inputs()
-
-        assert inputs["hourly_forecast_entity_id"] == "weather.bravo"
-
-    async def test_the_adopted_entity_is_published_on_the_estimate(self, coordinator):
-        """Published whether adopted or pinned: a reader asking why the figure
-        moved should not have to know which of the two produced the entity."""
+    async def test_the_pinned_entity_is_published_on_the_estimate(self, coordinator):
         c, store = coordinator
         zone, module, instance = await _estimating_zone(c, store, 2.0)
         midday = ANCHOR + timedelta(hours=10)
@@ -3132,12 +3081,12 @@ class TestTheEntityIsAdoptedWithoutBeingConfigured:
                 now=midday,
                 forecast=_hourly_forecast(),
                 forecast_tier="entity",
-                forecast_entity="weather.adopted",
+                forecast_entity="weather.pinned",
             ),
         )
 
         assert est["forecast_tier"] == "entity"
-        assert est["forecast_entity_id"] == "weather.adopted"
+        assert est["forecast_entity_id"] == "weather.pinned"
 
     async def test_no_entity_is_named_where_the_entity_tier_did_not_supply(
         self, coordinator
@@ -3155,7 +3104,7 @@ class TestTheEntityIsAdoptedWithoutBeingConfigured:
                 module,
                 forecast=_hourly_forecast(),
                 forecast_tier="entity",
-                forecast_entity="weather.adopted",
+                forecast_entity="weather.pinned",
             ),
         )
 
@@ -3179,7 +3128,7 @@ class TestTheEntityIsAdoptedWithoutBeingConfigured:
                     now=midday,
                     forecast=_hourly_forecast(),
                     forecast_tier="entity",
-                    forecast_entity="weather.adopted",
+                    forecast_entity="weather.pinned",
                 ),
             )
         }
@@ -3188,7 +3137,46 @@ class TestTheEntityIsAdoptedWithoutBeingConfigured:
             c.hass, "sensor.si_live_deficit", zone
         )
 
-        assert sensor.extra_state_attributes["forecast_entity_id"] == "weather.adopted"
+        assert sensor.extra_state_attributes["forecast_entity_id"] == "weather.pinned"
+
+
+class TestAHungEntityDoesNotHoldTheRefresh:
+    """The refresh sits in front of a scheduled run and the end of every
+    calculation, so a weather integration that never answers must not stall it."""
+
+    async def test_a_hung_entity_times_out_and_is_not_asked_again(
+        self, coordinator, monkeypatch
+    ):
+        c, store = coordinator
+        monkeypatch.setattr(
+            live_estimate_module, "FORECAST_ENTITY_TIMEOUT_SECONDS", 0.05
+        )
+        calls = []
+
+        async def _hang(call):
+            calls.append(call)
+            await asyncio.sleep(3600)
+            return {}
+
+        c.hass.services.async_register(
+            "weather", "get_forecasts", _hang, supports_response=SupportsResponse.ONLY
+        )
+        c.hass.states.async_set(
+            "weather.forecast_home",
+            "sunny",
+            {"supported_features": 2, "temperature_unit": "°C"},
+        )
+        await store.async_update_config(
+            {const.CONF_FORECAST_WEATHER_ENTITY: "weather.forecast_home"}
+        )
+
+        inputs = await asyncio.wait_for(c._fetch_intraday_inputs(), timeout=2)
+
+        assert inputs["hourly_forecast_tier"] is None
+        assert inputs["hourly_forecast_entity_id"] is None
+        # Cached as declined, so the hung entity is asked at most once per TTL.
+        await asyncio.wait_for(c._fetch_intraday_inputs(), timeout=2)
+        assert len(calls) == 1
 
 
 class TestTheForecastReadIsCached:
@@ -3198,9 +3186,12 @@ class TestTheForecastReadIsCached:
     code rather than an assumption about everyone else's."""
 
     async def test_a_repeat_refresh_does_not_re_read_the_entity(self, coordinator):
-        c, _store = coordinator
+        c, store = coordinator
         calls = _register_weather_entities(
             c.hass, ["weather.home"], entries=_forecast_entries()
+        )
+        await store.async_update_config(
+            {const.CONF_FORECAST_WEATHER_ENTITY: "weather.home"}
         )
 
         first = await c._fetch_intraday_inputs()
@@ -3214,8 +3205,11 @@ class TestTheForecastReadIsCached:
     async def test_a_declined_read_is_cached_too(self, coordinator):
         """The entity that answers with nothing is precisely the one a re-ask a
         minute would cost the most against."""
-        c, _store = coordinator
+        c, store = coordinator
         calls = _register_weather_entities(c.hass, ["weather.home"], entries=[])
+        await store.async_update_config(
+            {const.CONF_FORECAST_WEATHER_ENTITY: "weather.home"}
+        )
 
         await c._fetch_intraday_inputs()
         inputs = await c._fetch_intraday_inputs()
@@ -3229,6 +3223,9 @@ class TestTheForecastReadIsCached:
         c, store = coordinator
         _register_weather_entities(
             c.hass, ["weather.alpha", "weather.bravo"], entries=_forecast_entries()
+        )
+        await store.async_update_config(
+            {const.CONF_FORECAST_WEATHER_ENTITY: "weather.alpha"}
         )
         first = await c._fetch_intraday_inputs()
         await store.async_update_config(
@@ -3244,15 +3241,15 @@ class TestTheForecastReadIsCached:
         """Nothing may release this on ``_config_updated``.
 
         That signal fires once per zone per ingestion flush, so clearing on it
-        discards the cache every flush and the entity is read once a minute
-        again -- which is exactly the polling the cache exists to prevent, and it
-        was measured on a running instance before this was asserted here. The
-        release mechanism is the entity-keyed read: a changed selection misses on
-        its own, and a configuration write can change nothing else about it.
+        would put the entity back on a once-a-minute read. A changed selection
+        misses on its own, because the cache is keyed on the entity id.
         """
-        c, _store = coordinator
+        c, store = coordinator
         calls = _register_weather_entities(
             c.hass, ["weather.home"], entries=_forecast_entries()
+        )
+        await store.async_update_config(
+            {const.CONF_FORECAST_WEATHER_ENTITY: "weather.home"}
         )
         await c._fetch_intraday_inputs()
 

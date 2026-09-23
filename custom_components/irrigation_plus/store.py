@@ -421,7 +421,7 @@ class Config:
     live_estimate_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_LIVE_ESTIMATE_ENABLED
     )
-    # Weather entity the live bucket's projection reads; empty adopts one.
+    # Weather entity the live bucket's projection reads; empty reads none.
     forecast_weather_entity = attr.ib(
         type=str, default=CONF_DEFAULT_FORECAST_WEATHER_ENTITY
     )

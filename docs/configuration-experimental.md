@@ -8,7 +8,7 @@ title: "Configuration: Experimental"
 > Previous: [Sensor group configuration](configuration-sensor-groups.md)<br/>
 > Next: [Distributors](configuration-distributors.md)
 
-The **Setup → Experimental** tab holds opt-in features that are **off by default** and still being refined — turn them on one at a time and keep an eye on things; you can switch them back off at any time without losing data. Two change how each zone's [bucket](how-it-works.md) is filled; a third gates the experimental [mechanical water distributor](configuration-distributors.md) support.
+The **Setup → Experimental** tab holds opt-in features that are **off by default** and still being refined — turn them on one at a time and keep an eye on things; you can switch them back off at any time without losing data. Two change how each zone's [bucket](how-it-works.md) is filled, one picks the forecast behind the *Live bucket* sensor, and a fourth gates the experimental [mechanical water distributor](configuration-distributors.md) support.
 
 The two bucket toggles are global (they apply to every zone) and take effect from the next calculation or watering event onward.
 
@@ -48,6 +48,14 @@ Notes:
 - Affects **scheduled** runs only. *Irrigate now* and flow-meter zones keep the daily gate (flow-meter zones deliver to a measured volume and credit the bucket from it).
 - **Keep `maximum bucket` ≥ roughly a day's ET** (the 24 mm default is fine). With several runs a day the stored bucket has to *bank* a full day's delivered water until the nightly calculation subtracts the day's ET once; if the maximum bucket is set very low, that banked water is clipped and the daily ledger can drift drier over time. Irrigation Plus logs a warning if you enable this with a small maximum bucket.
 - Your stored **bucket** value will swing **positive** during the day (banked irrigation) before the nightly calculation pulls it back — that's expected; the *Live bucket* sensor shows the true intra-day deficit.
+
+## Live-bucket forecast source
+
+Zones whose module estimates solar radiation from the day's temperature range need the day's high and low before the day is over, so the *Live bucket* sensor fills in the hours it has not reached yet from a forecast. A configured weather service supplies that forecast itself. Without one, pick a Home Assistant weather entity here and its hourly forecast is used instead. The card suggests the first weather entity that offers an hourly forecast, but nothing is selected until you choose it.
+
+Nothing is read until you pick an entity. On an install without a weather service, picking one improves the live bucket; left empty, the hours are filled from this site's own past days, which is less accurate.
+
+The sensor's `forecast_tier` attribute shows which source filled the hours, and `forecast_entity_id` names the entity it read. The forecast is read from what the weather integration already holds, at most once every 15 minutes.
 
 ## Mechanical water distributors
 
