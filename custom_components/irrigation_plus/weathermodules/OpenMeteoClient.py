@@ -44,7 +44,7 @@ OPENMETEO_URL = (
     "&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,precipitation"
     ",wind_speed_10m,shortwave_radiation,pressure_msl"
     "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
-    ",wind_speed_10m_max,shortwave_radiation_sum,dew_point_2m_mean,pressure_msl_mean"
+    ",wind_speed_10m_mean,shortwave_radiation_sum,dew_point_2m_mean,pressure_msl_mean"
     "&timezone=auto"
     "&wind_speed_unit=ms"
     "&forecast_days=7"
@@ -244,8 +244,8 @@ class OpenMeteoClient:
                     else 0.0
                 )
                 wind = (
-                    (daily.get("wind_speed_10m_max") or [])[i]
-                    if i < len(daily.get("wind_speed_10m_max", []))
+                    (daily.get("wind_speed_10m_mean") or [])[i]
+                    if i < len(daily.get("wind_speed_10m_mean", []))
                     else None
                 )
                 radiation_sum = (

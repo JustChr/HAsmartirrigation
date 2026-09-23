@@ -2,6 +2,7 @@
 
 import datetime
 import json
+import math
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -360,7 +361,7 @@ def _openmeteo_doc(site_today, utc_offset_seconds):
             "temperature_2m_max": "°C",
             "temperature_2m_min": "°C",
             "precipitation_sum": "mm",
-            "wind_speed_10m_max": "m/s",
+            "wind_speed_10m_mean": "m/s",
             "shortwave_radiation_sum": "MJ/m²",
             "dew_point_2m_mean": "°C",
             "pressure_msl_mean": "hPa",
@@ -370,7 +371,7 @@ def _openmeteo_doc(site_today, utc_offset_seconds):
             "temperature_2m_max": [22.0] * n_days,
             "temperature_2m_min": [12.0] * n_days,
             "precipitation_sum": [float(day.day) for day in days],
-            "wind_speed_10m_max": [4.0] * n_days,
+            "wind_speed_10m_mean": [4.0] * n_days,
             "shortwave_radiation_sum": [15.0] * n_days,
             "dew_point_2m_mean": [9.0] * n_days,
             "pressure_msl_mean": [1010.0] * n_days,
@@ -483,7 +484,7 @@ class TestOpenMeteoClientGetForecastData:
         client = OpenMeteoClient(latitude=52.52, longitude=13.41)
         doc = _openmeteo_doc(datetime.date(2024, 6, 1), 7200)
         # daily.time starts at 05-31, so index 3 is 06-03.
-        doc["daily"]["wind_speed_10m_max"][3] = None
+        doc["daily"]["wind_speed_10m_mean"][3] = None
         with (
             freeze_time("2024-06-01 10:00:00"),
             patch(_OPENMETEO_PATCH, return_value=_make_response(200, doc)),
@@ -526,6 +527,21 @@ class TestOpenMeteoClientForecastForPyETO:
         client = OpenMeteoClient(latitude=52.52, longitude=13.41)
         assert "dew_point_2m_mean" in client.url
         assert "pressure_msl_mean" in client.url
+
+    def test_the_daily_wind_is_the_mean_not_the_peak(self):
+        # FAO-56 prices a day on its mean wind, not its peak.
+        client = OpenMeteoClient(latitude=52.52, longitude=13.41)
+        assert "wind_speed_10m_mean" in client.url
+        assert "wind_speed_10m_max" not in client.url
+        doc = self._doc()
+        doc["daily"]["wind_speed_10m_max"] = [9.0] * len(doc["daily"]["time"])
+
+        data, _ = self._read(doc)
+
+        # 10 m to 2 m, FAO-56 eq. 47
+        assert data[0][MAPPING_WINDSPEED] == pytest.approx(
+            4.0 * 4.87 / math.log(67.8 * 10 - 5.42)
+        )
 
     def test_daily_pressure_is_reduced_to_the_station_like_the_hourly_one(self):
         doc = self._doc()
