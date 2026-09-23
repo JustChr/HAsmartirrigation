@@ -801,19 +801,11 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             # the tiers differ by a factor of three on the temperature range they
             # supply, so the live figure alone never says which one produced it.
             "forecast_tier": est.get("forecast_tier"),
-            # Which is why the measurement travels with it: the mean absolute
-            # error, in degrees Celsius, that this tier was found to carry on the
-            # day's temperature range -- the input the mirrored equation
-            # consumes. None where nothing was projected, since the residual
-            # there depends entirely on how much of the window is still to come.
+            # That tier's measured error on the day's temperature range, in C;
+            # None where nothing was projected.
             "forecast_tier_range_mae_c": est.get("forecast_tier_range_mae_c"),
-            # Which weather entity that tier read, where it was the entity tier.
-            # The entity is adopted automatically unless one is configured, so
-            # this is what makes a moved figure traceable to the source that
-            # moved it -- and it names the entity the same way whether it was
-            # adopted or pinned. None on every other tier: no entity supplied
-            # the hours, and naming a candidate that was not used would read as
-            # though one had been.
+            # The weather entity the entity tier read, adopted or pinned; None on
+            # every other tier.
             "forecast_entity_id": est.get("forecast_entity_id"),
             # Why this sensor has no value, for the zones that have none: which
             # of the preconditions is missing, rather than an empty state and a

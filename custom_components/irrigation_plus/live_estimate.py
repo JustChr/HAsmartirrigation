@@ -123,38 +123,19 @@ REASON_FAILED = "estimate_failed"
 # first refresh cycle. Distinct from every reason above, which are answers.
 REASON_NOT_COMPUTED = "not_computed_yet"
 
-# How long a weather entity's hourly forecast is reused before it is read again.
-#
-# ``weather.get_forecasts`` is served by the entity itself, so an integration
-# that fetches on demand would be asked once a minute for as long as the
-# estimate runs — the estimate would be polling an external API through a proxy.
-# Caching bounds that to one read per window below, as a property of this code
-# rather than an assumption about other integrations.
-#
-# Fifteen minutes costs no accuracy: an hourly forecast advertises hour-resolved
-# values and no product republishes them faster than hourly. It is also well
-# under the 3.5 h gap ``forecast_remainder`` tolerates between samples, so a
-# series that covered the window when it was read still covers it when it is
-# served — a cached series can never be one the coverage check would have
-# refused had it been fetched fresh.
+# How long a weather entity's forecast is reused. An integration that fetches on
+# demand would otherwise be asked once a minute; 15 minutes stays well inside the
+# 3.5 h gap forecast_remainder tolerates, so the cache never serves a series the
+# coverage check would refuse fresh.
 FORECAST_ENTITY_TTL_SECONDS = 900
 
 
 class _ForecastEntitySeries(NamedTuple):
-    """A weather entity's hourly temperatures, with what and when they are.
+    """A weather entity's hourly temperatures, tagged with the entity and read time.
 
-    Keyed on ``entity_id`` rather than held bare, so a changed selection — the
-    configured override arriving, or the auto-selected entity going unavailable
-    and another taking its place — misses instead of serving the previous
-    entity's series under the new entity's name.
-
-    That key is also why nothing subscribes to ``_config_updated`` to release
-    this, unlike the cached calc-module instances. The selection is re-resolved
-    on every read, so the only change a configuration write can make to it
-    already misses. Clearing on that signal would be worse than redundant: it
-    fires once per zone per ingestion flush, so the cache would be discarded
-    every flush and the entity read once a minute again -- measured on a running
-    instance as four reads in four minutes with the cache nominally in place.
+    Keyed on ``entity_id`` so a changed selection misses. Not cleared on
+    ``_config_updated``: that fires per zone per ingestion flush and would put the
+    entity back on a once-a-minute read.
     """
 
     entity_id: str

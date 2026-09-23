@@ -421,11 +421,7 @@ class Config:
     live_estimate_enabled = attr.ib(
         type=bool, default=CONF_DEFAULT_LIVE_ESTIMATE_ENABLED
     )
-    # Entity id of the weather entity the live bucket's projection imports an
-    # hourly forecast from. Same migration obligation as every key below: no
-    # setdefault in _async_migrate_func and the allowlist strip drops it on load,
-    # silently demoting every install that had picked one back to the
-    # self-contained tier.
+    # Weather entity the live bucket's projection reads; empty adopts one.
     forecast_weather_entity = attr.ib(
         type=str, default=CONF_DEFAULT_FORECAST_WEATHER_ENTITY
     )
@@ -839,10 +835,7 @@ class MigratableStore(Store):
                 ] = CONF_DEFAULT_HOURLY_CALCULATION
             if CONF_FIRED_OCCURRENCES not in data["config"]:
                 data["config"][CONF_FIRED_OCCURRENCES] = {}
-            # The live bucket's forecast entity: same obligation again. Absent
-            # here it is stripped on every load, and the tier attribute would
-            # report the self-contained projection on an install that had
-            # configured an entity.
+            # Same obligation again: without it the key is stripped on load.
             if CONF_FORECAST_WEATHER_ENTITY not in data["config"]:
                 data["config"][
                     CONF_FORECAST_WEATHER_ENTITY

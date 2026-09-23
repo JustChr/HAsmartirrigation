@@ -58,25 +58,9 @@ TIER_SELF_CONTAINED = "self_contained"
 # has closed, in which case this is the exact answer, or no source could fill it.
 TIER_OBSERVED = "observed"
 
-# What each tier is worth, as mean absolute error in degrees Celsius on the day's
-# temperature RANGE -- the input the mirrored equation actually consumes, and the
-# quantity every measurement in this area was taken on. Published beside the tier
-# so the figure carries its own error bar rather than leaving a reader to infer
-# one from a tier name.
-#
-# The two forecast-backed tiers share a number because they share a construction:
-# both compose the window from an hourly series, so the residual is the imported
-# forecast's own error and nothing the composition adds. It is stated at the
-# worse of the two window anchors measured (1.34 C six hours into a decision-point
-# window, against 0.89 C at a 02:00 one), and the whole-year sweep behind it used
-# an archived model forecast for both. No real weather entity's payload has been
-# measured, so the entity tier's figure is inherited rather than observed, and
-# products differ.
-#
-# The self-contained figure is that tier's own measurement over the same year,
-# again at the worse anchor. It is roughly twice the forecast-backed tiers and
-# was accepted deliberately, since the alternative for an install with no
-# forecast at all is reading the extremes off the morning, which runs 6.9 C.
+# Measured MAE, in C, of each tier on the day's temperature range, published so
+# the figure carries its own error bar. Both forecast tiers take the service
+# sweep's worse anchor; no weather entity has been measured directly.
 TIER_RANGE_MAE_C = {
     TIER_SERVICE: 1.3,
     TIER_ENTITY: 1.3,
