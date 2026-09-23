@@ -1610,7 +1610,7 @@ class TestTheEstimatePricesTheDayOfItsWindow:
         # ``now``, so the composition has no remaining hours to fill in and the
         # extremes pass through as given -- this test is only about which day
         # they get priced for.
-        total, _tier, _mae = c._composed_day_et(
+        total, _tier = c._composed_day_et(
             zone,
             {const.MAPPING_MIN_TEMP: low, const.MAPPING_MAX_TEMP: high},
             {},
@@ -3416,6 +3416,31 @@ class TestTheTierResidualIsPublished:
         _implied, est = _implied_daily(
             c, store, zone, module, instance, ANCHOR + timedelta(hours=6), None
         )
+
+        assert est["forecast_tier"] == "self_contained"
+        assert est["forecast_tier_range_mae_c"] == 2.7
+
+    async def test_a_series_with_no_tier_is_not_credited_to_a_forecast(
+        self, coordinator
+    ):
+        """A series arriving without its tier has unknown provenance, so it is not
+        composed under a forecast tier; the self-contained one fills in."""
+        c, store = coordinator
+        zone, module, instance = await _estimating_zone(c, store, 2.0)
+        await store.async_update_mapping(
+            zone[const.ZONE_MAPPING],
+            {const.MAPPING_TEMPERATURE_AMPLITUDES: [["2026-05-21", 14.0]]},
+        )
+        morning = ANCHOR + timedelta(hours=6)
+        store.set_mapping_buffer(
+            zone[const.ZONE_MAPPING], _observed_rows(_diurnal_readings(), morning)
+        )
+        inputs = _estimating_inputs(
+            instance, module, now=morning, forecast=_hourly_forecast()
+        )
+        inputs["hourly_forecast_tier"] = None
+
+        est = c._intraday_for_zone(zone, inputs)
 
         assert est["forecast_tier"] == "self_contained"
         assert est["forecast_tier_range_mae_c"] == 2.7

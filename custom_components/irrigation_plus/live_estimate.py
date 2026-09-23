@@ -826,7 +826,7 @@ class LiveEstimateMixin:
         return None if value is None else float(value)
 
     def _projected_extremes(self, zone, agg, inputs, *, now, window_end, geometry):
-        """``(tmin, tmax, tier, range_mae)`` for the window, off the composition.
+        """``(tmin, tmax, tier)`` for the window, off the composition.
 
         Observed so far, extended over the hours the window has not reached, with
         the extremes taken from the two together. The remainder shrinks to
@@ -838,19 +838,11 @@ class LiveEstimateMixin:
         arrive already resolved on ``inputs``, since the series is fetched once
         for the whole refresh rather than once per zone; only the self-contained
         one is per-zone, because its amplitude is the zone's sensor group's.
-
-        ``range_mae`` is what the chosen tier was measured to be worth on the
-        day's temperature range, so the published figure carries its own error
-        bar. It is None on the observed tier and only there: with hours left to
-        fill, nothing filled them and the residual then runs from 9 C two hours
-        into a window to under 2 C twelve hours in, which no single figure
-        states honestly; with none left, the extremes are the commit's own and
-        there is no projection to attach an error to.
         """
         low = agg.get(const.MAPPING_MIN_TEMP)
         high = agg.get(const.MAPPING_MAX_TEMP)
         if low is None or high is None:
-            return None, None, None, None
+            return None, None, None
 
         # The series and its tier are resolved together, so a series arriving
         # without one means the resolver was bypassed and the provenance is
@@ -887,10 +879,10 @@ class LiveEstimateMixin:
             # against each other with.
             remainder, tier = [], TIER_OBSERVED
         low, high = compose_extremes(float(low), float(high), remainder)
-        return low, high, tier, TIER_RANGE_MAE_C.get(tier)
+        return low, high, tier
 
     def _composed_day_et(self, zone, agg, inputs, *, anchor, now, geometry, modinst):
-        """``(day_total_mm, tier, range_mae)`` for the window's whole day, or None.
+        """``(day_total_mm, tier)`` for the window's whole day, or None.
 
         The composition every projection of a day-level quantity starts from:
         the observed part as it stands, the hours still to come filled in from
@@ -904,7 +896,7 @@ class LiveEstimateMixin:
         """
         if not agg:
             return None
-        low, high, tier, range_mae = self._projected_extremes(
+        low, high, tier = self._projected_extremes(
             zone,
             agg,
             inputs,
@@ -947,7 +939,6 @@ class LiveEstimateMixin:
                     low, high, geometry.latitude, window_day.timetuple().tm_yday
                 ),
                 tier,
-                range_mae,
             )
         projected = {
             **agg,
@@ -970,10 +961,10 @@ class LiveEstimateMixin:
             return None
         # ``delta`` is the daily equation's own sign convention: negative for a
         # loss. The estimate carries evapotranspiration as a positive quantity.
-        return max(0.0, -float(delta)), tier, range_mae
+        return max(0.0, -float(delta)), tier
 
     def _daily_mirror_et(self, zone, agg, inputs, *, anchor, now, geometry):
-        """``(et_mm, tier, range_mae)`` from the zone's OWN daily equation, or None.
+        """``(et_mm, tier)`` from the zone's OWN daily equation, or None.
 
         The whole point: a zone that estimates solar radiation gets a live
         bucket computed with the equation its commit runs, rather than one
@@ -1009,7 +1000,7 @@ class LiveEstimateMixin:
         multiplier = agg.get(const.MAPPING_DATA_MULTIPLIER)
         if multiplier is None:
             return None
-        return day[0] * float(multiplier), day[1], day[2]
+        return day[0] * float(multiplier), day[1]
 
     def _buffer_water_steps(
         self, zone, anchor, *, now, hourly_et, precip_total, applied
@@ -1270,7 +1261,6 @@ class LiveEstimateMixin:
             )
             hourly_et = None
             forecast_tier = None
-            forecast_tier_range_mae = None
             forecast_entity_id = None
             # Reduced once and shared: the mirrored daily equation reads its
             # day-level inputs from this, and the precipitation trace is the same
@@ -1302,7 +1292,7 @@ class LiveEstimateMixin:
                 # temperature range. Its commit runs the daily equation, so the
                 # estimate runs the same one over the composed window rather than
                 # a different equation whose answer is then compared against it.
-                et_mm, forecast_tier, forecast_tier_range_mae = mirrored
+                et_mm, forecast_tier = mirrored
                 # Named only where the entity tier is the one that filled the
                 # hours. The series is resolved for the whole refresh, so it can
                 # be present on ``inputs`` while this zone's window had no hours
@@ -1497,7 +1487,8 @@ class LiveEstimateMixin:
                 as_of=as_of,
                 balance_form="replayed" if steps is not None else "lumped",
                 forecast_tier=forecast_tier,
-                forecast_tier_range_mae_c=forecast_tier_range_mae,
+                # None on the observed tier: no projection, so no error to state.
+                forecast_tier_range_mae_c=TIER_RANGE_MAE_C.get(forecast_tier),
                 unavailable_reason=None,
                 forecast_entity_id=forecast_entity_id,
             )
@@ -1729,7 +1720,7 @@ class LiveEstimateMixin:
             )
             if day is None:
                 return projected
-            day_total_mm, tier, _range_mae = day
+            day_total_mm, tier = day
             kc = zone.get(const.ZONE_KC, const.CONF_DEFAULT_KC)
             if kc is None:
                 kc = const.CONF_DEFAULT_KC
