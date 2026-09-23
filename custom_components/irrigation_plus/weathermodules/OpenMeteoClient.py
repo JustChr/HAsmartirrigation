@@ -44,7 +44,7 @@ OPENMETEO_URL = (
     "&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,precipitation"
     ",wind_speed_10m,shortwave_radiation,pressure_msl"
     "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
-    ",wind_speed_10m_max,shortwave_radiation_sum"
+    ",wind_speed_10m_max,shortwave_radiation_sum,dew_point_2m_mean,pressure_msl_mean"
     "&timezone=auto"
     "&wind_speed_unit=ms"
     "&forecast_days=7"
@@ -253,6 +253,16 @@ class OpenMeteoClient:
                     if i < len(daily.get("shortwave_radiation_sum", []))
                     else None
                 )
+                dewpoint = (
+                    (daily.get("dew_point_2m_mean") or [])[i]
+                    if i < len(daily.get("dew_point_2m_mean", []))
+                    else None
+                )
+                pressure = (
+                    (daily.get("pressure_msl_mean") or [])[i]
+                    if i < len(daily.get("pressure_msl_mean", []))
+                    else None
+                )
 
                 if None in (max_temp, min_temp, wind):
                     continue
@@ -281,6 +291,11 @@ class OpenMeteoClient:
                 }
                 if radiation_sum is not None:
                     day[MAPPING_SOLRAD] = radiation_sum
+                # PyETO books a day without these as zero loss.
+                if dewpoint is not None:
+                    day[MAPPING_DEWPOINT] = dewpoint
+                if pressure is not None:
+                    day[MAPPING_PRESSURE] = self._abs_pressure(pressure)
 
                 result.append(day)
 
