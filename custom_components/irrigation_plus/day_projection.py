@@ -20,7 +20,7 @@ Three sources for the remainder, in a fixed order:
   the morning at a small-hours anchor and 1.3 C at a late-evening one, against
   7.9 C for reading the extremes off the observation alone.
 * **a Home Assistant weather entity's hourly forecast**, for an install with no
-  weather service of its own -- which is most sensor-only installs. Composed by
+  weather service of its own. Composed by
   the same :func:`forecast_remainder`, because an hour of forecast temperature
   is the same input whoever supplied it; only the tier published alongside
   differs, since the two products' own skill does.
@@ -57,15 +57,6 @@ TIER_SELF_CONTAINED = "self_contained"
 # Nothing was projected: the extremes are the observed ones. Either the window
 # has closed, in which case this is the exact answer, or no source could fill it.
 TIER_OBSERVED = "observed"
-
-# Measured MAE, in C, of each tier on the day's temperature range, published so
-# the figure carries its own error bar. Both forecast tiers take the service
-# sweep's worse anchor; no weather entity has been measured directly.
-TIER_RANGE_MAE_C = {
-    TIER_SERVICE: 1.3,
-    TIER_ENTITY: 1.3,
-    TIER_SELF_CONTAINED: 2.7,
-}
 
 # Thermal lag from solar noon to the day's warmest moment. The air lags the
 # radiation; the same 2.5 h places the peak where the phase gate of the

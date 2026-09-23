@@ -79,7 +79,6 @@ from .day_projection import (
     MAX_REMAINDER_HOURS,
     TIER_ENTITY,
     TIER_OBSERVED,
-    TIER_RANGE_MAE_C,
     TIER_SELF_CONTAINED,
     TIER_SERVICE,
     compose_extremes,
@@ -1171,9 +1170,6 @@ class LiveEstimateMixin:
             # adopted or pinned, which is what a reader needs. None on every
             # other tier, where no entity supplied the series.
             "forecast_entity_id": None,
-            # And what that tier was measured to be worth, so the gap is stated
-            # rather than left to be inferred from the tier's name.
-            "forecast_tier_range_mae_c": None,
             # Why there is no estimate, for the zones that get none. Every exit
             # below sets one, so an operator who turned ``live_estimate_enabled``
             # on and sees an empty sensor is told which precondition is missing
@@ -1468,8 +1464,6 @@ class LiveEstimateMixin:
                 as_of=as_of,
                 balance_form="replayed" if steps is not None else "lumped",
                 forecast_tier=forecast_tier,
-                # None on the observed tier: no projection, so no error to state.
-                forecast_tier_range_mae_c=TIER_RANGE_MAE_C.get(forecast_tier),
                 unavailable_reason=None,
                 forecast_entity_id=forecast_entity_id,
             )

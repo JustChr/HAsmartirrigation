@@ -3383,29 +3383,11 @@ class TestTheEntityTierAgreesWithTheCommit:
         assert abs(composed - target) < abs(self_contained - target)
 
 
-class TestTheTierResidualIsPublished:
-    """What each tier is worth, stated beside the figure. The tiers differ by a
-    factor of three on the input they supply, and a bucket reading carries no
-    error bar of its own, so a reader has nothing else to weigh it with."""
+class TestTheTierIsPublished:
+    """Which source filled the hours the window has not reached, stated beside
+    the figure, since the live bucket alone never says."""
 
-    async def test_a_forecast_backed_tier_states_its_measured_residual(
-        self, coordinator
-    ):
-        c, store = coordinator
-        zone, module, instance = await _estimating_zone(c, store, 2.0)
-        _implied, est = _implied_daily(
-            c,
-            store,
-            zone,
-            module,
-            instance,
-            ANCHOR + timedelta(hours=6),
-            _hourly_forecast(),
-        )
-
-        assert est["forecast_tier_range_mae_c"] == 1.3
-
-    async def test_the_self_contained_tier_states_its_larger_one(self, coordinator):
+    async def test_the_self_contained_tier_is_named(self, coordinator):
         c, store = coordinator
         zone, module, instance = await _estimating_zone(c, store, 2.0)
         await store.async_update_mapping(
@@ -3418,7 +3400,6 @@ class TestTheTierResidualIsPublished:
         )
 
         assert est["forecast_tier"] == "self_contained"
-        assert est["forecast_tier_range_mae_c"] == 2.7
 
     async def test_a_series_with_no_tier_is_not_credited_to_a_forecast(
         self, coordinator
@@ -3443,12 +3424,8 @@ class TestTheTierResidualIsPublished:
         est = c._intraday_for_zone(zone, inputs)
 
         assert est["forecast_tier"] == "self_contained"
-        assert est["forecast_tier_range_mae_c"] == 2.7
 
-    async def test_nothing_projected_states_no_residual(self, coordinator):
-        """With hours left to fill and nothing filling them the residual runs
-        from 9 C early in a window to under 2 C late in one, and with none left
-        there is no projection to attach an error to. Neither is a number."""
+    async def test_nothing_to_fill_the_hours_with_is_named_observed(self, coordinator):
         c, store = coordinator
         zone, module, instance = await _estimating_zone(c, store, 2.0)
 
@@ -3457,9 +3434,8 @@ class TestTheTierResidualIsPublished:
         )
 
         assert est["forecast_tier"] == "observed"
-        assert est["forecast_tier_range_mae_c"] is None
 
-    async def test_the_sensor_publishes_the_residual(self, coordinator):
+    async def test_the_sensor_publishes_the_tier(self, coordinator):
         c, store = coordinator
         zone, module, instance = await _estimating_zone(c, store, 2.0)
         midday = ANCHOR + timedelta(hours=10)
@@ -3485,9 +3461,9 @@ class TestTheTierResidualIsPublished:
         )
 
         assert sensor.extra_state_attributes["forecast_tier"] == "entity"
-        assert sensor.extra_state_attributes["forecast_tier_range_mae_c"] == 1.3
+        assert "forecast_tier_range_mae_c" not in sensor.extra_state_attributes
 
-    async def test_a_buffer_sourced_zone_states_neither(self, coordinator):
+    async def test_a_buffer_sourced_zone_names_no_tier(self, coordinator):
         """It projects nothing at all: its accrued charge is fully observable."""
         c, store = coordinator
         zone = await _zone(c, store, 2.0, rain_at={20: 14.0})
@@ -3496,4 +3472,3 @@ class TestTheTierResidualIsPublished:
 
         assert est["method"] == "hourly_sensor"
         assert est["forecast_tier"] is None
-        assert est["forecast_tier_range_mae_c"] is None

@@ -801,9 +801,6 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             # the tiers differ by a factor of three on the temperature range they
             # supply, so the live figure alone never says which one produced it.
             "forecast_tier": est.get("forecast_tier"),
-            # That tier's measured error on the day's temperature range, in C;
-            # None where nothing was projected.
-            "forecast_tier_range_mae_c": est.get("forecast_tier_range_mae_c"),
             # The weather entity the entity tier read, adopted or pinned; None on
             # every other tier.
             "forecast_entity_id": est.get("forecast_entity_id"),
