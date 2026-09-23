@@ -109,6 +109,16 @@ MAPPING_SOLRAD = "Solar Radiation"
 MAPPING_TEMPERATURE = "Temperature"
 MAPPING_WINDSPEED = "Windspeed"
 
+# What ``calculate_et_for_day`` refuses a day without. The live estimate reads it
+# too, to decline a forecast day this equation would book as zero loss.
+DAILY_FORM_FIELDS = (
+    MAPPING_DEWPOINT,
+    MAPPING_MIN_TEMP,
+    MAPPING_MAX_TEMP,
+    MAPPING_WINDSPEED,
+    MAPPING_PRESSURE,
+)
+
 SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_PYETO_COASTAL, default=DEFAULT_COASTAL): vol.Coerce(
@@ -290,13 +300,7 @@ class PyETO(SmartIrrigationCalculationModule):
             wind_m_s = weather_data.get(MAPPING_WINDSPEED)
             atmos_pres = weather_data.get(MAPPING_PRESSURE)
             sol_rad = weather_data.get(MAPPING_SOLRAD)
-            if (
-                tdew is not None
-                and temp_c_min is not None
-                and temp_c_max is not None
-                and wind_m_s is not None
-                and atmos_pres is not None
-            ):
+            if all(weather_data.get(field) is not None for field in DAILY_FORM_FIELDS):
                 if day is None:
                     day = datetime.date.today()
                 day_of_year = day.timetuple().tm_yday

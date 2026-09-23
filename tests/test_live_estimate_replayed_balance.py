@@ -43,6 +43,7 @@ however the two paths drift.
 import asyncio
 import datetime
 import math
+import zoneinfo
 from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
 
@@ -1283,6 +1284,7 @@ def _estimating_inputs(
     forecast=None,
     forecast_tier=None,
     forecast_entity=None,
+    daily_forecast=None,
 ):
     """A sensor-only install whose zone runs the daily form.
 
@@ -1295,6 +1297,7 @@ def _estimating_inputs(
     every case predating the weather-entity tier reads the same as before.
     """
     inputs = _inputs(now)
+    inputs["forecast"] = daily_forecast
     # ``_inputs`` declares a zero UTC offset, but the shared fixture's site
     # timezone is whatever Home Assistant defaults to under pytest, and the
     # projection resolves the offset from that in preference to the scalar --
@@ -1310,7 +1313,7 @@ def _estimating_inputs(
     return inputs
 
 
-async def _committed_daily_et(c, zone, now=WINDOW_END):
+async def _committed_daily_et(c, zone, now=WINDOW_END, forecast=None):
     """The whole-window evapotranspiration the commit books, in mm.
 
     Priced for the day ``calculate_module`` prices it for: ``weather_day`` of
@@ -1320,11 +1323,18 @@ async def _committed_daily_et(c, zone, now=WINDOW_END):
     weatherdata, _ = await c._aggregate_for_zone(zone, now=now)
     instance = await c.getModuleInstanceByID(zone[const.ZONE_MODULE])
     day = weather_day(as_datetime(zone.get(const.ZONE_LAST_CONSUMED)), now)
-    delta = instance.calculate(weather_data=weatherdata, forecast_data=None, day=day)
+    delta = instance.calculate(
+        weather_data=weatherdata,
+        forecast_data=forecast,
+        day=day,
+        forecast_first_day=now.date() + timedelta(days=1),
+    )
     return -delta * (weatherdata.get(const.MAPPING_DATA_MULTIPLIER) or 1.0)
 
 
-def _implied_daily(c, store, zone, module, instance, now, forecast, *, cold_tail=False):
+def _implied_daily(
+    c, store, zone, module, instance, now, forecast, *, cold_tail=False, daily=None
+):
     """The whole-window figure the estimate's projection is claiming.
 
     The estimate charges the elapsed share; dividing it back out recovers the day
@@ -1336,7 +1346,10 @@ def _implied_daily(c, store, zone, module, instance, now, forecast, *, cold_tail
         _observed_rows(_diurnal_readings(cold_tail=cold_tail), now),
     )
     est = c._intraday_for_zone(
-        zone, _estimating_inputs(instance, module, now=now, forecast=forecast)
+        zone,
+        _estimating_inputs(
+            instance, module, now=now, forecast=forecast, daily_forecast=daily
+        ),
     )
     elapsed = (now - ANCHOR).total_seconds() / 3600.0
     return est["et_since"] / (elapsed / 24.0), est
@@ -1465,6 +1478,376 @@ class TestEstimatedRadiationZonesRunTheirOwnCommitsEquation:
             assert after.get(field) == before.get(field)
         assert len(store.get_mapping_buffer(zone[const.ZONE_MAPPING])) == rows_before
         assert zone[const.ZONE_PENDING_BUCKET_EVENTS] == events
+
+
+def _daily_forecast(*, complete=True):
+    """Three forecast days, hotter and windier than the window, so a blend moves
+    the figure well clear of today's alone.
+
+    ``complete=False`` is Open-Meteo's shape: no dewpoint and no pressure, which
+    the daily equation refuses a day without.
+    """
+    rows = []
+    for low, high in ((17.0, 34.0), (16.0, 31.0), (15.0, 29.0)):
+        row = {
+            const.MAPPING_MIN_TEMP: low,
+            const.MAPPING_MAX_TEMP: high,
+            const.MAPPING_WINDSPEED: 3.0,
+            const.MAPPING_PRECIPITATION: 0.0,
+        }
+        if complete:
+            row[const.MAPPING_DEWPOINT] = 8.0
+            row[const.MAPPING_PRESSURE] = 977.0
+        rows.append(row)
+    return rows
+
+
+async def _forecasting_zone(c, store, bucket, **kw):
+    """An estimated-radiation zone that blends two forecast days."""
+    zone, module, instance = await _estimating_zone(c, store, bucket, **kw)
+    instance.forecast_days = 2
+    return zone, module, instance
+
+
+class TestForecastDayZonesBlendTheWayTheirCommitDoes:
+    """Estimated radiation with forecast days: the commit averages the composed
+    day with each forecast day, so the live bucket has to average the same ones.
+    """
+
+    async def test_the_live_bucket_lands_on_the_committed_bucket(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(
+            c, store, 2.0, rain_at={20: 14.0}
+        )
+        forecast = _daily_forecast()
+
+        est = c._intraday_for_zone(
+            zone,
+            _estimating_inputs(
+                instance,
+                module,
+                forecast=_hourly_forecast(),
+                daily_forecast=forecast,
+            ),
+        )
+        weatherdata, _ = await c._aggregate_for_zone(zone, now=WINDOW_END)
+        data = await c.calculate_module(zone, weatherdata, forecast, now=WINDOW_END)
+
+        assert est["method"] == "daily_mirror"
+        assert est["live_deficit"] == pytest.approx(
+            round(data[const.ZONE_BUCKET], 2), abs=0.01
+        )
+
+    async def test_its_evapotranspiration_is_the_blend_and_not_today_alone(
+        self, coordinator
+    ):
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        forecast = _daily_forecast()
+
+        est = c._intraday_for_zone(
+            zone,
+            _estimating_inputs(
+                instance,
+                module,
+                forecast=_hourly_forecast(),
+                daily_forecast=forecast,
+            ),
+        )
+        blended = await _committed_daily_et(c, zone, forecast=forecast)
+        today_alone = await _committed_daily_et(c, zone)
+
+        assert est["et_since"] == pytest.approx(blended, abs=1e-4)
+        # Not vacuous: the forecast days move the commit's figure.
+        assert abs(blended - today_alone) > 0.3
+
+    async def test_the_commits_own_date_is_skipped_while_it_is_ahead(self, coordinator):
+        """At midday the window closes tomorrow, and the forecast fetched today
+        starts with tomorrow. The commit's list will start the day after, so the
+        estimate has to drop the first row to hand the equation the same days."""
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        forecast = _daily_forecast()
+        midday = ANCHOR + timedelta(hours=10)
+        _observed_to(store, zone, midday)
+        instance.calculate = Mock(wraps=instance.calculate)
+
+        c._intraday_for_zone(
+            zone,
+            _estimating_inputs(
+                instance,
+                module,
+                now=midday,
+                forecast=_hourly_forecast(),
+                daily_forecast=forecast,
+            ),
+        )
+
+        mirrored = instance.calculate.call_args.kwargs
+        # The commit runs a day later, when the service no longer lists tomorrow.
+        _observed_to(store, zone, WINDOW_END)
+        weatherdata, _ = await c._aggregate_for_zone(zone, now=WINDOW_END)
+        await c.calculate_module(zone, weatherdata, forecast[1:], now=WINDOW_END)
+        committed = instance.calculate.call_args.kwargs
+
+        assert mirrored["forecast_data"] == committed["forecast_data"][:2]
+        assert mirrored["forecast_first_day"] == committed["forecast_first_day"]
+
+    async def test_an_overdue_commit_prices_the_forecast_from_its_real_date(
+        self, coordinator
+    ):
+        """A skipped night leaves the window open past a day; the commit then runs
+        today at the earliest, and dates its forecast from there."""
+        c, store = coordinator
+        zone, _module, instance = await _forecasting_zone(c, store, 2.0)
+        forecast = _daily_forecast()
+        overdue = WINDOW_END + timedelta(days=1, hours=8)
+        instance.calculate = Mock(wraps=instance.calculate)
+
+        weatherdata, _ = await c._aggregate_for_zone(zone, now=overdue)
+        await c.calculate_module(zone, weatherdata, forecast, now=overdue)
+        blend = c._commit_forecast(
+            instance, {"forecast": forecast}, anchor=ANCHOR, now=overdue
+        )
+
+        assert blend[1] == instance.calculate.call_args.kwargs["forecast_first_day"]
+
+    async def test_rows_dated_by_utc_day_are_picked_by_when_they_start(
+        self, coordinator
+    ):
+        """OWM drops the UTC day it is in, so at 21:00 on a US east-coast evening
+        its list already starts the day after tomorrow. Counting rows from the
+        local date would skip one of them too many."""
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        site_tz = zoneinfo.ZoneInfo("America/New_York")
+        forecast = [
+            {
+                **row,
+                const.FORECAST_DAY_START: datetime.datetime(
+                    2026, 5, 24 + i, tzinfo=datetime.UTC
+                ),
+            }
+            for i, row in enumerate(_daily_forecast())
+        ]
+        evening = ANCHOR + timedelta(hours=19)
+        _observed_to(store, zone, evening)
+        inputs = _estimating_inputs(
+            instance,
+            module,
+            now=evening,
+            forecast=_hourly_forecast(),
+            daily_forecast=forecast,
+        )
+        inputs["site_tz"] = site_tz
+        instance.calculate = Mock(wraps=instance.calculate)
+
+        c._intraday_for_zone(zone, inputs)
+        mirrored = instance.calculate.call_args.kwargs
+        # At 02:00 local the next morning it is 06:00 UTC on the 23rd, and OWM
+        # serves the same list.
+        _observed_to(store, zone, WINDOW_END)
+        weatherdata, _ = await c._aggregate_for_zone(zone, now=WINDOW_END)
+        await c.calculate_module(zone, weatherdata, forecast, now=WINDOW_END)
+        committed = instance.calculate.call_args.kwargs
+
+        assert mirrored["forecast_data"] == committed["forecast_data"][:2]
+        assert mirrored["forecast_first_day"] == committed["forecast_first_day"]
+
+    async def test_a_horizon_short_of_the_commits_averages_what_it_can_see(
+        self, coordinator
+    ):
+        """OWM lists four days. With four forecast days configured, the day the
+        commit adds by fetching a day later is not visible yet, so the estimate
+        averages the three it can see."""
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        instance.forecast_days = 4
+        rows = [*_daily_forecast(), _daily_forecast()[0]]
+        forecast = [
+            {
+                **row,
+                const.FORECAST_DAY_START: datetime.datetime(
+                    2026, 5, 23 + i, tzinfo=datetime.UTC
+                ),
+            }
+            for i, row in enumerate(rows)
+        ]
+        midday = ANCHOR + timedelta(hours=10)
+        _observed_to(store, zone, midday)
+        instance.calculate = Mock(wraps=instance.calculate)
+
+        est = c._intraday_for_zone(
+            zone,
+            _estimating_inputs(
+                instance,
+                module,
+                now=midday,
+                forecast=_hourly_forecast(),
+                daily_forecast=forecast,
+            ),
+        )
+
+        assert est["method"] == "daily_mirror"
+        assert instance.calculate.call_args.kwargs["forecast_data"] == forecast[1:]
+
+    async def test_the_gap_narrows_as_the_window_closes(self, coordinator):
+        """The forecast days are fixed inputs, so today's composed day is what has
+        to converge, exactly as for a zone without them."""
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        forecast = _daily_forecast()
+        target = await _committed_daily_et(c, zone, forecast=forecast[1:])
+
+        gaps = []
+        for h in (10, 14, 16, 24):
+            now = ANCHOR + timedelta(hours=h)
+            listed = forecast[1:] if now.date() == WINDOW_END.date() else forecast
+            implied, _est = _implied_daily(
+                c,
+                store,
+                zone,
+                module,
+                instance,
+                now,
+                _hourly_forecast(offset_c=3.0),
+                daily=listed,
+            )
+            gaps.append(abs(implied - target))
+
+        assert gaps[0] > gaps[1] > gaps[2]
+        assert gaps[-1] < 1e-3
+
+    async def test_the_next_run_projection_prices_the_same_blend(self, coordinator):
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        forecast = _daily_forecast()
+        midday = ANCHOR + timedelta(hours=10)
+        _observed_to(store, zone, midday)
+        inputs = _estimating_inputs(
+            instance,
+            module,
+            now=midday,
+            forecast=_hourly_forecast(),
+            daily_forecast=forecast,
+        )
+        est = c._intraday_for_zone(zone, inputs)
+        instance.calculate = Mock(wraps=instance.calculate)
+
+        carried = c._carry_estimate_to(zone, est, inputs, midday + timedelta(hours=6))
+
+        assert carried["carried_to_decision"] is True
+        assert instance.calculate.call_args.kwargs["forecast_data"] == forecast[1:3]
+
+    async def test_an_unusable_forecast_still_leaves_a_projection(self, coordinator):
+        """The projection keeps its Hargreaves stand-in when the blend cannot be
+        mirrored, so the zone does not lose its projected run."""
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        midday = ANCHOR + timedelta(hours=10)
+        _observed_to(store, zone, midday)
+        inputs = _estimating_inputs(
+            instance,
+            module,
+            now=midday,
+            forecast=_hourly_forecast(),
+            daily_forecast=_daily_forecast(complete=False),
+        )
+        est = c._intraday_for_zone(zone, inputs)
+        instance.calculate = Mock(wraps=instance.calculate)
+
+        carried = c._carry_estimate_to(zone, est, inputs, midday + timedelta(hours=6))
+
+        assert carried["carried_to_decision"] is True
+        assert carried["projected_et"] is not None
+        instance.calculate.assert_not_called()
+
+    async def test_a_measured_radiation_zone_with_forecast_days_is_refused(
+        self, coordinator
+    ):
+        """Composing its window needs a projected radiation total as well."""
+        c, store = coordinator
+        zone = await _zone(c, store, 2.0, solrad=SOLRAD_behavior.DontEstimate.value)
+        instance = Mock()
+        instance._solrad_behavior = SOLRAD_behavior.DontEstimate.value
+        instance.forecast_days = 2
+
+        assert c._daily_form_applies(zone, instance) is False
+
+    @pytest.mark.parametrize(
+        "daily_forecast",
+        [
+            None,
+            _daily_forecast(complete=False),
+            *(
+                [
+                    {k: v for k, v in row.items() if k != field}
+                    for row in _daily_forecast()
+                ]
+                for field in (
+                    const.MAPPING_DEWPOINT,
+                    const.MAPPING_MIN_TEMP,
+                    const.MAPPING_MAX_TEMP,
+                    const.MAPPING_WINDSPEED,
+                    const.MAPPING_PRESSURE,
+                )
+            ),
+        ],
+        ids=[
+            "no_forecast",
+            "open_meteo_shape",
+            "no_dewpoint",
+            "no_min_temp",
+            "no_max_temp",
+            "no_wind",
+            "no_pressure",
+        ],
+    )
+    async def test_a_forecast_that_cannot_be_blended_declines_the_mirror(
+        self, coordinator, daily_forecast
+    ):
+        """Mirroring these would book the forecast days as nothing, or as days
+        the commit never saw, and label the result as the commit's own figure."""
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+
+        est = c._intraday_for_zone(
+            zone,
+            _estimating_inputs(
+                instance,
+                module,
+                forecast=_hourly_forecast(),
+                daily_forecast=daily_forecast,
+            ),
+        )
+
+        assert est.get("method") != "daily_mirror"
+        # Each stripped row is one the real equation refuses, so the list of
+        # required fields cannot drift from PyETO's own.
+        for row in daily_forecast or []:
+            assert instance.calculate_et_for_day(row) == 0
+
+    async def test_the_daily_forecast_is_fetched_beside_an_hourly_series(
+        self, coordinator
+    ):
+        """Open-Meteo supplies an hourly series, which used to stop the daily
+        forecast from being fetched at all."""
+        c, _store = coordinator
+        forecast = _daily_forecast()
+
+        class _Client:
+            def get_hourly_data(self):
+                return [{"time": ANCHOR}], 0.0
+
+            def get_forecast_data(self):
+                return forecast
+
+        c._WeatherServiceClient = _Client()
+
+        inputs = await c._fetch_intraday_inputs()
+
+        assert inputs["rows"]
+        assert inputs["forecast"] == forecast
 
 
 class TestTheCommitPricesTheDayItsWindowCovers:
