@@ -334,16 +334,19 @@ class TestTheConditionsThatStillRefuseTheMirror:
     """Widening the gate changed WHO reaches the checks below it. They were
     unreachable on a switch-off install before, so they are pinned here."""
 
-    async def test_forecast_days_still_refuse_it(self, coordinator):
-        """With forecast days the commit averages today with days that need a
-        projection of their own, which is a construction this does not have."""
+    async def test_forecast_days_without_a_forecast_refuse_it(self, coordinator):
+        """A zone with forecast days passes the equation gate, and a missing
+        forecast is what refuses it. A sensor-only install has none, and its
+        commit skips the zone."""
         c, store = coordinator
         zone, module, instance = await _estimating_zone(
             c, store, 2.0, rain_at={20: 14.0}
         )
         instance.forecast_days = 2
 
-        assert c._daily_form_applies(zone, instance) is False
+        assert c._daily_form_applies(zone, instance) is True
+        est = c._intraday_for_zone(zone, _estimating_inputs(instance, module))
+        assert est.get("method") != "daily_mirror"
 
     async def test_a_measured_radiation_zone_is_still_refused(self, coordinator):
         """The deferred case, pinned as deferred.

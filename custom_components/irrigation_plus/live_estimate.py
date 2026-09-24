@@ -68,7 +68,11 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
-from .calcmodules.pyeto import SOLRAD_behavior, solrad_behavior_value
+from .calcmodules.pyeto import (
+    DAILY_FORM_FIELDS,
+    SOLRAD_behavior,
+    solrad_behavior_value,
+)
 from .calculation import (
     hourly_calculation_enabled,
     pending_bucket_events,
@@ -145,6 +149,17 @@ class _ForecastEntitySeries(NamedTuple):
     entity_id: str
     read_at: float
     series: list | None
+
+
+class _Blend(NamedTuple):
+    """The forecast days a commit averages in: ``rows``, the first dated ``first_day``."""
+
+    rows: list | None = None
+    first_day: datetime.date | None = None
+
+
+# A zone with no forecast days: its commit prices today alone.
+_TODAY_ALONE = _Blend()
 
 
 class _HourlyCarry(NamedTuple):
@@ -262,14 +277,16 @@ class LiveEstimateMixin:
                     )
                 except Exception as e:  # noqa: BLE001 — estimate must never raise
                     _LOGGER.debug("intraday: get_hourly_data failed: %s", e)
+            # Fetched whether or not the hourly series arrived: a zone with
+            # forecast days blends these days into its commit, so the mirror
+            # needs them too.
             forecast = None
-            if not rows:
-                try:
-                    forecast = await self.hass.async_add_executor_job(
-                        client.get_forecast_data
-                    )
-                except Exception as e:  # noqa: BLE001
-                    _LOGGER.debug("intraday: get_forecast_data failed: %s", e)
+            try:
+                forecast = await self.hass.async_add_executor_job(
+                    client.get_forecast_data
+                )
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.debug("intraday: get_forecast_data failed: %s", e)
             inputs["rows"] = rows
             inputs["tz"] = tz
             inputs["forecast"] = forecast
@@ -748,8 +765,8 @@ class LiveEstimateMixin:
         hourly gate, because the instance is needed anyway to run the equation and
         it is the same object the commit reads.
 
-        Forecast days are excluded: with them the commit averages today with days
-        that need a projection of their own, which is a separate construction.
+        Forecast days are not part of this answer: whether they can be mirrored
+        depends on the forecast in hand, so :meth:`_mirror_blend` asks both.
 
         Reads the module half of ``replayed_balance_applies`` and not the whole
         predicate. That predicate's ``hourlycalculation`` half decides the balance
@@ -764,11 +781,58 @@ class LiveEstimateMixin:
             return False
         if not zone_module_models_weather(self.store, zone):
             return False
-        if str(getattr(modinst, "_solrad_behavior", "")) == str(
+        return str(getattr(modinst, "_solrad_behavior", "")) != str(
             SOLRAD_behavior.DontEstimate.value
+        )
+
+    def _mirror_blend(self, zone, modinst, inputs, *, anchor, now):
+        """The blend to hand the zone's own equation, or None if it cannot be mirrored."""
+        if not self._daily_form_applies(zone, modinst):
+            return None
+        return self._commit_forecast(modinst, inputs, anchor=anchor, now=now)
+
+    @staticmethod
+    def _commit_forecast(modinst, inputs, *, anchor, now):
+        """The :class:`_Blend` the zone's commit will average in, or None.
+
+        None when the blend cannot be mirrored: there is no forecast, or one of
+        the days it needs lacks an input the daily equation requires. PyETO books
+        such a day as zero loss and averages it in, which would pull the figure
+        toward nothing while logging a warning every refresh.
+
+        The commit reads the forecast at commit time, and every client drops the
+        day that contains that instant, by its own clock: OWM and Met Office by
+        UTC date, Open-Meteo by the site's. Rows are therefore picked by the
+        instant they start, which holds under either convention. The remaining
+        difference is the forecast refreshing in between, which a live figure
+        cannot foresee.
+        """
+        days = getattr(modinst, "forecast_days", 0) or 0
+        if not days:
+            return _TODAY_ALONE
+        forecast = inputs.get("forecast")
+        if not forecast:
+            return None
+        # The window closes a day after its anchor; an overdue commit runs now.
+        commit_at = max(anchor + datetime.timedelta(hours=24), now)
+        starts = [row.get(const.FORECAST_DAY_START) for row in forecast]
+        if all(isinstance(start, datetime.datetime) for start in starts):
+            site_tz = inputs.get("site_tz") or dt_util.DEFAULT_TIME_ZONE
+            cutoff = commit_at.replace(tzinfo=site_tz)
+            future = [
+                row
+                for row, start in zip(forecast, starts, strict=True)
+                if start > cutoff
+            ]
+        else:
+            # Undated rows start tomorrow by contract, as seen from now.
+            future = forecast[max(0, (commit_at.date() - now.date()).days) :]
+        rows = future[:days]
+        if not rows or any(
+            row.get(field) is None for row in rows for field in DAILY_FORM_FIELDS
         ):
-            return False
-        return not getattr(modinst, "forecast_days", 0)
+            return None
+        return _Blend(rows, commit_at.date() + datetime.timedelta(days=1))
 
     def _latest_temperature(self, zone, agg):
         """The temperature the sensor group is reading now, or None.
@@ -848,7 +912,9 @@ class LiveEstimateMixin:
         low, high = compose_extremes(float(low), float(high), remainder)
         return low, high, tier
 
-    def _composed_day_et(self, zone, agg, inputs, *, anchor, now, geometry, modinst):
+    def _composed_day_et(
+        self, zone, agg, inputs, *, anchor, now, geometry, modinst, blend=_TODAY_ALONE
+    ):
         """``(day_total_mm, tier)`` for the window's whole day, or None.
 
         The composition every projection of a day-level quantity starts from:
@@ -856,8 +922,10 @@ class LiveEstimateMixin:
         the forecast tier, and the extremes read off the two together.
 
         With ``modinst`` the zone's own module prices it, which is the quantity
-        its commit will book. Without one -- a zone whose commit does not run the
-        daily equation at all -- Hargreaves stands in off the same composed
+        its commit will book, averaged with the forecast days in ``blend`` (see
+        :meth:`_commit_forecast`) exactly as the commit averages them. Without
+        one -- a zone whose commit does not run the daily equation at all --
+        Hargreaves stands in off the same composed
         extremes, because a day total is still needed to price the hours between
         now and a decision point, and no other source of one exists that early.
         """
@@ -920,8 +988,9 @@ class LiveEstimateMixin:
         # depends on.
         delta = modinst.calculate(
             weather_data=projected,
-            forecast_data=None,
+            forecast_data=blend.rows,
             day=window_day,
+            forecast_first_day=blend.first_day,
             warn_on_clamp=False,
         )
         if delta is None:
@@ -951,7 +1020,8 @@ class LiveEstimateMixin:
         The clamp warning is suppressed explicitly (see :meth:`_composed_day_et`).
         """
         modinst = (inputs.get("modules") or {}).get(zone.get(const.ZONE_MODULE))
-        if not self._daily_form_applies(zone, modinst):
+        blend = self._mirror_blend(zone, modinst, inputs, anchor=anchor, now=now)
+        if blend is None:
             return None
         day = self._composed_day_et(
             zone,
@@ -961,6 +1031,7 @@ class LiveEstimateMixin:
             now=now,
             geometry=geometry,
             modinst=modinst,
+            blend=blend,
         )
         if day is None:
             return None
@@ -1666,7 +1737,10 @@ class LiveEstimateMixin:
             # by their own module: for anyone else that instance is configured
             # for a different equation entirely, and running it here would
             # publish a quantity their commit never books.
-            own_equation = self._daily_form_applies(zone, modinst)
+            blend = self._mirror_blend(
+                zone, modinst, inputs, anchor=anchor, now=now_local
+            )
+            own_equation = blend is not None
             day = self._composed_day_et(
                 zone,
                 agg,
@@ -1675,6 +1749,7 @@ class LiveEstimateMixin:
                 now=now_local,
                 geometry=geometry,
                 modinst=modinst if own_equation else None,
+                blend=blend if own_equation else _TODAY_ALONE,
             )
             if day is None:
                 return projected
