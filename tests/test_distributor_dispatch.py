@@ -477,7 +477,7 @@ async def test_solo_run_under_parallel_collapses_master_at_last_valve_close():
     )
     # solo collapse: master physically powered off + deadline cleared
     c.hass.services.async_call.assert_any_await(
-        "homeassistant", "turn_off", {"entity_id": "input_boolean.pump"}
+        "input_boolean", "turn_off", {"entity_id": "input_boolean.pump"}
     )
     assert c._master_off_deadline is None
 
@@ -1796,7 +1796,7 @@ async def test_classic_inlet_actuates_and_hands_nothing_back():
     c = _host()
     assert await c._dist_open_inlet(_dist(), 263.6) is None
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_on", {"entity_id": "switch.inlet"}
+        "switch", "turn_on", {"entity_id": "switch.inlet"}
     )
 
 

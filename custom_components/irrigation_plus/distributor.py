@@ -23,6 +23,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
 
 from . import const
+from .actuate import async_actuate
 from .duration_math import hardware_window
 from .flow_metering import FlowMeter, flow_learn_resolve
 from .localize import localize
@@ -56,23 +57,10 @@ class DistributorMixin:
     # --- inlet actuation ---------------------------------------------------
 
     async def _dist_domain_turn(self, entity: str, on: bool) -> None:
-        """Open/close an inlet entity, domain-aware. valve.* needs open_valve/
-        close_valve (homeassistant.turn_on silently no-ops on a valve); switch /
-        input_boolean use turn_on/turn_off. Mirrors MasterMixin._master_turn."""
+        """Open/close an inlet entity with its domain's own action (#170)."""
         if not isinstance(entity, str) or not entity:
             return
-        if entity.split(".", 1)[0] == "valve":
-            await self.hass.services.async_call(
-                "valve",
-                "open_valve" if on else "close_valve",
-                {"entity_id": entity},
-            )
-            return
-        await self.hass.services.async_call(
-            "homeassistant",
-            "turn_on" if on else "turn_off",
-            {"entity_id": entity},
-        )
+        await async_actuate(self.hass, entity, on)
 
     @staticmethod
     def _dist_split_service(dotted: str):

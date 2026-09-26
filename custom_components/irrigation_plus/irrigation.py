@@ -19,6 +19,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .actuate import async_actuate
 from .batch import is_batch_zone
 from .duration_math import calibrated_flow_seconds, zone_run_duration
 from .flow_metering import (
@@ -557,10 +558,7 @@ class IrrigationRunnerMixin:
         zone = self.store.get_zone(zid) or {}
         entity_id = zone.get(const.ZONE_LINKED_ENTITY)
         if entity_id:
-            domain = entity_id.split(".")[0]
-            await self.hass.services.async_call(
-                domain, "turn_off", {"entity_id": entity_id}
-            )
+            await async_actuate(self.hass, entity_id, False)
         _LOGGER.info("Stop requested for zone %s", zid)
 
     async def async_stop_all_zones(self) -> None:
@@ -795,7 +793,6 @@ class IrrigationRunnerMixin:
         state = self.hass.states.get(entity_id)
         if state is None or state.state in ("unavailable", "unknown"):
             return None  # not verifiable — don't fault write-only valves
-        domain = entity_id.split(".")[0]
         retried = False
         waited = 0.0
         while True:
@@ -811,9 +808,7 @@ class IrrigationRunnerMixin:
                     entity_id,
                     waited,
                 )
-                await self.hass.services.async_call(
-                    domain, "turn_on", {"entity_id": entity_id}
-                )
+                await async_actuate(self.hass, entity_id, True)
             await asyncio.sleep(const.VALVE_CONFIRM_POLL)
             waited += const.VALVE_CONFIRM_POLL
 
@@ -1413,7 +1408,6 @@ class IrrigationRunnerMixin:
         The rotation records its own partial, so it does not pass this.
         """
         zone_id = zone[const.ZONE_ID]
-        domain = entity_id.split(".")[0]
         original_bucket = zone.get(const.ZONE_BUCKET) or 0.0
 
         if real_flow:
@@ -1462,7 +1456,7 @@ class IrrigationRunnerMixin:
             )
 
         self._note_si_valve(zone_id, max_seconds)
-        await self.hass.services.async_call(domain, "turn_on", {"entity_id": entity_id})
+        await async_actuate(self.hass, entity_id, True)
         if await self._confirm_valve_running(zone_id, entity_id) is False:
             # The valve never reported an on-state within the grace window. Many
             # valves actuate but report back slowly (or not at all), so closing
@@ -1557,9 +1551,7 @@ class IrrigationRunnerMixin:
                     water_committed = delivered
                     last_commit = elapsed
 
-            await self.hass.services.async_call(
-                domain, "turn_off", {"entity_id": entity_id}
-            )
+            await async_actuate(self.hass, entity_id, False)
             valve_closed = True
             if real_flow:
                 # review finding G: a volume-bounded (real_flow) run opened with the
@@ -1653,9 +1645,7 @@ class IrrigationRunnerMixin:
                         zone_id,
                         entity_id,
                     )
-                    await self.hass.services.async_call(
-                        domain, "turn_off", {"entity_id": entity_id}
-                    )
+                    await async_actuate(self.hass, entity_id, False)
             except Exception:  # noqa: BLE001 - cleanup must not mask the real error
                 _LOGGER.exception(
                     "Zone %s: failed to close valve '%s' during run cleanup",
@@ -1685,10 +1675,9 @@ class IrrigationRunnerMixin:
         Returns litres delivered during this slot.
         """
         zone_id = zone[const.ZONE_ID]
-        domain = entity_id.split(".")[0]
 
         self._note_si_valve(zone_id, max_seconds)
-        await self.hass.services.async_call(domain, "turn_on", {"entity_id": entity_id})
+        await async_actuate(self.hass, entity_id, True)
 
         accumulated = 0.0
         # Valve is open — see _run_valve_metered: every exit path must close it,
@@ -1739,9 +1728,7 @@ class IrrigationRunnerMixin:
                 if stopped:
                     break
 
-            await self.hass.services.async_call(
-                domain, "turn_off", {"entity_id": entity_id}
-            )
+            await async_actuate(self.hass, entity_id, False)
             valve_closed = True
             # Review finding G (REGEL-8 sister path to _run_valve_metered): the open
             # noted the full slot cap, but a volume-bounded slot usually
@@ -1770,9 +1757,7 @@ class IrrigationRunnerMixin:
                         zone_id,
                         entity_id,
                     )
-                    await self.hass.services.async_call(
-                        domain, "turn_off", {"entity_id": entity_id}
-                    )
+                    await async_actuate(self.hass, entity_id, False)
                 except Exception:  # noqa: BLE001 - must not mask the real error
                     _LOGGER.exception(
                         "Zone %s: failed to close valve '%s' during slot cleanup",
@@ -2158,7 +2143,6 @@ class IrrigationRunnerMixin:
                 else:
                     z = timed_by_id[zid]
                     entity_id = z[const.ZONE_LINKED_ENTITY]
-                    domain = entity_id.split(".")[0]
                     rem = timed_remaining[zid]
                     slot = min(rem, max_slot)
                     if window is not None and slot > window:
@@ -2172,9 +2156,7 @@ class IrrigationRunnerMixin:
                         rem - slot,
                     )
                     self._note_si_valve(zid, slot)
-                    await self.hass.services.async_call(
-                        domain, "turn_on", {"entity_id": entity_id}
-                    )
+                    await async_actuate(self.hass, entity_id, True)
                     # Valve open — mirror the close in a finally so a raise from
                     # the confirm poll or a CancelledError at shutdown cannot
                     # strand it open (see _run_valve_metered).
@@ -2197,9 +2179,7 @@ class IrrigationRunnerMixin:
                             # Count only the time actually waited so the credited
                             # water stays honest.
                             slot = min(slot, loop.time() - t0)
-                        await self.hass.services.async_call(
-                            domain, "turn_off", {"entity_id": entity_id}
-                        )
+                        await async_actuate(self.hass, entity_id, False)
                         slot_valve_closed = True
                     finally:
                         if not slot_valve_closed:
@@ -2210,9 +2190,7 @@ class IrrigationRunnerMixin:
                                     zid,
                                     entity_id,
                                 )
-                                await self.hass.services.async_call(
-                                    domain, "turn_off", {"entity_id": entity_id}
-                                )
+                                await async_actuate(self.hass, entity_id, False)
                             except Exception:  # noqa: BLE001 - must not mask the error
                                 _LOGGER.exception(
                                     "Zone %s: failed to close valve '%s' during "

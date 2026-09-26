@@ -109,7 +109,7 @@ async def test_domain_turn_switch_uses_turn_on_off():
     c = _host()
     await c._dist_domain_turn("switch.inlet", True)
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_on", {"entity_id": "switch.inlet"}
+        "switch", "turn_on", {"entity_id": "switch.inlet"}
     )
 
 
@@ -145,7 +145,7 @@ async def test_open_inlet_classic_opens_entity():
     # from here is what left `cap` and the master note on the priced window.
     assert await c._dist_open_inlet(_dist(), 30) is None
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_on", {"entity_id": "switch.inlet"}
+        "switch", "turn_on", {"entity_id": "switch.inlet"}
     )
 
 
@@ -170,7 +170,7 @@ async def test_close_inlet_classic_closes_entity():
     c = _host()
     await c._dist_close_inlet(_dist())
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_off", {"entity_id": "switch.inlet"}
+        "switch", "turn_off", {"entity_id": "switch.inlet"}
     )
 
 
@@ -285,7 +285,7 @@ async def test_window_off_powers_master_down_when_off_after_and_exclusive():
     c = _host(master_off_after=True)
     await c._dist_master_window_off(_dist(), concurrent=False)
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_off", {"entity_id": "switch.pump"}
+        "switch", "turn_off", {"entity_id": "switch.pump"}
     )
 
 
@@ -305,7 +305,7 @@ async def test_window_on_powers_up_and_settles():
     c = _host(master_off_after=True, master_settle_seconds=7)
     await c._dist_master_window_on(_dist(), concurrent=False)
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_on", {"entity_id": "switch.pump"}
+        "switch", "turn_on", {"entity_id": "switch.pump"}
     )
     c._master_sleep.assert_awaited_once_with(7)
 

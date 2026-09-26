@@ -3,8 +3,8 @@
 Turns a shared master (pump / main valve) on before the first zone of a watering
 cycle and optionally off after the last zone's planned end. Fully optional: with
 no ``master_entity`` configured every method is a no-op, so existing behaviour is
-byte-identical. The master is actuated via ``homeassistant.turn_on`` /
-``turn_off`` (works for switch / valve / input_boolean).
+byte-identical. The master is actuated through ``actuate.async_actuate``
+(switch / input_boolean: turn_on / turn_off; valve: open_valve / close_valve).
 
 Kicker (optional): a pressure-controlled pump may not restart promptly when it is
 merely powered; pulsing it off -> pause -> on forces it to run. Then a settle
@@ -21,6 +21,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
 from . import const
+from .actuate import async_actuate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,21 +51,8 @@ class MasterMixin:
         entity = self._master_entity()
         if not isinstance(entity, str) or not entity:
             return
-        # valve.* entities use open_valve / close_valve, NOT turn_on / turn_off:
-        # homeassistant.turn_on does no domain mapping and would silently no-op on
-        # a valve, leaving the master closed while zones water.
-        if entity.split(".", 1)[0] == "valve":
-            await self.hass.services.async_call(
-                "valve",
-                "open_valve" if on else "close_valve",
-                {"entity_id": entity},
-            )
-            return
-        await self.hass.services.async_call(
-            "homeassistant",
-            "turn_on" if on else "turn_off",
-            {"entity_id": entity},
-        )
+        # valve.* needs open_valve / close_valve, not turn_on / turn_off (#170).
+        await async_actuate(self.hass, entity, on)
 
     async def async_master_begin_cycle(self) -> None:
         """Ensure the master is on before the first zone fires.

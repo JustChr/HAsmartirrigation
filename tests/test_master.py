@@ -65,7 +65,7 @@ async def test_master_begin_turns_on_and_settles():
     c = _mcoord()
     await c.async_master_begin_cycle()
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_on", {"entity_id": "switch.pump"}
+        "switch", "turn_on", {"entity_id": "switch.pump"}
     )
     c._master_sleep.assert_awaited_once_with(10)
     assert c._master_on is True
@@ -77,8 +77,8 @@ async def test_master_kick_pulses_off_then_on():
     )
     await c.async_master_begin_cycle()
     calls = [ck.args for ck in c.hass.services.async_call.await_args_list]
-    assert calls[0] == ("homeassistant", "turn_off", {"entity_id": "switch.pump"})
-    assert calls[1] == ("homeassistant", "turn_on", {"entity_id": "switch.pump"})
+    assert calls[0] == ("switch", "turn_off", {"entity_id": "switch.pump"})
+    assert calls[1] == ("switch", "turn_on", {"entity_id": "switch.pump"})
     sleeps = [s.args[0] for s in c._master_sleep.await_args_list]
     assert sleeps == [1.0, 5]  # kick pause, then settle
 
@@ -166,7 +166,7 @@ async def test_master_off_enabled_arms_and_fires(monkeypatch):
     c._master_now = Mock(return_value=t0 + datetime.timedelta(seconds=61))
     await captured["cb"](None)
     c.hass.services.async_call.assert_awaited_with(
-        "homeassistant", "turn_off", {"entity_id": "switch.pump"}
+        "switch", "turn_off", {"entity_id": "switch.pump"}
     )
     assert c._master_on is False
 
@@ -249,7 +249,7 @@ async def test_self_closing_run_holds_the_master_across_its_window():
 
     # Master was powered up, and the hold is STILL held after dispatch returned.
     c.hass.services.async_call.assert_any_await(
-        "homeassistant", "turn_on", {"entity_id": "switch.pump"}
+        "switch", "turn_on", {"entity_id": "switch.pump"}
     )
     assert c._sc_master_token(7) in c.master_holds()
 
@@ -304,7 +304,7 @@ async def test_reconcile_master_off_when_off_after_and_idle():
     c._master_off_deadline = "stale"
     await c.async_reconcile_master_after_restart()
     c.hass.services.async_call.assert_awaited_once_with(
-        "homeassistant", "turn_off", {"entity_id": "switch.pump"}
+        "switch", "turn_off", {"entity_id": "switch.pump"}
     )
     assert c._master_on is False
     assert c._master_off_deadline is None
