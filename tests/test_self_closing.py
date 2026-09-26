@@ -1390,3 +1390,21 @@ async def test_the_flow_sample_divides_by_the_window_the_meter_actually_saw():
     _zone_arg, measured, seconds = c._flow_calibration_check.await_args.args
     assert (measured, seconds) == (6.0, 120.0)
     assert measured / (seconds / 60.0) == 3.0  # not the 5.14 the old window read
+
+
+async def test_a_valve_that_never_opened_also_raises_the_zone_fault():
+    """The confirm poll saw the valve stay off. The bus event was already fired
+    here, the fault was not - the only unpaired site of the seven that announce
+    a zone problem. An automation bound to the bus heard it; the problem sensor
+    and the dashboard chip, which read the fault, stayed dark."""
+    c = _coord()
+    c._set_zone_fault = Mock()
+    c._confirm_valve_running = AsyncMock(return_value=False)  # never opened
+    c._timed_volume_l = Mock(return_value=20.0)
+    c._credited_depth_native = Mock(return_value=4.0)
+    zone = _zone(**{const.ZONE_CONFIRM_ENTITY: "valve.beet"})
+
+    ok = await c.async_run_self_closing(zone, trigger="schedule")
+
+    assert ok is False
+    c._set_zone_fault.assert_called_once_with(2, const.PROBLEM_VALVE_DID_NOT_OPEN)

@@ -643,6 +643,15 @@ class SelfClosingMixin:
                 # Nor the live-run marker: this run credited nothing, so the
                 # ceiling it was granted must not be inherited by the next one.
                 self._drop_live_run_marker(zone_id)
+                # Paired, like the six other sites that announce a zone problem
+                # (self_closing.py:547, batch.py:184/217/297, run_watch.py:1031):
+                # the bus event is what a user automation binds to, the fault is
+                # what the problem binary_sensor and the dashboard chip read.
+                # This one fired the event alone, so a valve that never opened
+                # was invisible to anyone not listening on the bus.
+                # siehe test_self_closing.py::
+                # test_a_valve_that_never_opened_also_raises_the_zone_fault
+                self._set_zone_fault(zone_id, const.PROBLEM_VALVE_DID_NOT_OPEN)
                 self._fire_zone_problem(
                     zone_id, zone, confirm_target, const.PROBLEM_VALVE_DID_NOT_OPEN
                 )
