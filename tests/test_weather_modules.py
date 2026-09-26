@@ -2,12 +2,15 @@
 
 import datetime
 import json
+import math
 from unittest.mock import MagicMock, patch
 
 import pytest
 from freezegun import freeze_time
 
+from custom_components.irrigation_plus.calcmodules.pyeto import PyETO
 from custom_components.irrigation_plus.const import (
+    CONF_PYETO_FORECAST_DAYS,
     FORECAST_DAY_END,
     FORECAST_DAY_START,
     MAPPING_CURRENT_PRECIPITATION,
@@ -358,16 +361,20 @@ def _openmeteo_doc(site_today, utc_offset_seconds):
             "temperature_2m_max": "°C",
             "temperature_2m_min": "°C",
             "precipitation_sum": "mm",
-            "wind_speed_10m_max": "m/s",
+            "wind_speed_10m_mean": "m/s",
             "shortwave_radiation_sum": "MJ/m²",
+            "dew_point_2m_mean": "°C",
+            "pressure_msl_mean": "hPa",
         },
         "daily": {
             "time": [day.isoformat() for day in days],
             "temperature_2m_max": [22.0] * n_days,
             "temperature_2m_min": [12.0] * n_days,
             "precipitation_sum": [float(day.day) for day in days],
-            "wind_speed_10m_max": [4.0] * n_days,
+            "wind_speed_10m_mean": [4.0] * n_days,
             "shortwave_radiation_sum": [15.0] * n_days,
+            "dew_point_2m_mean": [9.0] * n_days,
+            "pressure_msl_mean": [1010.0] * n_days,
         },
     }
 
@@ -477,7 +484,7 @@ class TestOpenMeteoClientGetForecastData:
         client = OpenMeteoClient(latitude=52.52, longitude=13.41)
         doc = _openmeteo_doc(datetime.date(2024, 6, 1), 7200)
         # daily.time starts at 05-31, so index 3 is 06-03.
-        doc["daily"]["wind_speed_10m_max"][3] = None
+        doc["daily"]["wind_speed_10m_mean"][3] = None
         with (
             freeze_time("2024-06-01 10:00:00"),
             patch(_OPENMETEO_PATCH, return_value=_make_response(200, doc)),
@@ -495,6 +502,91 @@ class TestOpenMeteoClientGetForecastData:
         assert after_gap[FORECAST_DAY_END] == datetime.datetime(
             2024, 6, 4, 22, tzinfo=datetime.timezone.utc
         )
+
+
+class TestOpenMeteoClientForecastForPyETO:
+    """Every forecast day carries the inputs PyETO's daily equation needs.
+
+    PyETO books a day missing dewpoint or pressure as zero loss.
+    """
+
+    @staticmethod
+    def _doc():
+        return _openmeteo_doc(datetime.date(2024, 6, 1), 7200)
+
+    def _read(self, doc, elevation=0):
+        """``(forecast, current)`` from one client reading ``doc``."""
+        client = OpenMeteoClient(latitude=52.52, longitude=13.41, elevation=elevation)
+        with (
+            freeze_time("2024-06-01 10:00:00"),
+            patch(_OPENMETEO_PATCH, return_value=_make_response(200, doc)),
+        ):
+            return client.get_forecast_data(), client.get_data()
+
+    def test_the_request_asks_for_daily_dewpoint_and_pressure(self):
+        client = OpenMeteoClient(latitude=52.52, longitude=13.41)
+        assert "dew_point_2m_mean" in client.url
+        assert "pressure_msl_mean" in client.url
+
+    def test_the_daily_wind_is_the_mean_not_the_peak(self):
+        # FAO-56 prices a day on its mean wind, not its peak.
+        client = OpenMeteoClient(latitude=52.52, longitude=13.41)
+        assert "wind_speed_10m_mean" in client.url
+        assert "wind_speed_10m_max" not in client.url
+        doc = self._doc()
+        doc["daily"]["wind_speed_10m_max"] = [9.0] * len(doc["daily"]["time"])
+
+        data, _ = self._read(doc)
+
+        # 10 m to 2 m, FAO-56 eq. 47
+        assert data[0][MAPPING_WINDSPEED] == pytest.approx(
+            4.0 * 4.87 / math.log(67.8 * 10 - 5.42)
+        )
+
+    def test_daily_pressure_is_reduced_to_the_station_like_the_hourly_one(self):
+        doc = self._doc()
+        # The hourly series reads 1013 hPa at sea level throughout.
+        doc["daily"]["pressure_msl_mean"] = [1013.0] * len(doc["daily"]["time"])
+
+        data, current = self._read(doc, elevation=500)
+
+        assert data[0][MAPPING_DEWPOINT] == 9.0
+        assert data[0][MAPPING_PRESSURE] < 1013.0
+        assert data[0][MAPPING_PRESSURE] == pytest.approx(current[MAPPING_PRESSURE])
+
+    def test_forecast_days_like_today_leave_todays_loss_where_it_was(
+        self, hass, caplog
+    ):
+        data, _ = self._read(self._doc())
+        modinst = PyETO(hass, description="", config={CONF_PYETO_FORECAST_DAYS: 2})
+        today = {
+            MAPPING_DEWPOINT: 9.0,
+            MAPPING_MIN_TEMP: 12.0,
+            MAPPING_MAX_TEMP: 22.0,
+            MAPPING_WINDSPEED: data[0][MAPPING_WINDSPEED],
+            MAPPING_PRESSURE: 1010.0,
+        }
+        day = datetime.date(2024, 6, 1)
+
+        alone = modinst.calculate(today, [], day=day)
+        blended = modinst.calculate(today, data, day=day)
+
+        assert alone < 0
+        # Two zero-loss days averaged in would book a third of it.
+        assert blended == pytest.approx(alone, rel=0.02)
+        assert "missing" not in caplog.text
+
+    def test_a_day_without_a_daily_mean_is_still_served_for_its_rain(self):
+        # Forecast weighting reads the day's rain whether or not PyETO can price it.
+        doc = self._doc()
+        # daily.time starts at 05-31, so index 2 is 06-02, the first forecast day.
+        doc["daily"]["dew_point_2m_mean"][2] = None
+
+        data, _ = self._read(doc)
+
+        assert data[0][MAPPING_PRECIPITATION] == 2.0
+        assert MAPPING_DEWPOINT not in data[0]
+        assert MAPPING_PRESSURE in data[0]
 
 
 class TestOpenMeteoClientGetData:
