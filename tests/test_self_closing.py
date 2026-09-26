@@ -1437,3 +1437,33 @@ async def test_a_completed_run_clears_the_zone_fault():
     await c._sc_finish_run(2)
 
     c._clear_zone_fault.assert_called_once_with(2)
+
+
+async def test_a_stopped_run_clears_the_zone_fault_as_the_classic_runner_does():
+    """The classic runner clears on a partial as well as a completion
+    (_record_rotating_stop, irrigation.py:1777): a run that was stopped still
+    watered, so it is evidence the valve works."""
+    c = _coord()
+    c._clear_zone_fault = Mock()
+    store_zone = _zone(**{const.ZONE_BUCKET: -1.0})
+    c.store.get_zone = Mock(return_value=store_zone)
+    c.store.async_get_config = AsyncMock(
+        return_value={
+            const.CONF_ACTIVE_VALVE_RUNS: [
+                {
+                    const.RUN_ZONE_ID: 2,
+                    const.RUN_STARTED: "2026-06-30T08:00:00+00:00",
+                    const.RUN_PLANNED_SECONDS: 600.0,
+                    const.RUN_PLANNED_MM: 4.0,
+                    const.RUN_PRE_BUCKET: -5.0,
+                    const.RUN_CREDITED: True,
+                }
+            ]
+        }
+    )
+    c._sc_elapsed = Mock(return_value=300.0)
+    c._timed_volume_l = Mock(return_value=10.0)
+
+    await c.async_stop_self_closing(2)
+
+    c._clear_zone_fault.assert_called_once_with(2)
