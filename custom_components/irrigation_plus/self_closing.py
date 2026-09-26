@@ -1014,11 +1014,18 @@ class SelfClosingMixin:
         await self._stamp_run_finalized(zone_id, delivered_l)
         # The completion twin's reasoning (_sc_finish_run), and the classic
         # runner clears on its partials as well: a stopped run still watered.
-        # NOT-TO-DO: do not move this below the record, and do not assume it is
-        #   the last word on the zone's fault. _watch_give_up (run_watch.py:1028)
-        #   calls this stop and only THEN sets station_never_ran - the clear here
-        #   runs first and the set survives. Pinned by test_opensprinkler.py::
+        # NOT-TO-DO: do not assume this is the last word on the zone's fault.
+        #   _watch_give_up (run_watch.py:1028) calls this stop and sets
+        #   station_never_ran AFTER it returns, so the clear here runs first and
+        #   the set survives - but only while that order holds. Hoisting its set
+        #   above the stop makes this line swallow it, and measurably nothing
+        #   else notices: that mutation leaves the whole OpenSprinkler suite
+        #   green except the one pin written for it,
+        #   test_opensprinkler.py::
         #   test_a_station_that_never_ran_stays_faulted_after_the_stop_cleared.
+        #   (Where inside this function the line sits does NOT matter to that
+        #   order - the caller runs after the return either way. It is placed
+        #   before the record only to read like the classic runner's twin.)
         self._clear_zone_fault(zone_id)
         await self._record_run(
             zone_id,

@@ -1402,3 +1402,27 @@ async def test_restart_mid_run_retakes_the_observed_suppression_window(hass, fre
     # Ends where a normal dispatch would have put it: observed start + planned,
     # plus the marker's own margin.
     assert window == pytest.approx(600.0 - elapsed + SI_VALVE_SUPPRESS_MARGIN, abs=0.5)
+
+
+async def test_a_station_that_never_ran_stays_faulted_after_the_stop_cleared(hass):
+    """_watch_give_up stops the run first and sets its fault second, and
+    async_stop_self_closing now clears on the way through. The order is what
+    keeps station_never_ran alive; hoisting the set above the stop would make
+    the clear swallow it, silently and with every other test still green.
+
+    Pins the order, not just the call: the LAST word on this zone's fault has to
+    be the set."""
+    _publish(hass)
+    c = _coord(hass)
+    order = []
+    c._set_zone_fault = Mock(side_effect=lambda *a, **k: order.append("set"))
+    c._clear_zone_fault = Mock(side_effect=lambda *a, **k: order.append("clear"))
+    await c.async_run_self_closing(_zone())
+    c.store.get_zone = Mock(return_value=_zone(**{const.ZONE_BUCKET: -1.0}))
+
+    await _drive(hass, running="off", program_id=99)
+    await _drive(hass, running="off", program_id=0)
+
+    assert "clear" in order, "the stop should have cleared on its way through"
+    assert order[-1] == "set", f"the fault must survive the stop's clear: {order}"
+    c._set_zone_fault.assert_called_with(2, const.PROBLEM_STATION_NEVER_RAN)
