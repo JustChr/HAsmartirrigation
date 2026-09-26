@@ -1408,3 +1408,32 @@ async def test_a_valve_that_never_opened_also_raises_the_zone_fault():
 
     assert ok is False
     c._set_zone_fault.assert_called_once_with(2, const.PROBLEM_VALVE_DID_NOT_OPEN)
+
+
+async def test_a_completed_run_clears_the_zone_fault():
+    """_clear_zone_fault had five callers, all of them on the classic metered or
+    rotating path in irrigation.py. A self-closing, batch or OpenSprinkler zone
+    could therefore raise a fault and never end one: _zone_faults lives in
+    memory, so the problem sensor stayed on until HA was restarted."""
+    c = _coord()
+    c._clear_zone_fault = Mock()
+    store_zone = _zone(**{const.ZONE_BUCKET: -2.0, const.ZONE_MAXIMUM_BUCKET: 24.0})
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+    c.store.async_get_config = AsyncMock(
+        return_value={
+            const.CONF_ACTIVE_VALVE_RUNS: [
+                {
+                    const.RUN_ZONE_ID: 2,
+                    const.RUN_PLANNED_SECONDS: 600.0,
+                    const.RUN_PRE_BUCKET: -2.0,
+                }
+            ]
+        }
+    )
+    c._sc_finish_flow = Mock(return_value=(2.26, {}))
+    c._credited_depth_native = Mock(return_value=2.26)
+    c._flow_calibration_check = AsyncMock()
+
+    await c._sc_finish_run(2)
+
+    c._clear_zone_fault.assert_called_once_with(2)

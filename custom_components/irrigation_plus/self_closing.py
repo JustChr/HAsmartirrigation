@@ -424,6 +424,18 @@ class SelfClosingMixin:
         else:
             volume_l = self._timed_volume_l(zone, planned_s)
         await self._stamp_run_finalized(zone_id, volume_l)
+        # A good run ends the zone's fault, exactly as the classic runner ends
+        # it (irrigation.py:1601, and its rotating twins at :1953 / :2239) -
+        # placed before the record there too.
+        # Wurzel: all five _clear_zone_fault callers sat on the classic metered
+        #   and rotating paths, none of which a self-closing, batch or
+        #   OpenSprinkler zone can reach. Those three raise faults at five sites
+        #   and cleared at none, and _zone_faults is in-memory, so the only cure
+        #   was an HA restart.
+        # This one line reaches all three because all three finalise here:
+        #   batch.py:756, run_watch.py:982 / :1012.
+        # siehe test_self_closing.py::test_a_completed_run_clears_the_zone_fault
+        self._clear_zone_fault(zone_id)
         await self._record_run(
             zone_id,
             result=const.RUN_RESULT_COMPLETED,
