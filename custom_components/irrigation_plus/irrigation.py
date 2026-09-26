@@ -1456,59 +1456,66 @@ class IrrigationRunnerMixin:
             )
 
         self._note_si_valve(zone_id, max_seconds)
-        await async_actuate(self.hass, entity_id, True)
-        if await self._confirm_valve_running(zone_id, entity_id) is False:
-            # The valve never reported an on-state within the grace window. Many
-            # valves actuate but report back slowly (or not at all), so closing
-            # it here would guarantee no watering — instead we proceed with the
-            # run and just surface that it could not be confirmed.
-            _LOGGER.warning(
-                "Zone %s valve '%s' did not confirm an on-state within %ss; "
-                "proceeding with the run (valve may be slow to report state)",
-                zone_id,
-                entity_id,
-                const.VALVE_CONFIRM_TIMEOUT,
-            )
-
-        delivered = 0.0
-        water_committed = 0.0
-        elapsed = 0.0
-        last_commit = 0.0
-        stopped = False
-
-        # Iter FM-3 (unified flow engine + cross-run learning): a real-flow run feeds one
-        # shared FlowMeter (rate / per-run counter / lifetime totalizer). The counter type
-        # is the per-zone override or the learned cross-run classification; the valve-open
-        # read seeds the meter (so a per-run reset is observed). The learning streak is
-        # advanced at run END (_flow_learn_end_changes) from the meter's actual reset
-        # observation. See flow_metering.FlowMeter and test_metered_run.
-        meter = None
-        open_start_l = None
-        if real_flow:
-            sample = self._read_flow_sample(zone[const.ZONE_FLOW_SENSOR])
-            meter, open_start_l = self._flow_build_meter(zone, sample)
-
-        # Flow runs are volume-targeted (no multiplier) → credit gross depth.
-        # Timed runs inflate the duration by the multiplier → divide it back out
-        # so a full run lands at the target for any multiplier.
-        credit_depth = (
-            self._depth_from_volume_native if real_flow else self._credited_depth_native
-        )
-
-        def _bucket_for(total_l: float) -> float:
-            return min(ceiling, original_bucket + credit_depth(zone, total_l))
-
-        # Register the run so the dashboard can show a Stop control / countdown
-        # and a user-issued stop can interrupt the sleep below. Flow runs are
-        # volume-bounded (unknown finish) → no end time for the countdown.
-        self._register_active_run(zone_id, max_seconds, has_end=not real_flow)
-        loop = asyncio.get_running_loop()
-        # The valve is open from here on. Every exit path — normal, exception, or
-        # CancelledError at shutdown/reload — MUST close it again, so the close is
-        # mirrored in the finally below and this flag keeps the happy path from
-        # closing twice. See tests/test_run_lifecycle_safety.py.
+        # Every exit path — normal, exception, or CancelledError at
+        # shutdown/reload — MUST close the valve again, so the close is mirrored
+        # in the finally below and this flag keeps the happy path from closing
+        # twice. The try opens WITH the valve: the confirm poll (up to
+        # VALVE_CONFIRM_TIMEOUT, so a shutdown lands in it), the flow-meter seed
+        # read and the open itself can all raise, and before this they ran
+        # outside it — the valve stayed open and a parallel run's master hold
+        # was never released. See tests/test_run_lifecycle_safety.py and
+        # test_metered_run.py::TestTheValveCloseCoversTheWholeOpenWindow.
         valve_closed = False
         try:
+            await async_actuate(self.hass, entity_id, True)
+            if await self._confirm_valve_running(zone_id, entity_id) is False:
+                # The valve never reported an on-state within the grace window. Many
+                # valves actuate but report back slowly (or not at all), so closing
+                # it here would guarantee no watering — instead we proceed with the
+                # run and just surface that it could not be confirmed.
+                _LOGGER.warning(
+                    "Zone %s valve '%s' did not confirm an on-state within %ss; "
+                    "proceeding with the run (valve may be slow to report state)",
+                    zone_id,
+                    entity_id,
+                    const.VALVE_CONFIRM_TIMEOUT,
+                )
+
+            delivered = 0.0
+            water_committed = 0.0
+            elapsed = 0.0
+            last_commit = 0.0
+            stopped = False
+
+            # Iter FM-3 (unified flow engine + cross-run learning): a real-flow run feeds one
+            # shared FlowMeter (rate / per-run counter / lifetime totalizer). The counter type
+            # is the per-zone override or the learned cross-run classification; the valve-open
+            # read seeds the meter (so a per-run reset is observed). The learning streak is
+            # advanced at run END (_flow_learn_end_changes) from the meter's actual reset
+            # observation. See flow_metering.FlowMeter and test_metered_run.
+            meter = None
+            open_start_l = None
+            if real_flow:
+                sample = self._read_flow_sample(zone[const.ZONE_FLOW_SENSOR])
+                meter, open_start_l = self._flow_build_meter(zone, sample)
+
+            # Flow runs are volume-targeted (no multiplier) → credit gross depth.
+            # Timed runs inflate the duration by the multiplier → divide it back out
+            # so a full run lands at the target for any multiplier.
+            credit_depth = (
+                self._depth_from_volume_native
+                if real_flow
+                else self._credited_depth_native
+            )
+
+            def _bucket_for(total_l: float) -> float:
+                return min(ceiling, original_bucket + credit_depth(zone, total_l))
+
+            # Register the run so the dashboard can show a Stop control / countdown
+            # and a user-issued stop can interrupt the sleep below. Flow runs are
+            # volume-bounded (unknown finish) → no end time for the countdown.
+            self._register_active_run(zone_id, max_seconds, has_end=not real_flow)
+            loop = asyncio.get_running_loop()
             while elapsed < max_seconds and delivered < target_volume:
                 step = min(const.FLOW_POLL_INTERVAL, max_seconds - elapsed)
                 if step <= 0:

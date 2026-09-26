@@ -12,6 +12,7 @@ accrues.
 Coordinators are built with ``__new__`` so only the touched attributes are wired.
 """
 
+import asyncio
 import contextlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -688,3 +689,73 @@ async def test_a_metered_run_never_takes_credit_away(monkeypatch):
     await coord._run_valve_metered(_zone(**over), "switch.v", real_flow=True)
 
     assert [b for b in coord.store.bucket_writes if b < 3.0] == []
+
+
+# --------------------------------------------------------------------------- #
+# The valve close covers the whole open window, not just the watering loop
+# --------------------------------------------------------------------------- #
+class TestTheValveCloseCoversTheWholeOpenWindow:
+    """Everything between the open and the watering loop can raise: the open
+    itself, the confirm poll (up to VALVE_CONFIRM_TIMEOUT, so an HA shutdown
+    lands in it as a CancelledError), and a real-flow run's meter seed read.
+    Those used to run before the try whose finally closes the valve, so the
+    valve stayed open — and a parallel run, which hands its master token to
+    this function, never released the pump's hold. The rotating flow slot had
+    this fixed already; this is its sister path.
+    """
+
+    CLOSE = ("switch", "turn_off", {"entity_id": "switch.v"})
+
+    def _coord(self, monkeypatch, **kw):
+        coord = _coord(monkeypatch, [_zone()], **kw)
+        coord._live_run_zones = set()
+        coord.async_master_release = AsyncMock()
+        return coord
+
+    async def _run(self, coord, **kw):
+        await coord._run_valve_metered(
+            _zone(**kw.pop("zone", {})), "switch.v", master_token="tok", **kw
+        )
+
+    async def test_a_raising_confirm_poll_closes_the_valve_and_releases_the_master(
+        self, monkeypatch
+    ):
+        coord = self._coord(monkeypatch)
+        coord._confirm_valve_running = AsyncMock(side_effect=RuntimeError("boom"))
+        with pytest.raises(RuntimeError):
+            await self._run(coord, real_flow=False)
+        coord.hass.services.async_call.assert_any_await(*self.CLOSE)
+        coord.async_master_release.assert_awaited_once_with("tok")
+
+    async def test_a_shutdown_during_the_confirm_poll_closes_the_valve(
+        self, monkeypatch
+    ):
+        coord = self._coord(monkeypatch)
+        coord._confirm_valve_running = AsyncMock(side_effect=asyncio.CancelledError)
+        with pytest.raises(asyncio.CancelledError):
+            await self._run(coord, real_flow=False)
+        coord.hass.services.async_call.assert_any_await(*self.CLOSE)
+        coord.async_master_release.assert_awaited_once_with("tok")
+
+    async def test_a_raising_flow_seed_read_closes_the_valve(self, monkeypatch):
+        coord = self._coord(monkeypatch, flow_rate=20)
+        coord._read_flow_sample = Mock(side_effect=RuntimeError("flaky sensor"))
+        with pytest.raises(RuntimeError):
+            await self._run(
+                coord,
+                real_flow=True,
+                zone={const.ZONE_FLOW_SENSOR: "sensor.flow"},
+            )
+        coord.hass.services.async_call.assert_any_await(*self.CLOSE)
+        coord.async_master_release.assert_awaited_once_with("tok")
+
+    async def test_a_failed_open_still_releases_the_master(self, monkeypatch):
+        """#170's symptom: the open raises (ServiceNotFound). Nothing opened, but
+        the parallel run's master hold must still be let go."""
+        coord = self._coord(monkeypatch)
+        coord.hass.services.async_call = AsyncMock(
+            side_effect=[RuntimeError("no such service"), None]
+        )
+        with pytest.raises(RuntimeError):
+            await self._run(coord, real_flow=False)
+        coord.async_master_release.assert_awaited_once_with("tok")
