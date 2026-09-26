@@ -1144,6 +1144,89 @@ class RecurringScheduleManager:
         _LOGGER.info("Registered schedule '%s' (%s) at %s", name, end, target)
         return async_track_point_in_utc_time(self.hass, fire, target)
 
+    async def async_next_run_start_for_zone(self, zone_id):
+        """When this zone's next scheduled run begins, in UTC, or None.
+
+        Bucket-free by construction, and that is the whole point rather than a
+        nicety. The forecast weighting runs inside ``calculate_module``, so
+        anything it calls that reads a zone's bucket or duration closes a loop
+        around the number being computed. ``async_get_next_run_projection`` is
+        therefore NOT usable there: it sizes every zone from the bucket at the
+        decision point and filters through the runner's guards. This resolver
+        touches recurrence resolution only, and
+        ``test_next_run_start_for_zone.py`` pins that it stays that way.
+
+        The earliest answer across the schedules that name the zone wins: that is
+        the run whose window the caller is about to price. None when no enabled
+        schedule names it, or when none of them resolves a target -- an
+        un-anchored interval schedule has no clock target at all.
+        """
+        try:
+            zid = int(zone_id)
+        except (TypeError, ValueError):
+            return None
+        best = None
+        for schedule in self._schedules:
+            if not schedule.get(const.SCHEDULE_CONF_ENABLED, True):
+                continue
+            # Raw "all"/list shape, the same way every other consumer takes it
+            # (see _perform_scheduled_irrigation's note). The literal is what the
+            # rest of this module compares against; there is no constant for it.
+            zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
+            if zones != "all":
+                try:
+                    named = {int(z) for z in zones}
+                except (TypeError, ValueError):
+                    continue
+                if zid not in named:
+                    continue
+            start = await self._next_run_start_for_schedule(schedule)
+            if start is not None and (best is None or start < best):
+                best = start
+        return best
+
+    async def _next_run_start_for_schedule(self, schedule: dict[str, Any]):
+        """One schedule's next run start, without pricing anything.
+
+        The target comes from the same resolvers ``_project_schedule`` uses, and
+        nothing else: no ``_estimate_duration``, no ``_duration_bound``, no
+        ``_decision_point``. Those are where the bucket would be read.
+        """
+        recurrence = schedule.get(const.SCHEDULE_CONF_RECURRENCE)
+        governing, _paired = self._bounded_ends(schedule)
+        if recurrence == const.SCHEDULE_RECURRENCE_INTERVAL:
+            target = self._next_interval_target(schedule, dt_util.utcnow())
+        elif governing is None:
+            # Neither end bounded. Rejected at save time, but a document written
+            # before that check still loads.
+            return None
+        else:
+            target = await self._next_governing_time(schedule, governing)
+            if target is not None:
+                target = await self._advance_past_fired_occurrence(
+                    schedule, governing, target, quiet=True
+                )
+        if target is None:
+            return None
+        armed = self._armed_runs.get(schedule.get(const.SCHEDULE_CONF_ID))
+        if (
+            armed is not None
+            and armed.get("start_utc") is not None
+            and abs(armed["target"] - target) < SAME_OCCURRENCE
+        ):
+            # The arm's own start, computed when it armed. Exact even for a
+            # Finish-anchored schedule, whose start is otherwise the target minus
+            # an estimated duration -- and that estimate is the bucket-reading
+            # call this resolver exists to avoid. Proximity rather than equality
+            # for the reason _advance_past_fired_occurrence gives: a solar bound
+            # answers a second or two later every time it is asked.
+            return armed["start_utc"]
+        # No arm: the governing target stands in. For a Finish-anchored schedule
+        # that anchors the window at the run's END rather than its start, which is
+        # at most one run length out against a 24-hour block. Stated in the spec
+        # as accepted, not fixed.
+        return target
+
     async def async_get_next_run_projection(self) -> list[dict[str, Any]]:
         """The projection, recomputed at most once per cache window.
 

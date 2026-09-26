@@ -11,6 +11,7 @@ Like test_calculate_module, coordinators are built with ``__new__`` so only the
 attributes each method actually touches are wired up.
 """
 
+import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -50,7 +51,43 @@ def _calc_coordinator(*, forecast_weighting=False, use_weather_service=False, da
     coord.store = store
     coord.use_weather_service = use_weather_service
     coord._WeatherServiceClient = None
+    coord.recurring_schedule_manager = SimpleNamespace(
+        async_next_run_start_for_zone=AsyncMock(return_value=RUN_START)
+    )
     return coord
+
+
+UTC = datetime.timezone.utc
+# Midnight of the first forecast day, so each 24-hour block from the run lines up
+# with exactly one dated entry and these tests keep testing the weighting's
+# ARITHMETIC rather than partial-day overlap. A run at 06:00 would make every
+# block 18/24 of one entry plus 6/24 of the next, which is real behaviour and is
+# tested in test_forecast_weighting_window.py -- but it would silently rewrite the
+# numbers four tests here were written to assert.
+RUN_START = datetime.datetime(2026, 9, 27, tzinfo=UTC)
+
+
+def _days(*mm):
+    """Dated daily entries, the shape every client has supplied since #145.
+
+    Seven days minimum on this path: expected_rain reports first_24h_covered
+    False when the entries do not span the run's whole 24-hour block, and the
+    weighting then abstains -- which reads as the code being broken when it is
+    the fixture being short. Measured: two days abstains, three and above cover.
+    """
+    entries = []
+    for index in range(max(7, len(mm))):
+        start = datetime.datetime(2026, 9, 27, tzinfo=UTC) + datetime.timedelta(
+            days=index
+        )
+        entries.append(
+            {
+                const.MAPPING_PRECIPITATION: mm[index] if index < len(mm) else 0.0,
+                const.FORECAST_DAY_START: start,
+                const.FORECAST_DAY_END: start + datetime.timedelta(days=1),
+            }
+        )
+    return entries
 
 
 def _zone(**overrides):
@@ -82,7 +119,7 @@ async def test_no_weighting_leaves_target_zero_and_full_duration():
     """Feature off: full deficit watered, target 0 (current behaviour)."""
     coord = _calc_coordinator(forecast_weighting=False, use_weather_service=True)
     data = await coord.calculate_module(
-        _zone(), _weather(10.0), [{"precipitation": 4.0}]
+        _zone(), _weather(10.0), _days(4.0)
     )
 
     assert data[const.ZONE_BUCKET] == pytest.approx(-10.0)
@@ -94,7 +131,7 @@ async def test_forecast_weighting_reduces_duration_and_sets_target():
     """4 mm forecast trims a 10 mm deficit run to 6 mm; 4 mm left for the rain."""
     coord = _calc_coordinator(forecast_weighting=True, use_weather_service=True)
     data = await coord.calculate_module(
-        _zone(), _weather(10.0), [{const.MAPPING_PRECIPITATION: 4.0}]
+        _zone(), _weather(10.0), _days(4.0)
     )
 
     # True deficit is unchanged in the bucket...
@@ -109,7 +146,7 @@ async def test_forecast_covering_deficit_skips_run():
     """Forecast ≥ deficit: no run, bucket keeps the true deficit, target 0."""
     coord = _calc_coordinator(forecast_weighting=True, use_weather_service=True)
     data = await coord.calculate_module(
-        _zone(), _weather(10.0), [{const.MAPPING_PRECIPITATION: 12.0}]
+        _zone(), _weather(10.0), _days(12.0)
     )
 
     assert data[const.ZONE_BUCKET] == pytest.approx(-10.0)
@@ -121,13 +158,7 @@ async def test_forecast_weighting_sums_lookahead_days():
     """Precip is summed over the configured look-ahead window."""
     coord = _calc_coordinator(forecast_weighting=True, use_weather_service=True, days=2)
     data = await coord.calculate_module(
-        _zone(),
-        _weather(10.0),
-        [
-            {const.MAPPING_PRECIPITATION: 2.0},
-            {const.MAPPING_PRECIPITATION: 3.0},
-            {const.MAPPING_PRECIPITATION: 9.0},  # beyond the 2-day window, ignored
-        ],
+        _zone(), _weather(10.0), _days(2.0, 3.0, 9.0)
     )
     # 5 mm over 2 days -> effective deficit 5 mm.
     assert data[const.ZONE_DURATION] == 300
