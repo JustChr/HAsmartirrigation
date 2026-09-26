@@ -697,6 +697,7 @@
       "fault": {
         "title": "Last run failed",
         "valve_no_response": "The valve didn't respond — no water was delivered, so the bucket was left unchanged.",
+        "valve_did_not_open": "The valve never reported open — the run was abandoned, so no water was delivered and the bucket was left unchanged.",
         "flow_never_started": "No flow was detected — no water was delivered, so the bucket was left unchanged.",
         "station_never_ran": "The OpenSprinkler controller never ran the station — no water was delivered, so the bucket was left unchanged.",
         "station_unresolved": "The OpenSprinkler station could not be found — the run was not started, so the bucket was left unchanged.",

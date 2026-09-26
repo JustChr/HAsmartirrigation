@@ -516,6 +516,7 @@
       "fault": {
         "title": "Ultima esecuzione fallita",
         "valve_no_response": "La valvola non ha risposto — nessuna acqua erogata, il bilancio è rimasto invariato.",
+        "valve_did_not_open": "La valvola non ha mai segnalato l'apertura — l'esecuzione è stata annullata, nessuna acqua erogata, il bilancio è rimasto invariato.",
         "flow_never_started": "Nessun flusso rilevato — nessuna acqua erogata, il bilancio è rimasto invariato.",
         "station_never_ran": "Il controller OpenSprinkler non ha mai avviato la stazione — nessuna acqua erogata, il bilancio è rimasto invariato.",
         "station_unresolved": "Stazione OpenSprinkler non trovata — l'irrigazione non è stata avviata, il bilancio è rimasto invariato.",

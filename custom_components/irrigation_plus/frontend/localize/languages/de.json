@@ -476,6 +476,7 @@
       "fault": {
         "title": "Letzter Lauf fehlgeschlagen",
         "valve_no_response": "Das Ventil hat nicht reagiert — es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
+        "valve_did_not_open": "Das Ventil hat nie offen gemeldet — der Lauf wurde abgebrochen, es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
         "flow_never_started": "Kein Durchfluss erkannt — es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
         "station_never_ran": "Der OpenSprinkler-Controller hat die Station nie gestartet — es wurde kein Wasser abgegeben, der Wasserspeicher bleibt unverändert.",
         "station_unresolved": "Die OpenSprinkler-Station wurde nicht gefunden — der Lauf wurde nicht gestartet, der Wasserspeicher bleibt unverändert.",

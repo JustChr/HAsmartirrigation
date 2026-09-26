@@ -476,6 +476,7 @@
       "fault": {
         "title": "Échec de la dernière exécution",
         "valve_no_response": "La vanne n'a pas répondu — aucune eau distribuée, le bilan reste inchangé.",
+        "valve_did_not_open": "La vanne n'a jamais signalé son ouverture — l'exécution a été abandonnée, aucune eau distribuée, le bilan reste inchangé.",
         "flow_never_started": "Aucun débit détecté — aucune eau distribuée, le bilan reste inchangé.",
         "station_never_ran": "Le contrôleur OpenSprinkler n'a jamais démarré la station — aucune eau distribuée, le bilan reste inchangé.",
         "station_unresolved": "Station OpenSprinkler introuvable — l'arrosage n'a pas démarré, le bilan reste inchangé.",

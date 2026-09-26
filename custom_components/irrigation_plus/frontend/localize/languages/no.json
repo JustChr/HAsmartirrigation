@@ -476,6 +476,7 @@
       "fault": {
         "title": "Siste kjøring mislyktes",
         "valve_no_response": "Ventilen svarte ikke — det ble ikke gitt vann, så vannbalansen er uendret.",
+        "valve_did_not_open": "Ventilen meldte aldri at den var åpen — kjøringen ble avbrutt, det ble ikke gitt vann, så vannbalansen er uendret.",
         "flow_never_started": "Ingen gjennomstrømning oppdaget — det ble ikke gitt vann, så vannbalansen er uendret.",
         "station_never_ran": "OpenSprinkler-kontrolleren startet aldri stasjonen — det ble ikke gitt vann, så vannbalansen er uendret.",
         "station_unresolved": "Fant ikke OpenSprinkler-stasjonen — kjøringen ble ikke startet, så vannbalansen er uendret.",

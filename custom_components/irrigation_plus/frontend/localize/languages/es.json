@@ -476,6 +476,7 @@
       "fault": {
         "title": "Falló la última ejecución",
         "valve_no_response": "La válvula no respondió — no se suministró agua, por lo que el balance no cambió.",
+        "valve_did_not_open": "La válvula nunca informó de su apertura — la ejecución se canceló, no se suministró agua, por lo que el balance no cambió.",
         "flow_never_started": "No se detectó flujo — no se suministró agua, por lo que el balance no cambió.",
         "station_never_ran": "El controlador OpenSprinkler nunca ejecutó la estación — no se suministró agua, por lo que el balance no cambió.",
         "station_unresolved": "No se encontró la estación OpenSprinkler — no se inició el riego, por lo que el balance no cambió.",
