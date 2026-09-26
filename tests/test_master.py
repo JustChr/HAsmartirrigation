@@ -267,6 +267,11 @@ async def test_self_closing_release_on_confirm_failure_does_not_strand_the_pump(
     c.hass.services.async_call = AsyncMock()
     c.hass.loop = Mock()
     c.hass.loop.time = Mock(return_value=0.0)
+    # A real dict, like the self-closing double next door: HA's dispatcher
+    # indexes into hass.data and then iterates what it finds, which a bare Mock
+    # is not. The confirm-failure test below now raises a zone fault, and the
+    # fault notifies the problem sensors through that dispatcher.
+    c.hass.data = {}
     c.store = Mock()
     c.store.config = types.SimpleNamespace(
         master_entity="switch.pump",
