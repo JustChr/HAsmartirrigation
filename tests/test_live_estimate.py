@@ -5,6 +5,7 @@ since-last-calc window (the double-count fix) and the imperial unit conversion.
 """
 
 import datetime
+import logging
 from types import SimpleNamespace
 
 from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
@@ -16,6 +17,7 @@ from custom_components.irrigation_plus.et_estimate import (
     rigorous_et_since,
 )
 from custom_components.irrigation_plus.live_estimate import (
+    REASON_FAILED,
     LiveEstimateMixin,
     _parse_local_naive,
 )
@@ -318,3 +320,44 @@ def test_intraday_unavailable_without_bucket_or_coords():
     }
     zone = {"bucket": -1.0, "last_calculated": None}
     assert coord._intraday_for_zone(zone, bad)["available"] is False
+
+
+def test_a_failed_estimate_leaves_a_traceback(caplog):
+    """The blanket handler must not swallow WHY the estimate failed.
+
+    ``_intraday_for_zone`` catches everything by design: the estimate may never
+    raise into its caller. What that cost was diagnosability. A failure anywhere
+    inside became one DEBUG line carrying ``str(e)`` and nothing else, and the
+    feature went quietly unavailable -- with a plausible "last calculated" still
+    on the card, because that is the stored stamp of the last committed
+    calculation and the estimate only reads it. From outside the process there is
+    no difference between "switched off" and "throws on every refresh".
+
+    The price was measured while building the timezone seam: one test file alone
+    swallowed 222 ``TypeError: can't compare offset-naive and offset-aware
+    datetimes``, every one of them reported as an ordinary assertion failure.
+    """
+    coord = _Coord(METRIC_SYSTEM)
+
+    def _boom(_client):
+        raise TypeError("can't compare offset-naive and offset-aware datetimes")
+
+    coord._site = _boom
+    inputs = {"client": _client(), "rows": _rows(), "tz": 2.0, "forecast": None}
+
+    with caplog.at_level(
+        logging.DEBUG, logger="custom_components.irrigation_plus.live_estimate"
+    ):
+        est = coord._intraday_for_zone(
+            {"bucket": -1.0, "last_calculated": None}, inputs
+        )
+
+    # Unchanged: the estimate still refuses rather than raising.
+    assert est["available"] is False
+    assert est["unavailable_reason"] == REASON_FAILED
+
+    record = next(
+        r for r in caplog.records if "intraday estimate failed" in r.getMessage()
+    )
+    assert record.exc_info is not None, "the traceback is the whole point"
+    assert record.exc_info[0] is TypeError

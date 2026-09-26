@@ -1451,7 +1451,15 @@ class LiveEstimateMixin:
                 forecast_entity_id=forecast_entity_id,
             )
         except Exception as e:  # noqa: BLE001 — estimate must never raise
-            _LOGGER.debug("intraday estimate failed for a zone: %s", e)
+            # exc_info, because the handler above is deliberately total. Without a
+            # traceback a failure anywhere inside this method is one line of
+            # str(e), and the feature then goes quietly unavailable while the
+            # card still shows a plausible "last calculated" -- that stamp is the
+            # last COMMITTED calculation's, which this method only reads. From
+            # outside the process "switched off" and "throws on every refresh"
+            # look identical. One test file alone swallowed 222 naive/aware
+            # TypeErrors this way while reporting them as assertion failures.
+            _LOGGER.debug("intraday estimate failed for a zone: %s", e, exc_info=True)
             result["unavailable_reason"] = REASON_FAILED
         return result
 
