@@ -7,6 +7,8 @@ import pytest
 from custom_components.irrigation_plus import const, helpers
 from custom_components.irrigation_plus.weather_aggregate import (
     aggregate_window,
+    build_hourly_rows,
+    build_substeps,
     select_window,
     weather_day,
 )
@@ -84,6 +86,54 @@ class TestSelectWindowAcceptsBothTimestampForms:
 
         assert boundary is None, "08:00 is not at or before 07:00"
         assert len(window) == 1
+
+
+class TestTheEntryPointsSurviveAnAwareNow:
+    """An aware ``now`` must not detonate either, and must land in the rows' frame.
+
+    ``now`` is the one input on these three functions whose provenance depends on the
+    CALLER: the daily calculation passes its own process clock, the live estimate
+    passes HA-local, and one live-estimate call site passes nothing at all and takes
+    the default. Nothing in the signature says which, and that is what makes this
+    input the fragile one.
+
+    The entry point cannot know, so it reads an unnamed aware ``now`` in the frame of
+    the rows it is about to be compared against -- the only frame in which that
+    comparison means anything. Naive values, which is all of them today, are untouched.
+    """
+
+    def test_aggregate_window_accepts_an_aware_now(self, monkeypatch):
+        monkeypatch.setattr(helpers, "_process_timezone", lambda: UTC)
+        rows = [_r(0, Temperature=10), _r(1, Temperature=12)]
+        cfg = {}
+        naive_now = T0 + datetime.timedelta(hours=2)
+
+        plain = aggregate_window(rows, None, cfg, now=naive_now)
+        aware = aggregate_window(rows, None, cfg, now=naive_now.replace(tzinfo=UTC))
+
+        assert aware == plain
+
+    def test_build_substeps_accepts_an_aware_now(self, monkeypatch):
+        monkeypatch.setattr(helpers, "_process_timezone", lambda: UTC)
+        rows = [_r(0, Precipitation=0.0), _r(1, Precipitation=1.0)]
+        cfg = {}
+        naive_now = T0 + datetime.timedelta(hours=2)
+
+        plain = build_substeps(rows, None, cfg, now=naive_now)
+        aware = build_substeps(rows, None, cfg, now=naive_now.replace(tzinfo=UTC))
+
+        assert aware == plain
+
+    def test_build_hourly_rows_accepts_an_aware_now(self, monkeypatch):
+        monkeypatch.setattr(helpers, "_process_timezone", lambda: UTC)
+        rows = [_r(0, Temperature=10), _r(1, Temperature=12)]
+        cfg = {}
+        naive_now = T0 + datetime.timedelta(hours=2)
+
+        plain = build_hourly_rows(rows, None, cfg, now=naive_now)
+        aware = build_hourly_rows(rows, None, cfg, now=naive_now.replace(tzinfo=UTC))
+
+        assert aware == plain
 
 
 class TestSelectWindow:
