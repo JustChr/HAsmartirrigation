@@ -21,7 +21,7 @@ import homeassistant.util.dt as dt_util
 
 from . import const
 from .helpers import normalize_zone_selection
-from .live_estimate import _parse_local_naive
+from .live_estimate import _parse_stored_as_ha_local
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class AutoCalcMixin:
             return
         # Naive local, because that is what the store holds: calculation.py
         # stamps last_calculated with a bare datetime.now(). Comparing in that
-        # space is what _parse_local_naive exists for.
+        # space is what _parse_stored_as_ha_local exists for.
         cutoff = dt_util.now().replace(tzinfo=None) - timedelta(
             hours=const.AUTO_CALC_MAX_LEDGER_AGE_HOURS
         )
@@ -132,7 +132,7 @@ class AutoCalcMixin:
         due, and erring the other way is what leaves the ledger to rot.
         """
         for zone in zones:
-            last = _parse_local_naive(zone.get(const.ZONE_LAST_CALCULATED))
+            last = _parse_stored_as_ha_local(zone.get(const.ZONE_LAST_CALCULATED))
             if last is None or last < cutoff:
                 return True
         return False

@@ -102,7 +102,7 @@ from .et_estimate import (
     replay_water_balance,
     rigorous_et_since,
 )
-from .helpers import convert_between
+from .helpers import STAMP_FROM_CLIENT, coerce_stamp, convert_between
 from .weather_aggregate import aggregate_window, build_substeps, weather_day
 
 _LOGGER = logging.getLogger(__name__)
@@ -189,16 +189,29 @@ class _HourlyCarry(NamedTuple):
     per_hour: dict
 
 
-def _parse_local_naive(value):
-    """Parse a stored last_calculated/last_updated to a NAIVE LOCAL datetime.
+def _parse_stored_as_ha_local(value):
+    """A stored last_calculated/last_updated read as naive HA-local. ⚠️ MISMATCHED.
 
-    The store writes these as naive *local* datetimes (``datetime.now()`` in
-    ``calculation.py``); an aware value (shouldn't occur for these fields) is
-    converted to local. Mirrors ``sensor._to_aware_datetime``'s convention
-    (naive == local). Reading them as UTC shifts the intra-day window by the
-    local UTC offset — on the proxy path that pushes the anchor onto the next
-    calendar day, so a whole day's ET is spuriously subtracted right after the
-    daily calc (until the next weather update "heals" it).
+    Wurzel: the old name and docstring said "the store writes these as naive *local*
+      datetimes (``datetime.now()`` in ``calculation.py``)", which is the confusion in
+      one sentence. A bare ``datetime.now()`` writes the PROCESS's zone;
+      ``dt_util.as_local`` -- which this applies to an aware value -- is HA's. The two
+      are equal on HA OS and Supervised and differ by the whole UTC offset on
+      Docker/Core without ``TZ=``, so this reads a stored stamp in the wrong frame
+      there.
+    Why it is not fixed here: correcting it moves numbers, and this change may not.
+      What it does instead is stop the name and the comment claiming otherwise, so the
+      mismatch is visible where it lives. The write side and this reader have to move
+      together -- a reader-only change is worse than the status quo, because today
+      every stored stamp is naive and both rules agree on a naive value.
+    NOT-TO-DO: do not route this through the store provenance as a tidy-up. That IS
+      the behaviour change, and it belongs with the writers.
+    Beleg: reading these as UTC instead shifts the intra-day window by the local UTC
+      offset -- on the proxy path that pushes the anchor onto the next calendar day, so
+      a whole day's ET is spuriously subtracted right after the daily calc, until the
+      next weather update heals it. That is why the frame matters at all here.
+    siehe tests/test_live_estimate_time_provenance.py::
+      test_a_stored_stamp_is_still_read_in_ha_local_today
     """
     if value is None:
         return None
@@ -230,10 +243,10 @@ def _window_anchor(zone):
 
     None for a never-calculated zone: there is no window to measure.
     """
-    last_calc = _parse_local_naive(zone.get(const.ZONE_LAST_CALCULATED))
+    last_calc = _parse_stored_as_ha_local(zone.get(const.ZONE_LAST_CALCULATED))
     if last_calc is None:
         return None
-    last_consumed = _parse_local_naive(zone.get(const.ZONE_LAST_CONSUMED))
+    last_consumed = _parse_stored_as_ha_local(zone.get(const.ZONE_LAST_CONSUMED))
     return max(last_calc, last_consumed) if last_consumed else last_calc
 
 
@@ -259,7 +272,7 @@ class LiveEstimateMixin:
             # boundary and carry-forward boundary have to agree, and re-reading
             # the clock per zone lets one zone's partial hour close while the
             # next zone's has not.
-            "now": now.replace(tzinfo=None),
+            "now": coerce_stamp(now, STAMP_FROM_CLIENT),
             "tz_offset_h": offset.total_seconds() / 3600.0 if offset else 0.0,
             # Carried alongside the offset it was measured from, so the hourly
             # rows can resolve a per-row offset across a DST transition without
@@ -445,7 +458,10 @@ class LiveEstimateMixin:
             if when is None:
                 continue
             if when.tzinfo is not None:
-                when = dt_util.as_local(when).replace(tzinfo=None)
+                # A forecast row is site-local clock time off an API: naive means HA's
+                # zone here, and always did. Named rather than open-coded so it cannot
+                # be mistaken for the store's rule, which is the opposite.
+                when = coerce_stamp(when, STAMP_FROM_CLIENT)
             try:
                 temp = float(temp)
             except (TypeError, ValueError):
@@ -485,7 +501,10 @@ class LiveEstimateMixin:
             if when is None or rate is None:
                 continue
             if when.tzinfo is not None:
-                when = dt_util.as_local(when).replace(tzinfo=None)
+                # A forecast row is site-local clock time off an API: naive means HA's
+                # zone here, and always did. Named rather than open-coded so it cannot
+                # be mistaken for the store's rule, which is the opposite.
+                when = coerce_stamp(when, STAMP_FROM_CLIENT)
             out.append((when, float(rate)))
         return out or None
 
@@ -520,7 +539,10 @@ class LiveEstimateMixin:
             if when is None or temp is None:
                 continue
             if when.tzinfo is not None:
-                when = dt_util.as_local(when).replace(tzinfo=None)
+                # A forecast row is site-local clock time off an API: naive means HA's
+                # zone here, and always did. Named rather than open-coded so it cannot
+                # be mistaken for the store's rule, which is the opposite.
+                when = coerce_stamp(when, STAMP_FROM_CLIENT)
             out.append((when, float(temp)))
         return out or None
 
@@ -1165,7 +1187,7 @@ class LiveEstimateMixin:
 
         Both ``rows`` (their ``time``) and ``last_calc_local`` are local clock
         time, so they compare directly — no tz offset is applied (the anchor is
-        already local; see :func:`_parse_local_naive`).
+        already local; see :func:`_parse_stored_as_ha_local`).
         """
         if not last_calc_local:
             return rows
@@ -1411,7 +1433,7 @@ class LiveEstimateMixin:
             # and precip deltas cover — so any surplus above field capacity is
             # drained over exactly that window (mirrors the daily calc's
             # capacity cap + drainage, integrated analytically). Compared in
-            # local time since the anchor is naive local (see _parse_local_naive).
+            # local time since the anchor is naive local (see _parse_stored_as_ha_local).
             # Used by the LUMPED balance only; the replay takes each step's own
             # dt_hours, which is the whole point of it.
             elapsed_hours = max(0.0, (now_local - anchor).total_seconds() / 3600.0)

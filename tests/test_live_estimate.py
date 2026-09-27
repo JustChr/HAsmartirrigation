@@ -19,7 +19,7 @@ from custom_components.irrigation_plus.et_estimate import (
 from custom_components.irrigation_plus.live_estimate import (
     REASON_FAILED,
     LiveEstimateMixin,
-    _parse_local_naive,
+    _parse_stored_as_ha_local,
 )
 
 
@@ -64,18 +64,18 @@ def _rows():
     return rows
 
 
-def test_parse_local_naive():
+def test_parse_stored_as_ha_local():
     import homeassistant.util.dt as dt_util
 
     # naive (the store's convention) is returned unchanged — interpreted local
-    assert _parse_local_naive("2026-06-07T12:00:00") == datetime.datetime(
+    assert _parse_stored_as_ha_local("2026-06-07T12:00:00") == datetime.datetime(
         2026, 6, 7, 12
     )
     # an aware value (shouldn't occur for these fields) is converted to local
     aware = datetime.datetime(2026, 6, 7, 12, tzinfo=datetime.timezone.utc)
-    assert _parse_local_naive(aware) == dt_util.as_local(aware).replace(tzinfo=None)
-    assert _parse_local_naive(None) is None
-    assert _parse_local_naive("not-a-date") is None
+    assert _parse_stored_as_ha_local(aware) == dt_util.as_local(aware).replace(tzinfo=None)
+    assert _parse_stored_as_ha_local(None) is None
+    assert _parse_stored_as_ha_local("not-a-date") is None
 
 
 def test_rows_since_filters_to_after_last_calc():
