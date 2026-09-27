@@ -42,7 +42,7 @@ from .et_hourly import (
     solar_elevation_sin,
     svp_from_t,
 )
-from .helpers import parse_datetime
+from .helpers import STAMP_FROM_STORE, coerce_stamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,12 +100,26 @@ _INTEGRAL_AGGREGATES = (
 
 
 def _parse(value):
-    """Parse a stored RETRIEVED_AT (datetime or ISO string) to datetime/None."""
-    if isinstance(value, datetime.datetime):
-        return value
-    if value is None:
-        return None
-    return parse_datetime(value)
+    """A stored ``RETRIEVED_AT`` (datetime or ISO string) as a naive process-local stamp.
+
+    Wurzel: this returned whatever it was handed, so a naive value stayed naive and an
+      aware one stayed aware -- and every comparison below is against another stamp or
+      against ``now``. One aware value in the buffer therefore raised
+      ``can't compare offset-naive and offset-aware datetimes`` from inside a blanket
+      ``except``, which does not crash anything: it switches the live estimate off and
+      leaves a plausible "last calculated" on display.
+    Fix: route it through the shared coercion under the provenance these stamps
+      actually have. ``RETRIEVED_AT`` is written by a bare ``datetime.now()``, so its
+      naive form is the PROCESS's zone, and an aware value is read there too.
+    Behaviour: unchanged for every stamp that exists today, all of which are naive --
+      a naive value comes back untouched. What changes is that an aware one is
+      comparable instead of fatal.
+    NOT-TO-DO: do not use the client provenance here, however similar the two look.
+      A weather-client row is site-local clock time off an API and means HA's zone;
+      applying that rule to a buffer stamp moves it by the whole UTC offset.
+    siehe tests/test_weather_aggregate.py::TestSelectWindowAcceptsBothTimestampForms
+    """
+    return coerce_stamp(value, STAMP_FROM_STORE)
 
 
 def merge_latest_per_field(fields, timestamp, row, *, keep_row):
@@ -145,6 +159,12 @@ def select_window(readings, watermark):
     (polled) rows carry every field, so for them the merge degenerates to the
     latest row and nothing moves.
     """
+    if watermark is None:
+        return None, [r for r in readings if isinstance(r, dict)]
+    # The watermark is a stored stamp too (the zone's last_consumed_at), so it is read
+    # under the same provenance as the rows it is compared against. Comparing the two
+    # only means anything in one frame.
+    watermark = coerce_stamp(watermark, STAMP_FROM_STORE)
     if watermark is None:
         return None, [r for r in readings if isinstance(r, dict)]
     fields = {}  # key -> (stamp, value): latest pre-watermark value per field

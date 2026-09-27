@@ -4,7 +4,7 @@ import datetime
 
 import pytest
 
-from custom_components.irrigation_plus import const
+from custom_components.irrigation_plus import const, helpers
 from custom_components.irrigation_plus.weather_aggregate import (
     aggregate_window,
     select_window,
@@ -12,11 +12,78 @@ from custom_components.irrigation_plus.weather_aggregate import (
 )
 
 T0 = datetime.datetime(2026, 6, 8, 6, 0, 0)
+UTC = datetime.timezone.utc
 
 
 def _r(offset_h, **vals):
     """Build a reading dict at T0 + offset hours."""
     return {const.RETRIEVED_AT: T0 + datetime.timedelta(hours=offset_h), **vals}
+
+
+class TestSelectWindowAcceptsBothTimestampForms:
+    """An AWARE stamp must not detonate here, and must land where its naive twin does.
+
+    Every stamp in the buffer is naive today, so these tests add a case rather than
+    change one. They exist because the write side is about to start producing aware
+    stamps: without them, the first aware value reaching this function raises
+    ``can't compare offset-naive and offset-aware datetimes`` inside a blanket
+    ``except``, which does not crash anything -- it silently switches the live
+    estimate off with a plausible "last calculated" still on display.
+
+    A stored stamp's naive form is the PROCESS's zone, so an aware one is read there.
+    The process zone is substituted rather than set, because ``time.tzset()`` does not
+    exist on Windows.
+    """
+
+    @staticmethod
+    def _aware(offset_h, tz, **vals):
+        naive = T0 + datetime.timedelta(hours=offset_h)
+        return {const.RETRIEVED_AT: naive.replace(tzinfo=tz), **vals}
+
+    def test_an_aware_retrieved_at_splits_where_its_naive_twin_does(self, monkeypatch):
+        monkeypatch.setattr(helpers, "_process_timezone", lambda: UTC)
+        wm = T0 + datetime.timedelta(hours=2)
+        naive_rows = [_r(h, Temperature=10 + h) for h in (0, 1, 2, 3, 4)]
+        aware_rows = [self._aware(h, UTC, Temperature=10 + h) for h in (0, 1, 2, 3, 4)]
+
+        n_boundary, n_window = select_window(naive_rows, wm)
+        a_boundary, a_window = select_window(aware_rows, wm)
+
+        assert len(a_window) == len(n_window)
+        assert [r["Temperature"] for r in a_window] == [
+            r["Temperature"] for r in n_window
+        ]
+        assert (a_boundary is None) == (n_boundary is None)
+        assert a_boundary["Temperature"] == n_boundary["Temperature"]
+
+    def test_an_aware_watermark_splits_where_its_naive_twin_does(self, monkeypatch):
+        monkeypatch.setattr(helpers, "_process_timezone", lambda: UTC)
+        rows = [_r(h, Temperature=10 + h) for h in (0, 1, 2, 3, 4)]
+        naive_wm = T0 + datetime.timedelta(hours=2)
+
+        _, n_window = select_window(rows, naive_wm)
+        _, a_window = select_window(rows, naive_wm.replace(tzinfo=UTC))
+
+        assert [r["Temperature"] for r in a_window] == [
+            r["Temperature"] for r in n_window
+        ]
+
+    def test_an_aware_stamp_is_read_in_the_process_zone_not_has(self, monkeypatch):
+        """The provenance is what decides, and it is the store's here.
+
+        With the container at UTC+2, an 06:00 UTC stamp is 08:00 on the process clock,
+        so it falls AFTER an 07:00 watermark rather than before it. Reading it as
+        HA-local would put it on the other side of the split.
+        """
+        plus_two = datetime.timezone(datetime.timedelta(hours=2))
+        monkeypatch.setattr(helpers, "_process_timezone", lambda: plus_two)
+        rows = [self._aware(0, UTC, Temperature=10)]  # 06:00 UTC == 08:00 process
+        wm = T0 + datetime.timedelta(hours=1)  # 07:00 naive process time
+
+        boundary, window = select_window(rows, wm)
+
+        assert boundary is None, "08:00 is not at or before 07:00"
+        assert len(window) == 1
 
 
 class TestSelectWindow:
