@@ -86,3 +86,51 @@ def test_a_naive_stored_stamp_passes_through_either_way(split_zones):
     assert live_estimate._parse_stored_as_ha_local(naive) == naive
     assert helpers.coerce_stamp(naive, helpers.STAMP_FROM_STORE) == naive
     assert helpers.coerce_stamp(naive, helpers.STAMP_FROM_CLIENT) == naive
+
+
+class TestTheForecastReadersUseTheClientRule:
+    """The three row conversions, exercised THROUGH the functions that hold them.
+
+    These exist because the mutation that swaps their provenance to the store's rule
+    killed nothing: the vocabulary had a test, but nothing drove an aware row through
+    the three call sites. They sit behind ``if when.tzinfo is not None``, so only an
+    aware forecast row reaches them and no existing fixture supplies one.
+
+    Swapped to the store's rule, on a container without ``TZ=`` every forecast row would
+    shift by the whole UTC offset and the suite would have agreed.
+    """
+
+    @staticmethod
+    def _client(method, rows):
+        client = type("FakeClient", (), {})()
+        setattr(client, method, lambda: rows)
+        return client
+
+    def test_the_precipitation_reader_localises_to_ha(self, split_zones):
+        rows = [(datetime.datetime(2026, 9, 21, 10, 0, tzinfo=UTC), 1.5)]
+        client = self._client("get_hourly_precipitation_forecast", rows)
+
+        out = live_estimate.LiveEstimateMixin._hourly_forecast_precipitation(client)
+
+        assert out == [(datetime.datetime(2026, 9, 21, 12, 0), 1.5)]
+
+    def test_the_temperature_reader_localises_to_ha(self, split_zones):
+        rows = [(datetime.datetime(2026, 9, 21, 10, 0, tzinfo=UTC), 17.0)]
+        client = self._client("get_hourly_temperature_forecast", rows)
+
+        out = live_estimate.LiveEstimateMixin._hourly_forecast_temperatures(client)
+
+        assert out == [(datetime.datetime(2026, 9, 21, 12, 0), 17.0)]
+
+    def test_a_naive_forecast_row_is_left_alone(self, split_zones):
+        """The branch is guarded on ``tzinfo``, so a naive row never reaches it.
+
+        Pinned because it is what keeps this change from moving any number: every
+        forecast row a client produces today is already naive HA-local.
+        """
+        naive = datetime.datetime(2026, 9, 21, 12, 0)
+        client = self._client("get_hourly_precipitation_forecast", [(naive, 1.5)])
+
+        out = live_estimate.LiveEstimateMixin._hourly_forecast_precipitation(client)
+
+        assert out == [(naive, 1.5)]
