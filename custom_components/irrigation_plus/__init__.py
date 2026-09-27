@@ -2026,13 +2026,22 @@ class SmartIrrigationCoordinator(
         )
 
     async def async_update_zone_config(
-        self, zone_id: int | None = None, data: dict | None = None
+        self,
+        zone_id: int | None = None,
+        data: dict | None = None,
+        *,
+        run_start=None,
     ):
         """Update, create, or delete a zone configuration.
 
         Args:
             zone_id: The ID of the zone to update or delete.
             data: The configuration data for the mapping.
+            run_start: when the run this calculation precedes begins, used
+                by the ATTR_CALCULATE branch only. Keyword-only and BESIDE
+                ``data`` on purpose: ``data``'s keys are schema-validated as
+                websocket fields (websockets.py:295-296), so a run start
+                carried inside the dict would become part of an external API.
 
         """
         _LOGGER.debug("[async_update_zone_config]: updating zone %s", zone_id)
@@ -2097,7 +2106,7 @@ class SmartIrrigationCoordinator(
                     raise SmartIrrigationError(msg)
 
             # async_calculate_zone aggregates this zone's own window internally.
-            await self.async_calculate_zone(zone_id, forecastdata)
+            await self.async_calculate_zone(zone_id, forecastdata, run_start=run_start)
         elif const.ATTR_CALCULATE_ALL in data:
             # calculate all zones
             _LOGGER.info("Calculating all zones")

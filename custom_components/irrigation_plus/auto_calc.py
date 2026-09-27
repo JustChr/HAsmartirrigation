@@ -43,7 +43,9 @@ class AutoCalcMixin:
             return False
         return bool(getattr(config, "autocalcenabled", True))
 
-    async def async_commit_pre_run_calculation(self, zones=None) -> None:
+    async def async_commit_pre_run_calculation(
+        self, zones=None, *, run_start=None
+    ) -> None:
         """Commit a calculation immediately before a run, if the mode asks for it.
 
         Called from a schedule's decision point, or from the dispatch itself for
@@ -52,17 +54,23 @@ class AutoCalcMixin:
 
         Deliberately ahead of the skip evaluation, so a run that is then skipped
         for rain still leaves a fresh ledger behind rather than a stale one.
+
+        ``run_start`` is when the run this commit precedes actually begins, and
+        is passed only by a caller that knows -- a dispatch, where the run
+        starts now. Left None the weighting resolves the start from the
+        schedules itself, which is right for a commit made ahead of the run at
+        a decision point and wrong inside a dispatch.
         """
         if not self._before_run_calc_active():
             return
         _LOGGER.info("Committing the pre-run calculation for zones: %s", zones)
         selection = normalize_zone_selection(zones)
         if selection is None:
-            await self._async_calculate_all()
+            await self._async_calculate_all(run_start=run_start)
         else:
             for zone_id in selection:
                 await self.async_update_zone_config(
-                    zone_id, {const.ATTR_CALCULATE: True}
+                    zone_id, {const.ATTR_CALCULATE: True}, run_start=run_start
                 )
 
     async def async_guard_ledger_staleness(self):

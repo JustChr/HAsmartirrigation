@@ -343,7 +343,9 @@ class TestTheScheduleActuallyCommitsBeforeItRuns:
     async def test_a_scheduled_run_commits_a_calculation_first(self, hass):
         mgr, calls = self._manager(hass)
         await mgr._perform_scheduled_irrigation("all", "Morning")
-        mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once_with("all")
+        mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once_with(
+            "all", run_start=None
+        )
         assert calls[:2] == ["commit", "skip_check"]
 
     async def test_the_commit_happens_even_when_the_run_is_vetoed(self, hass):
@@ -352,6 +354,23 @@ class TestTheScheduleActuallyCommitsBeforeItRuns:
         mgr, calls = self._manager(hass, skip=True)
         await mgr._perform_scheduled_irrigation([1, 2], "Morning")
         mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once_with(
-            [1, 2]
+            [1, 2], run_start=None
         )
         mgr.coordinator._irrigate_linked_entities.assert_not_awaited()
+
+    async def test_the_dispatch_names_its_own_moment_as_the_run_start(self, hass):
+        """The window the weighting prices is THIS run's, not the next one's.
+
+        Left unnamed, the run-start resolver answers for the following occurrence
+        -- measured a full day late for a finish callback and for a plain
+        start-time schedule alike.
+        siehe tests/test_before_run_anchor.py
+        """
+        mgr, _ = self._manager(hass)
+        fired = datetime.datetime(2026, 9, 28, 6, 0, tzinfo=datetime.timezone.utc)
+
+        await mgr._perform_scheduled_irrigation("all", "Morning", run_start=fired)
+
+        mgr.coordinator.async_commit_pre_run_calculation.assert_awaited_once_with(
+            "all", run_start=fired
+        )

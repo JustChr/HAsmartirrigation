@@ -1817,7 +1817,14 @@ class RecurringScheduleManager:
         """
         zones = schedule.get(const.SCHEDULE_CONF_ZONES, "all")
 
-        await self.coordinator.async_commit_pre_run_calculation(zones)
+        # At the fire, not at a decision point (see this method's own docstring),
+        # so the run starts now and the run-start resolver must not be asked: it
+        # would answer for tomorrow's occurrence. run_callback has already
+        # recorded this target as fired, and the arm it left behind carries
+        # TODAY's target, which the SAME_OCCURRENCE proximity test rejects
+        # against the advanced one.
+        # siehe tests/test_before_run_anchor.py
+        await self.coordinator.async_commit_pre_run_calculation(zones, run_start=now)
 
         plan = await self.coordinator.async_plan_zone_runs(zones, runnable_only=True)
         plan = [p for p in plan if p.duration > 0]
@@ -2305,6 +2312,7 @@ class RecurringScheduleManager:
                 order=order,
                 deadline=deadline,
                 pre_committed=pre_committed,
+                run_start=now,
             ),
         )
 
@@ -2316,6 +2324,7 @@ class RecurringScheduleManager:
         order=None,
         deadline=None,
         pre_committed=False,
+        run_start=None,
     ) -> None:
         """Irrigate the schedule's zones.
 
@@ -2329,7 +2338,19 @@ class RecurringScheduleManager:
             # on the fresh ledger; everything else commits here, immediately before
             # dispatch.
             if not pre_committed:
-                await self.coordinator.async_commit_pre_run_calculation(zones)
+                # The run starts at the moment this dispatch fired. Without it
+                # the weighting asks the run-start resolver, which at this
+                # moment answers for the NEXT occurrence: the fired-occurrence
+                # guard has moved past this one and the governing bound
+                # resolves strictly after now. Measured a full day late.
+                # NOT-TO-DO: do not make run_start required to force the issue.
+                #   There is one production caller and twelve test call sites;
+                #   _execute_schedule's own `now` is already mandatory, so the
+                #   production path cannot forget it.
+                # siehe tests/test_before_run_anchor.py
+                await self.coordinator.async_commit_pre_run_calculation(
+                    zones, run_start=run_start
+                )
             # Check skip conditions (same as trigger-based irrigation)
             if await self.coordinator._check_skip_conditions():
                 _LOGGER.info(
