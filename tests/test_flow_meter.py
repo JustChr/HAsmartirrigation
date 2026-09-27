@@ -1,5 +1,7 @@
 """Unit tests for the pure FlowMeter engine + learning functions (no Home Assistant)."""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from custom_components.irrigation_plus.flow_metering import (
@@ -12,9 +14,17 @@ from custom_components.irrigation_plus.flow_metering import (
 )
 
 
+_OPEN = datetime(2026, 9, 27, 10, 0, 0, tzinfo=timezone.utc)
+
+
+def _report(seconds: float) -> datetime:
+    """A ``State.last_reported`` this many seconds after the valve opened."""
+    return _OPEN + timedelta(seconds=seconds)
+
+
 def _feed(meter, series):
     for value, unit, state_class, at in series:
-        meter.sample(value, unit, state_class, at)
+        meter.sample(value, unit, state_class, at=at)
     return meter.delivered()
 
 
@@ -179,8 +189,8 @@ def test_auto_string_treated_as_lifetime_safe():
 # --- guards ---
 def test_no_numeric_reading_returns_none():
     m = FlowMeter()
-    m.sample(None, "L/min", None, 0.0)
-    m.sample("unavailable", "L/min", None, 15.0)
+    m.sample(None, "L/min", None, at=0.0)
+    m.sample("unavailable", "L/min", None, at=15.0)
     assert m.delivered() is None
 
 
@@ -412,8 +422,8 @@ def test_end_rate_at_credits_no_tail_from_a_sensor_dead_since_the_mark():
     # would be carried into the next run's deficit. Nothing past the last mark is known.
     m = FlowMeter(max_gap_s=60.0)
     _feed(m, [(10.0, "L/min", None, float(t)) for t in range(0, 571, 15)])
-    m.sample(None, "L/min", None, 585.0)  # unavailable: nothing is fed
-    m.sample(None, "L/min", None, 600.0)
+    m.sample(None, "L/min", None, at=585.0)  # unavailable: nothing is fed
+    m.sample(None, "L/min", None, at=600.0)
     m.end_rate_at(614.0, poll_s=15.0)
     assert m.delivered() == pytest.approx(10.0 * 570 / 60)  # 95 L, not 102.3
 
@@ -464,3 +474,141 @@ def test_end_rate_at_leaves_a_totalizer_alone():
     )
     m.end_rate_at(10.0)
     assert m.delivered() == 10.0
+
+
+def test_sample_takes_the_report_time_and_requires_at_by_keyword():
+    """``at`` is keyword-only so the fourth positional slot can carry the report
+    time of the state the reading came from. Two callers used to pass ``at``
+    positionally; binding elapsed seconds to a report time would be silent, so
+    the signature makes it loud."""
+    m = FlowMeter()
+    m.sample(0.0, "L/min", None, reported_at=_report(0), at=15.0)
+    with pytest.raises(TypeError):
+        m.sample(0.0, "L/min", None, 30.0)
+
+
+# --- the witness: did this meter measure the run, or only get read? ---
+def test_a_state_that_is_read_again_but_never_reported_is_no_witness():
+    """The sampler polls every 15 s and hass.states.get hands back the same State
+    each time. Five reads of ONE unchanged report are not evidence that the meter
+    watched the run - the sensor may not have spoken since before the open."""
+    m = FlowMeter(max_gap_s=60)
+    stale = _report(-300)  # last spoke five minutes before the valve opened
+    for at in (0.0, 15.0, 30.0, 45.0, 60.0):
+        m.sample(0.0, "L/min", None, reported_at=stale, at=at)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is False
+
+
+def test_a_sensor_that_reports_anew_during_the_run_is_a_witness():
+    """Same readings, but the sensor sends each one: that IS evidence, and the
+    0.0 is an answer (a dry cistern) rather than a gap."""
+    m = FlowMeter(max_gap_s=60)
+    for at in (0.0, 15.0, 30.0, 45.0, 60.0):
+        m.sample(0.0, "L/min", None, reported_at=_report(at), at=at)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is True
+
+
+def test_a_rate_gap_the_meter_will_not_integrate_is_not_a_dry_run():
+    """A sensor unavailable for five consecutive polls reports freshly whenever it
+    IS live, so the report witness passes it - but _sample_rate refuses to
+    integrate across a gap wider than max_gap_s, so nothing is credited and
+    delivered() is 0.0 while 12 L/min really flowed."""
+    m = FlowMeter(max_gap_s=60)
+    at = 0.0
+    m.sample(12.0, "L/min", None, reported_at=_report(at), at=at)
+    for _ in range(8):
+        at += 75.0  # five missed polls between live reads
+        m.sample(12.0, "L/min", None, reported_at=_report(at), at=at)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is False
+
+
+def test_a_totalizer_that_fell_back_and_climbed_is_not_a_dry_run():
+    """A counter that drops 100 -> 60 and climbs to 90 delivered 30 L, but the
+    over-credit-safe keep-baseline mode never passes its retained 100."""
+    m = FlowMeter(max_gap_s=60)
+    m.sample(100.0, "L", "total_increasing", reported_at=_report(0), at=0.0)
+    for i, v in enumerate((60.0, 70.0, 80.0, 90.0), start=1):
+        m.sample(v, "L", "total_increasing", reported_at=_report(15 * i), at=15.0 * i)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is False
+
+
+def test_a_post_reset_climb_above_near_zero_is_not_a_dry_run():
+    """The row saw_reset() misses: a per-run counter resolved to lifetime whose
+    first post-reset poll lands at 8 L, above max(1.0, 0.1 x 45) = 4.5. 32 L
+    flowed, delivered() is 0.0, and saw_reset() is False - so the reset signal
+    cannot carry this guard on its own."""
+    m = FlowMeter(max_gap_s=60)
+    m.sample(45.0, "L", "total_increasing", reported_at=_report(0), at=0.0)
+    for i, v in enumerate((8.0, 20.0, 30.0, 40.0), start=1):
+        m.sample(v, "L", "total_increasing", reported_at=_report(15 * i), at=15.0 * i)
+    assert m.delivered() == 0.0
+    assert m.saw_reset() is False
+    assert m.metered_the_run() is False
+
+
+def test_a_totalizer_that_held_its_value_is_a_dry_run():
+    """The control on the other side: a counter that reports and does not move has
+    MEASURED the dryness. An interval credited at 0 L is still credited."""
+    m = FlowMeter(max_gap_s=60)
+    for i in range(5):
+        m.sample(40.0, "L", "total_increasing", reported_at=_report(15 * i), at=15.0 * i)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is True
+
+
+def test_a_report_time_that_cannot_be_ordered_is_ignored_rather_than_fatal():
+    """The report time comes off a foreign State object, so it is not ours to
+    trust: HA's own State signature allows None for it. A value that cannot be
+    ordered must not raise here - this runs inside the sampling loop of a run
+    with the valve OPEN - and must not pass as evidence either, because an
+    unusable report is no report.
+
+    The valve-open seed carries a REAL report here on purpose. With a baseline
+    that is itself junk the comparison is never reached, so a fixture that feeds
+    junk from the start passes whatever the guard does."""
+    m = FlowMeter(max_gap_s=60)
+    m.sample(0.0, "L/min", None, reported_at=_report(0), at=0.0)
+    m.sample(0.0, "L/min", None, reported_at=object(), at=15.0)
+    m.sample(0.0, "L/min", None, reported_at=None, at=30.0)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is False
+
+
+def test_an_early_priced_interval_does_not_excuse_a_later_refusal():
+    """_priced latches, so it cannot carry the guard on its own: two ordinary
+    reads in front of a gap would mask the rest of the window. Here the meter
+    prices two intervals at 0 L and then refuses the one across which 12 L/min
+    really flowed - the run is not measured, whatever the first two say."""
+    m = FlowMeter(max_gap_s=60)
+    for at in (0.0, 15.0, 30.0):
+        m.sample(0.0, "L/min", None, reported_at=_report(at), at=at)
+    m.sample(12.0, "L/min", None, reported_at=_report(120), at=120.0)  # gap 90 > 60
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is False
+
+
+def test_a_totalizer_that_held_then_fell_back_is_not_a_dry_run():
+    """The totalizer half of the same shape: two reads credited at 0 L (the
+    counter held), then a fall to 5 and a climb to 35 that the retained
+    baseline of 40 swallows whole."""
+    m = FlowMeter(max_gap_s=60)
+    for i, v in enumerate((40.0, 40.0, 5.0, 35.0)):
+        m.sample(v, "L", "total_increasing", reported_at=_report(15 * i), at=15.0 * i)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is False
+
+
+def test_a_reading_that_does_not_advance_the_clock_is_not_an_accounted_interval():
+    """A rate sample at an `at` the meter has already passed is neither credited
+    nor refused - the non-monotonic guard skips it so it cannot double-count.
+    A fresh report on such a sample is evidence the sensor is alive and no
+    evidence at all that the run was measured, which is what _priced is for."""
+    m = FlowMeter(max_gap_s=60)
+    m.sample(0.0, "L/min", None, reported_at=_report(0), at=0.0)
+    m.sample(0.0, "L/min", None, reported_at=_report(5), at=0.0)
+    assert m.delivered() == 0.0
+    assert m.metered_the_run() is False

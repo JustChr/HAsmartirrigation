@@ -22,6 +22,7 @@ Pure Python (no Home Assistant imports) so it is unit-tested in isolation.
 from __future__ import annotations
 
 import math
+from datetime import datetime
 
 # Cross-run learning tunables (see flow_learn_next_streak / flow_learn_resolve).
 FLOW_LEARN_RESET_FACTOR = 0.5  # start < FACTOR x prev_end at a run's open == a reset
@@ -131,6 +132,19 @@ class FlowMeter:
         self._last: float | None = None  # totalizer: previous litres baseline
         self._delivered = 0.0
         self._have_reading = False
+        # The report the FIRST sample carried, and whether any later sample carried a
+        # newer one. Wurzel: hass.states.get hands back the same State object while the
+        # sensor stays quiet, so "read after the open" counts our polls, not the
+        # sensor's reports - a meter whose sensor has said nothing since before the
+        # valve opened looked identical to one watching a dry run. See metered_the_run.
+        self._open_reported_at: datetime | None = None
+        self._saw_report_after_open = False
+        # Whether a reading was CREDITED, and whether one was SEEN AND REFUSED. Three
+        # states, not two: a value can arrive (_have_reading, which the valve-open seed
+        # satisfies on its own), be priced, or be declined. "A value arrived" says
+        # nothing about whether the meter accounted for the run.
+        self._priced = False
+        self._declined = False
         self._reset_done = False  # per_run: the one-time open reset already consumed
         self._saw_reset = False  # a totalizer near-zero drop was observed this run
         # Rate sensors: one mark per sample that advanced the clock (its time, the
@@ -138,9 +152,23 @@ class FlowMeter:
         # integration at an instant later samples have already passed.
         self._rate_marks: list[tuple[float, float, float]] = []
 
-    def sample(self, value, unit: str, state_class: str | None, at: float) -> None:
+    def sample(
+        self,
+        value,
+        unit: str,
+        state_class: str | None,
+        reported_at: datetime | None = None,
+        *,
+        at: float,
+    ) -> None:
         """Feed one poll reading. ``value`` may be None/non-numeric/NaN (ignored). ``at``
-        is monotonic seconds since run start (the first sample defines t0)."""
+        is monotonic seconds since run start (the first sample defines t0).
+
+        ``reported_at`` is the source ``State.last_reported`` — when the sensor last
+        SENT this value, which is not when we read it. ``at`` is keyword-only so this
+        slot can take it: the two distributor call sites passed ``at`` positionally, and
+        binding elapsed seconds to a report time would have been silent.
+        """
         if value is None:
             return
         try:
@@ -150,6 +178,22 @@ class FlowMeter:
         if not math.isfinite(raw):
             return  # NaN/inf: treat like an unavailable tick (ignore, don't poison)
         self._have_reading = True
+        # The baseline is the first sample that carries a report at all - normally the
+        # valve-open seed, so "newer than the baseline" is "newer than the open".
+        # Without a seed (sensor unavailable at open) the first readable poll becomes
+        # the baseline and evidence needs a second report. Deliberately conservative:
+        # one report is a baseline, not a change, and the safe direction is to keep the
+        # caller's time-based credit.
+        # isinstance, not `is not None`: the value comes off a foreign State object
+        # (HA's own State signature allows None for last_reported), and this runs in
+        # the sampling loop of a run with the valve OPEN — a TypeError from an
+        # unorderable value would abort the run mid-flow. An unusable report is simply
+        # no report, which leaves the caller its time-based credit.
+        if isinstance(reported_at, datetime):
+            if not isinstance(self._open_reported_at, datetime):
+                self._open_reported_at = reported_at
+            elif reported_at > self._open_reported_at:
+                self._saw_report_after_open = True
         if self._is_totalizer is None:
             self._is_totalizer = flow_is_totalizer(unit, state_class)
         if self._is_totalizer:
@@ -163,8 +207,15 @@ class FlowMeter:
             dt = at - self._last_at
             if self._max_gap_s is None or dt <= self._max_gap_s:
                 self._delivered += rate * dt / 60.0
-            # else: gap too large (dropped/unavailable samples) — do not credit the
-            # recovered rate across it (would over-credit); just advance the clock.
+                # Credited, even at 0 L/min: an interval priced at 0 has MEASURED the
+                # dryness, which is the difference between a dry cistern and a gap.
+                self._priced = True
+            else:
+                # gap too large (dropped/unavailable samples) — do not credit the
+                # recovered rate across it (would over-credit); just advance the clock.
+                # A refusal, and the meter says so: the litres it did not credit are
+                # unknown, not zero, so a 0.0 from this run is not an answer.
+                self._declined = True
         if self._last_at is None or at > self._last_at:
             self._last_at = at
             self._rate_marks.append((at, self._delivered, rate))
@@ -177,6 +228,7 @@ class FlowMeter:
         if litres >= self._last:  # rising: credit the true climb
             self._delivered += litres - self._last
             self._last = litres
+            self._priced = True  # a counter that held its value measured 0 L
             return
         # a drop: the one-time per-run open reset, else a glitch (keep baseline). The
         # open reset only ever happens BEFORE the counter accumulates any volume (a
@@ -185,6 +237,17 @@ class FlowMeter:
         # is a glitch, not a reset — so per_run cannot over-credit a genuine per-run
         # counter even when the meter is seeded at the post-reset value (0). See
         # test_per_run_post_reset_seed_midrun_glitch_no_over_credit.
+        # Any drop is a refusal: whatever fell is water this meter cannot account for,
+        # so its 0.0 is not an answer. Unconditional and ABOVE the near-zero test on
+        # purpose - that is what makes saw_reset() imply "did not meter the run".
+        # NOT-TO-DO: do not move this below the `if`, and do not qualify it with
+        #   _per_run. The near-zero branch is the only place _saw_reset is assigned, so
+        #   a caller reading both would then need the saw_reset() term back. Measured
+        #   cost of the unconditional form: a per-run counter whose reset falls inside
+        #   the window never earns a dry verdict, which is correct rather than a gap -
+        #   after a reset a 0.0 cannot be told from a post-reset climb the retained
+        #   baseline swallowed.
+        self._declined = True
         if litres <= self._near_zero():
             # A near-zero drop = a reset (per-run) or a lifetime glitch — indistinguishable
             # within one run, so it is only cross-run EVIDENCE (saw_reset), fed to the
@@ -257,6 +320,29 @@ class FlowMeter:
         """The last totalizer litres seen (the run's end value, for cross-run learning),
         or None for a rate sensor / no totalizer reading."""
         return self._last if self._is_totalizer else None
+
+    def metered_the_run(self) -> bool:
+        """True iff this meter was in a position to say the run delivered nothing.
+
+        Wurzel: ``_have_reading`` — what ``delivered()`` gates on — is satisfied by the
+          valve-open seed alone, so a ``0.0`` from it proves nothing. Only a caller that
+          writes a run OFF on the strength of that ``0.0`` needs the stronger claim.
+        The claim is that the sensor REPORTED after the valve opened (not merely that we
+        read it again, which every poll does), and that the meter then CREDITED at least
+        one reading and REFUSED none. All three are load-bearing and neither half covers
+        the other: a stale sensor read at 0 passes ``_priced`` (every interval is priced,
+        at 0 L), and a sensor flapping across ``max_gap_s`` or a counter falling back
+        passes ``_saw_report_after_open`` (it does report, freshly, whenever it is live).
+        Read it BEFORE ``end_rate_at`` if you like — that method rewrites ``_delivered``
+        and deliberately touches none of these flags.
+        NOT-TO-DO: do not fold this into ``delivered()``. Its ``0.0`` contract is what
+          the crediting callers price a genuinely dry run with.
+        siehe test_flow_meter.py::
+        test_a_state_that_is_read_again_but_never_reported_is_no_witness
+        test_a_rate_gap_the_meter_will_not_integrate_is_not_a_dry_run
+        test_a_post_reset_climb_above_near_zero_is_not_a_dry_run
+        """
+        return self._saw_report_after_open and self._priced and not self._declined
 
     def saw_reset(self) -> bool:
         """True iff a totalizer near-zero drop was observed this run — cross-run evidence

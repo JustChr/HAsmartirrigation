@@ -11,6 +11,7 @@ Coordinators are built with ``__new__`` (like test_experimental_features) so onl
 the attributes each method touches are wired up.
 """
 
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -44,8 +45,15 @@ def _runner(monkeypatch, states, *, confirm_timeout=0):
     return coord
 
 
-def _st(state):
-    return SimpleNamespace(state=state, attributes={})
+def _st(state, reported=None):
+    """A state double. ``last_reported`` is part of HA's State on every version this
+    integration supports (manifest floor 2025.5), and the flow reader passes it on, so
+    a double without it is not a state."""
+    return SimpleNamespace(
+        state=state,
+        attributes={},
+        last_reported=reported or datetime(2026, 9, 27, 10, 0, tzinfo=timezone.utc),
+    )
 
 
 def _bucket_change(mock):

@@ -309,10 +309,16 @@ class SelfClosingMixin:
             meter.sample(*sample, at=at)
 
     def _sc_finish_flow(self, zone_id, run: dict | None = None):
-        """Cancel a zone's sampling and return (measured_l | None, end_changes). measured
-        is None when there is no sensor, the meter was lost to a restart, or no positive
-        flow was seen (caller then keeps its time-based volume). Takes ONE final reading
-        at close so a totalizer's last (up to a poll interval) of climb isn't dropped.
+        """Cancel a zone's sampling and return (measured_l | None, end_changes).
+
+        ``measured`` is None whenever nothing was measured: no sensor, no meter
+        (a restart loses it), a sensor that never read, a sensor that read ONLY
+        at the valve-open seed, or a totalizer reset this run cannot price.
+        ``0.0`` is returned only for a meter that watched the run and saw no
+        water - the dry-cistern case, which is an answer and not a gap. The
+        note at the return says why those last two are not answers.
+        Takes ONE final reading at close so a totalizer's last (up to a poll
+        interval) of climb isn't dropped.
 
         ``run`` is the record being finalised; the callers that only discard a meter
         pass none. When it carries the valve's off report, a rate sensor is metered to
@@ -362,11 +368,65 @@ class SelfClosingMixin:
                 zone_id,
                 sensor,
             )
-        measured = d if (d is not None and d > 0) else None
-        return measured, self._flow_learn_end_changes(zone, meter, open_start_l)
+        # Wurzel: 0.0 is an ANSWER, not a missing one - the meter was alive the
+        #   whole run and integrated nothing. Collapsed to None it was
+        #   indistinguishable from a dead sensor, so _sc_finish_run fell back to
+        #   the time-based volume: a zone that received nothing had its bucket
+        #   credited in full, its litres added to water_used_total and its run
+        #   logged as completed. The dry-cistern case, silent.
+        # Fix: return d as the meter reported it. None still means no numeric
+        #   reading was ever seen; 0.0 means a live meter measured nothing.
+        #   _observed_finish_flow already returns it this way, decided after the
+        #   phantom-open incident - the two flow paths now say the same thing
+        #   with the same value.
+        # NOT-TO-DO: do not read a falsy `measured` as "no measurement" at any
+        #   caller. That is the same collapse one level up, and it re-opens this
+        #   bug. The two callers that care each say so at their own line.
+        # siehe test_self_closing.py::
+        # test_a_live_but_dry_meter_reports_zero_not_nothing
+        #
+        # But a 0.0 is only an ANSWER when the meter was in a position to answer,
+        # and metered_the_run() is that question. It fails in three ways, each of
+        # which must stay None so the caller keeps its time-based volume:
+        # 1. The sensor never REPORTED after the valve opened. _flow_build_meter
+        #    feeds the open read in, so _have_reading is true from the first
+        #    second - and hass.states.get hands the same State back on every
+        #    poll, so counting reads does not help either. A sensor that updates
+        #    less often than the run lasts (cloud-polled, a utility meter on a
+        #    few minutes, a counter that reports after the close) reads 0 all
+        #    run without having said anything. State.last_reported separates it.
+        # 2. The meter credited NOTHING. A sensor that answered once at the open
+        #    and then went unavailable prices no interval at all.
+        # 3. The meter REFUSED a reading: a rate gap wider than max_gap_s, or any
+        #    totalizer fall. A per-run counter on a zone whose type is still
+        #    being learned resolves to the over-credit-safe 'lifetime', which
+        #    KEEPS the pre-reset baseline, so the post-reset climb never rises
+        #    above it and measures 0.0 while real water flowed - 32 L in the
+        #    measured repro, and saw_reset() is False for it whenever the first
+        #    post-reset poll lands above the near-zero floor. The classic runner
+        #    diverts the lucky half of that case to a time-based credit before
+        #    its dry branch (irrigation.py:1535) and still has the other half.
+        # NOT-TO-DO: do not put the saw_reset() term back beside this. _saw_reset
+        #   is assigned only inside the totalizer's near-zero branch and the
+        #   refusal in 3. is recorded unconditionally above it, so saw_reset()
+        #   implies not metered_the_run() and the term kills nothing.
+        # NOT-TO-DO: do not fold any of it into delivered(). Its 0.0 contract is
+        #   what the crediting callers price a genuinely dry run with; only the
+        #   caller that writes a run OFF needs this stricter evidence.
+        # siehe test_self_closing.py::
+        # test_a_run_whose_sensor_never_reported_keeps_its_time_based_credit
+        # test_a_sensor_that_died_after_the_open_read_is_not_a_dry_run
+        # test_a_totalizer_that_reset_mid_run_is_not_a_dry_run
+        if d is not None and d <= 0 and not meter.metered_the_run():
+            return None, self._flow_learn_end_changes(zone, meter, open_start_l)
+        return d, self._flow_learn_end_changes(zone, meter, open_start_l)
 
     async def _sc_finish_run(self, zone_id, *, actual_s: float | None = None) -> None:
-        """Finalise a completed run: record actual usage, clear, fire finished.
+        """Finalise a run that reached its end: record usage, clear, fire finished.
+
+        Usually a completion. A run whose live flow meter measured 0.0 L across
+        the whole window is recorded FAILED instead, its optimistic credit
+        reversed and a zone fault raised - see the dry branch below.
 
         Idempotent: a no-op if the run is no longer active (e.g. the cleanup
         timer fires after an early stop already removed it), so usage is never
@@ -402,8 +462,24 @@ class SelfClosingMixin:
         # Iter FM-5: prefer the measured volume from the non-blocking sampler over the
         # open-time time-based estimate. Cancel the sampler + persist the totalizer end
         # for cross-run learning. measured is None when the zone has no flow_sensor, the
-        # meter was lost to a restart, or no positive flow was seen -> time-based volume.
+        # meter was lost to a restart, or the sensor never read -> time-based volume.
+        # A measured 0.0 is NOT that case; it is the dry run handled just below.
         measured, end_changes = self._sc_finish_flow(zone_id, run)
+        # A live meter that integrated nothing across the whole window: the
+        # valve reported open and no water moved. Not a missing measurement,
+        # which is None and still falls back to the time-based volume below.
+        dry = measured is not None and measured <= 0
+        # NOT-TO-DO: do not add a branch for a dry run whose record carries no
+        #   RUN_PRE_BUCKET. One was written and then removed after review: a
+        #   live in-memory meter is proof the record was written by THIS
+        #   process, and both writers set the field (self_closing.py's dispatch
+        #   and batch.py's record), so the state is unreachable - the same
+        #   argument that declined the sampler marker. Where it could fire it
+        #   was incoherent: _stamp_run_finalized re-reads the bucket, found the
+        #   un-reversed optimistic credit at >= 0 and zeroed the displayed
+        #   duration, so the zone showed as satisfied while its run logged
+        #   FAILED, under a localised text that promises the bucket was left
+        #   unchanged.
         if end_changes:
             await self.store.async_update_zone(zone_id, end_changes)
         if measured is not None:
@@ -424,21 +500,46 @@ class SelfClosingMixin:
         else:
             volume_l = self._timed_volume_l(zone, planned_s)
         await self._stamp_run_finalized(zone_id, volume_l)
-        # A good run ends the zone's fault, exactly as the classic runner ends
-        # it (irrigation.py:1601, and its rotating twins at :1953 / :2239) -
-        # placed before the record there too.
+        # What this run does to the zone's fault. A good one ends it, exactly as
+        # the classic runner ends it (irrigation.py:1601, and its rotating twins
+        # at :1953 / :2239) - placed before the record there too. A dry one
+        # RAISES one instead and must not reach the clear below.
         # Wurzel: all five _clear_zone_fault callers sat on the classic metered
         #   and rotating paths, none of which a self-closing, batch or
         #   OpenSprinkler zone can reach. Those three raise faults at five sites
         #   and cleared at none, and _zone_faults is in-memory, so the only cure
         #   was an HA restart.
-        # This one line reaches all three because all three finalise here:
+        # The else branch reaches all three, because all three finalise here:
         #   batch.py:756, run_watch.py:982 / :1012.
         # siehe test_self_closing.py::test_a_completed_run_clears_the_zone_fault
-        self._clear_zone_fault(zone_id)
+        if dry:
+            # The classic runner's verdict for this exact state, with its
+            # constant, so the run log, the problem sensor and a user's
+            # automation read one vocabulary (irrigation.py:1586 / :2123).
+            # NOT-TO-DO: no early return. The classic runner may return out of
+            #   its dry branch because it is not a link in a chain;
+            #   _sc_finish_run is, and leaving here strands the rest of the
+            #   cycle and a deferred calculation with it.
+            # siehe test_self_closing.py::
+            # test_a_dry_run_does_not_clear_the_zone_fault_it_just_raised
+            self._set_zone_fault(zone_id, const.FAULT_FLOW_NEVER_STARTED)
+            # The entity this reason is ABOUT is the flow sensor - it is what
+            # measured nothing, and on a service-mode zone (the majority, and
+            # every zone driven by a run_service script) linked_entity is
+            # optional and often unset. Falls back to the valve so the payload
+            # still names something where a zone has no sensor, which cannot
+            # happen on this path today but costs nothing to survive.
+            self._fire_zone_problem(
+                zone_id,
+                zone,
+                zone.get(const.ZONE_FLOW_SENSOR) or zone.get(const.ZONE_LINKED_ENTITY),
+                const.FAULT_FLOW_NEVER_STARTED,
+            )
+        else:
+            self._clear_zone_fault(zone_id)
         await self._record_run(
             zone_id,
-            result=const.RUN_RESULT_COMPLETED,
+            result=(const.RUN_RESULT_FAILED if dry else const.RUN_RESULT_COMPLETED),
             volume_l=volume_l,
             planned_s=planned_s,
             # The observed window when there is one (#139): a completed run used
@@ -448,6 +549,7 @@ class SelfClosingMixin:
             # volume above stays on planned_s, the window the run was credited
             # and sized for.
             actual_s=planned_s if actual_s is None else actual_s,
+            detail=const.FAULT_FLOW_NEVER_STARTED if dry else None,
             trigger=const.RUN_TRIGGER_SELF_CLOSING,
             add_to_total=True,
         )
@@ -461,7 +563,12 @@ class SelfClosingMixin:
                         "bucket": zone.get(const.ZONE_BUCKET),
                     }
                 ],
-                "problems": [],
+                # The only case in which this list was ever meant to be filled.
+                "problems": (
+                    [{"zone_id": zone_id, "reason": const.FAULT_FLOW_NEVER_STARTED}]
+                    if dry
+                    else []
+                ),
             },
         )
         # A self-closing zone can't stop early, so it gets the same calibration advisory
@@ -476,9 +583,23 @@ class SelfClosingMixin:
         # NOT-TO-DO: do not move the timed volume above onto actual_s as well — it
         #   prices the water the run was CREDITED for, which stays the plan.
         # See test_service_watch.py::TestTheAdvisoryIsPricedOnTheWindowItMeasured.
-        await self._flow_calibration_check(
-            zone, measured, planned_s if actual_s is None else actual_s
-        )
+        # NOT a sample when the run was dry: a run that delivered nothing says
+        # nothing about the hardware's throughput, and a caller that KNOWS that
+        # should not offer it.
+        # Measured, against this comment's first draft: the advisory does not
+        #   actually need saving here. Its own guard rejects anything below
+        #   FLOW_CAL_MIN_SAMPLE_L (irrigation.py:1285, ~6.7 L), so a 0.0 was
+        #   already refused - the `measured_l is None` shortcut this change
+        #   removed was never the only thing standing in the way.
+        # Kept anyway, deliberately: that floor is derived from two tuning
+        #   constants (FLOW_CAL_METER_RESOLUTION_L / FLOW_CAL_DEVIATION) and a
+        #   future tuning that lowers it would silently make this caller the
+        #   one that feeds 0 L over a full window in as a real rate.
+        # siehe test_self_closing.py::test_a_dry_run_is_not_a_calibration_sample
+        if not dry:
+            await self._flow_calibration_check(
+                zone, measured, planned_s if actual_s is None else actual_s
+            )
         # Ordered AFTER _sc_remove_run above so the calculation no longer sees a run
         # in flight. No-op unless this run displaced one.
         await self.async_run_deferred_calculation(zone_id)
@@ -966,9 +1087,20 @@ class SelfClosingMixin:
         # Iter FM-5: finalize the flow sampler UP FRONT — the measured litres both refine
         # the recorded usage below AND (review finding F) reconcile the bucket. Cancels the
         # sampler and persists the totalizer end for cross-run learning. measured is None
-        # when there is no sensor, the meter was lost to a restart, or no positive flow was
-        # seen. See test_self_closing.
+        # when there is no sensor, the meter was lost to a restart, or the sensor never
+        # read. See test_self_closing.
         measured, end_changes = self._sc_finish_flow(zone_id, run)
+        # An early stop reads 0.0 for a reason that is not a dry cistern: the
+        # water has not reached the sensor yet. _sc_finish_flow no longer
+        # collapses that (see its return), so this path collapses it for itself
+        # and keeps the time-based credit below byte-identical to before.
+        # The completion twin does the opposite and treats it as the failure it
+        # is - _sc_finish_run's dry branch. Same split as the classic runner,
+        # whose dry branch is gated on `not stopped` (irrigation.py:1580).
+        # siehe test_self_closing.py::
+        # test_an_early_stop_with_a_dry_meter_still_credits_time_based
+        if measured is not None and measured <= 0:
+            measured = None
         if end_changes:
             await self.store.async_update_zone(zone_id, end_changes)
         # Reconcile ABSOLUTELY from the pre-run level (RUN_PRE_BUCKET) when we have it: the

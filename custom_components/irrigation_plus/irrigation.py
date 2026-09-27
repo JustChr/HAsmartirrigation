@@ -1176,8 +1176,17 @@ class IrrigationRunnerMixin:
             await self._irrigate_zones_parallel(zones, deadline=deadline)
 
     def _read_flow_sample(self, flow_sensor: str):
-        """Current (value, unit, state_class) of a flow sensor, or None when it is
-        unavailable/unknown/non-numeric (a flaky tick the FlowMeter simply skips)."""
+        """Current (value, unit, state_class, last_reported) of a flow sensor, or None
+        when it is unavailable/unknown/non-numeric (a flaky tick the FlowMeter simply
+        skips).
+
+        The fourth element is when the sensor last SENT this value, not when we read
+        it: ``hass.states.get`` hands back the same State object on every poll while
+        the sensor stays quiet, so a caller that only counts reads cannot tell a meter
+        watching a dry run from one whose sensor has not spoken since before the valve
+        opened. Only a caller that writes a run OFF needs that difference; the
+        crediting callers pass it on without looking at it.
+        """
         state = self.hass.states.get(flow_sensor)
         if state is None or state.state in ("unavailable", "unknown"):
             # DEBUG (not WARNING): FM-5 polls this every 15 s across the whole
@@ -1198,6 +1207,7 @@ class IrrigationRunnerMixin:
             value,
             attrs.get("unit_of_measurement", "L/min"),
             attrs.get("state_class"),
+            state.last_reported,
         )
 
     def _flow_build_meter(self, cfg: dict, sample):

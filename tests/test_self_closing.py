@@ -1,5 +1,7 @@
 """Self-closing valve mode (Phase 1)."""
 
+import itertools
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -55,11 +57,27 @@ def _zone(**kw):
     return z
 
 
-def _flow_state(value, unit="L"):
-    """A fake HA state for a flow sensor (value + unit_of_measurement)."""
+_REPORT_EPOCH = datetime(2026, 9, 27, 10, 0, 0, tzinfo=timezone.utc)
+_report_seq = itertools.count()
+
+
+def _flow_state(value, unit="L", reported=None):
+    """A fake HA state for a flow sensor: value, unit, and when it last REPORTED.
+
+    ``last_reported`` advances for every state built here, because a sensor
+    sending a value is exactly what makes HA write a new State. A test that keeps
+    ONE object and hands it back on every poll therefore models a sensor that has
+    gone quiet — which is a different thing from a sensor reporting zero, and the
+    difference decides whether a run may be written off as dry.
+    """
     st = Mock()
     st.state = str(value)
     st.attributes = {"unit_of_measurement": unit}
+    st.last_reported = (
+        _REPORT_EPOCH + timedelta(seconds=next(_report_seq))
+        if reported is None
+        else reported
+    )
     return st
 
 
@@ -1467,3 +1485,368 @@ async def test_a_stopped_run_clears_the_zone_fault_as_the_classic_runner_does():
     await c.async_stop_self_closing(2)
 
     c._clear_zone_fault.assert_called_once_with(2)
+
+
+async def test_a_live_but_dry_meter_reports_zero_not_nothing(monkeypatch):
+    """A counter that never moves over a whole run is not a missing
+    measurement: the meter was alive and integrated nothing - a dry cistern, a
+    closed main, a blocked filter. Collapsing that to None made the caller fall
+    back to the time-based volume and credit a zone that received nothing."""
+    import custom_components.irrigation_plus.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    zone = _zone(
+        **{
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_LIFETIME,
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+    current = {"st": _flow_state(0)}
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    await c._sc_start_flow_sampling(zone)
+    for at in (15.0, 30.0, 45.0):
+        # The counter never moves, but it keeps REPORTING that it has not moved -
+        # a fresh State object per poll, which is what HA writes when a sensor
+        # sends a value. Re-using one object instead would model a sensor that
+        # has gone quiet, and a quiet sensor has measured nothing at all.
+        current["st"] = _flow_state(0)
+        c._sc_sample_flow(2, at)
+
+    measured, _end = c._sc_finish_flow(2)
+
+    assert measured == 0.0, "a live meter that integrated nothing must say 0.0"
+
+
+async def test_an_early_stop_with_a_dry_meter_still_credits_time_based():
+    """A run stopped five seconds in reads 0.0 L because the water has not
+    reached the sensor yet, not because the cistern is empty. The completion
+    path treats a 0.0 as a failure; this one must not - the same reason the
+    classic runner gates its dry branch on `not stopped` (irrigation.py:1580)."""
+    c = _coord()
+    run = {
+        const.RUN_ZONE_ID: 2,
+        const.RUN_STARTED: "2026-06-30T08:00:00+00:00",
+        const.RUN_PLANNED_SECONDS: 600.0,
+        const.RUN_PLANNED_MM: 4.0,
+        const.RUN_PRE_BUCKET: -5.0,
+        const.RUN_CREDITED: True,
+    }
+    c.store.async_get_config = AsyncMock(
+        return_value={const.CONF_ACTIVE_VALVE_RUNS: [run]}
+    )
+    c.store.get_zone = Mock(return_value=_zone(**{const.ZONE_BUCKET: -1.0}))
+    c._sc_finish_flow = Mock(return_value=(0.0, {}))
+    c._sc_elapsed = Mock(return_value=300.0)
+    c._timed_volume_l = Mock(return_value=10.0)
+    # Consulted only by the measured branch, which a stop must not take here.
+    c._credited_depth_native = Mock(return_value=99.0)
+
+    await c.async_stop_self_closing(2)
+
+    assert c._record_run.await_args.kwargs["volume_l"] == 10.0
+    c._credited_depth_native.assert_not_called()
+
+
+def _dry_finish_coord():
+    """A self-closing run about to finalise with a live meter that read 0.0."""
+    c = _coord()
+    c._set_zone_fault = Mock()
+    c._clear_zone_fault = Mock()
+    c.async_write_watered_bucket = AsyncMock()
+    c._flow_calibration_check = AsyncMock()
+    c._sc_finish_flow = Mock(return_value=(0.0, {}))
+    c._credited_depth_native = Mock(return_value=0.0)
+    c._timed_volume_l = Mock(return_value=20.0)  # must NOT reach the record
+    c.store.get_zone = Mock(
+        return_value=_zone(
+            **{
+                const.ZONE_BUCKET: 0.0,  # the optimistic open credit, satisfied
+                const.ZONE_MAXIMUM_BUCKET: 24.0,
+                const.ZONE_LINKED_ENTITY: "valve.beet",
+            }
+        )
+    )
+    c.store.async_get_config = AsyncMock(
+        return_value={
+            const.CONF_ACTIVE_VALVE_RUNS: [
+                {
+                    const.RUN_ZONE_ID: 2,
+                    const.RUN_PLANNED_SECONDS: 600.0,
+                    const.RUN_PRE_BUCKET: -2.0,
+                }
+            ]
+        }
+    )
+    return c
+
+
+async def test_a_dry_run_is_recorded_as_a_failure_and_raises_the_fault():
+    """The leading case for this change: a dry cistern behind a live sensor. The
+    run was credited optimistically at open and measured nothing, so it is a
+    failed run - the same verdict and the same constant the classic metered
+    runner reaches for this state (irrigation.py:1586)."""
+    c = _dry_finish_coord()
+
+    await c._sc_finish_run(2)
+
+    kwargs = c._record_run.await_args.kwargs
+    assert kwargs["result"] == const.RUN_RESULT_FAILED
+    assert kwargs["detail"] == const.FAULT_FLOW_NEVER_STARTED
+    assert kwargs["volume_l"] == 0.0
+    c._set_zone_fault.assert_called_once_with(2, const.FAULT_FLOW_NEVER_STARTED)
+    # The optimistic credit is reversed to the level the run started from, so
+    # the deficit survives and the zone comes due again.
+    c.async_write_watered_bucket.assert_awaited_once_with(2, -2.0)
+
+
+async def test_a_dry_run_does_not_clear_the_zone_fault_it_just_raised():
+    """The one line this change shares with the fault-lifecycle fix underneath it:
+    a completed run clears the fault, and a dry one must not - it would put out
+    the lamp it just lit.
+    The chain and the deferred calculation still run: _sc_finish_run is a link,
+    unlike the classic runner, and returning early here strands the cycle."""
+    c = _dry_finish_coord()
+    c._chain_advance_for_run = AsyncMock()
+    c.async_run_deferred_calculation = AsyncMock()
+
+    await c._sc_finish_run(2)
+
+    c._clear_zone_fault.assert_not_called()
+    c._chain_advance_for_run.assert_awaited_once()
+    c.async_run_deferred_calculation.assert_awaited_once()
+
+
+async def test_a_dry_run_is_not_a_calibration_sample():
+    """_flow_calibration_check short-circuits on `measured_l is None`, so until
+    the collapse was removed a dry run never reached it. A 0.0 walks past that
+    guard and would be banked as an observed rate of 0 L/min - dragging the
+    mean down until the advisory recommends a throughput the hardware never
+    had."""
+    c = _dry_finish_coord()
+
+    await c._sc_finish_run(2)
+
+    c._flow_calibration_check.assert_not_awaited()
+
+
+async def test_a_run_resumed_after_a_restart_is_never_called_dry():
+    """A marker that the sampler ran for the whole run was considered and is
+    not built, and this is why: _sc_meters is in-memory only, and
+    async_resume_self_closing_runs re-arms the cleanup, the master hold and the
+    valve watcher but never _sc_start_flow_sampling. So the pop in
+    _sc_finish_flow finds nothing and the function is out before `d` is read -
+    a resumed run cannot be dry.
+
+    The marker would be needed if the verdict were taken at the caller on
+    `measured is None`. Mutate `dry` to `not measured` and this test goes red,
+    which is the whole argument in one assertion. If it ever fails for another
+    reason, build the marker."""
+    c = _coord()
+    c._set_zone_fault = Mock()
+    c._flow_calibration_check = AsyncMock()
+    c._timed_volume_l = Mock(return_value=20.0)
+    c.store.get_zone = Mock(
+        return_value=_zone(
+            **{const.ZONE_FLOW_SENSOR: "sensor.beet_flow", const.ZONE_BUCKET: -2.0}
+        )
+    )
+    c.store.async_get_config = AsyncMock(
+        return_value={
+            const.CONF_ACTIVE_VALVE_RUNS: [
+                {
+                    const.RUN_ZONE_ID: 2,
+                    const.RUN_PLANNED_SECONDS: 600.0,
+                    const.RUN_PRE_BUCKET: -2.0,
+                }
+            ]
+        }
+    )
+    # The restart: a fresh process has an empty meter map, and nothing on the
+    # resume path refills it. _sc_finish_flow is NOT stubbed here - the real one
+    # is the thing under test.
+    assert c._sc_meters() == {}
+
+    await c._sc_finish_run(2)
+
+    c._set_zone_fault.assert_not_called()
+    assert c._record_run.await_args.kwargs["result"] == const.RUN_RESULT_COMPLETED
+
+
+async def test_a_sensor_that_died_after_the_open_read_is_not_a_dry_run(monkeypatch):
+    """_flow_build_meter feeds the valve-open reading INTO the meter, so
+    `_have_reading` is true from the first second and `delivered()` never returns
+    None again - however dead the sensor goes afterwards. Without this the dry
+    verdict cannot tell "watched the whole run, saw no water" from "answered once
+    at the open and was never heard from again", and writes the second one off."""
+    import custom_components.irrigation_plus.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    zone = _zone(
+        **{
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_LIFETIME,
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+    current = {"st": _flow_state(0)}  # readable at the open...
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    await c._sc_start_flow_sampling(zone)
+    current["st"] = None  # ...and unavailable from then on, close included
+    for at in (15.0, 30.0, 45.0):
+        c._sc_sample_flow(2, at)
+
+    measured, _end = c._sc_finish_flow(2)
+
+    assert measured is None, "a meter that only ever read at the open measured nothing"
+
+
+async def test_a_totalizer_that_reset_mid_run_is_not_a_dry_run(monkeypatch):
+    """A hold-until-reset counter on a zone whose type is still being learned
+    resolves to the over-credit-safe 'lifetime', which KEEPS the pre-reset
+    baseline - so the post-reset climb never rises above it and measures 0.0
+    while real water flowed.
+
+    The classic runner diverts exactly this case to a time-based credit before
+    its dry branch can see it (irrigation.py:1536), and pins it with
+    test_metered_run.py::test_metered_zone_auto_hold_until_reset_credits_timed_not_fault.
+    This path mirrored that dry branch without its precondition."""
+    import custom_components.irrigation_plus.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    # No counter-type override and no learned streak -> flow_learn_resolve gives
+    # 'lifetime', the state a per-run counter sits in until the streak converges.
+    zone = _zone(**{const.ZONE_FLOW_SENSOR: "sensor.beet_flow"})
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+    current = {"st": _flow_state(1000)}  # still holding the previous run's total
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    await c._sc_start_flow_sampling(zone)
+    current["st"] = _flow_state(0)  # the counter resets just after the open
+    c._sc_sample_flow(2, 15.0)
+    current["st"] = _flow_state(45)  # and then climbs: 45 L really delivered
+    c._sc_sample_flow(2, 30.0)
+
+    meter = c._sc_meters()[2][0]
+    assert meter.delivered() == 0.0, "precondition: the baseline hides the climb"
+    assert meter.saw_reset() is True, "precondition: the reset was observed"
+
+    measured, _end = c._sc_finish_flow(2)
+
+    assert measured is None, "a reset the meter cannot price is a gap, not a dry run"
+
+
+def test_the_flow_read_carries_the_states_report_time():
+    """hass.states.get hands back the SAME State object while the sensor stays
+    quiet, so a read alone cannot say whether the value is fresh. The read
+    carries State.last_reported so the meter can tell."""
+    c = _coord()
+    st = _flow_state(0, reported=_REPORT_EPOCH)
+    c.hass.states.get = Mock(return_value=st)
+    assert c._read_flow_sample("sensor.flow")[3] == _REPORT_EPOCH
+
+
+async def test_a_run_whose_sensor_never_reported_keeps_its_time_based_credit(
+    monkeypatch,
+):
+    """A sensor that updates less often than the run lasts - a cloud-polled
+    controller, a utility meter reporting every few minutes, a counter that
+    reports only after the valve closes - is read on every poll and reports on
+    none of them. Writing that run off as dry reverses a credit the zone earned,
+    raises a fault that stays on and waters the zone again at the next
+    opportunity. master credits it by time, and so must this: without a report
+    after the open the meter has measured nothing.
+
+    Note what the harness does NOT do: it hands back one State object, exactly
+    as hass.states.get does while a sensor stays quiet."""
+    import custom_components.irrigation_plus.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    c._set_zone_fault = Mock()
+    c._clear_zone_fault = Mock()
+    c.async_write_watered_bucket = AsyncMock()
+    c._flow_calibration_check = AsyncMock()
+    c._credited_depth_native = Mock(return_value=10.0)
+    c._timed_volume_l = Mock(return_value=20.0)
+    zone = _zone(
+        **{
+            const.ZONE_FLOW_SENSOR: "sensor.beet_flow",
+            const.ZONE_FLOW_COUNTER_TYPE: const.FLOW_COUNTER_LIFETIME,
+            const.ZONE_BUCKET: 0.0,
+            const.ZONE_MAXIMUM_BUCKET: 24.0,
+        }
+    )
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+    c.store.async_get_config = AsyncMock(
+        return_value={
+            const.CONF_ACTIVE_VALVE_RUNS: [
+                {
+                    const.RUN_ZONE_ID: 2,
+                    const.RUN_PLANNED_SECONDS: 600.0,
+                    const.RUN_PRE_BUCKET: -2.0,
+                }
+            ]
+        }
+    )
+    quiet = _flow_state(0)  # ONE state, its report older than the open
+    c.hass.states.get = Mock(return_value=quiet)
+
+    await c._sc_start_flow_sampling(zone)
+    for at in (15.0, 30.0, 45.0):
+        c._sc_sample_flow(2, at)
+
+    await c._sc_finish_run(2)
+
+    kwargs = c._record_run.await_args.kwargs
+    assert kwargs["result"] == const.RUN_RESULT_COMPLETED
+    assert kwargs["volume_l"] == 20.0, "the time-based volume, as master credits it"
+    c._set_zone_fault.assert_not_called()
+    c._clear_zone_fault.assert_called_once_with(2)
+
+
+async def test_a_negative_resting_offset_is_not_a_measurement_either(monkeypatch):
+    """A rate sensor with a small negative resting offset measures BELOW zero on
+    a run it did not account for, so the guard has to test `<= 0` and not
+    `== 0`: at `== 0` a -0.2 L walks past it and is written off as dry, which
+    is the regression this guard exists to prevent.
+
+    The run is unmeasured for the usual reason - two intervals priced, then a
+    gap the meter refuses to integrate across, and 12 L/min flowing in it."""
+    import custom_components.irrigation_plus.self_closing as scmod
+
+    monkeypatch.setattr(scmod, "async_track_time_interval", Mock(return_value=Mock()))
+
+    c = _coord()
+    zone = _zone(**{const.ZONE_FLOW_SENSOR: "sensor.beet_flow"})
+    store_zone = dict(zone)
+    c.store.get_zone = Mock(side_effect=lambda zid: store_zone)
+    current = {"st": _flow_state(-0.4, unit="L/min")}
+    c.hass.states.get = Mock(side_effect=lambda eid: current["st"])
+
+    await c._sc_start_flow_sampling(zone)
+    for at in (15.0, 30.0):
+        current["st"] = _flow_state(-0.4, unit="L/min")
+        c._sc_sample_flow(2, at)
+    current["st"] = _flow_state(12.0, unit="L/min")  # live again after a 90 s gap
+    c._sc_sample_flow(2, 120.0)
+
+    meter = c._sc_meters()[2][0]
+    assert meter.delivered() < 0, "precondition: the resting offset integrates negative"
+
+    measured, _end = c._sc_finish_flow(2)
+
+    assert measured is None, "a negative reading is no more measured than a zero"

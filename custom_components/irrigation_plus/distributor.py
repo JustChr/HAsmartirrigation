@@ -711,7 +711,7 @@ class DistributorMixin:
             # rate-only path treated as unreliable; don't integrate a rate across it.
             max_gap_s=const.DISTRIBUTOR_FLOW_POLL_SECONDS * 4,
         )
-        meter.sample(reading[0], reading[1], reading[2], 0.0)  # valve-open seed
+        meter.sample(reading[0], reading[1], reading[2], at=0.0)  # valve-open seed
         elapsed = 0.0
         last_live = 0.0  # elapsed at the most recent LIVE read (the seed is live)
         # Dead-meter extend guard (audit H1): a flow sensor that goes unavailable
@@ -734,7 +734,7 @@ class DistributorMixin:
             elapsed += step
             r = self._dist_read_flow(sensor)
             if r is not None:
-                meter.sample(r[0], r[1], r[2], elapsed)
+                meter.sample(r[0], r[1], r[2], at=elapsed)
                 last_live = elapsed
             elif elapsed - last_live >= dead_gap:
                 # Meter dead: never hold past the planned window (nor past where we
