@@ -777,6 +777,22 @@ class CalculationMixin:
         # hold refills, where Rso is a denominator. The scalar remains the
         # fallback for rows that carry no offset of their own.
         tz = dt_util.DEFAULT_TIME_ZONE
+        # ⚠️ MISMATCHED FRAMES, named here rather than left implicit.
+        # This offset is HA's. The `now` handed to the same call below is
+        # `datetime.now()`, i.e. the PROCESS's clock, and the buffer stamps it is
+        # measured against are process-local too. On HA OS and Supervised the two
+        # agree, which is why this went unnoticed; on Docker or Core without `TZ=`
+        # the solar-time correction applies HA's offset to a process-local stamp.
+        # By this module's own figures that is 0.26-0.74 % on daily ETo but
+        # +23.5 % / -16 % on the radiation the clearness-ratio hold refills, because
+        # Rso sits in the denominator there.
+        # NOT-TO-DO: do not expect a switch to aware timestamps to fix this by itself.
+        #   The offset does not travel as `tzinfo` -- it travels as this float, through
+        #   `SiteGeometry.tz_offset_h` and on into `row["tz_offset_h"]`. A stamp that
+        #   becomes aware leaves this arithmetic untouched and the suite green, which
+        #   is exactly how the expensive half of this could be missed.
+        # Not corrected here on purpose: correcting it moves numbers, and it has to
+        # move together with the writers.
         offset = dt_util.now().utcoffset()
         tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
 
