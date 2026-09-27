@@ -11,6 +11,7 @@ Like test_calculate_module, coordinators are built with ``__new__`` so only the
 attributes each method actually touches are wired up.
 """
 
+import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -18,13 +19,19 @@ import homeassistant.util.dt as dt_util
 import pytest
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
+from custom_components.irrigation_plus import (
+    SmartIrrigationCoordinator,
+    calculation,
+    const,
+)
 
 
 # --------------------------------------------------------------------------- #
 # Forecast weighting (calculate_module)
 # --------------------------------------------------------------------------- #
-def _calc_coordinator(*, forecast_weighting=False, use_weather_service=False, days=1):
+def _calc_coordinator(
+    *, forecast_weighting=False, use_weather_service=False, days=1, hourly=None
+):
     """Coordinator wired for calculate_module with the experimental knobs."""
     coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
 
@@ -49,8 +56,83 @@ def _calc_coordinator(*, forecast_weighting=False, use_weather_service=False, da
     )
     coord.store = store
     coord.use_weather_service = use_weather_service
-    coord._WeatherServiceClient = None
+    # A client with an hourly accessor, because that series is what covers the
+    # first 24 hours from the EVALUATION: get_forecast_data starts tomorrow by
+    # contract, so a window anchored at the calculation has no daily entry for
+    # its first hours. The skip guard leans on the same series for the same
+    # reason.
+    coord._WeatherServiceClient = (
+        SimpleNamespace(
+            get_hourly_precipitation_forecast=lambda covering_until: hourly
+        )
+        if hourly is not None
+        else None
+    )
+    coord.recurring_schedule_manager = SimpleNamespace(
+        async_next_run_start_for_zone=AsyncMock(return_value=RUN_START)
+    )
     return coord
+
+
+UTC = datetime.timezone.utc
+# The pinned evaluation moment. RUN_START and every forecast entry below are
+# DERIVED from it, so no date in this module can rot.
+# Wurzel: RUN_START was the literal 2026-09-27 00:00 while evaluated_at came from
+#   the real clock. window_intervals cuts a block back to max(block_start,
+#   evaluated_at) and drops one wholly past, so on 2026-09-27 the first block was
+#   half gone: three tests summed a PARTIAL rain and asserted 490/269/365 against
+#   360/0/300. Worse, past 2026-09-28 the two abstention tests would have gone
+#   GREEN for the wrong reason -- window in the past, weighting abstaining,
+#   assertions holding without exercising anything.
+# siehe _pin_the_evaluation_moment below
+NOW = datetime.datetime(2026, 9, 26, 21, 0, tzinfo=UTC)
+# Midnight of the first forecast day, three hours AFTER the evaluation so nothing
+# is cut: each 24-hour block from the run then lines up with exactly one dated
+# entry, which keeps the four tests here testing the weighting's ARITHMETIC. A
+# 06:00 start makes every block 18/24 of one entry plus 6/24 of the next and
+# breaks three of the four (measured 2026-09-26); that overlap is real behaviour
+# and is tested in test_forecast_weighting_window.py.
+RUN_START = NOW + datetime.timedelta(hours=3)
+
+
+@pytest.fixture(autouse=True)
+def _pin_the_evaluation_moment(monkeypatch):
+    """Pin the moment the weighting evaluates at, for every test in this module.
+
+    Only ``dt_util.utcnow`` is redirected -- not ``datetime.now``, not
+    ``time.time`` -- and that is the single clock read on the weighting's path
+    (``evaluated_at`` in calculation.py). The attribute lives on the shared
+    ``homeassistant.util.dt`` module, so the patch is process-wide while one test
+    runs; acceptable here because these coordinators are ``__new__``-built stubs
+    with a ``Mock`` hass rather than a running instance. freezegun was rejected for
+    the opposite reason: it replaces the whole process clock.
+    NOT-TO-DO: do not "fix" a date-dependent test by moving its literals further
+      into the future. That is the defect, not the cure -- the assertions then hold
+      because the window has moved into the past and the weighting abstained.
+    """
+    monkeypatch.setattr(calculation.dt_util, "utcnow", lambda: NOW)
+
+
+def _days(*mm):
+    """Dated daily entries from RUN_START on, the shape every client has supplied
+    since #145.
+
+    Seven days minimum on this path: expected_rain reports first_24h_covered
+    False when the entries do not span the run's whole 24-hour block, and the
+    weighting then abstains -- which reads as the code being broken when it is
+    the fixture being short. Measured: two days abstains, three and above cover.
+    """
+    entries = []
+    for index in range(max(7, len(mm))):
+        start = RUN_START + datetime.timedelta(days=index)
+        entries.append(
+            {
+                const.MAPPING_PRECIPITATION: mm[index] if index < len(mm) else 0.0,
+                const.FORECAST_DAY_START: start,
+                const.FORECAST_DAY_END: start + datetime.timedelta(days=1),
+            }
+        )
+    return entries
 
 
 def _zone(**overrides):
@@ -82,7 +164,7 @@ async def test_no_weighting_leaves_target_zero_and_full_duration():
     """Feature off: full deficit watered, target 0 (current behaviour)."""
     coord = _calc_coordinator(forecast_weighting=False, use_weather_service=True)
     data = await coord.calculate_module(
-        _zone(), _weather(10.0), [{"precipitation": 4.0}]
+        _zone(), _weather(10.0), _days(4.0)
     )
 
     assert data[const.ZONE_BUCKET] == pytest.approx(-10.0)
@@ -94,7 +176,7 @@ async def test_forecast_weighting_reduces_duration_and_sets_target():
     """4 mm forecast trims a 10 mm deficit run to 6 mm; 4 mm left for the rain."""
     coord = _calc_coordinator(forecast_weighting=True, use_weather_service=True)
     data = await coord.calculate_module(
-        _zone(), _weather(10.0), [{const.MAPPING_PRECIPITATION: 4.0}]
+        _zone(), _weather(10.0), _days(4.0)
     )
 
     # True deficit is unchanged in the bucket...
@@ -109,7 +191,7 @@ async def test_forecast_covering_deficit_skips_run():
     """Forecast ≥ deficit: no run, bucket keeps the true deficit, target 0."""
     coord = _calc_coordinator(forecast_weighting=True, use_weather_service=True)
     data = await coord.calculate_module(
-        _zone(), _weather(10.0), [{const.MAPPING_PRECIPITATION: 12.0}]
+        _zone(), _weather(10.0), _days(12.0)
     )
 
     assert data[const.ZONE_BUCKET] == pytest.approx(-10.0)
@@ -121,13 +203,7 @@ async def test_forecast_weighting_sums_lookahead_days():
     """Precip is summed over the configured look-ahead window."""
     coord = _calc_coordinator(forecast_weighting=True, use_weather_service=True, days=2)
     data = await coord.calculate_module(
-        _zone(),
-        _weather(10.0),
-        [
-            {const.MAPPING_PRECIPITATION: 2.0},
-            {const.MAPPING_PRECIPITATION: 3.0},
-            {const.MAPPING_PRECIPITATION: 9.0},  # beyond the 2-day window, ignored
-        ],
+        _zone(), _weather(10.0), _days(2.0, 3.0, 9.0)
     )
     # 5 mm over 2 days -> effective deficit 5 mm.
     assert data[const.ZONE_DURATION] == 300
