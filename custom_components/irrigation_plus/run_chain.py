@@ -239,25 +239,75 @@ class RunChainMixin:
         if sequencing == const.CONF_ZONE_SEQUENCING_ROTATING:
             await self._chain_start_rotation(zones, mode=mode, trigger=trigger)
             return
-        if sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL or len(zones) == 1:
+        if sequencing == const.CONF_ZONE_SEQUENCING_PARALLEL:
+            # Above both the liveness guard and ``_chain_state``. Above the guard
+            # because concurrency is this mode's whole promise, so there is no
+            # queue to join and nothing to serialise. Above ``_chain_state``
+            # because that call CREATES the Chain: with the mode in ``_chains()``,
+            # ``_chain_advance_for_run`` would begin running for parallel-mode
+            # runs that return before it today.
             for zone in zones:
                 await self.async_run_self_closing(zone, trigger=trigger)
             return
 
         state = self._chain_state(mode)
         live_now = getattr(self, "_live_run_zones", None) or set()
+
         # Replaces both structures wholesale, in lockstep off one bound id per
         # zone — merging into what a previous cycle left behind is a later PR's
         # behaviour, not this one's.
+        def _plan(zone) -> ZonePlan:
+            return ZonePlan(
+                seconds=float(zone.get(const.ZONE_DURATION) or 0),
+                live=int(zone.get(const.ZONE_ID)) in live_now,
+            )
+
+        if self._chain_is_live(state):
+            if state.rotation is not None:
+                # Two geometries, no defined merge: a rotation prices slots from
+                # a total it captured at its own start, and a sequential queue
+                # has no slots at all. Leave the live cycle alone and say so. The
+                # mirror refusal is in _chain_start_rotation.
+                _LOGGER.warning(
+                    "%s: a rotating cycle is still running and zone_sequencing "
+                    "changed under it; not starting %s sequential zone(s) now",
+                    policy.label,
+                    len(zones),
+                )
+                return
+            joined = self._chain_join(state, zones, _plan)
+            if joined:
+                _LOGGER.info(
+                    "%s: a cycle is already running, joining zone(s) %s onto the "
+                    "back of its queue (%s waiting now)",
+                    policy.label,
+                    ", ".join(str(zid) for zid in joined),
+                    len(state.zones),
+                )
+            else:
+                _LOGGER.info(
+                    "%s: a cycle is already running and every zone of this "
+                    "dispatch is already accounted for; joining nothing",
+                    policy.label,
+                )
+            return
+
+        if len(zones) == 1:
+            # One zone and no live cycle is not a chain: dispatch it and return,
+            # as it always has. BELOW the guard on purpose -- a single zone
+            # arriving on a LIVE cycle has to join it. That is the Irrigate-now
+            # shape (``async_irrigate_now`` filters the list down to one id), and
+            # taking this return first is what opened a second valve next to the
+            # one already open, under sequential.
+            await self.async_run_self_closing(zones[0], trigger=trigger)
+            return
+
         state.zones = []
         state.planned = {}
         for zone in zones[1:]:
             zid = int(zone.get(const.ZONE_ID))
             state.zones.append(zid)
-            state.planned[zid] = ZonePlan(
-                seconds=float(zone.get(const.ZONE_DURATION) or 0),
-                live=zid in live_now,
-            )
+            state.planned[zid] = _plan(zone)
         state.trigger = trigger
         await self._chain_take_hold(state, policy)
         _LOGGER.info(
@@ -282,6 +332,57 @@ class RunChainMixin:
             self._drop_live_run_marker(zones[0].get(const.ZONE_ID))
             # Refused; the chain must not stall on it.
             await self._chain_advance(mode)
+
+    def _chain_is_live(self, state: Chain) -> bool:
+        """Is a cycle of this mode still running?
+
+        The token is part of the test rather than the queue alone: a cycle
+        dispatches its LAST zone with an empty queue, and a dispatch landing in
+        that window has to join rather than start a second cycle under the first
+        one's master hold. ``_chain_advance`` clears the token through
+        ``_chain_release`` as soon as the queue drains without dispatching, so a
+        finished cycle stops being live at the same moment it stops holding the
+        master.
+
+        That makes ``bool(state.zones)`` redundant as the code stands -- the two
+        travel together, so no reachable state has a queue without a hold. The same
+        is true of ``state.rotation is not None``: ``_chain_take_hold`` sets the
+        token whether or not a master entity exists, so a live rotation always has
+        one. Both clauses are kept, because the states they alone catch -- a queue
+        or a rotation nobody holds the master for -- are precisely the ones where
+        replacing the cycle would strand real zones. Neither is left to look like
+        coverage it does not have: each has a hand-built drift test
+        (``test_a_queue_without_a_hold_still_counts_as_live``,
+        ``test_a_rotation_without_a_hold_still_counts_as_live``), and the second of
+        those exists because its mutation survived without it.
+        """
+        return (
+            bool(state.zones) or state.rotation is not None or state.token is not None
+        )
+
+    def _chain_join(self, state: Chain, zones: list, plan_for) -> list:
+        """Append zones to a live queue, skipping the ones already accounted for.
+
+        Returns the ids actually added, in order, so the caller can name them.
+
+        A zone already queued keeps the plan it was queued with: the running
+        cycle decided it first, and re-pricing a waiting zone from a later
+        dispatch is a separate question -- ``_resize_queued_zone`` is where it
+        would be answered, and it deliberately is not answered here.
+        A zone whose valve is open right now is not queued behind itself -- and
+        ``state.zones`` no longer mentions it, because a sequential cycle pops a
+        zone before dispatching it, so ``zone_run_in_flight`` is the only thing
+        that can tell.
+        """
+        added = []
+        for zone in zones:
+            zid = int(zone.get(const.ZONE_ID))
+            if zid in state.zones or self.zone_run_in_flight(zid):
+                continue
+            state.zones.append(zid)
+            state.planned[zid] = plan_for(zone)
+            added.append(zid)
+        return added
 
     async def _chain_take_hold(self, state: Chain, policy: ChainPolicy) -> None:
         """One master hold for the whole cycle, taken once.
@@ -580,6 +681,24 @@ class RunChainMixin:
         if policy is None:
             return
         state = self._chain_state(mode)
+        if state.rotation is None and self._chain_is_live(state):
+            # The mirror of the refusal in async_dispatch_chained_zones: a
+            # sequential cycle is still running and zone_sequencing flipped under
+            # it. Replacing its queue here would strand every zone waiting in it
+            # AND leave the running zone's finalisation advancing a rotation that
+            # never held it. Same reasoning, opposite direction, same answer.
+            #
+            # Deliberately NOT guarded: a second rotating dispatch onto a live
+            # rotation, which still replaces it. That is one geometry, not two,
+            # and merging two rotations means deciding whose slot size and whose
+            # captured totals win -- a product question, not this fix's.
+            _LOGGER.warning(
+                "%s: a sequential cycle is still running and zone_sequencing "
+                "changed under it; not starting a rotation over %s zone(s) now",
+                policy.label,
+                len(zones),
+            )
+            return
         rotation = Rotation(
             slot=max(
                 1,

@@ -1,4 +1,4 @@
-"""The sequential chain delivers the run its cycle planned (Eifel-Joe#2).
+"""The sequential chain delivers the run its cycle planned.
 
 ``Chain.zones`` holds bare ids and ``_chain_advance`` re-reads the stored zone, so
 everything the dispatching cycle decided about a queued zone — the live duration and
@@ -216,10 +216,24 @@ class TestThePlanIsDroppedWithTheQueue:
         assert c._chain_state(const.WATERING_MODE_SERVICE).planned == {}
 
     async def test_starting_a_rotation_clears_a_sequential_plan(self, hass):
-        """The two geometries are exclusive; a leftover plan must not survive."""
+        """The two geometries are exclusive; a leftover plan must not survive.
+
+        The idle state is built by hand, because a rotation now REFUSES to start
+        over a live sequential cycle rather than replacing it (see
+        ``test_chain_append_on_second_dispatch.py``), and a cycle that ended
+        cleanly had its plan cleared by ``_chain_release`` on the way out. So this
+        pins the clear against drift rather than against a reachable state -- the
+        same reason ``test_a_zone_with_no_plan_falls_back_to_the_stored_duration``
+        builds its own drift.
+        """
         c = _coord(hass, SEQUENTIAL)
         z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
+        c._live_run_zones = {1, 2}
         await _dispatch(c, [_live(z1, 300), _live(z2, 300)])
+        state = c._chain_state(const.WATERING_MODE_SERVICE)
+        # Idle chain, plan left behind: neither the queue nor the hold remains.
+        state.zones, state.token = [], None
+        assert state.planned, "precondition: there is a plan to clear"
         await c._chain_start_rotation(
             [c._zones[1], c._zones[2]],
             mode=const.WATERING_MODE_SERVICE,
