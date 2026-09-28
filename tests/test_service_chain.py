@@ -473,3 +473,36 @@ class TestARotatingZoneWateredElsewhere:
         later = c._dispatched[after_take_over:]
         assert not [d for d in later if d[0] == 2], later
         assert rot is None or rot.remaining[2] == 0.0
+
+    async def test_a_refused_dispatch_does_not_shadow_a_later_take_over(self, hass):
+        """A refusal leaves the claim pointing at a zone that never finalises.
+
+        Harmless by construction -- the refusal writes that zone's remainder off,
+        and only a fresh rotation restores it -- but the claim is read for every
+        zone, so the one that matters is a DIFFERENT zone taken over afterwards.
+        """
+        c = _coord(hass, ROTATING, slot=5, absorb=0)
+        z1, z2, z3 = _register(
+            c, _zone(1, duration=600), _zone(2, duration=600), _zone(3, duration=600)
+        )
+        spy = c.async_run_self_closing
+
+        async def _refuse_zone_2(zone, **kw):
+            if int(zone[const.ZONE_ID]) == 2:
+                return False
+            return await spy(zone, **kw)
+
+        c.async_run_self_closing = _refuse_zone_2
+        await _dispatch(c, [z1, z2, z3])
+        # Zone 1's slot ends; zone 2 refuses its slot; zone 3 is dispatched, so
+        # the claim now names zone 3 and zone 2's stale claim is behind it.
+        await _finish(c, 1)
+        # Something else waters zone 1 in full and finishes while zone 3 runs.
+        await c.async_run_self_closing(dict(z1), trigger="manual")
+        await _finish(c, 1)
+        after_take_over = len(c._dispatched)
+
+        await _finish(c, 3)
+
+        later = c._dispatched[after_take_over:]
+        assert not [d for d in later if d[0] == 1], later
