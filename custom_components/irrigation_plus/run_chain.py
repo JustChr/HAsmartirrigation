@@ -843,6 +843,12 @@ class RunChainMixin:
                 # dispatch, and frozen into its record (``run_watch``'s
                 # ``run_credit_ceiling``). The marker it used is long consumed;
                 # what this hands back is the rotation's own leftover.
+                #
+                # "Something else" now includes a valve opened outside the
+                # integration, which has no record and so no frozen ceiling for
+                # that argument to rest on. The handback is still right, for the
+                # simpler half of the same reason: what goes back is this
+                # rotation's own leftover, held for a turn that will not come.
                 _LOGGER.info(
                     "%s rotation: writing off zone %s and its remaining %.0fs, "
                     "another run took it over while it waited",

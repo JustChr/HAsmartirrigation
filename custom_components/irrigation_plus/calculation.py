@@ -500,13 +500,20 @@ class CalculationMixin:
         if zone is None:
             return
 
-        # Every run path settles the bucket from an anchor captured before the
-        # valve opened, so a calculation landing mid-run is overwritten within a
-        # commit interval and that window's ET is lost. Give way and return
-        # BEFORE anything is consumed: last_consumed_at is only advanced on the
-        # write path below, so the readings stay in the buffer and the deferred
-        # calculation (run at the end of the run, see RunStateMixin) folds in the
-        # whole window. See tests/test_run_in_flight.py.
+        # Every run this integration drives settles the bucket from an anchor
+        # captured before the valve opened, so a calculation landing mid-run is
+        # overwritten within a commit interval and that window's ET is lost. An
+        # externally driven run inverts that rather than sharing it: it credits a
+        # delta read at its close, so nothing of its own is overwritten - but the
+        # write below is absolute, so a calculation that read the zone before such
+        # a credit landed and wrote afterwards would erase it. Two writers and one
+        # of them absolute, either way round.
+        #
+        # Give way and return BEFORE anything is consumed: last_consumed_at is
+        # only advanced on the write path below, so the readings stay in the
+        # buffer and the deferred calculation (run at the end of the run, see
+        # RunStateMixin) folds in the whole window. See
+        # tests/test_run_in_flight.py.
         if self.zone_run_in_flight(zone_id):
             self.defer_zone_calculation(zone_id)
             _LOGGER.info(
