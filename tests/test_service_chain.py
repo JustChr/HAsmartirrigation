@@ -481,10 +481,8 @@ class TestARotatingZoneWateredElsewhere:
         and only a fresh rotation restores it -- but the claim is read for every
         zone, so the one that matters is a DIFFERENT zone taken over afterwards.
         """
-        c = _coord(hass, ROTATING, slot=5, absorb=0)
-        z1, z2, z3 = _register(
-            c, _zone(1, duration=600), _zone(2, duration=600), _zone(3, duration=600)
-        )
+        c = _coord(hass, ROTATING, slot=5, absorb=10)
+        z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
         spy = c.async_run_self_closing
 
         async def _refuse_zone_2(zone, **kw):
@@ -493,16 +491,19 @@ class TestARotatingZoneWateredElsewhere:
             return await spy(zone, **kw)
 
         c.async_run_self_closing = _refuse_zone_2
-        await _dispatch(c, [z1, z2, z3])
-        # Zone 1's slot ends; zone 2 refuses its slot; zone 3 is dispatched, so
-        # the claim now names zone 3 and zone 2's stale claim is behind it.
+        await _dispatch(c, [z1, z2])
+        # Zone 1's slot ends, zone 2 refuses its own, and zone 1 is still
+        # absorbing -- so the refusal is the last dispatch attempt of the pass
+        # and its claim is what stands when the rotation parks on the timer.
         await _finish(c, 1)
-        # Something else waters zone 1 in full and finishes while zone 3 runs.
-        await c.async_run_self_closing(dict(z1), trigger="manual")
-        await _finish(c, 1)
-        after_take_over = len(c._dispatched)
+        rot = c._chain_state(const.WATERING_MODE_SERVICE).rotation
+        assert rot.in_flight == 2, "the stale claim this test is about"
+        assert rot.remaining[2] == 0.0, "which is why it is harmless"
 
-        await _finish(c, 3)
+        # Now something else waters zone 1 in full and finishes.
+        await c.async_run_self_closing(dict(z1), trigger="manual")
+        after_take_over = len(c._dispatched)
+        await _finish(c, 1)
 
         later = c._dispatched[after_take_over:]
         assert not [d for d in later if d[0] == 1], later
@@ -511,7 +512,6 @@ class TestARotatingZoneWateredElsewhere:
         """Same outcome, different cause: the line has to name which one."""
         c = _coord(hass, ROTATING, slot=5, absorb=0)
         z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
-        c._live_run_zones = {1, 2}
         await _dispatch(c, [z1, z2])
         await c.async_run_self_closing(dict(z2), trigger="manual")
         caplog.clear()
@@ -525,18 +525,21 @@ class TestARotatingZoneWateredElsewhere:
         ]
         assert any("watered it before its turn" in m for m in messages), messages
         assert not any("took it over while it waited" in m for m in messages), messages
+        assert not any("watering mode changed" in m for m in messages), messages
 
     async def test_the_write_off_hands_back_a_marker_the_take_over_left(self, hass):
         """A live-estimate marker outliving the cycle is not inert -- the zone's
         next run consumes it and is handed a ceiling meant for a run that never
         watered.
 
-        The marker is armed here immediately before the finalisation because the
-        take-over in the test above is a dispatch, and a dispatch consumes the
-        marker itself on its way through ``_run_ceiling``. A take-over that does
-        not dispatch -- a run observed on the zone's own entity, watered by
-        something outside this integration -- leaves it armed, and that is the
-        state this pins.
+        The state is built here rather than arrived at, because a take-over that
+        dispatches consumes the marker itself on its way through ``_run_ceiling``.
+        It is reachable all the same: ``_apply_live_durations`` rebinds
+        ``_live_run_zones`` wholesale on every scheduled call, so a calculation
+        landing between a long take-over's dispatch and its finish re-arms the
+        zone the write-off is about to reach. What is pinned is the contract --
+        a marker found at the write-off is handed back -- which is what the
+        take-over branch beside this one does with its own.
         """
         c = _coord(hass, ROTATING, slot=5, absorb=0)
         z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
@@ -550,3 +553,56 @@ class TestARotatingZoneWateredElsewhere:
         assert rot.remaining[2] == 0.0, "the write-off has to have happened"
         assert 2 not in c._live_run_zones
         assert 1 in c._live_run_zones, "only the written-off zone hands its back"
+
+    async def test_a_slot_that_finishes_inside_its_own_dispatch_is_not_a_take_over(
+        self, hass
+    ):
+        """The claim is taken before the dispatch await, and this is why.
+
+        A confirmed or observed close can be reported while
+        ``async_run_self_closing`` is still awaiting, so the finish arrives
+        before the call returns. Claim the slot after that await instead and the
+        rotation finds no claim for its own run: every zone is written off as a
+        take-over and the cycle ends after one slot each.
+        """
+        c = _coord(hass, ROTATING, slot=5, absorb=0)
+        z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
+        spy = c.async_run_self_closing
+        finished = []
+
+        async def _finalise_inside_the_await(zone, **kw):
+            ok = await spy(zone, **kw)
+            zid = int(zone[const.ZONE_ID])
+            if ok and zid not in finished:
+                finished.append(zid)
+                await c._sc_finish_run(zid)
+            return ok
+
+        c.async_run_self_closing = _finalise_inside_the_await
+
+        await _dispatch(c, [z1, z2])
+
+        rot = c._chain_state(const.WATERING_MODE_SERVICE).rotation
+        assert rot is not None, "the cycle was released after one slot each"
+        assert rot.remaining[2] == 300.0, "zone 2 kept what it had left"
+        assert len([zid for zid, _ in c._dispatched if zid == 1]) == 2
+
+    async def test_a_zone_with_nothing_left_keeps_its_marker(self, hass):
+        """The write-off is gated on a remainder, and the gate does work.
+
+        A zone whose slots are all spent has nothing to write off -- and a
+        scheduled calculation may already have re-armed its live marker for the
+        next cycle. Writing off at ``>= 0`` would hand that one back.
+        """
+        c = _coord(hass, ROTATING, slot=5, absorb=0)
+        z1, z2 = _register(c, _zone(1, duration=300), _zone(2, duration=300))
+        await _dispatch(c, [z1, z2])
+        await _finish(c, 1)
+        rot = c._chain_state(const.WATERING_MODE_SERVICE).rotation
+        assert rot.remaining[1] == 0.0, "zone 1 has had all of its water"
+
+        await c.async_run_self_closing(dict(z1), trigger="manual")
+        c._live_run_zones = {1}
+        await _finish(c, 1)
+
+        assert 1 in c._live_run_zones
