@@ -2,10 +2,10 @@
 
 The state exists per actuation mode and nowhere together: ``_active_runs`` for
 classic linked-entity runs (in memory), ``CONF_ACTIVE_VALVE_RUNS`` for
-self-closing runs (persisted), and the owning distributor's ``active_cycle`` for
-a member zone, and ``_observed_on_since`` for a run
-nothing in here started (in memory, no record at all). Two separate defects need
-exactly this lookup, so it lives here once:
+self-closing runs (persisted), the owning distributor's ``active_cycle`` for a
+member zone, and ``_observed_on_since`` for a run nothing in here started (in
+memory, no record at all). Two separate defects need exactly this lookup, so it
+lives here once:
 
 * **Calculation vs run.** Every run path settles the bucket from an anchor taken
   before the valve opened - ``original_bucket`` in ``_run_valve_metered``,
@@ -147,6 +147,11 @@ class RunStateMixin:
         is the zone's own external-run ceiling -- the same number its credit is capped
         at -- so a valve still reporting open past the longest plausible run for that
         zone reads as a broken report rather than as water.
+
+        The comparison reads wall-clock time, so a backwards system-clock jump holds
+        the zone until the clock passes the ceiling again, and a forward one releases
+        a genuinely open run early. :meth:`_self_closing_run_in_flight` has carried
+        the same exposure since it was written.
 
         The reads are defensive because this runs on every ``zone_run_in_flight`` call,
         including on coordinators built with ``__new__`` in tests, where the attribute

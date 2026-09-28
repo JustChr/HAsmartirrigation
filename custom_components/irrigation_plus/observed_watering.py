@@ -303,6 +303,14 @@ class ObservedWateringMixin:
         whether the substitution actually bound anything.
         """
         max_dur = zone.get(const.ZONE_MAXIMUM_DURATION)
+        try:
+            max_dur = float(max_dur)
+        except (TypeError, ValueError):
+            # Not a number at all. Treated as "no usable maximum" rather than
+            # allowed to raise: this is read on every in-flight lookup, so a
+            # comparison that throws would abort a running cycle rather than
+            # cost one credit.
+            max_dur = 0.0
         substituted = not max_dur or max_dur < 0
         if substituted:
             max_dur = const.CONF_DEFAULT_MAXIMUM_DURATION

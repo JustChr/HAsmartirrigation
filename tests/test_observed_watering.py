@@ -662,11 +662,33 @@ def test_a_zone_with_no_usable_maximum_gets_the_default_ceiling_not_none():
         assert substituted is True, max_dur
 
 
+def test_a_maximum_that_is_not_a_number_falls_back_to_the_default_ceiling():
+    """The zone fields are stored as they arrive: the attrs type is metadata, not a
+    converter, so a websocket write can leave a string here. This runs on every
+    in-flight lookup now, so a comparison that raises would abort a running cycle."""
+    coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+    for max_dur in ("not a number", [], object()):
+        ceiling, substituted = coord._observed_run_ceiling_seconds(
+            {const.ZONE_MAXIMUM_DURATION: max_dur}
+        )
+        assert ceiling == 3630.0, max_dur
+        assert substituted is True, max_dur
+
+
+def test_a_numeric_string_maximum_is_read_as_the_number_it_is():
+    coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+    ceiling, substituted = coord._observed_run_ceiling_seconds(
+        {const.ZONE_MAXIMUM_DURATION: "2700"}
+    )
+    assert ceiling == 2730.0
+    assert substituted is False
+
+
 async def test_the_open_edge_tracks_a_second_external_open_of_the_same_zone():
     """The in-flight answer now includes external runs, and this edge must not read
     its own tracking as a run of ours: a stale entry -- a close edge that never
-    arrived -- would otherwise make every later external open of that zone invisible,
-    silently and for good."""
+    arrived -- would otherwise make every later external open of that zone invisible
+    until the entry expires or a close edge clears it."""
     zone = {const.ZONE_ID: 2, const.ZONE_FLOW_SENSOR: None, const.ZONE_SIZE: 5.0}
     coord = _obs_coord([zone])
     # _obs_coord alone leaves store.get_zone an unconfigured Mock, which the open
@@ -677,8 +699,9 @@ async def test_the_open_edge_tracks_a_second_external_open_of_the_same_zone():
     coord._observed_zone_by_entity = {"valve.x": 2}
     coord._si_driven_until = {}
     coord.hass.loop.time = Mock(return_value=1000.0)
-    coord._observed_on_since = {2: dt_util.utcnow()}  # a run we are already tracking
+    stale = dt_util.utcnow() - dt_util.dt.timedelta(hours=1)
+    coord._observed_on_since = {2: stale}  # a run we are already tracking
 
     coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
 
-    assert coord._observed_on_since.get(2) is not None
+    assert coord._observed_on_since[2] > stale, "the open edge left the stale stamp in place"
