@@ -239,8 +239,30 @@ class SmartIrrigationZoneWateringNowSensor(SmartIrrigationZoneBinarySensor):
         #
         # self._hass, not self.hass: HA sets the latter when the entity is added
         # to the platform, and this runs from __init__ before that.
+        #
+        # Wurzel: the accessor reads only linked_entity, and a service/self-closing
+        #   zone has none -- it is driven by run_service. So this sensor subscribed to
+        #   nothing and reported False for ever: not a stale state, but every zone on
+        #   that path permanently answering "no" to "is this zone watering". Measured on
+        #   a production install: three zones watered in sequence, every run recorded,
+        #   and all three sensors sat off with last_changed frozen at the boot timestamp
+        #   across four runs.
+        # Fix: fall back to observed_entity, which is defined as the entity that is on
+        #   while this zone waters. observed_watering already makes exactly this
+        #   fallback for exactly this case, so the rule is applied consistently rather
+        #   than invented here.
+        # NOT-TO-DO: do not put the fallback inside zone_watch_entity. Observed watering
+        #   composes the two itself and the OpenSprinkler path resolves a running sensor
+        #   from the linked one; widening the accessor would reach both for no reason.
+        # NOT-TO-DO: do not add confirm_entity as a further fallback. It means "the
+        #   valve confirmed it opened", not "water is flowing" -- a different promise.
+        # siehe tests/test_binary_sensor.py::TestAServiceZoneShowsWhenItIsWatering
         self._zone = zone
-        linked = zone_watch_entity(self._hass, zone) or None
+        linked = (
+            zone_watch_entity(self._hass, zone)
+            or zone.get(const.ZONE_OBSERVED_ENTITY)
+            or None
+        )
         if linked != getattr(self, "_linked_entity", None):
             self._linked_entity = linked
             self._resubscribe()
