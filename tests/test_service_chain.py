@@ -525,4 +525,28 @@ class TestARotatingZoneWateredElsewhere:
         ]
         assert any("watered it before its turn" in m for m in messages), messages
         assert not any("took it over while it waited" in m for m in messages), messages
+
+    async def test_the_write_off_hands_back_a_marker_the_take_over_left(self, hass):
+        """A live-estimate marker outliving the cycle is not inert -- the zone's
+        next run consumes it and is handed a ceiling meant for a run that never
+        watered.
+
+        The marker is armed here immediately before the finalisation because the
+        take-over in the test above is a dispatch, and a dispatch consumes the
+        marker itself on its way through ``_run_ceiling``. A take-over that does
+        not dispatch -- a run observed on the zone's own entity, watered by
+        something outside this integration -- leaves it armed, and that is the
+        state this pins.
+        """
+        c = _coord(hass, ROTATING, slot=5, absorb=0)
+        z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
+        await _dispatch(c, [z1, z2])
+        await c.async_run_self_closing(dict(z2), trigger="manual")
+        c._live_run_zones = {1, 2}
+
+        await _finish(c, 2)
+
+        rot = c._chain_state(const.WATERING_MODE_SERVICE).rotation
+        assert rot.remaining[2] == 0.0, "the write-off has to have happened"
         assert 2 not in c._live_run_zones
+        assert 1 in c._live_run_zones, "only the written-off zone hands its back"
