@@ -170,7 +170,7 @@ class ObservedWateringMixin:
                 return
             seconds = (dt_util.utcnow() - started).total_seconds()
             self.hass.async_create_task(
-                self._credit_observed_watering(
+                self._observed_run_finished(
                     zone_id, seconds, measured_l=measured, sensor_present=sensor_present
                 )
             )
@@ -366,6 +366,35 @@ class ObservedWateringMixin:
                 const.CONF_DEFAULT_MAXIMUM_DURATION,
             )
         return capped
+
+    async def _observed_run_finished(
+        self,
+        zone_id: int,
+        seconds: float,
+        measured_l: float | None = None,
+        sensor_present: bool = False,
+    ) -> None:
+        """Credit an external run, then pick up the calculation it displaced.
+
+        A calculation landing while a valve is open gives way and is deferred, and every
+        site that picks a deferral back up is the teardown of a run this integration
+        drove. An external run is none of them, so now that one counts as being in
+        flight the deferral needs an owner here, or the zone's duration stays as it was
+        until its next real run.
+
+        In a ``finally`` because the pick-up is teardown: a credit that raises must not
+        also cost the zone its calculation. The pick-up is a no-op unless something was
+        actually deferred, and never propagates, so it is cheap on every external run.
+        """
+        try:
+            await self._credit_observed_watering(
+                zone_id,
+                seconds,
+                measured_l=measured_l,
+                sensor_present=sensor_present,
+            )
+        finally:
+            await self.async_run_deferred_calculation(zone_id)
 
     async def _credit_observed_watering(
         self,

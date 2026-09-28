@@ -616,8 +616,11 @@ async def test_observed_finish_flow_reset_on_lifetime_typed_counter_returns_none
 
 async def test_close_edge_credits_measured_flow_end_to_end():
     # Pin the close-edge wiring: open then close a flow-sensor valve through
-    # _observed_state_changed and assert the credit call carries the MEASURED volume
-    # (a regression that dropped measured_l would revert to the phantom-open bug).
+    # _observed_state_changed and assert the scheduled call carries the MEASURED
+    # volume (a regression that dropped measured_l would revert to the phantom-open
+    # bug). Mocks _observed_run_finished, not _credit_observed_watering: the close
+    # edge schedules the former now, which forwards these same args to the latter
+    # unchanged, so pinning them here still pins the credit call's payload.
     zone = {
         const.ZONE_ID: 2,
         const.ZONE_FLOW_SENSOR: "sensor.flow",
@@ -629,13 +632,13 @@ async def test_close_edge_credits_measured_flow_end_to_end():
     coord._si_driven_until = {}
     coord.hass.loop.time = Mock(return_value=1000.0)
     coord._si_run_in_flight = Mock(return_value=False)
-    coord._credit_observed_watering = Mock()  # sync: records call args, no coroutine
+    coord._observed_run_finished = Mock()  # sync: records call args, no coroutine
     coord._reads["v"] = 100.0
     coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
     coord._reads["v"] = 108.0  # +8 L delivered
     coord._observed_sample_flow(2, 15.0)
     coord._observed_state_changed(_state_event("valve.x", old="open", new="closed"))
-    kwargs = coord._credit_observed_watering.call_args.kwargs
+    kwargs = coord._observed_run_finished.call_args.kwargs
     assert kwargs["sensor_present"] is True
     assert kwargs["measured_l"] == pytest.approx(8.0)
 
@@ -705,3 +708,62 @@ async def test_the_open_edge_tracks_a_second_external_open_of_the_same_zone():
     coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
 
     assert coord._observed_on_since[2] > stale, "the open edge left the stale stamp in place"
+
+
+# --- An external run picks up the calculation it displaced -----------------
+
+
+async def test_an_external_run_picks_up_the_calculation_it_displaced():
+    """The zone counted as in flight while the valve was open, so a calculation that
+    landed in that window was deferred. Nothing else will pick it up: every other
+    pick-up site is the teardown of a run this integration drove."""
+    zone = {
+        const.ZONE_ID: 2,
+        const.ZONE_SIZE: 5.0,
+        const.ZONE_THROUGHPUT: 3.0,
+        const.ZONE_MAXIMUM_DURATION: 3600,
+        const.ZONE_BUCKET: -10.0,
+    }
+    # _credit_coord, not the bare _obs_coord: this test lets the real
+    # _credit_observed_watering run end to end (same trap as the close-edge fixture
+    # note below -- _obs_coord alone leaves store.get_zone and the store-write
+    # helpers as unconfigured Mocks, which the real credit call cannot run against).
+    coord = _credit_coord(zone)
+    coord.async_run_deferred_calculation = AsyncMock()
+
+    await coord._observed_run_finished(2, 600)
+
+    coord.async_run_deferred_calculation.assert_awaited_once_with(2)
+
+
+async def test_the_calculation_is_picked_up_even_if_the_credit_raises():
+    """The pick-up is teardown: a credit that dies on a store write must not also cost
+    the zone its calculation."""
+    coord = _obs_coord([{const.ZONE_ID: 2}])
+    coord.async_run_deferred_calculation = AsyncMock()
+    coord._credit_observed_watering = AsyncMock(side_effect=RuntimeError("store down"))
+
+    with pytest.raises(RuntimeError):
+        await coord._observed_run_finished(2, 600)
+
+    coord.async_run_deferred_calculation.assert_awaited_once_with(2)
+
+
+async def test_the_close_edge_schedules_the_finish_not_the_bare_credit():
+    zone = {const.ZONE_ID: 2, const.ZONE_FLOW_SENSOR: None, const.ZONE_SIZE: 5.0}
+    coord = _obs_coord([zone])
+    # _obs_coord leaves store.get_zone an unconfigured Mock, which the open edge's
+    # `zone.get(const.ZONE_FLOW_SENSOR)` reads as truthy and wrongly enters the
+    # flow-sampler path -- give it the real (sensor-less) zone dict instead, as the
+    # neighbouring open-edge tests do.
+    coord.store.get_zone = Mock(return_value=zone)
+    coord._observed_zone_by_entity = {"valve.x": 2}
+    coord._si_driven_until = {}
+    coord.hass.loop.time = Mock(return_value=1000.0)
+    coord.hass.async_create_task = Mock()
+    coord._observed_run_finished = Mock(return_value="finish_coro")
+
+    coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
+    coord._observed_state_changed(_state_event("valve.x", old="open", new="closed"))
+
+    coord.hass.async_create_task.assert_called_once_with("finish_coro")

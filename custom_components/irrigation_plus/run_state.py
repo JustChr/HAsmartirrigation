@@ -13,7 +13,12 @@ lives here once:
   distributor sweep iterates. That absolute reconcile is deliberate (a delta
   correction would over-/under-shoot whenever the optimistic credit clamped at
   ``maximum_bucket``), but it means a calculation landing mid-run is overwritten
-  and that window's evapotranspiration is lost. So the calculation gives way:
+  and that window's evapotranspiration is lost.
+  The observed path inverts this rather than sharing it: it credits a delta read
+  at the close, so nothing of its own is clobbered - but a calculation that read
+  the zone before that credit landed and wrote afterwards would erase it, because
+  the calculation's own bucket write is absolute.
+  So the calculation gives way:
   ``async_calculate_zone`` returns before consuming anything and the zone is
   marked for a recalculation once the run finalises. Nothing is lost by waiting -
   ``last_consumed_at`` is only advanced on the write path, so the readings stay
