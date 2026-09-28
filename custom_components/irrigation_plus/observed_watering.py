@@ -135,7 +135,11 @@ class ObservedWateringMixin:
             # own length (_note_si_valve run_seconds + margin) and so already
             # spans the whole run, and _active_runs / the distributor's
             # active_cycle are live for exactly that window too.
-            if self.zone_run_in_flight(zone_id) or self.hass.loop.time() < (
+            #
+            # Deliberately the NARROW question. The wide one now also answers True for
+            # an external run this module is itself tracking, so asking it here would
+            # make an open valve look like ours and stop the tracking that credits it.
+            if self._si_run_in_flight(zone_id) or self.hass.loop.time() < (
                 self._si_driven_until.get(zone_id, 0.0)
             ):
                 _LOGGER.debug(

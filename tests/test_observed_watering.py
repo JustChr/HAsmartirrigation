@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 
 import attr
 import pytest
+from homeassistant.util import dt as dt_util
 
 from custom_components.irrigation_plus import SmartIrrigationCoordinator, const
 from custom_components.irrigation_plus.store import ZoneEntry
@@ -279,7 +280,7 @@ async def test_open_edge_starts_sampler_synchronously_for_flow_zone():
     coord._observed_zone_by_entity = {"valve.x": 2}
     coord._si_driven_until = {}
     coord.hass.loop.time = Mock(return_value=1000.0)  # real number for the SI check
-    coord.zone_run_in_flight = Mock(return_value=False)
+    coord._si_run_in_flight = Mock(return_value=False)
     coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
     assert 2 in coord._observed_meters()  # meter present synchronously, no race
     assert coord._observed_on_since.get(2) is not None
@@ -511,7 +512,7 @@ async def test_si_takeover_cancels_an_external_flow_sampler(monkeypatch):
     coord._observed_zone_by_entity = {"valve.x": 2}
     coord._si_driven_until = {}
     coord.hass.loop.time = Mock(return_value=1000.0)
-    coord.zone_run_in_flight = Mock(return_value=False)
+    coord._si_run_in_flight = Mock(return_value=False)
     coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
     assert 2 in coord._observed_meters()
 
@@ -627,7 +628,7 @@ async def test_close_edge_credits_measured_flow_end_to_end():
     coord._observed_zone_by_entity = {"valve.x": 2}
     coord._si_driven_until = {}
     coord.hass.loop.time = Mock(return_value=1000.0)
-    coord.zone_run_in_flight = Mock(return_value=False)
+    coord._si_run_in_flight = Mock(return_value=False)
     coord._credit_observed_watering = Mock()  # sync: records call args, no coroutine
     coord._reads["v"] = 100.0
     coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
@@ -659,3 +660,25 @@ def test_a_zone_with_no_usable_maximum_gets_the_default_ceiling_not_none():
         )
         assert ceiling == 3630.0, max_dur
         assert substituted is True, max_dur
+
+
+async def test_the_open_edge_tracks_a_second_external_open_of_the_same_zone():
+    """The in-flight answer now includes external runs, and this edge must not read
+    its own tracking as a run of ours: a stale entry -- a close edge that never
+    arrived -- would otherwise make every later external open of that zone invisible,
+    silently and for good."""
+    zone = {const.ZONE_ID: 2, const.ZONE_FLOW_SENSOR: None, const.ZONE_SIZE: 5.0}
+    coord = _obs_coord([zone])
+    # _obs_coord alone leaves store.get_zone an unconfigured Mock, which the open
+    # edge's `zone.get(const.ZONE_FLOW_SENSOR)` reads as truthy -- built the way
+    # test_open_edge_starts_sampler_synchronously_for_flow_zone does, so the open
+    # edge sees this zone's real (sensor-less) config instead of a stray Mock.
+    coord.store.get_zone = Mock(return_value=zone)
+    coord._observed_zone_by_entity = {"valve.x": 2}
+    coord._si_driven_until = {}
+    coord.hass.loop.time = Mock(return_value=1000.0)
+    coord._observed_on_since = {2: dt_util.utcnow()}  # a run we are already tracking
+
+    coord._observed_state_changed(_state_event("valve.x", old="closed", new="open"))
+
+    assert coord._observed_on_since.get(2) is not None
