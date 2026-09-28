@@ -283,6 +283,27 @@ class ObservedWateringMixin:
             sensor,
         )
 
+    def _observed_run_ceiling_seconds(self, zone: dict) -> tuple[float, bool]:
+        """The longest external open still plausible for this zone, and whether the
+        zone's own ``maximum_duration`` had to be substituted to say so.
+
+        One policy, two questions. :meth:`_observed_capped_seconds` bounds the seconds
+        an external run may CREDIT; ``RunStateMixin._observed_run_in_flight`` bounds how
+        long one may count as being IN FLIGHT. Both mean the same thing, so both read it
+        here instead of each spelling out the fallback and drifting apart.
+
+        A non-positive or absent ``maximum_duration`` falls back to the default ceiling
+        rather than to "no ceiling" — see :meth:`_observed_capped_seconds` for why
+        mirroring the calculation path's ``>= 0`` reading would be wrong here. The flag
+        is returned rather than warned about, because only the crediting caller can say
+        whether the substitution actually bound anything.
+        """
+        max_dur = zone.get(const.ZONE_MAXIMUM_DURATION)
+        substituted = not max_dur or max_dur < 0
+        if substituted:
+            max_dur = const.CONF_DEFAULT_MAXIMUM_DURATION
+        return float(max_dur) + const.OBSERVED_CAP_MARGIN_SECONDS, substituted
+
     def _observed_capped_seconds(
         self, zone: dict, seconds: float, *, warn: bool = True
     ) -> float:
@@ -318,11 +339,8 @@ class ObservedWateringMixin:
         happen. The value is still returned: the time-based estimate is computed
         on every path, it is simply not the one that gets used.
         """
-        max_dur = zone.get(const.ZONE_MAXIMUM_DURATION)
-        substituted = not max_dur or max_dur < 0
-        if substituted:
-            max_dur = const.CONF_DEFAULT_MAXIMUM_DURATION
-        capped = min(float(seconds), float(max_dur) + const.OBSERVED_CAP_MARGIN_SECONDS)
+        ceiling, substituted = self._observed_run_ceiling_seconds(zone)
+        capped = min(float(seconds), ceiling)
         if warn and substituted and capped < float(seconds):
             _LOGGER.warning(
                 "Observed watering: zone %s has no usable maximum_duration (%s), "

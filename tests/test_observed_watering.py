@@ -637,3 +637,25 @@ async def test_close_edge_credits_measured_flow_end_to_end():
     kwargs = coord._credit_observed_watering.call_args.kwargs
     assert kwargs["sensor_present"] is True
     assert kwargs["measured_l"] == pytest.approx(8.0)
+
+
+def test_the_external_run_ceiling_is_the_zones_own_maximum_plus_the_margin():
+    coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+    ceiling, substituted = coord._observed_run_ceiling_seconds(
+        {const.ZONE_MAXIMUM_DURATION: 2700}
+    )
+    assert ceiling == 2730.0
+    assert substituted is False
+
+
+def test_a_zone_with_no_usable_maximum_gets_the_default_ceiling_not_none():
+    """A non-positive maximum must not read as "no ceiling": that would hand a
+    stuck-open valve back its unbounded credit on exactly the zones with nothing
+    else to fall back on."""
+    coord = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+    for max_dur in (None, 0, -1):
+        ceiling, substituted = coord._observed_run_ceiling_seconds(
+            {const.ZONE_MAXIMUM_DURATION: max_dur}
+        )
+        assert ceiling == 3630.0, max_dur
+        assert substituted is True, max_dur
