@@ -506,3 +506,23 @@ class TestARotatingZoneWateredElsewhere:
 
         later = c._dispatched[after_take_over:]
         assert not [d for d in later if d[0] == 1], later
+
+    async def test_the_two_take_over_shapes_do_not_read_alike(self, hass, caplog):
+        """Same outcome, different cause: the line has to name which one."""
+        c = _coord(hass, ROTATING, slot=5, absorb=0)
+        z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
+        c._live_run_zones = {1, 2}
+        await _dispatch(c, [z1, z2])
+        await c.async_run_self_closing(dict(z2), trigger="manual")
+        caplog.clear()
+
+        await _finish(c, 2)
+
+        messages = [
+            r.getMessage()
+            for r in caplog.records
+            if "writing off zone 2 and its remaining" in r.getMessage()
+        ]
+        assert any("watered it before its turn" in m for m in messages), messages
+        assert not any("took it over while it waited" in m for m in messages), messages
+        assert 2 not in c._live_run_zones
