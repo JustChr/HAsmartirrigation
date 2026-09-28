@@ -910,8 +910,10 @@ ZONE_OBSERVED_ENTITY = "observed_entity"
 # NOT a ceiling on measured flow: since #102/#111 a flow sensor's reading is the
 # authority and is credited as-is. See ObservedWateringMixin.
 OBSERVED_CAP_MARGIN_SECONDS = 30
-# Shortest external open the observed path will offer to the flow-calibration
-# advisory. This is a PROVENANCE rule and nothing else: unlike self-closing and the
+# Shortest external open the observed path treats as watering rather than as testing.
+# Two callers read it: the flow-calibration advisory, which will not sample a shorter
+# open, and the close edge, which will not take a zone out of a running cycle for one.
+# This is a PROVENANCE rule and nothing else: unlike self-closing and the
 # distributor, which sample Irrigation Plus's OWN planned runs, this path sees any
 # valve opening, including a few seconds of hand-testing at the tap. On a
 # cistern-and-pump zone the delivered rate depends on whether the pump is loaded and

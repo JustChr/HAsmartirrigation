@@ -105,3 +105,54 @@ async def test_a_rotation_writes_off_a_zone_whose_valve_is_open_externally(hass)
     assert 2 not in _ids(c), f"zone 2 got a slot on top of an open valve: {c._dispatched}"
     rotation = c._chain_state(const.WATERING_MODE_SERVICE).rotation
     assert rotation.remaining[2] == 0.0
+
+
+async def test_a_sequential_cycle_drops_a_zone_watered_externally_before_its_turn(hass):
+    """The guard at the turn cannot save this one: the close edge removed the very
+    state it reads, so by the time the zone's turn arrives there is nothing to see."""
+    c = _observer(hass, SEQUENTIAL)
+    z1, z2 = _register(c, _observed_zone(1), _observed_zone(2))
+    await _dispatch(c, [z1, z2])
+
+    _external_open(c, 2)
+    await _external_close(c, hass, 2, after_seconds=600)
+    assert c.zone_run_in_flight(2) is False  # the open window is over
+
+    await _finish(c, 1)
+
+    assert 2 not in _ids(c), f"zone 2 was watered again after its own run: {c._dispatched}"
+
+
+async def test_a_rotation_drops_a_zone_watered_externally_between_its_turns(hass):
+    c = _observer(hass, ROTATING, slot=300)
+    # A third zone: dropping zone 2 while only zones 1 and 2 are in the rotation
+    # would exhaust it in the same call (nothing left with time remaining), and
+    # release nils the rotation object before its remainder can be read. Zone 3
+    # gives the rotation somewhere left to go, so the drop stays observable.
+    z1, z2, z3 = _register(c, _observed_zone(1), _observed_zone(2), _observed_zone(3))
+    await _dispatch(c, [z1, z2, z3])
+
+    _external_open(c, 2)
+    await _external_close(c, hass, 2, after_seconds=600)
+
+    await _finish(c, 1)
+
+    assert 2 not in _ids(c), f"zone 2 got another slot: {c._dispatched}"
+    rotation = c._chain_state(const.WATERING_MODE_SERVICE).rotation
+    assert rotation.remaining[2] == 0.0
+
+
+async def test_a_few_seconds_of_hand_testing_keeps_the_zones_turn(hass):
+    """Withholding a zone's whole turn is the worse error of the two: the water it
+    skips is real, while the water a short open leaves unaccounted is bounded by the
+    line itself. Below the provenance line the cycle carries on."""
+    c = _observer(hass, SEQUENTIAL)
+    z1, z2 = _register(c, _observed_zone(1), _observed_zone(2))
+    await _dispatch(c, [z1, z2])
+
+    _external_open(c, 2)
+    await _external_close(c, hass, 2, after_seconds=72)
+
+    await _finish(c, 1)
+
+    assert (2, 600.0) in c._dispatched, f"zone 2 lost its turn to a 72 s open: {c._dispatched}"

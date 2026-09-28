@@ -169,6 +169,20 @@ class ObservedWateringMixin:
                 # when we subscribed).
                 return
             seconds = (dt_util.utcnow() - started).total_seconds()
+            # A cycle holding this zone has to hear about the run. Its queue entry --
+            # or its rotation remainder -- outlives the external open, and the guard at
+            # the zone's turn reads state this close edge has just removed, so by that
+            # turn there is nothing left to see. Told here the way a stop tells it,
+            # through the one helper that reaches every chain's queue AND remainder.
+            #
+            # Gated on the same provenance line the flow advisory uses, and for the
+            # same reading of it: below that line an open is more likely someone
+            # testing the valve than watering. Withholding a zone's whole turn for a
+            # few seconds of hand-testing is the worse error of the two -- the water it
+            # skips is real, while the water a short open leaves unaccounted is bounded
+            # by the line itself.
+            if seconds >= const.OBSERVED_SAMPLE_MIN_RUN_SECONDS:
+                self._chain_drop_zone(zone_id)
             self.hass.async_create_task(
                 self._observed_run_finished(
                     zone_id, seconds, measured_l=measured, sensor_present=sensor_present
