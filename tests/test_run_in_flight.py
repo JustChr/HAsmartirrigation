@@ -178,6 +178,25 @@ def test_an_external_run_past_its_ceiling_does_not_count(monkeypatch):
     assert coord.zone_run_in_flight(1) is False
 
 
+def test_an_external_run_exactly_at_its_ceiling_does_not_count(monkeypatch):
+    """The ceiling is exclusive, like the self-closing window it is modelled on.
+
+    Frozen, because the boundary is one instant wide: without a stopped clock
+    nothing in the suite ever stands exactly on it, and the comparison could be
+    loosened to ``<=`` with every other test still green. The two lines this work
+    added fall on deliberately opposite sides -- the provenance gate includes its
+    boundary (a run of exactly five minutes is watering), this one excludes it (a
+    run that has reached the longest plausible length for its zone has reached the
+    point where the report stops being evidence of water).
+    """
+    coord = _coord(monkeypatch)
+    started = dt_util.utcnow()
+    # maximum_duration 36000 s + the 30 s margin, landed on to the microsecond.
+    with freeze_time(started + dt_util.dt.timedelta(seconds=36030)):
+        coord._observed_on_since = {1: started}
+        assert coord.zone_run_in_flight(1) is False
+
+
 def test_the_narrow_question_ignores_an_external_run(monkeypatch):
     """The two questions are not the same question. The observed open edge asks the
     narrow one -- did WE open this valve? -- and must get False for an external run,
