@@ -767,3 +767,18 @@ async def test_the_close_edge_schedules_the_finish_not_the_bare_credit():
     coord._observed_state_changed(_state_event("valve.x", old="open", new="closed"))
 
     coord.hass.async_create_task.assert_called_once_with("finish_coro")
+
+
+async def test_the_finish_hands_the_credit_everything_the_close_edge_measured():
+    """The wrapper sits between the close edge and the credit, so it is the one place
+    a measured volume can be lost without anything noticing: the credit would fall
+    back to seconds x throughput and still look like a successful credit."""
+    coord = _obs_coord([{const.ZONE_ID: 2}])
+    coord.async_run_deferred_calculation = AsyncMock()
+    coord._credit_observed_watering = AsyncMock()
+
+    await coord._observed_run_finished(2, 600, measured_l=8.0, sensor_present=True)
+
+    coord._credit_observed_watering.assert_awaited_once_with(
+        2, 600, measured_l=8.0, sensor_present=True
+    )
