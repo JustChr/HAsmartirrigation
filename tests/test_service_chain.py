@@ -424,3 +424,28 @@ class TestTheDispatchActuallyRoutesThemThere:
         await c._dispatch_by_mode(zones, trigger="schedule")
 
         assert _ids(c) == [1, 2, 3]
+
+
+class TestARotatingZoneWateredElsewhere:
+    """A rotating zone's turn is governed by ``remaining``, which records how much
+    a zone has left -- not who has already given it water.
+
+    Two shapes of the same take-over, told apart by whether the other run is still
+    going when the rotation reaches the zone. The log wording each one produces is
+    asserted below; the sibling test for the still-running wording lives in
+    tests/test_chain_carries_its_plan.py.
+    """
+
+    async def test_a_take_over_still_running_at_the_turn_is_written_off(self, hass):
+        """The half the take-over guard already covers -- kept so it cannot slip."""
+        c = _coord(hass, ROTATING, slot=5, absorb=0)
+        z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
+        await _dispatch(c, [z1, z2])
+        # Something else is STILL watering zone 2 when its turn comes.
+        c.zone_run_in_flight = lambda zid: int(zid) == 2
+
+        await _finish(c, 1)
+
+        rot = c._chain_state(const.WATERING_MODE_SERVICE).rotation
+        assert rot.remaining[2] == 0.0
+        assert not any(zid == 2 for zid, _ in c._dispatched)
