@@ -449,3 +449,27 @@ class TestARotatingZoneWateredElsewhere:
         rot = c._chain_state(const.WATERING_MODE_SERVICE).rotation
         assert rot.remaining[2] == 0.0
         assert not any(zid == 2 for zid, _ in c._dispatched)
+
+    async def test_a_take_over_that_finished_before_the_turn_gets_no_slot(self, hass):
+        """The run is gone by the zone's turn, so no predicate can still see it.
+
+        ``_sc_finish_run`` removes the record before advancing the chain, which is
+        what ``zone_run_in_flight`` reads. A zone watered in full and finished
+        while the rotation waited therefore looks exactly like one that has been
+        waiting its turn all along.
+        """
+        c = _coord(hass, ROTATING, slot=5, absorb=0)
+        z1, z2 = _register(c, _zone(1, duration=600), _zone(2, duration=600))
+        await _dispatch(c, [z1, z2])
+        # Irrigate-now waters zone 2 in full and finishes BEFORE zone 1's slot
+        # ends -- irrigation.py's manual run, dispatched outside the chain.
+        await c.async_run_self_closing(dict(z2), trigger="manual")
+        await _finish(c, 2)
+        after_take_over = len(c._dispatched)
+
+        await _finish(c, 1)
+
+        rot = c._chain_state(const.WATERING_MODE_SERVICE).rotation
+        later = c._dispatched[after_take_over:]
+        assert not [d for d in later if d[0] == 2], later
+        assert rot is None or rot.remaining[2] == 0.0

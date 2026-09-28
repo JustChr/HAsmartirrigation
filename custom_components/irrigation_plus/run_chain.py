@@ -54,6 +54,15 @@ class Rotation:
 
     ``cursor`` indexes ``order`` at the zone dispatched last, so the next turn
     resumes after it instead of restarting at the top every time.
+
+    ``in_flight`` is the zone whose slot this rotation dispatched and is waiting
+    for, and it is the only thing here that records WHO watered rather than what
+    or when. Without it a finalising run cannot be told apart from a take-over:
+    ``remaining`` says how much a zone has left, ``last_finish`` says when one
+    last stopped -- for the absorption wait -- and the run record a guard would
+    read is removed before the chain is advanced. ``cursor`` cannot stand in for
+    it: it keeps pointing at a zone after that zone's slot has ended, so a run
+    finishing during an absorption wait would be read as the rotation's own.
     """
 
     slot: float
@@ -62,6 +71,7 @@ class Rotation:
     remaining: dict = field(default_factory=dict)
     last_finish: dict = field(default_factory=dict)
     cursor: int = -1
+    in_flight: int | None = None
 
 
 @dataclass(frozen=True)
@@ -316,6 +326,32 @@ class RunChainMixin:
             zid = int(finished_zone_id)
             if zid in rotation.remaining:
                 rotation.last_finish[zid] = dt_util.utcnow()
+                if rotation.in_flight == zid:
+                    # The slot this rotation dispatched and was waiting for.
+                    rotation.in_flight = None
+                elif rotation.remaining[zid] > 0:
+                    # Some other run watered a zone this rotation still holds and
+                    # has now ended, so its remainder goes the way a zone taken
+                    # over while the rotation waited already does. This is the
+                    # only moment it can be caught: the run record a guard would
+                    # read is removed before this call, so by the zone's own turn
+                    # there is nothing left to see. Written off here rather than
+                    # remembered for the turn, so a stop landing in between does
+                    # not report an already-watered zone as abandoned.
+                    policy = chain_policy_for(mode)
+                    _LOGGER.info(
+                        "%s rotation: writing off zone %s and its remaining "
+                        "%.0fs, another run watered it before its turn",
+                        policy.label if policy else mode,
+                        zid,
+                        rotation.remaining[zid],
+                    )
+                    rotation.remaining[zid] = 0.0
+                    # Safe although that run has been and gone: a run's ceiling is
+                    # decided at its own dispatch and frozen into its record, so
+                    # the marker it used is long consumed. What goes back is the
+                    # rotation's own leftover.
+                    self._drop_live_run_marker(zid)
         for run in await self._sc_active_runs():
             if run.get(const.RUN_MODE) == mode:
                 return
@@ -717,6 +753,14 @@ class RunChainMixin:
             # shows and what the next rotation would be built from — is left
             # alone. Every slot is a run in its own right: its own record, its
             # own bucket credit, its own flow sampling, its own log line.
+            #
+            # Claimed BEFORE the dispatch, not after it: a run that finalised
+            # inside the await would find no claim and have its own slot written
+            # off as a take-over. Left standing when the dispatch is refused,
+            # which is deliberate -- the refusal below sets the remainder to 0.0
+            # and only a fresh Rotation restores it, so a stale claim can only
+            # suppress a write-off for a zone that has nothing left to write off.
+            rotation.in_flight = zone_id
             if await self.async_run_self_closing(
                 dict(zone, **{const.ZONE_DURATION: slot}), trigger=state.trigger
             ):
