@@ -45,7 +45,7 @@ import datetime
 import math
 import zoneinfo
 from datetime import timedelta
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import homeassistant.util.dt as dt_util
 import pytest
@@ -76,6 +76,14 @@ from custom_components.irrigation_plus.sensor import (
 )
 from custom_components.irrigation_plus.store import SmartIrrigationStorage
 from custom_components.irrigation_plus.weather_aggregate import weather_day
+from custom_components.irrigation_plus.weathermodules.OpenMeteoClient import (
+    OpenMeteoClient,
+)
+from tests.test_weather_modules import (
+    _OPENMETEO_PATCH,
+    _make_response,
+    _openmeteo_doc,
+)
 
 T0 = datetime.datetime(2026, 5, 22, 0, 0, 0)
 NOW = T0 + timedelta(hours=24)
@@ -1484,8 +1492,8 @@ def _daily_forecast(*, complete=True):
     """Three forecast days, hotter and windier than the window, so a blend moves
     the figure well clear of today's alone.
 
-    ``complete=False`` is Open-Meteo's shape: no dewpoint and no pressure, which
-    the daily equation refuses a day without.
+    ``complete=False`` drops dewpoint and pressure, which the daily equation
+    refuses a day without.
     """
     rows = []
     for low, high in ((17.0, 34.0), (16.0, 31.0), (15.0, 29.0)):
@@ -1795,7 +1803,7 @@ class TestForecastDayZonesBlendTheWayTheirCommitDoes:
         ],
         ids=[
             "no_forecast",
-            "open_meteo_shape",
+            "no_dewpoint_or_pressure",
             "no_dewpoint",
             "no_min_temp",
             "no_max_temp",
@@ -1848,6 +1856,33 @@ class TestForecastDayZonesBlendTheWayTheirCommitDoes:
 
         assert inputs["rows"]
         assert inputs["forecast"] == forecast
+
+    async def test_open_meteos_own_forecast_rows_are_mirrored(self, coordinator):
+        """Rows as the Open-Meteo client builds them carry every input the daily
+        equation needs, so the estimate averages the same days its commit does."""
+        c, store = coordinator
+        zone, module, instance = await _forecasting_zone(c, store, 2.0)
+        client = OpenMeteoClient(latitude=LAT, longitude=LON, elevation=ELEV)
+        doc = _openmeteo_doc(WINDOW_END.date(), 0)
+        with (
+            freeze_time(WINDOW_END - timedelta(hours=1)),
+            patch(_OPENMETEO_PATCH, return_value=_make_response(200, doc)),
+        ):
+            forecast = client.get_forecast_data()
+
+        est = c._intraday_for_zone(
+            zone,
+            _estimating_inputs(
+                instance,
+                module,
+                forecast=_hourly_forecast(),
+                daily_forecast=forecast,
+            ),
+        )
+        committed = await _committed_daily_et(c, zone, forecast=forecast)
+
+        assert est["method"] == "daily_mirror"
+        assert est["et_since"] == pytest.approx(committed, abs=1e-4)
 
 
 class TestTheCommitPricesTheDayItsWindowCovers:
