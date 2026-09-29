@@ -887,6 +887,14 @@ def zone_eligible_for_demand(zone: dict) -> bool:
     )
 
 
+def is_enabled_member(zone: dict) -> bool:
+    """Whether ``zone`` is an enabled member, watered by its distributor's cycle."""
+    return (
+        zone.get(const.ZONE_DISTRIBUTOR_ID) is not None
+        and zone.get(const.ZONE_STATE) != const.ZONE_STATE_DISABLED
+    )
+
+
 def nominal_demand_seconds(
     zones: list[dict],
     *,

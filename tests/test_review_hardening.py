@@ -13,7 +13,10 @@ import pytest
 from homeassistant.exceptions import Unauthorized
 
 from custom_components.irrigation_plus import const
-from custom_components.irrigation_plus.helpers import normalize_zone_selection
+from custom_components.irrigation_plus.helpers import (
+    normalize_zone_selection,
+    schedule_targets_zone,
+)
 from custom_components.irrigation_plus.irrigation import IrrigationRunnerMixin
 from custom_components.irrigation_plus.panel import async_remove_card_resource
 
@@ -47,6 +50,22 @@ class TestNormalizeZoneSelection:
         result = normalize_zone_selection(iter(["7", "8"]))
         assert result == ["7", "8"]
         assert result == ["7", "8"]
+
+
+class TestScheduleTargetsZone:
+    """Whether a schedule selects a zone, read through the same normaliser."""
+
+    @pytest.mark.parametrize("zones", ["all", None])
+    def test_everything_selects_every_zone(self, zones):
+        assert schedule_targets_zone(zones, 12) is True
+
+    def test_ids_match_across_str_and_int(self):
+        assert schedule_targets_zone(["3", 12], "12") is True
+        assert schedule_targets_zone(["3", 12], 4) is False
+
+    def test_a_bare_multi_digit_id_selects_that_zone_only(self):
+        assert schedule_targets_zone("12", 12) is True
+        assert schedule_targets_zone("12", 1) is False
 
 
 class TestIrrigateLinkedEntitiesIsNotACallback:

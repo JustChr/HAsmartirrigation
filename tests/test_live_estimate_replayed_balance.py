@@ -2799,6 +2799,211 @@ class TestTheProjectionIsPublishedAsEntityAttributes:
         assert attrs["projected_start_utc"] == armed["start_utc"].isoformat()
 
 
+async def _make_member(store, zone):
+    """Hang ``zone`` off a distributor, so it waters through the distributor's cycle."""
+    distributor = await store.async_create_distributor({"name": "garden"})
+    await store.async_update_zone(
+        zone[const.ZONE_ID],
+        {
+            const.ZONE_DISTRIBUTOR_ID: distributor["id"],
+            const.ZONE_OUTLET_NUMBER: 1,
+        },
+    )
+
+
+class TestADistributorMemberIsNotAnsweredFor:
+    """A member waters through its distributor's own cycle, which decides each
+    member's demand at dispatch. The projection does not model that cycle, so
+    for a member the schedule targets it says it cannot answer, never "no"."""
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            _projection_schedule(),
+            _projection_schedule(start_mode=const.SCHEDULE_BOUND_MODE_NONE),
+            _projection_schedule(anchor=const.SCHEDULE_ANCHOR_START),
+        ],
+        ids=["two_stage", "single_stage", "start_pinned"],
+    )
+    async def test_a_targeted_member_is_unknown_rather_than_false(
+        self, coordinator, utc_site, schedule
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store, schedules=[schedule])
+        await _make_member(store, zone)
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _run_of(entry, zone)["will_water"] is None
+        assert _seconds(entry, zone) is None
+
+    async def test_the_entity_says_unknown_and_keeps_the_runs_times(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await _make_member(store, zone)
+        sensor = SmartIrrigationZoneNextIrrigationSensor(
+            c.hass, "sensor.si_next_irrigation", zone
+        )
+        when = _utc(T0 + timedelta(hours=12))
+
+        with freeze_time(when):
+            _as_of(c, store, zone, manager, when)
+            await sensor.async_update()
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["projection_state"] == "unknown"
+        assert attrs["will_water"] is None
+        assert attrs["projected_duration_seconds"] is None
+        assert attrs["projected_start_utc"] is not None
+        assert attrs["projected_target_utc"] == _utc(NEXT_RUN_TARGET).isoformat()
+        assert attrs["decision_point_utc"] == _utc(NEXT_RUN_DECISION).isoformat()
+
+    async def test_an_armed_members_only_run_is_still_unknown(
+        self, coordinator, utc_site
+    ):
+        """A members-only schedule plans nothing and arms its pass-through, which
+        still runs the distributor's cycle."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await _make_member(store, zone)
+        await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        entry = await _project_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        assert entry["estimated"] is False
+        assert _run_of(entry, zone)["will_water"] is None
+
+    @pytest.mark.parametrize("hold", ["rain_sensor", "rain_delay"])
+    async def test_a_skipped_night_is_still_a_certain_no(
+        self, coordinator, utc_site, hold
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await _make_member(store, zone)
+        if hold == "rain_sensor":
+            await store.async_update_config(
+                {const.CONF_RAIN_SENSOR: "binary_sensor.rain"}
+            )
+            c.hass.states.async_set("binary_sensor.rain", "on")
+        else:
+            await store.async_update_config(
+                {const.CONF_RAIN_DELAY_UNTIL: _utc(T0 + timedelta(days=2)).isoformat()}
+            )
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert entry["skipped"] is True
+        assert _run_of(entry, zone)["will_water"] is False
+        assert _seconds(entry, zone) == 0
+
+    async def test_a_disabled_member_is_a_certain_no(self, coordinator, utc_site):
+        """The distributor's cycle never waters a disabled member."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await _make_member(store, zone)
+        # Due, so the disabled state is the only thing refusing it.
+        assert c._dist_needs_water(store.get_zone(zone[const.ZONE_ID])) is True
+        await store.async_update_zone(
+            zone[const.ZONE_ID], {const.ZONE_STATE: const.ZONE_STATE_DISABLED}
+        )
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert c._dist_needs_water(store.get_zone(zone[const.ZONE_ID])) is False
+        assert _run_of(entry, zone)["will_water"] is False
+        assert _seconds(entry, zone) == 0
+
+    async def test_a_member_the_days_between_guard_holds_is_a_certain_no(
+        self, coordinator, utc_site
+    ):
+        """The distributor holds members back by the same counter. A second zone
+        the counter leaves free keeps the whole run from being skipped, so the
+        member is held by its own guard."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        member = await _zone(c, store, -6.0)
+        await _make_member(store, member)
+        await store.async_update_config({const.CONF_DAYS_BETWEEN_IRRIGATION: 3})
+        await store.async_update_zone(
+            zone[const.ZONE_ID], {const.ZONE_DAYS_SINCE_IRRIGATION: 5}
+        )
+        await store.async_update_zone(
+            member[const.ZONE_ID], {const.ZONE_DAYS_SINCE_IRRIGATION: 0}
+        )
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert entry["skipped"] is False
+        assert _run_of(entry, zone)["will_water"] is True
+        assert _run_of(entry, member)["will_water"] is False
+        assert _seconds(entry, member) == 0
+
+    async def test_a_member_the_soil_veto_holds_is_a_certain_no(
+        self, coordinator, utc_site
+    ):
+        """The distributor applies the same veto to its members."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await _make_member(store, zone)
+        await store.async_update_zone(
+            zone[const.ZONE_ID],
+            {
+                const.ZONE_SOIL_MOISTURE_SENSOR: "sensor.soil",
+                const.ZONE_SOIL_MOISTURE_THRESHOLD: 30.0,
+            },
+        )
+        c.hass.states.async_set("sensor.soil", "55")
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _run_of(entry, zone)["will_water"] is False
+        assert _seconds(entry, zone) == 0
+
+    async def test_a_member_beside_a_planned_zone_is_unknown_alone(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        member = await _zone(c, store, -6.0)
+        await _make_member(store, member)
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _run_of(entry, zone)["will_water"] is True
+        assert _seconds(entry, zone) > 0
+        assert _run_of(entry, member)["will_water"] is None
+
+    async def test_a_member_the_schedule_does_not_target_will_not_water(
+        self, coordinator, utc_site
+    ):
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        other = int(zone[const.ZONE_ID]) + 1
+        manager._schedules = [_projection_schedule(zones=[other])]
+        await _make_member(store, zone)
+
+        entry = await _project_at(
+            c, store, zone, manager, _utc(T0 + timedelta(hours=12))
+        )
+
+        assert _run_of(entry, zone)["will_water"] is False
+        assert _seconds(entry, zone) == 0
+
+
 class TestForecastRainBeforeTheDecision:
     """The decision will see rain that has already fallen by the time it is
     made, so a projection that ignores it predicts a run the decision will not

@@ -26,6 +26,7 @@ from .distributor_entity import (
     zone_on_outlet,
 )
 from .entity import zone_device_info
+from .helpers import schedule_targets_zone
 from .live_estimate import REASON_NOT_COMPUTED
 from .performance import async_timer
 
@@ -865,13 +866,7 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
 
     def _targets_this_zone(self, run) -> bool:
         """Whether ``run``'s schedule includes this zone in its target selection."""
-        zones = run.get("zones", "all")
-        if zones == "all":
-            return True
-        try:
-            return int(self._zone_id) in {int(z) for z in zones}
-        except (TypeError, ValueError):
-            return False
+        return schedule_targets_zone(run.get("zones", "all"), self._zone_id)
 
     async def async_update(self):
         """Recompute the next irrigation run targeting this zone, and what it will do."""
@@ -922,7 +917,10 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
         schedule reaches this zone, so every other value is null rather than a
         stale or invented one; ``projected`` means the
         decision point has not arrived and the figures will still move;
-        ``armed`` means the decision has been made and these are its own numbers.
+        ``armed`` means the decision has been made and these are its own numbers;
+        ``unknown`` means the zone is a distributor member, whose demand its
+        distributor's cycle decides, so ``will_water`` and the duration are null
+        while the run's times still stand.
         """
         base = super().extra_state_attributes
         entry = self._projection
@@ -943,11 +941,16 @@ class SmartIrrigationZoneNextIrrigationSensor(SmartIrrigationZoneChildSensor):
                 "skip_reasons": [],
             }
         zone = (entry.get("zone_runs") or {}).get(str(self._zone_id)) or {}
+        will_water = zone.get("will_water", False)
+        if will_water is None:
+            state = "unknown"
+        else:
+            state = "projected" if entry.get("estimated") else "armed"
         return {
             **base,
-            "projection_state": "projected" if entry.get("estimated") else "armed",
+            "projection_state": state,
             "schedule_name": entry.get("name"),
-            "will_water": bool(zone.get("will_water")),
+            "will_water": None if will_water is None else bool(will_water),
             "projected_start_utc": entry.get("start_utc"),
             "projected_target_utc": entry.get("target_utc"),
             "decision_point_utc": entry.get("decision_point_utc"),

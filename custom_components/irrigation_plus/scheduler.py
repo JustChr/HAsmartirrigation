@@ -27,8 +27,15 @@ from . import const
 from .helpers import (
     find_next_solar_azimuth_time,
     normalize_azimuth_angle,
+    schedule_targets_zone,
 )
-from .run_window import ZoneRun, bound_wall_clock, concurrent_wall_clock, select
+from .run_window import (
+    ZoneRun,
+    bound_wall_clock,
+    concurrent_wall_clock,
+    is_enabled_member,
+    select,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1410,7 +1417,7 @@ class RecurringScheduleManager:
 
         skipped, reasons = await self._projected_skip(start)
         zone_runs = await self._projected_zone_runs(
-            durations, estimates, skipped, start
+            durations, estimates, skipped, start, zones
         )
         return {
             "schedule_id": sid,
@@ -1463,7 +1470,12 @@ class RecurringScheduleManager:
         return bool(reasons), reasons
 
     async def _projected_zone_runs(
-        self, durations: dict[int, float], estimates: dict, skipped: bool, start
+        self,
+        durations: dict[int, float],
+        estimates: dict,
+        skipped: bool,
+        start,
+        targets,
     ) -> dict[str, dict[str, Any]]:
         """Per-zone: will it water, for how long, and off which bucket.
 
@@ -1482,6 +1494,13 @@ class RecurringScheduleManager:
         zone's stored count because the two are the same comparison --
         ``days_since + offset < threshold`` is ``days_since < threshold -
         offset`` -- and this way the stored zone is left untouched.
+
+        A distributor member the schedule targets has no duration here: it
+        waters through its distributor's cycle, which decides each member's
+        demand at dispatch and is not modelled. It is published as unknown
+        (``will_water`` and ``duration_seconds`` None) unless a certain no holds:
+        the whole run skipped, or the days-between guard or soil-moisture veto,
+        which its distributor applies to members too.
         """
         zones = await self.coordinator.store.async_get_zones()
         days_between = self.coordinator._days_between_setting()  # noqa: SLF001
@@ -1492,7 +1511,8 @@ class RecurringScheduleManager:
         for zone in zones:
             zone_id = int(zone.get(const.ZONE_ID))
             duration = durations.get(zone_id)
-            held = skipped or duration is None
+            member = is_enabled_member(zone) and schedule_targets_zone(targets, zone_id)
+            held = skipped or (duration is None and not member)
             if not held and days_between > 0:
                 held = self.coordinator._zone_days_between_blocked(  # noqa: SLF001
                     zone, days_between
@@ -1501,10 +1521,13 @@ class RecurringScheduleManager:
                 held = self.coordinator._soil_moisture_vetoes(  # noqa: SLF001
                     self.coordinator._soil_moisture_reading(zone)  # noqa: SLF001
                 )
+            unknown = member and not held
             estimate = estimates.get(str(zone_id)) or {}
             out[str(zone_id)] = {
-                "will_water": not held,
-                "duration_seconds": 0 if held else int(round(duration or 0)),
+                "will_water": None if unknown else not held,
+                "duration_seconds": (
+                    None if unknown else 0 if held else int(round(duration or 0))
+                ),
                 # The decision-point bucket the size above came off, and what
                 # filled in the hours between now and the decision. Published
                 # because the two tiers differ by a factor of three on the input

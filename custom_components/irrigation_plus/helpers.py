@@ -1093,6 +1093,17 @@ def normalize_zone_selection(zone_ids):
     return list(zone_ids)
 
 
+def schedule_targets_zone(zone_ids, zone_id) -> bool:
+    """Whether a schedule's ``zones`` value selects ``zone_id``."""
+    selection = normalize_zone_selection(zone_ids)
+    if selection is None:
+        return True
+    try:
+        return int(zone_id) in {int(z) for z in selection}
+    except (TypeError, ValueError):
+        return False
+
+
 def normalize_azimuth_angle(angle: float) -> float:
     """Normalize any azimuth angle to 0-360 degree range.
 
