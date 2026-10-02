@@ -382,6 +382,40 @@ class OpenMeteoClient:
             )
         return out or None
 
+    def get_hourly_radiation_forecast(self):
+        """``[(aware UTC datetime, MJ m-2 h-1)]`` over the whole hourly series.
+
+        Open-Meteo's ``shortwave_radiation`` is the mean over the hour ENDING at
+        each instant, so each value is that interval's energy once converted.
+        Past and future alike: the live estimate prices the hours a window has not
+        reached, and the calculation pairs the hours it just closed against what
+        the station measured, which ``past_days=1`` keeps in the document.
+
+        Reads only what has already been fetched, like the other accessors here.
+        """
+        doc = self._cached_doc
+        if not doc:
+            return None
+        hourly = doc.get("hourly") or {}
+        times = hourly.get("time") or []
+        radiation = hourly.get("shortwave_radiation") or []
+        offset = datetime.timedelta(seconds=doc.get("utc_offset_seconds", 0))
+        out = []
+        for tstr, watts in zip(times, radiation, strict=False):
+            if watts is None:
+                continue
+            try:
+                local = datetime.datetime.fromisoformat(tstr)
+            except (TypeError, ValueError):
+                continue
+            out.append(
+                (
+                    local.replace(tzinfo=datetime.timezone.utc) - offset,
+                    float(watts) * _W_TO_MJ_HOUR,
+                )
+            )
+        return out or None
+
     def get_hourly_data(self):
         """Return elapsed hourly rows (local) for the intra-day estimate.
 

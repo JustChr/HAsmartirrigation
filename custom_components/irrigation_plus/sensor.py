@@ -805,6 +805,10 @@ class SmartIrrigationZoneLiveDeficitSensor(SmartIrrigationZoneChildSensor):
             # The pinned weather entity the entity tier read; None on every
             # other tier.
             "forecast_entity_id": est.get("forecast_entity_id"),
+            # The same question for measured radiation, on the zones whose commit
+            # books its daily mean: the calibrated forecast, the station's own
+            # clearness, or the observation once the window has closed.
+            "radiation_tier": est.get("radiation_tier"),
             # Why this sensor has no value, for the zones that have none: which
             # of the preconditions is missing, rather than an empty state and a
             # guess. None whenever there is a value. An operator who turned

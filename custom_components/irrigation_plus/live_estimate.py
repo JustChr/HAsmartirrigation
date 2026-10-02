@@ -9,11 +9,12 @@ ledger:
   the same replayed water balance, so the live curve is the path the stored
   bucket takes and the two coincide at every calculation time;
 * **the zone's own daily equation over the composed window**, for the zones the
-  hourly form declines because their module estimates solar radiation from the
-  day's temperature range. Those cannot agree with their commit however the
-  balance is combined, because the two were computing different quantities. The
-  window's observed part is reduced by the call the commit will use, its
-  day-level extremes are extended over the hours still to come from the best
+  hourly form declines: their module estimates solar radiation from the day's
+  temperature range, or measures it and blends forecast days. Those cannot agree
+  with their commit however the balance is combined, because the two were
+  computing different quantities. The window's observed part is reduced by the
+  call the commit will use, its day-level extremes -- and a measured radiation
+  total -- are extended over the hours still to come from the best
   forecast tier available — the configured weather service, else a Home
   Assistant weather entity, else the site's own history (see
   ``day_projection``) — and the module instance the commit uses prices the
@@ -75,8 +76,10 @@ from .calcmodules.pyeto import (
 )
 from .calculation import (
     hourly_calculation_enabled,
+    hourly_radiation_series,
     pending_bucket_events,
     replayed_balance_applies,
+    trailing_radiation_calibration,
     trailing_temperature_amplitude,
     zone_module_models_weather,
 )
@@ -88,6 +91,8 @@ from .day_projection import (
     TIER_SERVICE,
     compose_extremes,
     diurnal_remainder,
+    extraterrestrial_mj,
+    forecast_radiation_mj,
     forecast_rain_mm,
     forecast_remainder,
     radiation_share,
@@ -136,6 +141,9 @@ FORECAST_ENTITY_TTL_SECONDS = 900
 # a slow or hung weather integration must not hold either. A cached forecast
 # answers in milliseconds; a timeout counts as a declined read.
 FORECAST_ENTITY_TIMEOUT_SECONDS = 10
+# Share of the window's extraterrestrial radiation seen before today's clearness
+# is trusted over the trailing one: a ratio of two slivers of twilight is noise.
+CLEARNESS_MIN_OBSERVED_SHARE = 0.1
 
 
 class _ForecastEntitySeries(NamedTuple):
@@ -160,6 +168,14 @@ class _Blend(NamedTuple):
 
 # A zone with no forecast days: its commit prices today alone.
 _TODAY_ALONE = _Blend()
+
+
+class _DayTotal(NamedTuple):
+    """A composed window's day total, and which tiers filled its two projections."""
+
+    total_mm: float
+    tier: str | None
+    radiation_tier: str | None = None
 
 
 class _HourlyCarry(NamedTuple):
@@ -304,6 +320,7 @@ class LiveEstimateMixin:
         inputs["hourly_forecast"] = series
         inputs["hourly_forecast_tier"] = tier
         inputs["hourly_rain_forecast"] = self._hourly_forecast_precipitation(client)
+        inputs["hourly_radiation_forecast"] = hourly_radiation_series(client)
         inputs["hourly_forecast_entity_id"] = entity_id
         return inputs
 
@@ -768,21 +785,23 @@ class LiveEstimateMixin:
         return sum(per_hour.values()), per_hour
 
     def _daily_form_applies(self, zone, modinst) -> bool:
-        """Whether this zone's commit runs the DAILY equation on estimated radiation.
+        """Whether this zone's commit runs the DAILY equation.
 
-        The complement of :meth:`_hourly_form_applies` on the source axis, and the
-        largest population there is: estimating solar radiation from the day's
-        temperature range is the shipped default. Their commit replays the window
-        and prices it with the daily equation, while their estimate priced it from
-        a weather client's own hourly series or a temperature-seeded proxy -- a
-        different quantity, which no amount of fixing the balance form closes.
+        The complement of :meth:`_hourly_form_applies` on the source axis. The
+        largest population there is estimated radiation, since estimating it from
+        the day's temperature range is the shipped default; the rest measure it
+        and blend forecast days, or keep hourly calculation off. Their commit
+        prices the window with the daily equation, while their estimate priced it
+        from a weather client's own hourly series or a temperature-seeded proxy --
+        a different quantity, which no amount of fixing the balance form closes.
 
         Read from the module INSTANCE rather than the stored config, unlike the
         hourly gate, because the instance is needed anyway to run the equation and
-        it is the same object the commit reads.
+        it is the same object the commit reads. A measured-radiation zone asks the
+        hourly gate, where its commit chooses between the two equations.
 
-        Forecast days are not part of this answer: whether they can be mirrored
-        depends on the forecast in hand, so :meth:`_mirror_blend` asks both.
+        Whether forecast days can be mirrored depends on the forecast in hand, so
+        :meth:`_mirror_blend` asks that separately.
 
         Reads the module half of ``replayed_balance_applies`` and not the whole
         predicate. That predicate's ``hourlycalculation`` half decides the balance
@@ -797,7 +816,15 @@ class LiveEstimateMixin:
             return False
         if not zone_module_models_weather(self.store, zone):
             return False
-        return str(getattr(modinst, "_solrad_behavior", "")) != str(
+        if not self._measures_radiation(modinst):
+            return True
+        # Measured radiation: the commit runs the daily equation wherever it does
+        # not sum hourly ETo, and the composed window projects the radiation too.
+        return not self._hourly_form_applies(zone)
+
+    @staticmethod
+    def _measures_radiation(modinst) -> bool:
+        return str(getattr(modinst, "_solrad_behavior", "")) == str(
             SOLRAD_behavior.DontEstimate.value
         )
 
@@ -985,7 +1012,7 @@ class LiveEstimateMixin:
         # day it is estimating.
         window_day = weather_day(anchor, now)
         if modinst is None:
-            return (
+            return _DayTotal(
                 estimate_daily_et0_hargreaves(
                     low, high, geometry.latitude, window_day.timetuple().tm_yday
                 ),
@@ -996,6 +1023,19 @@ class LiveEstimateMixin:
             const.MAPPING_MIN_TEMP: low,
             const.MAPPING_MAX_TEMP: high,
         }
+        radiation_tier = None
+        # Only where the commit books the measured mean. A group with no solar
+        # sensor leaves it unset and the commit estimates it; so does this.
+        if (
+            self._measures_radiation(modinst)
+            and agg.get(const.MAPPING_SOLRAD) is not None
+        ):
+            radiation, radiation_tier = self._projected_radiation(
+                zone, agg, inputs, anchor=anchor, now=now, geometry=geometry
+            )
+            if radiation is None:
+                return None
+            projected[const.MAPPING_SOLRAD] = radiation
         # The clamp warning is suppressed explicitly. The calculation avoids it
         # structurally by never running the daily equation when it will not use
         # the answer; this path runs it every refresh per zone and would
@@ -1013,10 +1053,47 @@ class LiveEstimateMixin:
             return None
         # ``delta`` is the daily equation's own sign convention: negative for a
         # loss. The estimate carries evapotranspiration as a positive quantity.
-        return max(0.0, -float(delta)), tier
+        return _DayTotal(max(0.0, -float(delta)), tier, radiation_tier)
+
+    def _projected_radiation(self, zone, agg, inputs, *, anchor, now, geometry):
+        """``(MJ m-2 day-1, tier)`` for the window's whole day, or ``(None, None)``.
+
+        The commit books the window's MEAN measured radiation, which a part-window
+        mean gets wrong either way, so the observed energy is extended by the
+        remaining hours' and lands on the commit's mean as the window closes.
+        Uncalibrated, the forecast was measured to project worse than clearness,
+        so it waits for a ratio.
+        """
+        mean = float(agg[const.MAPPING_SOLRAD])
+        window_end = anchor + datetime.timedelta(hours=24)
+        if now >= window_end:
+            return mean, TIER_OBSERVED
+        elapsed_h = (now - anchor).total_seconds() / 3600.0
+        observed = mean * elapsed_h / 24.0
+        ratio, trailing_clearness = trailing_radiation_calibration(
+            self.store, zone.get(const.ZONE_MAPPING), today=now.date()
+        )
+        if ratio is not None:
+            remainder = forecast_radiation_mj(
+                inputs.get("hourly_radiation_forecast"), now, window_end
+            )
+            if remainder is not None:
+                return observed + ratio * remainder, TIER_SERVICE
+        ra_observed = extraterrestrial_mj(anchor, now, geometry)
+        ra_remaining = extraterrestrial_mj(now, window_end, geometry)
+        ra_window = ra_observed + ra_remaining
+        if ra_window <= 0:
+            return None, None
+        if ra_observed / ra_window >= CLEARNESS_MIN_OBSERVED_SHARE:
+            clearness = observed / ra_observed
+        else:
+            clearness = trailing_clearness
+        if clearness is None:
+            return None, None
+        return observed + clearness * ra_remaining, TIER_SELF_CONTAINED
 
     def _daily_mirror_et(self, zone, agg, inputs, *, anchor, now, geometry):
-        """``(et_mm, tier)`` from the zone's OWN daily equation, or None.
+        """A :class:`_DayTotal` of the window's charge from the zone's OWN daily equation, or None.
 
         The whole point: a zone that estimates solar radiation gets a live
         bucket computed with the equation its commit runs, rather than one
@@ -1054,7 +1131,7 @@ class LiveEstimateMixin:
         multiplier = agg.get(const.MAPPING_DATA_MULTIPLIER)
         if multiplier is None:
             return None
-        return day[0] * float(multiplier), day[1]
+        return day._replace(total_mm=day.total_mm * float(multiplier))
 
     def _buffer_water_steps(
         self, zone, anchor, *, now, hourly_et, precip_total, applied
@@ -1240,6 +1317,9 @@ class LiveEstimateMixin:
             # And, on the entity tier, WHICH entity that was. None on every
             # other tier, where no entity supplied the series.
             "forecast_entity_id": None,
+            # Which source filled the window's unobserved radiation, for a zone
+            # whose commit books the measured mean. None everywhere else.
+            "radiation_tier": None,
             # Why there is no estimate, for the zones that get none. Every exit
             # below sets one, so an operator who turned ``live_estimate_enabled``
             # on and sees an empty sensor is told which precondition is missing
@@ -1309,6 +1389,7 @@ class LiveEstimateMixin:
             hourly_et = None
             forecast_tier = None
             forecast_entity_id = None
+            radiation_tier = None
             # Reduced once and shared: the mirrored daily equation reads its
             # day-level inputs from this, and the precipitation trace is the same
             # window's rain. Two reductions of one window is a needless second
@@ -1335,11 +1416,12 @@ class LiveEstimateMixin:
                 # The buffer is current to now, not to the last closed hour.
                 as_of = now_local.isoformat()
             elif mirrored is not None:
-                # A zone whose module estimates solar radiation from the day's
-                # temperature range. Its commit runs the daily equation, so the
-                # estimate runs the same one over the composed window rather than
-                # a different equation whose answer is then compared against it.
-                et_mm, forecast_tier = mirrored
+                # A zone whose commit runs the daily equation, so the estimate
+                # runs the same one over the composed window rather than a
+                # different equation whose answer is then compared against it.
+                et_mm = mirrored.total_mm
+                forecast_tier = mirrored.tier
+                radiation_tier = mirrored.radiation_tier
                 # Named only where the entity tier is the one that filled the
                 # hours. The series is resolved for the whole refresh, so it can
                 # be present on ``inputs`` while this zone's window had no hours
@@ -1536,6 +1618,7 @@ class LiveEstimateMixin:
                 forecast_tier=forecast_tier,
                 unavailable_reason=None,
                 forecast_entity_id=forecast_entity_id,
+                radiation_tier=radiation_tier,
             )
         except Exception as e:  # noqa: BLE001 — estimate must never raise
             # exc_info, because the handler above is deliberately total. Without a
@@ -1818,7 +1901,7 @@ class LiveEstimateMixin:
             )
             if day is None:
                 return projected
-            day_total_mm, tier = day
+            day_total_mm, tier = day.total_mm, day.tier
             kc = zone.get(const.ZONE_KC, const.CONF_DEFAULT_KC)
             if kc is None:
                 kc = const.CONF_DEFAULT_KC

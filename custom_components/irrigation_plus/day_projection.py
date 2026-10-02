@@ -277,30 +277,7 @@ def radiation_share(start, end, geometry):
     # Bounded for the same reason the temperature remainder is: past this the
     # zone's watermark has not moved in days and the walk must not run away.
     end = min(end, start + datetime.timedelta(hours=MAX_REMAINDER_HOURS))
-    total = 0.0
-    hour = start
-    while hour < end:
-        # Charge each partial hour its own share, so a span that starts or ends
-        # mid-hour is not rounded onto the hourly grid.
-        step_end = min(
-            end,
-            hour.replace(minute=0, second=0, microsecond=0)
-            + datetime.timedelta(hours=1),
-        )
-        coverage = (step_end - hour).total_seconds() / 3600.0
-        mid = hour + (step_end - hour) / 2
-        day = mid.date()
-        total += (
-            extraterrestrial_radiation_hourly(
-                geometry.latitude,
-                geometry.longitude,
-                day.timetuple().tm_yday,
-                mid.hour + mid.minute / 60.0,
-                _offset(geometry, mid),
-            )
-            * coverage
-        )
-        hour = step_end
+    total = extraterrestrial_mj(start, end, geometry)
     if total <= 0:
         return 0.0
     day = start.date()
@@ -315,6 +292,37 @@ def radiation_share(start, end, geometry):
     if all_day <= 0:
         return 0.0
     return total / all_day
+
+
+def extraterrestrial_mj(start, end, geometry):
+    """Extraterrestrial radiation between two instants, in MJ m-2.
+
+    Each partial hour is charged its own share, so a span that starts or ends
+    mid-hour is not rounded onto the hourly grid. Not bounded: callers that can
+    be handed a runaway span bound it themselves.
+    """
+    total = 0.0
+    hour = start
+    while hour < end:
+        step_end = min(
+            end,
+            hour.replace(minute=0, second=0, microsecond=0)
+            + datetime.timedelta(hours=1),
+        )
+        coverage = (step_end - hour).total_seconds() / 3600.0
+        mid = hour + (step_end - hour) / 2
+        total += (
+            extraterrestrial_radiation_hourly(
+                geometry.latitude,
+                geometry.longitude,
+                mid.date().timetuple().tm_yday,
+                mid.hour + mid.minute / 60.0,
+                _offset(geometry, mid),
+            )
+            * coverage
+        )
+        hour = step_end
+    return total
 
 
 def forecast_rain_mm(series, start, end):
@@ -333,6 +341,22 @@ def forecast_rain_mm(series, start, end):
     projection is evapotranspiration-only. Returns 0.0 for a closed span, which
     is coverage rather than absence.
     """
+    return integrate_interval_series(series, start, end)
+
+
+def forecast_radiation_mj(series, start, end):
+    """Solar energy the forecast puts between two instants, in MJ m-2, or None.
+
+    ``series`` is ``[(naive local datetime, MJ m-2 h-1 over the interval ENDING
+    at that instant)]`` -- the convention Open-Meteo's preceding-hour mean
+    already follows. Refused on the same coverage rules as rain: a remainder with
+    a hole in it would price the hole as darkness.
+    """
+    return integrate_interval_series(series, start, end)
+
+
+def integrate_interval_series(series, start, end):
+    """Integrate an interval-ending rate series over ``[start, end]``, or None."""
     if not series:
         return None
     if end <= start:

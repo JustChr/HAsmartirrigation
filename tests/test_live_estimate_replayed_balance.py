@@ -1770,17 +1770,30 @@ class TestForecastDayZonesBlendTheWayTheirCommitDoes:
         assert carried["projected_et"] is not None
         instance.calculate.assert_not_called()
 
-    async def test_a_measured_radiation_zone_with_forecast_days_is_refused(
+    async def test_a_measured_radiation_zone_with_forecast_days_is_accepted(
         self, coordinator
     ):
-        """Composing its window needs a projected radiation total as well."""
+        """Its commit runs the daily equation, and the composed window projects
+        its radiation as well as its extremes."""
         c, store = coordinator
         zone = await _zone(c, store, 2.0, solrad=SOLRAD_behavior.DontEstimate.value)
+        module = store.get_module(zone[const.ZONE_MODULE])
+        await store.async_update_module(
+            module[const.MODULE_ID],
+            {
+                const.MODULE_CONFIG: {
+                    const.CONF_PYETO_SOLRAD_BEHAVIOR: (
+                        SOLRAD_behavior.DontEstimate.value
+                    ),
+                    const.CONF_PYETO_FORECAST_DAYS: 2,
+                }
+            },
+        )
         instance = Mock()
         instance._solrad_behavior = SOLRAD_behavior.DontEstimate.value
         instance.forecast_days = 2
 
-        assert c._daily_form_applies(zone, instance) is False
+        assert c._daily_form_applies(zone, instance) is True
 
     @pytest.mark.parametrize(
         "daily_forecast",
@@ -2030,7 +2043,7 @@ class TestTheEstimatePricesTheDayOfItsWindow:
         # ``now``, so the composition has no remaining hours to fill in and the
         # extremes pass through as given -- this test is only about which day
         # they get priced for.
-        total, _tier = c._composed_day_et(
+        total = c._composed_day_et(
             zone,
             {const.MAPPING_MIN_TEMP: low, const.MAPPING_MAX_TEMP: high},
             {},
@@ -2038,7 +2051,7 @@ class TestTheEstimatePricesTheDayOfItsWindow:
             now=now,
             geometry=geometry,
             modinst=None,
-        )
+        ).total_mm
 
         windows_day = estimate_daily_et0_hargreaves(
             low, high, LAT, datetime.date(2026, 5, 22).timetuple().tm_yday

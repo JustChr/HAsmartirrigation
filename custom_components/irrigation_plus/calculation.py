@@ -9,7 +9,7 @@ Protected by tests/test_calculate_module.py (calculate_module characterization).
 
 import functools
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 
 import homeassistant.util.dt as dt_util
 from homeassistant.core import callback
@@ -18,6 +18,11 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
 from .calcmodules.pyeto import SOLRAD_behavior
+from .day_projection import (
+    MAX_REMAINDER_HOURS,
+    extraterrestrial_mj,
+    forecast_radiation_mj,
+)
 from .duration_math import duration_from_deficit, zone_run_duration  # noqa: F401
 from .et_estimate import (
     SiteGeometry,
@@ -26,8 +31,14 @@ from .et_estimate import (
     replay_water_balance,
 )
 from .forecast_window import expected_rain
+from .helpers import (
+    STAMP_FROM_CLIENT,
+    coerce_stamp,
+    convert_between,
+    loadModules,
+    local_naive_now,
+)
 from .helpers import as_datetime as _as_datetime
-from .helpers import convert_between, loadModules, local_naive_now
 from .localize import localize
 from .weather_aggregate import (
     aggregate_window,
@@ -174,6 +185,65 @@ def trailing_temperature_amplitude(store, mapping_id):
     if not values:
         return None
     return sum(values) / len(values)
+
+
+def hourly_radiation_series(client):
+    """``[(naive local datetime, MJ m-2 h-1)]`` from the configured service, or None.
+
+    Interval-ending, localised once to HA's clock, which every caller works in.
+    """
+    if client is None or not hasattr(client, "get_hourly_radiation_forecast"):
+        return None
+    out = []
+    try:
+        for when, energy in client.get_hourly_radiation_forecast() or []:
+            if when is None or energy is None:
+                continue
+            out.append((coerce_stamp(when, STAMP_FROM_CLIENT), float(energy)))
+    except Exception as e:  # noqa: BLE001 -- neither caller may raise on a client
+        _LOGGER.debug("get_hourly_radiation_forecast failed: %s", e)
+        return None
+    return out or None
+
+
+def trailing_radiation_calibration(store, mapping_id, *, today=None):
+    """``(forecast ratio, clearness)`` of a sensor group's recent windows, each or None.
+
+    Energies are summed across windows rather than ratios averaged, so a short or
+    dark window cannot swing either. With ``today``, entries past the maximum age
+    are ignored. Free function for the reason :func:`trailing_temperature_amplitude`
+    is one.
+    """
+    mapping = store.get_mapping(mapping_id) if mapping_id is not None else None
+    if not mapping:
+        return None, None
+    measured_f = forecast = measured = ra = 0.0
+    pairs = 0
+    for entry in mapping.get(const.MAPPING_RADIATION_CALIBRATION) or []:
+        try:
+            when, got, predicted, ceiling = entry
+            got, ceiling = float(got), float(ceiling)
+            age = (today - date.fromisoformat(when)).days if today else 0
+        except (TypeError, ValueError):
+            continue
+        if got < 0 or ceiling <= 0 or age > const.RADIATION_CALIBRATION_MAX_AGE_DAYS:
+            continue
+        measured += got
+        ra += ceiling
+        try:
+            predicted = None if predicted is None else float(predicted)
+        except (TypeError, ValueError):
+            predicted = None
+        if predicted is not None and predicted > 0:
+            measured_f += got
+            forecast += predicted
+            pairs += 1
+    ratio = None
+    if pairs >= const.RADIATION_CALIBRATION_MIN_PAIRS:
+        low, high = const.RADIATION_CALIBRATION_RATIO_BOUNDS
+        ratio = min(high, max(low, measured_f / forecast))
+    clearness = measured / ra if ra > 0 else None
+    return ratio, clearness
 
 
 class CalculationMixin:
@@ -544,6 +614,7 @@ class CalculationMixin:
             return
 
         await self._record_window_amplitude(zone, weatherdata, now=now)
+        await self._record_window_radiation(zone, weatherdata, now=now)
 
         calc_data[const.ZONE_LAST_CALCULATED] = now
         calc_data[const.ZONE_LAST_UPDATED] = now
@@ -607,6 +678,66 @@ class CalculationMixin:
             {
                 const.MAPPING_TEMPERATURE_AMPLITUDES: kept[
                     -const.TEMPERATURE_AMPLITUDE_WINDOWS :
+                ]
+            },
+        )
+
+    async def _record_window_radiation(self, zone, weatherdata, *, now):
+        """Record this window's measured radiation against what was forecast for it.
+
+        Taken here because only at commit do the measured mean and the forecast's
+        own figure cover the same hours. Keyed by end date and replaced, for the
+        reason :meth:`_record_window_amplitude` gives.
+        """
+        mapping_id = zone.get(const.ZONE_MAPPING)
+        mean = weatherdata.get(const.MAPPING_SOLRAD)
+        start = _as_datetime(zone.get(const.ZONE_LAST_CONSUMED))
+        if mapping_id is None or mean is None or start is None or start >= now:
+            return
+        hours = (now - start).total_seconds() / 3600.0
+        if hours < const.RADIATION_CALIBRATION_MIN_HOURS:
+            return
+        if hours > MAX_REMAINDER_HOURS:
+            # A stalled watermark: days of extraterrestrial walk for a pair that
+            # mixes several days' weather into one.
+            return
+        latitude = getattr(self, "_effective_latitude", None)
+        longitude = getattr(self, "_effective_longitude", None)
+        if latitude is None or longitude is None:
+            return
+        offset = dt_util.now().utcoffset()
+        geometry = SiteGeometry(
+            latitude,
+            longitude,
+            getattr(self, "_effective_elevation", None) or 0,
+            offset.total_seconds() / 3600.0 if offset else 0.0,
+            dt_util.DEFAULT_TIME_ZONE,
+        )
+        ceiling = extraterrestrial_mj(start, now, geometry)
+        if ceiling <= 0:
+            return
+        # The aggregate is a mean rate in MJ m-2 day-1; the pair is energy.
+        measured = float(mean) * hours / 24.0
+        forecast = forecast_radiation_mj(
+            hourly_radiation_series(getattr(self, "_WeatherServiceClient", None)),
+            start,
+            now,
+        )
+        mapping = self.store.get_mapping(mapping_id)
+        if not mapping:
+            return
+        key = now.date().isoformat()
+        kept = [
+            entry
+            for entry in (mapping.get(const.MAPPING_RADIATION_CALIBRATION) or [])
+            if isinstance(entry, (list, tuple)) and len(entry) == 4 and entry[0] != key
+        ]
+        kept.append([key, measured, forecast, ceiling])
+        await self.store.async_update_mapping(
+            mapping_id,
+            {
+                const.MAPPING_RADIATION_CALIBRATION: kept[
+                    -const.RADIATION_CALIBRATION_WINDOWS :
                 ]
             },
         )

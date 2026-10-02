@@ -133,6 +133,7 @@ from .const import (
     MAPPING_NAME,
     MAPPING_PRECIPITATION,
     MAPPING_PRESSURE,
+    MAPPING_RADIATION_CALIBRATION,
     MAPPING_SOLRAD,
     MAPPING_TEMPERATURE,
     MAPPING_TEMPERATURE_AMPLITUDES,
@@ -366,6 +367,9 @@ class MappingEntry:
     # TEMPERATURE_AMPLITUDE_WINDOWS. Small and bounded, so unlike the reading
     # buffer it belongs in the routine save payload.
     temperature_amplitudes = attr.ib(type=list, factory=list)
+    # ``[[window end date, measured, forecast or None, extraterrestrial], ...]``
+    # in MJ m-2, capped at RADIATION_CALIBRATION_WINDOWS. Bounded like the above.
+    radiation_calibration = attr.ib(type=list, factory=list)
 
 
 @attr.s(slots=True, frozen=True)
@@ -1368,6 +1372,8 @@ class SmartIrrigationStorage:
                         temperature_amplitudes=mapping.get(
                             MAPPING_TEMPERATURE_AMPLITUDES
                         )
+                        or [],
+                        radiation_calibration=mapping.get(MAPPING_RADIATION_CALIBRATION)
                         or [],
                     )
             if "distributors" in data:

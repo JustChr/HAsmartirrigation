@@ -673,6 +673,21 @@ TEMPERATURE_AMPLITUDE_WINDOWS = 7
 # part-day window's spread is not a day's amplitude, and recording it would drag
 # the mean down exactly when the projection leans on it hardest.
 TEMPERATURE_AMPLITUDE_MIN_MULTIPLIER = 0.75
+# Recent committed windows' radiation energies, which the live estimate scales a
+# forecast and its own clearness by: a station and a forecast model disagree.
+MAPPING_RADIATION_CALIBRATION = "radiation_calibration"
+RADIATION_CALIBRATION_WINDOWS = 7
+# Shortest window recorded, in hours, so a manual calculation soon after the
+# nightly one cannot replace that day's whole-window entry.
+RADIATION_CALIBRATION_MIN_HOURS = 18.0
+# Entries older than this are ignored, so an install that stopped committing does
+# not keep scaling forecasts by a stale ratio.
+RADIATION_CALIBRATION_MAX_AGE_DAYS = 7
+# A forecast ratio needs this many paired windows, and is held inside these bounds:
+# measured daily ratios on a real station spanned 0.60-0.98, so the bounds only
+# catch failures such as a dead sensor booking no energy.
+RADIATION_CALIBRATION_MIN_PAIRS = 2
+RADIATION_CALIBRATION_RATIO_BOUNDS = (0.5, 2.0)
 MAPPING_MAPPINGS = "mappings"
 MAPPING_DEWPOINT = "Dewpoint"
 MAPPING_EVAPOTRANSPIRATION = "Evapotranspiration"

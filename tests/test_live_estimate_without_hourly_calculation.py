@@ -35,7 +35,6 @@ from custom_components.irrigation_plus import const
 from custom_components.irrigation_plus.calcmodules.pyeto import SOLRAD_behavior
 from custom_components.irrigation_plus.calculation import (
     hourly_calculation_enabled,
-    zone_module_models_weather,
 )
 from custom_components.irrigation_plus.live_estimate import (
     REASON_FAILED,
@@ -348,26 +347,16 @@ class TestTheConditionsThatStillRefuseTheMirror:
         est = c._intraday_for_zone(zone, _estimating_inputs(instance, module))
         assert est.get("method") != "daily_mirror"
 
-    async def test_a_measured_radiation_zone_is_still_refused(self, coordinator):
-        """The deferred case, pinned as deferred.
-
-        With the switch off this zone's commit runs the daily equation too, so
-        the argument for the mirror applies to it as well. It stays out because
-        composing its window needs a projected day total for RADIATION and not
-        only for the temperature extremes, which is a construction this does not
-        have. Asserted so the limit is a decision the suite holds rather than an
-        absence anyone could close by accident.
-        """
+    async def test_a_measured_radiation_zone_gets_the_mirror_too(self, coordinator):
+        """With the switch off this zone's commit runs the daily equation on the
+        window's measured mean, and the composed window projects that mean."""
         c, store = coordinator
         zone = await _zone(c, store, 2.0, solrad=SOLRAD_behavior.DontEstimate.value)
         instance = Mock()
         instance._solrad_behavior = SOLRAD_behavior.DontEstimate.value
         instance.forecast_days = 0
 
-        assert c._daily_form_applies(zone, instance) is False
-        # And not by the module half, which is the same half an estimated-solar
-        # zone passes: this refusal is the solar-behavior check alone.
-        assert zone_module_models_weather(store, zone) is True
+        assert c._daily_form_applies(zone, instance) is True
 
     async def test_a_module_instance_that_never_resolved_refuses_it(self, coordinator):
         c, store = coordinator
