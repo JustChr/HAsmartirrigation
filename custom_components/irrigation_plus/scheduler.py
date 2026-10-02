@@ -1288,8 +1288,6 @@ class RecurringScheduleManager:
                 continue
             if entry is not None:
                 out.append(entry)
-        # A refused night has no start at all, so it sorts last rather than
-        # ahead of every real run.
         out.sort(key=lambda r: r["start_utc"] or r["target_utc"] or "9999")
         return out
 
@@ -2005,7 +2003,9 @@ class RecurringScheduleManager:
                 name,
                 target,
             )
-            self._record_armed(schedule, target, None, [])
+            # The pass-through still fires the action at the target, so that is
+            # the run's start.
+            self._record_armed(schedule, target, target, [])
             return self._arm_pass_through(schedule, target)
 
         now_utc = dt_util.utcnow()
