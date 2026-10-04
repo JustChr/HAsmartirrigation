@@ -83,6 +83,7 @@ from .run_state import RunStateMixin
 from .run_watch import RunWatchMixin
 from .scheduler import RecurringScheduleManager
 from .self_closing import SelfClosingMixin
+from .sensor_liveness import SensorLivenessMixin
 from .services import ServiceHandlersMixin, async_register_services
 from .skip_conditions import SkipConditionsMixin
 from .store import BUFFER_FLUSH_INTERVAL, SmartIrrigationStorage, async_get_registry
@@ -531,6 +532,7 @@ class SmartIrrigationCoordinator(
     LiveEstimateMixin,
     ObservedWateringMixin,
     ContinuousUpdateMixin,
+    SensorLivenessMixin,
     SelfClosingMixin,
     OpenSprinklerMixin,
     # Before RunWatchMixin for the same reason OpenSprinklerMixin is: batch mode
@@ -785,6 +787,8 @@ class SmartIrrigationCoordinator(
         await self.async_setup_observed_watering()
         # Event-driven weather-sensor ingestion (no-op unless enabled).
         await self.async_setup_continuous_updates()
+        # Weather-sensor liveness: notices a mapped sensor that has fallen silent.
+        await self.async_setup_sensor_liveness()
         # Reading appends deliberately schedule no store write (store.buffers), so
         # something has to. A no-op tick when nothing was appended.
         if self._track_buffer_flush_unsub is None:
@@ -1763,6 +1767,8 @@ class SmartIrrigationCoordinator(
             if not res:
                 return None
             await self.store.async_delete_mapping(mapping_id)
+            # Its notice would otherwise outlive it until the next restart.
+            self._retire_outages(res)
         elif mapping_id is not None and self.store.get_mapping(mapping_id):
             # modify a mapping
             # A source/sensor switch makes the buffered readings incomparable to
@@ -1786,16 +1792,21 @@ class SmartIrrigationCoordinator(
                 # caller omits straight back in — so each stale key is overwritten
                 # with None, which aggregate_window ignores. A fresh reading from
                 # the new source replaces it.
-                stale = (self.store.get_mapping(mapping_id) or {}).get(
-                    const.MAPPING_DATA_LAST_ENTRY
-                ) or {}
+                before = self.store.get_mapping(mapping_id) or {}
+                stale = before.get(const.MAPPING_DATA_LAST_ENTRY) or {}
                 data = {
                     **data,
                     const.MAPPING_DATA: [],
                     const.MAPPING_DATA_LAST_ENTRY: dict.fromkeys(stale),
+                    # Like the buffer, a source change starts the group's outage
+                    # record over: the old sensor's outages describe another device.
+                    # The signs of life stay; the next check keeps only the
+                    # sensors the group still reads.
+                    const.MAPPING_SENSOR_OUTAGES: [],
                 }
             await self.store.async_update_mapping(mapping_id, data)
             if source_changed:
+                self._retire_outages(before)
                 now = local_naive_now()
                 for zone_id in await self._get_zones_that_use_this_mapping(mapping_id):
                     await self.store.async_update_zone(
@@ -2258,6 +2269,10 @@ class SmartIrrigationCoordinator(
         # debounce timers — a surviving async_call_later would fire against this
         # dead coordinator and ghost-write to the store.
         self.async_teardown_continuous_updates()
+
+        # The liveness check is a plain interval timer; a reload would otherwise
+        # leave the old coordinator checking alongside the new one.
+        self.async_teardown_sensor_liveness()
 
         # Release the recurring-schedule listeners. These are plain HA event
         # listeners (not entry-scoped), so nothing else cancels them: a reload

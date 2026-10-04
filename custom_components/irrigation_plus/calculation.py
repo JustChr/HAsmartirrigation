@@ -361,8 +361,13 @@ class CalculationMixin:
                     const.MAPPING_DATA_LAST_ENTRY: dict.fromkeys(
                         mapping.get(const.MAPPING_DATA_LAST_ENTRY) or {}
                     ),
+                    # The outage record starts over with the readings. The signs
+                    # of life stay: they are about the device, not the readings,
+                    # so a sensor still silent is reported again at the next check.
+                    const.MAPPING_SENSOR_OUTAGES: [],
                 },
             )
+            self._retire_outages(mapping)
         for zone in await self.store.async_get_zones():
             zone_id = zone.get(const.ZONE_ID)
             await self.store.async_update_zone(
@@ -433,8 +438,12 @@ class CalculationMixin:
 
         Keeps everything after the oldest enabled-zone watermark (so no zone
         loses unconsumed data) plus, PER FIELD, the boundary reading just before
-        it (each field's delta/Riemann baseline), and hard-drops anything older
-        than the retention cap. Disabled zones do not hold the buffer.
+        it (each field's delta/Riemann baseline), whatever that reading's age:
+        the retention cap only moves the cutoff, so a field that has been silent
+        for longer than the cap keeps its last row. Whether that row is still a
+        measurement is not this function's call; the outage record of
+        sensor_liveness notes when a sensor fell silent. Disabled zones do not
+        hold the buffer.
 
         The boundary is per field because the event path writes sparse rows —
         one field per event — so a single kept row only preserves the baseline
