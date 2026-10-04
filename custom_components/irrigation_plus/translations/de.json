@@ -453,6 +453,10 @@
     }
   },
   "issues": {
+    "weather_sensor_stale": {
+      "title": "Ein Wettersensor von {group} meldet nicht mehr",
+      "description": "Irrigation Plus hat seit {since} nichts mehr von {entities} gehört. Die zuletzt gemeldeten Werte werden weiter verwendet, als wären sie aktuell; Zonen, die davon abhängen, werden damit berechnet, bis wieder Werte kommen.\n\nPrüfe das Gerät und seine Integration. Hast du das Gerät ersetzt, wähle seine neuen Entitäten in der Sensorgruppe. Soll der Wert fest sein, nutze stattdessen die Quelle „Fester Wert“. Aktualisiert die Integration nur alle paar Stunden, erscheint dieser Hinweis zwischen ihren Updates und bedeutet keinen Ausfall.\n\nDieser Hinweis verschwindet von selbst, sobald der Sensor wieder meldet."
+    },
     "leftover_legacy_directory": {
       "title": "Der alte Smart-Irrigation-Ordner ist noch installiert",
       "description": "Irrigation Plus installiert jetzt in einen eigenen Ordner, der bisherige Smart-Irrigation-Ordner liegt aber weiterhin unter `{path}`. HACS entfernt ihn bei einem Ordnerwechsel nicht, und Home Assistant lädt ihn als zweite Integration.\n\nDas sind nicht nur doppelte Sensoren. Es ist eine zweite Bewässerungssteuerung: Sie hält eine Kopie deiner Zeitpläne und zeigt auf dieselben Ventile, und beide wissen nichts voneinander. Wo sich ihre Läufe überschneiden, schreibt jede ihren eigenen Bucket voll gut, während deine Pflanzen nur einen Teil des Wassers bekommen — und hinterher gelten beide als bewässert.\n\nLösche diesen Ordner und starte Home Assistant neu. Deine Konfiguration wurde bereits übernommen. Pausiere bis dahin die Bewässerung bei einer der beiden."

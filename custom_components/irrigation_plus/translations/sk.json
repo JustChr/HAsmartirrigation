@@ -453,6 +453,10 @@
     }
   },
   "issues": {
+    "weather_sensor_stale": {
+      "title": "Meteorologický senzor skupiny {group} prestal hlásiť hodnoty",
+      "description": "Irrigation Plus od {since} nedostal nič od {entities}. Naposledy nahlásené hodnoty sa naďalej používajú, akoby boli aktuálne, takže zóny, ktoré od nich závisia, sa počítajú s týmito hodnotami, kým neprídu nové.\n\nSkontroluj zariadenie a jeho integráciu. Ak si zariadenie vymenil, vyber jeho nové entity v skupine senzorov. Ak má byť hodnota pevná, použi namiesto toho zdroj „Statická hodnota“. Ak sa integrácia aktualizuje len raz za niekoľko hodín, toto upozornenie sa zobrazuje medzi jej aktualizáciami a neznamená poruchu senzora.\n\nToto upozornenie zmizne samo, keď senzor znova začne hlásiť hodnoty."
+    },
     "leftover_legacy_directory": {
       "title": "Starý priečinok Smart Irrigation je stále nainštalovaný",
       "description": "Irrigation Plus sa teraz inštaluje do vlastného priečinka, ale predchádzajúci priečinok Smart Irrigation je stále v `{path}`. HACS ho pri zmene priečinka neodstráni a Home Assistant ho načíta ako druhú integráciu.\n\nNie sú to len zdvojené senzory. Je to druhé riadenie zavlažovania: má kópiu tvojich plánov a ukazuje na tie isté ventily, pričom o sebe navzájom nevedia. Tam, kde sa ich behy prekryjú, si každé pripíše celý vlastný bucket, zatiaľ čo rastliny dostanú len časť vody — a potom obe hlásia, že sa zavlažovalo.\n\nOdstráň tento priečinok a reštartuj Home Assistant. Tvoja konfigurácia už bola prenesená. Dovtedy pozastav zavlažovanie na jednom z nich."

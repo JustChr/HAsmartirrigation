@@ -453,6 +453,10 @@
     }
   },
   "issues": {
+    "weather_sensor_stale": {
+      "title": "En værsensor i {group} har sluttet å rapportere",
+      "description": "Irrigation Plus har ikke hørt fra {entities} siden {since}. De sist rapporterte verdiene brukes fortsatt som om de var aktuelle, så soner som er avhengige av dem, beregnes med disse verdiene til nye kommer inn.\n\nSjekk enheten og integrasjonen. Har du byttet ut enheten, velg de nye entitetene i sensorgruppen. Hvis verdien skal være fast, bruk heller kilden «Statisk verdi». Oppdateres integrasjonen bare med noen timers mellomrom, vises denne meldingen mellom oppdateringene og betyr ikke at sensoren har sviktet.\n\nDenne meldingen forsvinner av seg selv når sensoren rapporterer igjen."
+    },
     "leftover_legacy_directory": {
       "title": "Den gamle Smart Irrigation-mappen er fortsatt installert",
       "description": "Irrigation Plus installeres nå i sin egen mappe, men den forrige Smart Irrigation-mappen ligger fortsatt i `{path}`. HACS fjerner den ikke når en integrasjon bytter mappe, og Home Assistant laster den som en integrasjon nummer to.\n\nDet er ikke bare doble sensorer. Det er en vanningsstyring nummer to: den har en kopi av tidsplanene dine og peker på de samme ventilene, og de to vet ikke om hverandre. Der kjøringene overlapper, krediterer hver sin egen bucket fullt ut mens plantene bare får en del av vannet — og etterpå står begge som vannet.\n\nSlett mappen og start Home Assistant på nytt. Konfigurasjonen din er allerede overført. Sett vanningen på pause på en av de to inntil videre."

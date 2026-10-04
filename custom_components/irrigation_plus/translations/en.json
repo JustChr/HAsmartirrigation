@@ -453,6 +453,10 @@
     }
   },
   "issues": {
+    "weather_sensor_stale": {
+      "title": "A weather sensor of {group} has stopped reporting",
+      "description": "Irrigation Plus has not heard from {entities} since {since}. The last reported values are still used as if they were current, so zones that depend on them are calculated with those values until new ones arrive.\n\nCheck the device and its integration. If you replaced the device, select its new entities in the sensor group. If the value is meant to be fixed, use the \"Static value\" source instead. If the integration only updates every few hours, this notice appears between its updates and does not mean the sensor has failed.\n\nThis notice clears itself when the sensor reports again."
+    },
     "leftover_legacy_directory": {
       "title": "The old Smart Irrigation folder is still installed",
       "description": "Irrigation Plus now installs to its own folder, but the previous Smart Irrigation folder is still at `{path}`. HACS does not remove it when an integration changes folder, so Home Assistant loads it as a second integration.\n\nThat is more than two of every sensor. It is a second irrigation controller: it holds a copy of your schedules and points at the same valves, and the two know nothing about each other. Where their runs overlap, each credits its own bucket in full while your plants get a fraction of the water — and afterwards both read as watered.\n\nDelete that folder and restart Home Assistant. Your configuration has already been carried over. Until then, pause watering on one of the two."

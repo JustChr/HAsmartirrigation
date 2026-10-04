@@ -453,6 +453,10 @@
     }
   },
   "issues": {
+    "weather_sensor_stale": {
+      "title": "Un sensor meteorológico de {group} ha dejado de informar",
+      "description": "Irrigation Plus no tiene noticias de {entities} desde {since}. Los últimos valores recibidos se siguen usando como si fueran actuales, así que las zonas que dependen de ellos se calculan con esos valores hasta que lleguen otros nuevos.\n\nRevisa el dispositivo y su integración. Si has sustituido el dispositivo, selecciona sus nuevas entidades en el grupo de sensores. Si el valor debe ser fijo, usa en su lugar la fuente «Valor estático». Si la integración solo se actualiza cada pocas horas, este aviso aparece entre sus actualizaciones y no significa que el sensor haya fallado.\n\nEste aviso desaparece por sí solo cuando el sensor vuelve a informar."
+    },
     "leftover_legacy_directory": {
       "title": "La carpeta antigua de Smart Irrigation sigue instalada",
       "description": "Irrigation Plus ya se instala en su propia carpeta, pero la carpeta anterior de Smart Irrigation sigue en `{path}`. HACS no la elimina cuando una integración cambia de carpeta, y Home Assistant la carga como una segunda integración.\n\nNo son solo sensores duplicados. Es un segundo controlador de riego: conserva una copia de tus programaciones y apunta a las mismas válvulas, y ninguno sabe del otro. Cuando sus riegos se solapan, cada uno acredita su propio depósito por completo mientras tus plantas reciben solo una parte del agua — y después ambos figuran como regados.\n\nElimina esa carpeta y reinicia Home Assistant. Tu configuración ya se ha trasladado. Hasta entonces, pausa el riego en una de las dos."

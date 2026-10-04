@@ -453,6 +453,10 @@
     }
   },
   "issues": {
+    "weather_sensor_stale": {
+      "title": "Een weersensor van {group} meldt niets meer",
+      "description": "Irrigation Plus heeft sinds {since} niets meer van {entities} gehoord. De laatst gemelde waarden worden nog steeds gebruikt alsof ze actueel zijn, dus zones die ervan afhangen worden met die waarden berekend tot er nieuwe binnenkomen.\n\nControleer het apparaat en de integratie ervan. Heb je het apparaat vervangen, kies dan de nieuwe entiteiten ervan in de sensorgroep. Moet de waarde vast zijn, gebruik dan de bron ‘Vaste waarde’. Werkt de integratie maar om de paar uur bij, dan verschijnt deze melding tussen haar updates en betekent ze niet dat de sensor defect is.\n\nDeze melding verdwijnt vanzelf zodra de sensor weer meldt."
+    },
     "leftover_legacy_directory": {
       "title": "De oude Smart Irrigation-map staat er nog",
       "description": "Irrigation Plus installeert nu in een eigen map, maar de vorige Smart Irrigation-map staat nog in `{path}`. HACS verwijdert die niet wanneer een integratie van map verandert, en Home Assistant laadt hem als tweede integratie.\n\nDat zijn niet alleen dubbele sensoren. Het is een tweede besproeiingsregeling: hij houdt een kopie van je schema’s en wijst naar dezelfde kleppen, en de twee weten niets van elkaar. Waar hun beurten overlappen, schrijft elk zijn eigen bucket volledig bij terwijl je planten maar een deel van het water krijgen — en achteraf staan beide op bewaterd.\n\nVerwijder die map en start Home Assistant opnieuw. Je configuratie is al overgenomen. Zet tot die tijd het water geven bij één van de twee op pauze."
