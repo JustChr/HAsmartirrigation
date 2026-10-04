@@ -688,6 +688,30 @@ RADIATION_CALIBRATION_MAX_AGE_DAYS = 7
 # catch failures such as a dead sensor booking no energy.
 RADIATION_CALIBRATION_MIN_PAIRS = 2
 RADIATION_CALIBRATION_RATIO_BOUNDS = (0.5, 2.0)
+# A sensor field whose HA device has not reported for this long counts as
+# silent: its outage is recorded on the sensor group and the user is told. Long
+# enough for an HA restart and a quiet night on an integration that writes only
+# on change. Fixed: an integration that updates less often than this raises the
+# notice between its updates, which docs/configuration-sensor-groups.md says.
+SENSOR_STALE_AFTER_SECONDS = 3 * 3600
+# How often the check runs, and how long it waits after setup so that
+# integrations have created their entities first.
+SENSOR_LIVENESS_INTERVAL_SECONDS = 300
+SENSOR_LIVENESS_STARTUP_GRACE_SECONDS = 600
+# Closed outages are kept as long as the reading buffer may keep rows (its cap,
+# calculation.BUFFER_RETENTION).
+SENSOR_OUTAGE_RETENTION_DAYS = 7
+# Values set by hand: no sign of life is expected, so they never go stale.
+SENSOR_LIVENESS_EXEMPT_DOMAINS = ("input_number",)
+# Entities of the same device and integration that vouch for a silent one:
+# measurements, not update or button entities (an update entity can write on a
+# schedule of its own).
+SENSOR_LIVENESS_SIBLING_DOMAINS = ("sensor", "binary_sensor")
+# Stored on the sensor group (MappingEntry).
+MAPPING_SENSOR_OUTAGES = "sensor_outages"
+MAPPING_SENSOR_LAST_SEEN = "sensor_last_seen"
+# One repair issue per sensor group: f"{ISSUE_WEATHER_SENSOR_STALE}_{mapping_id}".
+ISSUE_WEATHER_SENSOR_STALE = "weather_sensor_stale"
 MAPPING_MAPPINGS = "mappings"
 MAPPING_DEWPOINT = "Dewpoint"
 MAPPING_EVAPOTRANSPIRATION = "Evapotranspiration"
@@ -1078,6 +1102,8 @@ RUN_SEGMENT_STARTED = "segment_started"
 EVENT_IRRIGATE_STARTED = "irrigation_started"
 EVENT_IRRIGATE_FINISHED = "irrigation_finished"
 EVENT_ZONE_PROBLEM = "zone_problem"
+# Fired when a weather sensor's outage starts and when it ends.
+EVENT_WEATHER_STALE = "weather_stale"
 EVENT_ZONE_SKIPPED = "zone_skipped"  # per-zone soil-moisture veto (carries
 # zone_id, zone, entity_id, reason, observed, threshold)
 
