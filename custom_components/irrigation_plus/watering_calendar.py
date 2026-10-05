@@ -130,6 +130,7 @@ class WateringCalendarMixin:
         for month in range(1, 13):
             month_name = datetime(2024, month, 1).strftime("%B")
             month_data = monthly_data[month - 1]
+            days_in_month = calendar.monthrange(2024, month)[1]
 
             try:
                 # Calculate ET and watering needs for this month using the zone's module
@@ -138,7 +139,9 @@ class WateringCalendarMixin:
                         month_data, modinst, month
                     )
                 elif modinst.name == "Static":
-                    et_estimate = modinst.calculate()
+                    # A daily bucket change with the calculation's sign: negative
+                    # is demand, and a surplus needs nothing.
+                    et_estimate = max(0.0, -modinst.calculate()) * days_in_month
                 else:
                     # For other modules like Passthrough, use a simple estimation
                     et_estimate = (

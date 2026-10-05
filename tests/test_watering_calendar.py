@@ -509,3 +509,46 @@ class TestAMonthIsPricedByTheCalculationsRules:
         )
 
         assert volume == pytest.approx(93.0 * 0.8 * 10.0)  # 744 L
+
+    @pytest.mark.asyncio
+    async def test_a_static_demand_becomes_a_monthly_volume(
+        self, coordinator, mock_store
+    ):
+        """The static delta is a daily bucket change, negative for demand.
+
+        Read as a month's ET it was a negative number, and max(0, ...) turned
+        every demand into 0 L.
+        """
+        mock_store.get_module.return_value = {"id": 1, MODULE_NAME: "Static"}
+        static = _module_instance("Static", calculate=Mock(return_value=-3.0))
+
+        with patch.object(
+            coordinator, "getModuleInstanceByID", new=AsyncMock(return_value=static)
+        ):
+            calendar_data = await coordinator.async_generate_watering_calendar(
+                zone_id=1
+            )
+
+        july = calendar_data[1]["monthly_estimates"][6]
+        february = calendar_data[1]["monthly_estimates"][1]
+        assert july["estimated_et_mm"] == pytest.approx(93.0)  # 3.0 mm x 31 days
+        assert february["estimated_et_mm"] == pytest.approx(87.0)  # 2024: 29 days
+        # 100 m2, multiplier 1, Kc 1.0, and no rain subtracted for Static.
+        assert july["estimated_watering_volume_liters"] == pytest.approx(9300.0)
+
+    @pytest.mark.asyncio
+    async def test_a_static_surplus_needs_nothing(self, coordinator, mock_store):
+        """A positive static delta adds water every day: no demand, no volume."""
+        mock_store.get_module.return_value = {"id": 1, MODULE_NAME: "Static"}
+        static = _module_instance("Static", calculate=Mock(return_value=2.0))
+
+        with patch.object(
+            coordinator, "getModuleInstanceByID", new=AsyncMock(return_value=static)
+        ):
+            calendar_data = await coordinator.async_generate_watering_calendar(
+                zone_id=1
+            )
+
+        july = calendar_data[1]["monthly_estimates"][6]
+        assert july["estimated_et_mm"] == 0.0
+        assert july["estimated_watering_volume_liters"] == 0.0
