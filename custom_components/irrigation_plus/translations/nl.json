@@ -196,7 +196,7 @@
     },
     "generate_watering_calendar": {
       "name": "Irrigatiekalender genereren",
-      "description": "Genereer een irrigatiekalender van 12 maanden voor irrigatiezones op basis van representatieve klimaatgegevens",
+      "description": "Genereer een irrigatiekalender van 12 maanden voor irrigatiezones op basis van een illustratief klimaat dat alleen van de breedtegraad is afgeleid",
       "fields": {
         "entity": {
           "name": "Entiteit",

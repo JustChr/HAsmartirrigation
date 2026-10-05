@@ -196,7 +196,7 @@
     },
     "generate_watering_calendar": {
       "name": "Generar calendario de riego",
-      "description": "Generar un calendario de riego de 12 meses para las zonas de riego basado en datos climáticos representativos",
+      "description": "Generar un calendario de riego de 12 meses para las zonas de riego basado en un clima ilustrativo derivado solo de la latitud",
       "fields": {
         "entity": {
           "name": "Entidad",

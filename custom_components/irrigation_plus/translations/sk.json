@@ -196,7 +196,7 @@
     },
     "generate_watering_calendar": {
       "name": "Vygenerovať zavlažovací kalendár",
-      "description": "Vygenerovať 12-mesačný zavlažovací kalendár pre zavlažovacie zóny na základe reprezentatívnych klimatických údajov",
+      "description": "Vygenerovať 12-mesačný zavlažovací kalendár pre zavlažovacie zóny na základe ilustratívnej klímy odvodenej iba zo zemepisnej šírky",
       "fields": {
         "entity": {
           "name": "Entita",

@@ -196,7 +196,7 @@
     },
     "generate_watering_calendar": {
       "name": "Genera calendario di irrigazione",
-      "description": "Genera un calendario di irrigazione di 12 mesi per le zone di irrigazione in base a dati climatici rappresentativi",
+      "description": "Genera un calendario di irrigazione di 12 mesi per le zone di irrigazione in base a un clima indicativo ricavato solo dalla latitudine",
       "fields": {
         "entity": {
           "name": "Entità",

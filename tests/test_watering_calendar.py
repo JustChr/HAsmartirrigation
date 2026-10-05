@@ -3,10 +3,12 @@
 import json
 import math
 import pathlib
+import re
 from datetime import date
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+import yaml
 
 from custom_components.irrigation_plus import SmartIrrigationCoordinator
 from custom_components.irrigation_plus.const import (
@@ -661,3 +663,32 @@ class TestTheOutlookSaysWhatItIs:
         notes = [m["calculation_notes"] for m in calendar_data[1]["monthly_estimates"]]
         assert len(notes) == 12
         assert all("Illustrative" in n and "latitude" in n for n in notes), notes
+
+    def test_the_service_description_says_where_the_climate_comes_from(self):
+        """Not 'representative climate data': a climate derived from latitude alone.
+
+        English and services.yaml say what the climate is; in every language the
+        old claim is gone (its stem, matched across languages). NOT-TO-DO: do not
+        pin the other seven languages word for word; key parity and the
+        untranslated-string check in test_i18n_completeness keep them present
+        and translated.
+        """
+        en = json.loads(
+            (_ROOT / "translations" / "en.json").read_text(encoding="utf-8")
+        )
+        declared = yaml.safe_load((_ROOT / "services.yaml").read_text(encoding="utf-8"))
+
+        old_claim = re.compile(
+            r"repr[aäeé]sentati|rappresentati|reprezentat", re.IGNORECASE
+        )
+        for text in (
+            en["services"]["generate_watering_calendar"]["description"],
+            declared["generate_watering_calendar"]["description"],
+        ):
+            assert "illustrative" in text and "latitude" in text, text
+            assert not old_claim.search(text), text
+
+        for catalogue in sorted((_ROOT / "translations").glob("*.json")):
+            service = json.loads(catalogue.read_text(encoding="utf-8"))["services"]
+            description = service["generate_watering_calendar"]["description"]
+            assert not old_claim.search(description), (catalogue.name, description)

@@ -196,7 +196,7 @@
     },
     "generate_watering_calendar": {
       "name": "Bewässerungskalender erstellen",
-      "description": "Einen 12-Monats-Bewässerungskalender für Bewässerungszonen auf Basis repräsentativer Klimadaten erstellen",
+      "description": "Einen 12-Monats-Bewässerungskalender für Bewässerungszonen auf Basis eines allein aus dem Breitengrad abgeleiteten Beispielklimas erstellen",
       "fields": {
         "entity": {
           "name": "Entität",

@@ -196,7 +196,7 @@
     },
     "generate_watering_calendar": {
       "name": "Generate watering calendar",
-      "description": "Generate a 12-month watering calendar for irrigation zones based on representative climate data",
+      "description": "Generate a 12-month watering calendar for irrigation zones based on an illustrative climate derived from latitude only",
       "fields": {
         "entity": {
           "name": "Entity",

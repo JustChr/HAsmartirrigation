@@ -196,7 +196,7 @@
     },
     "generate_watering_calendar": {
       "name": "Generer vanningskalender",
-      "description": "Generer en 12-måneders vanningskalender for vanningssoner basert på representative klimadata",
+      "description": "Generer en 12-måneders vanningskalender for vanningssoner basert på et illustrativt klima utledet kun fra breddegraden",
       "fields": {
         "entity": {
           "name": "Enhet",
