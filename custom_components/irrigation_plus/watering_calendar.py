@@ -122,7 +122,7 @@ class WateringCalendarMixin:
                 f"Cannot load calculation module for zone {zone.get(const.ZONE_ID)}"
             )
 
-        # Generate representative monthly climate data based on location
+        # The illustrative climate: a fixed seasonal curve per latitude band
         monthly_data = self._generate_monthly_climate_data()
 
         monthly_estimates = []
@@ -187,7 +187,9 @@ class WateringCalendarMixin:
         return monthly_estimates
 
     def _generate_monthly_climate_data(self):
-        """Generate representative monthly climate data based on latitude.
+        """Generate an illustrative monthly climate: a fixed curve per latitude band.
+
+        The pressure alone comes from the elevation and is the same in every month.
 
         Returns:
             list: List of 12 monthly climate data dictionaries.
@@ -209,21 +211,24 @@ class WateringCalendarMixin:
 
         monthly_data = []
 
-        for month in range(1, 13):
-            # Calculate seasonal temperature variation
-            temp_factor = math.cos((month - 7) * math.pi / 6)  # Peak in July (month 7)
-            if self._latitude and self._latitude < 0:  # Southern hemisphere
-                temp_factor = -temp_factor
+        # Every curve below that peaks in the local summer or the local winter
+        # follows this sign, so the southern hemisphere mirrors all of them, not
+        # just the temperature. The tropical and subtropical rain names no season
+        # and is the same in both hemispheres.
+        hemisphere = -1.0 if self._latitude and self._latitude < 0 else 1.0
 
-            avg_temp = base_temp + (temp_variation * temp_factor)
+        for month in range(1, 13):
+            # +1 at the height of the local summer, -1 in the depth of its winter
+            # (July and January in the north).
+            summer = hemisphere * math.cos((month - 7) * math.pi / 6)
+
+            avg_temp = base_temp + (temp_variation * summer)
             min_temp = avg_temp - 5.0
             max_temp = avg_temp + 5.0
 
             # Simple precipitation model (more in winter for temperate, varies by location)
             if latitude > 35.0:  # Temperate zones
-                precip_factor = 1.5 - 0.5 * math.cos(
-                    (month - 1) * math.pi / 6
-                )  # More in winter
+                precip_factor = 1.5 - 0.5 * summer  # More in winter
             else:  # Tropical/subtropical
                 precip_factor = 1.0 + 0.3 * math.sin(
                     (month - 1) * math.pi / 6
@@ -232,10 +237,10 @@ class WateringCalendarMixin:
             precipitation = 60.0 * precip_factor  # Base 60mm/month
 
             # Humidity varies seasonally (higher in winter for temperate zones)
-            humidity = 65.0 + 15.0 * math.cos((month - 7) * math.pi / 6)
+            humidity = 65.0 - 15.0 * summer
 
             # Wind speed (slightly higher in winter)
-            wind_speed = 3.0 + 1.0 * math.cos((month - 7) * math.pi / 6)
+            wind_speed = 3.0 - 1.0 * summer
 
             # Pressure (standard sea level, adjusted for elevation)
             pressure = altitudeToPressure(self._elevation or 0)
@@ -254,8 +259,7 @@ class WateringCalendarMixin:
                     "wind_speed": wind_speed,
                     "pressure": pressure,
                     "dewpoint": dewpoint,
-                    "average_daily_et": 2.0
-                    + 2.0 * math.cos((month - 7) * math.pi / 6),  # Higher ET in summer
+                    "average_daily_et": 2.0 + 2.0 * summer,  # Higher ET in summer
                 }
             )
 

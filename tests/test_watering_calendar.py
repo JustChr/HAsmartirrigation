@@ -582,3 +582,60 @@ class TestAMonthIsPricedByTheCalculationsRules:
         assert february["estimated_watering_volume_liters"] == pytest.approx(
             round(feb_daily * 29 * 100.0, 1)
         )
+
+
+class TestTheClimateCurvesDoWhatTheirCommentsSay:
+    """The synthetic climate is an illustration, but each curve keeps its word."""
+
+    @pytest.mark.asyncio
+    async def test_a_northern_winter_is_wetter_windier_and_more_humid(
+        self, coordinator
+    ):
+        """Temperate north: humidity, wind and rain peak in January, ET in July."""
+        coordinator._latitude = 50.0
+
+        rows = coordinator._generate_monthly_climate_data()
+        january, july = rows[0], rows[6]
+
+        assert january["humidity"] == pytest.approx(80.0)
+        assert july["humidity"] == pytest.approx(50.0)
+        assert january["wind_speed"] == pytest.approx(4.0)
+        assert july["wind_speed"] == pytest.approx(2.0)
+        assert january["precipitation"] == pytest.approx(120.0)
+        assert july["precipitation"] == pytest.approx(60.0)
+        assert july["average_daily_et"] > january["average_daily_et"]
+        assert july["avg_temp"] > january["avg_temp"]
+
+    @pytest.mark.asyncio
+    async def test_the_southern_hemisphere_mirrors_every_temperate_curve(
+        self, coordinator
+    ):
+        """At 50° S July is winter for every curve, not just the heat."""
+        coordinator._latitude = -50.0
+
+        rows = coordinator._generate_monthly_climate_data()
+        january, july = rows[0], rows[6]
+
+        assert july["humidity"] == pytest.approx(80.0)
+        assert january["humidity"] == pytest.approx(50.0)
+        assert july["wind_speed"] == pytest.approx(4.0)
+        assert july["precipitation"] == pytest.approx(120.0)
+        assert january["average_daily_et"] > july["average_daily_et"]
+        assert january["avg_temp"] > july["avg_temp"]
+
+    @pytest.mark.asyncio
+    async def test_tropical_rain_keeps_its_curve(self, coordinator):
+        """Its comment names no season, so this curve stays as it was (a pin).
+
+        The same in both hemispheres: it is not one of the curves that mirror.
+        """
+        expected = [
+            round(60.0 * (1.0 + 0.3 * math.sin((m - 1) * math.pi / 6)), 6)
+            for m in range(1, 13)
+        ]
+
+        for latitude in (10.0, -10.0):
+            coordinator._latitude = latitude
+            rows = coordinator._generate_monthly_climate_data()
+
+            assert [round(r["precipitation"], 6) for r in rows] == expected, latitude
