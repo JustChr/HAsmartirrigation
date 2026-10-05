@@ -15,6 +15,7 @@ from datetime import date, datetime
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from . import const
+from .calculation import zone_module_models_weather
 from .const import SmartIrrigationError
 from .helpers import altitudeToPressure, convert_between
 
@@ -299,9 +300,14 @@ class WateringCalendarMixin:
     def _calculate_monthly_watering_volume(self, zone, et_mm, month_data):
         """Calculate monthly watering volume in liters for a zone.
 
+        The month's totals, netted once: the zone's Kc scales the ET term and not
+        the rain, as in the calculation, and rain counts only for a module the
+        calculation books it for (``zone_module_models_weather`` answers that).
+        The bucket's cap and drainage are not modelled.
+
         Args:
             zone: Zone configuration dictionary.
-            et_mm: Monthly evapotranspiration in mm.
+            et_mm: Monthly evapotranspiration in mm, before the zone's Kc.
             month_data: Monthly climate data.
 
         Returns:
@@ -310,7 +316,15 @@ class WateringCalendarMixin:
         """
         zone_size_m2 = zone.get(const.ZONE_SIZE, 1.0)  # Default 1 m²
         multiplier = zone.get(const.ZONE_MULTIPLIER, 1.0)
-        precipitation_mm = month_data.get("precipitation", 0.0)
+        kc = zone.get(const.ZONE_KC, const.CONF_DEFAULT_KC)
+        if kc is None:
+            kc = const.CONF_DEFAULT_KC
+        if zone_module_models_weather(self.store, zone):
+            precipitation_mm = month_data.get("precipitation", 0.0)
+        else:
+            # Static and Passthrough hand back a number the install supplied; the
+            # calculation books no rain for them, so neither does the calendar.
+            precipitation_mm = 0.0
 
         # Convert from imperial if needed
         ha_config_is_metric = self.hass.config.units is METRIC_SYSTEM
@@ -319,8 +333,8 @@ class WateringCalendarMixin:
                 const.UNIT_SQ_FT, const.UNIT_M2, zone_size_m2
             )
 
-        # Calculate net water need (ET minus precipitation)
-        net_water_need_mm = max(0, et_mm - precipitation_mm)
+        # Net water need: the Kc-scaled ET minus the rain the calculation books
+        net_water_need_mm = max(0, et_mm * kc - precipitation_mm)
 
         # Apply zone multiplier
         adjusted_water_need_mm = net_water_need_mm * multiplier

@@ -172,6 +172,7 @@ class TestWateringCalendar:
         test_zone = {
             ZONE_SIZE: 100.0,  # 100 m²
             ZONE_MULTIPLIER: 1.0,
+            ZONE_MODULE: 1,  # PyETO: the module rain is booked for
         }
 
         et_mm = 60.0  # 60mm ET for the month
@@ -191,7 +192,11 @@ class TestWateringCalendar:
         self, coordinator
     ):
         """Test that no irrigation is calculated when precipitation exceeds ET."""
-        test_zone = {ZONE_SIZE: 100.0, ZONE_MULTIPLIER: 1.0}
+        test_zone = {
+            ZONE_SIZE: 100.0,
+            ZONE_MULTIPLIER: 1.0,
+            ZONE_MODULE: 1,  # PyETO: the module rain is booked for
+        }
 
         et_mm = 30.0  # 30mm ET
         month_data = {"precipitation": 50.0}  # 50mm precipitation (exceeds ET)
@@ -457,3 +462,50 @@ class TestAMonthIsPricedByTheCalculationsRules:
         assert july["estimated_watering_volume_liters"] == pytest.approx(
             round(max(0.0, 62.0 - rain) * 100.0, 1)
         )
+
+    @pytest.mark.asyncio
+    async def test_kc_scales_the_et_term_and_not_the_rain(self, coordinator):
+        """As in the calculation: et_delta = delta x kc, precipitation unscaled."""
+        zone = {ZONE_SIZE: 10.0, ZONE_MULTIPLIER: 1.0, ZONE_MODULE: 1, ZONE_KC: 0.5}
+
+        volume = coordinator._calculate_monthly_watering_volume(
+            zone, 62.0, {"precipitation": 20.0}
+        )
+
+        assert volume == pytest.approx((62.0 * 0.5 - 20.0) * 10.0)  # 110 L
+
+    @pytest.mark.asyncio
+    async def test_a_zone_whose_kc_is_none_reads_as_the_default(self, coordinator):
+        """A stored ``kc: None`` falls back to 1.0, as in the calculation.
+
+        Only None does: a Kc of 0 is a valid setting and means no ET demand.
+        """
+        zone = {ZONE_SIZE: 10.0, ZONE_MULTIPLIER: 1.0, ZONE_MODULE: 1, ZONE_KC: None}
+        zero = {**zone, ZONE_KC: 0.0}
+
+        volume = coordinator._calculate_monthly_watering_volume(
+            zone, 62.0, {"precipitation": 20.0}
+        )
+        no_demand = coordinator._calculate_monthly_watering_volume(
+            zero, 62.0, {"precipitation": 20.0}
+        )
+
+        assert volume == pytest.approx((62.0 - 20.0) * 10.0)
+        assert no_demand == 0.0
+
+    @pytest.mark.asyncio
+    async def test_a_module_without_rain_gets_none_subtracted(
+        self, coordinator, mock_store
+    ):
+        """Static and Passthrough book no rain in the calculation, so here neither.
+
+        Kc still scales their figure, as it scales every module's in the calculation.
+        """
+        mock_store.get_module.return_value = {"id": 1, MODULE_NAME: "Static"}
+        zone = {ZONE_SIZE: 10.0, ZONE_MULTIPLIER: 1.0, ZONE_MODULE: 1, ZONE_KC: 0.8}
+
+        volume = coordinator._calculate_monthly_watering_volume(
+            zone, 93.0, {"precipitation": 60.0}
+        )
+
+        assert volume == pytest.approx(93.0 * 0.8 * 10.0)  # 744 L
