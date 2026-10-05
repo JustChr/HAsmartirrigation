@@ -4,9 +4,10 @@ Extracted from __init__.py (Phase C3). Methods live on a mixin the
 SmartIrrigationCoordinator inherits, so their bodies are unchanged — they still
 use ``self`` to reach coordinator state (store, hass, module loading, latitude/
 elevation). Named watering_calendar (not calendar) to avoid shadowing the stdlib
-``calendar`` module, which _calculate_monthly_et_pyeto imports locally.
+``calendar`` module, which this module imports.
 """
 
+import calendar
 import logging
 import math
 from datetime import date, datetime
@@ -287,16 +288,13 @@ class WateringCalendarMixin:
             weather_data, day=date(2024, month, 15)
         )
 
-        # Get days in month
-        import calendar
+        days_in_month = calendar.monthrange(2024, month)[1]  # 2024: reference year
 
-        days_in_month = calendar.monthrange(2024, month)[
-            1
-        ]  # Use 2024 as reference year
-
-        # Convert daily ET delta to monthly total (remove precipitation since we want just ET)
-        daily_et = abs(daily_et_delta) + month_data["precipitation"] / days_in_month
-        return daily_et * days_in_month
+        # The delta is -ET0 with no precipitation in it (calculate_et_for_day
+        # returns ``-eto``), so the month's ET is its size times the days. Rain is
+        # subtracted once, in the volume, and only for a module the calculation
+        # books it for.
+        return abs(daily_et_delta) * days_in_month
 
     def _calculate_monthly_watering_volume(self, zone, et_mm, month_data):
         """Calculate monthly watering volume in liters for a zone.

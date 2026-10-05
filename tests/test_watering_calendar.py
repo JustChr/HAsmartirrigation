@@ -1,5 +1,8 @@
 """Tests for the Irrigation Plus 12-month watering calendar feature."""
 
+import json
+import math
+import pathlib
 from datetime import date
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -9,6 +12,7 @@ from custom_components.irrigation_plus import SmartIrrigationCoordinator
 from custom_components.irrigation_plus.const import (
     MODULE_NAME,
     ZONE_ID,
+    ZONE_KC,
     ZONE_MAPPING,
     ZONE_MODULE,
     ZONE_MULTIPLIER,
@@ -374,3 +378,82 @@ class TestWateringCalendar:
         july = coordinator._calculate_monthly_et_pyeto(month_data, modinst, 7)
 
         assert july > january
+
+
+_ROOT = pathlib.Path(__file__).parent.parent / "custom_components" / "irrigation_plus"
+
+# A month as the PyETO helper takes it. The helper reads every key, the mocked
+# equation ignores the values, so one month serves for any month number.
+_MONTH_WEATHER = {
+    "avg_temp": 25.0,
+    "min_temp": 15.0,
+    "max_temp": 35.0,
+    "precipitation": 50.0,
+    "humidity": 65.0,
+    "wind_speed": 3.0,
+    "pressure": 1013.25,
+    "dewpoint": 18.0,
+}
+
+
+def _module_instance(name, **attrs):
+    """A calculation-module instance as the calendar sees it: a name and its call."""
+    module = Mock()
+    module.name = name
+    for key, value in attrs.items():
+        setattr(module, key, value)
+    return module
+
+
+class TestAMonthIsPricedByTheCalculationsRules:
+    """The calendar prices a month the way the calculation prices its days.
+
+    Only PyETO books rain, Kc scales the ET term and not the rain, and a
+    module's daily figure is scaled by the days of the month.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_pyeto_month_carries_no_rain(self, coordinator, mock_pyeto_module):
+        """The equation returns -ET0 with no rain in it; the month is ET0 x days.
+
+        Adding the month's rain to it showed rain as ET, and subtracting it again
+        later left the volume blind to rain.
+        """
+        mock_pyeto_module.calculate_et_for_day = Mock(return_value=-2.0)
+
+        july = coordinator._calculate_monthly_et_pyeto(
+            _MONTH_WEATHER, mock_pyeto_module, 7
+        )
+        february = coordinator._calculate_monthly_et_pyeto(
+            _MONTH_WEATHER, mock_pyeto_module, 2
+        )
+
+        assert july == pytest.approx(62.0)  # 2.0 mm x 31 days
+        assert february == pytest.approx(58.0)  # 2024, the reference year: 29 days
+
+    @pytest.mark.asyncio
+    async def test_a_pyeto_zone_has_the_rain_subtracted_once(
+        self, coordinator, mock_pyeto_module
+    ):
+        """Through the whole calendar: ET without rain, the volume net of it once."""
+        mock_pyeto_module.calculate_et_for_day = Mock(return_value=-2.0)
+
+        with patch.object(
+            coordinator,
+            "getModuleInstanceByID",
+            new=AsyncMock(return_value=mock_pyeto_module),
+        ):
+            calendar_data = await coordinator.async_generate_watering_calendar(
+                zone_id=1
+            )
+
+        july = calendar_data[1]["monthly_estimates"][6]
+        rain = july["average_precipitation_mm"]
+        # The scene: some rain, but less than the month's ET, so subtracting it
+        # once, twice or not at all gives three different volumes.
+        assert 0.0 < rain < 62.0
+        assert july["estimated_et_mm"] == pytest.approx(62.0)
+        # The fixture zone: 100 m2, multiplier 1, no Kc (reads as 1.0).
+        assert july["estimated_watering_volume_liters"] == pytest.approx(
+            round(max(0.0, 62.0 - rain) * 100.0, 1)
+        )
