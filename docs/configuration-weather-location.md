@@ -7,7 +7,7 @@ title: Configuration: Weather & Location
 > Main page: [Configuration](configuration.md)<br/>
 > Next: [My Zones](configuration-my-zones.md)
 
-The **Setup → Weather & Location** tab is where the integration learns about your weather: which service (or sensors) provide the data, where on earth you are, and what the weather looks like — now, the coming days, and across the year.
+The **Setup → Weather & Location** tab is where the integration learns about your weather: which service (or sensors) provide the data, where on earth you are, and what the weather looks like now and in the coming days, plus a rough illustration of the year.
 
 ## Weather service
 
@@ -33,7 +33,7 @@ The most recent weather readings collected for each [sensor group](configuration
 
 ## Seasonal outlook
 
-A 12-month climate estimate for your location: expected evapotranspiration, precipitation and average temperature per month. It answers "how much watering should I expect over the year" and is the replacement for the old per-zone watering calendar — climate is a property of your location, not of a zone, so it is shown once here.
+A rough 12-month illustration: evapotranspiration, precipitation and average temperature per month, derived from your latitude alone. The climate behind it is a fixed seasonal curve, not measured weather and not a forecast for your garden, so read it as an order of magnitude. With PyETO, "ET" is the reference evapotranspiration, before a zone's crop coefficient. It replaces the old per-zone watering calendar and is shown once here, because the climate depends only on where you are. The monthly watering volume per zone is not shown here: the `generate_watering_calendar` service computes it and fires it as the `irrigation_plus_watering_calendar_generated` event.
 
 Values are displayed in your Home Assistant unit system (metric or imperial).
 

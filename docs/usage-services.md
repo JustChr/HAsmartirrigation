@@ -15,7 +15,7 @@ After installation, the following services are available:
 |`Irrigation Plus: calculate_all_zones`|Triggers the calculation of all automatic zones. Use only if you disabled automatic calculation. Each zone consumes its own window of weather data; the buffer is pruned automatically afterwards.|
 |`Irrigation Plus: clear_all_weather_data`|Deletes all weather data|
 |`Irrigation Plus: clear_rain_delay`|Resumes automatic irrigation by clearing any active [rain delay / vacation hold](usage-dashboard.md#rain-delay).|
-|`Irrigation Plus: generate_watering_calendar`|Generate a 12-month watering calendar for a zone based on representative climate data.|
+|`Irrigation Plus: generate_watering_calendar`|Generate a 12-month watering calendar for a zone based on an illustrative climate derived from latitude only (not measured weather). The result is fired as the `irrigation_plus_watering_calendar_generated` event.|
 |`Irrigation Plus: reset_all_buckets`|Resets all buckets to 0.|
 |`Irrigation Plus: reset_bucket`|Resets one specific bucket to 0.|
 |`Irrigation Plus: run_zone`|Waters one zone for a custom `duration` (minutes), **bypassing** the calculation, the deficit gate and any active rain delay. The delivered water is credited back to the bucket. Target the zone by its duration `sensor` entity.|

@@ -22,7 +22,7 @@ Specify one or more irrigation zones here. The integration calculates irrigation
 Zones appear in two places:
 
 - The top-level **Zones** tab is the everyday **dashboard**. Each zone card shows an at-a-glance verdict (e.g. *"Watering needed: ~6 min"*, *"No watering needed"* or *"Turned off"*), a one-line status (bucket and when it was last checked), and the operational buttons **Update**, **Calculate** and **Irrigate now**. A gear icon on each card opens that zone's settings.
-- **Setup → My Zones** is where you **add, configure and delete** zones, and view each zone's **calculation explanation**. (Weather records, the forecast and the watering calendar are no longer per-zone — they live once on the [**Weather & Location**](configuration-weather-location.md) tab.) The sections below ("Adding a zone", "Configuring a zone") all live here.
+- **Setup → My Zones** is where you **add, configure and delete** zones, and view each zone's **calculation explanation**. (Weather records, the forecast and the seasonal outlook are no longer per-zone — they live once on the [**Weather & Location**](configuration-weather-location.md) tab.) The sections below ("Adding a zone", "Configuring a zone") all live here.
 
 ## Multi-zone support
 For irrigation systems that have multiple zones which you want to run in series or independent you need to create multiple zones. The configuration should be done for each zone, including the area the zone covers and the corresponding settings.
