@@ -314,7 +314,8 @@
       "weather_data": {
         "forecast_title": "Forecast",
         "forecast_none": "Forecast is available when a weather service is enabled.",
-        "seasonal_title": "Seasonal outlook"
+        "seasonal_title": "Seasonal outlook",
+        "seasonal_note": "Illustrative values derived from your latitude only — not measured weather data."
       },
       "advanced": {
         "used_by_zones": "Used by {count, plural, one {# zone} other {# zones}}",

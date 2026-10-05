@@ -778,7 +778,8 @@
       "weather_data": {
         "forecast_title": "Vorhersage",
         "forecast_none": "Die Vorhersage ist verfügbar, wenn ein Wetterdienst aktiviert ist.",
-        "seasonal_title": "Saisonaler Ausblick"
+        "seasonal_title": "Saisonaler Ausblick",
+        "seasonal_note": "Veranschaulichung allein aus dem Breitengrad – keine gemessenen Wetterdaten."
       },
       "advanced": {
         "used_by_zones": "Wird von {count, plural, one {# Zone} other {# Zonen}} verwendet",

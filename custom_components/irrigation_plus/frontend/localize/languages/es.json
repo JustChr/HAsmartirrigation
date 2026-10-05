@@ -778,7 +778,8 @@
       "weather_data": {
         "forecast_title": "Pronóstico",
         "forecast_none": "El pronóstico está disponible cuando hay un servicio meteorológico activado.",
-        "seasonal_title": "Perspectiva estacional"
+        "seasonal_title": "Perspectiva estacional",
+        "seasonal_note": "Valores ilustrativos derivados solo de la latitud, no datos meteorológicos medidos."
       },
       "advanced": {
         "used_by_zones": "Usado por {count, plural, one {# zona} other {# zonas}}",

@@ -778,7 +778,8 @@
       "weather_data": {
         "forecast_title": "Verwachting",
         "forecast_none": "De verwachting is beschikbaar wanneer een weerdienst is ingeschakeld.",
-        "seasonal_title": "Seizoensvooruitzicht"
+        "seasonal_title": "Seizoensvooruitzicht",
+        "seasonal_note": "Illustratieve waarden, alleen afgeleid van de breedtegraad, geen gemeten weergegevens."
       },
       "advanced": {
         "used_by_zones": "Gebruikt door {count, plural, one {# zone} other {# zones}}",

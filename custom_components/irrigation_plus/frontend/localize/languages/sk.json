@@ -778,7 +778,8 @@
       "weather_data": {
         "forecast_title": "Predpoveď",
         "forecast_none": "Predpoveď je dostupná, keď je zapnutá poveternostná služba.",
-        "seasonal_title": "Sezónny výhľad"
+        "seasonal_title": "Sezónny výhľad",
+        "seasonal_note": "Ilustratívne hodnoty odvodené iba zo zemepisnej šírky, nie namerané údaje o počasí."
       },
       "advanced": {
         "used_by_zones": "Používané v {count, plural, one {# zóne} few {# zónach} other {# zónach}}",

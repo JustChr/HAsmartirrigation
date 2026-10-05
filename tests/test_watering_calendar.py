@@ -692,3 +692,28 @@ class TestTheOutlookSaysWhatItIs:
             service = json.loads(catalogue.read_text(encoding="utf-8"))["services"]
             description = service["generate_watering_calendar"]["description"]
             assert not old_claim.search(description), (catalogue.name, description)
+
+    def test_the_seasonal_card_shows_the_illustration_note(self):
+        """The note stands above the table, not in the empty state.
+
+        A tripwire on the panel's source, kept here because CI runs pytest only.
+        """
+        view = (
+            _ROOT / "frontend" / "src" / "views" / "weather" / "view-weather-data.ts"
+        ).read_text(encoding="utf-8")
+        en = json.loads(
+            (_ROOT / "frontend" / "localize" / "languages" / "en.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        seasonal = view[view.index("private _renderSeasonal") :]
+        seasonal = seasonal[: seasonal.index("private _renderForecast")]
+        no_data = seasonal.index("panels.zones.calendar.no_data")
+        with_data = seasonal[seasonal.index(": html`", no_data) :]
+        key = '"panels.setup.weather_data.seasonal_note"'
+        note = en["panels"]["setup"]["weather_data"]["seasonal_note"]
+        assert seasonal.count(key) == 1
+        assert key in with_data
+        assert with_data.index(key) < with_data.index("seasonal-table")
+        assert "Illustrative" in note and "latitude" in note, note

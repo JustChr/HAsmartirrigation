@@ -113,6 +113,9 @@ export class SmartIrrigationViewWeatherData extends SubscribeMixin(LitElement) {
                 ${localize("panels.zones.calendar.no_data", lang)}
               </div>`
             : html`
+                <div class="weather-note">
+                  ${localize("panels.setup.weather_data.seasonal_note", lang)}
+                </div>
                 <div class="seasonal-table">
                   <div class="weather-header">
                     <span
