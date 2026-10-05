@@ -552,3 +552,33 @@ class TestAMonthIsPricedByTheCalculationsRules:
         july = calendar_data[1]["monthly_estimates"][6]
         assert july["estimated_et_mm"] == 0.0
         assert july["estimated_watering_volume_liters"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_a_passthrough_month_has_its_own_number_of_days(
+        self, coordinator, mock_store
+    ):
+        """February 2024 has 29 days, July 31, and Passthrough books no rain."""
+        mock_store.get_module.return_value = {"id": 1, MODULE_NAME: "Passthrough"}
+        passthrough = _module_instance("Passthrough")
+
+        with patch.object(
+            coordinator,
+            "getModuleInstanceByID",
+            new=AsyncMock(return_value=passthrough),
+        ):
+            calendar_data = await coordinator.async_generate_watering_calendar(
+                zone_id=1
+            )
+
+        climate = coordinator._generate_monthly_climate_data()
+        feb_daily = climate[1]["average_daily_et"]
+        july_daily = climate[6]["average_daily_et"]
+        february = calendar_data[1]["monthly_estimates"][1]
+        july = calendar_data[1]["monthly_estimates"][6]
+        assert february["estimated_et_mm"] == pytest.approx(round(feb_daily * 29, 2))
+        assert july["estimated_et_mm"] == pytest.approx(round(july_daily * 31, 2))
+        # 100 m2, multiplier 1, Kc 1.0, and no rain: February's rain is above its
+        # ET here, so subtracting it would leave 0 L.
+        assert february["estimated_watering_volume_liters"] == pytest.approx(
+            round(feb_daily * 29 * 100.0, 1)
+        )

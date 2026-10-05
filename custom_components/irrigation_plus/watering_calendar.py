@@ -145,7 +145,7 @@ class WateringCalendarMixin:
                 else:
                     # For other modules like Passthrough, use a simple estimation
                     et_estimate = (
-                        month_data.get("average_daily_et", 3.0) * 30
+                        month_data.get("average_daily_et", 3.0) * days_in_month
                     )  # mm/month
 
                 # Calculate watering volume based on zone parameters
