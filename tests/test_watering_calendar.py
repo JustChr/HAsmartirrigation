@@ -639,3 +639,25 @@ class TestTheClimateCurvesDoWhatTheirCommentsSay:
             rows = coordinator._generate_monthly_climate_data()
 
             assert [round(r["precipitation"], 6) for r in rows] == expected, latitude
+
+
+class TestTheOutlookSaysWhatItIs:
+    """Every place that shows or describes the outlook calls it an illustration."""
+
+    @pytest.mark.asyncio
+    async def test_each_month_notes_its_climate_comes_from_latitude(
+        self, coordinator, mock_pyeto_module
+    ):
+        """Every month's note calls its climate an illustration from latitude."""
+        with patch.object(
+            coordinator,
+            "getModuleInstanceByID",
+            new=AsyncMock(return_value=mock_pyeto_module),
+        ):
+            calendar_data = await coordinator.async_generate_watering_calendar(
+                zone_id=1
+            )
+
+        notes = [m["calculation_notes"] for m in calendar_data[1]["monthly_estimates"]]
+        assert len(notes) == 12
+        assert all("Illustrative" in n and "latitude" in n for n in notes), notes

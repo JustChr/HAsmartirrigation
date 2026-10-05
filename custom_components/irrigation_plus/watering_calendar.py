@@ -163,7 +163,7 @@ class WateringCalendarMixin:
                         "average_precipitation_mm": month_data.get(
                             "precipitation", 50.0
                         ),
-                        "calculation_notes": f"Based on typical {month_name} climate patterns",
+                        "calculation_notes": f"Illustrative {month_name} climate derived from latitude only",
                     }
                 )
 
