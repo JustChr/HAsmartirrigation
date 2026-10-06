@@ -110,3 +110,20 @@ def distributor_device_info(
         "manufacturer": const.MANUFACTURER,
         **hub_link(hass),
     }
+
+
+def find_device(registry, identifier: tuple[str, str], config_entry_id: str | None):
+    """The device registered under ``identifier``, or ``None``.
+
+    Home Assistant 2026.9 deprecated ``async_get_device``, which goes in 2027.8,
+    because identifiers are no longer unique across config entries; its
+    replacement ``async_get_device_by_identifier`` exists from 2026.8 and looks
+    up per config entry, and there an entry id of ``None`` finds nothing. Use it
+    where the registry's class has it; the question goes to the class because a
+    test double answers for any attribute on its instance, so a ``Mock``, even
+    one with a ``spec``, takes the old way. Once the declared floor is 2026.8 or
+    later, call it outright.
+    """
+    if callable(getattr(type(registry), "async_get_device_by_identifier", None)):
+        return registry.async_get_device_by_identifier(identifier, config_entry_id)
+    return registry.async_get_device(identifiers={identifier})

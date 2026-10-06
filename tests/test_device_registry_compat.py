@@ -21,6 +21,7 @@ from custom_components.irrigation_plus import (
 )
 from custom_components.irrigation_plus.entity import (
     distributor_device_info,
+    find_device,
     hub_link,
     hub_link_for,
     zone_device_info,
@@ -158,3 +159,35 @@ class TestTheHubLinkFollowsTheRegistry:
         hass = SimpleNamespace(data={const.DOMAIN: {"hub_link": record}})
         assert hub_link(hass) == record
         assert hub_link(hass) is not record
+
+
+class TestADeviceIsFoundPerConfigEntryWhereOffered:
+    """``find_device`` uses the per-entry lookup where the registry has it."""
+
+    def test_the_per_entry_lookup_is_asked_with_the_entry(self):
+        device = SimpleNamespace(id="dev")
+        registry = _RegistryFrom2026_8(device)
+        assert find_device(registry, _ZONE, "entry-1") is device
+        assert registry.calls == [("by_identifier", _ZONE, "entry-1")]
+
+    def test_a_registry_before_it_is_asked_the_old_way(self):
+        device = SimpleNamespace(id="dev")
+        registry = _RegistryBefore2026_8(device)
+        assert find_device(registry, _ZONE, "entry-1") is device
+        assert registry.calls == [("get_device", {_ZONE})]
+
+    def test_a_test_double_is_asked_the_old_way(self):
+        registry = Mock()
+        registry.async_get_device.return_value = "dev"
+        assert find_device(registry, _ZONE, "entry-1") == "dev"
+        registry.async_get_device.assert_called_once_with(identifiers={_ZONE})
+        registry.async_get_device_by_identifier.assert_not_called()
+
+    def test_a_miss_is_none_and_never_asked_the_old_way(self):
+        registry = _RegistryFrom2026_8(None)
+        assert find_device(registry, _ZONE, "entry-1") is None
+        assert find_device(registry, _ZONE, None) is None
+        assert registry.calls == [
+            ("by_identifier", _ZONE, "entry-1"),
+            ("by_identifier", _ZONE, None),
+        ]
