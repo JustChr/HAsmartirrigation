@@ -45,6 +45,7 @@ from .calculation import CalculationMixin
 from .config_resolver import resolve_weather_config
 from .continuous_update import ContinuousUpdateMixin
 from .distributor import DistributorMixin
+from .entity import hub_link_for
 from .helpers import (
     altitudeToPressure,
     check_time,
@@ -206,13 +207,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     coordinator = SmartIrrigationCoordinator(hass, session, entry, store)
 
     device_registry = dr.async_get(hass)
-    device_registry.async_get_or_create(
+    hub = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(const.DOMAIN, coordinator.id)},
         name=const.NAME,
         model=const.NAME,
         sw_version=const.VERSION,
         manufacturer=const.MANUFACTURER,
+    )
+    # How the zone and distributor devices name the hub as their parent:
+    # decided once, from what this Home Assistant's registry takes, before any
+    # platform adds an entity (see entity.hub_link_for).
+    hass.data[const.DOMAIN]["hub_link"] = hub_link_for(
+        device_registry, hub.id, coordinator.id
     )
 
     hass.data[const.DOMAIN]["coordinator"] = coordinator

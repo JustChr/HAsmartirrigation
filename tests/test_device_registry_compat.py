@@ -191,3 +191,95 @@ class TestADeviceIsFoundPerConfigEntryWhereOffered:
             ("by_identifier", _ZONE, "entry-1"),
             ("by_identifier", _ZONE, None),
         ]
+
+
+async def _set_up(hass: HomeAssistant, entry, forward=None) -> bool:
+    """Run async_setup_entry with store, session, panel and platforms stubbed.
+
+    ``forward`` stands in for setting up the platforms, so a test can look at
+    what setup has recorded by then.
+
+    The stubbed session also keeps the run off aiodns, which needs a selector
+    event loop on Windows; nothing here talks to the network.
+    """
+    entry.add_to_hass(hass)
+    store = AsyncMock()
+    store.async_get_config.return_value = {
+        const.CONF_USE_WEATHER_SERVICE: False,
+        const.CONF_WEATHER_SERVICE: None,
+    }
+    store.get_config = Mock(
+        return_value={
+            const.CONF_AUTO_UPDATE_ENABLED: False,
+            const.CONF_AUTO_CALC_ENABLED: False,
+            const.CONF_USE_WEATHER_SERVICE: False,
+        }
+    )
+    with (
+        patch(
+            "custom_components.irrigation_plus.async_get_registry",
+            return_value=store,
+        ),
+        patch("custom_components.irrigation_plus.async_get_clientsession"),
+        patch("custom_components.irrigation_plus.async_register_panel"),
+        patch("custom_components.irrigation_plus.async_register_websockets"),
+        patch("custom_components.irrigation_plus.async_register_services"),
+        patch.object(
+            hass.config_entries,
+            "async_forward_entry_setups",
+            new=forward or AsyncMock(),
+        ),
+    ):
+        return await async_setup_entry(hass, entry)
+
+
+class TestSetupRecordsTheLink:
+    """``async_setup_entry`` records the link once the hub is registered."""
+
+    async def test_on_a_2026_8_registry_it_is_the_registered_hubs_id(
+        self, hass: HomeAssistant, mock_config_entry, monkeypatch
+    ) -> None:
+        registry = _RegistryFrom2026_8()
+        monkeypatch.setattr(
+            "custom_components.irrigation_plus.dr.async_get", lambda hass: registry
+        )
+        assert await _set_up(hass, mock_config_entry) is True
+        assert hass.data[const.DOMAIN]["hub_link"] == {"via_device_id": _HUB}
+
+    async def test_on_the_installed_registry_a_zone_device_hangs_off_the_hub(
+        self, hass: HomeAssistant, mock_config_entry
+    ) -> None:
+        assert await _set_up(hass, mock_config_entry) is True
+        registry = dr.async_get(hass)
+        coordinator = hass.data[const.DOMAIN]["coordinator"]
+        hub = find_device(
+            registry, (const.DOMAIN, coordinator.id), mock_config_entry.entry_id
+        )
+        assert hass.data[const.DOMAIN]["hub_link"] == hub_link_for(
+            registry, hub.id, coordinator.id
+        )
+        zone = registry.async_get_or_create(
+            config_entry_id=mock_config_entry.entry_id,
+            **zone_device_info(hass, 1, "Lawn"),
+        )
+        assert zone.via_device_id == hub.id
+
+    async def test_the_link_is_recorded_afresh_before_the_platforms_load(
+        self, hass: HomeAssistant, mock_config_entry, monkeypatch
+    ) -> None:
+        registry = _RegistryFrom2026_8()
+        monkeypatch.setattr(
+            "custom_components.irrigation_plus.dr.async_get", lambda _hass: registry
+        )
+        # hass.data[DOMAIN] outlives a reload, so an old link can still be there.
+        hass.data.setdefault(const.DOMAIN, {})["hub_link"] = {"via_device_id": "old"}
+        seen = []
+
+        async def forward(entry, platforms):
+            seen.append(dict(hass.data[const.DOMAIN]["hub_link"]))
+
+        assert await _set_up(hass, mock_config_entry, forward) is True
+        assert seen == [{"via_device_id": _HUB}]
+        info = zone_device_info(hass, 1, "Lawn")
+        assert info["via_device_id"] == _HUB
+        assert "via_device" not in info
