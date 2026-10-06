@@ -283,3 +283,56 @@ class TestSetupRecordsTheLink:
         info = zone_device_info(hass, 1, "Lawn")
         assert info["via_device_id"] == _HUB
         assert "via_device" not in info
+
+
+async def _delete_zone_1(monkeypatch, registry, **attrs):
+    """Delete zone 1 on a coordinator built without ``__init__``.
+
+    Only the device half of ``async_remove_entity`` does anything here: no
+    entities are tracked, so the entity registry stand-in removes none.
+    """
+    monkeypatch.setattr(
+        "custom_components.irrigation_plus.dr.async_get", lambda hass: registry
+    )
+    monkeypatch.setattr(
+        "custom_components.irrigation_plus.er.async_get", lambda hass: Mock()
+    )
+    c = SmartIrrigationCoordinator.__new__(SmartIrrigationCoordinator)
+    c.hass = SimpleNamespace(data={const.DOMAIN: {}})
+    c.id = "cid"
+    for name, value in attrs.items():
+        setattr(c, name, value)
+    await c.async_remove_entity("1")
+
+
+async def test_a_deleted_zones_device_is_found_per_entry_and_removed(monkeypatch):
+    """Deleting a zone finds its device per config entry and removes it."""
+    registry = _RegistryFrom2026_8(SimpleNamespace(id="dev"))
+    await _delete_zone_1(
+        monkeypatch, registry, entry=SimpleNamespace(entry_id="entry-1")
+    )
+    assert registry.calls == [
+        ("by_identifier", (const.DOMAIN, "cid_zone_1"), "entry-1"),
+        ("remove", "dev"),
+    ]
+
+
+async def test_a_zone_without_a_device_removes_nothing(monkeypatch):
+    """A miss removes nothing and is not asked again the old way."""
+    registry = _RegistryFrom2026_8(None)
+    await _delete_zone_1(
+        monkeypatch, registry, entry=SimpleNamespace(entry_id="entry-1")
+    )
+    assert registry.calls == [
+        ("by_identifier", (const.DOMAIN, "cid_zone_1"), "entry-1"),
+    ]
+
+
+async def test_before_2026_8_a_zone_is_deleted_without_an_entry(monkeypatch):
+    """The old lookup needs no entry, so a coordinator without one deletes."""
+    registry = _RegistryBefore2026_8(SimpleNamespace(id="dev"))
+    await _delete_zone_1(monkeypatch, registry)
+    assert registry.calls == [
+        ("get_device", {(const.DOMAIN, "cid_zone_1")}),
+        ("remove", "dev"),
+    ]

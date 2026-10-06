@@ -45,7 +45,7 @@ from .calculation import CalculationMixin
 from .config_resolver import resolve_weather_config
 from .continuous_update import ContinuousUpdateMixin
 from .distributor import DistributorMixin
-from .entity import hub_link_for
+from .entity import find_device, hub_link_for
 from .helpers import (
     altitudeToPressure,
     check_time,
@@ -2221,9 +2221,14 @@ class SmartIrrigationCoordinator(
                 if entity_registry.async_get(entity.entity_id):
                     entity_registry.async_remove(entity.entity_id)
         # Drop the zone's device as well (it would linger empty otherwise).
+        # The entry id is read tolerantly: the lookup before 2026.8 does not
+        # need it, and a coordinator built without __init__ has none. A running
+        # integration always has one (see entity.find_device).
         device_registry = dr.async_get(self.hass)
-        device = device_registry.async_get_device(
-            identifiers={(const.DOMAIN, f"{self.id}_zone_{zone_id}")}
+        device = find_device(
+            device_registry,
+            (const.DOMAIN, f"{self.id}_zone_{zone_id}"),
+            getattr(getattr(self, "entry", None), "entry_id", None),
         )
         if device:
             device_registry.async_remove_device(device.id)
