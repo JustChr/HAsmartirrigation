@@ -302,6 +302,8 @@ async def _delete_zone_1(monkeypatch, registry, **attrs):
     c.id = "cid"
     for name, value in attrs.items():
         setattr(c, name, value)
+    # A test that passes no entry relies on the coordinator having none.
+    assert "entry" in attrs or not hasattr(c, "entry")
     await c.async_remove_entity("1")
 
 
@@ -334,5 +336,75 @@ async def test_before_2026_8_a_zone_is_deleted_without_an_entry(monkeypatch):
     await _delete_zone_1(monkeypatch, registry)
     assert registry.calls == [
         ("get_device", {(const.DOMAIN, "cid_zone_1")}),
+        ("remove", "dev"),
+    ]
+
+
+async def _delete_distributor_3(monkeypatch, registry, **attrs):
+    """Delete distributor 3 on a host built without the coordinator's ``__init__``.
+
+    The dispatcher is silenced; the registry and the inlet watch take part.
+    """
+    monkeypatch.setattr(
+        "custom_components.irrigation_plus.distributor.dr.async_get",
+        lambda hass: registry,
+    )
+    monkeypatch.setattr(
+        "custom_components.irrigation_plus.distributor.async_dispatcher_send",
+        lambda *a, **k: None,
+    )
+    c = _host()
+    c.id = "cid"
+    for name, value in attrs.items():
+        setattr(c, name, value)
+    # A test that passes no entry relies on the host having none.
+    assert "entry" in attrs or not hasattr(c, "entry")
+    c.store.get_distributor = Mock(return_value={"id": 3})
+    c.store.async_delete_distributor = AsyncMock(return_value=True)
+    return await c.async_upsert_distributor({"id": 3, "remove": True})
+
+
+async def test_a_deleted_distributors_device_is_found_per_entry_and_removed(
+    monkeypatch,
+):
+    """Deleting a distributor finds its device per config entry and removes it."""
+    registry = _RegistryFrom2026_8(SimpleNamespace(id="dev123"))
+    unsubscribe = Mock()
+    await _delete_distributor_3(
+        monkeypatch,
+        registry,
+        entry=SimpleNamespace(entry_id="entry-1"),
+        _dist_inlet_watchers={3: unsubscribe},
+    )
+    assert registry.calls == [
+        ("by_identifier", (const.DOMAIN, "cid_distributor_3"), "entry-1"),
+        ("remove", "dev123"),
+    ]
+    unsubscribe.assert_called_once_with()
+
+
+async def test_a_distributor_without_a_device_removes_nothing(monkeypatch):
+    """A miss removes nothing, is not asked the old way, and the delete goes on."""
+    registry = _RegistryFrom2026_8(None)
+    unsubscribe = Mock()
+    result = await _delete_distributor_3(
+        monkeypatch,
+        registry,
+        entry=SimpleNamespace(entry_id="entry-1"),
+        _dist_inlet_watchers={3: unsubscribe},
+    )
+    assert registry.calls == [
+        ("by_identifier", (const.DOMAIN, "cid_distributor_3"), "entry-1"),
+    ]
+    unsubscribe.assert_called_once_with()
+    assert result is True
+
+
+async def test_before_2026_8_a_distributor_is_deleted_without_an_entry(monkeypatch):
+    """The old lookup needs no entry, so a host without one deletes."""
+    registry = _RegistryBefore2026_8(SimpleNamespace(id="dev"))
+    await _delete_distributor_3(monkeypatch, registry)
+    assert registry.calls == [
+        ("get_device", {(const.DOMAIN, "cid_distributor_3")}),
         ("remove", "dev"),
     ]

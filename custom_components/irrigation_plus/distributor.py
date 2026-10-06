@@ -26,6 +26,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from . import const
 from .actuate import async_actuate
 from .duration_math import hardware_window
+from .entity import find_device
 from .flow_metering import FlowMeter, flow_learn_resolve
 from .localize import localize
 
@@ -2118,13 +2119,20 @@ class DistributorMixin:
                 # platforms drop this distributor's ENTITIES, but nothing removed
                 # the per-distributor DEVICE — an empty device lingered in the
                 # registry across create/delete cycles. Mirror the zone-delete
-                # cleanup (__init__.py async_remove_zone, ~L1415): look the device
+                # cleanup (async_remove_entity in __init__.py): look the device
                 # up by its distributor identifier (self.id == coordinator_id) and
                 # remove it. siehe test_distributor_entities.py::
                 # test_upsert_delete_removes_device.
+                # The entry id is read tolerantly: the lookup before 2026.8 does
+                # not need it, and a coordinator built without __init__ has none.
+                # That is safe only because a running integration always has
+                # one; without it, the lookup from 2026.8 would find nothing and
+                # the device would linger (see entity.find_device).
                 registry = dr.async_get(self.hass)
-                device = registry.async_get_device(
-                    identifiers={(const.DOMAIN, f"{self.id}_distributor_{int(did)}")}
+                device = find_device(
+                    registry,
+                    (const.DOMAIN, f"{self.id}_distributor_{int(did)}"),
+                    getattr(getattr(self, "entry", None), "entry_id", None),
                 )
                 if device:
                     registry.async_remove_device(device.id)

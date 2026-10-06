@@ -2222,8 +2222,10 @@ class SmartIrrigationCoordinator(
                     entity_registry.async_remove(entity.entity_id)
         # Drop the zone's device as well (it would linger empty otherwise).
         # The entry id is read tolerantly: the lookup before 2026.8 does not
-        # need it, and a coordinator built without __init__ has none. A running
-        # integration always has one (see entity.find_device).
+        # need it, and a coordinator built without __init__ has none. That is
+        # safe only because a running integration always has one; without it,
+        # the lookup from 2026.8 would find nothing and the device would linger
+        # (see entity.find_device).
         device_registry = dr.async_get(self.hass)
         device = find_device(
             device_registry,
