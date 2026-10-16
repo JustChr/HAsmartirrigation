@@ -467,7 +467,7 @@
           },
           "on-silent-sensor": {
             "title": "When a sensor goes silent",
-            "help": "Pause: after 3 hours without a report, the sensor's values are no longer used; where the evapotranspiration calculation cannot do without them, no evapotranspiration is booked for that time. A rain gauge still counts. Applies only while \"Hourly evapotranspiration\" (Experimental features) is off.",
+            "help": "Pause: after 3 hours without a report, the sensor's values are no longer used; where the evapotranspiration calculation cannot do without them, no evapotranspiration is booked for that time. A rain gauge still counts.",
             "keep": "Keep the last value",
             "pause": "Pause"
           },

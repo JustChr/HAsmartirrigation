@@ -118,7 +118,8 @@ def eto_hourly_series(
     * ``coverage_h`` — the fraction of the hour the row actually covers,
       defaulting to a whole hour. The partial hours at the ends of a
       calculation window are charged their real share this way rather than a
-      full hour of ET.
+      full hour of ET. A row covering no time (a pausing sensor group's blocked
+      hour, which carries no readings) is charged 0 without being priced.
     * ``tz_offset_h`` — this row's OWN UTC offset, overriding the argument. A
       window can span up to seven days and therefore a DST transition, after
       which one offset for the whole window puts the rows on the far side of it
@@ -128,6 +129,9 @@ def eto_hourly_series(
     """
     out = []
     for r in rows:
+        if r.get("coverage_h", 1.0) <= 0:
+            out.append(0.0)
+            continue
         eto = eto_hourly(
             t_c=r["temperature"],
             rh_pct=r["humidity"],
@@ -153,6 +157,7 @@ def hourly_eto_priced(
     now,
     last_entry,
     geometry: SiteGeometry,
+    blocked=None,
 ):
     """Reduce a buffer window to hourly rows and price each one. ``(rows, series)``.
 
@@ -160,7 +165,8 @@ def hourly_eto_priced(
     calculation and the live estimate cannot price the same window differently.
     Two callers hand-maintaining the same seven-argument call is what put them
     out of step before; the drift is silent, because a window that reduces with
-    the wrong geometry still returns a plausible number.
+    the wrong geometry still returns a plausible number. ``blocked`` (a pausing
+    sensor group's spans) goes to ``build_hourly_rows`` for the same reason.
 
     Returns None when the window will not reduce -- no readings, a required
     field missing from both the window and the carry-forward, or a window longer
@@ -179,6 +185,7 @@ def hourly_eto_priced(
         elevation=geometry.elevation,
         tz_offset_h=geometry.tz_offset_h,
         tz=geometry.tz,
+        blocked=blocked,
     )
     if not rows:
         return None

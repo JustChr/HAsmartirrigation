@@ -238,7 +238,7 @@
           },
           "on-silent-sensor": {
             "title": "Keď senzor prestane hlásiť",
-            "help": "Pozastaviť: po 3 hodinách bez hlásenia sa hodnoty senzora prestanú používať; tam, kde sa výpočet evapotranspirácie bez nich nezaobíde, sa za tento čas nezapočíta žiadna evapotranspirácia. Zrážkomer sa naďalej započítava. Platí len, kým je „Hodinová evapotranspirácia“ (Experimentálne funkcie) vypnutá.",
+            "help": "Pozastaviť: po 3 hodinách bez hlásenia sa hodnoty senzora prestanú používať; tam, kde sa výpočet evapotranspirácie bez nich nezaobíde, sa za tento čas nezapočíta žiadna evapotranspirácia. Zrážkomer sa naďalej započítava.",
             "keep": "Ponechať poslednú hodnotu",
             "pause": "Pozastaviť"
           },

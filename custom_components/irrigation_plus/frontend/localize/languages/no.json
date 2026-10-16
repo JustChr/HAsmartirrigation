@@ -238,7 +238,7 @@
           },
           "on-silent-sensor": {
             "title": "Når en sensor blir stille",
-            "help": "Sett på pause: etter 3 timer uten rapport brukes ikke sensorens verdier lenger; der fordampningsberegningen ikke klarer seg uten dem, bokføres det ingen fordampning for den tiden. En nedbørsmåler teller fortsatt med. Gjelder bare så lenge «Timesvis evapotranspirasjon» (Eksperimentelle funksjoner) er av.",
+            "help": "Sett på pause: etter 3 timer uten rapport brukes ikke sensorens verdier lenger; der fordampningsberegningen ikke klarer seg uten dem, bokføres det ingen fordampning for den tiden. En nedbørsmåler teller fortsatt med.",
             "keep": "Behold siste verdi",
             "pause": "Sett på pause"
           },

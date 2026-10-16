@@ -533,7 +533,7 @@ class TestFallingBackToTheLumpedForm:
         monkeypatch.setattr(
             le.LiveEstimateMixin,
             "_observed_precip_since_mm",
-            lambda self, zone, anchor: 99.0,
+            lambda self, zone, anchor, **_kwargs: 99.0,
         )
 
         est = c._intraday_for_zone(zone, _inputs())

@@ -238,7 +238,7 @@
           },
           "on-silent-sensor": {
             "title": "Als een sensor stil valt",
-            "help": "Pauzeren: na 3 uur zonder melding worden de waarden van de sensor niet meer gebruikt; waar de verdampingsberekening niet zonder deze waarden kan, wordt voor die tijd geen verdamping geboekt. Een regenmeter telt nog steeds mee. Geldt alleen zolang “Verdamping per uur” (Experimentele functies) uit staat.",
+            "help": "Pauzeren: na 3 uur zonder melding worden de waarden van de sensor niet meer gebruikt; waar de verdampingsberekening niet zonder deze waarden kan, wordt voor die tijd geen verdamping geboekt. Een regenmeter telt nog steeds mee.",
             "keep": "Laatste waarde behouden",
             "pause": "Pauzeren"
           },

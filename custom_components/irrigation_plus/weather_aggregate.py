@@ -68,7 +68,7 @@ _HOURLY_ROWS_MAX_HOURS = 24 * 7
 # Fields an hourly FAO-56 row cannot be built without. Pressure is optional (the
 # ETo helper derives it from elevation when absent) and precipitation is carried
 # for the row consumers rather than for the ET itself.
-_HOURLY_ROW_REQUIRED = (
+HOURLY_ROW_REQUIRED = (
     const.MAPPING_TEMPERATURE,
     const.MAPPING_HUMIDITY,
     const.MAPPING_WINDSPEED,
@@ -344,10 +344,10 @@ def aggregate_window(
             produces; defaults to False so poll-only installs keep the plain
             mean they have always had.
         blocked: ``{field: ((from, to), ...)}``, each field's blocked time
-            inside the window (sensor_liveness.blocked_spans). Only a pausing
-            sensor group's daily commit passes it. A blocked field is reduced
-            over its valid time and left out when it has none; a field without
-            spans is reduced exactly as without the argument.
+            inside the window (sensor_liveness.zone_blocked_spans). Only a
+            pausing sensor group's commit and live estimate pass it. A blocked
+            field is reduced over its valid time and left out when it has none;
+            a field without spans is reduced exactly as without the argument.
 
     Returns:
         The aggregated weather dict (including ``MAPPING_DATA_MULTIPLIER``), or
@@ -664,7 +664,11 @@ def _aggregate_blocked(
 
 
 def _valid_segments(spans, start, end):
-    """``[start, end)`` minus the sorted, merged ``spans``: where a field was measured."""
+    """``[start, end)`` minus the ``spans``: where a field was measured.
+
+    ``spans`` are sorted (overlaps allowed); an unsorted list would drop every
+    span that lies before one already passed.
+    """
     segments = []
     cursor = start
     for lo, hi in spans:
@@ -800,13 +804,100 @@ def _hold_integral_upto(points, values, cumulative, t):
     return cumulative[i] + values[i] * (t - points[i]).total_seconds()
 
 
-def _precip_increments(samples, aggregate):
+def _masked_hold_table(samples, spans, start, end, *, mask=None):
+    """A blocked level field's held step function over its valid time, or None.
+
+    The hold rules of ``_hold_integral_table`` restricted to where the field was
+    measured, as ``_aggregate_blocked`` applies them to a whole window: a reading
+    stamped inside one of ``spans`` is dropped (the frozen value a poll keeps
+    stamping fresh), nothing is held into a span, and after one the value from
+    before it holds again -- a sensor back at the value it had writes no row.
+    ``mask`` is where the function is zero, ``spans`` unless a caller also has
+    to skip the time other fields were silent; readings are dropped by
+    ``spans`` alone.
+
+    Returns ``(points, values, cumulative, covered)``: ``values[i]`` is in force
+    on ``[points[i], points[i + 1]]`` and None where masked, ``cumulative`` is the
+    running integral and ``covered`` the running valid time, in seconds. None
+    when no reading survives: the field then has no value to hold.
+    """
+    mask = spans if mask is None else mask
+    kept = sorted(
+        ((t, v) for t, v in samples if t <= start or not _blocked_at(t, spans)),
+        key=lambda sample: sample[0],
+    )
+    if not kept:
+        return None
+    stamps = [t for t, _ in kept]
+    cuts = sorted(
+        {start, end}
+        | {t for t in stamps if start < t < end}
+        | {edge for span in mask for edge in span if start < edge < end}
+    )
+    points, values, cumulative, covered = [cuts[0]], [], [0.0], [0.0]
+    for a, b in itertools.pairwise(cuts):
+        seconds = (b - a).total_seconds()
+        # Every reading and every span edge is a cut, so one value and one
+        # state hold on the whole piece: the last reading at or before its
+        # start, the first one before any.
+        value = (
+            None
+            if _blocked_at(a, mask)
+            else kept[max(bisect.bisect_right(stamps, a) - 1, 0)][1]
+        )
+        points.append(b)
+        values.append(value)
+        cumulative.append(cumulative[-1] + (0.0 if value is None else value * seconds))
+        covered.append(covered[-1] + (0.0 if value is None else seconds))
+    return points, values, cumulative, covered
+
+
+def _masked_upto(table, t):
+    """``(integral, covered)`` of a masked table from the window start to ``t``."""
+    points, values, cumulative, covered = table
+    if t <= points[0]:
+        return 0.0, 0.0
+    if t >= points[-1]:
+        return cumulative[-1], covered[-1]
+    i = bisect.bisect_right(points, t) - 1
+    if values[i] is None:
+        return cumulative[i], covered[i]
+    seconds = (t - points[i]).total_seconds()
+    return cumulative[i] + values[i] * seconds, covered[i] + seconds
+
+
+def _masked_mean(table, a, b):
+    """Mean of a masked field over its valid time inside ``[a, b]``, or None."""
+    if table is None:
+        return None
+    integral_a, covered_a = _masked_upto(table, a)
+    integral_b, covered_b = _masked_upto(table, b)
+    covered = covered_b - covered_a
+    if covered <= 0:
+        return None
+    return (integral_b - integral_a) / covered
+
+
+def _overlap_hours(segments, a, b):
+    """Hours of ``[a, b]`` that lie inside ``segments``."""
+    seconds = sum(
+        max(0.0, (min(b, hi) - max(a, lo)).total_seconds()) for lo, hi in segments
+    )
+    return seconds / 3600
+
+
+def _precip_increments(samples, aggregate, *, spans=None, start=None, end=None):
     """``[(time, mm)]`` whose sum is exactly what ``_aggregate`` reports.
 
     The two halves of the calculation have to agree to the last decimal: the
     aggregate's total becomes ZONE_DELTA while these increments drive the bucket,
     and a mismatch would surface as a ledger that does not add up. So this
     mirrors the arithmetic in ``_aggregate`` rather than re-deriving it.
+
+    ``spans`` is a pausing group's blocked time for a rain RATE in ``[start,
+    end)``. Each increment then counts only its valid part, as
+    ``_riemann_over`` does for the aggregate, so a window cut there still
+    reconciles. A gauge is never cut, and ignores them.
 
     Returns None when the field has no time structure to sub-step, which is the
     signal to keep the single-shot path.
@@ -817,6 +908,25 @@ def _precip_increments(samples, aggregate):
         # (#149). Taken from the shared rule rather than re-stated here, so this
         # cannot drift from the total ``_aggregate`` reports.
         return cumulative_delta_increments(samples)
+    if aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM and spans:
+        kept = sorted(
+            ((t, v) for t, v in samples if t <= start or not _blocked_at(t, spans)),
+            key=lambda sample: sample[0],
+        )
+        if len(kept) < 2:
+            # _aggregate_blocked reports a lone rate verbatim, as _aggregate does.
+            return None
+        segments = _valid_segments(spans, start, end)
+        out = []
+        for (t0, v0), (t1, v1) in itertools.pairwise(kept):
+            # _riemann_over's trapezoid, split at the spans: each measured part
+            # lands at its own end, so rain that fell just before a span is not
+            # carried past it to the next reading.
+            for a, b in segments:
+                lo, hi = max(a, t0), min(b, t1)
+                if hi > lo:
+                    out.append((hi, (v0 + v1) / 2 * (hi - lo).total_seconds() / 3600))
+        return out
     if aggregate == const.MAPPING_CONF_AGGREGATE_RIEMANNSUM:
         if len(samples) < 2:
             # A lone rate sample takes _aggregate's single-value path, which
@@ -906,6 +1016,11 @@ def _row_rso_eq36(row, hour, doy, latitude, longitude, elevation, tz_offset_h):
     return clear_sky_radiation_hourly_eq36(ra, sin_beta, pressure_kpa, avp)
 
 
+def _books_nothing(row):
+    """Whether an hourly row is charged no time (a pausing group's blocked hour)."""
+    return row.get("coverage_h", 1.0) <= 0
+
+
 def _ratio_hold_solar(rows, solar_samples, latitude, longitude, elevation, tz_offset_h):
     """Refill the solar of hours that saw no reading from a held clearness ratio.
 
@@ -929,6 +1044,10 @@ def _ratio_hold_solar(rows, solar_samples, latitude, longitude, elevation, tz_of
     ``SOLAR_CLEAR_SKY_TOLERANCE`` for the same reason the ingest clamp is: a
     physically impossible reading must not be projected forward across a gap.
     That ingest clamp stays — it guards readings, this guards fabricated hours.
+
+    An hour that books nothing (``coverage_h`` 0, a pausing group's blocked
+    hour) has no air state to take a ratio against and needs no solar; the ratio
+    is carried across it, so after a span the one from before it holds.
     """
     if latitude is None or longitude is None:
         return
@@ -947,7 +1066,7 @@ def _ratio_hold_solar(rows, solar_samples, latitude, longitude, elevation, tz_of
     measured = {}
     for row in rows:
         sample = newest.get(row["hour_start"])
-        if sample is None:
+        if sample is None or _books_nothing(row):
             continue
         stamp, value = sample
         rso = _row_rso_eq36(
@@ -989,7 +1108,7 @@ def _ratio_hold_solar(rows, solar_samples, latitude, longitude, elevation, tz_of
     first = next(r for r in held if r is not None)
 
     for row, ratio in zip(rows, held, strict=True):
-        if row["hour_start"] in newest:
+        if row["hour_start"] in newest or _books_nothing(row):
             # This hour has a measurement; its own mean stands. Includes the
             # dark hours that produced a reading but no usable Rso.
             continue
@@ -1016,6 +1135,7 @@ def build_hourly_rows(
     elevation=0.0,
     tz_offset_h=0.0,
     tz=None,
+    blocked=None,
 ):
     """Reduce a zone's window of the shared buffer to hourly FAO-56 rows, or None.
 
@@ -1054,6 +1174,18 @@ def build_hourly_rows(
     partial hours at each end of the window are charged their real share rather
     than a whole hour of ET.
 
+    ``blocked`` is a pausing sensor group's blocked time per field
+    (``sensor_liveness.zone_blocked_spans``). A blocked field is averaged over
+    its own valid time in each hour, by the rules ``_aggregate_blocked`` applies
+    to the window, and is left out of an hour in which it has none. An hour is
+    then charged only for the time in which every field of
+    ``HOURLY_ROW_REQUIRED`` was measured at once: ``coverage_h`` shrinks to that
+    time, and an hour without any stays a row with ``coverage_h`` 0 and no
+    readings -- it books no ET, and the per-hour series stays complete. A field
+    whose readings all lie inside its spans has no value to hold, so it books
+    nothing either, where a field never read still falls back as below. Fields
+    without spans are reduced exactly as without the argument.
+
     Returns None whenever the window cannot support hourly rows — no readings, a
     zero-length window, an absurdly long one, or any required field missing from
     both the window and the carry-forward. The caller then keeps the daily form,
@@ -1076,8 +1208,11 @@ def build_hourly_rows(
 
     by_sensor = _group_by_sensor(effective)
     tables = {}
+    # A pausing group's blocked fields, over their valid time only; None where
+    # no reading survived to hold.
+    masked = {}
     solar_samples = None
-    for key in (*_HOURLY_ROW_REQUIRED, const.MAPPING_PRESSURE):
+    for key in (*HOURLY_ROW_REQUIRED, const.MAPPING_PRESSURE):
         samples = by_sensor.get(key)
         if samples:
             samples = _clamped_samples(samples, start, end)
@@ -1090,8 +1225,20 @@ def build_hourly_rows(
         else:
             samples = None
         if samples is None:
-            if key in _HOURLY_ROW_REQUIRED:
+            if key in HOURLY_ROW_REQUIRED:
                 return None
+            continue
+        spans = blocked.get(key) if blocked else None
+        if spans:
+            masked[key] = _masked_hold_table(samples, spans, start, end)
+            if key == const.MAPPING_SOLRAD:
+                # A frozen value stamped inside a span is neither an hour's own
+                # reading nor the source of a ratio.
+                solar_samples = [
+                    (t, v)
+                    for t, v in samples
+                    if t <= start or not _blocked_at(t, spans)
+                ]
             continue
         if key == const.MAPPING_SOLRAD:
             # Retained so the ratio hold can tell an hour that saw a reading
@@ -1100,6 +1247,19 @@ def build_hourly_rows(
             # they do for the integral table.
             solar_samples = samples
         tables[key] = _hold_integral_table(samples, start, end)
+
+    # The time each hour is charged for: every required field measured at once.
+    # None while no required field has spans, which charges every hour exactly
+    # as before; empty when one has no value to hold at all.
+    booked = None
+    required_spans = [
+        span for key in HOURLY_ROW_REQUIRED if key in masked for span in blocked[key]
+    ]
+    if required_spans:
+        if any(masked[key] is None for key in HOURLY_ROW_REQUIRED if key in masked):
+            booked = []
+        else:
+            booked = _valid_segments(sorted(required_spans), start, end)
 
     # Precipitation is not part of the ET, but the row shape carries it for the
     # consumers that read a window as a series. Omitted entirely rather than
@@ -1113,6 +1273,9 @@ def build_hourly_rows(
             increments = _precip_increments(
                 precip_samples,
                 effective_aggregate(const.MAPPING_PRECIPITATION, mappings_config),
+                spans=blocked.get(const.MAPPING_PRECIPITATION) if blocked else None,
+                start=start,
+                end=end,
             )
             if increments is not None:
                 rain_by_hour = {}
@@ -1139,7 +1302,9 @@ def build_hourly_rows(
             # coverage is charged through coverage_h instead.
             "hour": hour_start.hour + 0.5,
             "doy": hour_start.timetuple().tm_yday,
-            "coverage_h": coverage,
+            "coverage_h": (
+                coverage if booked is None else _overlap_hours(booked, a, b)
+            ),
         }
         if tz is not None:
             # Resolved from THIS row's stamp, not once for the window: the
@@ -1148,9 +1313,25 @@ def build_hourly_rows(
             row_offset = tz.utcoffset(hour_start)
             if row_offset is not None:
                 row["tz_offset_h"] = row_offset.total_seconds() / 3600.0
+        if _books_nothing(row):
+            # No time in this hour with every required field measured: it books
+            # no ET and carries no reading that would claim otherwise. It stays,
+            # so every hour of the window has its quantum.
+            if rain_by_hour is not None:
+                row["precipitation"] = rain_by_hour.get(hour_start, 0.0)
+            rows.append(row)
+            hour_start += step
+            continue
         means = {key: _hourly_mean(table, a, b) for key, table in tables.items()}
         if any(v is None for v in means.values()):
             return None
+        for key, table in masked.items():
+            # Every required field has valid time in an hour that books some,
+            # so only pressure can be left out here -- and then the ETo helper
+            # derives it from the elevation, as for a group without a barometer.
+            value = _masked_mean(table, a, b)
+            if value is not None:
+                means[key] = value
         row["temperature"] = means[const.MAPPING_TEMPERATURE]
         row["humidity"] = means[const.MAPPING_HUMIDITY]
         # Sensor wind speed is handed to FAO-56 as u2 exactly as the daily path
@@ -1174,13 +1355,15 @@ def build_hourly_rows(
     return rows
 
 
-def _weights_from_hourly_et(weights, hours, dt_hours, hourly_et):
+def _weights_from_hourly_et(weights, hours, measured_hours, hourly_et):
     """Rescale intra-hour weights so each hour carries its own ET, or None.
 
     ``weights`` shape the ET *within* an hour; ``hourly_et`` sets how much ET
     that hour gets. Multiplying the two gives a weight set whose per-hour sums
     are proportional to the hourly ETo series, which is what makes the window
     total a sum of hourly quanta rather than one daily number spread out.
+    ``measured_hours`` is the time of each step in which its ET is booked: the
+    step's whole length, less what a pausing sensor group was silent in it.
 
     Returns None when a step's hour is absent from ``hourly_et``: the two are
     derived from the same window, so a gap means an assumption broke, and
@@ -1192,24 +1375,32 @@ def _weights_from_hourly_et(weights, hours, dt_hours, hourly_et):
             return None
         per_hour_weight[hour] = per_hour_weight.get(hour, 0.0) + weight
     out = []
-    for hour, weight, dt in zip(hours, weights, dt_hours, strict=True):
+    for hour, weight, measured in zip(hours, weights, measured_hours, strict=True):
         share = per_hour_weight[hour]
         if share > 0:
             fraction = weight / share
         else:
             # This hour is entirely dark (or has no usable radiation) but still
-            # has ET to place: fall back to elapsed time WITHIN the hour, so the
+            # has ET to place: fall back to measured time WITHIN the hour, so the
             # hour's own total is preserved rather than leaking to a bright one.
-            hour_seconds = sum(
-                d for h, d in zip(hours, dt_hours, strict=True) if h == hour
+            hour_measured = sum(
+                m for h, m in zip(hours, measured_hours, strict=True) if h == hour
             )
-            fraction = dt / hour_seconds if hour_seconds > 0 else 0.0
+            fraction = measured / hour_measured if hour_measured > 0 else 0.0
         out.append(fraction * hourly_et[hour])
     return out
 
 
 def build_substeps(
-    readings, watermark, mappings_config, *, now=None, hourly_et=None, applied=None
+    readings,
+    watermark,
+    mappings_config,
+    *,
+    now=None,
+    hourly_et=None,
+    applied=None,
+    blocked=None,
+    required=(),
 ):
     """Cut a zone's window into ordered water-balance sub-steps, or None.
 
@@ -1239,6 +1430,16 @@ def build_substeps(
     inside the window. Each one earns a cut and is booked on the step it ends,
     exactly as rain is; the caller must then start the replay from the level
     BEFORE those credits, since the stored bucket already contains them.
+
+    ``blocked`` is a pausing sensor group's blocked time per field and
+    ``required`` the fields the zone's form of the equation cannot do without.
+    ET is booked only where all of those were measured, so it is placed only
+    there: the sun weighs the steps over that time alone, and the sun's own
+    blocked time weighs nothing either, its frozen value being no measurement.
+    That moves where the window's ET lands, never how much there is. A blocked
+    rain rate adds only its measured rain, as the aggregate does, so the two
+    still reconcile. Without spans on any of those fields the steps are exactly
+    what they were.
 
     Returns None whenever the window cannot be sub-stepped faithfully — no
     timestamps, a zero-length window, a precipitation aggregate with no time
@@ -1270,6 +1471,9 @@ def build_substeps(
         increments = _precip_increments(
             precip_samples,
             effective_aggregate(const.MAPPING_PRECIPITATION, mappings_config),
+            spans=blocked.get(const.MAPPING_PRECIPITATION) if blocked else None,
+            start=start,
+            end=end,
         )
         if increments is None:
             return None
@@ -1309,25 +1513,59 @@ def build_substeps(
     # against 0.039 for the flat one, with an hour-boundary jump smaller than a
     # typical within-hour step. That is what keeps the intra-day shape honest for
     # anything that later publishes it.
+    #
+    # A pausing group books ET only where every required field was measured, so
+    # ``mask`` -- that blocked time plus the sun's own -- is where none is
+    # placed. None while neither has spans, which leaves the placement as it was.
+    mask = None
+    booked = None
+    if blocked:
+        spans = sorted(
+            span
+            for key in {*required, const.MAPPING_SOLRAD}
+            for span in blocked.get(key, ())
+        )
+        if spans:
+            mask = spans
+            booked = _valid_segments(spans, start, end)
     solar = by_sensor.get(const.MAPPING_SOLRAD)
     table = None
+    masked_sun = None
     if solar:
         solar = _clamped_samples(solar, start, end)
         if solar is not None:
-            points, values, cumulative = _hold_integral_table(solar, start, end)
-            if cumulative[-1] > 0:
-                table = (points, values, cumulative)
+            if mask is None:
+                points, values, cumulative = _hold_integral_table(solar, start, end)
+                if cumulative[-1] > 0:
+                    table = (points, values, cumulative)
+            else:
+                sun = _masked_hold_table(
+                    solar,
+                    blocked.get(const.MAPPING_SOLRAD, ()),
+                    start,
+                    end,
+                    mask=mask,
+                )
+                if sun is not None and sun[2][-1] > 0:
+                    masked_sun = sun
 
     steps = []
     weights = []
     hours = []
+    # Each step's measured time, in hours: all of it without a mask.
+    measured = []
     for i in range(len(cuts) - 1):
         a, b = cuts[i], cuts[i + 1]
         dt_hours = (b - a).total_seconds() / 3600
-        if table is None:
+        measured_hours = dt_hours if booked is None else _overlap_hours(booked, a, b)
+        if masked_sun is not None:
+            weight = max(
+                0.0, _masked_upto(masked_sun, b)[0] - _masked_upto(masked_sun, a)[0]
+            )
+        elif table is None:
             # No usable radiation (unmapped, or a window entirely after dark):
             # fall back to elapsed time, which is the same total spread flat.
-            weight = dt_hours
+            weight = measured_hours
         else:
             weight = max(
                 0.0,
@@ -1336,11 +1574,10 @@ def build_substeps(
         weights.append(weight)
         hours.append(a.replace(minute=0, second=0, microsecond=0))
         steps.append((dt_hours, rain_at.get(b, 0.0), applied_at.get(b, 0.0)))
+        measured.append(measured_hours)
 
     if hourly_et is not None:
-        weights = _weights_from_hourly_et(
-            weights, hours, [dt for dt, _, _ in steps], hourly_et
-        )
+        weights = _weights_from_hourly_et(weights, hours, measured, hourly_et)
         if weights is None:
             return None
 
@@ -1348,10 +1585,15 @@ def build_substeps(
     if total <= 0:
         # Night-only window under solar weighting. ET over such a window is
         # <= 0.017 mm/day, but it still has to go somewhere: spread it by time.
-        weights = [dt for dt, _, _ in steps]
+        weights = list(measured)
         total = sum(weights)
         if total <= 0:
-            return None
+            # No measured time to place it in: spread it flat, as for a window
+            # without radiation, so the rain still replays.
+            weights = [dt for dt, _, _ in steps]
+            total = sum(weights)
+            if total <= 0:
+                return None
 
     return [
         WaterStep(dt_hours, weight / total, precip_mm, applied_mm)

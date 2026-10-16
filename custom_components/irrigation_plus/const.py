@@ -713,9 +713,9 @@ MAPPING_SENSOR_LAST_SEEN = "sensor_last_seen"
 # One repair issue per sensor group: f"{ISSUE_WEATHER_SENSOR_STALE}_{mapping_id}".
 ISSUE_WEATHER_SENSOR_STALE = "weather_sensor_stale"
 # The same notice for a group that pauses a silent sensor: its values are no
-# longer used. Chosen where the group's daily calculation really leaves the
-# silent time out: a pausing group, the hourly calculation off, and an open
-# outage with a field that is cut (see sensor_liveness.cuts_field).
+# longer used. Chosen where the group's calculation really leaves the silent time
+# out: a pausing group and an open outage with a field that is cut (see
+# sensor_liveness.cuts_field).
 ISSUE_WEATHER_SENSOR_STALE_PAUSED = "weather_sensor_stale_paused"
 # What a sensor group does with a silent sensor (MappingEntry.on_silent_sensor):
 # keep using its last value, as before, or pause it so that the silent time books

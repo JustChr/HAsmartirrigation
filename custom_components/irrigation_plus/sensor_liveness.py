@@ -10,8 +10,8 @@ while an outage is open, and a bus event when one starts and when it ends (#188)
 
 The outage record says when a sensor fell silent and the notice tells the user. A
 group that keeps a silent sensor's last value calculates as before; for a group
-that pauses it, ``blocked_spans`` turns the record into the time its daily
-calculation does not book (calculation._blocked_spans_for_zone).
+that pauses it, ``zone_blocked_spans`` turns the record into the time its
+calculation and its live estimate do not book.
 
 The rules are plain functions, testable without a running Home Assistant; the
 ``SensorLivenessMixin`` at the end is the coordinator glue.
@@ -188,9 +188,9 @@ def cuts_field(field: str, mappings_config: dict) -> bool:
 
     Every field but a cumulative rain gauge (aggregate ``delta``): what a gauge
     shows after its return is rain it measured, only delivered late, so its
-    silent time is not cut. The commit's gate
-    (calculation._blocked_spans_for_zone) and the notice both ask here, so the
-    notice says a value is no longer used only where the calculation cuts it.
+    silent time is not cut. ``zone_blocked_spans``, the one gate of the commit
+    and the live estimate, and the notice both ask here, so the notice says a
+    value is no longer used only where the calculation cuts it.
     """
     return (
         effective_aggregate(field, mappings_config)
@@ -233,6 +233,39 @@ def valid_share(blocked: dict, fields, start: datetime, end: datetime) -> float:
     spans = _merged([span for field in fields for span in blocked.get(field, ())])
     gone = sum((hi - lo).total_seconds() for lo, hi in spans)
     return max(0.0, (length - gone) / length)
+
+
+def zone_blocked_spans(store, zone: dict, start, end) -> dict | None:
+    """A pausing group's blocked time in one zone's window ``[start, end)``, or None.
+
+    The one place the commit and the live estimate take their spans from, so both
+    leave out the same time. A free function over the store rather than a method:
+    the live estimate's mixin runs on its own in its tests, where a cross-mixin
+    call raises and is swallowed as a failed estimate. ``start`` is the caller's
+    -- the commit's watermark, the estimate's anchor -- and ``end`` its ``now``,
+    which also ends an open outage.
+
+    None leaves a window exactly as it always was: a group that keeps, a zone
+    without a group or a start, an empty window, or one no outage reaches. Which
+    fields are cut, ``cuts_field`` says: never a cumulative rain gauge.
+    """
+    mapping_id = zone.get(const.ZONE_MAPPING)
+    if mapping_id is None:
+        return None
+    mapping = store.get_mapping(mapping_id)
+    if not mapping or not group_pauses(mapping):
+        return None
+    start = coerce_stamp(start, STAMP_FROM_STORE)
+    end = coerce_stamp(end, STAMP_FROM_STORE)
+    if start is None or end is None:
+        return None
+    config = mapping.get(const.MAPPING_MAPPINGS) or {}
+    blocked = {
+        field: spans
+        for field, spans in blocked_spans(outages_of(mapping), start, end).items()
+        if cuts_field(field, config)
+    }
+    return blocked or None
 
 
 def _merged(spans) -> tuple[tuple[datetime, datetime], ...]:
@@ -471,9 +504,11 @@ class SensorLivenessMixin:
         this check's stale copy, and the outages and their events would return.
         """
         now = now if now is not None else local_naive_now()
+        cut_changed = False
         for mapping in await self.store.async_get_mappings():
             try:
-                await self._async_check_mapping_liveness(mapping, now)
+                if await self._async_check_mapping_liveness(mapping, now):
+                    cut_changed = True
             except Exception:
                 # A periodic check: one broken group must not stop the others,
                 # every five minutes, for good.
@@ -481,8 +516,27 @@ class SensorLivenessMixin:
                     "Sensor liveness check failed for sensor group %s",
                     mapping.get(const.MAPPING_ID),
                 )
+        if cut_changed:
+            await self._refresh_estimates_after_outage_change()
 
-    async def _async_check_mapping_liveness(self, mapping: dict, now: datetime) -> None:
+    async def _refresh_estimates_after_outage_change(self) -> None:
+        """Recompute the live estimates once a pausing group's cut has moved.
+
+        Nothing else would: a silent station writes no rows, so the ingestion
+        that normally refreshes them stays quiet until the next poll, commit or
+        run. Not the throttled refresh -- a reading in the last minute would
+        swallow it, and this check comes round only every five minutes.
+        """
+        refresh = getattr(self, "async_refresh_zone_estimates", None)
+        if refresh is None:
+            return
+        try:
+            await refresh()
+        except Exception:  # noqa: BLE001 — an estimate must not break the check
+            _LOGGER.debug("Live estimate refresh after an outage failed", exc_info=True)
+
+    async def _async_check_mapping_liveness(self, mapping: dict, now: datetime) -> bool:
+        """Check one sensor group; whether an outage of a pausing one opened or closed."""
         mapping_id = mapping[const.MAPPING_ID]
         name = mapping.get(const.MAPPING_NAME) or str(mapping_id)
         outages = outages_of(mapping)
@@ -546,6 +600,7 @@ class SensorLivenessMixin:
             self._fire_weather_stale(mapping_id, name, outage)
         if opened or closed:
             self._sync_stale_issue(mapping_id, name, kept)
+        return bool(opened or closed) and group_pauses(mapping)
 
     def _sensor_liveness_snapshot(self, entity_id: str):
         """``(own, siblings, device_id)`` for one sensor-mapped entity."""
@@ -583,16 +638,13 @@ class SensorLivenessMixin:
         )
 
     def _group_cuts(self, mapping: dict) -> bool:
-        """Whether this group's daily calculation leaves a silent sensor's time out.
+        """Whether this group's calculation leaves a silent sensor's time out.
 
-        A pausing group, and only without the hourly calculation (see
-        calculation._blocked_spans_for_zone); every other group still uses the
-        last value. Which fields it leaves out, ``cuts_field`` says.
+        A pausing group, in every form of the calculation (``zone_blocked_spans``);
+        every other group still uses the last value. Which fields it leaves out,
+        ``cuts_field`` says.
         """
-        # Imported here: calculation imports this module.
-        from .calculation import hourly_calculation_enabled
-
-        return group_pauses(mapping) and not hourly_calculation_enabled(self.store)
+        return group_pauses(mapping)
 
     def _stale_issue_key(self, mapping_id, outages: list[Outage]) -> str:
         """The notice's text: the paused one where the group's values are cut.
@@ -612,7 +664,7 @@ class SensorLivenessMixin:
         return const.ISSUE_WEATHER_SENSOR_STALE
 
     def async_resync_stale_issue(self, mapping: dict | None) -> None:
-        """Bring a group's open notice in line with its setting and the calculation form.
+        """Bring a group's open notice in line with its setting and its fields.
 
         Called when either changes; otherwise the notice is touched only when an
         outage opens or closes. A group without an open outage has no notice.

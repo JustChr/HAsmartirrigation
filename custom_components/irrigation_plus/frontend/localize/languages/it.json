@@ -278,7 +278,7 @@
           },
           "on-silent-sensor": {
             "title": "Quando un sensore smette di inviare dati",
-            "help": "Metti in pausa: dopo 3 ore senza dati, i valori del sensore non vengono più usati; dove il calcolo dell’evapotraspirazione non può farne a meno, per quel tempo non si conteggia evapotraspirazione. Un pluviometro continua a essere conteggiato. Vale solo finché «Evapotraspirazione oraria» (Funzioni sperimentali) è disattivata.",
+            "help": "Metti in pausa: dopo 3 ore senza dati, i valori del sensore non vengono più usati; dove il calcolo dell’evapotraspirazione non può farne a meno, per quel tempo non si conteggia evapotraspirazione. Un pluviometro continua a essere conteggiato.",
             "keep": "Mantieni l’ultimo valore",
             "pause": "Metti in pausa"
           },

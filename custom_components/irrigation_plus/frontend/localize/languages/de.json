@@ -238,7 +238,7 @@
           },
           "on-silent-sensor": {
             "title": "Wenn ein Sensor verstummt",
-            "help": "Pausieren: Nach 3 Stunden ohne Meldung werden die Werte des Sensors nicht mehr verwendet; wo die Verdunstungsrechnung ohne sie nicht auskommt, wird für diese Zeit keine Verdunstung gebucht. Ein Regenzähler zählt weiter. Gilt nur, solange „Stündliche Verdunstung“ (Experimentelle Funktionen) aus ist.",
+            "help": "Pausieren: Nach 3 Stunden ohne Meldung werden die Werte des Sensors nicht mehr verwendet; wo die Verdunstungsrechnung ohne sie nicht auskommt, wird für diese Zeit keine Verdunstung gebucht. Ein Regenzähler zählt weiter.",
             "keep": "Letzten Wert behalten",
             "pause": "Pausieren"
           },

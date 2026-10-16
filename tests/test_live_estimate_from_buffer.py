@@ -32,6 +32,7 @@ import custom_components.irrigation_plus.live_estimate as le
 from custom_components.irrigation_plus import const
 from custom_components.irrigation_plus.et_estimate import eto_hourly_series
 from custom_components.irrigation_plus.live_estimate import LiveEstimateMixin
+from custom_components.irrigation_plus.sensor_liveness import Outage
 from custom_components.irrigation_plus.weather_aggregate import (
     aggregate_window,
     build_hourly_rows,
@@ -198,15 +199,18 @@ def _inputs(now):
     }
 
 
-def _expected_et_mm(readings, watermark, now, mappings_config=None):
+def _expected_et_mm(readings, watermark, now, mappings_config=None, blocked=None):
     """The reference total: the row builder, summed. No window-length scaling.
 
     ``hour_multiplier`` scales a DAILY et0 by the window's fraction of a day;
     summed hourly ETo has already integrated over the window, so applying it
     would scale the same window twice. Comparing against a plain sum is what
-    pins that.
+    pins that. ``blocked`` is a pausing group's silent time, charged as the commit
+    charges it.
     """
-    rows = build_hourly_rows(readings, watermark, mappings_config or {}, now=now)
+    rows = build_hourly_rows(
+        readings, watermark, mappings_config or {}, now=now, blocked=blocked
+    )
     return sum(eto_hourly_series(rows, LAT, LON, TZ, ELEV))
 
 
@@ -331,6 +335,37 @@ class TestSensorOnlyInstall:
         now = ANCHOR + timedelta(hours=3)
         coord = _Coord(_Store([]))
         assert coord._intraday_for_zone(_zone(), _inputs(now))["available"] is False
+
+
+class TestAPausingGroupWithTheMixinAlone:
+    """The estimate takes a pausing group's silent time from the store itself.
+
+    The mixin runs on its own here, without the calculation mixin, as it does in
+    its other tests: a call across to the commit's side raises, and an estimate
+    that raises is swallowed as no estimate at all.
+    """
+
+    def test_it_cuts_the_silent_time_without_the_calculation_mixin(self):
+        """Temperature silent from 09:00, blocked from 12:00 to the estimate's
+        14:30."""
+        now = ANCHOR + timedelta(hours=5, minutes=30)
+        store = _Store(_readings(now))
+        coord = _Coord(store)
+        plain = coord._intraday_for_zone(_zone(), _inputs(now))
+        store.mapping[const.MAPPING_ON_SILENT_SENSOR] = const.ON_SILENT_SENSOR_PAUSE
+        store.mapping[const.MAPPING_SENSOR_OUTAGES] = [
+            Outage("sensor.t", "dev1", (const.MAPPING_TEMPERATURE,), ANCHOR).to_store()
+        ]
+
+        est = coord._intraday_for_zone(_zone(), _inputs(now))
+
+        silent = {const.MAPPING_TEMPERATURE: ((ANCHOR + timedelta(hours=3), now),)}
+        expected = _expected_et_mm(store.readings, ANCHOR, now, blocked=silent)
+        assert expected < _expected_et_mm(store.readings, ANCHOR, now) - 0.1
+        assert est["available"] is True
+        assert est["method"] == "hourly_sensor"
+        assert est["et_since"] == pytest.approx(round(expected, 4))
+        assert est["et_since"] < plain["et_since"] - 0.1
 
 
 class TestBothBufferShapes:

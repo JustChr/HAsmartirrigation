@@ -18,8 +18,8 @@ ledger:
   forecast tier available — the configured weather service, else a Home
   Assistant weather entity, else the site's own history (see
   ``day_projection``) — and the module instance the commit uses prices the
-  result, so the inputs converge on exactly what the commit will see (but for
-  a pausing sensor group's silent time; see ``_aggregate_live_window``);
+  result, so the inputs converge on exactly what the commit will see, a
+  pausing sensor group's silent time left out on both sides;
 * **the weather client's hourly series**, where one exposes solar radiation;
 * a **Hargreaves-seeded proxy** distributed over the elapsed hours, for
   providers with neither.
@@ -80,6 +80,7 @@ from .calculation import (
     hourly_radiation_series,
     pending_bucket_events,
     replayed_balance_applies,
+    required_sensor_fields,
     trailing_radiation_calibration,
     trailing_temperature_amplitude,
     zone_module_models_weather,
@@ -109,6 +110,12 @@ from .et_estimate import (
     rigorous_et_since,
 )
 from .helpers import STAMP_FROM_CLIENT, coerce_stamp, convert_between
+from .sensor_liveness import (
+    group_pauses,
+    outages_of,
+    valid_share,
+    zone_blocked_spans,
+)
 from .weather_aggregate import aggregate_window, build_substeps, weather_day
 
 _LOGGER = logging.getLogger(__name__)
@@ -199,11 +206,33 @@ class _HourlyCarry(NamedTuple):
     every earlier hour missing from ``build_substeps``' ``hourly_et``, which is a
     documented reason for it to refuse the window — so the estimate would fall
     back to the lumped form for as long as the carry was warm, i.e. always.
+
+    ``outages`` is the other thing a closed hour depends on: a pausing sensor
+    group's outage record (``_carried_outages``). An outage opens on the next
+    check, up to five minutes after its span began, and closes at a return that
+    can lie before the last refresh, so a carried hour can change after it
+    closed. The record, not its clipped spans, is the key: an open span ends at
+    "now" and would change it every minute.
     """
 
     anchor: datetime.datetime
     boundary: datetime.datetime
     per_hour: dict
+    outages: tuple = ()
+
+
+def _carried_outages(mapping) -> tuple:
+    """What a sensor group's cut depends on beyond the anchor: its outage record.
+
+    Empty for a group that keeps, whose record cuts nothing, so its carry is not
+    dropped for an outage it does not act on.
+    """
+    if not isinstance(mapping, dict) or not group_pauses(mapping):
+        return ()
+    return tuple(
+        (outage.entity_id, outage.start, outage.end, outage.fields)
+        for outage in outages_of(mapping)
+    )
 
 
 def _parse_stored_as_ha_local(value):
@@ -587,9 +616,8 @@ class LiveEstimateMixin:
                 _LOGGER.debug("intraday: could not resolve module %s: %s", module_id, e)
         return out
 
-    def _aggregate_live_window(self, zone, anchor, *, now=None):
-        """The zone's elapsed window, reduced exactly as ``_aggregate_for_zone`` will --
-        but for the one deliberate difference in the last paragraph.
+    def _aggregate_live_window(self, zone, anchor, *, now=None, blocked=None):
+        """The zone's elapsed window, reduced exactly as ``_aggregate_for_zone`` will.
 
         One reduction serving both halves of the estimate: the precipitation
         trace, and the day-level inputs the mirrored daily equation consumes. The
@@ -597,10 +625,8 @@ class LiveEstimateMixin:
         two agree by construction rather than by two hand-maintained argument
         lists happening to match -- which is how they drifted before.
 
-        One difference is deliberate: a pausing sensor group's commit leaves a
-        silent sensor's time out (calculation._blocked_spans_for_zone), and this
-        estimate does not, so a run during an outage can be sized on more ET than
-        the commit books afterwards.
+        ``blocked`` is a pausing sensor group's silent time over this window
+        (``zone_blocked_spans``), the same spans the commit cuts.
         """
         mapping_id = zone.get(const.ZONE_MAPPING)
         if mapping_id is None:
@@ -624,7 +650,6 @@ class LiveEstimateMixin:
             # Must match _aggregate_for_zone exactly: a different aggregation
             # here would show up as the "Live bucket" sensor disagreeing with
             # the bucket the nightly calc produces.
-            # (Apart from a pausing group's blocked time; see the docstring.)
             time_weighted=(
                 getattr(
                     getattr(self.store, "config", None),
@@ -633,9 +658,10 @@ class LiveEstimateMixin:
                 )
                 is True
             ),
+            blocked=blocked,
         )
 
-    def _observed_precip_since_mm(self, zone, anchor):
+    def _observed_precip_since_mm(self, zone, anchor, *, now=None, blocked=None):
         """Observed precipitation (mm) collected for the zone's sensor group
         since ``anchor`` (its last calculation).
 
@@ -652,9 +678,10 @@ class LiveEstimateMixin:
         The candidates are equal on a healthy install — the daily calc writes
         both watermarks from one ``now`` — which is exactly why a divergence
         only shows up after a weather-data reset or a source change and then
-        looks like anything but a window bug.
+        looks like anything but a window bug. ``now`` and ``blocked`` are the
+        caller's for the same reason: a pausing group's spans end at that ``now``.
         """
-        agg = self._aggregate_live_window(zone, anchor)
+        agg = self._aggregate_live_window(zone, anchor, now=now, blocked=blocked)
         if not agg:
             return 0.0
         return agg.get(const.MAPPING_PRECIPITATION, 0.0) or 0.0
@@ -715,7 +742,7 @@ class LiveEstimateMixin:
             return False
         return forecast_days == 0
 
-    def _buffer_hourly_et(self, zone, anchor, *, now, geometry):
+    def _buffer_hourly_et(self, zone, anchor, *, now, geometry, blocked=None):
         """``(total_mm, {hour_start: eto_mm})`` since ``anchor`` from the buffer.
 
         Summed FAO-56 hourly ETo, in the same shape ``_hourly_et_for_zone``
@@ -731,6 +758,9 @@ class LiveEstimateMixin:
 
         Cheap by construction: completed hours are carried in
         ``_hourly_carry`` and only the current partial hour is re-reduced.
+
+        ``blocked`` (a pausing group's spans from ``anchor`` to ``now``) charges
+        each hour only for its measured time, as in the commit.
         """
         if not self._hourly_form_applies(zone):
             return None
@@ -747,8 +777,14 @@ class LiveEstimateMixin:
 
         zone_id = zone.get(const.ZONE_ID)
         carry = self._hourly_carry().get(zone_id)
+        outages = _carried_outages(mapping)
         watermark, base = anchor, {}
-        if carry is not None and carry.anchor == anchor and anchor <= carry.boundary:
+        if (
+            carry is not None
+            and carry.anchor == anchor
+            and carry.outages == outages
+            and anchor <= carry.boundary
+        ):
             if carry.boundary <= now:
                 watermark, base = carry.boundary, carry.per_hour
             # A boundary in the future means the clock went backwards; recompute
@@ -766,6 +802,7 @@ class LiveEstimateMixin:
             now=now,
             last_entry=mapping.get(const.MAPPING_DATA_LAST_ENTRY),
             geometry=geometry,
+            blocked=blocked,
         )
         if priced is None:
             return None
@@ -788,7 +825,7 @@ class LiveEstimateMixin:
                 closed[hour] = closed.get(hour, 0.0) + eto
         if current_hour > watermark and closed:
             self._hourly_carry()[zone_id] = _HourlyCarry(
-                anchor, current_hour, {**base, **closed}
+                anchor, current_hour, {**base, **closed}, outages
             )
         return sum(per_hour.values()), per_hour
 
@@ -885,7 +922,7 @@ class LiveEstimateMixin:
             return None
         return _Blend(rows, commit_at.date() + datetime.timedelta(days=1))
 
-    def _latest_temperature(self, zone, agg):
+    def _latest_temperature(self, zone, agg, *, blocked=None, now=None):
         """The temperature the sensor group is reading now, or None.
 
         The self-contained projection is held to pass through this, so it
@@ -893,7 +930,14 @@ class LiveEstimateMixin:
         The mapping's last-seen entry is preferred over the window mean because
         it is the CURRENT reading; the window's mean is the fallback for a group
         that has no last entry at all.
+
+        None while a pausing group's temperature is silent at ``now``: its last
+        entry is then the dead sensor's value, and a mean is no current reading.
+        Spans end at the estimate's ``now``, so an open one reaches it.
         """
+        spans = (blocked or {}).get(const.MAPPING_TEMPERATURE, ())
+        if now is not None and any(hi >= now for _, hi in spans):
+            return None
         mapping = self.store.get_mapping(zone.get(const.ZONE_MAPPING))
         if mapping:
             latest = (mapping.get(const.MAPPING_DATA_LAST_ENTRY) or {}).get(
@@ -907,15 +951,16 @@ class LiveEstimateMixin:
         value = (agg or {}).get(const.MAPPING_TEMPERATURE)
         return None if value is None else float(value)
 
-    def _projected_extremes(self, zone, agg, inputs, *, now, window_end, geometry):
+    def _projected_extremes(
+        self, zone, agg, inputs, *, now, window_end, geometry, blocked=None
+    ):
         """``(tmin, tmax, tier)`` for the window, off the composition.
 
         Observed so far, extended over the hours the window has not reached, with
         the extremes taken from the two together. The remainder shrinks to
         nothing as the window closes, so the inputs converge on exactly what the
-        commit will see (but for a pausing sensor group's silent time; see
-        ``_aggregate_live_window``) -- no blend rule, no gate times, and no
-        residual left standing at the moment of commit.
+        commit will see -- no blend rule, no gate times, and no residual left
+        standing at the moment of commit.
 
         Tiers are tried in a fixed order. The forecast-backed ones
         arrive already resolved on ``inputs``, since the series is fetched once
@@ -944,7 +989,7 @@ class LiveEstimateMixin:
         if remainder is None:
             remainder = diurnal_remainder(
                 now,
-                self._latest_temperature(zone, agg),
+                self._latest_temperature(zone, agg, blocked=blocked, now=now),
                 trailing_temperature_amplitude(
                     self.store, zone.get(const.ZONE_MAPPING)
                 ),
@@ -965,7 +1010,17 @@ class LiveEstimateMixin:
         return low, high, tier
 
     def _composed_day_et(
-        self, zone, agg, inputs, *, anchor, now, geometry, modinst, blend=_TODAY_ALONE
+        self,
+        zone,
+        agg,
+        inputs,
+        *,
+        anchor,
+        now,
+        geometry,
+        modinst,
+        blend=_TODAY_ALONE,
+        blocked=None,
     ):
         """``(day_total_mm, tier)`` for the window's whole day, or None.
 
@@ -980,6 +1035,9 @@ class LiveEstimateMixin:
         Hargreaves stands in off the same composed
         extremes, because a day total is still needed to price the hours between
         now and a decision point, and no other source of one exists that early.
+
+        ``blocked`` is a pausing group's silent time: ``agg`` is already cut by
+        it, and a temperature silent now anchors no remainder.
         """
         if not agg:
             return None
@@ -1011,6 +1069,7 @@ class LiveEstimateMixin:
             # stretch at a day, so the window never exceeds about two.
             window_end=anchor + datetime.timedelta(hours=24),
             geometry=geometry,
+            blocked=blocked,
         )
         if low is None:
             return None
@@ -1101,7 +1160,9 @@ class LiveEstimateMixin:
             return None, None
         return observed + clearness * ra_remaining, TIER_SELF_CONTAINED
 
-    def _daily_mirror_et(self, zone, agg, inputs, *, anchor, now, geometry):
+    def _daily_mirror_et(
+        self, zone, agg, inputs, *, anchor, now, geometry, blocked=None
+    ):
         """A :class:`_DayTotal` of the window's charge from the zone's OWN daily equation, or None.
 
         The whole point: a zone that estimates solar radiation gets a live
@@ -1109,13 +1170,18 @@ class LiveEstimateMixin:
         computed with a different equation and then compared against it.
 
         The elapsed window is reduced by the same call the commit reduces the
-        whole window with (a pausing sensor group's silent time aside; see
-        ``_aggregate_live_window``), its day-level extremes are replaced by the
-        composed ones, and the zone's own module instance prices the result.
-        The window's share is ``MAPPING_DATA_MULTIPLIER`` -- the commit's own
+        whole window with, its day-level extremes are replaced by the composed
+        ones, and the zone's own module instance prices the result. The window's
+        share is ``MAPPING_DATA_MULTIPLIER`` -- the commit's own
         ``hour_multiplier`` out of the same aggregate -- so the estimate charges
         the elapsed hours at the rate the projected day total sets, and never
         charges past now.
+
+        A pausing sensor group's commit books only the part of the window in
+        which every field of its daily form was measured (``blocked``), so this
+        books the same part. With no measured time, nothing is booked: a field
+        silent throughout answers 0 here rather than None, which would send the
+        source chain on to a weather service the commit never books from.
 
         The crop coefficient is deliberately NOT applied here; the caller applies
         it to whichever source produced the window total, exactly as the commit
@@ -1124,7 +1190,22 @@ class LiveEstimateMixin:
         The clamp warning is suppressed explicitly (see :meth:`_composed_day_et`).
         """
         modinst = (inputs.get("modules") or {}).get(zone.get(const.ZONE_MODULE))
-        blend = self._mirror_blend(zone, modinst, inputs, anchor=anchor, now=now)
+        if not self._daily_form_applies(zone, modinst):
+            return None
+        # The share comes before the forecast is looked up: a window in which a
+        # field of the daily form was silent throughout is booked as 0 by the
+        # commit whatever the forecast says, and the equation is not asked for
+        # it. Asked after the forecast, a zone with none in hand would return
+        # None here and the source chain would move on to a weather service.
+        share = None
+        if blocked:
+            module = self.store.get_module(zone.get(const.ZONE_MODULE)) or {}
+            fields = required_sensor_fields(module.get(const.MODULE_NAME))
+            if fields is not None:
+                share = valid_share(blocked, fields, anchor, now)
+                if share == 0:
+                    return _DayTotal(0.0, TIER_OBSERVED)
+        blend = self._commit_forecast(modinst, inputs, anchor=anchor, now=now)
         if blend is None:
             return None
         day = self._composed_day_et(
@@ -1136,16 +1217,29 @@ class LiveEstimateMixin:
             geometry=geometry,
             modinst=modinst,
             blend=blend,
+            blocked=blocked,
         )
         if day is None:
             return None
         multiplier = agg.get(const.MAPPING_DATA_MULTIPLIER)
         if multiplier is None:
             return None
-        return day._replace(total_mm=day.total_mm * float(multiplier))
+        total = day.total_mm * float(multiplier)
+        if share is not None:
+            total *= share
+        return day._replace(total_mm=total)
 
     def _buffer_water_steps(
-        self, zone, anchor, *, now, hourly_et, precip_total, applied
+        self,
+        zone,
+        anchor,
+        *,
+        now,
+        hourly_et,
+        precip_total,
+        applied,
+        blocked=None,
+        required=(),
     ):
         """Water-balance sub-steps over the live window, or None to lump.
 
@@ -1173,6 +1267,9 @@ class LiveEstimateMixin:
         water. They are derived from the same rows by the same rule, so a
         disagreement means an assumption has broken, and lumping the window is the
         self-consistent answer.
+
+        ``blocked`` and ``required`` place a pausing group's ET where it is booked,
+        as in the commit's replay.
         """
         mapping_id = zone.get(const.ZONE_MAPPING)
         if mapping_id is None:
@@ -1191,6 +1288,8 @@ class LiveEstimateMixin:
             now=now,
             hourly_et=hourly_et,
             applied=applied,
+            blocked=blocked,
+            required=required,
         )
         if not steps:
             return None
@@ -1382,6 +1481,11 @@ class LiveEstimateMixin:
                 offset = dt_util.now().utcoffset()
                 tz_offset_h = offset.total_seconds() / 3600.0 if offset else 0.0
                 site_tz = dt_util.DEFAULT_TIME_ZONE
+            # A pausing sensor group's silent time, ONCE for this refresh and
+            # handed to every reader of the buffer below: the commit cuts the same
+            # spans, and readers that each asked for themselves would end an open
+            # outage at slightly different "now"s.
+            blocked = zone_blocked_spans(self.store, zone, anchor, now_local)
 
             rows = inputs["rows"]
             # The buffer FIRST, ahead of any weather client's own hourly series.
@@ -1396,6 +1500,7 @@ class LiveEstimateMixin:
                 anchor,
                 now=now_local,
                 geometry=geometry,
+                blocked=blocked,
             )
             hourly_et = None
             forecast_tier = None
@@ -1405,7 +1510,9 @@ class LiveEstimateMixin:
             # day-level inputs from this, and the precipitation trace is the same
             # window's rain. Two reductions of one window is a needless second
             # pass on a path that runs every minute per zone.
-            agg = self._aggregate_live_window(zone, anchor, now=now_local)
+            agg = self._aggregate_live_window(
+                zone, anchor, now=now_local, blocked=blocked
+            )
             mirrored = (
                 None
                 if buffer_et is not None
@@ -1416,13 +1523,16 @@ class LiveEstimateMixin:
                     anchor=anchor,
                     now=now_local,
                     geometry=geometry,
+                    blocked=blocked,
                 )
             )
             if buffer_et is not None:
                 et_mm, hourly_et = buffer_et
                 # Same anchor as the ET, aggregated the way the daily calc does
                 # (rate -> Riemann, cumulative gauge -> delta).
-                precip_mm = self._observed_precip_since_mm(zone, anchor)
+                precip_mm = self._observed_precip_since_mm(
+                    zone, anchor, now=now_local, blocked=blocked
+                )
                 method = "hourly_sensor"
                 # The buffer is current to now, not to the last closed hour.
                 as_of = now_local.isoformat()
@@ -1457,7 +1567,9 @@ class LiveEstimateMixin:
                 # than aggregated per source, and cut at whole-hour row
                 # boundaries instead of at the anchor. Same anchor as the ET, so
                 # the balance is still the difference of one window.
-                precip_mm = self._observed_precip_since_mm(zone, anchor)
+                precip_mm = self._observed_precip_since_mm(
+                    zone, anchor, now=now_local, blocked=blocked
+                )
                 method = "hourly"
                 as_of = window[-1]["time"] if window else None
             else:
@@ -1512,7 +1624,9 @@ class LiveEstimateMixin:
                 # actually collected into the sensor group since the last calc,
                 # aggregated the same way the daily calc does (rate->Riemann /
                 # gauge->delta), so it's time-weighted. 0 when nothing collected.
-                precip_mm = self._observed_precip_since_mm(zone, anchor)
+                precip_mm = self._observed_precip_since_mm(
+                    zone, anchor, now=now_local, blocked=blocked
+                )
                 method = "proxy"
                 as_of = local.isoformat()
 
@@ -1563,6 +1677,16 @@ class LiveEstimateMixin:
                     # the estimate is a projection from the last commit rather
                     # than a commit of its own.
                     applied=pending_bucket_events(zone),
+                    blocked=blocked,
+                    # The fields of the form the commit runs: the hourly one
+                    # exactly where the buffer source applied.
+                    required=required_sensor_fields(
+                        (self.store.get_module(zone.get(const.ZONE_MODULE)) or {}).get(
+                            const.MODULE_NAME
+                        ),
+                        hourly=buffer_et is not None,
+                    )
+                    or (),
                 )
             # Drainage comes back alongside the deficit rather than being
             # re-derived: it is a trace of its own on the dashboard (bucket,
@@ -1890,7 +2014,13 @@ class LiveEstimateMixin:
                     v if metric else convert_between(const.UNIT_MM, const.UNIT_INCH, v)
                 )
 
-            agg = self._aggregate_live_window(zone, anchor, now=now_local)
+            # A pausing group's silent time, once: the projection books nothing,
+            # but it is priced off the window's observed part, and a dead
+            # sensor's frozen value is no observation.
+            blocked = zone_blocked_spans(self.store, zone, anchor, now_local)
+            agg = self._aggregate_live_window(
+                zone, anchor, now=now_local, blocked=blocked
+            )
             modinst = (inputs.get("modules") or {}).get(zone.get(const.ZONE_MODULE))
             # Only the zones whose commit runs the daily equation may be priced
             # by their own module: for anyone else that instance is configured
@@ -1909,6 +2039,7 @@ class LiveEstimateMixin:
                 geometry=geometry,
                 modinst=modinst if own_equation else None,
                 blend=blend if own_equation else _TODAY_ALONE,
+                blocked=blocked,
             )
             if day is None:
                 return projected

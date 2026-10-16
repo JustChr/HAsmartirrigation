@@ -238,7 +238,7 @@
           },
           "on-silent-sensor": {
             "title": "Cuando un sensor deja de informar",
-            "help": "Pausar: tras 3 horas sin informar, los valores del sensor dejan de usarse; donde el cálculo de la evapotranspiración no puede prescindir de ellos, no se contabiliza evapotranspiración para ese tiempo. Un pluviómetro se sigue contabilizando. Solo se aplica mientras «Evapotranspiración horaria» (Funciones experimentales) esté desactivada.",
+            "help": "Pausar: tras 3 horas sin informar, los valores del sensor dejan de usarse; donde el cálculo de la evapotranspiración no puede prescindir de ellos, no se contabiliza evapotranspiración para ese tiempo. Un pluviómetro se sigue contabilizando.",
             "keep": "Mantener el último valor",
             "pause": "Pausar"
           },

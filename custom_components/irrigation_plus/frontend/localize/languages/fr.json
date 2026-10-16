@@ -238,7 +238,7 @@
           },
           "on-silent-sensor": {
             "title": "Quand un capteur se tait",
-            "help": "Mettre en pause : après 3 heures sans mesure, les valeurs du capteur ne sont plus utilisées ; là où le calcul de l’évapotranspiration ne peut s’en passer, aucune évapotranspiration n’est comptée pour cette durée. Un pluviomètre reste compté. Ne s’applique que tant que « Évapotranspiration horaire » (Fonctionnalités expérimentales) est désactivée.",
+            "help": "Mettre en pause : après 3 heures sans mesure, les valeurs du capteur ne sont plus utilisées ; là où le calcul de l’évapotranspiration ne peut s’en passer, aucune évapotranspiration n’est comptée pour cette durée. Un pluviomètre reste compté.",
             "keep": "Garder la dernière valeur",
             "pause": "Mettre en pause"
           },
