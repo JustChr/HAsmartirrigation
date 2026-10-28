@@ -47,19 +47,13 @@ from ..const import (
     OBSERVATION_TIME,
 )
 from ..pressure import relative_to_absolute_pressure
+from . import fetch_gate
 
 _LOGGER = logging.getLogger(__name__)
 
 # Shared session so repeated calls reuse the TCP connection and don't re-resolve
 # the API hostname on every request.
 _SESSION = requests.Session()
-
-# Floor for how long a fetched result is reused, even when the caller's configured
-# cache window is shorter (e.g. auto-update disabled → 0s). Repeated weather
-# lookups — skip-condition checks, the dashboard outlook — would otherwise each
-# hit the network (and a DNS lookup); this caps them to at most one call per
-# endpoint per minute, which also keeps us well under the free-tier daily quota.
-_MIN_CACHE_SECONDS = 60
 
 # The three-hourly product's step: the most the hourly document may lag behind it
 # and still be read in its place, whatever the cache lifetime (_forecast_document).
@@ -123,15 +117,10 @@ class MetOfficeClient:  # pylint: disable=invalid-name
         self._cached_hourly_at = None
         self._cached_three_hourly = None
         self._cached_three_hourly_at = None
+        self._hourly_gate = fetch_gate.FetchGate(self, "_cached_hourly_at")
+        self._three_hourly_gate = fetch_gate.FetchGate(self, "_cached_three_hourly_at")
 
     # ------------------------------------------------------------------ helpers
-
-    def _is_fresh(self, fetched_at) -> bool:
-        """Whether a result fetched at ``fetched_at`` may still be served cached."""
-        if fetched_at is None or self.override_cache:
-            return False
-        ttl = max(self.cache_seconds, _MIN_CACHE_SECONDS)
-        return datetime.datetime.now() < fetched_at + datetime.timedelta(seconds=ttl)
 
     def _request(self, url):
         """GET ``url`` with the API key header and return the parsed JSON document."""
@@ -228,7 +217,13 @@ class MetOfficeClient:  # pylint: disable=invalid-name
     # --------------------------------------------------------------- public API
 
     def _fetch_hourly(self):
-        if self._is_fresh(self._cached_hourly_at):
+        return self._hourly_gate.run(self._fetch_hourly_doc)
+
+    def _fetch_hourly_doc(self):
+        """Body of ``_fetch_hourly``, run inside ``_hourly_gate``."""
+        if fetch_gate.is_fresh(
+            self._cached_hourly_at, self.cache_seconds, self.override_cache
+        ):
             return self._cached_hourly
         doc = self._request(self._hourly_url)
         self._cached_hourly = doc
@@ -236,7 +231,13 @@ class MetOfficeClient:  # pylint: disable=invalid-name
         return doc
 
     def _fetch_three_hourly(self):
-        if self._is_fresh(self._cached_three_hourly_at):
+        return self._three_hourly_gate.run(self._fetch_three_hourly_doc)
+
+    def _fetch_three_hourly_doc(self):
+        """Body of ``_fetch_three_hourly``, run inside ``_three_hourly_gate``."""
+        if fetch_gate.is_fresh(
+            self._cached_three_hourly_at, self.cache_seconds, self.override_cache
+        ):
             return self._cached_three_hourly
         doc = self._request(self._three_hourly_url)
         self._cached_three_hourly = doc
@@ -319,7 +320,7 @@ class MetOfficeClient:  # pylint: disable=invalid-name
         if self._cached_hourly_at is None or self._cached_three_hourly_at is None:
             return hourly
         lifetime = datetime.timedelta(
-            seconds=max(self.cache_seconds, _MIN_CACHE_SECONDS)
+            seconds=fetch_gate.cache_lifetime(self.cache_seconds)
         )
         tolerance = min(lifetime, _THREE_HOURLY_STEP)
         if self._cached_three_hourly_at - self._cached_hourly_at > tolerance:
@@ -463,7 +464,9 @@ class MetOfficeClient:  # pylint: disable=invalid-name
             IndexError,
             ValueError,
         ) as ex:
-            _LOGGER.error("Met Office get_data error: %s", ex)
+            _LOGGER.log(
+                fetch_gate.failure_log_level(ex), "Met Office get_data error: %s", ex
+            )
             return None
 
     def get_forecast_data(self):
@@ -566,5 +569,9 @@ class MetOfficeClient:  # pylint: disable=invalid-name
             IndexError,
             ValueError,
         ) as ex:
-            _LOGGER.error("Met Office get_forecast_data error: %s", ex)
+            _LOGGER.log(
+                fetch_gate.failure_log_level(ex),
+                "Met Office get_forecast_data error: %s",
+                ex,
+            )
             return None

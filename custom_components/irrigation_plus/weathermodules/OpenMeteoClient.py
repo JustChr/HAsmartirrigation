@@ -24,19 +24,13 @@ from ..const import (
     W_TO_MJ_DAY_FACTOR,
 )
 from ..pressure import relative_to_absolute_pressure
+from . import fetch_gate
 
 _LOGGER = logging.getLogger(__name__)
 
 # Shared session so repeated calls reuse the TCP connection and don't re-resolve
 # the API hostname on every request.
 _SESSION = requests.Session()
-
-# Floor for how long a fetched response is reused, even when the caller's
-# configured cache window is shorter (e.g. auto-update disabled → 0s). Open-Meteo
-# returns current + forecast + hourly in one document, so caching it here collapses
-# the burst of get_data/get_forecast_data/get_hourly_data lookups (skip checks, the
-# dashboard outlook, the intra-day estimate) onto a single network/DNS call.
-_MIN_CACHE_SECONDS = 60
 
 OPENMETEO_URL = (
     "https://api.open-meteo.com/v1/forecast"
@@ -84,6 +78,7 @@ class OpenMeteoClient:
         self.cache_seconds = cache_seconds
         self._cached_doc = None
         self._cached_doc_at = None
+        self._doc_gate = fetch_gate.FetchGate(self, "_cached_doc_at")
 
     def _fetch(self):
         """Return the (cached) Open-Meteo response document.
@@ -93,13 +88,15 @@ class OpenMeteoClient:
         the cache window repeated callers reuse it instead of each hitting the
         network (and a DNS lookup).
         """
-        if self._cached_doc is not None and not self.override_cache:
-            ttl = max(self.cache_seconds, _MIN_CACHE_SECONDS)
-            if datetime.datetime.now() < self._cached_doc_at + datetime.timedelta(
-                seconds=ttl
-            ):
-                _LOGGER.debug("Returning cached Open-Meteo document")
-                return self._cached_doc
+        return self._doc_gate.run(self._fetch_doc)
+
+    def _fetch_doc(self):
+        """Body of ``_fetch``, run inside ``_doc_gate``."""
+        if self._cached_doc is not None and fetch_gate.is_fresh(
+            self._cached_doc_at, self.cache_seconds, self.override_cache
+        ):
+            _LOGGER.debug("Returning cached Open-Meteo document")
+            return self._cached_doc
         req = _SESSION.get(self.url, timeout=60)
         req.raise_for_status()
         doc = json.loads(req.text)
@@ -198,7 +195,9 @@ class OpenMeteoClient:
             KeyError,
             IndexError,
         ) as ex:
-            _LOGGER.error("Open-Meteo get_data error: %s", ex)
+            _LOGGER.log(
+                fetch_gate.failure_log_level(ex), "Open-Meteo get_data error: %s", ex
+            )
             return None
 
     def get_forecast_data(self):
@@ -308,7 +307,11 @@ class OpenMeteoClient:
             KeyError,
             IndexError,
         ) as ex:
-            _LOGGER.error("Open-Meteo get_forecast_data error: %s", ex)
+            _LOGGER.log(
+                fetch_gate.failure_log_level(ex),
+                "Open-Meteo get_forecast_data error: %s",
+                ex,
+            )
             return None
 
     def get_hourly_temperature_forecast(self):
@@ -475,5 +478,9 @@ class OpenMeteoClient:
             IndexError,
             ValueError,
         ) as ex:
-            _LOGGER.error("Open-Meteo get_hourly_data error: %s", ex)
+            _LOGGER.log(
+                fetch_gate.failure_log_level(ex),
+                "Open-Meteo get_hourly_data error: %s",
+                ex,
+            )
             return None, None
