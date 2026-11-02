@@ -2581,6 +2581,23 @@ class TestTheProjectionConvergesOnTheDecidedRun:
             armed["zones"][zone[const.ZONE_ID]], abs=1
         )
 
+    async def test_a_night_with_nothing_due_starts_at_its_target(
+        self, coordinator, utc_site
+    ):
+        """No zone is due, so the arm passes the action through at the target,
+        and the run still fires there."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store, bucket=2.0)
+
+        armed = await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+        entry = await _project_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        assert armed["zones"] == {}
+        assert entry["estimated"] is False
+        assert entry["start_utc"] == _utc(NEXT_RUN_TARGET).isoformat()
+        assert _run_of(entry, zone)["will_water"] is False
+        assert _seconds(entry, zone) == 0
+
     async def test_the_gap_narrows_as_the_decision_approaches(
         self, coordinator, utc_site
     ):
@@ -2924,6 +2941,57 @@ class TestADistributorMemberIsNotAnsweredFor:
 
         assert entry["estimated"] is False
         assert _run_of(entry, zone)["will_water"] is None
+
+    async def test_an_armed_members_only_run_keeps_its_start(
+        self, coordinator, utc_site
+    ):
+        """The pass-through fires the cycle at the target, so that is the start."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await _make_member(store, zone)
+        sensor = SmartIrrigationZoneNextIrrigationSensor(
+            c.hass, "sensor.si_next_irrigation", zone
+        )
+        await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+
+        with freeze_time(_utc(NEXT_RUN_DECISION)):
+            _as_of(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+            await sensor.async_update()
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["projection_state"] == "unknown"
+        assert attrs["projected_start_utc"] == _utc(NEXT_RUN_TARGET).isoformat()
+
+    @pytest.mark.parametrize(
+        ("until", "will_water"),
+        [(NEXT_RUN_TARGET + timedelta(hours=1), False), (NEXT_RUN_TARGET, None)],
+        ids=["standing_at_the_start", "lifted_by_the_start"],
+    )
+    async def test_a_rain_delay_over_an_armed_members_only_run_is_read_at_its_start(
+        self, coordinator, utc_site, until, will_water
+    ):
+        """Both holds are still standing at the decision point, so only the
+        run's start can tell them apart."""
+        c, store = coordinator
+        zone, manager = await _scheduled(c, store)
+        await _make_member(store, zone)
+        sensor = SmartIrrigationZoneNextIrrigationSensor(
+            c.hass, "sensor.si_next_irrigation", zone
+        )
+        await _arm_at(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+        await store.async_update_config(
+            {const.CONF_RAIN_DELAY_UNTIL: _utc(until).isoformat()}
+        )
+
+        with freeze_time(_utc(NEXT_RUN_DECISION)):
+            _as_of(c, store, zone, manager, _utc(NEXT_RUN_DECISION))
+            await sensor.async_update()
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["will_water"] is will_water
+        assert (const.SKIP_REASON_PAUSED in attrs["skip_reasons"]) is (
+            will_water is False
+        )
 
     @pytest.mark.parametrize("hold", ["rain_sensor", "rain_delay"])
     async def test_a_skipped_night_is_still_a_certain_no(

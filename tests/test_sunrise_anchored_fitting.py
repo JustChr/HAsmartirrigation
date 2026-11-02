@@ -605,7 +605,7 @@ class TestTheArmIsPublishedToTheProjection:
             )
 
         assert mgr._armed_runs["s1"]["zones"] == {}
-        assert mgr._armed_runs["s1"]["start_utc"] is None
+        assert mgr._armed_runs["s1"]["start_utc"] == target
 
     @pytest.mark.asyncio
     @freeze_time("2026-06-20 20:00:00")
